@@ -24,11 +24,7 @@ describe("ov.Model tests", () => {
   describe("Model.isDynamic()", () => {
     it("should return a boolean value type", () => {
       const result = model.isDynamic();
-      assert.strictEqual(
-        typeof result,
-        "boolean",
-        "isDynamic() should return a boolean value",
-      );
+      assert.strictEqual(typeof result, "boolean", "isDynamic() should return a boolean value");
     });
 
     it("should not accept any arguments", () => {
@@ -215,10 +211,7 @@ describe("ov.Model tests", () => {
     });
 
     it("should not accept empty arguments", () => {
-      assert.throws(
-        () => model.reshape(),
-        /'reshape' method called with incorrect parameters./,
-      );
+      assert.throws(() => model.reshape(), /'reshape' method called with incorrect parameters./);
     });
 
     it("test reshape with ports", () => {
@@ -226,10 +219,7 @@ describe("ov.Model tests", () => {
       const inputShapePairs = model.inputs.map((input) => [input, pShape14]);
       model.reshape(new Map(inputShapePairs));
       for (const modelInput of model.inputs) {
-        assert.deepStrictEqual(
-          modelInput.getPartialShape().toString(),
-          pShape14.toString(),
-        );
+        assert.deepStrictEqual(modelInput.getPartialShape().toString(), pShape14.toString());
       }
     });
 
@@ -242,10 +232,7 @@ describe("ov.Model tests", () => {
         ]),
       );
       for (const modelInput of model.inputs) {
-        assert.deepStrictEqual(
-          modelInput.getPartialShape().toString(),
-          pShape14.toString(),
-        );
+        assert.deepStrictEqual(modelInput.getPartialShape().toString(), pShape14.toString());
       }
     });
 
@@ -254,10 +241,7 @@ describe("ov.Model tests", () => {
       const shapesArr = model.inputs.map((input) => [input.anyName, pShape14]);
       model.reshape(new Map(shapesArr));
       for (const modelInput of model.inputs) {
-        assert.deepStrictEqual(
-          modelInput.getPartialShape().toString(),
-          pShape14.toString(),
-        );
+        assert.deepStrictEqual(modelInput.getPartialShape().toString(), pShape14.toString());
       }
     });
 
@@ -267,10 +251,7 @@ describe("ov.Model tests", () => {
       const shapesArr = model.inputs.map((input) => [input, newShape]);
       model.reshape(new Map(shapesArr), { [varId]: newShape });
       for (const modelInput of model.inputs) {
-        assert.deepStrictEqual(
-          modelInput.getPartialShape().toString(),
-          newShape.toString(),
-        );
+        assert.deepStrictEqual(modelInput.getPartialShape().toString(), newShape.toString());
       }
     });
 
@@ -285,10 +266,7 @@ describe("ov.Model tests", () => {
         { [varId]: pShape14 },
       );
       for (const modelInput of model.inputs) {
-        assert.deepStrictEqual(
-          modelInput.getPartialShape().toString(),
-          pShape14.toString(),
-        );
+        assert.deepStrictEqual(modelInput.getPartialShape().toString(), pShape14.toString());
       }
     });
 
@@ -297,10 +275,7 @@ describe("ov.Model tests", () => {
       const shapesArr = model.inputs.map((input) => [input.anyName, pShape14]);
       model.reshape(new Map(shapesArr), { [varId]: pShape14 });
       for (const modelInput of model.inputs) {
-        assert.deepStrictEqual(
-          modelInput.getPartialShape().toString(),
-          pShape14.toString(),
-        );
+        assert.deepStrictEqual(modelInput.getPartialShape().toString(), pShape14.toString());
       }
     });
   });

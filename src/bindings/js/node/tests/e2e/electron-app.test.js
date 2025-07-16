@@ -11,9 +11,7 @@ describe("E2E testing for OpenVINO as an Electron dependency.", function () {
 
   before(async () => {
     await downloadTestModel(testModels.testModelFP32);
-    await execPromise(
-      "cp -r ./tests/e2e/demo-electron-app/ demo-electron-app-project",
-    );
+    await execPromise("cp -r ./tests/e2e/demo-electron-app/ demo-electron-app-project");
   });
 
   it("should install dependencies", (done) => {

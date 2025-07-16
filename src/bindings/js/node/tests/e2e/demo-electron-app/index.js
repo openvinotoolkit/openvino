@@ -20,10 +20,7 @@ async function main() {
     const inferRequest = compiledModel.createInferRequest();
     console.log("Infer request created:", inferRequest);
 
-    const tensorData = Float32Array.from(
-      { length: 3072 },
-      () => Math.random() + epsilon,
-    );
+    const tensorData = Float32Array.from({ length: 3072 }, () => Math.random() + epsilon);
     const tensor = new ov.Tensor(ov.element.f32, [1, 3, 32, 32], tensorData);
     console.log("Tensor created:", tensor);
 

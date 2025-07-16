@@ -6,12 +6,7 @@ const fs = require("node:fs/promises");
 const { addon: ov } = require("../..");
 const assert = require("assert");
 const { describe, it, before, beforeEach } = require("node:test");
-const {
-  testModels,
-  isModelAvailable,
-  lengthFromShape,
-  generateImage,
-} = require("../utils.js");
+const { testModels, isModelAvailable, lengthFromShape, generateImage } = require("../utils.js");
 
 describe("ov.InferRequest tests", () => {
   const { testModelFP32 } = testModels;
@@ -29,16 +24,8 @@ describe("ov.InferRequest tests", () => {
     compiledModel = core.compileModelSync(model, "CPU");
 
     tensorData = generateImage(testModelFP32.inputShape);
-    tensor = new ov.Tensor(
-      ov.element.f32,
-      testModelFP32.inputShape,
-      tensorData,
-    );
-    resTensor = new ov.Tensor(
-      ov.element.f32,
-      testModelFP32.outputShape,
-      tensorData.slice(-10),
-    );
+    tensor = new ov.Tensor(ov.element.f32, testModelFP32.inputShape, tensorData);
+    resTensor = new ov.Tensor(ov.element.f32, testModelFP32.outputShape, tensorData.slice(-10));
     tensorLike = [tensor, tensorData];
   });
 
@@ -80,14 +67,8 @@ describe("ov.InferRequest tests", () => {
       const buffer = new ArrayBuffer(tensorData.length);
       const inputMessagePairs = [
         ["string", "Cannot create a tensor from the passed Napi::Value."],
-        [
-          tensorData.slice(-10),
-          /Memory allocated using shape and element::type mismatch/,
-        ],
-        [
-          new Float32Array(buffer, 4),
-          "TypedArray.byteOffset has to be equal to zero.",
-        ],
+        [tensorData.slice(-10), /Memory allocated using shape and element::type mismatch/],
+        [new Float32Array(buffer, 4), "TypedArray.byteOffset has to be equal to zero."],
         [{}, /Invalid argument/], // Test for object that is not Tensor
       ];
 
@@ -336,10 +317,7 @@ describe("ov.InferRequest tests with missing outputs names", () => {
 
     let modelData = await fs.readFile(modelV3Small.xml, "utf8");
     const weights = await fs.readFile(modelV3Small.bin);
-    modelData = modelData.replace(
-      'names="MobilenetV3/Predictions/Softmax:0"',
-      "",
-    );
+    modelData = modelData.replace('names="MobilenetV3/Predictions/Softmax:0"', "");
     const model = await core.readModel(Buffer.from(modelData, "utf8"), weights);
 
     compiledModel = await core.compileModel(model, "CPU");

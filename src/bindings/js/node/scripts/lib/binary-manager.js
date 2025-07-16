@@ -113,9 +113,7 @@ class BinaryManager {
     let tempDirectoryPath = null;
 
     try {
-      tempDirectoryPath = await fs.mkdtemp(
-        path.join(os.tmpdir(), "temp-ov-runtime-archive-"),
-      );
+      tempDirectoryPath = await fs.mkdtemp(path.join(os.tmpdir(), "temp-ov-runtime-archive-"));
 
       const filename = path.basename(archiveUrl);
 

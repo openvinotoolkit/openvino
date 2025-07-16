@@ -21,11 +21,7 @@ describe("ov.CompiledModel tests", () => {
     const properties = {
       AUTO_BATCH_TIMEOUT: "1",
     };
-    compiledModel = core.compileModelSync(
-      testModelFP32.xml,
-      "BATCH:CPU",
-      properties,
-    );
+    compiledModel = core.compileModelSync(testModelFP32.xml, "BATCH:CPU", properties);
   });
 
   describe("getProperty()", () => {
@@ -39,9 +35,7 @@ describe("ov.CompiledModel tests", () => {
       );
     });
     it("throws when called with property name that does not exists", () => {
-      assert.throws(() =>
-        compiledModel.getProperty("PROPERTY_THAT_DOES_NOT_EXIST"),
-      );
+      assert.throws(() => compiledModel.getProperty("PROPERTY_THAT_DOES_NOT_EXIST"));
     });
   });
 
@@ -67,10 +61,7 @@ describe("ov.CompiledModel tests", () => {
     it("throws an error when called with multiple arguments", () => {
       assert.throws(
         () =>
-          compiledModel.setProperty(
-            { PERFORMANCE_HINT: "THROUGHPUT" },
-            { NUM_STREAMS: "AUTO" },
-          ),
+          compiledModel.setProperty({ PERFORMANCE_HINT: "THROUGHPUT" }, { NUM_STREAMS: "AUTO" }),
         /'setProperty' method called with incorrect parameters/,
       );
     });

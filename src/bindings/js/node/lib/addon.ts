@@ -79,11 +79,7 @@ interface Core {
    * A synchronous version of {@link Core.compileModel}.
    * It creates a compiled model from a source model object.
    */
-  compileModelSync(
-    model: Model,
-    deviceName: string,
-    config?: Record<string, OVAny>,
-  ): CompiledModel;
+  compileModelSync(model: Model, deviceName: string, config?: Record<string, OVAny>): CompiledModel;
   /**
    * A synchronous version of {@link Core.compileModel}.
    * It reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -177,10 +173,7 @@ interface Core {
    * in the IR / ONNX / PDPD / TF or TFLite format.
    * @param weightsBuffer Binary data with tensor data.
    */
-  readModel(
-    modelBuffer: Uint8Array,
-    weightsBuffer?: Uint8Array,
-  ): Promise<Model>;
+  readModel(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
   /**
    * A synchronous version of {@link Core.readModel}.
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
@@ -434,11 +427,7 @@ interface Tensor {
    * @param tensorData A subclass of TypedArray that will be wrapped
    * by a {@link Tensor}.
    */
-  new (
-    type: element | elementTypeString,
-    shape: number[],
-    tensorData: SupportedTypedArray,
-  ): Tensor;
+  new (type: element | elementTypeString, shape: number[], tensorData: SupportedTypedArray): Tensor;
   /**
    * It constructs a tensor using the element type and shape. The strings from
    * the array are used to fill the new tensor. Each element of a string tensor

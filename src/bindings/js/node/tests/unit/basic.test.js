@@ -91,10 +91,7 @@ describe("ov basic tests.", () => {
       ).replace(/[()]/g, "\\$&");
 
       const noXmlPath = `${outDir}${model.getName()}_fp32`;
-      assert.throws(
-        () => ov.saveModelSync(model, noXmlPath),
-        new RegExp(expectedMsg),
-      );
+      assert.throws(() => ov.saveModelSync(model, noXmlPath), new RegExp(expectedMsg));
     });
   });
 
@@ -157,10 +154,7 @@ describe("ov basic tests.", () => {
         "- (Model, string, object)\n"
       ).replace(/[()]/g, "\\$&");
 
-      assert.throws(
-        () => core.compileModelSync(model, "CPU", "string"),
-        new RegExp(expectedMsg),
-      );
+      assert.throws(() => core.compileModelSync(model, "CPU", "string"), new RegExp(expectedMsg));
     });
 
     it("compileModelSync(model, device, invalidConfig) throws", () => {
@@ -181,10 +175,7 @@ describe("ov basic tests.", () => {
         "- (Model, string, object)\n"
       ).replace(/[()]/g, "\\$&");
 
-      assert.throws(
-        () => core.compileModelSync(model),
-        new RegExp(expectedMsg),
-      );
+      assert.throws(() => core.compileModelSync(model), new RegExp(expectedMsg));
     });
   });
 
@@ -232,17 +223,13 @@ describe("ov basic tests.", () => {
 
     it("compileModel(model, device, invalidConfig) throws", () => {
       assert.throws(
-        () =>
-          core.compileModel(model, "CPU", { PERFORMANCE_HINT: tput }).then(),
+        () => core.compileModel(model, "CPU", { PERFORMANCE_HINT: tput }).then(),
         /Cannot convert to ov::Any/,
       );
     });
 
     it("compileModel(model) throws with invalid number of args", () => {
-      assert.throws(
-        () => core.compileModel(model).then(),
-        /Invalid number of arguments/,
-      );
+      assert.throws(() => core.compileModel(model).then(), /Invalid number of arguments/);
     });
   });
 
@@ -290,10 +277,7 @@ describe("ov basic tests.", () => {
         assert.strictEqual(obj.input().anyName, "data");
 
         assert.deepStrictEqual(obj.input(0).shape, testModelFP32.inputShape);
-        assert.deepStrictEqual(
-          obj.input(0).getShape(),
-          testModelFP32.inputShape,
-        );
+        assert.deepStrictEqual(obj.input(0).getShape(), testModelFP32.inputShape);
       });
     });
   });
@@ -385,17 +369,12 @@ describe("ov basic tests.", () => {
     });
 
     it("Test importModel(stream, device, config)", () => {
-      core
-        .importModel(userStream, "CPU", { NUM_STREAMS: 1 })
-        .then((newCompiled) => {
-          const newInferRequest = newCompiled.createInferRequest();
-          const res2 = newInferRequest.infer([tensor]);
+      core.importModel(userStream, "CPU", { NUM_STREAMS: 1 }).then((newCompiled) => {
+        const newInferRequest = newCompiled.createInferRequest();
+        const res2 = newInferRequest.infer([tensor]);
 
-          assert.deepStrictEqual(
-            res1["fc_out"].data[0],
-            res2["fc_out"].data[0],
-          );
-        });
+        assert.deepStrictEqual(res1["fc_out"].data[0], res2["fc_out"].data[0]);
+      });
     });
 
     it("Test importModel(stream, device) throws", () => {

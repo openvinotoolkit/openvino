@@ -87,10 +87,7 @@ function sleep(ms) {
 }
 
 function lengthFromShape(shape) {
-  return shape.reduce(
-    (accumulator, currentValue) => accumulator * currentValue,
-    1,
-  );
+  return shape.reduce((accumulator, currentValue) => accumulator * currentValue, 1);
 }
 
 async function downloadTestModel(model) {
@@ -105,21 +102,11 @@ async function downloadTestModel(model) {
 
     const modelExists = await checkIfPathExists(model.xml);
     if (!modelExists)
-      await downloadFile(
-        model.xmlURL,
-        path.dirname(model.xml),
-        path.basename(model.xml),
-        proxyUrl,
-      );
+      await downloadFile(model.xmlURL, path.dirname(model.xml), path.basename(model.xml), proxyUrl);
 
     const weightsExists = await checkIfPathExists(model.bin);
     if (!weightsExists)
-      await downloadFile(
-        model.binURL,
-        path.dirname(model.bin),
-        path.basename(model.bin),
-        proxyUrl,
-      );
+      await downloadFile(model.binURL, path.dirname(model.bin), path.basename(model.bin), proxyUrl);
   } catch (error) {
     console.error(`Failed to download the model: ${error}.`);
     throw error;
@@ -130,19 +117,14 @@ async function isModelAvailable(model) {
   const modelExists = await checkIfPathExists(model.xml);
   if (modelExists) return;
 
-  console.log(
-    "\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n",
-  );
+  console.log("\n\nTestModel cannot be found.\nPlease run `npm run test_setup`.\n\n");
   process.exit(1);
 }
 
 function generateImage(shape = [1, 3, 32, 32]) {
   const lemm = lengthFromShape(shape);
   const epsilon = 0.5; // To avoid very small numbers
-  const tensorData = Float32Array.from(
-    { length: lemm },
-    () => Math.random() + epsilon,
-  );
+  const tensorData = Float32Array.from({ length: lemm }, () => Math.random() + epsilon);
 
   return tensorData;
 }
