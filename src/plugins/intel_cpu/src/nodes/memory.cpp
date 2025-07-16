@@ -589,13 +589,13 @@ void MemoryInputBase::assignState(MemStatePtr newState) {
 }
 
 void MemoryInputBase::execute(const dnnl::stream& strm) {
-    OPENVINO_DEBUG_ASSERT(executeHook && "executeHook is not initialized!");
+    OPENVINO_DEBUG_ASSERT(executeHook, "executeHook is not initialized!");
     (this->*executeHook)();
     runStatic(strm);
 }
 
 void MemoryInputBase::executeDynamicImpl(const dnnl::stream& strm) {
-    OPENVINO_DEBUG_ASSERT(executeHook && "executeHook is not initialized!");
+    OPENVINO_DEBUG_ASSERT(executeHook, "executeHook is not initialized!");
     (this->*executeHook)();
     runDynamic(strm);
 }
