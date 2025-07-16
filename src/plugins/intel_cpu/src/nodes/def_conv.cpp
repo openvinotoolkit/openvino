@@ -153,10 +153,10 @@ private:
     Vmm get_vmm_acc(int idx) {
         return Vmm(idx + jcp_.ur_w + 1);
     }
-    Ymm get_ymm_acc(int idx) {
+    Xbyak::Ymm get_ymm_acc(int idx) {
         return Ymm(idx + jcp_.ur_w + 1);
     }
-    Xmm get_xmm_acc(int idx) {
+    Xbyak::Xmm get_xmm_acc(int idx) {
         return Xmm(idx + jcp_.ur_w + 1);
     }
 
@@ -879,20 +879,11 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace(-1);
 
     impl_desc_type impl_type = impl_desc_type::ref;
-    const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
-    if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
-        // 1. strict fallback, until devising of multigroup handling in common case
-        defConvAttr.group != 1 ||
-        // 2. common fallback, except specific n_group / n_channel combinations
-        (defConvAttr.group != 1 &&
-         ((weiDims[1] % simd_w != 0)                                // in_channels_per_gr !% simd_w
-          || ((weiDims[0] / defConvAttr.group) % simd_w != 0)))) {  // out_channels_per_gr !% simd_w
-        enforceRef = true;
-    } else {
-        enforceRef = false;
-    }
+    const bool hasUndefinedDims = weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM;
+    const bool isMultiGroup = defConvAttr.group != 1;
+    enforceRef = hasUndefinedDims || isMultiGroup;
 
     if (enforceRef) {
         impl_type = impl_desc_type::ref;

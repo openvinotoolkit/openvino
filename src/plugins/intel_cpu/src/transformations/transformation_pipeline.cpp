@@ -88,6 +88,7 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/op_conversions/convert_avgpool_downgrade.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
+#include "transformations/op_conversions/convert_broadcast3.hpp"
 #include "transformations/op_conversions/convert_broadcast_to_tiles.hpp"
 #include "transformations/op_conversions/convert_depth_to_space.hpp"
 #include "transformations/op_conversions/convert_gather_downgrade.hpp"
@@ -106,14 +107,13 @@
 #include "transformations/op_conversions/convert_roi_align_v9_to_v3.hpp"
 #include "transformations/op_conversions/convert_scatter_nd_update15_downgrade.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
-#include "transformations/op_conversions/convert_shuffle_channels3.hpp"
+#include "transformations/op_conversions/convert_shapeof3.hpp"
 #include "transformations/op_conversions/convert_slice_to_strided_slice.hpp"
 #include "transformations/op_conversions/convert_slicescatter.hpp"
 #include "transformations/op_conversions/convert_space_to_batch.hpp"
 #include "transformations/op_conversions/convert_space_to_depth.hpp"
 #include "transformations/op_conversions/convert_ti_to_sequences.hpp"
 #include "transformations/op_conversions/convert_topk11_downgrade.hpp"
-#include "transformations/op_conversions/convert_topk3.hpp"
 #include "transformations/op_conversions/detection_output_downgrade.hpp"
 #include "transformations/op_conversions/detection_output_upgrade.hpp"
 #include "transformations/op_conversions/eye_decomposition.hpp"
@@ -128,11 +128,9 @@
 #include "transformations/op_conversions/rnn_cell_decomposition.hpp"
 #include "transformations/op_conversions/simplify_ctc_greedy_decoder_seq_len.hpp"
 #include "transformations/op_conversions/softmax_decomposition.hpp"
-#include "transformations/op_conversions/softplus_decomposition.hpp"
 #include "transformations/op_conversions/softsign_decomposition.hpp"
 #include "transformations/op_conversions/unique_decomposition.hpp"
 #include "transformations/opset_conversions/convert_opset2_to_opset1.hpp"
-#include "transformations/opset_conversions/convert_opset3_to_opset2.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
@@ -595,8 +593,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::WrapInterpolateIntoTransposes);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::TransposeSinking);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertSequenceToTensorIterator);
-    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertOpSet3ToOpSet2);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertOpSet2ToOpSet1);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertShapeOf3);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::LSTMCellDecomposition);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::GRUCellDecomposition);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::RNNCellDecomposition);
@@ -816,11 +814,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertCompressedOnlyToLegacy);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::EyeDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGELU);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertShuffleChannels3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::Gelu7Downgrade);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::SoftPlusDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertMod);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertShuffleChannels3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::WeightsDequantizeToFakeQuantize);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SimplifyCTCGreedyDecoderSeqLen);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGather7ToGather1);
@@ -834,7 +829,6 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertROIAlign9To3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::SoftSignDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::UniqueDecomposition);
-    CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertTopK11ToTopK3);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::HSwishDecomposition);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::MatMulConstTransposesExtraction);
@@ -1026,6 +1020,7 @@ void Transformations::PostLpt() {
 
     ov::pass::Manager postLPTPassManager("CPU:PostLPT");
     postLPTPassManager.set_per_pass_validation(false);
+    CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ConvertBroadcast3);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::UnrollTensorIterator);
     CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::ReshapePRelu);
     CPU_SET_CALLBACK_COMMON(
@@ -1469,9 +1464,7 @@ void Transformations::MainSnippets() {
                 const auto& output_shape = n->get_output_partial_shape(0);
                 if (output_shape.rank().get_length() != 2)
                     return true;
-                if (output_shape[1].is_dynamic() || output_shape[1].get_length() > 256)
-                    return true;
-                return false;
+                return output_shape[1].is_dynamic() || output_shape[1].get_length() > 256;
             },
             snippets::pass::TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_X64(
@@ -1499,9 +1492,7 @@ void Transformations::MainSnippets() {
                 });
             if (has_only_const_inputs)
                 return true;
-            if (!has_supported_tensors(n))
-                return true;
-            return false;
+            return !has_supported_tensors(n);
         },
         snippets::pass::TokenizeSnippets);
 
