@@ -134,6 +134,10 @@
 #    include "nodes/executors/shl/shl_eltwise.hpp"
 #endif
 
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_eltwise.hpp"
+#endif
+
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
 
@@ -738,7 +742,7 @@ public:
         }
 #elif defined(OPENVINO_ARCH_ARM64)
         if (mayiuse(aarch64::asimd)) {
-            _pKernel.reset(new jit_uni_eltwise_generic<aarch64::asimd>(jep, eltwise_data, ops_list, post_ops));
+            _pKernel = std::make_unique<jit_uni_eltwise_generic<aarch64::asimd>>(jep, eltwise_data, ops_list, post_ops);
         } else {
             OPENVINO_THROW("Can't create jit eltwise kernel");
         }
@@ -845,7 +849,7 @@ public:
                    Algorithm::EltwiseLog,
                    Algorithm::EltwiseBitwiseLeftShift,
                    Algorithm::EltwiseBitwiseRightShift)) {
-            return false;
+            return false;  // NOLINT(readability-simplify-boolean-expr) since no further checks on x64 are required
         }
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -928,15 +932,12 @@ public:
                 return false;
             }
 
-            if (std::any_of(output_precisions.begin(),
-                            output_precisions.end(),
-                            [&supported_output_precisions](const ov::element::Type& precision) {
-                                return supported_output_precisions.find(precision) == supported_output_precisions.end();
-                            })) {
-                return false;
-            }
-
-            return true;
+            return !std::any_of(output_precisions.begin(),
+                                output_precisions.end(),
+                                [&supported_output_precisions](const ov::element::Type& precision) {
+                                    return supported_output_precisions.find(precision) ==
+                                           supported_output_precisions.end();
+                                });
         };
 
         auto out_precisions = output_precisions.empty() ? node->getOriginalOutputPrecisions() : output_precisions;
@@ -1654,8 +1655,8 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        for (size_t i = 0; i < inputPrecisions.size(); i++) {
-            inputPrecisions[i] = filterPrecision(inputPrecisions[i], forcedPrec);
+        for (auto& inputPrecision : inputPrecisions) {
+            inputPrecision = filterPrecision(inputPrecision, forcedPrec);
         }
         outputPrecision = filterPrecision(outputPrecision, forcedPrec);
     } else {
@@ -1905,8 +1906,9 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     }
 
     canUseEltwiseExecPtr = !supportedPrimitiveDescriptors.empty() && useAcl;
-    if (!supportedPrimitiveDescriptors.empty())
+    if (!supportedPrimitiveDescriptors.empty()) {
         return;
+    }
 #endif
 
 #if defined(OV_CPU_WITH_SHL)
@@ -2440,6 +2442,8 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
     if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma(), input_precisions)) {
         return false;
     }
+
+    return true;
 #else
     const auto isSuitableParentNode = [](const Node* parentNode) {
         return parentNode->getType() == Type::Convert &&
@@ -2452,12 +2456,8 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
         return childNode->getParentEdges().size() != 2;
     };
 
-    if (!isSuitableParentNode(parentNode.get()) || !isSuitableChildNode(this)) {
-        return false;
-    }
+    return isSuitableParentNode(parentNode.get()) && isSuitableChildNode(this);
 #endif
-
-    return true;
 }
 
 bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
@@ -2491,11 +2491,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
             return false;
         }
 
-        if (!all_of_values(node->getOriginalInputPrecisions(), ov::element::i32)) {
-            return false;
-        }
-
-        return true;
+        return all_of_values(node->getOriginalInputPrecisions(), ov::element::i32);
     };
 
     if (!EltwiseJitExecutor::isSupportedOp(this, getAlpha(), getBeta(), getGamma())) {
@@ -2580,11 +2576,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
 
         // We can use optimized execution with fusions only in cases when dim rank is less or equal to the maximum
         // possible
-        if (node->getInputShapeAtPort(0).getRank() > MAX_ELTWISE_DIM_RANK) {
-            return false;
-        }
-
-        return true;
+        return node->getInputShapeAtPort(0).getRank() <= MAX_ELTWISE_DIM_RANK;
     }
 
     if (node->getType() == Type::FakeQuantize) {

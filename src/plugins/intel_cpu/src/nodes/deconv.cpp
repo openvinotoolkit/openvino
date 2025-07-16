@@ -57,7 +57,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OV_CPU_WITH_ACL)
-#    include "executors/acl/acl_utils.hpp"
+#    include "nodes/executors/acl/acl_deconv.hpp"
 #    include "utils/debug_capabilities.h"
 #endif
 
@@ -606,7 +606,7 @@ void Deconvolution::getSupportedDescriptors() {
     config.inConfs.resize(getParentEdges().size());
     config.outConfs.resize(getOriginalOutputsNumber());
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     auto checkDesc = [&](LayoutType format, LayoutType weights_format = LayoutType::ncsp) -> bool {
         NodeConfig config;
         config.inConfs.resize(getParentEdges().size());
@@ -641,8 +641,9 @@ void Deconvolution::getSupportedDescriptors() {
         return AclDeconvExecutorBuilder::customIsSupported(deconvAttrs, srcMemoryDescs, dstMemoryDescs);
     };
     useACL = checkDesc(LayoutType::nspc) || checkDesc(LayoutType::ncsp);
-    if (useACL)
+    if (useACL) {
         return;
+    }
 #endif
     dnnlCompatibleWeiDims = getWeightDims();
     // Construct the ONEDNN deconv OP weight shape.

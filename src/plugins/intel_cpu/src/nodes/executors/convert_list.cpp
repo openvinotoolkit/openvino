@@ -15,6 +15,10 @@
 #include "openvino/core/except.hpp"
 #include "utils/arch_macros.h"
 
+#if defined(OV_CPU_WITH_ACL)
+#    include "nodes/executors/acl/acl_convert.hpp"
+#endif
+
 namespace ov::intel_cpu {
 
 const std::vector<ConvertExecutorDesc>& getConvertExecutorsList() {

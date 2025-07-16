@@ -44,11 +44,10 @@ bool JitTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposePa
                                               [[maybe_unused]] const std::vector<MemoryDescPtr>& srcDescs,
                                               [[maybe_unused]] const std::vector<MemoryDescPtr>& dstDescs) const {
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(x64::sse41)) {
-        return true;
-    }
-#endif  // OPENVINO_ARCH_X86_64
+    return mayiuse(x64::sse41);
+#else
     return false;
+#endif  // OPENVINO_ARCH_X86_64
 }
 
 }  // namespace ov::intel_cpu

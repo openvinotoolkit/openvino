@@ -231,10 +231,7 @@ void Reorder::prepareParams() {
         if (!(desc.getType() & MemoryDescType::Blocked)) {
             return false;
         }
-        if ((desc.getType() & MemoryDescType::Dnnl) && !desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData()) {
-            return false;
-        }
-        return true;
+        return (desc.getType() & MemoryDescType::Dnnl) == 0 || desc.as<const DnnlMemoryDesc>()->hasEmptyExtraData();
     };
 
     const auto& parentDesc = srcMemPtr->getDescPtr();
@@ -247,7 +244,8 @@ void Reorder::prepareParams() {
         ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
          (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
         one_of(parentDesc->getShape().getRank(), 3u, 4u)) {
-        return prepareReorderAsTranspose(parentDesc, childDesc);
+        prepareReorderAsTranspose(parentDesc, childDesc);
+        return;
     }
 #endif
 
@@ -439,7 +437,8 @@ void Reorder::execute(const dnnl::stream& strm) {
     if (transposeExecutor) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
-        return transposeExecutor->exec({srcMemPtr}, {dstMemPtr});
+        transposeExecutor->exec({srcMemPtr}, {dstMemPtr});
+        return;
     }
 #endif
 
