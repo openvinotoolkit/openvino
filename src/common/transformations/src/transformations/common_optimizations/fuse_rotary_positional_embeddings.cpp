@@ -711,7 +711,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto x_even = pattern::wrap_type<v8::Gather>({reshape0, 0, -1}, {{"batch_dims", 0}});
     auto x_odd = pattern::wrap_type<v8::Gather>({reshape0, 1, -1}, {{"batch_dims", 0}});
 
-    auto var_split1 = pattern::wrap_type<v1::VariadicSplit>({cos_sin_cache, 0, {0, "end"}});
+    auto var_split1 = pattern::wrap_type<v1::VariadicSplit>({cos_sin_cache, 0, {"0", "end"}});
     var_split1->set_output_size(2);
 
     std::shared_ptr<ov::Node> reshape1 = nullptr;
