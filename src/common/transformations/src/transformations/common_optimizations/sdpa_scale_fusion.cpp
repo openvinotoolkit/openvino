@@ -24,23 +24,23 @@ SDPAScaleFusion::SDPAScaleFusion() {
     using namespace ov::pass::pattern;
     using namespace ov::gen_pattern;
 
-    auto q = makePattern(ov::Rank(4));
-    auto k = makePattern(ov::Rank(4));
-    auto v = makePattern(ov::Rank(4));
-    auto mask = makePattern();
-    auto sdpa_scale = makeConst({});
-    auto scale_q = makePattern("[]") | makePattern("[1]");
-    auto scale_k = makePattern("[]") | makePattern("[1]");
+    auto q = pattern::any_input(pattern::rank_equals(4));
+    auto k = pattern::any_input(pattern::rank_equals(4));
+    auto v = pattern::any_input(pattern::rank_equals(4));
+    auto mask = pattern::any_input();
+    auto sdpa_scale = pattern::wrap_const();
+    auto scale_q = pattern::any_input(pattern::shape_matches("[]") || pattern::shape_matches("[1]"));
+    auto scale_k = pattern::any_input(pattern::shape_matches("[]") || pattern::shape_matches("[1]"));
 
     auto scaled_q = optional<ov::op::v1::Multiply>({q, scale_q});
     auto scaled_k = optional<ov::op::v1::Multiply>({k, scale_k});
     auto sdpa_mask_scale =
-        makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
+        pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
                                                             {{"causal", false}});
     auto sdpa_mask =
-        makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
+        pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
     auto sdpa_simple =
-        makePattern<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
+        pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
