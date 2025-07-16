@@ -169,7 +169,8 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AssignRegisters::LinearScanOptimized")
         // Optimized O(n log n) register assignment using priority queue
         // Priority queue to track active intervals by end time
-        std::priority_queue<std::pair<double, Reg>, std::vector<std::pair<double, Reg>>, std::greater<>> active;
+        using QueueElem = std::pair<decltype(Expression().get_exec_num()), Reg>;
+        std::priority_queue<QueueElem, std::vector<QueueElem>, std::greater<>> active;
 
         // uniquely defined register => reused reg (reduced subset enabled by reg by reusage)
         std::map<Reg, Reg> register_map;
