@@ -263,7 +263,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         if (input_rank.is_dynamic())
             return false;
         auto axis = ov::util::try_normalize_axis(softmax->get_axis(), input_rank, *softmax);
-        return static_cast<int64_t>(input_rank.get_length() - 1) == axis;
+        return static_cast<size_t>(input_rank.get_length() - 1) == axis;
     });
     auto softmax_pred =
         axis_predicate && (shape_matches("..., H, S_q, S_kv") || shape_matches("S_q, S_kv")) && consumers_count(1);
