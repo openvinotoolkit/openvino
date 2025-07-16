@@ -289,7 +289,7 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 /// Erf ///
 jit_erf_emitter::jit_erf_emitter(ov::intel_cpu::riscv64::jit_generator* host,
                                  ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                 const std::shared_ptr<ov::Node>& node,
+                                 [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                  ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
