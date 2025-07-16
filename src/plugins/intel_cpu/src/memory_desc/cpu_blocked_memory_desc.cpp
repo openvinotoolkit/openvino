@@ -45,6 +45,10 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc,
         OPENVINO_THROW("CpuBlockedMemoryDesc do not support undefined order.");
     }
 
+    if (blockedDims.size() < shape.getRank()) {
+        OPENVINO_THROW("Can't create CpuBlockedMemoryDesc. Blocked dims has rank less than planar dims");
+    }
+
     if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) {
             return val == Shape::UNDEFINED_DIM;
         })) {
@@ -269,10 +273,7 @@ bool CpuBlockedMemoryDesc::isBlockedCFormat(size_t blk_size) const {
     if (order.back() != 1) {
         return false;
     }
-    if (blockedDims.back() != blk_size) {
-        return false;
-    }
-    return true;
+    return blockedDims.back() == blk_size;
 }
 
 bool CpuBlockedMemoryDesc::isTailCFormat() const {
@@ -285,10 +286,7 @@ bool CpuBlockedMemoryDesc::isTailCFormat() const {
     if (!std::is_sorted(order.begin(), --order.end())) {
         return false;
     }
-    if (order.back() != 1) {
-        return false;
-    }
-    return true;
+    return order.back() == 1;
 }
 
 MemoryDescPtr CpuBlockedMemoryDesc::cloneWithNewDimsImp(const VectorDims& dims) const {
