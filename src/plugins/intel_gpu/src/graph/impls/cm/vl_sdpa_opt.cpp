@@ -20,7 +20,7 @@ constexpr auto get_vlsdpa_build_options() {
     return " -cmc -Qxcm_register_file_size=256";
 }
 
-struct VLSDPARuntimeParams: public ImplRuntimeParams {
+struct VLSDPARuntimeParams : public ImplRuntimeParams {
     std::vector<int32_t> cu_seqlens;
 
     VLSDPARuntimeParams(std::vector<int32_t> seq) : cu_seqlens(std::move(seq)) {}
