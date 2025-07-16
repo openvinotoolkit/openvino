@@ -563,7 +563,7 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
         rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx), true);
         rewr.run_on_model(model);
 
-        if (!ctx.found_quant_gather()) {
+        if (!ctx.found_host_gather_quant()) {
             LOG_INFO("Couldn't match NPUW_HOST_GATHER_QUANT-related patterns. Enabling NPUW_HOST_GATHER instead.");
             std::map<std::string, std::string> host_gather_cfg;
             host_gather_cfg["NPUW_HOST_GATHER_QUANT"] = "NO";

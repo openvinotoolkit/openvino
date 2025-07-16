@@ -167,7 +167,7 @@ Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
     return new_param;
 }
 
-bool Context::found_quant_gather() {
+bool Context::found_host_gather_quant() {
     return params_to_quant_gather_unpack.has_value();
 }
 
@@ -1345,13 +1345,13 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
 
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
     auto qgthrz = opp::wrap_type<ov::op::v8::Gather>({qzerop, cvtids, opp::any_input()});
-    auto qgthrc = opp::wrap_type<ov::op::v8::Gather>({qcoeff, cvtids, opp::any_input()});
+    auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, cvtids, opp::any_input()});
 
-    auto qcvtgw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
-    auto qcvtgz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qgthrw});
+    auto qcvtz = opp::wrap_type<ov::op::v0::Convert>({qgthrz});
 
-    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtgw, qcvtgz});
-    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrc});
+    auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
+    auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1738,7 +1738,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 
 //     Const(W) -> to(f16) ->
 //     Const(Z) -> to(f16) -> Subtract ->
-//     Const(S) ------------------------> Multiply -> to(f32) -> MatMul -> to(type) -> Result
+//     Const(S) ------------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) ----------------------------------------------->
 
 PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep) {
