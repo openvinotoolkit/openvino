@@ -260,7 +260,8 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
     }
 
     if (!is_set_by_user(ov::hint::key_cache_quant_mode)) {
-        m_key_cache_quant_mode = ov::hint::CacheQuantMode::BY_TOKEN;
+        m_key_cache_quant_mode = ov::hint::CacheQuantMode::BY_CHANNEL;
+        std::cout << "Set key quant mode by channel" << std::endl;
     }
 
     if (!is_set_by_user(ov::hint::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::hint::CacheQuantMode::AUTO) {
