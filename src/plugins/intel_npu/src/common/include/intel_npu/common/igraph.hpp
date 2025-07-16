@@ -22,7 +22,9 @@ struct IONodeMetadata {
     IONodeMetadata(const ArgumentDescriptor& d);
     std::optional<ArgumentDescriptor> descriptor;
     std::optional<size_t> extract_batch(const ov::Shape& shape) const;
-    std::optional<size_t> extract_batch(const ov::Shape& shape, std::optional<ov::PartialShape> partial_shape) const;
+    std::optional<size_t> extract_batch(const ov::Shape& shape,
+                                        std::optional<ov::PartialShape> partial_shape_ir,
+                                        std::optional<ov::PartialShape> partial_shape_compiler) const;
 };
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
