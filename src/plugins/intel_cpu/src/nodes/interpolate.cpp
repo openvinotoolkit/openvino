@@ -151,7 +151,8 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 break;
             }
             default:
-                OPENVINO_DEBUG_ASSERT(false, "unsupported memory layout for interpolate layer with nearest neighbor mode.");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "unsupported memory layout for interpolate layer with nearest neighbor mode.");
             }
             break;
         }
@@ -195,7 +196,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 break;
             }
             default:
-                OPENVINO_DEBUG_ASSERT(false, "unsupported memory layout for interpolate layer with bilinear_pillow and bicubic_pillow modes.");
+                OPENVINO_DEBUG_ASSERT(
+                    false,
+                    "unsupported memory layout for interpolate layer with bilinear_pillow and bicubic_pillow modes.");
             }
             break;
         }

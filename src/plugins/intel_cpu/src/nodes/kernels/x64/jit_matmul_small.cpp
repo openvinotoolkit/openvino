@@ -3,7 +3,6 @@
 //
 
 #include "jit_matmul_small.hpp"
-#include "openvino/core/except.hpp"
 
 #include <xbyak/xbyak.h>
 
@@ -15,6 +14,7 @@
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl;

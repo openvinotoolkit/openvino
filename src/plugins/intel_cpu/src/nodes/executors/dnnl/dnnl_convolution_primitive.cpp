@@ -175,7 +175,8 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 // make a fake shape: N, C, W
 template <typename T>
 static std::vector<T> normalizeDims(const std::vector<T>& dims) {
-    OPENVINO_DEBUG_ASSERT(one_of(static_cast<int>(dims.size(, "Assertion failed: one_of(static_cast<int>(dims.size(")), 2, 3));
+    OPENVINO_DEBUG_ASSERT(
+        one_of(static_cast<int>(dims.size(, "Assertion failed: one_of(static_cast<int>(dims.size(")), 2, 3));
 
     if (dims.size() == 3) {
         return {dims[0], dims[2], dims[1]};

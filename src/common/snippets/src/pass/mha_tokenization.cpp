@@ -17,8 +17,8 @@
 
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/dimension.hpp"
-#include "openvino/core/node.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"

@@ -43,7 +43,8 @@ struct Indexer {
         int flat_idx = 0;
         OPENVINO_DEBUG_ASSERT(idx.size(, "Assertion failed: idx.size(") == dims_.size());
         for (size_t i = 0; i < dims_.size(); ++i) {
-            OPENVINO_DEBUG_ASSERT(0 <= idx[i] && idx[i] < dims_[i], "Assertion failed: 0 <= idx[i] && idx[i] < dims_[i]");
+            OPENVINO_DEBUG_ASSERT(0 <= idx[i] && idx[i] < dims_[i],
+                                  "Assertion failed: 0 <= idx[i] && idx[i] < dims_[i]");
             flat_idx = flat_idx * dims_[i] + idx[i];
         }
         OPENVINO_DEBUG_ASSERT(flat_idx < total_, "Assertion failed: flat_idx < total_");
@@ -299,8 +300,20 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
 
 void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    OPENVINO_DEBUG_ASSERT(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES, "Assertion failed: classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES")->getMemory().getStaticDims()[1]));
-    OPENVINO_DEBUG_ASSERT(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS, "Assertion failed: 4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS")->getMemory().getStaticDims()[1]));
+    OPENVINO_DEBUG_ASSERT(
+        classes_num_ ==
+        static_cast<int>(
+            getParentEdgeAt(INPUT_SCORES,
+                            "Assertion failed: classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES")
+                ->getMemory()
+                .getStaticDims()[1]));
+    OPENVINO_DEBUG_ASSERT(
+        4 * classes_num_ ==
+        static_cast<int>(
+            getParentEdgeAt(INPUT_DELTAS,
+                            "Assertion failed: 4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS")
+                ->getMemory()
+                .getStaticDims()[1]));
 
     const auto* boxes = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     const auto* deltas = getSrcDataAtPortAs<const float>(INPUT_DELTAS);

@@ -13,8 +13,8 @@
 #include <vector>
 
 #include "cpu_shape.h"
-#include "openvino/core/type/element_type.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 

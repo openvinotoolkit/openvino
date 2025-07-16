@@ -12,9 +12,9 @@
 
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/type_mask.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/precision_support.h"
-#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 

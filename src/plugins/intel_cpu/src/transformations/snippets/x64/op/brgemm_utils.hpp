@@ -10,13 +10,13 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "openvino/core/attribute_adapter.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
-#include "openvino/core/except.hpp"
 
 namespace ov {
 

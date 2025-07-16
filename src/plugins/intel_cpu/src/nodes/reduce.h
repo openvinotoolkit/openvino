@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/except.hpp"
 #include <common/primitive_attr.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -19,6 +18,7 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"

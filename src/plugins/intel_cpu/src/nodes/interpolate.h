@@ -17,8 +17,8 @@
 #include "executors/interpolate.hpp"
 #include "graph_context.h"
 #include "node.h"
-#include "openvino/core/node.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu::node {

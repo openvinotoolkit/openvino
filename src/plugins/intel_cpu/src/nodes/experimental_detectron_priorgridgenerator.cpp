@@ -70,7 +70,9 @@ void ExperimentalDetectronPriorGridGenerator::initSupportedPrimitiveDescriptors(
 
 void ExperimentalDetectronPriorGridGenerator::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int num_priors_ = getParentEdgeAt(INPUT_PRIORS)->getMemory().getStaticDims()[0];
-    OPENVINO_DEBUG_ASSERT(getParentEdgeAt(INPUT_PRIORS, "Assertion failed: getParentEdgeAt(INPUT_PRIORS")->getMemory().getStaticDims()[1] == 4);
+    OPENVINO_DEBUG_ASSERT(getParentEdgeAt(INPUT_PRIORS, "Assertion failed: getParentEdgeAt(INPUT_PRIORS")
+                              ->getMemory()
+                              .getStaticDims()[1] == 4);
 
     // Execute
     const int layer_width = grid_w_ ? grid_w_ : getParentEdgeAt(INPUT_FEATUREMAP)->getMemory().getStaticDims()[3];

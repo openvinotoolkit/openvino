@@ -3,11 +3,12 @@
 //
 
 #include "precision_matcher.hpp"
-#include "openvino/core/except.hpp"
 
 #include <algorithm>
+
 #include "nodes/executors/precision_translation.hpp"
 #include "nodes/executors/type_mask.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {

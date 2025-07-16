@@ -52,9 +52,11 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         });
     };
 
-    OPENVINO_DEBUG_ASSERT(std::all_of(supported_precision_intersection.begin(, "Assertion failed: std::all_of(supported_precision_intersection.begin("),
-                       supported_precision_intersection.end(),
-                       has_same_precision));
+    OPENVINO_DEBUG_ASSERT(std::all_of(
+        supported_precision_intersection.begin(,
+                                               "Assertion failed: std::all_of(supported_precision_intersection.begin("),
+        supported_precision_intersection.end(),
+        has_same_precision));
 
     for (size_t i = 1; i < eltwise_data.size(); ++i) {
         std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);

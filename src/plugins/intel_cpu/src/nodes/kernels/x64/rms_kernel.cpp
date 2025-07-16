@@ -44,7 +44,8 @@ template <cpu_isa_t isa>
 void jit_rms_kernel<isa>::reduce_xmm_to_scalar(const Xmm& acc,
                                                const Xmm& tmp,
                                                const std::size_t number_of_values_to_reduce) {
-    OPENVINO_DEBUG_ASSERT(number_of_values_to_reduce <= number_of_f32_in_xmm_, "Assertion failed: number_of_values_to_reduce <= number_of_f32_in_xmm_");
+    OPENVINO_DEBUG_ASSERT(number_of_values_to_reduce <= number_of_f32_in_xmm_,
+                          "Assertion failed: number_of_values_to_reduce <= number_of_f32_in_xmm_");
 
     const Xmm xmm_acc(acc.getIdx());
     const Xmm ymm_to_acc(tmp.getIdx());
@@ -63,7 +64,8 @@ void jit_rms_kernel<isa>::reduce_ymm_to_scalar(const Xbyak::Xmm& acc,
                                                const Xbyak::Xmm& tmp1,
                                                const Xbyak::Xmm& tmp2,
                                                const std::size_t number_of_values_to_reduce) {
-    OPENVINO_DEBUG_ASSERT(number_of_values_to_reduce <= number_of_f32_in_ymm_, "Assertion failed: number_of_values_to_reduce <= number_of_f32_in_ymm_");
+    OPENVINO_DEBUG_ASSERT(number_of_values_to_reduce <= number_of_f32_in_ymm_,
+                          "Assertion failed: number_of_values_to_reduce <= number_of_f32_in_ymm_");
 
     const Ymm ymm_acc(acc.getIdx());
     const Xmm xmm_acc(acc.getIdx());
@@ -89,7 +91,8 @@ void jit_rms_kernel<isa>::reduce_vmm_to_scalar(const Xbyak::Xmm& acc,
                                                const Xbyak::Xmm& tmp2,
                                                const Xbyak::Xmm& tmp3,
                                                const std::size_t number_of_values_to_reduce) {
-    OPENVINO_DEBUG_ASSERT(number_of_values_to_reduce <= number_of_f32_in_zmm_, "Assertion failed: number_of_values_to_reduce <= number_of_f32_in_zmm_");
+    OPENVINO_DEBUG_ASSERT(number_of_values_to_reduce <= number_of_f32_in_zmm_,
+                          "Assertion failed: number_of_values_to_reduce <= number_of_f32_in_zmm_");
 
     const Zmm zmm_acc(acc.getIdx());
     const Ymm ymm_acc(acc.getIdx());

@@ -9,12 +9,11 @@
 
 #include <cassert>
 #include <cpu/platform.hpp>
-
-#include "openvino/core/except.hpp"
 #include <cstring>
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/core/except.hpp"
 
 namespace dnnl::utils {
 

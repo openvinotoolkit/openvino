@@ -21,9 +21,9 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)

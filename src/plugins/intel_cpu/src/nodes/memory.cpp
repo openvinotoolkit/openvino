@@ -824,7 +824,8 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
                 const auto& childEdge = childEdges[j];
                 auto childEdgePtr = childEdge.lock();
                 OPENVINO_DEBUG_ASSERT(childEdgePtr, "Assertion failed: childEdgePtr");
-                OPENVINO_DEBUG_ASSERT(0 == childEdgePtr->getInputNum(, "Assertion failed: 0 == childEdgePtr->getInputNum("));
+                OPENVINO_DEBUG_ASSERT(0 ==
+                                      childEdgePtr->getInputNum(, "Assertion failed: 0 == childEdgePtr->getInputNum("));
                 childEdgePtr->getMemoryPtr()->redefineDesc(src->getDescPtr());
             }
         } else {
