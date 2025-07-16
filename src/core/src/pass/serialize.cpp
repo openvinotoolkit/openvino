@@ -1367,8 +1367,8 @@ pass::Serialize::Serialize(const std::filesystem::path& xmlPath, const std::file
       m_binPath{provide_bin_path(xmlPath, binPath)},
       m_version{version} {}
 
-pass::Serialize::Serialize(std::ostream& xmlFile, pass::Serialize::Version version)
-    : m_xmlFile{&xmlFile},
+pass::Serialize::Serialize(std::stringstream& xmlStream, pass::Serialize::Version version)
+    : m_xmlFile{&xmlStream},
       m_binFile{nullptr},
       m_weightsToXml(true),
       m_version{version} {}

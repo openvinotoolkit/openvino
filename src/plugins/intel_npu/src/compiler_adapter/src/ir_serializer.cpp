@@ -33,10 +33,9 @@ IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
 
     if (_serializeWeightsPtrToXml) {
         // Serialize directly to avoid size counter
-        std::stringstream xmlStream;
+        std::ofstream xmlStream;
         std::ofstream weightsStream;
         serializeModelToStream(xmlStream, weightsStream);
-        _xmlString = xmlStream.str();
     } else {
         countModelSize();
     }
@@ -46,6 +45,7 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
+    std::stringstream xmlStream;
 
     if (_supportedOpset < 11) {
         // Downgrade to opset10
@@ -60,7 +60,7 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     } else {
         _logger.debug("serialize weights pointer to xml");
         // If weights map is provided, we serialize to the map
-        manager.register_pass<ov::pass::Serialize>(xml);
+        manager.register_pass<ov::pass::Serialize>(xmlStream);
     }
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
@@ -88,6 +88,9 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
         auto& rtInfo = _model->get_rt_info();
         rtInfo.erase(newAPIKey);
         rtInfo.erase(useIndicesForIOMetadata);
+    }
+    if (_serializeWeightsPtrToXml) {
+        _xmlString = xmlStream.str();
     }
     _logger.debug("serializeModelToStream end");
 }
