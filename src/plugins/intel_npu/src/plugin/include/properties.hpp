@@ -77,8 +77,8 @@ private:
         ov::intel_npu::compiler_type.name(),
         ov::intel_npu::batch_mode.name(),
         ov::hint::execution_mode.name(),
-        // NPUW caching properties
         ov::cache_mode.name(),
+        // NPUW caching properties
         ov::intel_npu::use_npuw.name(),
         ov::intel_npu::npuw::devices.name(),
         ov::intel_npu::npuw::submodel_device.name(),

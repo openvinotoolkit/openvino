@@ -13,7 +13,6 @@
 #include "intel_npu/config/options.hpp"
 #include "metadata.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
@@ -88,10 +87,12 @@ std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request(
 
 void CompiledModel::export_model(std::ostream& stream) const {
     _logger.debug("CompiledModel::export_model");
-    size_t blobSizeBeforeVersioning = _graph->export_blob(stream);
 
-    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizeBeforeVersioning, CURRENT_OPENVINO_VERSION);
+    auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
+
+    auto meta = Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes);
     meta.write(stream);
+    meta.append_blob_size_and_magic(stream);
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
