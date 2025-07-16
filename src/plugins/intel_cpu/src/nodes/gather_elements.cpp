@@ -6,7 +6,6 @@
 
 #include <cmath>
 #include <cstddef>
-#include <cstdlib>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -119,7 +118,8 @@ void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {
 namespace helpers {
 static int HandleNegativeIndices(const int* indices, int idx, int axisDimSize) {
     const int index = indices[idx];
-    OPENVINO_ASSERT(std::abs(index) < axisDimSize, "indices values of GatherElement exceed data size");
+    OPENVINO_ASSERT(index < axisDimSize, "indices values of GatherElement exceed data size (>= axisDimSize)");
+    OPENVINO_ASSERT(index >= -axisDimSize, "indices values of GatherElement exceed data size (< -axisDimSize)");
     const int fixedIdx = index < 0 ? axisDimSize + index : index;
     return fixedIdx;
 }

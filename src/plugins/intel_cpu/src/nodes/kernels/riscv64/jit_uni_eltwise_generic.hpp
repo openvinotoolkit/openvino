@@ -72,14 +72,14 @@ private:
 
     Xbyak_riscv::Reg src_gpr(const int idx) const {
         // x18-24
-        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS, "src reg " + std::to_string(idx) + " is not supported");
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < MAX_ELTWISE_INPUTS, "src reg " + std::to_string(idx) + " is not supported");
         const auto start = 18;
         return Xbyak_riscv::Reg(start + idx);
     }
 
     Xbyak_riscv::Reg src_aux_gpr(const int idx) const {
         // saved registers: x[18 + input_number]-x[18 + input_number + MAX_ELTWISE_INPUTS], in max case x25-x31
-        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS,
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < MAX_ELTWISE_INPUTS,
                         "src aux reg " + std::to_string(idx) + " is not supported");
         const auto start = static_cast<size_t>(src_gpr(0).getIdx()) + jep_.inputs_number;
         return Xbyak_riscv::Reg(start + idx);
@@ -100,7 +100,7 @@ private:
     }
 
     Xbyak_riscv::FReg aux_fp_gpr(const int idx) const {
-        OPENVINO_ASSERT(idx >= 0 && idx < static_cast<int>(fp_gpr_count),
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < fp_gpr_count,
                         "Cannot allocate aux fp register for emitter!");
         return Xbyak_riscv::FReg(idx);
     }
@@ -117,7 +117,7 @@ private:
     }
 
     Xbyak_riscv::VReg src_vec(const int idx) const {
-        OPENVINO_ASSERT(idx >= 0 && idx < MAX_ELTWISE_INPUTS,
+        OPENVINO_ASSERT(static_cast<size_t>(idx) < MAX_ELTWISE_INPUTS,
                         "src aux reg " + std::to_string(idx) + " is not supported");
         const auto lmul_v = static_cast<int>(lmul2float(exec_lmul));
         // v0 and v[lmul] - mask and dst registers
