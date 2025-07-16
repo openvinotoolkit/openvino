@@ -41,12 +41,20 @@ struct Indexer {
 
     int operator()(const std::vector<int>& idx) const {
         int flat_idx = 0;
-        OPENVINO_DEBUG_ASSERT(idx.size() == dims_.size(), "Size of idx must match size of dims_");
+        OPENVINO_DEBUG_ASSERT(idx.size() == dims_.size(),
+                              "Size of idx must match size of dims_: idx.size()=",
+                              idx.size(),
+                              ", dims_.size()=",
+                              dims_.size());
         for (size_t i = 0; i < dims_.size(); ++i) {
-            OPENVINO_DEBUG_ASSERT(0 <= idx[i] && idx[i] < dims_[i], "Index out of bounds");
+            OPENVINO_DEBUG_ASSERT(0 <= idx[i] && idx[i] < dims_[i],
+                                  "Index out of bounds: idx[i]=",
+                                  idx[i],
+                                  ", dims_[i]=",
+                                  dims_[i]);
             flat_idx = flat_idx * dims_[i] + idx[i];
         }
-        OPENVINO_DEBUG_ASSERT(flat_idx < total_, "Flat index out of bounds");
+        OPENVINO_DEBUG_ASSERT(flat_idx < total_, "Flat index out of bounds: flat_idx=", flat_idx, ", total_=", total_);
         return flat_idx;
     }
 };

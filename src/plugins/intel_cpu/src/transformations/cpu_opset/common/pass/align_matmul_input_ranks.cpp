@@ -49,8 +49,12 @@ ov::intel_cpu::AlignMatMulInputRanks::AlignMatMulInputRanks() {
         const auto& input1shape = input1.get_partial_shape();
         const auto& output_shape = matmul->get_output_partial_shape(0);
 
-        OPENVINO_DEBUG_ASSERT(input0shape.rank().is_static());
-        OPENVINO_DEBUG_ASSERT(input1shape.rank().is_static());
+        OPENVINO_DEBUG_ASSERT(input0shape.rank().is_static(),
+                              "Input0 rank is not static: input0shape.rank()=",
+                              input0shape.rank());
+        OPENVINO_DEBUG_ASSERT(input1shape.rank().is_static(),
+                              "Input1 rank is not static: input1shape.rank()=",
+                              input1shape.rank());
 
         const bool transposedUnsqueeze = input1shape.size() == 1;
 

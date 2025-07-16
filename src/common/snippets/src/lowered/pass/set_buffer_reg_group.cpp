@@ -33,7 +33,9 @@ inline size_t index(size_t col_num, size_t row, size_t col) {
 
 size_t SetBufferRegGroup::get_buffer_idx(const BufferExpressionPtr& target, const BufferPool& pool) {
     const auto iter = std::find(pool.cbegin(), pool.cend(), target);
-    OPENVINO_DEBUG_ASSERT(iter != pool.cend(), "Buffer wasn't find in Buffer system of Subgraph");
+    OPENVINO_DEBUG_ASSERT(iter != pool.cend(),
+                          "Buffer wasn't find in Buffer system of Subgraph: buffer=",
+                          target.get());
     return std::distance(pool.cbegin(), iter);
 }
 

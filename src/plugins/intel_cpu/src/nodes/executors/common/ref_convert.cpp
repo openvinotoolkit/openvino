@@ -29,8 +29,8 @@ bool CommonConvertExecutor::init(const ConvertParams& convertParams,
 }
 
 void CommonConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    OPENVINO_DEBUG_ASSERT(src.size() == 1, "Expected single src tensor");
-    OPENVINO_DEBUG_ASSERT(dst.size() == 1, "Expected single dst tensor");
+    OPENVINO_DEBUG_ASSERT(src.size() == 1, "Expected single src tensor: src.size()=", src.size());
+    OPENVINO_DEBUG_ASSERT(dst.size() == 1, "Expected single dst tensor: dst.size()=", dst.size());
 
     cpu_convert(src[0]->getData(),
                 dst[0]->getData(),

@@ -29,7 +29,7 @@ namespace ov::intel_cpu {
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
-    OPENVINO_DEBUG_ASSERT(b > 0, "Divisor must be greater than zero");
+    OPENVINO_DEBUG_ASSERT(b > 0, "Divisor must be greater than zero, got b=", b);
     return (a + b - 1) / b;
 }
 

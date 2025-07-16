@@ -63,7 +63,7 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
     auto data_dim_it = data_shape.cend() - spatial_num;
 
     const auto ceil_div = [](const auto& x, const auto& y) {
-        OPENVINO_DEBUG_ASSERT(y > 0);
+        OPENVINO_DEBUG_ASSERT(y > 0, "Divisor must be positive: y=", y);
         return (x == 0 ? 0 : (1 + (x - 1) / y));
     };
 
@@ -90,7 +90,9 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
 
 Result ConvolutionShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                     const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) {
-    OPENVINO_DEBUG_ASSERT(input_shapes.size() >= 2);
+    OPENVINO_DEBUG_ASSERT(input_shapes.size() >= 2,
+                          "Insufficient input shapes: input_shapes.size()=",
+                          input_shapes.size());
     const auto& data_shape = input_shapes[0].get();
     const auto& filters_shape = input_shapes[1].get();
 

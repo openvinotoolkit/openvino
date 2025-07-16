@@ -1094,7 +1094,7 @@ private:
             shl(reg_out, 2);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "incorrect data size rate");
+            OPENVINO_DEBUG_ASSERT(false, "incorrect data size rate: rate=", rate);
         }
     }
 
@@ -1109,7 +1109,7 @@ private:
             shr(reg_out, 2);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "incorrect data size rate");
+            OPENVINO_DEBUG_ASSERT(false, "incorrect data size rate: rate=", rate);
         }
     }
 
@@ -1123,7 +1123,7 @@ private:
             shr(reg_out, 4);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "incorrect blk_size");
+            OPENVINO_DEBUG_ASSERT(false, "incorrect blk_size: blk_size=", blk_size);
         }
     }
 
@@ -1138,7 +1138,7 @@ private:
             shl(reg_tmp_64, 4);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "incorrect blk_size");
+            OPENVINO_DEBUG_ASSERT(false, "incorrect blk_size: blk_size=", blk_size);
         }
         sub(reg_out, reg_tmp_64);
     }
@@ -1820,7 +1820,7 @@ private:
             uni_vmovq(xmm_src, reg_tmp_64);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: src_dt=", static_cast<int>(src_dt));
         }
 
         if (cvt_dt && !isFloatCompatible(src_dt)) {

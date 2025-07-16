@@ -34,14 +34,22 @@ std::shared_ptr<Expression> ExpressionPort::get_expr() const {
 const PortDescriptorPtr& ExpressionPort::get_descriptor_ptr() const {
     const auto& descs =
         m_type == Type::Input ? get_expr()->m_input_port_descriptors : get_expr()->m_output_port_descriptors;
-    OPENVINO_DEBUG_ASSERT(m_port_index < descs.size(), "Incorrect index of port");
+    OPENVINO_DEBUG_ASSERT(m_port_index < descs.size(),
+                          "Incorrect index of port: ",
+                          m_port_index,
+                          ", size: ",
+                          descs.size());
     return descs[m_port_index];
 }
 
 const std::shared_ptr<PortConnector>& ExpressionPort::get_port_connector_ptr() const {
     const auto& connectors =
         m_type == Type::Input ? get_expr()->m_input_port_connectors : get_expr()->m_output_port_connectors;
-    OPENVINO_DEBUG_ASSERT(m_port_index < connectors.size(), "Incorrect index of port");
+    OPENVINO_DEBUG_ASSERT(m_port_index < connectors.size(),
+                          "Incorrect index of port: ",
+                          m_port_index,
+                          ", size: ",
+                          connectors.size());
     return connectors[m_port_index];
 }
 

@@ -112,7 +112,7 @@ std::shared_ptr<DnnlFCPrimitive> DnnlFCPrimitive::create(const MemoryArgs& memor
     auto runtimeCache = context->getRuntimeCache();
     const auto result = runtimeCache->getOrCreate(dnnlFCKey, builder);
     const auto& primitive = result.first;
-    OPENVINO_DEBUG_ASSERT(primitive, "Failed to create DnnlFCPrimitive");
+    OPENVINO_DEBUG_ASSERT(primitive, "Failed to create DnnlFCPrimitive: primitive=", primitive.get());
 
     return primitive;
 }

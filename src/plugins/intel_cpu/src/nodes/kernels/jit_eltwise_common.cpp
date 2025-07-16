@@ -52,10 +52,12 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         });
     };
 
-    OPENVINO_DEBUG_ASSERT(std::all_of(supported_precision_intersection.begin(),
-                                      supported_precision_intersection.end(),
-                                      has_same_precision),
-                          "for element-wise nodes all precisions have to be equal");
+    OPENVINO_DEBUG_ASSERT(
+        std::all_of(supported_precision_intersection.begin(),
+                    supported_precision_intersection.end(),
+                    has_same_precision),
+        "for element-wise nodes all precisions have to be equal: supported_precision_intersection.size()=",
+        supported_precision_intersection.size());
 
     for (size_t i = 1; i < eltwise_data.size(); ++i) {
         std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);

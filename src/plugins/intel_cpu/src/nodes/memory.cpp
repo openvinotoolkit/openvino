@@ -824,7 +824,9 @@ void MemoryInput::runDynamic([[maybe_unused]] dnnl::stream strm) {
                 const auto& childEdge = childEdges[j];
                 auto childEdgePtr = childEdge.lock();
                 OPENVINO_DEBUG_ASSERT(childEdgePtr, "child edge is not valid");
-                OPENVINO_DEBUG_ASSERT(0 == childEdgePtr->getInputNum(), "childEdgePtr->getInputNum() must be 0");
+                OPENVINO_DEBUG_ASSERT(0 == childEdgePtr->getInputNum(),
+                                      "childEdgePtr->getInputNum() must be 0, got: ",
+                                      childEdgePtr->getInputNum());
                 childEdgePtr->getMemoryPtr()->redefineDesc(src->getDescPtr());
             }
         } else {

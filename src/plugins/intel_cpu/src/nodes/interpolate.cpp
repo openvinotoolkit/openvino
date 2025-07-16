@@ -152,7 +152,8 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             }
             default:
                 OPENVINO_DEBUG_ASSERT(false,
-                                      "unsupported memory layout for interpolate layer with nearest neighbor mode.");
+                                      "unsupported memory layout for interpolate layer with nearest neighbor mode: ",
+                                      jcp_.layout);
             }
             break;
         }
@@ -168,7 +169,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 break;
             }
             default:
-                OPENVINO_DEBUG_ASSERT(false, "unsupported memory layout for interpolate layer with linear_onnx mode.");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "unsupported memory layout for interpolate layer with linear_onnx mode: ",
+                                      jcp_.layout);
             }
             break;
         }
@@ -184,7 +187,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 break;
             }
             default:
-                OPENVINO_DEBUG_ASSERT(false, "unsupported memory layout for interpolate layer with cubic mode.");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "unsupported memory layout for interpolate layer with cubic mode: ",
+                                      jcp_.layout);
             }
             break;
         }
@@ -203,11 +208,13 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
             break;
         }
         case InterpolateMode::linear: {
-            OPENVINO_DEBUG_ASSERT(false, "unsupported mode for interpolate layer with JITTED implementation.");
+            OPENVINO_DEBUG_ASSERT(false,
+                                  "unsupported mode for interpolate layer with JITTED implementation: ",
+                                  jcp_.mode);
             break;
         }
         default: {
-            OPENVINO_DEBUG_ASSERT(false, "unsupported mode for interpolate layer.");
+            OPENVINO_DEBUG_ASSERT(false, "unsupported mode for interpolate layer: ", jcp_.mode);
         }
         }
 

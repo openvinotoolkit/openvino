@@ -80,8 +80,8 @@ bool ACLConvertExecutor::init(const ConvertParams& convertParams,
 }
 
 void ACLConvertExecutor::exec(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst) {
-    OPENVINO_DEBUG_ASSERT(src.size() == 1, "Expected single src tensor");
-    OPENVINO_DEBUG_ASSERT(dst.size() == 1, "Expected single dst tensor");
+    OPENVINO_DEBUG_ASSERT(src.size() == 1, "Expected single src tensor: src.size()=", src.size());
+    OPENVINO_DEBUG_ASSERT(dst.size() == 1, "Expected single dst tensor: dst.size()=", dst.size());
 
     srcTensor.allocator()->import_memory(src[0]->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());

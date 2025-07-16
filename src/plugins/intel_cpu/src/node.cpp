@@ -213,7 +213,11 @@ Node::Node(const std::string& type,
 void Node::addEdge(const EdgePtr& edge) {
     auto parent = edge->getParent();
     auto child = edge->getChild();
-    OPENVINO_DEBUG_ASSERT(parent && child);
+    OPENVINO_DEBUG_ASSERT(parent && child,
+                          "Invalid parent/child nodes: parent=",
+                          parent.get(),
+                          ", child=",
+                          child.get());
 
     parent->addChildEdge(edge);
     child->addParentEdge(edge);

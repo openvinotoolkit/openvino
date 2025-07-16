@@ -79,7 +79,11 @@ ov::RTMap& MarkInvariantShapePath::get_rt_info(const ExpressionPort& port) {
         port.get_type() == ExpressionPort::Input ? port.get_port_connector_ptr()->get_source() : port;
     const auto& node = source_port.get_expr()->get_node();
     const auto port_idx = source_port.get_index();
-    OPENVINO_DEBUG_ASSERT(port_idx < node->get_output_size(), "Node has incompatible port count with the expression");
+    OPENVINO_DEBUG_ASSERT(port_idx < node->get_output_size(),
+                          "Node has incompatible port count with the expression: port_idx=",
+                          port_idx,
+                          ", node->get_output_size()=",
+                          node->get_output_size());
     return node->output(port_idx).get_rt_info();
 }
 

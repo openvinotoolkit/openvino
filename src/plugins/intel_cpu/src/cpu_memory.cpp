@@ -691,7 +691,13 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
         return ptr;
     }
-    OPENVINO_DEBUG_ASSERT(static_cast<int>(dims[dim]) >= w_size);
+    OPENVINO_DEBUG_ASSERT(static_cast<int>(dims[dim]) >= w_size,
+                          "Dimension size too small: dims[",
+                          dim,
+                          "]=",
+                          dims[dim],
+                          ", w_size=",
+                          w_size);
     auto splited_dim_vec = split_parts(dims[dim], w_size);
 
     // reference stride
@@ -752,7 +758,13 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         MemoryPtr ptr = std::make_shared<Memory>(eng, new_desc);
         return ptr;
     }
-    OPENVINO_DEBUG_ASSERT(static_cast<int>(dims[dim]) >= w_size);
+    OPENVINO_DEBUG_ASSERT(static_cast<int>(dims[dim]) >= w_size,
+                          "Dimension size too small: dims[",
+                          dim,
+                          "]=",
+                          dims[dim],
+                          ", w_size=",
+                          w_size);
     const auto splited_size = dims[dim] * prec.size();
     auto splited_dim_vec = split_parts(dims[dim], w_size);
     auto element_size = prec.size();

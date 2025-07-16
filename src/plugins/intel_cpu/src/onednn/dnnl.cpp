@@ -126,7 +126,7 @@ dnnl::memory::format_tag str2fmt(const char* str) {
     CASE(ldgoi);
     CASE(ldgo);
 #undef CASE
-    OPENVINO_DEBUG_ASSERT(false, "unknown memory format");
+    OPENVINO_DEBUG_ASSERT(false, "unknown memory format: str=", str);
     return dnnl::memory::format_tag::undef;
 }
 

@@ -368,7 +368,10 @@ const std::vector<UnifiedLoopInfo::LoopPortDesc>& UnifiedLoopInfo::get_output_po
 
 std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_input_ports_info() const {
     OPENVINO_DEBUG_ASSERT(m_input_ports.size() == m_input_port_descs.size(),
-                          "Incompatible count of input port and descs");
+                          "Incompatible count of input port and descs: ports=",
+                          m_input_ports.size(),
+                          ", descs=",
+                          m_input_port_descs.size());
     std::vector<UnifiedLoopInfo::LoopPortInfo> info(get_input_count());
     for (size_t i = 0; i < get_input_count(); ++i) {
         info[i] = {m_input_ports[i], m_input_port_descs[i]};
@@ -378,7 +381,10 @@ std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_input_ports_info
 
 std::vector<UnifiedLoopInfo::LoopPortInfo> UnifiedLoopInfo::get_output_ports_info() const {
     OPENVINO_DEBUG_ASSERT(m_output_ports.size() == m_output_port_descs.size(),
-                          "Incompatible count of output port and descs");
+                          "Incompatible count of output port and descs: ports=",
+                          m_output_ports.size(),
+                          ", descs=",
+                          m_output_port_descs.size());
     std::vector<UnifiedLoopInfo::LoopPortInfo> info(get_output_count());
     for (size_t i = 0; i < get_output_count(); ++i) {
         info[i] = {m_output_ports[i], m_output_port_descs[i]};

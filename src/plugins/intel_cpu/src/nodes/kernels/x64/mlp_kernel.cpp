@@ -328,8 +328,8 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
         return;
     }
 
-    OPENVINO_DEBUG_ASSERT(K <= 32, "K must be less than or equal to 32");
-    OPENVINO_DEBUG_ASSERT(N <= 16, "N must be less than or equal to 16");
+    OPENVINO_DEBUG_ASSERT(K <= 32, "K must be less than or equal to 32: K=", K);
+    OPENVINO_DEBUG_ASSERT(N <= 16, "N must be less than or equal to 16: N=", N);
     int k = 0;
     Tdst zero(0.0F);
     for (; k < 32; k += 2) {
@@ -355,8 +355,8 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         return;
     }
 
-    OPENVINO_DEBUG_ASSERT(K <= 64, "K must be less than or equal to 64");
-    OPENVINO_DEBUG_ASSERT(N <= 16, "N must be less than or equal to 16");
+    OPENVINO_DEBUG_ASSERT(K <= 64, "K must be less than or equal to 64: K=", K);
+    OPENVINO_DEBUG_ASSERT(N <= 16, "N must be less than or equal to 16: N=", N);
     for (int k = 0; k < 64; k += 4) {
         bool is_k0_valid = (k) < K;
         bool is_k1_valid = (k + 1) < K;
@@ -539,7 +539,7 @@ void MKernel::run(int M,  // actual M
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) const {
-    OPENVINO_DEBUG_ASSERT(static_cast<int64_t>(BM) <= M, "BM exceeds M");
+    OPENVINO_DEBUG_ASSERT(static_cast<int64_t>(BM) <= M, "BM exceeds M: BM=", BM, ", M=", M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0};
         size_t end{0};
@@ -557,7 +557,7 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
 }
 
 void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) const {
-    OPENVINO_DEBUG_ASSERT(static_cast<int64_t>(BM) <= M, "BM exceeds M");
+    OPENVINO_DEBUG_ASSERT(static_cast<int64_t>(BM) <= M, "BM exceeds M: BM=", BM, ", M=", M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
         size_t start{0};
         size_t end{0};

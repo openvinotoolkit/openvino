@@ -176,7 +176,8 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 template <typename T>
 static std::vector<T> normalizeDims(const std::vector<T>& dims) {
     OPENVINO_DEBUG_ASSERT(one_of(static_cast<int>(dims.size()), 2, 3),
-                          "dims.size() must be 2 or 3, but got " + std::to_string(dims.size()));
+                          "dims.size() must be 2 or 3, but got dims.size()=",
+                          dims.size());
 
     if (dims.size() == 3) {
         return {dims[0], dims[2], dims[1]};
@@ -872,7 +873,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     auto runtimeCache = context->getRuntimeCache();
     const auto result = runtimeCache->getOrCreate(dnnlConvKey, builder);
     const auto& primitive = result.first;
-    OPENVINO_DEBUG_ASSERT(primitive, "failed to create a DnnlConvolutionPrimitive");
+    OPENVINO_DEBUG_ASSERT(primitive, "failed to create a DnnlConvolutionPrimitive: primitive=", primitive.get());
 
     return primitive;
 }

@@ -241,9 +241,13 @@ public:
     void remove();
 
     void addParentEdge(const EdgePtr& edge) {
-        OPENVINO_DEBUG_ASSERT(std::none_of(parentEdges.begin(), parentEdges.end(), [&edge](const EdgeWeakPtr& _edge) {
-            return _edge.lock()->getOutputNum() == edge->getOutputNum();
-        }));
+        OPENVINO_DEBUG_ASSERT(std::none_of(parentEdges.begin(),
+                                           parentEdges.end(),
+                                           [&edge](const EdgeWeakPtr& _edge) {
+                                               return _edge.lock()->getOutputNum() == edge->getOutputNum();
+                                           }),
+                              "Duplicate parent edge with outputNum=",
+                              edge->getOutputNum());
         parentEdges.insert(std::upper_bound(parentEdges.begin(),
                                             parentEdges.end(),
                                             edge,

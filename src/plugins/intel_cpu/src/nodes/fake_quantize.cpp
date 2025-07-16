@@ -861,7 +861,7 @@ private:
             uni_vpmovzxbd(zmm_src, op);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown src_prc");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_prc: ", src_prc);
         }
 
         if (src_prc != ov::element::f32) {
@@ -882,7 +882,7 @@ private:
             uni_vpmovzxbd(ymm_src, op);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown src_prc");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_prc: ", src_prc);
         }
 
         if (src_prc != ov::element::f32) {
@@ -903,7 +903,7 @@ private:
             uni_vpmovzxbd(xmm_src, op);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown src_prc");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_prc: ", src_prc);
         }
 
         if (src_prc != ov::element::f32) {
@@ -926,7 +926,7 @@ private:
             uni_vmovq(xmm_src, reg_tmp_64);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown src_prc");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_prc: ", src_prc);
         }
 
         if (src_prc != ov::element::f32) {
@@ -952,7 +952,7 @@ private:
             vpmovusdb(op, zmm_dst);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown dst_prc");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_prc: ", dst_prc);
         }
     }
 
@@ -987,7 +987,7 @@ private:
             vmovq(op, xmm_dst);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown dst_prc");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_prc: ", dst_prc);
         }
     }
 
@@ -1012,7 +1012,7 @@ private:
             uni_vmovd(op, xmm_dst);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown dst_prc");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_prc: ", dst_prc);
         }
     }
 
@@ -1039,7 +1039,7 @@ private:
             mov(op, reg_tmp_8);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown dst_prc");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_prc: ", dst_prc);
         }
     }
 };

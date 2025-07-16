@@ -47,23 +47,35 @@ Expression::Expression(const std::shared_ptr<Node>& n,
 
 const PortConnectorPtr& Expression::get_input_port_connector(size_t i) const {
     OPENVINO_DEBUG_ASSERT(i < m_input_port_connectors.size(),
-                          "Failed to get input port connector: target input port must be less than input count!");
+                          "Failed to get input port connector: target input port must be less than input count! i=",
+                          i,
+                          ", size=",
+                          m_input_port_connectors.size());
     return m_input_port_connectors[i];
 }
 const PortConnectorPtr& Expression::get_output_port_connector(size_t i) const {
     OPENVINO_DEBUG_ASSERT(i < m_output_port_connectors.size(),
-                          "Failed to get output port connector: target output port must be less than output count!");
+                          "Failed to get output port connector: target output port must be less than output count! i=",
+                          i,
+                          ", size=",
+                          m_output_port_connectors.size());
     return m_output_port_connectors[i];
 }
 
 const PortDescriptorPtr& Expression::get_input_port_descriptor(size_t i) const {
     OPENVINO_DEBUG_ASSERT(i < m_input_port_descriptors.size(),
-                          "Failed to get input port descriptor: target input port must be less than input count!");
+                          "Failed to get input port descriptor: target input port must be less than input count! i=",
+                          i,
+                          ", size=",
+                          m_input_port_descriptors.size());
     return m_input_port_descriptors[i];
 }
 const PortDescriptorPtr& Expression::get_output_port_descriptor(size_t i) const {
     OPENVINO_DEBUG_ASSERT(i < m_output_port_descriptors.size(),
-                          "Failed to get output port descriptor: target output port must be less than output count!");
+                          "Failed to get output port descriptor: target output port must be less than output count! i=",
+                          i,
+                          ", size=",
+                          m_output_port_descriptors.size());
     return m_output_port_descriptors[i];
 }
 
