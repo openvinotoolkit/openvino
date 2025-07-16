@@ -61,7 +61,7 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
         axis += dimsSize;
     }
 
-    CPU_NODE_ASSERT(dimsSize >= static_cast<size_t>(static_cast<size_t>(1) + axis),
+    CPU_NODE_ASSERT(dimsSize >= static_cast<size_t>(1) + axis,
                     "has incorrect input parameters dimensions and axis number!");
 }
 

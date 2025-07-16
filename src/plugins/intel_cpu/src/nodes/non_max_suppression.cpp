@@ -862,78 +862,74 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
                                    const VectorDims& scores_strides,
                                    std::vector<FilteredBox>& filtered_boxes) {
     CPU_NODE_ASSERT(!m_jit_kernel, "does not have implementation of the JIT kernel for Rotated boxes.");
-    {
-        parallel_for2d(m_batches_num, m_classes_num, [&](int64_t batch_idx, int64_t class_idx) {
-            const float* boxes_ptr = boxes + batch_idx * boxes_strides[0];
-            const float* scores_ptr = scores + batch_idx * scores_strides[0] + class_idx * scores_strides[1];
+    parallel_for2d(m_batches_num, m_classes_num, [&](int64_t batch_idx, int64_t class_idx) {
+        const float* boxes_ptr = boxes + batch_idx * boxes_strides[0];
+        const float* scores_ptr = scores + batch_idx * scores_strides[0] + class_idx * scores_strides[1];
 
-            std::vector<std::pair<float, size_t>> sorted_indices;  // score, box_idx
-            sorted_indices.reserve(m_boxes_num);
-            for (size_t box_idx = 0LU; box_idx < m_boxes_num; box_idx++, scores_ptr++) {
-                if (*scores_ptr > m_score_threshold) {
-                    sorted_indices.emplace_back(*scores_ptr, box_idx);
-                }
+        std::vector<std::pair<float, size_t>> sorted_indices;  // score, box_idx
+        sorted_indices.reserve(m_boxes_num);
+        for (size_t box_idx = 0LU; box_idx < m_boxes_num; box_idx++, scores_ptr++) {
+            if (*scores_ptr > m_score_threshold) {
+                sorted_indices.emplace_back(*scores_ptr, box_idx);
             }
+        }
 
-            size_t io_selection_size = 0LU;
-            const size_t sorted_boxes_size = sorted_indices.size();
+        size_t io_selection_size = 0LU;
+        const size_t sorted_boxes_size = sorted_indices.size();
 
-            if (sorted_boxes_size > 0LU) {
-                parallel_sort(sorted_indices.begin(),
-                              sorted_indices.end(),
-                              [](const std::pair<float, size_t>& l, const std::pair<float, size_t>& r) {
-                                  return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
-                              });
-                auto* sorted_indices_ptr = sorted_indices.data();
-                auto* filtered_boxes_ptr = filtered_boxes.data() +
-                                           batch_idx * m_classes_num * m_output_boxes_per_class +
-                                           class_idx * m_output_boxes_per_class;
-                *filtered_boxes_ptr =
-                    FilteredBox(sorted_indices[0].first, batch_idx, class_idx, sorted_indices[0].second);
-                io_selection_size++;
-                if (sorted_boxes_size > 1LU) {
-                    sorted_indices_ptr++;
-                    NMSCandidateStatus candidate_status = NMSCandidateStatus::SELECTED;
+        if (sorted_boxes_size > 0LU) {
+            parallel_sort(sorted_indices.begin(),
+                          sorted_indices.end(),
+                          [](const std::pair<float, size_t>& l, const std::pair<float, size_t>& r) {
+                              return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
+                          });
+            auto* sorted_indices_ptr = sorted_indices.data();
+            auto* filtered_boxes_ptr = filtered_boxes.data() + batch_idx * m_classes_num * m_output_boxes_per_class +
+                                       class_idx * m_output_boxes_per_class;
+            *filtered_boxes_ptr = FilteredBox(sorted_indices[0].first, batch_idx, class_idx, sorted_indices[0].second);
+            io_selection_size++;
+            if (sorted_boxes_size > 1LU) {
+                sorted_indices_ptr++;
+                NMSCandidateStatus candidate_status = NMSCandidateStatus::SELECTED;
 
-                    for (size_t candidate_idx = 1LU;
-                         (candidate_idx < sorted_boxes_size) && (io_selection_size < m_output_boxes_per_class);
-                         candidate_idx++, sorted_indices_ptr++) {
-                        candidate_status = NMSCandidateStatus::SELECTED;
-                        const auto* box_0 = boxes_ptr + (*sorted_indices_ptr).second * m_coord_num;
-                        const auto area_0 = box_0[2] * box_0[3];  // W x H
+                for (size_t candidate_idx = 1LU;
+                     (candidate_idx < sorted_boxes_size) && (io_selection_size < m_output_boxes_per_class);
+                     candidate_idx++, sorted_indices_ptr++) {
+                    candidate_status = NMSCandidateStatus::SELECTED;
+                    const auto* box_0 = boxes_ptr + (*sorted_indices_ptr).second * m_coord_num;
+                    const auto area_0 = box_0[2] * box_0[3];  // W x H
 
-                        if (area_0 > 0.F) {
-                            NonMaxSuppression::Point2D vertices_0[4];
-                            getRotatedVertices(box_0, vertices_0, m_clockwise);
-                            auto* trg_boxes = reinterpret_cast<int32_t*>(&((*filtered_boxes_ptr).box_index));
-                            for (size_t selected_idx = 0LU; selected_idx < io_selection_size;
-                                 selected_idx++, trg_boxes -= 4) {
-                                auto iou = rotatedIntersectionOverUnion(vertices_0,
-                                                                        area_0,
-                                                                        boxes_ptr + m_coord_num * (*trg_boxes));
-                                if (iou > m_iou_threshold) {
-                                    candidate_status = NMSCandidateStatus::SUPPRESSED;
-                                    break;
-                                }
+                    if (area_0 > 0.F) {
+                        NonMaxSuppression::Point2D vertices_0[4];
+                        getRotatedVertices(box_0, vertices_0, m_clockwise);
+                        auto* trg_boxes = reinterpret_cast<int32_t*>(&((*filtered_boxes_ptr).box_index));
+                        for (size_t selected_idx = 0LU; selected_idx < io_selection_size;
+                             selected_idx++, trg_boxes -= 4) {
+                            auto iou = rotatedIntersectionOverUnion(vertices_0,
+                                                                    area_0,
+                                                                    boxes_ptr + m_coord_num * (*trg_boxes));
+                            if (iou > m_iou_threshold) {
+                                candidate_status = NMSCandidateStatus::SUPPRESSED;
+                                break;
                             }
-                        } else if (0.F > m_iou_threshold) {
-                            candidate_status = NMSCandidateStatus::SUPPRESSED;
                         }
+                    } else if (0.F > m_iou_threshold) {
+                        candidate_status = NMSCandidateStatus::SUPPRESSED;
+                    }
 
-                        if (candidate_status == NMSCandidateStatus::SELECTED) {
-                            *(++filtered_boxes_ptr) = FilteredBox((*sorted_indices_ptr).first,
-                                                                  batch_idx,
-                                                                  class_idx,
-                                                                  (*sorted_indices_ptr).second);
-                            io_selection_size++;
-                        }
+                    if (candidate_status == NMSCandidateStatus::SELECTED) {
+                        *(++filtered_boxes_ptr) = FilteredBox((*sorted_indices_ptr).first,
+                                                              batch_idx,
+                                                              class_idx,
+                                                              (*sorted_indices_ptr).second);
+                        io_selection_size++;
                     }
                 }
             }
+        }
 
-            m_num_filtered_boxes[batch_idx][class_idx] = io_selection_size;
-        });
-    }
+        m_num_filtered_boxes[batch_idx][class_idx] = io_selection_size;
+    });
 }
 
 /////////////// End of Rotated boxes ///////////////

@@ -50,7 +50,7 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
     }
 
     const auto revSeq = ov::as_type_ptr<const ov::op::v0::ReverseSequence>(op);
-    CPU_NODE_ASSERT(revSeq != nullptr, "is not an instance of v0 ReverseSequence.");
+    CPU_NODE_ASSERT(revSeq, "is not an instance of v0 ReverseSequence.");
 
     CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() == 1, "has incorrect number of input/output edges!");
 

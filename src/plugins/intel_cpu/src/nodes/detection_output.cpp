@@ -128,7 +128,7 @@ void DetectionOutput::prepareParams() {
     CPU_NODE_ASSERT(priorsNum * classesNum == static_cast<int>(idConfDims.back()),
                     "has incorrect number of priors, which must match number of confidence predictions.");
 
-    CPU_NODE_ASSERT(!(decreaseClassId && backgroundClassId != 0),
+    CPU_NODE_ASSERT(!decreaseClassId || backgroundClassId == 0,
                     "cannot use decrease_label_id and background_label_id parameter simultaneously.");
 
     imgNum = static_cast<int>(idConfDims[0]);

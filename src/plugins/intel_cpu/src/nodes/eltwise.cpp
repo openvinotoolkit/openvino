@@ -1590,7 +1590,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
             }
         }
 
-        CPU_NODE_ASSERT(!(outputPrecision == ov::element::bf16 || hasBF16),
+        CPU_NODE_ASSERT(outputPrecision != ov::element::bf16 && !hasBF16,
                         "doesn't support BF16 precision on this target.");
     }
 #endif
