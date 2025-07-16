@@ -38,7 +38,7 @@ public:
               const std::filesystem::path& binPath,
               Version version = Version::UNSPECIFIED);
 
-    Serialize(std::ostream& xmlFile, Version version = Version::UNSPECIFIED);
+    Serialize(std::stringstream& xmlStream, Version version = Version::UNSPECIFIED);
 
 private:
     std::ostream* m_xmlFile;
