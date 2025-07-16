@@ -74,6 +74,9 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
 struct TensorToAllocate {
     LazyTensor::Meta meta;
     ov::Tensor allocated_tensor;
+    // FIXME: rework this
+    // For the second model we would only create dummy TensorToAllocate
+    bool should_be_processed = false;
 };
 
 // Note: there are no locks in this function's parallel_for-s
@@ -138,35 +141,34 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
-        uids_to_allocated[uid] = {lt.eval_meta(), ov::Tensor()};
-        std::cout << "eval_meta type " << lt.eval_meta().type << std::endl;
+        uids_to_allocated[uid] = {lt.eval_meta(), ov::Tensor(), true};
     }
 
     // Allocate memory sequentially - in order of UID
     auto remote_ctx = m_core->get_default_context(device)._ptr;
-    for (std::size_t i = 0; i < uids_to_allocated.size(); ++i) {
-        auto& allocated = uids_to_allocated[i];
-        auto uid = i;
-
-        ov::SoPtr<ov::ITensor> remote_tensor =
-            remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
-        uids_to_allocated.at(uid) = {allocated.meta, ov::make_tensor(remote_tensor)};
+    for (std::size_t uid = 0; uid < uids_to_allocated.size(); ++uid) {
+        auto& allocated = uids_to_allocated[uid];
+        if (allocated.should_be_processed) {
+            ov::SoPtr<ov::ITensor> remote_tensor =
+                remote_ctx->create_host_tensor(allocated.meta.type, allocated.meta.shape);
+            uids_to_allocated.at(uid) = {allocated.meta, ov::make_tensor(remote_tensor), true};
+        }
     }
 
     // Evaluate and copy into the device memory
-    ov::parallel_for(uids_to_allocated.size(), [&](std::size_t idx) {
-        auto& allocated = uids_to_allocated[idx];
-        auto uid = idx;
+    ov::parallel_for(uids_to_allocated.size(), [&](std::size_t uid) {
+        auto& allocated = uids_to_allocated[uid];
+        if (allocated.should_be_processed) {
+            auto transformed = device_bank.storage.at(uid).lt.eval();
+            transformed.copy_to(allocated.allocated_tensor);
 
-        auto transformed = device_bank.storage.at(uid).lt.eval();
-        transformed.copy_to(allocated.allocated_tensor);
+            device_bank.storage.at(uid).tensor = std::move(allocated.allocated_tensor);
 
-        device_bank.storage.at(uid).tensor = std::move(allocated.allocated_tensor);
-
-        // Detach the evaluated LazyTensor from its memory here - when it is 100%
-        // not needed anymore (transformations, if any, and copies are done)
-        // Note: this is the non-CPU path!
-        const_cast<LazyTensor&>(device_bank.storage.at(uid).lt).detach();
+            // Detach the evaluated LazyTensor from its memory here - when it is 100%
+            // not needed anymore (transformations, if any, and copies are done)
+            // Note: this is the non-CPU path!
+            const_cast<LazyTensor&>(device_bank.storage.at(uid).lt).detach();
+        }
     });
 }
 
