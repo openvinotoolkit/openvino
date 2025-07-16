@@ -23,7 +23,7 @@ namespace ov::intel_cpu {
 
 class EquationTppEmitter : public TppEmitter {
 public:
-    EquationTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+    EquationTppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override;

@@ -29,13 +29,15 @@ if(OV_CPU_WITH_ACL)
 endif()
 if(OV_CPU_WITH_DNNL)
     list(APPEND CPU_UTILS_LINK_LIBRARIES dnnl)
-    list(APPEND CPU_UTILS_INCLUDE_PATHS $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src)
+    list(APPEND CPU_UTILS_INCLUDE_PATHS
+        $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/src
+        $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/thirdparty/onednn/third_party)
 endif()
 if(RISCV64)
     list(APPEND CPU_UTILS_LINK_LIBRARIES xbyak_riscv)
 endif()
 target_link_libraries(cpuUtils PRIVATE ${CPU_UTILS_LINK_LIBRARIES})
-target_include_directories(cpuUtils PUBLIC ${CPU_UTILS_INCLUDE_PATHS})
+target_include_directories(cpuUtils PRIVATE ${CPU_UTILS_INCLUDE_PATHS})
 
 set(INCLUDES ${CMAKE_CURRENT_SOURCE_DIR} $<TARGET_PROPERTY:openvino_intel_cpu_plugin,SOURCE_DIR>/src)
 set(DEPENDENCIES openvino_intel_cpu_plugin openvino_template_extension)

@@ -26,7 +26,7 @@ namespace ov::intel_cpu {
 
 class jit_brgemm_emitter : public jit_binary_call_emitter {
 public:
-    jit_brgemm_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_brgemm_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr,
                        const snippets::KernelExecutorTablePtr& kernel_table,

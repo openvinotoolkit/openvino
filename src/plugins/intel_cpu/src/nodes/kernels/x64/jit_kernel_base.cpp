@@ -4,7 +4,7 @@
 
 #include "jit_kernel_base.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -21,7 +21,7 @@ using namespace dnnl::impl::cpu;
 namespace ov::intel_cpu::kernel {
 
 JitKernelBase::JitKernelBase(const char* name, x64::cpu_isa_t isa)
-    : x64::jit_generator(name, isa),
+    : x64::jit_generator_t(name, isa),
       m_isa(isa),
       vlen(x64::isa_max_vlen(isa)) {}
 
@@ -85,7 +85,7 @@ void JitKernelBase::uni_vpaddd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src,
             vperm2f128(v_dst, v_dst, v_dst, 0x1);
             vperm2f128(ymmOp, ymmOp, ymmOp, 0x1);
         } else if (op.isMEM()) {
-            const int vlen = x64::cpu_isa_traits<x64::sse41>::vlen;
+            const int vlen = x64::cpu_isa_traits_t<x64::sse41>::vlen;
             paddd(xmmDst, op.getAddress());
             vperm2f128(v_dst, v_dst, v_dst, 0x1);
             paddd(xmmDst, ptr[op.getAddress().getRegExp() + vlen]);
@@ -128,7 +128,7 @@ void JitKernelBase::uni_vpsubd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src,
             vperm2f128(v_dst, v_dst, v_dst, 0x1);
             vperm2f128(ymmOp, ymmOp, ymmOp, 0x1);
         } else if (op.isMEM()) {
-            const int vlen = x64::cpu_isa_traits<x64::sse41>::vlen;
+            const int vlen = x64::cpu_isa_traits_t<x64::sse41>::vlen;
             psubd(xmmDst, op.getAddress());
             vperm2f128(v_dst, v_dst, v_dst, 0x1);
             psubd(xmmDst, ptr[op.getAddress().getRegExp() + vlen]);
@@ -263,7 +263,7 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm& v_dst,
     } else {
         auto rAux = getReg64();
         auto r32Aux = Xbyak::Reg32(rAux.getIdx());
-        const uint8_t elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / sizeof(int);
+        const uint8_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / sizeof(int);
 
         for (uint8_t i = 0; i < elPerVec; i++) {
             Xbyak::Label lLoopNext;
@@ -425,7 +425,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
     Xbyak::Label lEnd;
     auto r32Ones = getReg32();
     Xbyak::Reg64 r64Ones(r32Ones.getIdx());
-    auto elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+    auto elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
 
     mov(r64Ones, 0xFFFFFFFFFFFFFFFF);
     for (uint64_t i = 0; i < elPerVec; i++) {
@@ -452,7 +452,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
         OPENVINO_THROW("Could not fill data with type size ", typeSize);
     }
     Xbyak::Label lEnd;
-    auto elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+    auto elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
     auto r32Ones = getReg32();
     Xbyak::Reg64 r64Ones(r32Ones.getIdx());
     Xbyak::Xmm xmmDstMask(ymmDstMask.getIdx());
@@ -491,7 +491,7 @@ void JitKernelBase::load(const Xbyak::Xmm& v_dst,
     if (!one_of(typeSize, 1U, 2U, 4U, 8U)) {
         OPENVINO_THROW("Could not load data with type size ", typeSize);
     }
-    const uint8_t elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+    const uint8_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
     Xbyak::Label lEnd;
     if (zeroFilling) {
         pxor(v_dst, v_dst);
@@ -523,7 +523,7 @@ void JitKernelBase::load(const Xbyak::Ymm& v_dst,
     if (!one_of(typeSize, 1U, 2U, 4U, 8U)) {
         OPENVINO_THROW("Could not load data with type size ", typeSize);
     }
-    const size_t elPerXmm = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+    const size_t elPerXmm = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
     Xbyak::Label lEnd;
     if (zeroFilling) {
         uni_vpxor(v_dst, v_dst, v_dst);
@@ -565,7 +565,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
         OPENVINO_THROW("Could not store data with type size ", typeSize);
     }
     Xbyak::Label lEnd;
-    const size_t elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+    const size_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
 
     for (size_t i = 0; i < elPerVec; i++) {
         cmp(rToStoreNum, i);
@@ -594,7 +594,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
     }
     Xbyak::Label lEnd;
     Xbyak::Xmm xmmSrc(v_src.getIdx());
-    const size_t elPerXmm = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+    const size_t elPerXmm = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
 
     for (int i = 0; i < 2; i++) {
         Xbyak::Label lPerm;
@@ -634,7 +634,7 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
     auto rAux = getReg64();
     auto r32Aux = Xbyak::Reg32(rAux.getIdx());
     const uint8_t typeSize = sizeof(int);
-    const uint8_t elPerVec = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+    const uint8_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
 
     for (uint8_t i = 0; i < elPerVec; i++) {
         cmp(rToStoreNum, i);
@@ -677,7 +677,7 @@ void JitKernelBase::memMovDD(const Xbyak::Reg64& rDst,
         store(ptr[rDst], vAux, rToStoreNum, sizeof(int));
     } else if (isValidIsa(x64::avx)) {
         const uint8_t typeSize = sizeof(int);
-        const uint8_t elPerXmm = x64::cpu_isa_traits<x64::sse41>::vlen / typeSize;
+        const uint8_t elPerXmm = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
         auto xmmReadMask = Xbyak::Xmm(vReadMask.getIdx());
         auto xmmSrcShft = Xbyak::Xmm(vSrcShift.getIdx());
         for (uint8_t i = 0; i < 2; i++) {

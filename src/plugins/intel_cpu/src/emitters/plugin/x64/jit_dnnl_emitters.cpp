@@ -4,8 +4,8 @@
 
 #include "jit_dnnl_emitters.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -33,7 +33,7 @@ std::set<std::vector<element::Type>> jit_dnnl_emitter::get_supported_precisions(
     return {{element::f32}};
 }
 
-jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
+jit_dnnl_emitter::jit_dnnl_emitter(jit_generator_t* host,
                                    cpu_isa_t host_isa,
                                    [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                    ov::element::Type exec_prc)
@@ -42,7 +42,7 @@ jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
     set_injector();
 }
 
-jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
+jit_dnnl_emitter::jit_dnnl_emitter(jit_generator_t* host,
                                    cpu_isa_t host_isa,
                                    dnnl_alg_kind_t algKind,
                                    float alpha,
@@ -58,18 +58,18 @@ jit_dnnl_emitter::jit_dnnl_emitter(jit_generator* host,
 void jit_dnnl_emitter::set_injector() {
     if (host_isa_ == cpu::x64::sse41) {
         eltwise_injector_sse42 =
-            std::make_shared<jit_uni_eltwise_injector<cpu::x64::sse41>>(h, kind, alpha, beta, 1.F, data_type::f32);
+            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::sse41>>(h, kind, alpha, beta, 1.F, data_type::f32);
     } else if (host_isa_ == cpu::x64::avx2) {
         eltwise_injector_avx2 =
-            std::make_shared<jit_uni_eltwise_injector<cpu::x64::avx2>>(h, kind, alpha, beta, 1.F, data_type::f32);
+            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx2>>(h, kind, alpha, beta, 1.F, data_type::f32);
     } else if (host_isa_ == cpu::x64::avx512_core) {
         eltwise_injector_avx512_core =
-            std::make_shared<jit_uni_eltwise_injector<cpu::x64::avx512_core>>(h,
-                                                                              kind,
-                                                                              alpha,
-                                                                              beta,
-                                                                              1.F,
-                                                                              data_type::f32);
+            std::make_shared<jit_uni_eltwise_injector_t<cpu::x64::avx512_core>>(h,
+                                                                                kind,
+                                                                                alpha,
+                                                                                beta,
+                                                                                1.F,
+                                                                                data_type::f32);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
     }
@@ -115,7 +115,7 @@ void jit_dnnl_emitter::emit_data() const {
     }
 }
 
-jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator* host,
+jit_dnnl_aux_emitter::jit_dnnl_aux_emitter(jit_generator_t* host,
                                            cpu_isa_t host_isa,
                                            dnnl_alg_kind_t algKind,
                                            float inpAlpha,

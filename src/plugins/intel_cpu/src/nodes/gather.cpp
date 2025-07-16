@@ -293,9 +293,9 @@ void Gather::createPrimitive() {
     uint64_t idxElPerVec = 1;
     if (!isDynamicNode()) {
         if (x64::mayiuse(x64::avx512_core)) {
-            idxElPerVec = x64::cpu_isa_traits<x64::avx512_core>::vlen / idxTypeSize;
+            idxElPerVec = x64::cpu_isa_traits_t<x64::avx512_core>::vlen / idxTypeSize;
         } else if (x64::mayiuse(x64::avx2)) {
-            idxElPerVec = x64::cpu_isa_traits<x64::avx2>::vlen / idxTypeSize;
+            idxElPerVec = x64::cpu_isa_traits_t<x64::avx2>::vlen / idxTypeSize;
         } else {
             idxElPerVec = 1;
         }

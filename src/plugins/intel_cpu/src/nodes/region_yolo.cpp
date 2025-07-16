@@ -34,7 +34,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <common/c_types_map.hpp>
 #    include <common/utils.hpp>
@@ -56,22 +56,26 @@ using namespace dnnl::impl::utils;
 namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
-struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator {
+struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_logistic_kernel_f32)
 
     jit_uni_logistic_kernel_f32(jit_logistic_config_params jcp)
         : jit_uni_logistic_kernel(),
-          jit_generator(jit_name()),
+          jit_generator_t(jit_name()),
           jcp_(jcp) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
     void generate() override {
-        exp_injector.reset(
-            new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.F, 0.F, 1.F, data_type::f32));
+        exp_injector.reset(new jit_uni_eltwise_injector_t<isa>(this,
+                                                               dnnl::impl::alg_kind::eltwise_exp,
+                                                               0.F,
+                                                               0.F,
+                                                               1.F,
+                                                               data_type::f32));
 
         if (mayiuse(avx512_core)) {
             uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);
@@ -137,7 +141,7 @@ struct jit_uni_logistic_kernel_f32 : public jit_uni_logistic_kernel, public jit_
 
 private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Address table_val(int index) {
         return ptr[reg_table + index * vlen];
@@ -161,7 +165,7 @@ private:
 
     Xbyak::Label l_table;
 
-    std::shared_ptr<jit_uni_eltwise_injector<isa>> exp_injector;
+    std::shared_ptr<jit_uni_eltwise_injector_t<isa>> exp_injector;
 
     jit_logistic_config_params jcp_;
 

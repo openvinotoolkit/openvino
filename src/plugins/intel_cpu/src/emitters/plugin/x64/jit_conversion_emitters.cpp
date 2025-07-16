@@ -4,7 +4,7 @@
 
 #include "jit_conversion_emitters.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <common/utils.hpp>
@@ -28,14 +28,14 @@ using namespace Xbyak;
 
 namespace ov::intel_cpu {
 
-jit_convert_emitter::jit_convert_emitter(jit_generator* host,
+jit_convert_emitter::jit_convert_emitter(jit_generator_t* host,
                                          cpu_isa_t host_isa,
                                          const std::shared_ptr<ov::Node>& node,
                                          ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node->get_input_element_type(0), node->get_output_element_type(0), exec_prc) {
 }
 
-jit_convert_emitter::jit_convert_emitter(jit_generator* host,
+jit_convert_emitter::jit_convert_emitter(jit_generator_t* host,
                                          cpu_isa_t host_isa,
                                          const ov::element::Type& in_prec,
                                          const ov::element::Type& out_prec,
@@ -87,7 +87,7 @@ void jit_convert_emitter::float2bfloat(const std::vector<size_t>& in_vec_idxs,
     uni_vcvtneps2bf16->emit_code({static_cast<size_t>(vmm_src.getIdx())}, {static_cast<size_t>(vmm_dst.getIdx())});
 }
 
-jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* host,
+jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
@@ -95,7 +95,7 @@ jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* ho
     prepare_table();
 }
 
-jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator* host,
+jit_convert_truncation_emitter::jit_convert_truncation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const ov::element::Type& in_prec,
                                                                const ov::element::Type& out_prec,
@@ -258,13 +258,13 @@ void jit_convert_truncation_emitter::dword2int8(const std::vector<size_t>& in_ve
     }
 }
 
-jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator* host,
+jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const std::shared_ptr<ov::Node>& node,
                                                                ov::element::Type exec_prc)
     : jit_convert_emitter(host, host_isa, node, exec_prc) {}
 
-jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator* host,
+jit_convert_saturation_emitter::jit_convert_saturation_emitter(jit_generator_t* host,
                                                                cpu_isa_t host_isa,
                                                                const ov::element::Type& in_prec,
                                                                const ov::element::Type& out_prec,

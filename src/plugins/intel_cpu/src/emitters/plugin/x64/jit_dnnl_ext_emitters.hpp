@@ -26,7 +26,7 @@ namespace ov::intel_cpu {
 
 class jit_relu_emitter : public jit_dnnl_emitter {
 public:
-    jit_relu_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_relu_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                      const std::shared_ptr<ov::Node>& n,
                      ov::element::Type exec_prc = ov::element::f32)
@@ -41,7 +41,7 @@ public:
 
 class jit_sigmoid_emitter : public jit_dnnl_emitter {
 public:
-    jit_sigmoid_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_sigmoid_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n,
                         ov::element::Type exec_prc = ov::element::f32)
@@ -56,7 +56,7 @@ public:
 
 class jit_tanh_emitter : public jit_dnnl_emitter {
 public:
-    jit_tanh_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_tanh_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                      const std::shared_ptr<ov::Node>& n,
                      ov::element::Type exec_prc = ov::element::f32)
@@ -71,7 +71,7 @@ public:
 
 class jit_elu_emitter : public jit_dnnl_emitter {
 public:
-    jit_elu_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_elu_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                     const std::shared_ptr<ov::Node>& n,
                     ov::element::Type exec_prc = ov::element::f32)
@@ -86,7 +86,7 @@ public:
 
 class jit_abs_emitter : public jit_dnnl_emitter {
 public:
-    jit_abs_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_abs_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                     const std::shared_ptr<ov::Node>& n,
                     ov::element::Type exec_prc = ov::element::f32)
@@ -101,7 +101,7 @@ public:
 
 class jit_clamp_emitter : public jit_dnnl_emitter {
 public:
-    jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& n,
                       ov::element::Type exec_prc = ov::element::f32)
@@ -117,7 +117,7 @@ public:
 
 class jit_swish_emitter : public jit_dnnl_emitter {
 public:
-    jit_swish_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_swish_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& n,
                       ov::element::Type exec_prc = ov::element::f32)
@@ -133,7 +133,7 @@ public:
 
 class jit_hswish_emitter : public jit_dnnl_emitter {
 public:
-    jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                        const std::shared_ptr<ov::Node>& n,
                        ov::element::Type exec_prc = ov::element::f32)
@@ -149,7 +149,7 @@ public:
 
 class jit_gelu_v0_emitter : public jit_dnnl_emitter {
 public:
-    jit_gelu_v0_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_gelu_v0_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n,
                         ov::element::Type exec_prc = ov::element::f32)
@@ -162,7 +162,7 @@ public:
 
 class jit_gelu_v7_emitter : public jit_dnnl_emitter {
 public:
-    jit_gelu_v7_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_gelu_v7_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n,
                         ov::element::Type exec_prc = ov::element::f32)
@@ -185,7 +185,7 @@ public:
 
 class jit_round_emitter : public jit_dnnl_emitter {
 public:
-    jit_round_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_round_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& n,
                       ov::element::Type exec_prc = ov::element::f32)

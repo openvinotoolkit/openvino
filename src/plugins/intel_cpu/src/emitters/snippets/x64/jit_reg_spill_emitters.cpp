@@ -27,7 +27,7 @@ namespace ov::intel_cpu {
 
 /* ================== jit_reg_spill_begin_emitters ====================== */
 
-jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_reg_spill_begin_emitter::jit_reg_spill_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                          dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                          const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
@@ -63,7 +63,7 @@ void jit_reg_spill_begin_emitter::emit_impl([[maybe_unused]] const std::vector<s
 
 /* ================== jit_reg_spill_end_emitter ====================== */
 
-jit_reg_spill_end_emitter::jit_reg_spill_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_reg_spill_end_emitter::jit_reg_spill_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {

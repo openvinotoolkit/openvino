@@ -4,7 +4,7 @@
 
 #include "jit_kernel_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -37,7 +37,7 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
+jit_kernel_emitter::jit_kernel_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa) {
@@ -182,7 +182,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
     h->postamble();
 }
 
-jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_kernel_static_emitter::jit_kernel_static_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {
@@ -249,7 +249,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak::Reg6
     }
 }
 
-jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_kernel_emitter(h, isa, expr) {

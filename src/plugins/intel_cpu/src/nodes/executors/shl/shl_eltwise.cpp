@@ -300,8 +300,8 @@ bool ShlEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
 }
 
 void ShlEltwiseExecutor::exec(const std::vector<MemoryCPtr>& src,
-                                     const std::vector<MemoryPtr>& dst,
-                                     [[maybe_unused]] const void* post_ops_data_) {
+                              const std::vector<MemoryPtr>& dst,
+                              [[maybe_unused]] const void* post_ops_data_) {
     for (size_t i = 0; i < src.size(); i++) {
         srcTensors[i].setData(src[i]->getData());
     }

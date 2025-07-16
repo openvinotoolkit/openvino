@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <utility>
 
+#include "common/primitive_attr.hpp"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu_memory.h"
