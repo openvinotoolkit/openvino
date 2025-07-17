@@ -75,9 +75,6 @@ struct TensorToAllocate {
     LazyTensor::Meta meta;
     ov::Tensor allocated_tensor;
     int64_t uid;
-    bool operator<(const TensorToAllocate& other) {
-        return uid < other.uid;
-    }
 };
 
 void Bank::evaluate_and_allocate() {
@@ -141,7 +138,11 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         uids_to_allocated.push_back({lt.eval_meta(), ov::Tensor(), uid});
     }
     // Sort by UIDs, lowest first
-    std::sort(uids_to_allocated.begin(), uids_to_allocated.end());
+    std::sort(uids_to_allocated.begin(),
+              uids_to_allocated.end(),
+              [](const TensorToAllocate& a, const TensorToAllocate& b) {
+                  return a.uid < b.uid;
+              });
 
     // Allocate memory sequentially - in order of UID
     auto remote_ctx = m_core->get_default_context(device)._ptr;
