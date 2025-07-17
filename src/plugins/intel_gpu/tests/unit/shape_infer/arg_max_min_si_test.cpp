@@ -122,9 +122,9 @@ INSTANTIATE_TEST_SUITE_P(smoke, arg_max_min_test,
             {layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx},
              layout{ov::PartialShape{1}, data_types::f32, format::bfyx}},
             ov::op::TopKMode::MIN, 2, 0, data_types::f32, {input_info("input", 0), input_info("const0", 0)}, 2,
-            {layout{ov::PartialShape{2, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+            {layout{ov::PartialShape{{0, 2}, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                     data_types::f32, format::bfyx},
-             layout{ov::PartialShape{2, ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
+             layout{ov::PartialShape{{0, 2} , ov::Dimension::dynamic(), ov::Dimension::dynamic(), ov::Dimension::dynamic()},
                     data_types::f32, format::bfyx}}
         },
     }));

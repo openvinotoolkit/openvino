@@ -134,7 +134,7 @@ TYPED_TEST_P(topk_type_prop, default_index_element_type) {
         EXPECT_THAT(op->outputs(),
                     ElementsAre(Property("Value type", &Output<Node>::get_element_type, exp_data_type),
                                 Property("Index type", &Output<Node>::get_element_type, this->exp_default_idx_type)));
-        EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({3, 2, 3, 4}))));
+        EXPECT_THAT(op->outputs(), Each(Property("Shape", &Output<Node>::get_shape, Shape({1, 2, 3, 4}))));
     }
     {
         // k < dimension
@@ -162,7 +162,7 @@ TYPED_TEST_P(topk_type_prop, k_for_dynamic_dimension) {
     const auto op = this->make_op(data, k, 0, "max", "value");
 
     EXPECT_THAT(op->outputs(),
-                Each(Property("Partial Shape", &Output<Node>::get_partial_shape, PartialShape({5, {-1, 2}}))));
+                Each(Property("Partial Shape", &Output<Node>::get_partial_shape, PartialShape({{0, 5}, {-1, 2}}))));
 }
 
 TYPED_TEST_P(topk_type_prop, k_for_interval_dimension) {
@@ -171,7 +171,7 @@ TYPED_TEST_P(topk_type_prop, k_for_interval_dimension) {
     const auto op = this->make_op(data, k, 0, "max", "value");
 
     EXPECT_THAT(op->outputs(),
-                Each(Property("Partial Shape", &Output<Node>::get_partial_shape, PartialShape({6, {-1, 2}}))));
+                Each(Property("Partial Shape", &Output<Node>::get_partial_shape, PartialShape({{2, 6}, {-1, 2}}))));
 }
 
 TYPED_TEST_P(topk_type_prop, k_is_unknown_for_static_dimension) {
@@ -308,10 +308,10 @@ TYPED_TEST_P(topk_type_prop, preserve_partial_values_and_symbols_k_is_interval) 
                                    ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3], nullptr, symbols[5]))));
     }
     {
-        // dim{15,inf} k{10,20} -> {10,inf}
+        // dim{15,inf} k{10,20} -> {10,20}
         const auto op = this->make_op(data, k, 5, "max", "value");
         EXPECT_THAT(op->get_output_partial_shape(0),
-                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {10, -1}}),
+                    AllOf(PartialShape({{2, 5}, {12, 18}, {2, 30}, {30, 40}, {-1, 15}, {10, 20}}),
                           ResultOf(get_shape_symbols,
                                    ElementsAre(symbols[0], symbols[1], symbols[2], symbols[3], symbols[4], nullptr))));
     }
