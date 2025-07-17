@@ -135,24 +135,24 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
 
 void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) {
     std::vector<std::string> model_prefer_name = {std::string("MODEL_PREFER_THREADS_LATENCY"),
-                                                  std::string("MODEL_PREFER_THREADS_THROUGHPUT")};
+                                                  std::string("MODEL_PREFER_THREADS_THROUGHPUT"),
+                                                  std::string("TBB_PARTITIONER")};
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
-        // load model_prefer_threads from cache
-        int cache_model_prefer = 0;
+        // load model_prefer_threads and tbbPartitioner from cache
         const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
         for (auto& one_name : model_prefer_name) {
             auto it_model_prefer = hints_config.find(one_name);
             if (it_model_prefer != hints_config.end()) {
                 try {
-                    cache_model_prefer = it_model_prefer->second.as<int>();
+                    if (one_name == std::string("TBB_PARTITIONER")) {
+                        conf.tbbPartitioner = it_model_prefer->second.as<ov::intel_cpu::TbbPartitioner>();
+                    } else if (one_name == std::string("MODEL_PREFER_THREADS_LATENCY")) {
+                        conf.modelPreferThreadsLatency = it_model_prefer->second.as<int>();
+                    } else {
+                        conf.modelPreferThreadsThroughput = it_model_prefer->second.as<int>();
+                    }
                 } catch (const ov::Exception&) {
                     OPENVINO_THROW("Cache file doesn't have valid value for " + one_name);
-                }
-
-                if (one_name == std::string("MODEL_PREFER_THREADS_LATENCY")) {
-                    conf.modelPreferThreadsLatency = cache_model_prefer;
-                } else {
-                    conf.modelPreferThreadsThroughput = cache_model_prefer;
                 }
             }
         }
@@ -164,6 +164,9 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
         ov::AnyMap hints_props;
         hints_props.insert({model_prefer_name[0], std::to_string(conf.modelPreferThreadsLatency)});
         hints_props.insert({model_prefer_name[1], std::to_string(conf.modelPreferThreadsThroughput)});
+        std::stringstream tbb_partitioner;
+        tbb_partitioner << conf.tbbPartitioner;
+        hints_props.insert({model_prefer_name[2], tbb_partitioner.str()});
         model->set_rt_info(hints_props, "intel_cpu_hints_config");
     }
 }
