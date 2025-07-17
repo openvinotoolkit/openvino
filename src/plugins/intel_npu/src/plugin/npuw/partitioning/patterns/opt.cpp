@@ -367,8 +367,8 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             (ov::element::f32 == matched_qcoeff->get_element_type() ||
-             ov::element::f16 == matched_qcoeff->get_element_type()) && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[1] == 1 &&  // single-token case
+             ov::element::f16 == matched_qcoeff->get_element_type()) &&
+            qcoeff_shape.size() == 3 && act_shape.size() == 3 && act_shape[1] == 1 &&  // single-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == 1 && qcoeff_shape[2] == qweight_shape[2] &&
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
@@ -655,8 +655,8 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
             (ov::element::f32 == matched_qcoeff->get_element_type() ||
-             ov::element::f16 == matched_qcoeff->get_element_type()) && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[1] > 1 &&  // multi-token case
+             ov::element::f16 == matched_qcoeff->get_element_type()) &&
+            qcoeff_shape.size() == 3 && act_shape.size() == 3 && act_shape[1] > 1 &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == 1 && qcoeff_shape[2] == qweight_shape[2] &&
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
