@@ -8720,13 +8720,13 @@ struct convolution_random_test_all_params {
 
 template <typename T>
 void get_rng_params(int& min, int& max, int& k) {
-    // if constexpr (std::is_same<T, int8_t>::value) {
-    //     min = -128; max = 127; k = 1;
-    // } else if constexpr (std::is_same<T, uint8_t>::value) {
-    //     min = 0; max = 255; k = 1;
-    // } else {
+    if constexpr (std::is_same<T, int8_t>::value) {
+        min = -128; max = 127; k = 1;
+    } else if constexpr (std::is_same<T, uint8_t>::value) {
+        min = 0; max = 255; k = 1;
+    } else {
         min = -256; max = 256; k = 8;
-    // }
+    }
 }
 template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_random_test_base : public convolution_test_base<InputT, WeightsT, OutputT> {
