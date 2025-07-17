@@ -262,6 +262,9 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> input_ids,
                                                        ov::SoPtr<ov::ITensor> attention_mask,
                                                        ov::SoPtr<ov::ITensor> position_ids) {
+    LOG_DEBUG("Calling chunked inference for prefill model...");
+    LOG_BLOCK();
+
     prepare_for_new_conversation();
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
@@ -280,6 +283,7 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
 
         // Populate the attention mask for the present chunk
+        // For the already processed tokens, they will be added into the attention mask after inference call
         size_t last_chunk_offset = attn_mask_in_tensor->get_size() - chunk_prompt_len;
         fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
         std::copy_n(
@@ -334,13 +338,13 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
                                                     kvcache_desc.num_stored_tokens);
             auto chunk_prefill_present_kv_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
             update_tensor_by_dim(chunk_prefill_present_kv_out_tensor, chunk_prefill_past_kv_in_slice, kv_dim);
-
-            // Update attention mask for the next iteration
-            std::copy_n(
-                attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
-                current_prompts_len,
-                attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
         }
+
+        // Update attention mask for the next iteration
+        std::copy_n(
+            attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len,
+            current_prompts_len,
+            attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
     }
 
     m_need_copy_kvcache = true;
@@ -429,26 +433,29 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                 // The task is to copy both parts into the KV-cache input tensor for the decoding process
 
                 // Copy part 1 KV results
-                // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
                 auto tokens_in_present_chunk = kvcache_desc.num_stored_tokens % prefill_chunk_size;
+                tokens_in_present_chunk = tokens_in_present_chunk ? tokens_in_present_chunk : prefill_chunk_size;
+
+                // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
                 auto tokens_in_past_chunks =  kvcache_desc.num_stored_tokens - tokens_in_present_chunk;
                 if (tokens_in_past_chunks > 0) {
-                    auto past_kv_chunks_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
-                    auto past_kv_chunks_in_slice = make_tensor_slice(past_kv_chunks_in_tensor, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                    auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+                    auto prefill_past_kv_chunks = make_tensor_slice(prefill_past_kv, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
 
-                    auto kvcache_in_slice_past_chunks = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                    auto kvcache_past_kv_chunks = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
 
-                    update_tensor_by_dim(past_kv_chunks_in_slice, kvcache_in_slice_past_chunks, kv_dim);
+                    update_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, kv_dim);
                 }
 
                 // Copy part 2 KV results
-                auto present_kv_chunk_out_slice = make_tensor_slice(prefill_out_tensor, kv_dim,
-                                                                            static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
-                                                                            static_cast<uint32_t>(prefill_chunk_size));
+                auto prefill_present_kv_chunk = make_tensor_slice(prefill_out_tensor,
+                                                                    kv_dim,
+                                                                    static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
+                                                                    static_cast<uint32_t>(prefill_chunk_size));
 
-                auto kvcache_in_slice_present_chunk = make_tensor_slice(kvcache_in_tensor, kv_dim, static_cast<uint32_t>(tokens_in_past_chunks), kvcache_desc.num_stored_tokens);
+                auto kvcache_last_kv_chunk = make_tensor_slice(kvcache_in_tensor, kv_dim, static_cast<uint32_t>(tokens_in_past_chunks), kvcache_desc.num_stored_tokens);
 
-                update_tensor_by_dim(present_kv_chunk_out_slice, kvcache_in_slice_present_chunk, kv_dim);
+                update_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, kv_dim);
             } else {
                 auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
                                                        kv_dim,
@@ -542,10 +549,8 @@ void ov::npuw::LLMInferRequest::infer() {
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
         const bool use_chunk_prefill = prefill_chunk_size > 0;
         if (use_chunk_prefill) {
-            std::cout << "infer_prefill_in_chunk" << std::endl;
             infer_prefill_in_chunk(input_ids, attention_mask, position_ids);
         } else {
-            std::cout << "infer_prefill" << std::endl;
             infer_prefill(input_ids, attention_mask, position_ids);
         }
     } else {

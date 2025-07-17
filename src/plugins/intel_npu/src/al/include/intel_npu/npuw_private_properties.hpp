@@ -442,7 +442,9 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
 /**
  * @brief
  * Type: uint64_t.
- * Prompt chunk size for chunk prefill. Chunk prefill feature is disabled in case the value is 0;
+ * Prompt chunk size for chunk prefill.
+ * The chunk size should be a power of two.
+ * Chunk prefill feature is disabled in case the value is 0.
  * Default value: 0.
  */
 static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
