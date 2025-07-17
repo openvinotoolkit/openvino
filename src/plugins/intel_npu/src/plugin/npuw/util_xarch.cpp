@@ -969,7 +969,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_scale_zp(const ov::SoPtr<ov::ITensor>& 
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }                     // for(index)
+            }  // for(index)
             pSclLocal += scale_elem_type.size();
         }  // for(sindex)
     };
@@ -1150,7 +1150,7 @@ void ov::npuw::util::XARCH::unpack_u4f16_asymm_zp(const ov::SoPtr<ov::ITensor>& 
 
                 pSrcLocal += 32;  // shift pSrc only by 32 since it is 64 x u4
                 pDstLocal += 64;  // note pDst is int16_t, so 64 x f16 -> 64 elements
-            }                     // for(index)
+            }  // for(index)
             pSclLocal += scale_elem_type.size();
             if (sindex % 2 == 1) {
                 pZerLocal += zerop_elem_type.size();
@@ -1609,8 +1609,10 @@ void ov::npuw::util::XARCH::permute120_f32_avx2(const ov::Tensor& t, ov::Tensor&
         for (; c + blockSize <= IN_COLS; c += blockSize) {
             size_t src_offset = r * IN_COLS + c;
             __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_offset));
+            alignas(32) uint32_t tmp[blockSize];
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
             for (size_t k = 0; k < blockSize; ++k) {
-                dst[(c + k) * IN_ROWS + r] = ((uint32_t*)&vec)[k];
+                dst[(c + k) * IN_ROWS + r] = tmp[k];
             }
         }
         for (; c < IN_COLS; ++c) {
@@ -1634,8 +1636,10 @@ void ov::npuw::util::XARCH::permute120_f16_avx2(const ov::Tensor& t, ov::Tensor&
         for (; c + blockSize <= IN_COLS; c += blockSize) {
             size_t src_offset = r * IN_COLS + c;
             __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_offset));
+            alignas(32) uint16_t tmp[blockSize];
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
             for (size_t k = 0; k < blockSize; ++k) {
-                dst[(c + k) * IN_ROWS + r] = ((uint16_t*)&vec)[k];
+                dst[(c + k) * IN_ROWS + r] = tmp[k];
             }
         }
         for (; c < IN_COLS; ++c) {
