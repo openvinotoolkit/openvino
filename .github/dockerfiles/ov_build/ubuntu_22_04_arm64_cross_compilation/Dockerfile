@@ -122,6 +122,11 @@ RUN cd Python-3.10.11 && make distclean && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
+# Use Python 3.10 as default
+# Using venv here because other methods to switch the default Python break both system and wheels build
+RUN python3.10 -m venv venv
+ENV PATH="/venv/bin:$PATH"
+
 # ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
