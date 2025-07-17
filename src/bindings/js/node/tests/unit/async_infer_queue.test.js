@@ -93,16 +93,16 @@ describe('Tests for AsyncInferQueue.', () => {
 
   it('Test startAsync without user data', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-    function basicUserCallback(request, user_data, err) {
-        if (err) {
-            console.error(`Job failed: ${err}`);
-        } else {
-            assert.ok(request instanceof ov.InferRequest);
-            assert.strictEqual(user_data, null, 'User data should be undefined when not provided');
-        }
+    function basicUserCallback(request, userData, err) {
+      if (err) {
+        console.error(`Job failed: ${err}`);
+      } else {
+        assert.ok(request instanceof ov.InferRequest);
+        assert.strictEqual(userData, null);
+      }
     }
     inferQueue.setCallback(basicUserCallback);
-    await inferQueue.startAsync({ 'data': generateImage() })
+    await inferQueue.startAsync({ 'data': generateImage() });
     inferQueue.release();
   });
 
