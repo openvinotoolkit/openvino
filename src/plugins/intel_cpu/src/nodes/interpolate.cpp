@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -4534,8 +4535,8 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
 
 size_t Interpolate::getSpatialDimsNum(const std::vector<float>& scales) {
     size_t spatialDims = scales.size();
-    for (size_t i = 0; i < scales.size(); ++i) {
-        if (scales[i] != 1.0F) {
+    for (auto scale : scales) {
+        if (scale != 1.0F) {
             break;
         }
         spatialDims--;
