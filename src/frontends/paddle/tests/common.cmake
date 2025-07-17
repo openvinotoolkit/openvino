@@ -117,3 +117,5 @@ if(ENABLE_INTEL_CPU)
     add_dependencies(${TARGET_NAME} openvino_intel_cpu_plugin)
 endif()
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
