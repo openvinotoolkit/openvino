@@ -93,12 +93,13 @@ if(ENABLE_VCL_FOR_COMPILER)
         message(STATUS "Downloading prebuilt NPU VCL compiler libraries")
         if(WIN32)
             set(VCL_COMPILER_LIBS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/temp/vcl_compiler_lib/win")
-            set(VCL_COMPILER_LIBS_URL "https://downloadmirror.intel.com/859199/npu_win_32.0.100.4082.exe")
-            set(VCL_COMPILER_LIBS_EXE "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4082.exe")
-            set(VCL_COMPILER_LIBS_DIR_UNZIPPED "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4082")
+            set(VCL_COMPILER_LIBS_URL "https://downloadmirror.intel.com/854488/npu_win_32.0.100.4023.zip")
+            set(VCL_COMPILER_LIBS_ZIP "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4023.zip")
+            set(VCL_COMPILER_LIBS_DIR_UNZIPPED "${VCL_COMPILER_LIBS_DIR}/npu_win_32.0.100.4023")
 
-            download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_EXE}" "${VCL_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
-            set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/NPU/")
+            download_and_extract("${VCL_COMPILER_LIBS_URL}" "${VCL_COMPILER_LIBS_DIR}" "${VCL_COMPILER_LIBS_ZIP}" "${VCL_COMPILER_LIBS_DIR_UNZIPPED}" "MODIFY")
+            set(VCL_COMPILER_LIB_PATH "${VCL_COMPILER_LIBS_DIR_UNZIPPED}/npu_win_32.0.100.4023/drivers/x64/")
+
 
             configure_file(
                 ${VCL_COMPILER_LIB_PATH}/npu_driver_compiler.dll
