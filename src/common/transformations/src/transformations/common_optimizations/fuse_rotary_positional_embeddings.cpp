@@ -1114,10 +1114,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     std::vector<std::shared_ptr<Node>> inputs = {pattern::any_input(), pattern::any_input()};
 
     // Broadcast pattern
-    auto const_broadcast_arg = pattern::wrap_type<op::v0::Constant>(pattern::value_matches("{1.000000f}"));
-    auto const_broadcast_axes = pattern::wrap_type<op::v0::Constant>(pattern::value_matches("{0}"));
-    auto broadcast = pattern::wrap_type<op::v1::Broadcast>({const_broadcast_arg, inputs[0], const_broadcast_axes},
-                                                           {{"mode", "numpy"}});
+    auto broadcast = pattern::wrap_type<op::util::BroadcastBase>({{1.000000f}, inputs[0], {0}}, {{"mode", "numpy"}});
 
     // Multiply pattern (expand broadcast)
     auto const_inv_freq = pattern::wrap_type<op::v0::Constant>();  // Pattern for the constant inverse frequency
