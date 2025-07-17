@@ -1609,7 +1609,7 @@ void ov::npuw::util::XARCH::permute120_f32_avx2(const ov::Tensor& t, ov::Tensor&
         for (; c + blockSize <= IN_COLS; c += blockSize) {
             size_t src_offset = r * IN_COLS + c;
             __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_offset));
-            alignas(32) uint32_t tmp[blockSize];
+            alignas(32) uint32_t tmp[8];
             _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
             for (size_t k = 0; k < blockSize; ++k) {
                 dst[(c + k) * IN_ROWS + r] = tmp[k];
@@ -1636,7 +1636,7 @@ void ov::npuw::util::XARCH::permute120_f16_avx2(const ov::Tensor& t, ov::Tensor&
         for (; c + blockSize <= IN_COLS; c += blockSize) {
             size_t src_offset = r * IN_COLS + c;
             __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_offset));
-            alignas(32) uint16_t tmp[blockSize];
+            alignas(32) uint16_t tmp[16];
             _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
             for (size_t k = 0; k < blockSize; ++k) {
                 dst[(c + k) * IN_ROWS + r] = tmp[k];
