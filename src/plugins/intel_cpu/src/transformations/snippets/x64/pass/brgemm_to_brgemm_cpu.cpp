@@ -55,10 +55,7 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
         const auto node = matcher->get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
         const auto brgemm_plugin = ov::as_type_ptr<BrgemmCPU>(node);
-        if (!brgemm || brgemm_plugin) {
-            OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmCPU pass");
-        }
-
+        OPENVINO_ASSERT(brgemm && !brgemm_plugin, "BrgemmCPU cannot be in body before BrgemmToBrgemmCPU pass");
         const auto& brgemm_in0_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(0));
         const auto& brgemm_in1_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->input(1));
         const auto& brgemm_out_desc = PortDescriptorUtils::get_port_descriptor_ptr(brgemm->output(0));

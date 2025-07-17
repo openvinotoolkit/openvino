@@ -56,7 +56,7 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         auto checkSecondInput = [this](const std::shared_ptr<ov::Node>& op,
                                        [[maybe_unused]] const std::string& opType) {
             if (op->get_input_partial_shape(1).is_dynamic()) {
-                THROW_CPU_NODE_ERR("has non static second input");
+                CPU_NODE_THROW("has non static second input");
             }
         };
 
@@ -64,13 +64,13 @@ Reshape::Reshape(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
             checkSecondInput(op, "Reshape");
         } else if (ov::as_type_ptr<const ov::op::v0::Squeeze>(op)) {
             if (op->get_input_size() == 1) {
-                THROW_CPU_NODE_ERR("has inputs num equal 1");
+                CPU_NODE_THROW("has inputs num equal 1");
             }
             checkSecondInput(op, "Squeeze");
         } else if (ov::as_type_ptr<const ov::op::v0::Unsqueeze>(op)) {
             checkSecondInput(op, "Unsqueeze");
         } else {
-            THROW_CPU_NODE_ERR("Unsupported operation type via reshape node");
+            CPU_NODE_THROW("Unsupported operation type via reshape node");
         }
     }
 }
@@ -94,10 +94,10 @@ bool Reshape::needShapeInfer() const {
 
 void Reshape::getSupportedDescriptors() {
     if (getParentEdges().size() != 1 && getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("Incorrect number of input edges");
+        CPU_NODE_THROW("Incorrect number of input edges");
     }
     if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("Incorrect number of output edges");
+        CPU_NODE_THROW("Incorrect number of output edges");
     }
 }
 

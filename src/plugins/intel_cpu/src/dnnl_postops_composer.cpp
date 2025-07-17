@@ -725,9 +725,8 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
         shape.push_back(1);
     }
 
-    if (shape.size() != 2 && shape.size() != 3) {
-        OPENVINO_THROW("DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
-    }
+    OPENVINO_ASSERT(shape.size() == 2 || shape.size() == 3,
+                    "DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
 
     // weights without batch: (OC, G)
     // weights with batch: (B, OC, G)

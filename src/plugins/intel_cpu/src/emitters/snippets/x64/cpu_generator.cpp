@@ -460,9 +460,7 @@ bool intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 snippets::CompiledSnippetPtr intel_cpu::CPUTargetMachine::get_snippet() {
-    if (h->create_kernel() != dnnl::impl::status::success) {
-        OPENVINO_THROW("Failed to create jit_kernel in get_snippet()");
-    }
+    OPENVINO_ASSERT(h->create_kernel() == dnnl::impl::status::success, "Failed to create jit_kernel in get_snippet()");
     const auto& result =
         std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator_t>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU

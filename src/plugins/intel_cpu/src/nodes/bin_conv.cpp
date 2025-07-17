@@ -1031,25 +1031,21 @@ void BinaryConvolution::getSupportedDescriptors() {
         }
     }
 
-    if (getParentEdges().size() != expectedInputEdgesNum) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == expectedInputEdgesNum, "has incorrect number of input edges");
 
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
 
-    if (getInputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(0).getRank() == 4,
+                    "doesn't support 0th input with rank: ",
+                    getInputShapeAtPort(0).getRank());
 
-    if (getInputShapeAtPort(1).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(1).getRank() == 4,
+                    "doesn't support 1st input with rank: ",
+                    getInputShapeAtPort(1).getRank());
 
-    if (getOutputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getOutputShapeAtPort(0).getRank() == 4,
+                    "doesn't support output with rank: ",
+                    getOutputShapeAtPort(0).getRank());
 }
 
 void BinaryConvolution::initSupportedPrimitiveDescriptors() {
@@ -1117,9 +1113,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 
 void BinaryConvolution::createPrimitive() {
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
 
     auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     auto weiDims = getParentEdgeAt(1)->getMemory().getStaticDims();
@@ -1199,9 +1193,7 @@ void BinaryConvolution::createPrimitive() {
     bool args_ok =
         (jcp.l_pad <= jcp.ur_w) && (r_pad_no_tail <= jcp.ur_w) &&
         IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
-    if (!args_ok) {
-        THROW_CPU_NODE_ERR("has unsupported parameters");
-    }
+    CPU_NODE_ASSERT(args_ok, "has unsupported parameters");
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
@@ -1453,9 +1445,7 @@ void BinaryConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
 
     auto implType = selectedPrimitiveDescriptor->getImplementationType();
     if (implType != impl_desc_type::ref) {

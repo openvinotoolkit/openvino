@@ -30,9 +30,7 @@ Result NgramShapeInfer::infer(const std::vector<std::reference_wrapper<const Vec
 
 ShapeInferPtr NgramShapeInferFactory::makeShapeInfer() const {
     auto ngram = ov::as_type_ptr<NgramNode>(m_op);
-    if (!ngram) {
-        OPENVINO_THROW("Wrong operation type");
-    }
+    OPENVINO_ASSERT(ngram, "Wrong operation type");
     return std::make_shared<NgramShapeInfer>(ngram->get_k());
 }
 }  // namespace ov::intel_cpu::node

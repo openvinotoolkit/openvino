@@ -51,9 +51,8 @@ BrgemmToBrgemmTPP::BrgemmToBrgemmTPP() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::BrgemmToBrgemmTPP")
         const auto node = m.get_match_root();
         const auto brgemm = ov::as_type_ptr<snippets::op::Brgemm>(node);
-        if (!brgemm || ov::as_type_ptr<tpp::op::BrgemmTPP>(node)) {
-            OPENVINO_THROW("BrgemmCPU cannot be in body before BrgemmToBrgemmTPP pass");
-        }
+        OPENVINO_ASSERT(brgemm && !ov::is_type<tpp::op::BrgemmTPP>(node),
+                        "BrgemmCPU cannot be in body before BrgemmToBrgemmTPP pass");
 
         if (brgemm->is_dynamic()) {
             return false;

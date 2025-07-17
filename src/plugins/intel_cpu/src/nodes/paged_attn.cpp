@@ -214,7 +214,7 @@ void PagedAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+        CPU_NODE_THROW("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }

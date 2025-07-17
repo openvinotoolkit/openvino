@@ -367,7 +367,7 @@ void Interaction::prepareParams() {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
     } else {
-        THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
+        CPU_NODE_THROW("cannot create jit eltwise kernel");
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {

@@ -167,9 +167,8 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
                                        const ExecutorContext::CPtr& context) {
     MemoryPtr input = std::make_shared<Memory>(context->getEngine(), srcWeightDesc, weightsMem->getData());
     MemoryPtr output = std::make_shared<Memory>(context->getEngine(), dstWeightDesc);
-    if (!input->getDesc().isDefined() || !output->getDesc().isDefined()) {
-        OPENVINO_THROW("Can't reorder data with dynamic shapes");
-    }
+    OPENVINO_ASSERT(input->getDesc().isDefined() && output->getDesc().isDefined(),
+                    "Can't reorder data with dynamic shapes");
 
     if (input->getShape().hasZeroDims() || output->getShape().hasZeroDims()) {
         return output;

@@ -365,6 +365,12 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
                     break;
                 }
             }
+
+            // Avoid mem0 and mem1's memory are inplace, but they have different layout.
+            if (!mem0->get_layout().get_partial_shape().compatible(mem1->get_layout().get_partial_shape())) {
+                same_params = false;
+                break;
+            }
         }
 
         if (same_params) {

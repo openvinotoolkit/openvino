@@ -30,9 +30,7 @@ namespace ov::intel_cpu::node {
 Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
     auto depth = data_dependency.at(1)->getDataAs<int32_t>()[0];
-    if (depth < 0) {
-        OPENVINO_THROW("OneHot depth value can't be negative.");
-    }
+    OPENVINO_ASSERT(depth >= 0, "OneHot depth value can't be negative.");
     auto result = input_shapes.front().get();
     auto depth_pos = result.begin();
     if (!result.empty()) {
@@ -45,9 +43,7 @@ Result OneHotShapeInfer::infer(const std::vector<std::reference_wrapper<const Ve
 
 ShapeInferPtr OneHotShapeInferFactory::makeShapeInfer() const {
     auto oneHot = ov::as_type_ptr<const ov::op::v1::OneHot>(m_op);
-    if (!oneHot) {
-        OPENVINO_THROW("Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
-    }
+    OPENVINO_ASSERT(oneHot, "Unexpected op type in OneHot shape inference factory: ", m_op->get_type_name());
     auto axis = oneHot->get_axis();
     auto dstShape = oneHot->get_output_partial_shape(0);
     int output_dims_size = dstShape.size();

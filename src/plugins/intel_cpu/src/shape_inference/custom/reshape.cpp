@@ -75,12 +75,11 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     }
     inputProduct = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<>());
     outputProduct = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
-    if (minusOneCount > 1 || inputProduct != outputProduct) {
-        OPENVINO_THROW("[cpu]reshape: the shape of input data ",
-                       ov::intel_cpu::vec2str(inputShape),
-                       " conflicts with the reshape pattern ",
-                       ov::intel_cpu::vec2str(outPattern));
-    }
+    OPENVINO_ASSERT(minusOneCount <= 1 && inputProduct == outputProduct,
+                    "[cpu]reshape: the shape of input data ",
+                    ov::intel_cpu::vec2str(inputShape),
+                    " conflicts with the reshape pattern ",
+                    ov::intel_cpu::vec2str(outPattern));
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
 
@@ -179,12 +178,11 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
             }
         }
     }
-    if (existError) {
-        OPENVINO_THROW("[cpu]unsqueeze: the shape of input data ",
-                       ov::intel_cpu::vec2str(inputShape),
-                       " conflicts with the unsqueeze pattern ",
-                       ov::intel_cpu::vec2str(originOutPattern));
-    }
+    OPENVINO_ASSERT(!existError,
+                    "[cpu]unsqueeze: the shape of input data ",
+                    ov::intel_cpu::vec2str(inputShape),
+                    " conflicts with the unsqueeze pattern ",
+                    ov::intel_cpu::vec2str(originOutPattern));
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
 

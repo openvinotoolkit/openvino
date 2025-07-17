@@ -38,9 +38,9 @@ Result PriorBoxClusteredShapeInfer::infer(
 
 ShapeInferPtr PriorBoxClusteredShapeInferFactory::makeShapeInfer() const {
     auto priorBox = ov::as_type_ptr<const ov::op::v0::PriorBoxClustered>(m_op);
-    if (!priorBox) {
-        OPENVINO_THROW("Unexpected op type in PriorBoxClustered shape inference factory: ", m_op->get_type_name());
-    }
+    OPENVINO_ASSERT(priorBox,
+                    "Unexpected op type in PriorBoxClustered shape inference factory: ",
+                    m_op->get_type_name());
     const auto& attrs = priorBox->get_attrs();
     auto number_of_priors = attrs.widths.size();
     return std::make_shared<PriorBoxClusteredShapeInfer>(number_of_priors);

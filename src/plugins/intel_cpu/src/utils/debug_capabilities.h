@@ -172,12 +172,9 @@ std::ostream& operator<<(std::ostream& os, const PrintableVector<T>& vec) {
     return os;
 }
 
-static inline std::ostream& _write_all_to_stream(std::ostream& os) {
-    return os;
-}
-template <typename T, typename... TS>
-static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
-    return ov::intel_cpu::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
+template <typename... TS>
+static inline std::ostream& _write_all_to_stream(std::ostream& os, TS&&... args) {
+    return (os << ... << std::forward<TS>(args));
 }
 
 }  // namespace ov::intel_cpu

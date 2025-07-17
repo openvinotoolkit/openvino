@@ -65,9 +65,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     const auto& p = post_ops_.get();
     for (int i = 0; i < post_ops_.len(); ++i) {
-        if (!p->entry_[i].is_quantization()) {
-            OPENVINO_THROW("Eltwise jitter error. Unsupported post op detected");
-        }
+        OPENVINO_ASSERT(p->entry_[i].is_quantization(), "Eltwise jitter error. Unsupported post op detected");
         quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(this,
                                                                                                   p->entry_[i],
                                                                                                   vmm_d_weights,
@@ -179,9 +177,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
             is_valid_configuration = false;
         }
 
-        if (!is_valid_configuration) {
-            OPENVINO_THROW("Eltwise jitter has invalid configuration for Eltwise node");
-        }
+        OPENVINO_ASSERT(is_valid_configuration, "Eltwise jitter has invalid configuration for Eltwise node");
 
         L(unroll_loop_label);
         {
@@ -447,9 +443,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
               OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
-    if (!ctx.emitter) {
-        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
-    }
+    OPENVINO_ASSERT(ctx.emitter, "Unsupported operation type for Eltwise emitter");
 
     return ctx.emitter;
 }
@@ -942,9 +936,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
               OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
-    if (precisions.empty()) {
-        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
-    }
+    OPENVINO_ASSERT(!precisions.empty(), "Unsupported operation type for Eltwise emitter");
 
     return precisions;
 }

@@ -29,7 +29,7 @@ constexpr bool is_pointer_representable(const ov::element::Type& tensor_type, co
 }  // namespace
 
 Tensor::Tensor(MemoryPtr memptr) : m_memptr{std::move(memptr)} {
-    OPENVINO_ASSERT(m_memptr != nullptr);
+    OPENVINO_ASSERT(m_memptr);
 
     // only support plain data format ncsp.
     auto memdesc = m_memptr->getDescPtr();

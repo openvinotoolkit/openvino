@@ -113,7 +113,7 @@ void ROIAlignRotated::execute([[maybe_unused]] const dnnl::stream& strm) {
         CASE(f32);
         CASE(f64);
     default:
-        THROW_CPU_NODE_ERR("Unhandled data type ", type, " in execute()");
+        CPU_NODE_THROW("Unhandled data type ", type, " in execute()");
     }
 #undef CASE
 }

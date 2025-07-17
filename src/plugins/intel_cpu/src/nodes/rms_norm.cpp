@@ -175,9 +175,7 @@ void RMSNorm::createPrimitive() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-    if (!result.first) {
-        OPENVINO_THROW("RMSNorm Executor creation fails with precision " + precision.to_string());
-    }
+    OPENVINO_ASSERT(result.first, "RMSNorm Executor creation fails with precision " + precision.to_string());
     m_executor = result.first;
 }
 

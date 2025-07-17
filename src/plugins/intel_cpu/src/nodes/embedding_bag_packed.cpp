@@ -66,13 +66,11 @@ EmbeddingBagPacked::EmbeddingBagPacked(const std::shared_ptr<ov::Node>& op, cons
             _reduction = Reduction::MEAN;
             break;
         default:
-            THROW_CPU_NODE_ERR("EmbeddingBagPacked does not support reduction mode: ",
-                               ov::as_string(packed_op->get_reduction()));
+            CPU_NODE_THROW("EmbeddingBagPacked does not support reduction mode: ",
+                           ov::as_string(packed_op->get_reduction()));
         }
     }
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 2UL) {
-        THROW_CPU_NODE_ERR("has indices data with invalid rank.");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(INDICES_IDX).getRank() == 2UL, "has indices data with invalid rank.");
 }
 
 void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
@@ -90,17 +88,17 @@ void EmbeddingBagPacked::initSupportedPrimitiveDescriptors() {
         inDataPrecision = ov::element::f32;
     }
     if (!supportedPrecisions.empty()) {
-        if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
-            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
-        }
+        CPU_NODE_ASSERT(supportedPrecisions.find(inDataPrecision) != supportedPrecisions.end(),
+                        "has unsupported precision: ",
+                        inDataPrecision.get_type_name());
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
                                                                                ov::element::i8,
                                                                                ov::element::u8,
                                                                                ov::element::i32};
-        if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
-            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
-        }
+        CPU_NODE_ASSERT(defaultSupportedPrecisions.find(inDataPrecision) != defaultSupportedPrecisions.end(),
+                        "has unsupported precision: ",
+                        inDataPrecision.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators(
@@ -127,9 +125,7 @@ void EmbeddingBagPacked::getIndices(size_t embIndex,
                                     size_t& size,
                                     int& weightsIdx,
                                     bool& withWeight) {
-    if (embIndex >= _batch * _indicesPerBag) {
-        THROW_CPU_NODE_ERR("Invalid embedding bag index.");
-    }
+    CPU_NODE_ASSERT(embIndex < _batch * _indicesPerBag, "Invalid embedding bag index.");
 
     withWeight = true;
 
