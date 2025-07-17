@@ -1114,7 +1114,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     // Broadcast pattern
     auto const_broadcast_arg = pattern::wrap_type<op::v0::Constant>(pattern::value_matches("{1.000000f}"));
     auto const_broadcast_axes = pattern::wrap_type<op::v0::Constant>(pattern::value_matches("{0}"));
-    auto broadcast = pattern::wrap_type<op::v3::Broadcast>({const_broadcast_arg, inputs[0], const_broadcast_axes},
+    auto broadcast = pattern::wrap_type<op::v1::Broadcast>({const_broadcast_arg, inputs[0], const_broadcast_axes},
                                                            {{"mode", "numpy"}});
 
     // Multiply pattern (expand broadcast)
@@ -1136,7 +1136,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     auto sin = pattern::wrap_type<op::v0::Sin>({concat});
 
     // Unsqueeze result pattern (cos or sin)
-    auto const_unsqueeze_axes = pattern::wrap_type<op::v0::Constant>(pattern::value_matches("{1}"));
+    auto const_unsqueeze_axes = pattern::wrap_type<op::v0::Constant>({1});
     auto result = pattern::wrap_type<op::v0::Unsqueeze>({cos | sin, const_unsqueeze_axes});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
