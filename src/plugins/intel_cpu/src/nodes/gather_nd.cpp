@@ -59,7 +59,7 @@ GatherND::GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     }
 
     if (inputShapes.size() != 2 && outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has invalid number of input/output edges.");
+        CPU_NODE_THROW("has invalid number of input/output edges.");
     }
 
     const size_t dataInputRank = getInputShapeAtPort(GATHERND_DATA).getRank();
@@ -70,10 +70,10 @@ GatherND::GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     } else if (auto gatherNdOp = ov::as_type_ptr<const ov::op::v5::GatherND>(op)) {
         attrs.batchDims = gatherNdOp->get_batch_dims();
     } else {
-        THROW_CPU_NODE_ERR("has support only opset5.");
+        CPU_NODE_THROW("has support only opset5.");
     }
     if (attrs.batchDims >= std::min(dataInputRank, indicesInputRank)) {
-        THROW_CPU_NODE_ERR("has invalid batch_dims attribute: ", attrs.batchDims);
+        CPU_NODE_THROW("has invalid batch_dims attribute: ", attrs.batchDims);
     }
 }
 
@@ -87,7 +87,7 @@ void GatherND::initSupportedPrimitiveDescriptors() {
                 sizeof(element_type_traits<ov::element::i32>::value_type),
                 sizeof(element_type_traits<ov::element::i16>::value_type),
                 sizeof(element_type_traits<ov::element::i8>::value_type))) {
-        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", inDataPrecision);
+        CPU_NODE_THROW("has unsupported 'data' input precision: ", inDataPrecision);
     }
     attrs.dataSize = inDataPrecision.size();
 
@@ -99,7 +99,7 @@ void GatherND::initSupportedPrimitiveDescriptors() {
                 ov::element::u16,
                 ov::element::i8,
                 ov::element::u8)) {
-        THROW_CPU_NODE_ERR("has unsupported 'indices' input precision: ", indicesPrecision);
+        CPU_NODE_THROW("has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}},
@@ -111,18 +111,10 @@ void GatherND::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(GATHERND_DATA);
     auto idxMemPtr = getSrcMemoryAtPort(GATHERND_INDEXES);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'data'.");
-    }
-    if (!idxMemPtr || !idxMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'indices'.");
-    }
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined output memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory of 'data'.");
+    CPU_NODE_ASSERT(idxMemPtr && idxMemPtr->isDefined(), "has undefined input memory of 'indices'.");
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has unidentified preferable primitive descriptor.");
 
     attrs.srcDims = srcMemPtr->getStaticDims();
     attrs.srcStrides = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -166,9 +158,7 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
 }
 
 void GatherND::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("has not compiled executor.");
-    }
+    CPU_NODE_ASSERT(execPtr, "has not compiled executor.");
 
     execPtr->exec(getSrcMemoryAtPort(GATHERND_DATA), getSrcMemoryAtPort(GATHERND_INDEXES), getDstMemoryAtPort(0));
 }

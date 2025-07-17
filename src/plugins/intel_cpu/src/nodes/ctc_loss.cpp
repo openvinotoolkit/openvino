@@ -51,7 +51,7 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     }
 
     if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5) {
-        THROW_CPU_NODE_ERR("has invalid inputs number.");
+        CPU_NODE_THROW("has invalid inputs number.");
     }
 
     auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
@@ -181,7 +181,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 resErr += err + "\n";
             }
         }
-        THROW_CPU_NODE_ERR(resErr);
+        CPU_NODE_THROW(resErr);
     }
 
     const size_t TC = maxTime * classesNum;

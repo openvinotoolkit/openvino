@@ -98,14 +98,10 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     }
 
     const size_t numInputs = getOriginalInputsNumber();
-    if (numInputs != 2 && numInputs != 3) {
-        THROW_CPU_NODE_ERR("has invalid number of input/output edges: ", numInputs);
-    }
+    CPU_NODE_ASSERT(numInputs == 2 || numInputs == 3, "has invalid number of input/output edges: ", numInputs);
 
     const auto axesRank = inputShapes[AXES_INDEX].getRank();
-    if (axesRank != 1) {
-        THROW_CPU_NODE_ERR("has invalid 'axes' input tensor with rank: ", axesRank);
-    }
+    CPU_NODE_ASSERT(axesRank == 1, "has invalid 'axes' input tensor with rank: ", axesRank);
 
     inverse = ov::is_type<ov::op::v9::IRDFT>(op);
 
@@ -119,9 +115,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
     if (numInputs > 2) {
         const auto signalSizeRank = inputShapes[SIGNAL_SIZE_INDEX].getRank();
-        if (signalSizeRank != 1) {
-            THROW_CPU_NODE_ERR("has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
-        }
+        CPU_NODE_ASSERT(signalSizeRank == 1, "has invalid 'signalSize' input tensor with rank: ", signalSizeRank);
         auto* signalSizesNode = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(2));
         if (!signalSizesNode) {
             return;
@@ -142,20 +136,18 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     }
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!dataPrecision.is_real()) {
-        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
-    }
+    CPU_NODE_ASSERT(dataPrecision.is_real(), "has unsupported 'data' input precision: ", dataPrecision.get_type_name());
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
-        THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
-    }
+    CPU_NODE_ASSERT(axesPrecision == ov::element::i32 || axesPrecision == ov::element::i64,
+                    "has unsupported 'axes' input precision: ",
+                    axesPrecision.get_type_name());
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizePrecision = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        if (signalSizePrecision != ov::element::i32 && signalSizePrecision != ov::element::i64) {
-            THROW_CPU_NODE_ERR("has unsupported 'signalSize' input precision: ", signalSizePrecision.get_type_name());
-        }
+        CPU_NODE_ASSERT(signalSizePrecision == ov::element::i32 || signalSizePrecision == ov::element::i64,
+                        "has unsupported 'signalSize' input precision: ",
+                        signalSizePrecision.get_type_name());
     }
 
     std::vector<PortConfigurator> configurators(
@@ -315,8 +307,8 @@ static void adjustInputSize(VectorDims& inputShape,
         size_t signalSize = signalSizes[i];
         if (signalSize <= inputSize) {
             inputShape[axis] = signalSize;
-        } else if (!isInverse) {
-            OPENVINO_THROW("Signal size greater than input size is not supported yet");
+        } else {
+            OPENVINO_ASSERT(isInverse, "Signal size greater than input size is not supported yet");
         }
     }
     if (isInverse) {

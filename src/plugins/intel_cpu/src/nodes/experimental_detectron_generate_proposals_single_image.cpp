@@ -349,7 +349,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::initSupportedPrimitiveDe
 void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
         if (inputShapes.size() != 4 || outputShapes.size() != 2) {
-            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
+            CPU_NODE_THROW("Incorrect number of input or output edges!");
         }
 
         size_t anchor_dims_size = 1;
@@ -363,18 +363,16 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
         for (uint64_t deltaDim : deltaDims) {
             deltas_dims_size *= deltaDim;
         }
-        if (anchor_dims_size != deltas_dims_size) {
-            THROW_CPU_NODE_ERR("'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
-        }
+        CPU_NODE_ASSERT(anchor_dims_size == deltas_dims_size,
+                        "'Anchors' blob size for ONNXProposal is incompatible with 'deltas' blob size!");
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
         for (uint64_t scoreDim : scoreDims) {
             score_dims_size *= scoreDim;
         }
-        if (deltas_dims_size != (4 * score_dims_size)) {
-            THROW_CPU_NODE_ERR("'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
-        }
+        CPU_NODE_ASSERT(deltas_dims_size == (4 * score_dims_size),
+                        "'Deltas' blob size for ONNXProposal is incompatible with 'scores' blob size!");
 
         // Prepare memory
         const auto* p_deltas_item = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
@@ -467,7 +465,7 @@ void ExperimentalDetectronGenerateProposalsSingleImage::execute([[maybe_unused]]
                               post_nms_topn_);
         }
     } catch (const std::exception& e) {
-        THROW_CPU_NODE_ERR(e.what());
+        CPU_NODE_THROW(e.what());
     }
 }
 

@@ -50,17 +50,12 @@ ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_p
     }
 
     const auto topKROI = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronTopKROIs>(op);
-    if (topKROI == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of ExperimentalDetectronTopKROIs from opset6.");
-    }
+    CPU_NODE_ASSERT(topKROI, "is not an instance of ExperimentalDetectronTopKROIs from opset6.");
 
-    if (inputShapes.size() != 2 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() == 1, "has incorrect number of input/output edges!");
 
-    if (getInputShapeAtPort(INPUT_ROIS).getRank() != 2 || getInputShapeAtPort(INPUT_PROBS).getRank() != 1) {
-        THROW_CPU_NODE_ERR("has unsupported input shape");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(INPUT_ROIS).getRank() == 2 && getInputShapeAtPort(INPUT_PROBS).getRank() == 1,
+                    "has unsupported input shape");
 
     max_rois_num_ = topKROI->get_max_rois();
 }

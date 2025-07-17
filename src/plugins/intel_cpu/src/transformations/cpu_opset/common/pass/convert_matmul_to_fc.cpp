@@ -160,10 +160,9 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
 
         auto aligned_a_rank = shape_a_aligned.rank();
         auto aligned_b_rank = shape_b_aligned.rank();
-        if (aligned_a_rank.is_dynamic() || aligned_b_rank.is_dynamic() || aligned_a_rank.get_length() < 2 ||
-            aligned_b_rank.get_length() < 2) {
-            OPENVINO_THROW("MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
-        }
+        OPENVINO_ASSERT(aligned_a_rank.is_static() && aligned_b_rank.is_static() && aligned_a_rank.get_length() >= 2 &&
+                            aligned_b_rank.get_length() >= 2,
+                        "MatMul " + matmul->get_friendly_name() + " shapes are inconsistent.");
 
         // Weights normalization
         if (!matmul->get_transpose_b()) {

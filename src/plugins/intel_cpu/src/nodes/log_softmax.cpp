@@ -48,13 +48,9 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     }
 
     const auto logSoftMax = ov::as_type_ptr<const ov::op::v5::LogSoftmax>(op);
-    if (logSoftMax == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of v5 LogSoftmax.");
-    }
+    CPU_NODE_ASSERT(logSoftMax, "is not an instance of v5 LogSoftmax.");
 
-    if (inputShapes.size() != 1 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(inputShapes.size() == 1 && outputShapes.size() == 1, "has incorrect number of input/output edges!");
 
     auto dimsSize = getInputShapeAtPort(0).getDims().size();
     if (dimsSize == 0) {
@@ -65,9 +61,8 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
         axis += dimsSize;
     }
 
-    if (dimsSize < static_cast<size_t>(static_cast<size_t>(1) + axis)) {
-        THROW_CPU_NODE_ERR("has incorrect input parameters dimensions and axis number!");
-    }
+    CPU_NODE_ASSERT(dimsSize >= static_cast<size_t>(1) + axis,
+                    "has incorrect input parameters dimensions and axis number!");
 }
 
 void LogSoftmax::initSupportedPrimitiveDescriptors() {

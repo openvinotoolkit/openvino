@@ -52,9 +52,7 @@ void freeReg(jit_kernel::reg_indices& freeRegs, const registers<RegType>& regs, 
     // if (it != freeRegs.end())
     //     throw std::runtime_error("Some register was freed twice");
     freeRegs.emplace_back(idx);
-    if (freeRegs.size() > regs.size()) {
-        OPENVINO_THROW("Some register was freed twice");
-    }
+    OPENVINO_ASSERT(freeRegs.size() <= regs.size(), "Some register was freed twice");
 }
 
 const registers<Reg64>& x64regs() {

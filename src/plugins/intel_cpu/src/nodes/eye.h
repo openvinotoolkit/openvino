@@ -51,27 +51,21 @@ private:
     struct EyeExecute;
     size_t getRowNum() const {
         auto rowMem = getSrcMemoryAtPort(ROWS_NUM);
-        if (rowMem == nullptr) {
-            THROW_CPU_NODE_ERR("doesn't contain row_count data");
-        }
+        CPU_NODE_ASSERT(rowMem, "doesn't contain row_count data");
         const auto* rowPtr = rowMem->getDataAs<const int>();
 
         return rowPtr[0];
     }
     size_t getColNum() const {
         auto colMem = getSrcMemoryAtPort(COLS_NUM);
-        if (colMem == nullptr) {
-            THROW_CPU_NODE_ERR("doesn't contain col_count data");
-        }
+        CPU_NODE_ASSERT(colMem, "doesn't contain col_count data");
         const auto* colPtr = colMem->getDataAs<const int>();
 
         return colPtr[0];
     }
     int getDiagIndex() const {
         auto diagIndMem = getSrcMemoryAtPort(DIAGONAL_INDEX);
-        if (diagIndMem == nullptr) {
-            THROW_CPU_NODE_ERR("doesn't contain diag_index data");
-        }
+        CPU_NODE_ASSERT(diagIndMem, "doesn't contain diag_index data");
         const auto* diagIndexPtr = diagIndMem->getDataAs<const int>();
 
         return diagIndexPtr[0];

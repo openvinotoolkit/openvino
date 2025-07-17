@@ -125,15 +125,13 @@ public:
                 }
             }
 
-            if (failed) {
-                OPENVINO_THROW(
-                    "Wrong syntax: ",
-                    str,
-                    "\n",
-                    "The following space separated options are supported (option names are case insensitive):",
-                    "\n",
-                    getHelp());
-            }
+            OPENVINO_ASSERT(!failed,
+                            "Wrong syntax: ",
+                            str,
+                            "\n",
+                            "The following space separated options are supported (option names are case insensitive):",
+                            "\n",
+                            getHelp());
         }
     };
 

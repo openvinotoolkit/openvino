@@ -83,9 +83,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
-    if (!core) {
-        OPENVINO_THROW("Unable to get API version. Core is unavailable");
-    }
+    OPENVINO_ASSERT(core, "Unable to get API version. Core is unavailable");
 
     IStreamsExecutor::Config executor_config;
     if (m_cfg.exclusiveAsyncRequests) {
@@ -249,17 +247,13 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    if (m_graphs.empty()) {
-        OPENVINO_THROW("No graph was found");
-    }
+    OPENVINO_ASSERT(!m_graphs.empty(), "No graph was found");
 
     return get_graph()._graph.dump();
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    if (m_graphs.empty()) {
-        OPENVINO_THROW("No graph was found");
-    }
+    OPENVINO_ASSERT(!m_graphs.empty(), "No graph was found");
 
     if (name == ov::loaded_from_cache) {
         return m_loaded_from_cache;

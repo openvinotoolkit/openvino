@@ -72,7 +72,7 @@ void Reference::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputs = prepareInputs();
     auto outputs = prepareOutputs();
     if (!ovCoreNode->evaluate(outputs, inputs)) {
-        THROW_CPU_NODE_ERR("evaluation failed for core operation: ", std::string(ovCoreNode->get_type_name()));
+        CPU_NODE_THROW("evaluation failed for core operation: ", std::string(ovCoreNode->get_type_name()));
     }
 }
 
@@ -102,10 +102,10 @@ void Reference::executeDynamicImpl(const dnnl::stream& strm) {
             }
         }
     } else {
-        THROW_CPU_NODE_ERR("got unexpected shape infer result status during the inference.");
+        CPU_NODE_THROW("got unexpected shape infer result status during the inference.");
     }
     if (!ovCoreNode->evaluate(outputs, inputs)) {
-        THROW_CPU_NODE_ERR("evaluation failed for core operation: ", std::string(ovCoreNode->get_type_name()));
+        CPU_NODE_THROW("evaluation failed for core operation: ", std::string(ovCoreNode->get_type_name()));
     }
     if (ShapeInferStatus::skip == result.status) {
         std::vector<VectorDims> newOutputDims;
@@ -118,9 +118,8 @@ void Reference::executeDynamicImpl(const dnnl::stream& strm) {
             auto memory = getDstMemoryAtPort(i);
             auto& tensor = outputs[i];
             if (memory->getSize() != tensor.get_byte_size()) {
-                THROW_CPU_NODE_ERR(
-                    "output tensor data size mismatch occurred during the inference on output port number ",
-                    i);
+                CPU_NODE_THROW("output tensor data size mismatch occurred during the inference on output port number ",
+                               i);
             }
             if (tensor.get_element_type() == element::string) {
                 auto* srcPtr = tensor.data<StringMemory::OvString>();

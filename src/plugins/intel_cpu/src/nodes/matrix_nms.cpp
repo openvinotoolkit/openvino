@@ -72,13 +72,11 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         m_outStaticShape = true;
     }
 
-    if (getOriginalInputsNumber() != 2) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getOriginalInputsNumber());
-    }
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == 2, "has incorrect number of input edges: ", getOriginalInputsNumber());
 
-    if (getOriginalOutputsNumber() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getOriginalOutputsNumber());
-    }
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == 3,
+                    "has incorrect number of output edges: ",
+                    getOriginalOutputsNumber());
 
     const auto matrix_nms = ov::as_type_ptr<const ov::op::v8::MatrixNms>(op);
 
@@ -117,16 +115,10 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     }
 
     const auto& boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
-    if (boxes_dims.size() != 3) {
-        THROW_CPU_NODE_ERR("has unsupported 'boxes' input rank: ", boxes_dims.size());
-    }
-    if (boxes_dims[2] != 4) {
-        THROW_CPU_NODE_ERR("has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
-    }
+    CPU_NODE_ASSERT(boxes_dims.size() == 3, "has unsupported 'boxes' input rank: ", boxes_dims.size());
+    CPU_NODE_ASSERT(boxes_dims[2] == 4, "has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
     const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
-    if (scores_dims.size() != 3) {
-        THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
-    }
+    CPU_NODE_ASSERT(scores_dims.size() == 3, "has unsupported 'scores' input rank: ", scores_dims.size());
 }
 
 void MatrixNms::initSupportedPrimitiveDescriptors() {
@@ -283,9 +275,8 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
 void MatrixNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
-    if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2]) {
-        THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' input dmensions");
-    }
+    CPU_NODE_ASSERT(boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2],
+                    "has incompatible 'boxes' and 'scores' input dmensions");
 
     m_numBatches = boxes_dims[0];
     m_numBoxes = boxes_dims[1];
@@ -439,7 +430,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
     // And on the other hand in case of api 2.0, keep them internal dynamic for better performance and functionality.
     if (!m_outStaticShape) {
         auto totalBox = std::accumulate(m_numPerBatch.begin(), m_numPerBatch.end(), int64_t{0});
-        OPENVINO_ASSERT(totalBox > 0, "Total number of boxes is less or equal than 0");
+        CPU_NODE_ASSERT(totalBox > 0, "Total number of boxes is less or equal than 0");
         redefineOutputMemory({{static_cast<size_t>(totalBox), 6}, {static_cast<size_t>(totalBox), 1}, {m_numBatches}});
     }
     auto* selectedOutputs = selectedOutputsMemPtr->getDataAs<float>();
@@ -481,9 +472,13 @@ void MatrixNms::checkPrecision(const ov::element::Type prec,
                                const std::vector<ov::element::Type>& precList,
                                const std::string& name,
                                const std::string& type) {
-    if (std::find(precList.begin(), precList.end(), prec) == precList.end()) {
-        THROW_CPU_NODE_ERR("has unsupported '", name, "' ", type, " precision: ", prec);
-    }
+    CPU_NODE_ASSERT(std::find(precList.begin(), precList.end(), prec) != precList.end(),
+                    "has unsupported '",
+                    name,
+                    "' ",
+                    type,
+                    " precision: ",
+                    prec);
 }
 
 }  // namespace ov::intel_cpu::node

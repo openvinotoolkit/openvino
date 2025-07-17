@@ -194,9 +194,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         }
 
         const auto* input_scale_ptr = input_scale_constant->get_data_ptr<float>();
-        if (*input_scale_ptr == 0.F) {
-            OPENVINO_THROW("Cannot handle zero input scale");
-        }
+        OPENVINO_ASSERT(*input_scale_ptr != 0.F, "Cannot handle zero input scale");
 
         const float input_scale = 1 / *input_scale_ptr;
         std::vector<float> weights_scales = weights_scale_constant->get_vector<float>();

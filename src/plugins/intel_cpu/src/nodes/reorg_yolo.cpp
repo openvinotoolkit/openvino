@@ -42,15 +42,12 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 1 || getOriginalOutputsNumber() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == 1 && getOriginalOutputsNumber() == 1,
+                    "has incorrect number of input/output edges!");
 
     const auto reorgYolo = ov::as_type_ptr<const ov::op::v0::ReorgYolo>(op);
     const auto strides = reorgYolo->get_strides();
-    if (strides.empty()) {
-        THROW_CPU_NODE_ERR("has empty strides");
-    }
+    CPU_NODE_ASSERT(!strides.empty(), "has empty strides");
     stride = strides[0];
 }
 

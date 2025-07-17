@@ -213,13 +213,12 @@ public:
 
     dnnl::impl::status_t create_kernel() override {
         const dnnl::impl::status_t code = jit_generator_t::create_kernel();
-        if (code != dnnl::impl::status::success) {
-            OPENVINO_THROW("Could not create kernel. Error code: ",
-                           std::to_string(code),
-                           ". ",
-                           "Xbyak error code: ",
-                           Xbyak::ConvertErrorToString(Xbyak::GetError()));
-        }
+        OPENVINO_ASSERT(code == dnnl::impl::status::success,
+                        "Could not create kernel. Error code: ",
+                        std::to_string(code),
+                        ". ",
+                        "Xbyak error code: ",
+                        Xbyak::ConvertErrorToString(Xbyak::GetError()));
         m_func = (decltype(m_func))jit_ker();
         return code;
     }

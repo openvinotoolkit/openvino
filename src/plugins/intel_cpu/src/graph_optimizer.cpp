@@ -298,19 +298,12 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
 
     auto initializeDeQuantizedScales = [](const NodePtr& node, const NodePtr& scales) {
         auto* scalesConstant = dynamic_cast<node::Input*>(scales.get());
-        if (scalesConstant == nullptr) {
-            OPENVINO_THROW("Cannot cast to Input node");
-        }
+        OPENVINO_ASSERT(scalesConstant, "Cannot cast to Input node");
 
         auto scalesBlob = scalesConstant->getMemoryPtr();
-        if (scalesBlob == nullptr) {
-            OPENVINO_THROW("Cannot cast to TBlob internal scales blob");
-        }
-
+        OPENVINO_ASSERT(scalesBlob, "Cannot cast to TBlob internal scales blob");
         const auto* scalesData = static_cast<const float*>(scalesBlob->getData());
-        if (scalesData == nullptr) {
-            OPENVINO_THROW("scalesBlob has not allocated buffer");
-        }
+        OPENVINO_ASSERT(scalesData, "scalesBlob has not allocated buffer");
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
                                                   node->getOutputShapeAtPort(0).getDims().size());
         auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<>());
@@ -530,9 +523,7 @@ void GraphOptimizer::FuseDeconvolutionAndSimpleOperation(Graph& graph) {
             return false;
         }
         const auto deconv = std::dynamic_pointer_cast<Deconvolution>(node);
-        if (deconv == nullptr) {
-            OPENVINO_THROW("Cannot cast to deconvolution node ", node->getName());
-        }
+        OPENVINO_ASSERT(deconv, "Cannot cast to deconvolution node ", node->getName());
 
         if (deconv->getAlgorithm() != Algorithm::DeconvolutionCommon) {
             return true;
@@ -940,9 +931,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 
     auto initializeInputZeroPoints = [](const NodePtr& node, const NodePtr& parent0, const NodePtr& parent1) {
         auto* convNode = dynamic_cast<Convolution*>(node.get());
-        if (convNode == nullptr) {
-            OPENVINO_THROW("Cannot get convolution node ", node->getName());
-        }
+        OPENVINO_ASSERT(convNode, "Cannot get convolution node ", node->getName());
 
         auto IC = node->getInputShapeAtPort(0).getDims()[1];
         auto OC = node->getOutputShapeAtPort(0).getDims()[1];
@@ -1005,20 +994,12 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
 
         auto* zeroPointsConstant = dynamic_cast<node::Input*>(subtractArg1.get());
-        if (zeroPointsConstant == nullptr) {
-            OPENVINO_THROW("Cannot cast to Input node");
-        }
+        OPENVINO_ASSERT(zeroPointsConstant, "Cannot cast to Input node");
 
         auto zeroPointsBlob = zeroPointsConstant->getMemoryPtr();
-        if (zeroPointsBlob == nullptr) {
-            OPENVINO_THROW("Cannot cast to TBlob internal zero points blob");
-        }
-
+        OPENVINO_ASSERT(zeroPointsBlob, "Cannot cast to TBlob internal zero points blob");
         const auto* zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->getData());
-        if (zeroPointsData == nullptr) {
-            OPENVINO_THROW("zeroPointsBlob has not allocated buffer");
-        }
-
+        OPENVINO_ASSERT(zeroPointsData, "zeroPointsBlob has not allocated buffer");
         auto zeroPointDataSize = parent0->getInputShapeAtPort(1).getDims()[1];
         if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
             return false;
@@ -1029,9 +1010,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 
     auto initializeOutputCompensation = [](const NodePtr& node) {
         auto* convNode = dynamic_cast<Convolution*>(node.get());
-        if (convNode == nullptr) {
-            OPENVINO_THROW("Cannot get convolution node ", node->getName());
-        }
+        OPENVINO_ASSERT(convNode, "Cannot get convolution node ", node->getName());
 
         if (convNode->legacyInputZeroPoints.empty()) {
             return;
@@ -1046,15 +1025,9 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
 
         auto weightsBlob = weightsConstant->getMemoryPtr();
-        if (weightsBlob == nullptr) {
-            OPENVINO_THROW("Cannot cast to TBlob internal weights blob");
-        }
-
+        OPENVINO_ASSERT(weightsBlob, "Cannot cast to TBlob internal weights blob");
         const auto* weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());
-        if (weightsPtr == nullptr) {
-            OPENVINO_THROW("weightsBlob has not allocated buffer");
-        }
-
+        OPENVINO_ASSERT(weightsPtr, "weightsBlob has not allocated buffer");
         auto G = convNode->getGroupNum();
         const size_t groupOffset = convNode->getAlgorithm() == Algorithm::ConvolutionGrouped ? 1 : 0;
         const auto& weightsConstantDims = weightsConstant->outputShapes[0].getStaticDims();
@@ -1224,10 +1197,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         }
 
         const auto conv = std::dynamic_pointer_cast<Convolution>(node);
-        if (conv == nullptr) {
-            OPENVINO_THROW("Cannot cast to convolution node ", node->getName());
-        }
-
+        OPENVINO_ASSERT(conv, "Cannot cast to convolution node ", node->getName());
         if (!conv->legacyWeightsZeroPoints.empty()) {
             return false;
         }
@@ -1265,15 +1235,10 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         }
 
         const auto convChild = std::dynamic_pointer_cast<Convolution>(childNode);
-        if (convChild == nullptr) {
-            OPENVINO_THROW("Cannot cast to convolution node ", childNode->getName());
-        }
+        OPENVINO_ASSERT(convChild, "Cannot cast to convolution node ", childNode->getName());
 
         const auto convParent = std::dynamic_pointer_cast<Convolution>(parentNode);
-        if (convParent == nullptr) {
-            OPENVINO_THROW("Cannot cast to convolution node ", parentNode->getName());
-        }
-
+        OPENVINO_ASSERT(convParent, "Cannot cast to convolution node ", parentNode->getName());
         if (!everyone_is(ov::element::f32,
                          convParent->getOriginalOutputPrecisionAtPort(0),
                          convChild->getOriginalInputPrecisionAtPort(0),
@@ -1339,10 +1304,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         int dw_conv_output_size = outDims[0] * outDims[1] * outDims[2] * outDims[3] * elemSize;
 
         auto parentConvolutionNode = std::dynamic_pointer_cast<Convolution>(parentNode);
-        if (parentConvolutionNode == nullptr) {
-            OPENVINO_THROW("Cannot get convolution node ", parentNode->getName());
-        }
-
+        OPENVINO_ASSERT(parentConvolutionNode, "Cannot get convolution node ", parentNode->getName());
         if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
             return false;
         }
@@ -1950,9 +1912,7 @@ void GraphOptimizer::FuseInterpolateAndSimpleOperation(Graph& graph) {
             return false;
         }
         auto* interpolateNode = dynamic_cast<Interpolate*>(parentNode.get());
-        if (!interpolateNode) {
-            OPENVINO_THROW("Cannot cast ", parentNode->getName(), " to Interpolate");
-        }
+        OPENVINO_ASSERT(interpolateNode, "Cannot cast ", parentNode->getName(), " to Interpolate");
         return interpolateNode->canFuse(childNode);
     };
 
@@ -2062,9 +2022,7 @@ void GraphOptimizer::FuseReduceAndSimpleOperation(Graph& graph) {
             auto parentEdges = childNode->parentEdges;
             for (auto& parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
-                if (p_edge == nullptr) {
-                    OPENVINO_THROW("Cannot get parent edge ", childNode->getName());
-                }
+                OPENVINO_ASSERT(p_edge, "Cannot get parent edge ", childNode->getName());
                 if (p_edge->getParent()->getType() == Type::Reduce) {
                     continue;
                 }
@@ -2224,9 +2182,7 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
             return nullptr;
         }
         auto* reorder = dynamic_cast<Reorder*>(node.get());
-        if (reorder == nullptr) {
-            OPENVINO_THROW("Cannot get reorder layer ", node->getName());
-        }
+        OPENVINO_ASSERT(reorder, "Cannot get reorder layer ", node->getName());
 
         // inplace children cannot be safely shared with each other
         auto reorderConsumers = reorder->getChildEdgesAtPort(0);
@@ -2300,14 +2256,9 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
             node->getChildEdges().size() == 1 && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
             auto* n = dynamic_cast<Reorder*>(node.get());
-            if (n == nullptr) {
-                OPENVINO_THROW("Cannot get reorder layer ", node->getName());
-            }
+            OPENVINO_ASSERT(n, "Cannot get reorder layer ", node->getName());
             auto* nn = dynamic_cast<Reorder*>(nextNode.get());
-            if (nn == nullptr) {
-                OPENVINO_THROW("Cannot get reorder layer ", nextNode->getName());
-            }
-
+            OPENVINO_ASSERT(nn, "Cannot get reorder layer ", nextNode->getName());
             NodePtr p = n->getParentEdgeAt(0)->getParent();
             NodePtr c = nn->getChildEdgeAt(0)->getChild();
 
@@ -2325,10 +2276,7 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
                     edge = cur;
                 }
             }
-            if (!edge) {
-                OPENVINO_THROW("Inappropriate graph processing");
-            }
-
+            OPENVINO_ASSERT(edge, "Inappropriate graph processing");
             std::string layerName = edge->getParent()->getName() + "_ScaleReorder_" + edge->getChild()->getName();
             graph.InsertReorder(edge, layerName, n->getInput(), nn->getOutput(), false);
             graph.RemoveEdge(edge);
@@ -2350,15 +2298,9 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph& graph) {
 
     auto fuseClampAndFakeQuantizeNodes = [](const NodePtr& parent, const NodePtr& child) {
         auto* eltwiseNode = dynamic_cast<Eltwise*>(parent.get());
-        if (eltwiseNode == nullptr) {
-            OPENVINO_THROW("Cannot cast ", parent->getName(), " to Eltwise node");
-        }
-
+        OPENVINO_ASSERT(eltwiseNode, "Cannot cast ", parent->getName(), " to Eltwise node");
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(child.get());
-        if (fakeQuantizeNode == nullptr) {
-            OPENVINO_THROW("Cannot cast ", child->getName(), " to FakeQuantize node");
-        }
-
+        OPENVINO_ASSERT(fakeQuantizeNode, "Cannot cast ", child->getName(), " to FakeQuantize node");
         const std::vector<float>& cropLowData = fakeQuantizeNode->getCropLow();
         const std::vector<float>& cropHighData = fakeQuantizeNode->getCropHigh();
 
@@ -2441,17 +2383,12 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
 
     auto fuseScaleShiftAndFakeQuantizeNodes = [getNonConstPort](const NodePtr& parent, const NodePtr& child) {
         auto fakeQuantizeNode = std::dynamic_pointer_cast<FakeQuantize>(child);
-        if (fakeQuantizeNode == nullptr) {
-            OPENVINO_THROW("Cannot cast ", child->getName(), " to FakeQuantize node");
-        }
+        OPENVINO_ASSERT(fakeQuantizeNode, "Cannot cast ", child->getName(), " to FakeQuantize node");
 
         std::vector<float> scalesBuffer;
         std::vector<float> shiftsBuffer;
         auto parentEltwise = std::dynamic_pointer_cast<Eltwise>(parent);
-        if (!parentEltwise) {
-            OPENVINO_THROW("Cannot cast ", parent->getName(), " to Eltwise node");
-        }
-
+        OPENVINO_ASSERT(parentEltwise, "Cannot cast ", parent->getName(), " to Eltwise node");
         const NodePtr eltwiseInput = parentEltwise->getParentEdgeAt(getNonConstPort(parent))->getParent();
         std::tie(scalesBuffer, shiftsBuffer) = parentEltwise->getScalesAndShifts(eltwiseInput.get());
 

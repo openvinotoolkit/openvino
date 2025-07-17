@@ -69,10 +69,10 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     }
 
     if (op->get_input_size() != 2 && op->get_input_size() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
+        CPU_NODE_THROW("has incorrect number of input edges: ", getParentEdges().size());
     }
     if (op->get_output_size() == 0) {
-        THROW_CPU_NODE_ERR("has no output edges.");
+        CPU_NODE_THROW("has no output edges.");
     }
 
     auto broadcastOp = ov::as_type_ptr<const ov::op::v1::Broadcast>(op);
@@ -80,11 +80,11 @@ Broadcast::Broadcast(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         broadcastType = NUMPY;
     } else if (broadcastOp->get_broadcast_spec().m_type == ov::op::AutoBroadcastType::EXPLICIT) {
         if (op->get_input_size() <= AXES_MAPPING_IDX) {
-            THROW_CPU_NODE_ERR("and EXPLICIT mode must have tree input edges: ", getParentEdges().size());
+            CPU_NODE_THROW("and EXPLICIT mode must have tree input edges: ", getParentEdges().size());
         }
         broadcastType = EXPLICIT;
     } else {
-        THROW_CPU_NODE_ERR("has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
+        CPU_NODE_THROW("has unexpected broadcast type: ", broadcastOp->get_broadcast_spec().m_type);
     }
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(TARGET_SHAPE_IDX))) {

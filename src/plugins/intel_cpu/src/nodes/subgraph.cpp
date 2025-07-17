@@ -23,7 +23,6 @@
 #include "nodes/executors/subgraph.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
-#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
@@ -199,7 +198,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
       host_isa(getHostIsa()),
       subgraph_attrs(std::make_shared<SubgraphAttrs>()) {
     const auto& tmp_snippet = ov::as_type_ptr<snippets::op::Subgraph>(op);
-    OPENVINO_ASSERT(tmp_snippet, "Attempt to create Subgraph node from an invalid op type");
+    CPU_NODE_ASSERT(tmp_snippet, "Attempt to create Subgraph node from an invalid op type");
     subgraph_attrs->snippet = tmp_snippet->clone();
     subgraph_attrs->bodyHash = getBodyHash(tmp_snippet);
 
@@ -209,7 +208,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 #elif defined(OPENVINO_ARCH_X86_64)
     subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
 #else
-    THROW_CPU_NODE_ERR("Subgraphs code-generator is not supported on non-x64 platforms");
+    CPU_NODE_THROW("Subgraphs code-generator is not supported on non-x64 platforms");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
@@ -687,7 +686,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
 
 uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shapes) {
     uint32_t mask = 0;
-    OPENVINO_ASSERT(broadcastable_inputs.size() < sizeof(mask) * CHAR_BIT,
+    CPU_NODE_ASSERT(broadcastable_inputs.size() < sizeof(mask) * CHAR_BIT,
                     "Incorrect size of broadcastable inputs of Subgraph");
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
@@ -722,11 +721,11 @@ void Subgraph::optimizeIR() {
 
     // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
     // we should verify that the received map is aligned with our blocked input shapes
-    OPENVINO_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
+    CPU_NODE_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
                         (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_shapes.size()),
                     "Incorrect indexes of broadcastable inputs of Subgraph");
     for (const auto broadcastable_input : broadcastable_inputs) {
-        OPENVINO_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
+        CPU_NODE_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
                         "Incorrect processing dimension index of broadcastable index");
     }
 
@@ -830,7 +829,7 @@ void Subgraph::prepareParams() {
     execPtr = result.first;
 #endif
 
-    OPENVINO_ASSERT(execPtr != nullptr, "Executor is not created for node ", getName(), ".");
+    CPU_NODE_ASSERT(execPtr, "Executor is not created for node ", getName(), ".");
 }
 
 IShapeInfer::Result Subgraph::shapeInfer() const {
@@ -880,7 +879,7 @@ bool Subgraph::created() const {
 }
 
 void Subgraph::execute(const dnnl::stream& strm) {
-    OPENVINO_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
+    CPU_NODE_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
     execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
 }
 

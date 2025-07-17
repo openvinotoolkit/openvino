@@ -92,7 +92,7 @@ Split::Split(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
         axis += inRank;
     }
     if (axis >= static_cast<int64_t>(inRank)) {
-        THROW_CPU_NODE_ERR("has invalid value of axis parameter: ", axis);
+        CPU_NODE_THROW("has invalid value of axis parameter: ", axis);
     }
     this->axis = axis;
 }
@@ -111,7 +111,7 @@ void Split::initSupportedPrimitiveDescriptors() {
     for (const auto& outputShape : outputShapes) {
         const auto& o_Dims = outputShape.getDims();
         if (dstFirstDims.size() != o_Dims.size()) {
-            THROW_CPU_NODE_ERR("only supports output blobs with equal number of dimensions");
+            CPU_NODE_THROW("only supports output blobs with equal number of dimensions");
         }
 
         for (size_t j = 0; j < dstFirstDims.size(); j++) {
@@ -119,7 +119,7 @@ void Split::initSupportedPrimitiveDescriptors() {
                 continue;
             }
             if (!dimsEqualWeak(o_Dims[j], dstFirstDims[j])) {
-                THROW_CPU_NODE_ERR("has incorrect output dimensions");
+                CPU_NODE_THROW("has incorrect output dimensions");
             }
         }
     }
@@ -278,9 +278,7 @@ void Split::createPrimitive() {
 
 void Split::prepareParams() {
     const auto& srcMemPtr = getSrcMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory");
-    }
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory");
 
     if (!constSplitLengths) {
         const auto& splitLengthsPtr = getSrcMemoryAtPort(2);
@@ -293,9 +291,7 @@ void Split::prepareParams() {
     std::vector<BlockedMemoryDescCPtr> outDescs;
     for (size_t port = 0; port < outputShapes.size(); ++port) {
         const auto& outMemPtr = this->getDstMemoryAtPort(port);
-        if (!outMemPtr || !outMemPtr->isDefined()) {
-            THROW_CPU_NODE_ERR("has undefined destination memory");
-        }
+        CPU_NODE_ASSERT(outMemPtr && outMemPtr->isDefined(), "has undefined destination memory");
 
         if (outMemPtr->getShape().hasZeroDims()) {
             continue;
@@ -327,9 +323,7 @@ void Split::execute([[maybe_unused]] const dnnl::stream& strm) {
         return;
     }
 
-    if (dstMemPtrs.empty()) {
-        THROW_CPU_NODE_ERR("Output data pointers have not been initialized.");
-    }
+    CPU_NODE_ASSERT(!dstMemPtrs.empty(), "Output data pointers have not been initialized.");
 
     const auto& srcMem = getParentEdgeAt(0)->getMemory();
 
@@ -339,7 +333,7 @@ void Split::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     auto* srcData = srcMem.getDataAs<uint8_t>();
-    CPU_NODE_ASSERT(execPtr != nullptr, "Split executor is not initialized");
+    CPU_NODE_ASSERT(execPtr, "Split executor is not initialized");
     execPtr->exec(srcData, getRawDstMemPtrs());
 }
 
@@ -350,9 +344,7 @@ bool Split::created() const {
 void Split::initOptimalPrimitiveDescriptor() {
     Node::initOptimalPrimitiveDescriptor();
     auto* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
 
     auto config = selected_pd->getConfig();
     canUseOptimizedNspc2Ncsp = false;
@@ -516,9 +508,7 @@ std::vector<uint8_t*> Split::getRawDstMemPtrs() const {
     std::vector<uint8_t*> result(dstMemPtrs.size());
     for (size_t i = 0; i < dstMemPtrs.size(); ++i) {
         result[i] = dstMemPtrs[i].second->getDataAs<uint8_t>();
-        if (!result[i]) {
-            THROW_CPU_NODE_ERR("can't get child edge indx ", dstMemPtrs[i].first, " data.");
-        }
+        CPU_NODE_ASSERT(result[i], "can't get child edge indx ", dstMemPtrs[i].first, " data.");
     }
     return result;
 }
@@ -535,9 +525,8 @@ Split::SplitOptimizedExecutor::SplitOptimizedExecutor(const BlockedMemoryDescCPt
             break;
         }
     }
-    if (std::numeric_limits<unsigned>::max() == axisOrderPos) {
-        OPENVINO_THROW("Can't create split executor, because can't find the axis in the input tensor order list");
-    }
+    OPENVINO_ASSERT(std::numeric_limits<unsigned>::max() != axisOrderPos,
+                    "Can't create split executor, because can't find the axis in the input tensor order list");
 
     const auto outputPortsCount = outDescs.size();
 
@@ -585,9 +574,7 @@ void Split::resolveInPlaceEdges(Edge::LOOK look) {
         return;
     }
     auto* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
     const auto& config = selected_pd->getConfig();
     size_t numberOfOutputs = config.outConfs.size();
     size_t inplaceInpIndx = selected_pd->getConfig().outConfs[0].inPlace();

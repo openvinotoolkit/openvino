@@ -352,9 +352,8 @@ void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
 
 void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
-        if (inputShapes.size() != 4 || outputShapes.size() != 3) {
-            THROW_CPU_NODE_ERR("Incorrect number of input or output edges!");
-        }
+        CPU_NODE_ASSERT(inputShapes.size() == 4 && outputShapes.size() == 3,
+                        "Incorrect number of input or output edges!");
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();
@@ -367,18 +366,16 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         for (size_t i = 1; i < deltaDims.size(); i++) {
             deltas_dims_size *= deltaDims[i];
         }
-        if (anchor_dims_size != deltas_dims_size) {
-            THROW_CPU_NODE_ERR("'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
-        }
+        CPU_NODE_ASSERT(anchor_dims_size == deltas_dims_size,
+                        "'Anchors' blob size for GenerateProposals is incompatible with 'deltas' blob size!");
 
         size_t score_dims_size = 1;
         const auto& scoreDims = getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims();
         for (size_t i = 1; i < scoreDims.size(); i++) {
             score_dims_size *= scoreDims[i];
         }
-        if (deltas_dims_size != (4 * score_dims_size)) {
-            THROW_CPU_NODE_ERR("'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
-        }
+        CPU_NODE_ASSERT(deltas_dims_size == (4 * score_dims_size),
+                        "'Deltas' blob size for GenerateProposals is incompatible with 'scores' blob size!");
 
         size_t im_info_dims_size = 1;
         const auto& infoDims = getParentEdgeAt(INPUT_IM_INFO)->getMemory().getStaticDims();
@@ -511,7 +508,7 @@ void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
         memcpy(p_roi_score_item, score_item.data(), score_item.size() * sizeof(float));
         memcpy(p_roi_num_item, roi_num.data(), getDstMemoryAtPort(OUTPUT_ROI_NUM)->getSize());
     } catch (const std::exception& e) {
-        THROW_CPU_NODE_ERR(e.what());
+        CPU_NODE_THROW(e.what());
     }
 }
 

@@ -26,9 +26,7 @@ DnnlMemoryDesc::DnnlMemoryDesc(const dnnl::memory::desc& desc) : DnnlMemoryDesc(
 DnnlMemoryDesc::DnnlMemoryDesc(const_dnnl_memory_desc_t cdesc)
     : MemoryDesc(Shape(DnnlExtensionUtils::convertToVectorDims(cdesc->dims, cdesc->ndims)), Dnnl),
       desc(DnnlExtensionUtils::clone_desc(cdesc)) {
-    if (getFormatKind() == dnnl::memory::format_kind::any) {
-        OPENVINO_THROW("Unexpected: Memory format any is prohibited!");
-    }
+    OPENVINO_ASSERT(getFormatKind() != dnnl::memory::format_kind::any, "Unexpected: Memory format any is prohibited!");
 }
 
 ov::element::Type DnnlMemoryDesc::getPrecision() const {
@@ -86,9 +84,7 @@ std::string DnnlMemoryDesc::serializeFormat() const {
 }
 
 size_t DnnlMemoryDesc::getMaxMemSize() const {
-    if (shape.isDynamic()) {
-        OPENVINO_THROW("Can't compute max mem size for DnnlMemoryDesc with dynamic shape");
-    }
+    OPENVINO_ASSERT(!shape.isDynamic(), "Can't compute max mem size for DnnlMemoryDesc with dynamic shape");
 
     return getCurrentMemSize();
 }

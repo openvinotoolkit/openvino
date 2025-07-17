@@ -59,9 +59,7 @@ ShapeInferPtr GatherShapeInferFactory::makeShapeInfer() const {
     static constexpr size_t GATHER_AXIS = 2;
     bool isAxisInputConst = ov::is_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS));
     const auto& indicesShape = m_op->get_input_partial_shape(GATHER_INDICES);
-    if (!indicesShape.rank().is_static()) {
-        OPENVINO_THROW("indicesShape do not support dynamic rank.");
-    }
+    OPENVINO_ASSERT(indicesShape.rank().is_static(), "indicesShape do not support dynamic rank.");
     bool isIndicesScalar = indicesShape.rank().get_length() == 0;
     int axis = isAxisInputConst
                    ? ov::as_type<ov::op::v0::Constant>(m_op->get_input_node_ptr(GATHER_AXIS))->cast_vector<int>()[0]

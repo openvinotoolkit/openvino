@@ -2190,9 +2190,8 @@ void MVN::MVNJitExecutor::exec(const uint8_t* src_data,
                                uint8_t* dst_data,
                                const void* post_ops_data_,
                                const VectorDims& shape5d) {
-    if (!mvn_mean_kernel || (mvnAttrs.normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
-        OPENVINO_THROW("MVN layer doesn't create kernel to execute on sse41 above platform.");
-    }
+    OPENVINO_ASSERT(mvn_mean_kernel && (!mvnAttrs.normalizeVariance_ || mvn_variance_kernel) && mvn_kernel,
+                    "MVN layer doesn't create kernel to execute on sse41 above platform.");
     if (mvnAttrs.layout == MVNLayoutType::mvn_planar) {
         mvn_pln(src_data, dst_data, post_ops_data_, shape5d);
     } else if (mvnAttrs.layout == MVNLayoutType::mvn_by_channel) {
@@ -2215,13 +2214,13 @@ void MVN::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination memory is undefined.");
+        CPU_NODE_THROW("Destination memory is undefined.");
     }
     if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Input memory is undefined.");
+        CPU_NODE_THROW("Input memory is undefined.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+        CPU_NODE_THROW("Preferable primitive descriptor is not set.");
     }
 
     const VectorDims in_dims = srcMemPtr->getStaticDims();
@@ -2322,7 +2321,7 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
         break;
     }
     default: {
-        THROW_CPU_NODE_ERR("doesn't support planar layout with rank: ", shape.size());
+        CPU_NODE_THROW("doesn't support planar layout with rank: ", shape.size());
     }
     }
 }
@@ -2344,11 +2343,11 @@ void MVN::setPostOps(dnnl::primitive_attr& attr, [[maybe_unused]] bool initWeigh
             eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs, channelAxis);
             continue;
         }
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
     attr.set_post_ops(ops);
 }
@@ -2368,7 +2367,7 @@ void MVN::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
-        THROW_CPU_NODE_ERR("Primitive wasn't created");
+        CPU_NODE_THROW("Primitive wasn't created");
     }
 }
 

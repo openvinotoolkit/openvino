@@ -34,7 +34,7 @@ public:
 
     [[nodiscard]] T get(bool allow_empty = false) const {
         T result = m_ptr.get();
-        OPENVINO_ASSERT(allow_empty || result != nullptr, "ShlStructure is not initialized");
+        OPENVINO_ASSERT(allow_empty || result, "ShlStructure is not initialized");
         return result;
     }
 
@@ -74,7 +74,7 @@ struct ShlStructureTraits<csinn_session*> {
 struct ShlSession : public ShlStructure<csinn_session*> {
     ShlSession() {
         csinn_session* session = csinn_alloc_session();
-        OPENVINO_ASSERT(session != nullptr, "Failed to create csinn_session");
+        OPENVINO_ASSERT(session, "Failed to create csinn_session");
         // CPU Plugin supports only per layer execution in SHL
         session->base_run_mode = CSINN_RM_LAYER;
         reset(session);
@@ -90,13 +90,13 @@ struct ShlStructureTraits<csinn_tensor*> {
 struct ShlTensor : public ShlStructure<csinn_tensor*> {
     ShlTensor() {
         csinn_tensor* tensor = csinn_alloc_tensor(nullptr);
-        OPENVINO_ASSERT(tensor != nullptr, "Failed to create csinn_tensor");
+        OPENVINO_ASSERT(tensor, "Failed to create csinn_tensor");
         reset(tensor);
     }
 
     ShlTensor(const ShlSession& session) {
         csinn_tensor* tensor = csinn_alloc_tensor(session.get());
-        OPENVINO_ASSERT(tensor != nullptr, "Failed to create csinn_tensor");
+        OPENVINO_ASSERT(tensor, "Failed to create csinn_tensor");
         reset(tensor);
     }
 
@@ -185,13 +185,13 @@ template <typename T, typename traits = ShlStructureTraits<T>>
 struct ShlParams : public ShlStructure<T>, public IShlParams {
     ShlParams() {
         T params = static_cast<T>(csinn_alloc_params(sizeof(std::remove_pointer_t<T>), nullptr));
-        OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_params");
+        OPENVINO_ASSERT(params, "Failed to create csinn_params");
         this->reset(params);
     }
 
     ShlParams(const ShlSession& session) {
         T params = static_cast<T>(csinn_alloc_params(sizeof(std::remove_pointer_t<T>), session.get()));
-        OPENVINO_ASSERT(params != nullptr, "Failed to create csinn_params");
+        OPENVINO_ASSERT(params, "Failed to create csinn_params");
         this->reset(params);
     }
 
