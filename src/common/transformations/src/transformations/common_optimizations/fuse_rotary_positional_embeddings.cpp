@@ -474,39 +474,41 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
     this->register_matcher(m, callback);
 }
 
+// gptneox-preprocess of input data
 ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
     MATCHER_SCOPE(RoPEFusionPreprocess);
 
-    // gptneox-preprocess of input data
-    auto input_to_slice = makePattern(ov::Rank(4));
-    auto input_to_trans = makePattern(ov::Rank(4));  // no need to slice from 3S
+    // Pattern for input to be sliced (for models with combined QKV projection)
+    auto input_to_slice = pattern::any_input(pattern::rank_equals(4));
+    // Pattern for input to be transposed (for models that transpose before RoPE)
+    auto input_to_trans = pattern::any_input(pattern::rank_equals(4));
 
-    // in some model qkv prejection is combined and
-    // needs to be sliced before RoPE
-    auto slice_start = ov::gen_pattern::Symbol("slice_start");
-    auto slice_stop = ov::gen_pattern::Symbol("slice_stop");
-    auto input_slice = GenSlice(input_to_slice, slice_start, slice_stop, 1, 3);
+    // Slice input if needed: [B, L, H, S] -> [B, L', H, S]
+    auto input_slice = NewGenSlice(input_to_slice, {"slice_start"}, {"slice_stop"}, 1, 3);
 
-    // some model will transpose from [B,L,H,S] to [B,H,L,S] before RoPE
-    auto x = makePattern<opset1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
-    auto result = makePattern<op::internal::RoPE>({x, {}, {}}) | makePattern<op::internal::RoPE>({x, {}, {}, {}});
+    // Transpose input if needed: [B, L, H, S] -> [B, H, L, S]
+    auto x = pattern::wrap_type<op::v1::Transpose>({input_slice | input_to_trans, {0, 2, 1, 3}});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
+    // RoPE node: supports both 3 and 4 inputs
+    auto result =
+        pattern::wrap_type<op::internal::RoPE>({x, pattern::any_input(), pattern::any_input()}) |
+        pattern::wrap_type<op::internal::RoPE>({x, pattern::any_input(), pattern::any_input(), pattern::any_input()});
 
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto rope_node = as_type_ptr<op::internal::RoPE>(root);
         if (!rope_node)
             return false;
 
+        auto symbols = m.get_symbols();
+        auto slice_start = symbols["slice_start"];
+        auto slice_stop = symbols["slice_stop"];
+
         auto config = rope_node->get_config();
-        if (pattern_map.count(input_to_slice)) {
-            config.slice_start = static_cast<size_t>(validator["slice_start"]);
-            config.slice_stop = static_cast<size_t>(validator["slice_stop"]);
+        if (pattern_map.count(input_to_slice) && slice_start.is_integer() && slice_stop.is_integer()) {
+            config.slice_start = static_cast<size_t>(slice_start.i());
+            config.slice_stop = static_cast<size_t>(slice_stop.i());
             config.input_trans0213 = true;
             rope_node->set_argument(0, pattern_map.at(input_to_slice));
         } else if (pattern_map.count(input_to_trans)) {
@@ -520,7 +522,7 @@ ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
         register_new_node(rope_node);
         return true;
     };
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
 
