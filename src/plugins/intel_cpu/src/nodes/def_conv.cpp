@@ -41,7 +41,7 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
 #endif
@@ -57,17 +57,17 @@ namespace ov::intel_cpu::node {
 #    define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator {
+struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_def_conv_kernel_f32)
 
     constexpr static int sampledPointsPerPixel = DeformableConvolution::sampledPointsPerPixel;
 
     explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp)
         : jit_uni_def_conv_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     };
 
@@ -102,7 +102,7 @@ private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    const int vlen = cpu_isa_traits<isa>::vlen;
+    const int vlen = cpu_isa_traits_t<isa>::vlen;
     using Ymm = const Xbyak::Ymm;
     using Xmm = const Xbyak::Xmm;
     using reg64_t = const Xbyak::Reg64;
@@ -153,10 +153,10 @@ private:
     Vmm get_vmm_acc(int idx) {
         return Vmm(idx + jcp_.ur_w + 1);
     }
-    Ymm get_ymm_acc(int idx) {
+    Xbyak::Ymm get_ymm_acc(int idx) {
         return Ymm(idx + jcp_.ur_w + 1);
     }
-    Xmm get_xmm_acc(int idx) {
+    Xbyak::Xmm get_xmm_acc(int idx) {
         return Xmm(idx + jcp_.ur_w + 1);
     }
 
@@ -879,20 +879,11 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace(-1);
 
     impl_desc_type impl_type = impl_desc_type::ref;
-    const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
-    if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
-        // 1. strict fallback, until devising of multigroup handling in common case
-        defConvAttr.group != 1 ||
-        // 2. common fallback, except specific n_group / n_channel combinations
-        (defConvAttr.group != 1 &&
-         ((weiDims[1] % simd_w != 0)                                // in_channels_per_gr !% simd_w
-          || ((weiDims[0] / defConvAttr.group) % simd_w != 0)))) {  // out_channels_per_gr !% simd_w
-        enforceRef = true;
-    } else {
-        enforceRef = false;
-    }
+    const bool hasUndefinedDims = weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM;
+    const bool isMultiGroup = defConvAttr.group != 1;
+    enforceRef = hasUndefinedDims || isMultiGroup;
 
     if (enforceRef) {
         impl_type = impl_desc_type::ref;

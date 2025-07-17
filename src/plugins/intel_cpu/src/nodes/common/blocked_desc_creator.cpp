@@ -123,10 +123,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
         if (!(bitMask & (1 << static_cast<unsigned>(item.first)))) {
             return false;
         }
-        if (item.second->getMinimalRank() > rank) {
-            return false;
-        }
-        return true;
+        return item.second->getMinimalRank() <= rank;
     };
 
     auto first = CreatorsMapFilterConstIterator(std::move(rankTypesFilter), map.begin(), map.end());

@@ -84,13 +84,3 @@ from openvino.runtime import properties
 # Helper functions for openvino module
 from openvino.runtime.ie_api import tensor_from_file
 from openvino.runtime.ie_api import compile_model
-
-from openvino.utils import deprecated
-
-# Extend Node class to support binary operators
-Node.__eq__ = deprecated(version="2025.3", message="Use ops.equal instead")(opset13.equal)
-Node.__ne__ = deprecated(version="2025.3", message="Use ops.not_equal instead")(opset13.not_equal)
-Node.__lt__ = deprecated(version="2025.3", message="Use ops.less instead")(opset13.less)
-Node.__le__ = deprecated(version="2025.3", message="Use ops.less_equal instead")(opset13.less_equal)
-Node.__gt__ = deprecated(version="2025.3", message="Use ops.greater instead")(opset13.greater)
-Node.__ge__ = deprecated(version="2025.3", message="Use ops.greater_equal instead")(opset13.greater_equal)

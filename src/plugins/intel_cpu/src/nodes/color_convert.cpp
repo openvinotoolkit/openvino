@@ -33,7 +33,7 @@
 #include "shape_inference/custom/color_convert.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <array>
 #    include <common/c_types_map.hpp>

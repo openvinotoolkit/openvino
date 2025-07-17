@@ -34,7 +34,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
 #endif
@@ -49,15 +49,15 @@ namespace ov::intel_cpu::node {
 #    define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
 template <cpu_isa_t isa>
-struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator {
+struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_extract_image_patches_kernel)
 
     explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp)
         : jit_uni_extract_image_patches_kernel(jpp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
@@ -103,7 +103,7 @@ private:
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
     bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_core)) && (jpp.dtype_size == 4);
-    uint32_t vlen = cpu_isa_traits<isa>::vlen;
+    uint32_t vlen = cpu_isa_traits_t<isa>::vlen;
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
     reg64_t reg_oh_count = r10;
@@ -659,11 +659,11 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
 
     jpp.dtype_size = prcSize;
     if (mayiuse(x64::avx512_core)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::avx512_core>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::avx512_core>::vlen / prcSize;
     } else if (mayiuse(x64::avx2)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::avx2>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::avx2>::vlen / prcSize;
     } else if (mayiuse(x64::sse41)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::sse41>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::sse41>::vlen / prcSize;
     } else {
         jpp.block_size = 1;
     }

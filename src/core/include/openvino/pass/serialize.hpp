@@ -74,6 +74,8 @@ public:
                     Serialize::Version version = Serialize::Version::UNSPECIFIED);
 
 private:
+    virtual bool use_absolute_offset();
+
     std::ostream& m_stream;
     std::function<void(std::ostream&)> m_custom_data_serializer;
     std::function<std::string(const std::string&)> m_cache_encrypt;
