@@ -4,7 +4,7 @@
 
 #include "cpu_generator.hpp"
 
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
