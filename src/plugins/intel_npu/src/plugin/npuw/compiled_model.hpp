@@ -77,10 +77,11 @@ private:
     void report_io() const;
 
     void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
-    static std::shared_ptr<CompiledModel> deserialize(std::istream& stream,
-                                                      const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                      const ov::AnyMap& properties,
-                                                      const ov::npuw::s11n::CompiledContext& ctx);
+    static std::pair<std::shared_ptr<ov::npuw::CompiledModel>, ov::npuw::s11n::WeightsContext> deserialize(
+        std::istream& stream,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties,
+        const ov::npuw::s11n::CompiledContext& ctx);
 
     // This is used for removing too long output tensor names to fix some compilation issues
     // NB: These two methods has nothing to do with this particular class and should be

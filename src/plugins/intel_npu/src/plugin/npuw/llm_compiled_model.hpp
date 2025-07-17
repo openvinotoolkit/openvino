@@ -51,10 +51,11 @@ private:
     void implement_properties();
 
     void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
-    static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
-                                                         const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                         const ov::AnyMap& properties,
-                                                         const ov::npuw::s11n::CompiledContext& ctx);
+    static std::pair<std::shared_ptr<LLMCompiledModel>, ov::npuw::s11n::WeightsContext> deserialize(
+        std::istream& stream,
+        const std::shared_ptr<const ov::IPlugin>& plugin,
+        const ov::AnyMap& properties,
+        const ov::npuw::s11n::CompiledContext& ctx);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;

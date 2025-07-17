@@ -821,7 +821,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
 
     if (!encrypted) {
         CompiledContext ctx(false, nullptr, nullptr);
-        auto compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
+        std::shared_ptr<ov::npuw::CompiledModel> compiled_model;
+        ov::npuw::s11n::WeightsContext ctx_ret;
+        std::tie(compiled_model, ctx_ret) = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_bank(stream, compiled_model);
         LOG_INFO("Done.");
@@ -837,17 +839,18 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
     LOG_INFO("Decryption will be done via the function provided.");
 
     std::shared_ptr<ov::npuw::CompiledModel> compiled_model = nullptr;
-
+    ov::npuw::s11n::WeightsContext ctx_ret;
     // Model is encrypted
     if (is_weightless) {
         std::string encrypted_str;
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
         CompiledContext ctx(false, nullptr, nullptr);
-        compiled_model = ov::npuw::CompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
+        std::tie(compiled_model, ctx_ret) =
+            ov::npuw::CompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
         CompiledContext ctx(true, nullptr, enc_callbacks.decrypt);
-        compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
+        std::tie(compiled_model, ctx_ret) = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
     }
 
     NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
@@ -945,11 +948,11 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
     LOG_INFO("Done.");
 }
 
-std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
-    std::istream& stream,
-    const std::shared_ptr<const ov::IPlugin>& plugin,
-    const ov::AnyMap& properties,
-    const ov::npuw::s11n::CompiledContext& enc_ctx) {
+std::pair<std::shared_ptr<ov::npuw::CompiledModel>, ov::npuw::s11n::WeightsContext>
+ov::npuw::CompiledModel::deserialize(std::istream& stream,
+                                     const std::shared_ptr<const ov::IPlugin>& plugin,
+                                     const ov::AnyMap& properties,
+                                     const ov::npuw::s11n::CompiledContext& enc_ctx) {
     LOG_INFO("Deserializing CompiledModel...");
     LOG_BLOCK();
 
@@ -1091,22 +1094,24 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         compiled->implement_properties();
         compiled->report_io();
         LOG_INFO("Done.");
-        return compiled;
+        // Prolong mmaped weights buffer life until the weights are allocated on the device
+        return std::make_pair(compiled, ctx);
     };
 
     std::shared_ptr<ov::npuw::CompiledModel> compiled = nullptr;
+    WeightsContext ctx_ret;
     if (enc_ctx.encrypted) {
         std::string encrypted_string;
         read(stream, encrypted_string);
         std::istringstream decrypted_stream(std::move(enc_ctx.decrypt(encrypted_string)));
-        compiled = read_model(decrypted_stream);
+        std::tie(compiled, ctx_ret) = read_model(decrypted_stream);
     } else {
-        compiled = read_model(stream);
+        std::tie(compiled, ctx_ret) = read_model(stream);
     }
 
     NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
-    return compiled;
+    return std::make_pair(compiled, ctx_ret);
 }
 
 void ov::npuw::CompiledModel::reconstruct_closure() {
