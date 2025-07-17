@@ -17,6 +17,8 @@
 #include <vector>
 
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
+#include "emitters/snippets/aarch64/utils.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
@@ -53,6 +55,13 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(n_blk_size > 0, "n_blk_size of gemm_repack is expected to be greater than 0.");
     GemmCopyBKernelKaiConfig kernel_config(n_blk_size);
     m_kernel_executor = kernel_table->register_kernel<GemmCopyBKaiKernelExecutor>(expr, kernel_config);
+
+    // Initialize memory offsets similar to x64 brgemm_copy_b implementation
+    m_memory_offsets = {gemm_repack->get_offset_in(), gemm_repack->get_offset_out()};
+
+    // Initialize buffer IDs using the utils function
+    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    utils::get_buffer_cluster_id(expr->get_output_port(0))};
 }
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(
@@ -64,6 +73,7 @@ std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_prec
 void jit_gemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "Expects 1 input reg, got", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == 2, "Expected 2 memory offsets for input and output");
 }
 
 void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -75,16 +85,45 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
     Xbyak_aarch64::XReg x2(2);
-    h->str(Xbyak_aarch64::XReg(in[0]), pre_ptr(h->sp, -get_vec_length()));
-    h->str(Xbyak_aarch64::XReg(out[0]), pre_ptr(h->sp, -get_vec_length()));
-    h->ldr(x2, post_ptr(h->sp, get_vec_length()));
-    h->ldr(x1, post_ptr(h->sp, get_vec_length()));
+    Xbyak_aarch64::XReg aux_reg(3);
+
+    // Prepare memory pointers with offsets
+    std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
+    const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
+
+    // Apply memory offsets to input/output pointers
+    // Reserve space on stack for input/output pointers
+    h->sub(h->sp, h->sp, 2 * get_vec_length());
+
+    // Apply offsets and store pointers on stack
+    for (size_t i = 0; i < mem_ptrs.size(); i++) {
+        const auto& ptr_reg = mem_ptrs[i];
+        int32_t stack_offset = i * get_vec_length();
+
+        if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
+            // Dynamic offset: read from runtime parameters
+            size_t runtime_offset = GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t);
+            utils::push_ptr_with_runtime_offset_on_stack(h, stack_offset, ptr_reg, aux_reg, runtime_offset);
+        } else {
+            // Static offset: add compile-time constant
+            utils::push_ptr_with_static_offset_on_stack(h, stack_offset, ptr_reg, m_memory_offsets[i]);
+        }
+    }
+
+    // Load back the adjusted pointers for function call
+    h->ldr(x2, Xbyak_aarch64::ptr(h->sp, 1 * get_vec_length()));  // output pointer
+    h->ldr(x1, Xbyak_aarch64::ptr(h->sp, 0 * get_vec_length()));  // input pointer
+
+    // Set up executor pointer as first argument
     const auto& compiled_kernel = get_compiled_kernel_ptr();
     h->mov(x0, compiled_kernel);
 
     Xbyak_aarch64::XReg func_reg(9);
     h->mov(func_reg, get_execute_function_ptr());
     h->blr(func_reg);
+
+    // Restore stack pointer
+    h->add(h->sp, h->sp, 2 * get_vec_length());
 
     restore_context(exclude);
 }
