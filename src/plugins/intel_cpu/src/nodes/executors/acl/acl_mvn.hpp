@@ -1,49 +1,45 @@
-// Copyright (C) 2023 Intel Corporation
+// Copyright (C) 2018-2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #pragma once
 
-#include "acl_utils.hpp"
-#include "arm_compute/runtime/NEON/NEFunctions.h"
-#include "nodes/executors/mvn.hpp"
-#include "utils/debug_capabilities.h"
+#include <utility>
+
+#include "acl_common_executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/mvn_config.hpp"
 
 namespace ov::intel_cpu {
 
-class AclMVNExecutor : public MVNExecutor {
+class ACLMVNExecutor : public ACLCommonExecutor {
 public:
-    AclMVNExecutor(ExecutorContext::CPtr context);
-
-    bool init(const MVNAttrs& mvnAttrs,
-              const std::vector<MemoryDescPtr>& srcDescs,
-              const std::vector<MemoryDescPtr>& dstDescs,
-              const dnnl::primitive_attr& attr) override;
-    void exec(const std::vector<MemoryCPtr>& src,
-              const std::vector<MemoryPtr>& dst,
-              const void* post_ops_data_) override;
-
-    [[nodiscard]] impl_desc_type getImplType() const override {
-        return implType;
+    ACLMVNExecutor(MVNAttrs attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& /*context*/)
+        : aclMVNAtrrs(std::move(attrs)) {
+        // Initialize ACL tensor attributes for src and dst tensors
+        aclTensorAttrs.memoryUsageIndicator[ACLArgs::ACL_SRC_0] = true;
+        aclTensorAttrs.memoryUsageIndicator[ACLArgs::ACL_DST] = true;
+        isNHWCLayout = memory.at(ARG_SRC_0)->getDescPtr()->hasLayoutType(LayoutType::nspc);
+        aclTensorAttrs.hasLayoutTypeNHWC = isNHWCLayout;
     }
+
+    static bool supports(const MVNConfig& config);
+
+    [[nodiscard]] impl_desc_type implType() const override {
+        return impl_desc_type::acl;
+    }
+
+    void updateTensorsShapes(ACLShapes& aclMemoryShapes) override;
+
+    arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
+
+    ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
 
 private:
-    impl_desc_type implType = impl_desc_type::acl;
-
-    arm_compute::Tensor srcTensor;
-    arm_compute::Tensor dstTensor;
-    std::unique_ptr<arm_compute::NEMeanStdDevNormalizationLayer> mvn = nullptr;
+    MVNAttrs aclMVNAtrrs;
+    bool isNHWCLayout = false;
 };
 
-class AclMVNExecutorBuilder : public MVNExecutorBuilder {
-public:
-    [[nodiscard]] bool isSupported(const MVNAttrs& mvnAttrs,
-                                   const std::vector<MemoryDescPtr>& srcDescs,
-                                   const std::vector<MemoryDescPtr>& dstDescs) const override;
-
-    [[nodiscard]] MVNExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<AclMVNExecutor>(context);
-    }
-};
-
+using ACLMVNExecutorPtr = std::shared_ptr<ACLMVNExecutor>;
 }  // namespace ov::intel_cpu

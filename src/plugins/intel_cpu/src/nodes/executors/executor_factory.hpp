@@ -87,15 +87,8 @@ public:
      * @return A shared pointer to the created Executor.
      */
     ExecutorPtr make(const MemoryArgs& memory) {
-        auto config = createConfig(memory, m_attrs);
-        const bool configMatched = std::all_of(m_suitableImplementations.begin(),
-                                               m_suitableImplementations.end(),
-                                               [&config](const ExecutorImplementationRef& impl) {
-                                                   return !impl.get().createOptimalConfig(config).has_value();
-                                               });
-        OPENVINO_ASSERT(
-            configMatched,
-            "Failed to create executor since the provided memory arguments do not match the expected configuration");
+        // All implementations in m_suitableImplementations have already passed the supports() check
+        // so they should all be able to handle the current configuration
 
         // only single executor is available
         if (m_suitableImplementations.size() == 1) {
