@@ -308,16 +308,11 @@ void MVN::prepareParams() {
     descs[ARG_SRC_0] = getSrcMemoryAtPort(0)->getDescPtr();
     descs[ARG_DST] = getDstMemoryAtPort(0)->getDescPtr();
 
-    // Set post-ops in mvnAttrs
-    dnnl::primitive_attr attr;
-    setPostOps(attr, true);
-
-    // Pass post-ops data pointers through MVNAttrs
-    // This allows the executor to access the actual post-ops data
-    mvnAttrs.postOps.clear();
-    for (const auto* ptr : postOpsDataPtrs) {
-        mvnAttrs.postOps.emplace_back(ptr);
-    }
+    // Set post-ops in mvnAttrs  
+    setPostOps(mvnAttrs.attr, true);
+    
+    // Pass raw post-ops data pointer
+    mvnAttrs.postOpsDataPtr = postOpsDataPtrs.empty() ? nullptr : postOpsDataPtrs.data();
 
     auto factory =
         std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs,

@@ -140,7 +140,6 @@ private:
     const ExecutorContext::CPtr context;
     mutable VectorDims shape5D;
     std::shared_ptr<legacy::MVNJitExecutorLagacy> legacyJitExecutor;
-    std::vector<const void*> postOpsDataPtrs;
 };
 
 }  // namespace ov::intel_cpu

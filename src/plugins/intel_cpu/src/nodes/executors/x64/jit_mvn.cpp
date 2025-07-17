@@ -74,23 +74,9 @@ MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, MemoryArgs memory, Exec
       memoryArgs(std::move(memory)),
       context(std::move(contextPtr)),
       shape5D(mvnAttrs.shape5D) {
-    // Extract post-ops data from MVNAttrs
-    postOpsDataPtrs.clear();
 
-    // MVNAttrs.postOps contains the post-ops data pointers
-    // Each element is a std::any containing a const void* pointer
-    for (const auto& postOp : attrs.postOps) {
-        // Extract the data pointer from std::any
-        if (postOp.type() == typeid(const void*)) {
-            postOpsDataPtrs.push_back(std::any_cast<const void*>(postOp));
-        }
-    }
-
-    // Create primitive attribute with default values
-    dnnl::primitive_attr attr;
-
-    // Create a key for caching
-    MVNKey key{attrs, attr};
+    // Create a key for caching using the attr from MVNAttrs
+    MVNKey key{attrs, attrs.attr};
 
     auto builder = [&](const MVNKey& key) -> std::shared_ptr<legacy::MVNJitExecutorLagacy> {
         return std::make_shared<legacy::MVNJitExecutorLagacy>(key.mvnAttrs, key.attr);
@@ -112,14 +98,8 @@ void MVNJitExecutor::executeImpl(const MemoryArgs& memory) {
     const auto* src_data = memory.at(ARG_SRC)->getDataAs<const uint8_t>();
     auto* dst_data = memory.at(ARG_DST)->getDataAs<uint8_t>();
 
-    // Pass post-ops data to the legacy executor
-    const void* post_ops_data = nullptr;
-    if (!postOpsDataPtrs.empty()) {
-        post_ops_data = static_cast<const void*>(static_cast<const void* const*>(postOpsDataPtrs.data()));
-    }
-
     // Call legacy executor with proper parameters
-    legacyJitExecutor->exec(src_data, dst_data, post_ops_data, shape5D);
+    legacyJitExecutor->exec(src_data, dst_data, attrs.postOpsDataPtr, shape5D);
 }
 
 bool MVNJitExecutor::canReuseShapeAgnosticKernel(const VectorDims& newShape5D) const {

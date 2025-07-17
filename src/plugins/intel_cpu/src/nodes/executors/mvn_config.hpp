@@ -31,6 +31,8 @@ struct MVNAttrs {
     ov::element::Type dst_prc = ov::element::f32;
     VectorDims shape5D;
     PostOps postOps;
+    const void* const* postOpsDataPtr = nullptr;  // Raw pointer array for legacy executor
+    dnnl::primitive_attr attr;  // Primitive attributes with post-ops configuration
 };
 
 using MVNConfig = executor::Config<MVNAttrs>;
