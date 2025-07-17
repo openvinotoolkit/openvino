@@ -35,6 +35,8 @@ RUN dpkg --add-architecture arm64 && \
         crossbuild-essential-arm64 \
         libpython3-dev:arm64 \
         python3-pip \
+        libsqlite3-dev \
+        libsqlite3-dev:arm64 \
         zlib1g-dev:arm64 \
         libgflags2.2:arm64 \
         libgflags-dev:arm64 \
