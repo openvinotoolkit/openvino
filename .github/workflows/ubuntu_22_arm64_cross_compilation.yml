@@ -136,10 +136,13 @@ jobs:
       build-additional-python-packages: false
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
-            -G 'Ninja Multi-Config'
+            -G 'Ninja'
             -DENABLE_CPPLINT=OFF
             -DOV_CPU_ARM_TARGET_ARCH=arm64-v8a
             -DTHREADS_PTHREAD_ARG=-pthread
+            -DPython3_EXECUTABLE=/opt/python3.11_arm/bin/python3.11
+            -DPYTHON_MODULE_EXTENSION=.cpython-311-aarch64-linux-gnu.so
+            -DPython3_INCLUDE_DIR=/opt/python3.11_arm/include/python3.11
             -DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
