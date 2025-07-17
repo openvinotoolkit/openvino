@@ -160,7 +160,7 @@ jobs:
       runner: 'aks-linux-8-cores-16gb-arm'
       image: ${{ fromJSON(needs.docker_arm64.outputs.images).ov_test.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
-      python-version: '3.10'
+      python-version: '3.11'
 
   CPU_Functional_Tests:
     name: CPU functional tests
@@ -170,7 +170,7 @@ jobs:
     with:
       runner: 'aks-linux-16-cores-arm'
       image: ${{ fromJSON(needs.docker_arm64.outputs.images).ov_test.ubuntu_22_04_arm64 }}
-      python-version: '3.10'
+      python-version: '3.11'
       scope: 'smoke'
 
   Overall_Status:

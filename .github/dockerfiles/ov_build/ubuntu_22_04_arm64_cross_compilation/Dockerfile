@@ -102,21 +102,22 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
     curl -SLO https://github.com/mozilla/sccache/releases/download/${SCCACHE_VERSION}/${SCCACHE_ARCHIVE} && \
     tar -xzf ${SCCACHE_ARCHIVE} --strip-components=1 && rm ${SCCACHE_ARCHIVE}
 
-# To cross-compile Python 3.10 we need to first compile it for the host
 ENV PIP_VERSION="24.0"
-RUN curl -O https://www.python.org/ftp/python/3.10.11/Python-3.10.11.tar.xz && \
-    tar -xf Python-3.10.11.tar.xz && \
-    cd Python-3.10.11 && ./configure && make -j4 && make altinstall && \
-    curl https://bootstrap.pypa.io/get-pip.py | python3.10 - --no-cache-dir pip==${PIP_VERSION} numpy cython
+# To cross-compile Python 3.11 we need to first compile it for the host
+RUN curl -O https://www.python.org/ftp/python/3.11.3/Python-3.11.3.tar.xz && \
+    tar -xf Python-3.11.3.tar.xz && \
+    cd Python-3.11.3 && ./configure && make -j4 && make altinstall && \
+    curl https://bootstrap.pypa.io/get-pip.py | python3.11 - --no-cache-dir pip==${PIP_VERSION} numpy cython crossenv
 
-# Cross-compile Python 3.10 for ARM
-RUN cd Python-3.10.11 && make distclean && \
+# Cross-compile Python 3.11 for ARM
+RUN cd Python-3.11.3 && make distclean && \
     ./configure \
         --host=aarch64-linux-gnu \
         --build=x86_64-linux-gnu \
         --disable-ipv6 \
         --enable-shared \
-        --prefix=/opt/python3.10_arm \
+        --prefix=/opt/python3.11_arm \
+        --with-build-python \
         ac_cv_file__dev_ptmx=no \
         ac_cv_file__dev_ptc=no && \
     make -j4 && make altinstall
@@ -124,9 +125,9 @@ RUN cd Python-3.10.11 && make distclean && \
 ENV PATH="$SCCACHE_HOME:$PATH"
 ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 
-# Use Python 3.10 as default
+# Use Python 3.11 as default
 # Using venv here because other methods to switch the default Python break both system and wheels build
-RUN python3.10 -m venv venv
+RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
 
 # ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
