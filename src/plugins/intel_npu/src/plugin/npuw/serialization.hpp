@@ -121,6 +121,7 @@ struct WeightsContext {
         weights = other.weights;
         consts_cache = other.consts_cache;
         bf16_consts = other.bf16_consts;
+        return *this;
     }
 
     // NOTE: This construtor should only be used when exporting blobs
