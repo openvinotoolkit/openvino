@@ -18,15 +18,15 @@
 #include "openvino/pass/serialize.hpp"
 
 TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
-    auto model =
-        FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
+    auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
+                                                    "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
     auto param = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
                                                     "conv2d_relu/conv2d_relu.pdiparams");
 
     ov::Core core;
     auto read_file = [&](const std::string& file_name, size_t& size) {
         FILE* sFile = fopen(file_name.c_str(), "r");
-        if(sFile == nullptr) {
+        if (sFile == nullptr) {
             return (uint8_t*)nullptr;
         }
         fseek(sFile, 0, SEEK_END);
@@ -95,7 +95,8 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
 }
 
 TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
-    auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu" + std::string(TEST_PADDLE_MODEL_EXT));
+    auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu" +
+                                                    std::string(TEST_PADDLE_MODEL_EXT));
 
     ov::Core core;
     auto function = core.read_model(FrontEndTestUtils::make_model_path(model));

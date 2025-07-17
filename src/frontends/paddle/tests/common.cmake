@@ -79,16 +79,11 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_VERSION=\"${pad
 # If 'paddlepaddle' is not found, code will still be compiled, but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'paddlepaddle' installed to check code style
-set(GEN TRUE)
-if(PADDLEDET_RESULT AND GEN)
+if(PADDLEDET_RESULT)
     set(TEST_PADDLE_MODELS ${TEST_MODEL_ZOO_OUTPUT_DIR}/paddle_test_models/${PDVTAG}/)
 
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CODE_ROOT_DIR}/*.py)
     set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done_${PDVTAG}.txt)
-    #set(GEN_ENV_PY_LIST ${TEST_PADDLE_MODELS}/generate_py_env_${PDVTAG}.txt)
-    #add_custom_command(OUTPUT ${GEN_ENV_PY_LIST}
-	#        COMMAND ${Python3_EXECUTABLE} -m pip list > ${GEN_ENV_PY_LIST}
-	#        DEPENDS ${PADDLE_REQ})
     add_custom_command(OUTPUT ${OUT_FILE}
             COMMAND  ${CMAKE_COMMAND} -E env PYTHONPATH=${PADDLEDET_DIRNAME} FLAGS_enable_pir_api=${ENABLE_PIR}
                 ${Python3_EXECUTABLE}
