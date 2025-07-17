@@ -2518,6 +2518,9 @@ void Interpolate::prepareParams() {
         std::iota(convertMap.begin(), convertMap.end(), 0);
 
         auto dimsNum = getSpatialDimsNum(scales);
+        if (dimsNum < 2 && scales.size() == 4) {
+            dimsNum = 2;  // for 4D input, we assume move the last 2 dims to HW.
+        }
         // NCDHW
         const auto ncdhwMaxIndex = 4;
         auto rbegin = convertMap.rbegin();
