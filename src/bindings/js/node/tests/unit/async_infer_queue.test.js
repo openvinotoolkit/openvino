@@ -158,7 +158,7 @@ describe('Tests for AsyncInferQueue.', () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     inferQueue.setCallback(basicUserCallback);
     inferQueue.release();
-    assert.ok(() => {
+    assert.doesNotThrow(() => {
       inferQueue.release();
     }, 'Release should do nothing on second call.');
 

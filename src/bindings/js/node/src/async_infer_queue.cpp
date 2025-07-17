@@ -54,9 +54,6 @@ AsyncInferQueue::AsyncInferQueue(const Napi::CallbackInfo& info) : Napi::ObjectW
 void AsyncInferQueue::release() {
     if (m_tsfn) {
         const auto status = m_tsfn.Release();
-        OPENVINO_ASSERT(status != napi_invalid_arg,
-                        "Failed to release AsyncInferQueue resources. "
-                        "ThreadSafeFunction is already released or not initialized.");
         OPENVINO_ASSERT(status == napi_ok, "Failed to release AsyncInferQueue resources.");
         m_tsfn = nullptr;
     }
@@ -117,7 +114,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                                                  ? env.Null()
                                                  : m_user_ids[handle].first.Value();
                             user_callback.Call({js_ir, user_data});
-                            promise.Resolve(m_user_ids[handle].first.Value());
+                            promise.Resolve(user_data);
                             // returns before the promise's .then() is completed
                         } catch (Napi::Error& e) {
                             promise.Reject(Napi::Error::New(env, e.Message()).Value());
@@ -176,6 +173,7 @@ Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
                         ov::js::get_parameters_error_msg(info, allowed_signatures));
 
         const auto handle = check_idle_request_id();
+        // WA for "Error: Invalid argument" when Napi::Object is null.
         auto user_data = info.Length() > 1 ? info[1].ToObject() : Napi::String::New(info.Env(), "NULL").ToObject();
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
         if (handle == -1) {
