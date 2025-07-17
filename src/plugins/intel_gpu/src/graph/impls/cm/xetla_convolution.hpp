@@ -19,9 +19,7 @@ namespace ov::intel_gpu::cm {
 struct ConvolutionImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("cm::conv")
     explicit ConvolutionImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
-        : ImplementationManager(impl_types::cm, shape_type, std::move(vf)) {
-            std::cout << "Here we go" << std::endl;
-        }
+        : ImplementationManager(impl_types::cm, shape_type, std::move(vf)) {}
 
     [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override {
         assert(node.is_type<convolution>());
@@ -43,32 +41,24 @@ struct ConvolutionImplementationManager : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        std::cout << "---------------------------------------------" << std::endl;
         assert(node.is_type<convolution>());
-        std::cout << "Node type " << node.type() << std::endl;
-        std::cout << "Begin validate" << std::endl;
 
         auto& engine = node.get_program().get_engine();
         const auto& config = node.get_program().get_config();
         // const auto& info = engine.get_device_info();
 
         if (!check_cm_jit_support(engine, config) || /*info.arch != gpu_arch::xe2 ||*/ !config.get_use_cm()) {
-            std::cout << "False check 1" << std::endl;
             return false;
         }
 
         auto desc = ConvDesc::from_node(node);
         auto key = desc.get_shape_key();
         if (desc.post_ops == -1) {
-            std::cout << "False check 2" << std::endl;
             return false;
         }
         if (ConvMap.find(key) == ConvMap.end()) {
-            std::cout << "False check 3" << std::endl;
             return false;
         }
-        std::cout << "End validate" << std::endl;
-        std::cout << "---------------------------------------------" << std::endl;
 
         return true;
     }

@@ -277,7 +277,7 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::KernelKn
     {"1x10x18x256x512x3x2x1x1", KernelKnobs{1, 5 * 2, 8 * 2, 32 * 2, 1, 5, 8, 32, 1, 1, 3, 32}},  // J (post op variants: [bias])
     // J (post op variants: [bias], [eltwise_add], [bias+eltwise_add+eltwise_mul+eltwise_add])
     {"1x5x9x512x512x3x1x1x1", KernelKnobs{1, 1 * 5, 8 * 2, 32 * 2, 1, 1, 8, 32, 1, 1, 3, 32}},
-    // Stable Diffusion Decoder
+    // VAE Decoder
     {"1x64x64x4x512x3x1x1x1", KernelKnobs{1, 16, 16, 64, 1, 4, 8, 32, 1, 1, 3, 32}},
     {"1x64x64x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
     {"1x128x128x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
@@ -297,7 +297,7 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnob
     {"1x10x18x256x512x3x2x1x1", NormKnobs{1, 5 * 2 * 8 * 2, 32 * 2, 1, 5 * 8, 32}},  // J (post op variants: [bias])
     // J (post op variants: [bias], [eltwise_add], [bias+eltwise_add+eltwise_mul+eltwise_add])
     {"1x5x9x512x512x3x1x1x1", NormKnobs{1, 1 * 5 * 8 * 2, 32 * 2, 1, 1 * 8, 32}},
-    // Stable Diffusion Decoder
+    // VAE Decoder
     {"1x64x64x4x512x3x1x1x1", NormKnobs{1, 16 * 16, 64, 1, 4 * 8, 32}},
     {"1x64x64x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
     {"1x128x128x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
