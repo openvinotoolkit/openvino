@@ -897,21 +897,27 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     };
     if (use_chunk_prefill) {
         if (!is_power_of_two(m_prefill_chunk_size)) {
-            OPENVINO_THROW("Configuration Error: chunk size (", m_prefill_chunk_size,
-                   ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
+            OPENVINO_THROW("Configuration Error: chunk size (",
+                           m_prefill_chunk_size,
+                           ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
         }
 
         if (max_prompt_len % m_prefill_chunk_size) {
-            OPENVINO_THROW("Configuration Error: The maximum prompt length (", max_prompt_len,
-                   ") is not a multiple of chunk size (", m_prefill_chunk_size,
-                   "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
+            OPENVINO_THROW("Configuration Error: The maximum prompt length (",
+                           max_prompt_len,
+                           ") is not a multiple of chunk size (",
+                           m_prefill_chunk_size,
+                           "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
         }
     }
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("4. Make prefill model with static shapes");
     if (use_chunk_prefill) {
-        reshape_to_static(prefill_model, static_cast<uint32_t>(m_prefill_chunk_size), m_kvcache_desc.max_prompt_size, axes);
+        reshape_to_static(prefill_model,
+                          static_cast<uint32_t>(m_prefill_chunk_size),
+                          m_kvcache_desc.max_prompt_size,
+                          axes);
     } else {
         reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
     }
