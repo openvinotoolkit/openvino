@@ -100,7 +100,7 @@ jobs:
       os: 'ubuntu_22_04'
       arch: 'arm64_cross_compilation'
       build-js: true
-      build-contrib: true
+      build-contrib: false
       build-debian-packages: false
       build-rpm-packages: false
       build-additional-python-packages: false
