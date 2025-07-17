@@ -94,10 +94,7 @@ ov::Dimension extract_dim(ChannelName channel, const cldnn::layout& l) {
 }
 
 size_t extract_channel(ChannelName channel, const cldnn::layout& l) {
-    using cldnn::format;
-    const auto& pshape = l.get_partial_shape();
-    auto idx = get_channel_index(channel, pshape.size(), format::is_weights_format(l.format), format::is_grouped(l.format));
-    return (idx < 0 || idx >= static_cast<int>(pshape.size())) ? 1 : static_cast<size_t>(pshape[idx].get_length());
+    return extract_dim(channel, l).get_length();
 }
 
 }  // namespace ov::intel_gpu

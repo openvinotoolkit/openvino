@@ -616,7 +616,12 @@ JitTerm FusedOpsCodeGenerator::get_jit_load(const FusedOpsConfiguration& conf,
     const auto in_f = extract_dim(ChannelName::FEATURE, input_tensor);
     const auto out_f = extract_dim(ChannelName::FEATURE, prim_output);
 
-    bool valid_broadcast_case = input_tensor.is_dynamic() || input_tensor.count() == static_cast<size_t>(out_f.get_length()) || input_tensor.count() == 1ul;
+    bool valid_broadcast_case = true;
+    if (input_tensor.is_static() && out_f.is_static()) {
+        if (input_tensor.count() != static_cast<size_t>(out_f.get_length()) && input_tensor.count() != 1ul) {
+            valid_broadcast_case = false;
+        }
+    }
 
     // Eltwise fused op can't have full tensor argument when requested vec_size > 1, since it might require
     // splitting load into several parts and some kind of index recalculation which is not supported
