@@ -36,7 +36,7 @@ using namespace Xbyak_riscv;
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(jit_eltwise_params jep, std::vector<EltwiseData> eltwise_data)
     : jit_uni_eltwise_kernel(std::move(jep)),
-      jit_generator(),
+      jit_generator_t(),
       eltwise_data_(std::move(eltwise_data)) {}
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
@@ -410,7 +410,7 @@ Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::get_max_lmul(const ov::element::
 namespace {
 struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
-    ov::intel_cpu::riscv64::jit_generator* host;
+    ov::intel_cpu::riscv64::jit_generator_t* host;
     ov::intel_cpu::riscv64::cpu_isa_t host_isa;
     const EltwiseData& opData;
     ov::element::Type exec_prc;
@@ -468,6 +468,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
               OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
+              OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
@@ -610,6 +611,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
               OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
+              OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
