@@ -50,7 +50,7 @@ bool Const::operator==(const Const& other) const {
 
 ov::Tensor Const::eval() const {
     if (m_node) {
-        return ov::npuw::util::copy_tensor_from_const(m_node);
+        return ov::npuw::util::tensor_from_const(m_node);
     }
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
