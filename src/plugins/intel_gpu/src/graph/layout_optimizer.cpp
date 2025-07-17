@@ -969,6 +969,7 @@ void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& no
 }
 
 format layout_optimizer::get_expected_format(convolution_node const& node) {
+    return format::byxf;
     auto prim = node.get_primitive();
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout(0);

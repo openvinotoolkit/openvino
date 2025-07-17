@@ -265,6 +265,7 @@ std::unique_ptr<primitive_impl> ConvolutionImplementationManager::create_impl(co
 }
 
 const std::unordered_map<std::string, ConvolutionImplementationManager::KernelKnobs> ConvolutionImplementationManager::ConvMap = {
+    // N x H x W x C x K x KERNEL_SIZE x STRIDE x DILATION x PADDING
     {"1x14x14x256x512x3x1x1x1", KernelKnobs{1, 7 * 2, 8 * 2, 32 * 4, 1, 7, 8, 32, 2, 1, 3, 32}},  // C2 (post op variants: [bias+eltwise_add])
     {"1x7x7x256x512x3x1x1x1", KernelKnobs{1, 1 * 7, 8 * 1, 32 * 2, 1, 1, 8, 32, 1, 1, 3, 32}},    // C2 (post op variants: [bias+eltwise_add])
     {"1x7x7x512x512x3x1x1x1", KernelKnobs{1, 7 * 1, 8 * 1, 32 * 8, 1, 7, 8, 32, 4, 1, 3, 32}},    // C2 (post op variants: [bias])
@@ -275,7 +276,14 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::KernelKn
     {"1x10x18x256x256x3x1x1x1", KernelKnobs{1, 5 * 2, 8 * 2, 32 * 2, 1, 5, 8, 32, 1, 1, 3, 32}},
     {"1x10x18x256x512x3x2x1x1", KernelKnobs{1, 5 * 2, 8 * 2, 32 * 2, 1, 5, 8, 32, 1, 1, 3, 32}},  // J (post op variants: [bias])
     // J (post op variants: [bias], [eltwise_add], [bias+eltwise_add+eltwise_mul+eltwise_add])
-    {"1x5x9x512x512x3x1x1x1", KernelKnobs{1, 1 * 5, 8 * 2, 32 * 2, 1, 1, 8, 32, 1, 1, 3, 32}}};
+    {"1x5x9x512x512x3x1x1x1", KernelKnobs{1, 1 * 5, 8 * 2, 32 * 2, 1, 1, 8, 32, 1, 1, 3, 32}},
+    // Stable Diffusion Decoder
+    {"1x64x64x4x512x3x1x1x1", KernelKnobs{1, 16, 16, 64, 1, 4, 8, 32, 1, 1, 3, 32}},
+    {"1x64x64x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
+    {"1x128x128x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
+    {"1x256x256x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
+    {"1x256x256x256x256x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
+    {"1x512x512x128x128x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}}};
 
 const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnobs> ConvolutionImplementationManager::NormMap = {
     {"1x14x14x256x512x3x1x1x1", NormKnobs{1, 7 * 2 * 8 * 2, 32 * 4, 1, 7 * 8, 32}},  // C2 (post op variants: [bias+eltwise_add])
@@ -288,7 +296,14 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnob
     {"1x10x18x256x256x3x1x1x1", NormKnobs{1, 5 * 2 * 8 * 2, 32 * 2, 1, 5 * 8, 32}},
     {"1x10x18x256x512x3x2x1x1", NormKnobs{1, 5 * 2 * 8 * 2, 32 * 2, 1, 5 * 8, 32}},  // J (post op variants: [bias])
     // J (post op variants: [bias], [eltwise_add], [bias+eltwise_add+eltwise_mul+eltwise_add])
-    {"1x5x9x512x512x3x1x1x1", NormKnobs{1, 1 * 5 * 8 * 2, 32 * 2, 1, 1 * 8, 32}}};
+    {"1x5x9x512x512x3x1x1x1", NormKnobs{1, 1 * 5 * 8 * 2, 32 * 2, 1, 1 * 8, 32}},
+    // Stable Diffusion Decoder
+    {"1x64x64x4x512x3x1x1x1", NormKnobs{1, 16 * 16, 64, 1, 4 * 8, 32}},
+    {"1x64x64x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
+    {"1x128x128x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
+    {"1x256x256x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
+    {"1x256x256x256x256x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
+    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}}};
 }  // namespace ov::intel_gpu::cm
 
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::ConvolutionImpl)
