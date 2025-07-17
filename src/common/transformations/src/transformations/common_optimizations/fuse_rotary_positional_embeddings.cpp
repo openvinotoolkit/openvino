@@ -1135,8 +1135,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     auto sin = pattern::wrap_type<op::v0::Sin>({concat});
 
     // Unsqueeze result pattern (cos or sin)
-    auto const_unsqueeze_axes = pattern::wrap_type<op::v0::Constant>({1});
-    auto result = pattern::wrap_type<op::v0::Unsqueeze>({cos | sin, const_unsqueeze_axes});
+    auto result = pattern::wrap_type<op::v0::Unsqueeze>({cos | sin, {1}});
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
