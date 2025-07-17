@@ -1552,10 +1552,6 @@ size_t jit_is_nan_emitter::get_inputs_num() const {
     return 1;
 }
 
-size_t jit_is_nan_emitter::aux_gprs_count() const {
-    return 1;
-}
-
 size_t jit_is_nan_emitter::aux_fp_gprs_count() const {
     return 1;
 }

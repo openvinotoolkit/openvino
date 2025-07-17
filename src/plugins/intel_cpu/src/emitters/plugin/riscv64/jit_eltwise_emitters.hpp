@@ -500,8 +500,6 @@ public:
 
     size_t get_inputs_num() const override;
 
-    size_t aux_gprs_count() const override;
-
     size_t aux_fp_gprs_count() const override;
 
 private:
