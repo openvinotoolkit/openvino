@@ -8728,7 +8728,7 @@ template <typename T>
 void get_rng_params(int& min, int& max, int& k, bool is_conv_input = false) {
     if constexpr (std::is_same<T, int8_t>::value) {
         min = -128; max = 127;
-        k = is_conv_input ? 8 : 1;
+        k = is_conv_input ? 8 : 4;
     } else if constexpr (std::is_same<T, uint8_t>::value) {
         min = 0; max = 255; k = 1;
         k = is_conv_input ? 8 : 1;
