@@ -891,6 +891,7 @@ public:
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseClamp,
                     Algorithm::EltwiseDivide,
+                    Algorithm::EltwiseErf,
                     Algorithm::EltwiseExp,
                     Algorithm::EltwiseFloor,
                     Algorithm::EltwiseGreaterEqual,
