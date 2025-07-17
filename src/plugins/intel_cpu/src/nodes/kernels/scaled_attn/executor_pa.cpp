@@ -3634,7 +3634,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         size_t value_group_num =
             _helper._value_group_size ? v_cache.size(3) / (_helper._value_group_size + value_params_size) : 1;
 
-        // check by_hidden_dims parameter of value cache
+        // check by_token_dims parameter of value cache
         if ((value_group_num == 0U) && v_cache.get_precision().is_integral()) {
             OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
                            _helper._value_group_size,

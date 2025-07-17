@@ -259,6 +259,18 @@ void ExecutionConfig::finalize_impl(const IRemoteContext* context) {
         m_optimize_data = true;
     }
 
+    if (!is_set_by_user(ov::hint::key_cache_quant_mode)) {
+        m_key_cache_quant_mode = ov::hint::CacheQuantMode::BY_CHANNEL;
+        std::cout << "Set key quant mode by channel" << std::endl;
+    }
+
+    if (!is_set_by_user(ov::hint::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::hint::CacheQuantMode::AUTO) {
+        m_value_cache_quant_mode = ov::hint::CacheQuantMode::BY_TOKEN;
+    } else if (get_value_cache_quant_mode() == ov::hint::CacheQuantMode::BY_CHANNEL) {
+        GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
+            << "Switching to BY_TOKEN mode." << std::endl;
+    }
+
     // Replace UINT8 KV-cache compression data type with INT8, as plugin is supposed to work with INT8 internally
     if (get_kv_cache_precision() == ov::element::u8) {
         m_kv_cache_precision = ov::element::i8;
