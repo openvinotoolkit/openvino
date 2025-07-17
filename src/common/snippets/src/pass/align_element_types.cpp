@@ -36,7 +36,8 @@ bool pass::AlignElementTypes::run_on_model(const std::shared_ptr<ov::Model>& m) 
     bool is_modified = false;
     const auto& results = m->get_results();
     const auto& params = m->get_parameters();
-    OPENVINO_ASSERT(m_input_precisions.size() == params.size() && m_output_precisions.size() == results.size(),
+    bool precisions_match = m_input_precisions.size() == params.size() && m_output_precisions.size() == results.size();
+    OPENVINO_ASSERT(precisions_match,
                     "Number of parameters for snippet doesn't match passed to the Canonicalization pass. ");
 
     // We should insert Convert before Results to set original output element type if needed

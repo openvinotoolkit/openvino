@@ -151,7 +151,8 @@ public:
     }
 
     void execute(const dnnl::stream& strm, int iter) override {
-        OPENVINO_ASSERT(iter >= 0 && iter < iter_count);
+        const bool iterValid = iter >= 0 && iter < iter_count;
+        OPENVINO_ASSERT(iterValid);
 
         auto& chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t*>(full_mem.get_data_handle()) + chunk_offset_in_byte +

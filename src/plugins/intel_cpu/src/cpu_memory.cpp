@@ -542,7 +542,9 @@ MemoryBlockPtr StaticMemory::getMemoryBlock() const {
 
 // oneDNN specifics for backward compatibility
 dnnl::memory StaticMemory::getPrimitive() const {
-    OPENVINO_ASSERT(m_prim || getDesc().empty(), "Could not get dnnl::memory object ", dnnlErrorCtx);
+    if (!getDesc().empty()) {
+        OPENVINO_ASSERT(m_prim, "Could not get dnnl::memory object ", dnnlErrorCtx);
+    }
     return m_prim;
 }
 

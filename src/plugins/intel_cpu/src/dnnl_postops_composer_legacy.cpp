@@ -45,7 +45,8 @@ DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
       idxOC(indexOfOutputChannelDim),
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel) {
-    OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
+    OPENVINO_ASSERT(idxOC >= 0);
+    OPENVINO_ASSERT(static_cast<size_t>(idxOC) < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;
@@ -123,7 +124,10 @@ void DnnlPostOpsComposerLegacy::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    OPENVINO_ASSERT(scale.size() == OC || scale.size() == 1);
+    auto valid_scale_size = [this](size_t size) {
+        return size == 1 || size == OC;
+    };
+    OPENVINO_ASSERT(valid_scale_size(scale.size()));
 
     bool fuseIntoWeiScale = false;
     // Use dest scale when last post-ops is per-tensor quantization.

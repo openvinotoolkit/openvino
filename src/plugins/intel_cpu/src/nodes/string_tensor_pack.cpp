@@ -98,7 +98,7 @@ struct StringTensorPack::StringTensorPackExecute {
 };
 
 bool StringTensorPack::isExecutable() const {
-    return !(isInputTensorAtPortEmpty(0) || isInputTensorAtPortEmpty(1));
+    return !isInputTensorAtPortEmpty(0) && !isInputTensorAtPortEmpty(1);
 }
 
 void StringTensorPack::execute([[maybe_unused]] const dnnl::stream& strm) {

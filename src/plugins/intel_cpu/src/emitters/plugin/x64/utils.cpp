@@ -52,7 +52,7 @@ struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
         auto push_if_live = [&live_regs, &regs_to_spill](Xbyak::Reg&& reg) {
-            if (live_regs.empty() || (live_regs.count(Xbyak2SnippetsReg(reg)) != 0U)) {
+            if (live_regs.empty() || (live_regs.find(Xbyak2SnippetsReg(reg)) != live_regs.end())) {
                 regs_to_spill.emplace_back(reg);
             }
         };
@@ -100,7 +100,7 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
     spill_required = false;
     size_t aux_idx = SIZE_MAX;
     auto available_it = std::find_if(available_gprs.begin(), available_gprs.end(), [&callee_saved](size_t r) {
-        return callee_saved.count(r) != 0;
+        return callee_saved.find(r) != callee_saved.end();
     });
     if (available_it != available_gprs.end()) {
         aux_idx = *available_it;
@@ -109,7 +109,7 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
         spill_required = true;
         std::set<size_t> blacklist(used_gprs.begin(), used_gprs.end());
         auto callee_it = std::find_if(callee_saved.begin(), callee_saved.end(), [&blacklist](size_t r) {
-            return blacklist.count(r) == 0;
+            return blacklist.find(r) == blacklist.end();
         });
         OPENVINO_ASSERT(callee_it != callee_saved.end(),
                         "All callee-saved gpr are already in use. Spill used_gprs manually");

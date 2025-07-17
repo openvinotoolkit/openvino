@@ -81,8 +81,9 @@ bool CleanRepeatedDataPointerShifts::reuse_increments(const LoopManagerPtr& loop
             }
         }
         if (buffer_count > 0) {
-            OPENVINO_ASSERT((buffer_count == 1) && (buffer_count + loop_count == consumer_inputs.size()),
-                            "Loop output must have not more than 1 Buffer");
+            bool is_buffer_constraint_valid =
+                (buffer_count == 1) && (buffer_count + loop_count == consumer_inputs.size());
+            OPENVINO_ASSERT(is_buffer_constraint_valid, "Loop output must have not more than 1 Buffer");
         }
     }
 

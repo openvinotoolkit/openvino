@@ -87,21 +87,25 @@ void LoopEnd::validate_and_infer_types() {
     const auto io_size = m_input_num + m_output_num;
     NODE_VALIDATION_CHECK(this, loop_begin != nullptr, "LoopEnd must have LoopBegin as the last argument");
 
-#define VALIDATE_VALUES(values, name, default_value)                                                                   \
-    NODE_VALIDATION_CHECK(this,                                                                                        \
-                          (values).empty() || (values).size() == io_size,                                              \
-                          name,                                                                                        \
-                          " must be either empty or defined per every input & output of joined Loop. Expected size: ", \
-                          io_size,                                                                                     \
-                          " got ",                                                                                     \
-                          (values).size());                                                                            \
-    if ((values).empty())                                                                                              \
-        (values).resize(io_size, default_value);
+#define VALIDATE_VALUES(values, name, default_value)                                                     \
+    do {                                                                                                 \
+        bool is_values_size_valid = (values).empty() || (values).size() == io_size;                      \
+        NODE_VALIDATION_CHECK(                                                                           \
+            this,                                                                                        \
+            is_values_size_valid,                                                                        \
+            name,                                                                                        \
+            " must be either empty or defined per every input & output of joined Loop. Expected size: ", \
+            io_size,                                                                                     \
+            " got ",                                                                                     \
+            (values).size());                                                                            \
+        if ((values).empty())                                                                            \
+            (values).resize(io_size, default_value);                                                     \
+    } while (0)
 
-    VALIDATE_VALUES(m_is_incremented, "is_incremented", true)
-    VALIDATE_VALUES(m_ptr_increments, "ptr_increments", 0)
-    VALIDATE_VALUES(m_finalization_offsets, "finalization_offsets", 0)
-    VALIDATE_VALUES(m_element_type_sizes, "element_type_sizes", 0)
+    VALIDATE_VALUES(m_is_incremented, "is_incremented", true);
+    VALIDATE_VALUES(m_ptr_increments, "ptr_increments", 0);
+    VALIDATE_VALUES(m_finalization_offsets, "finalization_offsets", 0);
+    VALIDATE_VALUES(m_element_type_sizes, "element_type_sizes", 0);
 #undef VALIDATE_VALUES
 
     set_output_type(0, element::f32, ov::PartialShape{});

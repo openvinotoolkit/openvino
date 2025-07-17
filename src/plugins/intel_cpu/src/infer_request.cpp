@@ -687,7 +687,10 @@ void SyncInferRequest::check_tensors() const {
                             port.get_element_type());
 
             const bool is_dynamic = port.get_partial_shape().is_dynamic();
-            OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
+            auto is_valid_shape = [&]() {
+                return is_dynamic || port.get_shape() == tensor->get_shape();
+            };
+            OPENVINO_ASSERT(is_valid_shape(),
                             "The ",
                             type,
                             " tensor size is not equal to the model ",

@@ -33,19 +33,16 @@ void ov::intel_cpu::InteractionNode::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(InteractionNode_validate_and_infer_types);
     const auto input_size = get_input_size();
     const auto& dense_pshape = get_input_partial_shape(0);
-    NODE_VALIDATION_CHECK(this,
-                          dense_pshape.rank().is_static() && dense_pshape.rank() == 2,
-                          "feature shape rank must be 2");
+    const bool validDenseRank = dense_pshape.rank().is_static() && dense_pshape.rank() == 2;
+    NODE_VALIDATION_CHECK(this, validDenseRank, "feature shape rank must be 2");
     const auto batch = dense_pshape[0];
     const auto feature = dense_pshape[1];
     for (size_t i = 1; i < input_size; i++) {
         const auto& sparse_pshape = get_input_partial_shape(i);
-        NODE_VALIDATION_CHECK(this,
-                              sparse_pshape.rank().is_static() && sparse_pshape.rank() == 2,
-                              "sparse shape must be static");
-        NODE_VALIDATION_CHECK(this,
-                              batch.compatible(sparse_pshape[0]) && feature.compatible(sparse_pshape[1]),
-                              "dense & sparse shape must be compatible");
+        const bool validSparseRank = sparse_pshape.rank().is_static() && sparse_pshape.rank() == 2;
+        NODE_VALIDATION_CHECK(this, validSparseRank, "sparse shape must be static");
+        const bool shapesCompatible = batch.compatible(sparse_pshape[0]) && feature.compatible(sparse_pshape[1]);
+        NODE_VALIDATION_CHECK(this, shapesCompatible, "dense & sparse shape must be compatible");
     }
 
     Dimension output_feature_size;

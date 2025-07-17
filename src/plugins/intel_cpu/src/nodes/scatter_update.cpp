@@ -586,7 +586,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     if (axis < 0) {
         axis += updates_rank;
     }
-    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+    const bool axisValid = axis >= 0 && axis < static_cast<int>(updates_rank);
+    CPU_NODE_ASSERT(axisValid, "Invalid axis.");
 
     const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
@@ -715,7 +716,8 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     if (axis < 0) {
         axis += updates_rank;
     }
-    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+    const bool axisValid = axis >= 0 && axis < static_cast<int>(updates_rank);
+    CPU_NODE_ASSERT(axisValid, "Invalid axis.");
 
     const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];

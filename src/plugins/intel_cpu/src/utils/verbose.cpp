@@ -37,7 +37,7 @@ bool Verbose::shouldBePrinted() const {
         return false;
     }
 
-    return !(lvl < 3 && node->isConstant());
+    return lvl >= 3 || !node->isConstant();
 }
 
 /**

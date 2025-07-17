@@ -912,7 +912,7 @@ struct ROIAlign::ROIAlignExecute {
 void ROIAlign::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
-    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32))) {
+    if ((inputPrec != dnnl_bf16 || outputPrec != dnnl_bf16) && (inputPrec != dnnl_f32 || outputPrec != dnnl_f32)) {
         THROW_CPU_NODE_ERR("doesn't support demanded precisions");
     }
 

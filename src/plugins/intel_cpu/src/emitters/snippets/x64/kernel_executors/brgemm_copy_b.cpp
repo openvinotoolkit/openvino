@@ -430,8 +430,10 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir->get_loop_manager();
 
     auto init = [&](size_t& dim, size_t& blk, size_t idx) {
-        OPENVINO_ASSERT(idx < planar_shape.size() && idx < in_subtensor.size(),
-                        "Index must be less than shape/subtensor rank!");
+        auto is_valid_idx = [&]() {
+            return idx < planar_shape.size() && idx < in_subtensor.size();
+        };
+        OPENVINO_ASSERT(is_valid_idx(), "Index must be less than shape/subtensor rank!");
         dim = *(planar_shape.rbegin() + idx);
         blk = *(in_subtensor.rbegin() + idx);
         if (ov::snippets::utils::is_full_dim_value(blk)) {

@@ -133,7 +133,10 @@ VariableStateDoubleBuffer::VariableStateDoubleBuffer(const std::string& name,
                                                      const MemoryPtr& second_buffer,
                                                      const MemoryDescPtr& external_desc)
     : VariableStateBase(name, external_desc) {
-    OPENVINO_ASSERT(first_buffer && second_buffer);
+    auto are_buffers_valid = [&]() {
+        return first_buffer && second_buffer;
+    };
+    OPENVINO_ASSERT(are_buffers_valid());
     reset_prime_mem(first_buffer);
     reset_second_mem(second_buffer);
     m_internal_desc = prime_mem()->getDescPtr();
@@ -265,7 +268,10 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     output = output.permute(actual_internal_order);
     pastkv = pastkv.permute(actual_internal_order);
     // S should be always the last dimension
-    OPENVINO_ASSERT(pastkv.stride(3) == 1 && output.stride(3) == 1);
+    auto have_valid_strides = [&]() {
+        return pastkv.stride(3) == 1 && output.stride(3) == 1;
+    };
+    OPENVINO_ASSERT(have_valid_strides());
     auto L0 = pastkv.size(0);
     auto B = pastkv.size(1);
     auto H = pastkv.size(2);

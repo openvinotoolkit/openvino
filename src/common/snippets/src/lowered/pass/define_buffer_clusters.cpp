@@ -229,8 +229,8 @@ void DefineBufferClusters::parse_nested_loops(const LoopManagerPtr& loop_manager
             return false;
         }
 
-        OPENVINO_ASSERT(inner_port_info.port.get_expr_port() && outer_port_info.port.get_expr_port(),
-                        "Expression ports are nullptr!");
+        bool are_expr_ports_valid = inner_port_info.port.get_expr_port() && outer_port_info.port.get_expr_port();
+        OPENVINO_ASSERT(are_expr_ports_valid, "Expression ports are nullptr!");
         // we can be sure that these data pointers will be proportionally shifted if they're on the same invariant shape
         // path
         return MarkInvariantShapePath::getInvariantPortShapePath(*inner_port_info.port.get_expr_port()) ==

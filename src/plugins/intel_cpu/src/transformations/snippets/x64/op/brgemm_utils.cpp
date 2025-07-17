@@ -101,11 +101,8 @@ dnnl::impl::cpu::x64::cpu_isa_t BrgemmConfig::get_prim_isa(const ov::element::Ty
     const auto is_bf16 = src_dt == ov::element::bf16 && wei_dt == ov::element::bf16;
     const auto is_int8 =
         ov::snippets::utils::one_of(src_dt, ov::element::i8, ov::element::u8) && wei_dt == ov::element::i8;
-    OPENVINO_ASSERT(is_fp32 || is_fp16 || is_bf16 || is_int8,
-                    "Incorrect configuration: src_dt = ",
-                    src_dt,
-                    ", wei_dt = ",
-                    wei_dt);
+    const bool supported_dtype = is_fp32 || is_fp16 || is_bf16 || is_int8;
+    OPENVINO_ASSERT(supported_dtype, "Incorrect configuration: src_dt = ", src_dt, ", wei_dt = ", wei_dt);
 
     if (is_bf16) {
         RETURN_IF_SUPPORTED(avx512_core_amx)
@@ -148,7 +145,8 @@ void BrgemmConfig::validate() const {
                     "Brgemm doesn't support weights element type: " + m_orig_wei_dt.get_type_name());
     OPENVINO_ASSERT(ov::snippets::utils::implication(m_with_compensations, !is_amx() && m_with_wei_repacking),
                     "Compensations must be only with BrgemmCopyB on non-amx platforms");
-    OPENVINO_ASSERT(m_wei_n_blk > 0 && m_wei_k_blk > 0, "Weight block sizes must be positive");
+    OPENVINO_ASSERT(m_wei_n_blk > 0, "Weight N block size must be positive");
+    OPENVINO_ASSERT(m_wei_k_blk > 0, "Weight K block size must be positive");
 }
 
 size_t get_elems_in_vec(const ov::element::Type& precision) {
@@ -171,9 +169,8 @@ ov::snippets::VectorDims compute_buffer_b_allocation_shape(const ov::snippets::V
                                                            size_t wei_n_blk,
                                                            bool are_wei_blocked,
                                                            bool is_transposed) {
-    OPENVINO_ASSERT(
-        !ov::snippets::utils::is_dynamic_value(wei_k_blk) && !ov::snippets::utils::is_dynamic_value(wei_n_blk),
-        "wei_k_blk and wei_n_blk cannot be dynamic");
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(wei_k_blk), "wei_k_blk cannot be dynamic");
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(wei_n_blk), "wei_n_blk cannot be dynamic");
     OPENVINO_ASSERT(planar_shape.size() >= 2, "Incorrect rank of buffer B: ", planar_shape.size());
     const auto K = *++planar_shape.rbegin();
     const auto N = *planar_shape.rbegin();

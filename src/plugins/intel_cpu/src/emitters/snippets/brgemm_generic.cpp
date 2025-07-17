@@ -167,9 +167,10 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
             return p.get_dim_idx() == 1 && p.is_processed();
         };
-        OPENVINO_ASSERT(
-            in_ports.size() > 1 && check_port(in_ports[0]) && out_ports.size() == 1 && check_port(out_ports[0]),
-            "Incorrect Loop by Brgemm dimension M");
+        auto is_valid_m_loop = [&]() {
+            return in_ports.size() > 1 && check_port(in_ports[0]) && out_ports.size() == 1 && check_port(out_ports[0]);
+        };
+        OPENVINO_ASSERT(is_valid_m_loop(), "Incorrect Loop by Brgemm dimension M");
         M = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(1, M);
         output_pds[0]->set_subtensor_dim(1, M);
@@ -186,9 +187,11 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         auto check_port = [&](const ov::snippets::lowered::LoopPort& p) {
             return p.get_dim_idx() == 0 && p.is_processed();
         };
-        OPENVINO_ASSERT(in_ports.size() >= 2 && !in_ports.front().is_processed() && check_port(in_ports[1]) &&
-                            check_port(out_ports.back()),
-                        "Incorrect Loop by Brgemm dimension N");
+        auto is_valid_n_loop = [&]() {
+            return in_ports.size() >= 2 && !in_ports.front().is_processed() && check_port(in_ports[1]) &&
+                   check_port(out_ports.back());
+        };
+        OPENVINO_ASSERT(is_valid_n_loop(), "Incorrect Loop by Brgemm dimension N");
         N = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[1]->set_subtensor_dim(0, N);
         output_pds[0]->set_subtensor_dim(0, N);
@@ -207,10 +210,12 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         const auto& in_ports = current_expanded_loop_info->get_input_ports();
         const auto& out_ports = current_expanded_loop_info->get_output_ports();
         // Quick validation check: Should we check that port is really Brgemm port?
-        OPENVINO_ASSERT(in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 &&
-                            in_ports.front().is_processed() && in_ports[1].get_dim_idx() == 1 &&
-                            in_ports[1].is_processed() && out_ports.size() == 1 && !out_ports.front().is_processed(),
-                        "Incorrect Loop by Brgemm dimension K");
+        auto is_valid_k_loop = [&]() {
+            return in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 && in_ports.front().is_processed() &&
+                   in_ports[1].get_dim_idx() == 1 && in_ports[1].is_processed() && out_ports.size() == 1 &&
+                   !out_ports.front().is_processed();
+        };
+        OPENVINO_ASSERT(is_valid_k_loop(), "Incorrect Loop by Brgemm dimension K");
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(0, K);
         input_pds[1]->set_subtensor_dim(1, K);
