@@ -8534,6 +8534,7 @@ public:
         auto result = net.execute();
         auto out_mem = result.at(output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
+        bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
         cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
@@ -8560,10 +8561,15 @@ public:
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
-
-                        ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
-                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
-                            << description.str();
+                        if (is_output_fp) {
+                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        } else {
+                            ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        }
                     }
     }
 
@@ -8719,11 +8725,13 @@ struct convolution_random_test_all_params {
 };
 
 template <typename T>
-void get_rng_params(int& min, int& max, int& k) {
+void get_rng_params(int& min, int& max, int& k, bool is_conv_input = false) {
     if constexpr (std::is_same<T, int8_t>::value) {
-        min = -128; max = 127; k = 1;
+        min = -128; max = 127;
+        k = is_conv_input ? 8 : 1;
     } else if constexpr (std::is_same<T, uint8_t>::value) {
         min = 0; max = 255; k = 1;
+        k = is_conv_input ? 8 : 1;
     } else {
         min = -256; max = 256; k = 8;
     }
@@ -8770,7 +8778,7 @@ public:
         auto wei_in_f = params.input_features / params.groups;
 
         int input_min, input_max, input_k;
-        get_rng_params<InputT>(input_min, input_max, input_k);
+        get_rng_params<InputT>(input_min, input_max, input_k, true);
         auto input_data = rg.template generate_random_4d<InputT>(
             params.batch, params.input_features, params.input_xy[1], params.input_xy[0], input_min, input_max, input_k);
 
@@ -8786,8 +8794,8 @@ public:
             this->set_weights(std::move(weights_data));
         }
         auto bias_data = params.with_bias ? rg.template generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
-        auto weights_zp_data = params.asymmetric_weights ? rg.template generate_random_1d<WeightsT>(params.output_features, -256, 256) : VF<WeightsT>();
-        auto input_zp_data = params.asymmetric_data ? rg.template generate_random_1d<InputT>(params.input_features, -256, 256) : VF<InputT>();
+        auto weights_zp_data = params.asymmetric_weights ? rg.template generate_random_1d<WeightsT>(params.output_features, weights_min, weights_max, weights_k) : VF<WeightsT>();
+        auto input_zp_data = params.asymmetric_data ? rg.template generate_random_1d<InputT>(params.input_features, input_min, input_max, input_k) : VF<InputT>();
 
         this->set_input(params.input_format, std::move(input_data));
         this->set_bias(std::move(bias_data));
@@ -8999,6 +9007,7 @@ public:
         auto result = net.execute();
         auto out_mem = result.at(this->output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
+        bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
         cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
@@ -9025,10 +9034,15 @@ public:
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
-
-                        ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
-                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
-                            << description.str();
+                        if (is_output_fp) {
+                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        } else {
+                            ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        }
                     }
     }
 };
@@ -9096,144 +9110,6 @@ using convolution_random_test_fsv4_input_u8s8f32 = convolution_random_test_fsv4_
 using convolution_scale_random_test_s8s8f32 = convolution_scale_random_test<int8_t, int8_t, float>;
 using convolution_scale_random_test_u8s8f32 = convolution_scale_random_test<uint8_t, int8_t, float>;
 
-template <typename InputT, typename WeightsT, typename OutputT>
-class convolution_random_test_mmad : public convolution_random_test_base<InputT, WeightsT, OutputT> {
-public:
-    using parent = convolution_random_test_base<InputT, WeightsT, OutputT>;
-
-    topology build_topology(cldnn::engine& engine) override {
-        auto input_lay = layout(this->input_type(), format::bfyx, this->input_size(), this->padding_size());
-        auto wei_lay = this->grouped_weights_shape() ? layout(this->weights_type(), format::bfzyx, this->grouped_weights_size()) :
-                       layout(this->weights_type(), format::bfyx, this->weights_size());
-
-        auto wei_mem = engine.allocate_memory(wei_lay);
-        auto wei_flat = this->grouped_weights_shape() ? flatten_5d(format::bfzyx, this->_grouped_weights) : flatten_4d(format::bfyx, this->_weights);
-        set_values(wei_mem, wei_flat);
-        layout reordered_layout = layout{ this->input_type(), this->input_format(), this->input_size(), this->padding_size() };
-        auto topo = topology();
-        topo.add(input_layout("input", input_lay));
-        topo.add(reorder("input_reorder", input_info("input"), reordered_layout));
-        std::string input_id = "input_reorder";
-        std::string azp_id = "";
-        std::string wzp_id = "";
-        std::string bias_id = "";
-        std::string comp_id = "";
-        if (this->has_input_zp()) {
-            auto input_zp_lay = layout(this->input_type(), format::bfyx, tensor(feature(this->input_features())));
-            auto input_comp_lay = layout(ov::element::f32, format::bfyx, tensor(feature(this->output_features())));
-            auto input_zp_mem = engine.allocate_memory(input_zp_lay);
-            auto input_comp_mem = engine.allocate_memory(input_comp_lay);
-            set_values(input_zp_mem, this->_input_zp);
-            set_values(input_comp_mem, this->_compensation);
-            azp_id = "input_zp";
-            comp_id = "compensation";
-            topo.add(data(azp_id, input_zp_mem));
-            topo.add(data(comp_id, input_comp_mem));
-        }
-        topo.add(data("weights", wei_mem));
-        std::string weights_id = "weights";
-        if (this->has_weights_zp()) {
-            auto weights_zp_lay = layout(this->weights_type(), format::bfyx, tensor(batch(this->output_features())));
-            auto weights_zp_mem = engine.allocate_memory(weights_zp_lay);
-            set_values(weights_zp_mem, this->_weights_zp);
-            wzp_id = "weights_zp";
-            topo.add(data(wzp_id, weights_zp_mem));
-        }
-        if (this->has_bias()) {
-            auto bias_lay = layout(this->output_type(), format::bfyx, tensor(feature(this->output_features())));
-            auto bias_mem = engine.allocate_memory(bias_lay);
-            bias_id = "bias";
-            set_values(bias_mem, this->_bias);
-            topo.add(data(bias_id, bias_mem));
-        }
-
-        auto conv_prim = convolution(
-                "conv",
-                input_info(input_id),
-                weights_id,
-                bias_id,
-                wzp_id,
-                azp_id,
-                comp_id,
-                static_cast<uint32_t>(this->groups()),
-                {static_cast<uint64_t>(this->_stride_y), static_cast<uint64_t>(this->_stride_x)},
-                {static_cast<uint64_t>(this->_dilation_y), static_cast<uint64_t>(this->_dilation_x)},
-                {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
-                {static_cast<std::ptrdiff_t>(this->_offset_y), static_cast<std::ptrdiff_t>(this->_offset_x)},
-                this->grouped_weights_shape(),
-                this->output_type());
-        topo.add(conv_prim);
-
-        return topo;
-    }
-
-    cldnn::topology clone_topology(const cldnn::topology& src) {
-        return cldnn::topology(src);
-    }
-
-    void run_expect(const VVVVF<OutputT>& expected) override {
-        auto& engine = get_test_engine();
-
-        auto topo = this->build_topology(engine);
-
-        ExecutionConfig config = get_test_default_config(engine);
-        config.set_property(ov::intel_gpu::optimize_data(true));
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv", { this->input_format(), "" } } }));
-
-        auto prog = program::build_program(engine, topo, config);
-
-        cldnn::network net(prog, 0);
-
-        auto input_lay = layout(this->input_type(), format::bfyx,  this->input_size(), this->padding_size());
-        auto input_mem = engine.allocate_memory(input_lay);
-        std::vector<InputT> input_flat(input_lay.get_linear_size(), static_cast<InputT>(0));
-        for (size_t bi = 0; bi < this->batch_num(); ++bi)
-            for (size_t fi = 0; fi < this->input_features(); ++fi)
-                for (size_t yi = 0; yi < this->input_y(); ++yi)
-                    for (size_t xi = 0; xi < this->input_x(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        size_t offset = input_lay.get_linear_offset(coords);
-                        input_flat[offset] = this->_input[bi][fi][yi][xi];
-                    }
-        set_values(input_mem, input_flat);
-
-        net.set_input_data("input", input_mem);
-        auto result = net.execute();
-        auto out_mem = result.at(this->output_primitive_id()).get_memory();
-        auto out_lay = out_mem->get_layout();
-        cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
-
-        std::stringstream description;
-        for (auto i : net.get_primitives_info()) {
-            if (i.original_id == "conv") {
-                std::cout << i.kernel_id << std::endl;
-                description << "  kernel: " << i.kernel_id << std::endl;
-            }
-        }
-        description << "  executed: ";
-        for (auto e : net.get_executed_primitive_ids()) {
-            description << e << ", ";
-        }
-
-        ASSERT_EQ(out_lay.data_type, this->output_type());
-        ASSERT_EQ(out_lay.batch(), expected.size());
-        ASSERT_EQ(out_lay.feature(), expected[0].size());
-        ASSERT_EQ(out_lay.spatial(1), expected[0][0].size());
-        ASSERT_EQ(out_lay.spatial(0), expected[0][0][0].size());
-
-        for (size_t bi = 0; bi < this->batch_num(); ++bi)
-            for (size_t fi = 0; fi < this->output_features(); ++fi)
-                for (size_t yi = 0; yi < expected[0][0].size(); ++yi)
-                    for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
-                        tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
-                        size_t offset = out_lay.get_linear_offset(coords);
-
-                        ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
-                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
-                            << description.str();
-                    }
-    }
-};
 struct params_generator : std::vector<convolution_random_test_all_params> {
     params_generator& smoke_test_params(format::type input_format,
                                         bool asymm_weights = false,
@@ -9455,8 +9331,8 @@ INSTANTIATE_TEST_SUITE_P(
 );
 
 class convolution_random_mmad_test : public testing::TestWithParam<convolution_random_test_all_params> {};
-using convolution_random_test_mmad_u8u8f32 = convolution_random_test_mmad<uint8_t, uint8_t, float>;
-using convolution_random_test_mmad_s8u8f32 = convolution_random_test_mmad<int8_t, uint8_t, float>;
+using convolution_random_test_mmad_u8u8f32 = convolution_random_test_base<uint8_t, uint8_t, float>;
+using convolution_random_test_mmad_s8u8f32 = convolution_random_test_base<int8_t, uint8_t, float>;
 
 TEST_P(convolution_random_mmad_test, s8u8f32) {
     convolution_random_test_mmad_s8u8f32 test;
@@ -9473,12 +9349,12 @@ INSTANTIATE_TEST_SUITE_P(
     convolution_random_mmad_test,
     testing::ValuesIn(
         params_generator()
+        .mmad_test_params(format::b_fs_yx_fsv4)
         .mmad_test_params(format::b_fs_yx_fsv32, true, false)
         .mmad_test_params(format::b_fs_yx_fsv32, false, false, true)
     ),
     to_string_convolution_all_params
 );
-
 
 class convolution_test : public tests::generic_test {
 public:
