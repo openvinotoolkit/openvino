@@ -23,11 +23,11 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_binary_call_emitter::jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_binary_call_emitter::jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                  std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),
