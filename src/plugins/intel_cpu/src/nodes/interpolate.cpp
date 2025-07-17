@@ -1774,11 +1774,20 @@ inline VectorDims to5Dim(VectorDims casesDim) {
     if (caseSize > 4) {
         dim5[2] = casesDim[2];
     }
-    if (caseSize == 3) {  // nhw -> dhw
-        dim5[2] = dim5[0];
-        dim5[0] = 1LU;
+    if (caseSize == 3) {  // nhw -> ncw
+        dim5[1] = dim5[3];
+        dim5[3] = 1LU;
     }
     return dim5;
+}
+
+template <typename T>
+T convertTo5D(const T& src, const std::vector<int>& dimMap) {
+    T dst(5, 1);
+    for (size_t i = 0; i < dimMap.size(); ++i) {
+        dst[dimMap[i]] = src[i];
+    }
+    return dst;
 }
 
 using ngInterpMode = ov::op::v4::Interpolate::InterpolateMode;
@@ -2040,10 +2049,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                         return true;
                     }
                     auto lastOutDim = outputShape.getDims().back();
-                    if (lastOutDim == lastInDim) {
-                        return true;
-                    }
-                    return false;
+                    return static_cast<bool>(lastOutDim == lastInDim);
                 };
                 if (dataRank == 4 && avoidReorder(inputDataShape, outputShape)) {
                     interpAttrs.NCHWAsNHWC = true;
@@ -2504,13 +2510,32 @@ void Interpolate::prepareParams() {
 
     std::vector<float> dataScales =
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
-    if (!interpAttrs.NCHWAsNHWC &&
-        (getOutputShapeAtPort(0).getRank() > 3 && (dataScales[0] != 1.F || dataScales[1] != 1.F))) {
+
+    // Convert to 5D
+    auto getConvertMapFromScale = [](const std::vector<float>& scales) -> std::vector<int> {
+        std::vector<int> convertMap(scales.size());
+        std::iota(convertMap.begin(), convertMap.end(), 0);
+
+        auto dimsNum = getSpatialDimsNum(scales);
+        // NCDHW
+        const auto ncdhwMaxIndex = 4;
+        auto rbegin = convertMap.rbegin();
+        for (size_t i = 0; i < dimsNum; ++i) {
+            *rbegin = ncdhwMaxIndex - i;
+            rbegin++;
+        }
+        return convertMap;
+    };
+    auto indexMap = getConvertMapFromScale(dataScales);
+    auto src5DDims = convertTo5D(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), indexMap);
+    auto dst5DDims = convertTo5D(dstDims, indexMap);
+    auto scales5D = convertTo5D(dataScales, indexMap);
+    if (scales5D[0] != 1.F || scales5D[1] != 1.F) {
         CPU_NODE_THROW("only supports resize on spatial dimensions(depth, height and width)");
     }
 
     if (canUseAclExecutor) {
-        interpAttrs.dataScales = dataScales;
+        interpAttrs.dataScales = scales5D;
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -2529,8 +2554,8 @@ void Interpolate::prepareParams() {
         return;
     }
 
-    InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, dnnl::primitive_attr()};
-    setPostOps(key.attr, dstDims);
+    InterpolateKey key = {interpAttrs, src5DDims, dst5DDims, scales5D, dnnl::primitive_attr()};
+    setPostOps(key.attr, dst5DDims);
 
     auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
         std::shared_ptr<InterpolateExecutorBase> executor;
@@ -4300,14 +4325,14 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
     : mode(interpAttrs.mode),
       coordTransMode(interpAttrs.coordTransMode),
       configured_for_layout(interpAttrs.layout),
-      srcDimPad5d(to5Dim(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd))),
-      dstDim5d(to5Dim(dstDims)),
+      srcDimPad5d(srcDims),
+      dstDim5d(dstDims),
       inputPrec(interpAttrs.inPrc),
       outputPrec(interpAttrs.outPrc),
       srcDataSize(interpAttrs.inPrc.size()),
       dstDataSize(interpAttrs.outPrc.size()),
       dataRank(srcDims.size()),
-      spatialDimSize(getSpatialDimsNum(srcDims, dstDims)) {
+      spatialDimSize(getSpatialDimsNum(dataScales)) {
     switch (mode) {
     case InterpolateMode::nearest: {
         buildTblNN(srcDimPad5d, dstDim5d, dataScales, interpAttrs.layout, interpAttrs.nearestMode);
@@ -4361,7 +4386,7 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
     jcp.IW = srcDimPad5d[4];
     jcp.IH = srcDimPad5d[3];
     jcp.ID = srcDimPad5d[2];
-    jcp.spatial_dim_size = getSpatialDimsNum(srcDims, dstDims);
+    jcp.spatial_dim_size = spatialDimSize;
     jcp.layout = interpAttrs.layout;
     if (mode == InterpolateMode::bilinear_pillow || mode == InterpolateMode::bicubic_pillow) {
         jcp.filterLenX = auxTable[0];
@@ -4507,29 +4532,15 @@ void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
     }
 }
 
-size_t Interpolate::getSpatialDimsNum(const VectorDims& srcDims, const VectorDims& dstDims) {
-    switch (srcDims.size()) {
-    case 1:
-        return 1;
-    case 3: {
-        // Find first different element in src and dst dims
-        size_t spatialDims = 3;
-        for (size_t i = 0; i < srcDims.size(); ++i) {
-            if (srcDims[i] != dstDims[i]) {
-                break;
-            }
-            spatialDims--;
+size_t Interpolate::getSpatialDimsNum(const std::vector<float>& scales) {
+    size_t spatialDims = scales.size();
+    for (size_t i = 0; i < scales.size(); ++i) {
+        if (scales[i] != 1.0F) {
+            break;
         }
-        return spatialDims > 0 ? spatialDims : 1;
+        spatialDims--;
     }
-    case 2:
-    case 4:
-        return 2;
-    case 5:
-        return 3;
-    default:
-        OPENVINO_THROW("Can't define number spatial");
-    }
+    return spatialDims > 0 ? spatialDims : 1;
 }
 
 bool Interpolate::canFuse(const NodePtr& node) const {
