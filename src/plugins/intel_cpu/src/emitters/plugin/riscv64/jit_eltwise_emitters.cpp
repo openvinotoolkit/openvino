@@ -781,10 +781,6 @@ size_t jit_hsigmoid_emitter::get_inputs_num() const {
     return 1;
 }
 
-size_t jit_hsigmoid_emitter::aux_gprs_count() const {
-    return 1;
-}
-
 size_t jit_hsigmoid_emitter::aux_fp_gprs_count() const {
     return 1;
 }
