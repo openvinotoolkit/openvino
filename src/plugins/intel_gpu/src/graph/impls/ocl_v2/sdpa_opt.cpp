@@ -142,9 +142,6 @@ public:
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
         std::vector<BufferDescriptor> internal_buffers;
         auto desc = params.typed_desc<scaled_dot_product_attention>();
-
-        // const auto& q_l = params.input_layouts[0];
-        // const auto head_size = extract_channel(get_transposed_channel(ChannelName::X, desc->input_q_transpose_order), q_l);
         auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
         auto params_canonicalization = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
         const auto head_size = get_head_size(params_canonicalization.get_input_layout(0), extended_input_q_transpose_order);
@@ -183,10 +180,9 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     const auto& q_layout = params.get_input_layout(0);
     const auto& k_layout = params.get_input_layout(1);
     const auto& v_layout = params.get_input_layout(2);
-
     auto desc = params.typed_desc<scaled_dot_product_attention>();
 
-    // Need check beam table to decide whether support micro kernel
+    // Will check it later to decide whether support micro kernel
     // if (desc->indirect_axis != -1) {
     //     // Micro kernel does not support indirect axis
     //     return false;
@@ -195,13 +191,11 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
     auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
     auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
-    // auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
     ov::Dimension Q_num_heads_dim = get_num_heads(q_layout, extended_input_q_transpose_order);
     ov::Dimension K_num_heads_dim = get_num_heads(k_layout, extended_input_k_transpose_order);
     ov::Dimension V_num_heads_dim = get_num_heads(v_layout, extended_input_v_transpose_order);
 
-    // const size_t order_idx = desc->input_q_transpose_order.size() - 1;
     if (extended_input_q_transpose_order[3] != 3 || extended_input_k_transpose_order[3] != 3 || extended_input_v_transpose_order[3] != 3) {
         return false;
     }
@@ -233,8 +227,6 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     if (!is_output_rank_4d)
         return false;
 
-    // Do not use sdpa_micro kernel with a scalar-value mask
-    // return data_inputs_num <= 3 || params.get_input_layout(3).is_dynamic() || params.get_input_layout(3).count() != 1;
     return true;
 #else
     return false;

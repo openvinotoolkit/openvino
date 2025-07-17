@@ -854,8 +854,9 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
 
 KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params) const {
     std::vector<micro::Package> gemms(2);  // KQ and VS
-    init_sdpa_configuration(params, m_sdpa_config);
-    init_microkernels(params, m_sdpa_config, gemms[kq_id], gemms[vs_id], m_is_prefill);
+    sdpa_configuration sdpa_config;
+    init_sdpa_configuration(params, sdpa_config);
+    init_microkernels(params, sdpa_config, gemms[kq_id], gemms[vs_id], m_is_prefill);
 
     const auto& device_info = params.get_device_info();
     auto jit = get_jit_constants(params, gemms[kq_id], gemms[vs_id]);
@@ -907,7 +908,6 @@ KernelData SDPAMicroGenerator::get_kernel_data(const kernel_impl_params& params)
 [[maybe_unused]] const bool vs_common_zp = false;
 
 JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& params, const micro::Package& gemm_kq, const micro::Package& gemm_vs) const {
-    // auto jit = SDPABase::get_jit_constants(params);
     auto jit = make_base_jit_constants(params);
     sdpa_configuration config;
     init_sdpa_configuration(params, config);
@@ -1201,8 +1201,8 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, 9});        // scale
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});  // blocked_indexes_start_and_gws_mapping
     } else {
-        uint32_t attn_mask_idx = 3;
-        uint32_t scale_idx = 4;  // config.has_const_attn_mask_val ? 3 : 4;
+        const uint32_t attn_mask_idx = 3;
+        const uint32_t scale_idx = 4;
         if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
         if (config.input_num > scale_idx && !config.has_const_scale_val)
@@ -1258,7 +1258,7 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
 
             wgs.global[0] *= ceil_div(n_queries.get_length(), wg_tile_q);
             if (params.is_type<paged_attention>()) {
-                wgs.global[1] *= head_num;  //   config.heads_num;
+                wgs.global[1] *= head_num;
                 wgs.global[2] *= 1;
             } else {
                 wgs.global[1] *= out_ps[1].get_length();
@@ -1375,10 +1375,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     opts_kq.slmPtr = true;
 
     const bool use_asymmetric_quantization = configuration.use_asymmetric_quantization;
-    // desc->quantization_attributes.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
-
     const auto key_cache_id = micro_get_key_cache_id(params);
-    GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
     if (configuration.is_kv_compressed && !kq_common_scales) {
         const auto& key_cache_comp_scale = params.input_layouts[key_cache_id];
         const auto scale_dt = convert_type(key_cache_comp_scale.data_type);
@@ -1386,6 +1383,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_kq.A_scale.setAlignment(scale_dt.size());
         problem_kq.A_scale.layout = micro::MatrixLayout::N;
         problem_kq.asPtrDims = 2;
+        GPU_DEBUG_TRACE_DETAIL << "kq: key_cache_id = " << key_cache_id << std::endl;
     }
 
     if (configuration.is_kv_compressed && use_asymmetric_quantization) {
@@ -1451,7 +1449,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     problem_vs.A.layout = micro::MatrixLayout::N;
 
     const auto value_cache_id = micro_get_value_cache_id(params);
-    GPU_DEBUG_TRACE_DETAIL << "vs: value_cache_id = " << value_cache_id << std::endl;
     if (configuration.is_kv_compressed && !vs_common_scales) {
         const auto& value_cache_comp_scale = params.input_layouts[value_cache_id];
         auto scale_dt = convert_type(value_cache_comp_scale.data_type);
@@ -1459,6 +1456,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem_vs.A_scale.setAlignment(scale_dt.size());
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
         problem_vs.asPtrDims = 2;
+        GPU_DEBUG_TRACE_DETAIL << "vs: value_cache_id = " << value_cache_id << std::endl;
     }
 
     if (configuration.is_kv_compressed && use_asymmetric_quantization) {

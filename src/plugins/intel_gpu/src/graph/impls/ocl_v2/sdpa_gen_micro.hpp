@@ -44,10 +44,9 @@ private:
                                   micro::Package& gemm_kq,
                                   micro::Package& gemm_vs,
                                   bool is_prefill);
-    static void init_sdpa_configuration(const kernel_impl_params& params, sdpa_configuration& m_sdpa_config);
+    static void init_sdpa_configuration(const kernel_impl_params& params, sdpa_configuration& config);
 
     bool m_is_prefill;
-    mutable sdpa_configuration m_sdpa_config;
     static std::mutex m;
 
     static constexpr size_t kq_id = 0;

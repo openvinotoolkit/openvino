@@ -1073,7 +1073,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
 #endif
-    bool use_micro_sdpa = false;
+    bool pa_use_micro_sdpa = false;
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
     explicit PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {
@@ -1082,8 +1082,8 @@ public:
         const bool has_rotated_blocks = desc->has_rotated_blocks;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        use_micro_sdpa = supports_micro_sdpa(params);
-        if (use_micro_sdpa) {
+        pa_use_micro_sdpa = supports_micro_sdpa(params);
+        if (pa_use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
         }
 #endif
@@ -1132,12 +1132,6 @@ public:
         }
 
         if (desc->k_head_size > 256 || desc->v_head_size > 256) {
-            return false;
-        }
-
-        const auto scale_idx = 4lu;
-        const auto has_const_scale_val = desc->scale_val.has_value() ? true : false;
-        if (!has_const_scale_val && !params.input_layouts[scale_idx].is_dynamic() && params.input_layouts[scale_idx].count() == 1) {
             return false;
         }
 
@@ -1207,7 +1201,7 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
-            rt_params->use_micro_sdpa = supports_micro_sdpa(params);
+            rt_params->use_micro_sdpa = pa_use_micro_sdpa;  // supports_micro_sdpa(params);
 #else
             rt_params->use_micro_sdpa = false;
 #endif
@@ -1408,7 +1402,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        auto can_use_micro_sdpa = supports_micro_sdpa(params);
+        auto can_use_micro_sdpa = pa_use_micro_sdpa;  // supports_micro_sdpa(params);
         if (can_use_micro_sdpa) {
             const auto wg_tile_q = get_micro_tile_qsize(pa_sdpa_micro->kd);
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));

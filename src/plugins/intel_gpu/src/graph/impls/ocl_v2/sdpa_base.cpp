@@ -205,9 +205,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
     if (params.is_type<scaled_dot_product_attention>()) {
         const auto& desc = params.typed_desc<scaled_dot_product_attention>();
         auto data_inputs_num = get_data_inputs_num(*desc);
-
         const size_t attn_mask_id = 3;
-        // const size_t scale_id = attn_mask_id + 1;
 
         jit.make("IS_CAUSAL", desc->is_causal);
         if (desc->attn_mask_val.has_value()) {
@@ -309,11 +307,6 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         jit.make("K_HEAD_SIZE", k_head_size);
         jit.make("NUM_KV_HEADS", k_num_head);
         jit.make("V_HEAD_SIZE", v_head_size);
-
-        // const auto q_seq_len = get_seq_length(params.get_input_layout(0), extended_input_q_transpose_order);
-        // const auto k_seq_len = get_seq_length(params.get_input_layout(1), extended_input_k_transpose_order);
-        // jit.make("TARGET_SEQ_LEN", q_seq_len);
-        // jit.make("SOURCE_SEQ_LEN", k_seq_len);
     } else if (params.is_type<paged_attention>()) {
         // For micro/sdpa kernel shared between SDPAs and Paged Attention
         auto desc = params.typed_desc<paged_attention>();

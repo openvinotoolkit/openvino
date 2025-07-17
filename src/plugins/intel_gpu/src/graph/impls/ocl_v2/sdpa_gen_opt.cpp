@@ -111,7 +111,6 @@ Arguments SDPAOptGeneratorBase::get_arguments_desc_impl(const kernel_impl_params
     for (uint32_t i = 0; i < data_inputs_num; i++) {
         if (i == attn_mask_idx && desc->attn_mask_val.has_value())
             continue;
-        // if (i == scale_idx && desc->has_scale_input)
         if (i == scale_idx && desc->scale_val.has_value())
             continue;
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
