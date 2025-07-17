@@ -811,7 +811,8 @@ void jit_hsigmoid_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     load_table_val("six", fp0);
     h->vfmin_vf(dst, dst, fp0);
-    h->vfdiv_vf(dst, dst, fp0);
+    load_table_val("one_sixth", fp0);
+    h->vfmul_vf(dst, dst, fp0);
 }
 
 std::set<std::vector<element::Type>> jit_hsigmoid_emitter::get_supported_precisions(
@@ -822,6 +823,7 @@ std::set<std::vector<element::Type>> jit_hsigmoid_emitter::get_supported_precisi
 void jit_hsigmoid_emitter::register_table_entries() {
     push_arg_entry_of("three", 0x40400000);
     push_arg_entry_of("six", 0x40c00000);
+    push_arg_entry_of("one_sixth", dnnl::impl::float2int(1.F / 6.F));
 }
 
 /// HSWISH ///
