@@ -83,7 +83,7 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
         NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-        m_read_from_bin = ov::npuw::util::copy_tensor_from_const(it->second);
+        m_read_from_bin = ov::npuw::util::tensor_from_const(it->second);
         NPUW_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size && m_read_from_bin.get_shape() == m_cached_shape &&
                     m_read_from_bin.get_element_type() == m_cached_type);
     }
