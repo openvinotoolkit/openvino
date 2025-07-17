@@ -239,7 +239,8 @@ class MockPlugin : public ov::IPlugin {
         OPENVINO_NOT_IMPLEMENTED;
     }
 
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model, const ov::AnyMap& properties) const override {
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::AnyMap& properties) const override {
         OPENVINO_NOT_IMPLEMENTED;
     }
 

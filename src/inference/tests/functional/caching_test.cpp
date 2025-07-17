@@ -573,15 +573,16 @@ TEST_P(CachingTest, TestLoadCustomImportExport) {
             return create_mock_compiled_model(m_models[name], mockPlugin);
         }));
 
-    ON_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _)).WillByDefault(Invoke([&](const ov::Tensor& s, const ov::AnyMap&) {
-        char a[sizeof(customData)];
-        OPENVINO_ASSERT(customDataSize <= s.get_byte_size());
-        std::memcpy(a, s.data(), customDataSize);
-        EXPECT_EQ(memcmp(a, customData, customDataSize), 0);
-        auto name = getline_from_buffer(s.data<const char>(), s.get_byte_size(), customDataSize);
-        std::lock_guard<std::mutex> lock(mock_creation_mutex);
-        return create_mock_compiled_model(m_models[name], mockPlugin);
-    }));
+    ON_CALL(*mockPlugin, import_model(A<const ov::Tensor&>(), _))
+        .WillByDefault(Invoke([&](const ov::Tensor& s, const ov::AnyMap&) {
+            char a[sizeof(customData)];
+            OPENVINO_ASSERT(customDataSize <= s.get_byte_size());
+            std::memcpy(a, s.data(), customDataSize);
+            EXPECT_EQ(memcmp(a, customData, customDataSize), 0);
+            auto name = getline_from_buffer(s.data<const char>(), s.get_byte_size(), customDataSize);
+            std::lock_guard<std::mutex> lock(mock_creation_mutex);
+            return create_mock_compiled_model(m_models[name], mockPlugin);
+        }));
 
     m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
         ON_CALL(net, export_model(_)).WillByDefault(Invoke([&](std::ostream& s) {
