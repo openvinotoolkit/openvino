@@ -273,7 +273,7 @@ implicit_transpose_3d(int B, int S_q, int S_kv, int E, int Ev, std::vector<Dimen
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                          SDPAFusionImplicitTranspose,
-                         Combine(Values(f32, f16),                  // Types
+                         Combine(Values(f32, f16, bf16, f64),       // Types
                                  Values(true, false),               // Use attention_mask
                                  Values(true, false),               // Use scale
                                  Values(implicit_transpose_4d(1,    // B (batch)
@@ -369,7 +369,7 @@ TEST_P(SDPAFusionTransposeInMatmul, SDPAFusionTest_transpose_in_matmul) {
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                          SDPAFusionTransposeInMatmul,
-                         Combine(Values(f32, f16),                  // Types
+                         Combine(Values(f32, f16, bf16, f64),       // Types
                                  Values(true, false),               // Use attention_mask
                                  Values(true, false),               // Use scale
                                  Values(explicit_transpose_4d(1,    // B (batch)
@@ -572,7 +572,7 @@ TEST_P(SDPAFusionExplicitTranspose, SDPAFusionTest_explicit_transpose) {
 
 INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                          SDPAFusionExplicitTranspose,
-                         Combine(Values(f32, f16),                  // Types
+                         Combine(Values(f32, f16, bf16, f64),       // Types
                                  Values(true, false),               // Use attention_mask
                                  Values(true, false),               // Use scale
                                  Values(explicit_transpose_4d(1,    // B (batch)
