@@ -404,12 +404,6 @@ std::pair<std::unordered_set<MetaInterconnect>, MetaInterconnectIO> Group::metaI
     }
 
     MetaInterconnectIO mic_io;
-    for (const auto& ii : gptr_prod->m_input_layers) {
-        mic_io.input_imeta.insert(ov::npuw::online::util::getMetaDesc(ii));
-    }
-    for (const auto& io : gptr_prod->m_output_layers) {
-        mic_io.input_ometa.insert(ov::npuw::online::util::getMetaDesc(io));
-    }
     for (const auto& oi : m_input_layers) {
         mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
     }

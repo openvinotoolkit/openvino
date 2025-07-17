@@ -935,7 +935,8 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
         }
         // Generally we prefer bigger blocks (in terms of number of layers)
         // to be merged first. For other cases check the comment above
-        return a.size() > b.size();
+        // FIXME: !!!
+        return a.size() < b.size();
     });
 
     for (const auto& mic : mics_vec) {

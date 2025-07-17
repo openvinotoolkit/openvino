@@ -60,11 +60,9 @@ bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
 }
 
 bool MetaInterconnectIO::operator==(const MetaInterconnectIO& other) const {
-    return other.input_imeta == input_imeta && other.input_ometa == input_ometa && other.output_imeta == output_imeta &&
-           other.output_ometa == output_ometa;
+    return other.output_imeta == output_imeta && other.output_ometa == output_ometa;
 }
 
 bool MetaInterconnectIO::operator<(const MetaInterconnectIO& other) const {
-    return std::make_tuple(input_imeta, input_ometa, output_imeta, output_ometa) <
-           std::make_tuple(other.input_imeta, other.input_ometa, other.output_imeta, other.output_ometa);
+    return std::make_tuple(output_imeta, output_ometa) < std::make_tuple(other.output_imeta, other.output_ometa);
 }

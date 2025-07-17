@@ -54,8 +54,6 @@ struct MetaInterconnect {
 };
 
 struct MetaInterconnectIO {
-    std::set<std::string> input_imeta;
-    std::set<std::string> input_ometa;
     std::set<std::string> output_imeta;
     std::set<std::string> output_ometa;
 
@@ -155,9 +153,7 @@ struct hash<ov::npuw::online::MetaInterconnect> {
 template <>
 struct hash<ov::npuw::online::MetaInterconnectIO> {
     inline size_t operator()(const ov::npuw::online::MetaInterconnectIO& mic_io) const {
-        return (std::hash<std::set<std::string>>()(mic_io.input_imeta) + 0x9e3779b9) ^
-               (std::hash<std::set<std::string>>()(mic_io.input_ometa) + 0x9e3779b9) ^
-               (std::hash<std::set<std::string>>()(mic_io.output_imeta) + 0x9e3779b9) ^
+        return (std::hash<std::set<std::string>>()(mic_io.output_imeta) + 0x9e3779b9) ^
                (std::hash<std::set<std::string>>()(mic_io.output_ometa) + 0x9e3779b9);
     }
 };
