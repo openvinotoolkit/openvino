@@ -96,7 +96,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
     std::vector<std::string> allowed_signatures;
     try {
         OPENVINO_ASSERT(ov::js::validate<Napi::Function>(info, allowed_signatures),
-                        "'set_callback'",
+                        "'setCallback'",
                         ov::js::get_parameters_error_msg(info, allowed_signatures));
 
         set_tsfn(info.Env(), info[0].As<Napi::Function>());

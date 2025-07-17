@@ -180,7 +180,7 @@ describe('Tests for AsyncInferQueue.', () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     assert.throws(() => {
       inferQueue.setCallback();
-    }, /'set_callback' method called with incorrect parameters./);
+    }, /'setCallback' method called with incorrect parameters./);
     inferQueue.release();
   });
 

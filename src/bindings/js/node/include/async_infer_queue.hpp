@@ -20,9 +20,8 @@ public:
     void release(const Napi::CallbackInfo& info);
     void set_custom_callbacks(const Napi::CallbackInfo& info);
     /**
-     * Requires two arguments:
      * @param info[0] Napi::Object containing data for inference.
-     * @param info[1] Napi::Object containing user data that will be passed to the callback.
+     * @param info[1] Napi::Object containing user data that will be passed to the callback. [Optional]
      */
     Napi::Value start_async(const Napi::CallbackInfo& info);
 
