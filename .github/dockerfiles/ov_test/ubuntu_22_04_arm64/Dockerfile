@@ -27,10 +27,7 @@ RUN apt-get update && \
         pigz \
         # Samples
         clang \
-        # Pythons
-        python3-dev \
-        python3-venv \
-        python3-distutils \
+        # Python
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
