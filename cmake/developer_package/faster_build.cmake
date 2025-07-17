@@ -4,9 +4,6 @@
 
 include(CMakeParseArguments)
 
-# disable precompiled headers until it is fixed
-set(ENABLE_FASTER_BUILD OFF)
-
 function(ov_build_target_faster TARGET_NAME)
     # ENABLE_FASTER_BUILD option enables usage of precompiled headers
     # ENABLE_UNITY_BUILD option enalbles unity build
