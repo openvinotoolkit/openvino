@@ -873,17 +873,14 @@ void jit_hswish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
-    auto aux0 = VReg(aux_vec_idxs[0]);
+    auto aux0 = VReg(aux_vec_idxs.back());
 
     // save src
     h->vmv_v_v(aux0, src);
 
-    auto hsigmoid_aux_vec_idxs = aux_vec_idxs;
-    hsigmoid_aux_vec_idxs.erase(
-        std::find(hsigmoid_aux_vec_idxs.begin(), hsigmoid_aux_vec_idxs.end(), static_cast<size_t>(aux0.getIdx())));
     hsigmoid_emitter->emit_code({static_cast<size_t>(src.getIdx())},
                                 {static_cast<size_t>(dst.getIdx())},
-                                hsigmoid_aux_vec_idxs,
+                                {aux_vec_idxs.begin(), aux_vec_idxs.begin() + hsigmoid_emitter->aux_vecs_count()},
                                 aux_gpr_idxs,
                                 aux_fp_gpr_idxs);
     h->vfmul_vv(dst, dst, aux0);
