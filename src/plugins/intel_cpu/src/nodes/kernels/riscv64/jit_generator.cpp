@@ -17,7 +17,7 @@ namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
-void jit_generator::preamble() {
+void jit_generator_t::preamble() {
     const int frame_size = rnd_up((num_abi_save_gpr_regs + 1) * xlen + num_abi_save_fp_gpr_regs * flen, sp_aligment);
     addi(sp, sp, -frame_size);
     int imm = 0;
@@ -32,7 +32,7 @@ void jit_generator::preamble() {
     sd(ra, sp, imm);
 }
 
-void jit_generator::postamble() {
+void jit_generator_t::postamble() {
     const int frame_size = rnd_up((num_abi_save_gpr_regs + 1) * xlen + num_abi_save_fp_gpr_regs * flen, sp_aligment);
     int imm = 0;
     for (const auto& gpr : abi_save_gpr_regs) {
@@ -50,7 +50,7 @@ void jit_generator::postamble() {
     ret();
 }
 
-void jit_generator::uni_li(const Reg& rd, size_t value) {
+void jit_generator_t::uni_li(const Reg& rd, size_t value) {
     // We have to decompose pseudo-instruction `li` into several small instructions because
     // the immediate field in RISC-V instructions is limited to 12 or 20 bits:
     // - use `lui` (Load Upper Immediate) for high bits.
@@ -121,11 +121,11 @@ void jit_generator::uni_li(const Reg& rd, size_t value) {
     }
 }
 
-void jit_generator::vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::VReg& vs, Xbyak_riscv::VM vm) {
+void jit_generator_t::vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::VReg& vs, Xbyak_riscv::VM vm) {
     vfsgnjn_vv(vd, vs, vs, vm);
 }
 
-Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) {
+Xbyak_riscv::LMUL jit_generator_t::float2lmul(const float lmul) {
     if (lmul == 0.125f) {
         return LMUL::mf8;
     }
@@ -150,7 +150,7 @@ Xbyak_riscv::LMUL jit_generator::float2lmul(const float lmul) {
     OPENVINO_THROW(std::string("not supported vector length multiplier: ") + std::to_string(lmul));
 }
 
-float jit_generator::lmul2float(const LMUL lmul) {
+float jit_generator_t::lmul2float(const LMUL lmul) {
     switch (lmul) {
     case LMUL::mf8:
         return 0.125f;
@@ -173,7 +173,7 @@ float jit_generator::lmul2float(const LMUL lmul) {
     }
 }
 
-Xbyak_riscv::SEW jit_generator::bytes2sew(const size_t sew) {
+Xbyak_riscv::SEW jit_generator_t::bytes2sew(const size_t sew) {
     switch (sew) {
     case 1lu:
         return SEW::e8;
@@ -189,7 +189,7 @@ Xbyak_riscv::SEW jit_generator::bytes2sew(const size_t sew) {
     }
 }
 
-size_t jit_generator::sew2bytes(const Xbyak_riscv::SEW sew) {
+size_t jit_generator_t::sew2bytes(const Xbyak_riscv::SEW sew) {
     switch (sew) {
     case SEW::e8:
         return 1lu;
