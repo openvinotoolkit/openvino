@@ -901,6 +901,7 @@ public:
                     Algorithm::EltwiseLogicalXor,
                     Algorithm::EltwiseMaximum,
                     Algorithm::EltwiseMinimum,
+                    Algorithm::EltwiseMish,
                     Algorithm::EltwiseMod,
                     Algorithm::EltwiseMulAdd,
                     Algorithm::EltwiseMultiply,
