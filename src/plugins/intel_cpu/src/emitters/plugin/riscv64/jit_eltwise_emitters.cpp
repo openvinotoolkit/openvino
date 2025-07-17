@@ -1442,6 +1442,65 @@ void jit_is_finite_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
 }
 
+/// IS_NAN ///
+jit_is_nan_emitter::jit_is_nan_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+jit_is_nan_emitter::jit_is_nan_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                       const std::shared_ptr<ov::Node>& node,
+                                       ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+size_t jit_is_nan_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_is_nan_emitter::aux_gprs_count() const {
+    return 1;
+}
+
+size_t jit_is_nan_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
+void jit_is_nan_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_is_nan_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                  const std::vector<size_t>& out_vec_idxs) const {
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+
+    auto one = FReg(aux_fp_gpr_idxs[0]);
+
+    h->vmv_v_x(dst, zero);                   // set dst to 0
+    h->vmfne_vv(mask_vreg(), src, src);      // set mask where src is nan (i.e. not equal to itself)
+    h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
+}
+
+std::set<std::vector<element::Type>> jit_is_nan_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32}};
+}
+
+void jit_is_nan_emitter::register_table_entries() {
+    push_arg_entry_of("one", CONST_1_F);
+}
+
 /// LESS EQUAL ///
 jit_less_equal_emitter::jit_less_equal_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                                ov::intel_cpu::riscv64::cpu_isa_t host_isa,
