@@ -49,6 +49,7 @@ class Group;
 struct Repeated;
 struct Interconnect;
 struct MetaInterconnect;
+struct MetaInterconnectIO;
 
 namespace detail {
 using OVNodePtr = std::shared_ptr<ov::Node>;

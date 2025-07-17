@@ -17,6 +17,7 @@
 using ov::npuw::online::Group;
 using ov::npuw::online::Interconnect;
 using ov::npuw::online::MetaInterconnect;
+using ov::npuw::online::MetaInterconnectIO;
 using ov::npuw::online::Repeated;
 using ov::npuw::online::detail::isOp;
 
@@ -388,7 +389,8 @@ void Group::setRepeated(const std::shared_ptr<Repeated>& rep) {
     }
 }
 
-std::unordered_set<MetaInterconnect> Group::metaInterconnect(const Group::GPtr& gptr_prod) const {
+std::pair<std::unordered_set<MetaInterconnect>, MetaInterconnectIO> Group::metaInterconnect(
+    const Group::GPtr& gptr_prod) const {
     std::unordered_set<MetaInterconnect> mics;
 
     auto ics = interconnect(gptr_prod);
@@ -396,14 +398,26 @@ std::unordered_set<MetaInterconnect> Group::metaInterconnect(const Group::GPtr& 
         mics.insert({ov::npuw::online::util::getMetaDesc(ic.input_node),
                      gptr_prod->m_reptrack.at(ic.input_node),
                      ic.input_port,
-                     gptr_prod->m_output_layers.size(),
                      ov::npuw::online::util::getMetaDesc(ic.output_node),
                      m_reptrack.at(ic.output_node),
-                     ic.output_port,
-                     m_output_layers.size()});
+                     ic.output_port});
     }
 
-    return mics;
+    MetaInterconnectIO mic_io;
+    for (const auto& ii : gptr_prod->m_input_layers) {
+        mic_io.input_imeta.insert(ov::npuw::online::util::getMetaDesc(ii));
+    }
+    for (const auto& io : gptr_prod->m_output_layers) {
+        mic_io.input_ometa.insert(ov::npuw::online::util::getMetaDesc(io));
+    }
+    for (const auto& oi : m_input_layers) {
+        mic_io.output_imeta.insert(ov::npuw::online::util::getMetaDesc(oi));
+    }
+    for (const auto& oo : m_output_layers) {
+        mic_io.output_ometa.insert(ov::npuw::online::util::getMetaDesc(oo));
+    }
+
+    return {mics, mic_io};
 }
 
 std::unordered_set<Interconnect> Group::interconnect(const Group::GPtr& gptr_prod) const {

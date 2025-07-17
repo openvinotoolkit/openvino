@@ -11,6 +11,7 @@
 
 using ov::npuw::online::Interconnect;
 using ov::npuw::online::MetaInterconnect;
+using ov::npuw::online::MetaInterconnectIO;
 using ov::npuw::online::Repeated;
 
 bool Repeated::Archetype::operator==(const Repeated::Archetype& other) const {
@@ -44,14 +45,11 @@ bool Interconnect::operator==(const Interconnect& other) const {
 
 bool MetaInterconnect::operator==(const MetaInterconnect& other) const {
     return other.input_meta == input_meta && other.output_meta == output_meta && other.input_port == input_port &&
-           other.output_port == output_port && other.input_g_output_size == input_g_output_size &&
-           other.output_g_output_size == output_g_output_size && other.input_reptrack == input_reptrack &&
+           other.output_port == output_port && other.input_reptrack == input_reptrack &&
            other.output_reptrack == output_reptrack;
 }
 
 bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
-    // NOTE: input_g_output_size and output_g_output_size are intentionally excluded
-    // to preserve previously established partitions.
     return std::make_tuple(input_meta, input_port, input_reptrack, output_port, output_meta, output_reptrack) <
            std::make_tuple(other.input_meta,
                            other.input_port,
@@ -59,4 +57,14 @@ bool MetaInterconnect::operator<(const MetaInterconnect& other) const {
                            other.output_port,
                            other.output_meta,
                            other.output_reptrack);
+}
+
+bool MetaInterconnectIO::operator==(const MetaInterconnectIO& other) const {
+    return other.input_imeta == input_imeta && other.input_ometa == input_ometa && other.output_imeta == output_imeta &&
+           other.output_ometa == output_ometa;
+}
+
+bool MetaInterconnectIO::operator<(const MetaInterconnectIO& other) const {
+    return std::make_tuple(input_imeta, input_ometa, output_imeta, output_ometa) <
+           std::make_tuple(other.input_imeta, other.input_ometa, other.output_imeta, other.output_ometa);
 }
