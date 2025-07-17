@@ -497,7 +497,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM) {
     disable_rt_info_check();
     const int batch = 2;
     const int seq_len = 7;
@@ -609,7 +609,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGML_Slice) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_Slice) {
     using namespace ov;
     disable_rt_info_check();
     const int batch = 2;
@@ -772,7 +772,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_2d_rope) {
     disable_rt_info_check();
     const int batch = 2;
     const int seq_len = 7;
@@ -890,7 +890,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_nano_2d_rope) {
     disable_rt_info_check();
     const int batch = 2;
     const int seq_len = 7;
@@ -1000,7 +1000,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGMLHF_2d_rope) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope) {
     disable_rt_info_check();
     const int seq_len = 7;
     const int num_heads = 32;
