@@ -88,9 +88,7 @@ Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (axis < 0) {
         axis += inRank;
     }
-    if (axis >= static_cast<int64_t>(inRank) || axis < 0) {
-        THROW_CPU_NODE_ERR("has invalid value of axis parameter: ", axis);
-    }
+    CPU_NODE_ASSERT(axis < static_cast<int64_t>(inRank) && axis >= 0, "has invalid value of axis parameter: ", axis);
     this->axis = axis;
 }
 
@@ -108,9 +106,7 @@ void Concat::getSupportedDescriptors() {
                 break;
             }
         }
-        if (incorrectDims || firstParentDims.empty()) {
-            THROW_CPU_NODE_ERR("has incorrect input dimensions");
-        }
+        CPU_NODE_ASSERT(!incorrectDims && !firstParentDims.empty(), "has incorrect input dimensions");
     }
 
     // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this
@@ -265,9 +261,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
 
         const auto& parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
-        if (outputIndex < 0 || outputIndex >= static_cast<int>(parent_config.outConfs.size())) {
-            THROW_CPU_NODE_ERR("Cannot find index of output node");
-        }
+        CPU_NODE_ASSERT(outputIndex >= 0 && outputIndex < static_cast<int>(parent_config.outConfs.size()),
+                        "Cannot find index of output node");
         const auto& port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -285,9 +280,8 @@ void Concat::selectOptimalPrimitiveDescriptor() {
 
         const auto& config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
-        if (inputIndex < 0 || inputIndex >= static_cast<int>(config.inConfs.size())) {
-            THROW_CPU_NODE_ERR("Cannot find index of output node");
-        }
+        CPU_NODE_ASSERT(inputIndex >= 0 && inputIndex < static_cast<int>(config.inConfs.size()),
+                        "Cannot find index of output node");
         const auto& port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -377,13 +371,9 @@ void Concat::prepareParams() {
     }
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination memory is undefined.");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor is not set.");
 
     const auto& outputStrides = dstMemDesc->getStrides();
     size_t curConcatOffset = 0;
@@ -427,10 +417,10 @@ void Concat::prepareParams() {
     nelemTotal = 0;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getSrcMemoryAtPort(i);
-        if (!srcMemPtr || !srcMemPtr->isDefined()) {
-            auto parent = getParentEdgeAt(i)->getParent();
-            THROW_CPU_NODE_ERR("Source memory from ", parent->getName(), " is undefined.");
-        }
+        CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(),
+                        "Source memory from ",
+                        getParentEdgeAt(i)->getParent()->getName(),
+                        " is undefined.");
 
         if (canExecRef) {
             auto* const srcMemDesc = srcMemPtr->getDescPtr()->as<BlockedMemoryDesc>();
@@ -493,9 +483,7 @@ size_t Concat::inverseOrder(const VectorDims& order, size_t axis) {
 
 void Concat::initOptimalPrimitiveDescriptor() {
     auto* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
 
     if (!isInPlace()) {
         Node::initOptimalPrimitiveDescriptor();
@@ -740,9 +728,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     }
 
     auto* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
     const auto& config = selected_pd->getConfig();
     size_t numberOfInputs = config.inConfs.size();
     size_t inplaceOutIndx = selected_pd->getConfig().inConfs[0].inPlace();
@@ -757,7 +743,7 @@ void Concat::resolveInPlaceEdges(Edge::LOOK look) {
     CPU_NODE_ASSERT(itr != edges.end(), "Could not find allocated child edge");
 
     auto baseMemBlock = (*itr)->getMemory().getMemoryBlock();
-    CPU_NODE_ASSERT(baseMemBlock != nullptr, "NULL base memory block");
+    CPU_NODE_ASSERT(baseMemBlock, "NULL base memory block");
 
     ptrdiff_t offset = 0;
     for (size_t i = 0; i < numberOfInputs; ++i) {

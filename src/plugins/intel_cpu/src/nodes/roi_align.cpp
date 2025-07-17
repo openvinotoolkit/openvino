@@ -640,9 +640,8 @@ private:
     // gather bf16 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
     // bf16 is needed from avx512_core
     void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
-        if (!std::is_same<Vmm, Xbyak::Zmm>::value) {
-            OPENVINO_THROW("bf16 is only supported from avx512_core platform for ROIAlign node.");
-        }
+        OPENVINO_ASSERT((std::is_same<Vmm, Xbyak::Zmm>::value),
+                        "bf16 is only supported from avx512_core platform for ROIAlign node.");
         sub(rsp, v_len);
         uni_vmovdqu(ptr[rsp], vmm_idx);
         for (int i = 0; i < v_step; i++) {
@@ -759,42 +758,40 @@ ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 }
 
 void ROIAlign::getSupportedDescriptors() {
-    if (getParentEdges().size() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 3, "has incorrect number of input edges: ", getParentEdges().size());
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges: ", getChildEdges().size());
 
-    if (getInputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(0).getRank() == 4,
+                    "doesn't support 0th input with rank: ",
+                    getInputShapeAtPort(0).getRank());
 
-    if (getInputShapeAtPort(1).getRank() != 2) {
-        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(1).getRank() == 2,
+                    "doesn't support 1st input with rank: ",
+                    getInputShapeAtPort(1).getRank());
 
-    if (getInputShapeAtPort(2).getRank() != 1) {
-        THROW_CPU_NODE_ERR("doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(2).getRank() == 1,
+                    "doesn't support 2nd input with rank: ",
+                    getInputShapeAtPort(2).getRank());
 
-    if (getOutputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getOutputShapeAtPort(0).getRank() == 4,
+                    "doesn't support output with rank: ",
+                    getOutputShapeAtPort(0).getRank());
 
     const auto& proposalsDims = getInputShapeAtPort(1).getDims();
-    if (proposalsDims[1] != 4) {
-        THROW_CPU_NODE_ERR("has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
-    }
+    CPU_NODE_ASSERT(proposalsDims[1] == 4,
+                    "has invalid shape on 1st input: [",
+                    proposalsDims[0],
+                    ",",
+                    proposalsDims[1],
+                    "]");
 
     const auto& indexesDims = getInputShapeAtPort(2).getDims();
-    if (!dimsEqualWeak(proposalsDims[0], indexesDims[0])) {
-        THROW_CPU_NODE_ERR("has different sizes of inputs for proposals (",
-                           proposalsDims[0],
-                           ") and indexes (",
-                           indexesDims[0],
-                           ")");
-    }
+    CPU_NODE_ASSERT(dimsEqualWeak(proposalsDims[0], indexesDims[0]),
+                    "has different sizes of inputs for proposals (",
+                    proposalsDims[0],
+                    ") and indexes (",
+                    indexesDims[0],
+                    ")");
 }
 
 void ROIAlign::createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout) {
@@ -874,12 +871,8 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 void ROIAlign::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("has null input memory");
-    }
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("has null destination memory");
-    }
+    CPU_NODE_ASSERT(srcMemPtr, "has null input memory");
+    CPU_NODE_ASSERT(dstMemPtr, "has null destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;
@@ -912,9 +905,9 @@ struct ROIAlign::ROIAlignExecute {
 void ROIAlign::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
-    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32))) {
-        THROW_CPU_NODE_ERR("doesn't support demanded precisions");
-    }
+    CPU_NODE_ASSERT(
+        ((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)),
+        "doesn't support demanded precisions");
 
     ROIAlignContext ctx = {*this};
 
@@ -1003,11 +996,11 @@ void ROIAlign::executeSpecified() {
         int roiOff = n * 4;
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
-        if (roiBatchInd < -1) {  // -1 means switched off region
-            THROW_CPU_NODE_ERR("Batch index cannot be less, than -1");
-        } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
-            THROW_CPU_NODE_ERR("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
-        }
+        CPU_NODE_ASSERT(roiBatchInd >= -1, "Batch index cannot be less, than -1");
+        CPU_NODE_ASSERT(static_cast<size_t>(roiBatchInd) < inputDimVector[0],
+                        "Demanded batch (id = ",
+                        roiBatchInd,
+                        ") doesn't exist");
 
         float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
         float y1 = (srcRoiPtr[1] + offset_src) * spatialScale + offset_dst;
@@ -1132,9 +1125,7 @@ void ROIAlign::executeSpecified() {
         }
     });
 
-    if (realRois == 0) {
-        THROW_CPU_NODE_ERR("realRois must be greater than 0");
-    }
+    CPU_NODE_ASSERT(realRois > 0, "realRois must be greater than 0");
 
     if (roi_align_kernel) {
         if (!isPlainFmt) {
