@@ -98,7 +98,7 @@ describe('Tests for AsyncInferQueue.', () => {
         console.error(`Job failed: ${err}`);
       } else {
         assert.ok(request instanceof ov.InferRequest);
-        assert.strictEqual(userData, null);
+        assert.strictEqual(userData, undefined);
       }
     }
     inferQueue.setCallback(basicUserCallback);

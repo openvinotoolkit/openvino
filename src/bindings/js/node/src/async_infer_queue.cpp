@@ -9,6 +9,10 @@
 #include <string>
 #include <vector>
 
+namespace {
+constexpr const char* UNDEFINED_USER_DATA = "UNDEFINED";
+}
+
 #include "node/include/addon.hpp"
 #include "node/include/compiled_model.hpp"
 #include "node/include/errors.hpp"
@@ -110,9 +114,10 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                         Napi::Object js_ir = InferRequestWrap::wrap(env, m_requests[handle]);
                         const auto promise = m_user_ids[handle].second;
                         try {
-                            auto user_data = m_user_ids[handle].first.Value().ToString().Utf8Value() == "NULL"
-                                                 ? env.Null()
-                                                 : m_user_ids[handle].first.Value();
+                            auto user_data =
+                                m_user_ids[handle].first.Value().ToString().Utf8Value() == UNDEFINED_USER_DATA
+                                    ? env.Undefined()
+                                    : m_user_ids[handle].first.Value();
                             user_callback.Call({js_ir, user_data});
                             promise.Resolve(user_data);
                             // returns before the promise's .then() is completed
@@ -173,8 +178,9 @@ Napi::Value AsyncInferQueue::start_async(const Napi::CallbackInfo& info) {
                         ov::js::get_parameters_error_msg(info, allowed_signatures));
 
         const auto handle = check_idle_request_id();
-        // WA for "Error: Invalid argument" when Napi::Object is null.
-        auto user_data = info.Length() > 1 ? info[1].ToObject() : Napi::String::New(info.Env(), "NULL").ToObject();
+        // WA for "Error: Invalid argument" when Napi::Object is undefined.
+        auto user_data =
+            info.Length() > 1 ? info[1].ToObject() : Napi::String::New(info.Env(), UNDEFINED_USER_DATA).ToObject();
         Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(info.Env());
         if (handle == -1) {
             std::lock_guard<std::mutex> lock(m_mutex);

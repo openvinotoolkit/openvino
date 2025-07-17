@@ -673,7 +673,8 @@ interface PartialShape {
  * Callback function type for AsyncInferQueue operations.
  * @param inferRequest The {@link InferRequest} object from the queue's pool.
  * It allows to access input and output tensors.
- * @param userData User data that was passed to the startAsync method.
+ * @param userData User data that was passed to the startAsync method. If data was not
+ * passed, it will be undefined.
  * @param error Optional error that occurred during inference, if any.
  */
 type AsyncInferQueueCallback = (
