@@ -62,8 +62,11 @@ public:
      * @return A "NetworkDescription" object for each init schedule, followed by another one corresponding to the main
      * part.
      */
-    virtual std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(const std::shared_ptr<ov::Model>& model,
-                                                                              const Config& config) const = 0;
+    virtual std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(
+        const std::shared_ptr<ov::Model>& /*model*/,
+        const Config& /*config*/) const {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
 
     /**
      * @brief Sequential compilation of Init(s) and Main
@@ -79,9 +82,11 @@ public:
      * Compiler should somehow understand wich Init(or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
-    virtual NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                                  const Config& config,
-                                                  size_t callNumber) const = 0;
+    virtual NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& /*model*/,
+                                                  const Config& /*config*/,
+                                                  size_t /*callNumber*/) const {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
 
     /**
      * @brief Returns information about supported layers of the network passed
