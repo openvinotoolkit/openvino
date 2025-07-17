@@ -97,10 +97,10 @@ class TestQuantizedConv1D(PytorchLayerTest):
         # Shape: (N, C, L)
         return (np.round(self.rng.random([2, 3, 50], dtype=np.float32), 4),)
 
-    def create_model(self, weights_shape, stride, pad, dilation, groups, bias, relu, scale, zero_point):
+    def create_model(self, weights_shape, strides, pads, dilation, groups, bias, relu, scale, zero_point):
         class quantized_conv1d(torch.nn.Module):
             def __init__(self):
-                super().__init__()
+                super(quantized_conv1d, self).__init__()
                 if not relu:
                     conv_cls = torch.ao.nn.quantized.Conv1d
                 else:
@@ -110,11 +110,11 @@ class TestQuantizedConv1D(PytorchLayerTest):
                     in_channels=weights_shape[1] * groups,
                     out_channels=weights_shape[0],
                     kernel_size=weights_shape[2],
-                    stride=stride,
-                    padding=pad,
-                    dilation=dilation,
-                    groups=groups,
-                    bias=bias,
+                    strides,
+                    pads,
+                    dilations,
+                    groups,
+                    bias,
                 )
                 if bias:
                     torch.nn.init.normal_(self.conv.bias())
@@ -141,18 +141,18 @@ class TestQuantizedConv1D(PytorchLayerTest):
     @pytest.mark.parametrize(
         "params",
         [
-            {"weights_shape": [1, 3, 3], "stride": 1,
-             "pad": 0, "dilation": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3], "stride": 1,
-             "pad": 0, "dilation": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3], "stride": 2,
-             "pad": 0, "dilation": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3], "stride": 1,
-             "pad": 1, "dilation": 1, "groups": 1},
-            {"weights_shape": [2, 3, 3], "stride": 1,
-             "pad": 0, "dilation": 2, "groups": 1},
-            {"weights_shape": [3, 1, 3], "stride": 1,
-             "pad": 0, "dilation": 1, "groups": 3},
+            {"weights_shape": [1, 3, 3], "strides": 1,
+             "pads": 0, "dilations": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "strides": 1,
+             "pads": 0, "dilations": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "strides": 2,
+             "pads": 0, "dilations": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "strides": 1,
+             "pads": 1, "dilations": 1, "groups": 1},
+            {"weights_shape": [2, 3, 3], "strides": 1,
+             "pads": 0, "dilations": 2, "groups": 1},
+            {"weights_shape": [3, 1, 3], "strides": 1,
+             "pads": 0, "dilations": 1, "groups": 3},
         ],
     )
     @pytest.mark.parametrize("bias", [True, False])
