@@ -11,7 +11,7 @@
 #include <openvino/pass/manager.hpp>
 #include <transformations/utils/utils.hpp>
 
-#include <plugin/transformations/disable_f16_comp_for_periodic_funcs.hpp>
+#include <plugin/transformations/disable_fp16_comp_for_periodic_funcs.hpp>
 #include <transformations/convert_precision.hpp>
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -24,11 +24,6 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/abs.hpp"
-#include "openvino/op/ceiling.hpp"
-#include "openvino/op/clamp.hpp"
-#include "openvino/op/roll.hpp"
-#include "openvino/core/graph_util.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -46,9 +41,9 @@ static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const pr
     return true;
 }
 
-const static std::string name_add = "add_1";
-const static std::string name_sin = "sin";
-const static std::string name_cos = "cos";
+static const std::string name_add = "add_1";
+static const std::string name_sin = "sin";
+static const std::string name_cos = "cos";
 
 static std::shared_ptr<ov::Model> create_model_with_periodic_func() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, -1, 3 });
@@ -78,7 +73,21 @@ static std::shared_ptr<ov::Model> create_model_with_periodic_func() {
     return std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
 }
 
-TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTest) {
+static std::shared_ptr<ov::Model> create_simple_model_with_periodic_func() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 224, 224});
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(input);
+    sin->set_friendly_name(name_sin);
+
+    auto cos = std::make_shared<ov::op::v0::Cos>(input);
+    cos->set_friendly_name(name_cos);
+
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin, cos}, 1);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
+}
+
+static void run_disable_fp16_compression_for_periodic_func_test(std::shared_ptr<ov::Model> model, const std::unordered_set<std::string>& required_nodes) {
     ov::pass::Manager manager;
     manager.register_pass<DisableFP16CompressionForPeriodicFuncs>();
 
@@ -110,27 +119,36 @@ TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTest) {
         {ov::element::u4, ov::element::u8},
     };
 
-    // To convert to f16 input to boolean which is converted to u8, add abs + ceiling + clamp before convert.
     type_to_fuse_map type_to_fuse = {{ov::op::v0::Convert::get_type_info_static(), fuse_type_to_convert}};
     manager.register_pass<ov::pass::ConvertPrecision>(int_convert_precision_map,
                                                         type_to_fuse,
                                                         keep_precision_sensitive_in_fp32_2,
                                                         convert_input_output_precision);
-    auto func = create_model_with_periodic_func();
-    manager.run_passes(func);
+    manager.run_passes(model);
 
-    std::unordered_set<std::string> required_nodes = {name_sin, name_cos, name_add}; // Set of required node names
     std::unordered_set<std::string> found_nodes; // Set of found node names
 
-    for (auto& ops : func->get_ops()) {
-        if (required_nodes.count(ops->get_friendly_name())) {
-            found_nodes.insert(ops->get_friendly_name()); // Add the found node name to the set
+    for (auto& op : model->get_ops()) {
+        if (required_nodes.count(op->get_friendly_name())) {
+            found_nodes.insert(op->get_friendly_name()); // Add the found node name to the set
 
-            ASSERT_TRUE(ov::fp16_compression_is_disabled(ops))
-                << "FP16 compression is not disabled for node: " << ops->get_friendly_name();
+            ASSERT_TRUE(ov::fp16_compression_is_disabled(op))
+                << "FP16 compression is not disabled for node: " << op->get_friendly_name();
         }
     }
 
     ASSERT_EQ(found_nodes, required_nodes)
         << "Mismatch between found nodes and required nodes.";
+}
+
+TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTest) {
+    std::unordered_set<std::string> required_nodes = {name_sin, name_cos, name_add};
+    auto model = create_model_with_periodic_func();
+    run_disable_fp16_compression_for_periodic_func_test(model, required_nodes);
+}
+
+TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTestSimple) {
+    std::unordered_set<std::string> required_nodes = {name_sin, name_cos};
+    auto model = create_simple_model_with_periodic_func();
+    run_disable_fp16_compression_for_periodic_func_test(model, required_nodes);
 }

@@ -3,11 +3,10 @@
 //
 
 #include <memory>
-#include <stack>
 
-#include "transformations/utils/utils.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+
 #include "openvino/op/sin.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/reshape.hpp"
@@ -27,7 +26,9 @@
 #include "openvino/op/util/gather_nd_base.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "disable_f16_comp_for_periodic_funcs.hpp"
+
+#include "transformations/utils/utils.hpp"
+#include "disable_fp16_comp_for_periodic_funcs.hpp"
 
 static bool is_non_value_modifying_node(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<ov::op::v1::Reshape>(node) ||
@@ -60,46 +61,39 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
 
-        if (node->get_input_element_type(0) != ov::element::f16) {
-            return false;
-        }
-
         // Disable FP16 compression for the current node
         ov::disable_fp16_compression(node);
 
-        // Traverse inputs to find the first node that modifies values and disable FP16 compression
-        std::stack<std::shared_ptr<ov::Node>> nodes_to_process;
-        nodes_to_process.push(node);
+        auto current_node = node;
 
-        while (!nodes_to_process.empty()) {
-            auto current_node = nodes_to_process.top();
-            nodes_to_process.pop();
+        OPENVINO_ASSERT(current_node && !current_node->inputs().empty(),
+                        "current_node should not be null and have inputs");
 
-            OPENVINO_ASSERT((current_node && !current_node->inputs().empty()), "Invalid node or missing inputs during traversal.");
-
-            // Check only the first input
-            // Most operations use the first input as the actual data for computation,
-            // while other inputs are typically used for shape determination or metadata.
-            // Therefore, only the first input is checked to simplify the
-            auto input_node = current_node->input(0).get_source_output().get_node_shared_ptr();
-
-            // Skip Constant or Parameter nodes as they do not modify values
-            if (ov::as_type_ptr<ov::op::v0::Constant>(input_node) || ov::as_type_ptr<ov::op::v0::Parameter>(input_node)) {
+        // Traverse the input chain to find the first value-modifying node
+        while (current_node) {
+            /*
+            * Move to the first input node, the reason that we only traverse first input:
+            * 1. Sin/Cos operations have only one input containing the actual data
+            * 2. For non-value-modifying operations (reshape, transpose, etc.), input[0] contains the actual data
+            *    while other inputs (input[1], input[2]...) are metadata for:
+            *    - Shape information (target shape for reshape)
+            *    - Index information (axes for transpose, gather indices)
+            *    - Broadcasting parameters (broadcast shape)
+            *    These metadata inputs don't affect the actual data values, only how the data is arranged or accessed
+            * 3. Since we're tracking the data flow that affects numerical precision,
+            *    we only need to follow the path of actual data (input[0])
+            */
+            current_node = current_node->get_input_node_shared_ptr(0);  // Follow only the first input
+            if (!current_node || current_node->inputs().empty()) {
                 break;
             }
 
-            // If FP16 compression is already disabled, skip this node
-            if (ov::fp16_compression_is_disabled(input_node)) {
+            if (ov::fp16_compression_is_disabled(current_node)) {
                 break;
             }
 
-            // If the node does not modify values, add it to the stack for further processing
-            if (is_non_value_modifying_node(input_node)) {
-                nodes_to_process.push(input_node);
-            } else {
-                ov::disable_fp16_compression(input_node);
-
-                // Stop further traversal after disabling compression for the first modifying node
+            if (!is_non_value_modifying_node(current_node)) {
+                ov::disable_fp16_compression(current_node);
                 break;
             }
         }

@@ -5,9 +5,10 @@
 #pragma once
 
 /**
+ * @file disable_fp16_comp_for_periodic_funcs.hpp
  * @brief Defines the transformation pass to disable FP16 compression for periodic functions
- * @file disable_f16_comp_for_periodic_funcs.hpp
  */
+
 #include "openvino/pass/matcher_pass.hpp"
 
 namespace ov {
