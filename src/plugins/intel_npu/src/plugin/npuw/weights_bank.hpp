@@ -57,9 +57,13 @@ private:
     struct DeviceBank {
         std::unordered_map<int64_t, StoredTensor> storage;
         std::unordered_map<LazyTensor, int64_t, LazyTensor::Hash> registered_tensors;
-        mutable std::mutex mutex;
     };
     std::unordered_map<std::string, DeviceBank> m_device_banks;
+
+    void evaluate_cpu(DeviceBank& device_bank, const std::vector<LazyTensor>& to_process);
+    void evaluate_and_allocate_on_device(DeviceBank& device_bank,
+                                         const std::vector<LazyTensor>& to_process,
+                                         const std::string& device);
 
     void serialize(std::ostream& stream) const;
     static std::shared_ptr<Bank> deserialize(std::istream& stream,
