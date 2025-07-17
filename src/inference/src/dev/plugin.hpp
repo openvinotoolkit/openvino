@@ -53,9 +53,9 @@ public:
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& properties) const;
 
-    SoPtr<ov::ICompiledModel> import_model(ov::Tensor& model, const ov::AnyMap& properties) const;
+    SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model, const ov::AnyMap& properties) const;
 
-    SoPtr<ov::ICompiledModel> import_model(ov::Tensor& model,
+    SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                            const ov::SoPtr<ov::IRemoteContext>& context,
                                            const ov::AnyMap& config) const;
 

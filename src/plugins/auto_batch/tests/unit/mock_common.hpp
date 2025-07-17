@@ -46,11 +46,11 @@ public:
                 (const, override));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
-                (ov::Tensor&, const ov::AnyMap&),
+                (const ov::Tensor&, const ov::AnyMap&),
                 (const, override));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
-                (ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
+                (const ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
                 (const, override));
     MOCK_METHOD(ov::SupportedOpsMap,
                 query_model,
