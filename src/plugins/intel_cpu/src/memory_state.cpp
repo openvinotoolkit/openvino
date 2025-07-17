@@ -296,8 +296,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
                     attn_dequant_u8(pastkv.ptr<uint8_t>(m, b_kv, h, group_id * m_group_size),
                                     buffers[ithr].ptr<float>() + group_id * m_group_size,
                                     m_group_size,
-                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2)[0],
-                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2)[1]);
+                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2));
                 }
                 cpu_convert(buffers[ithr].ptr<float>(), output.ptr_v(m, b, h), element::f32, output.m_dt, S);
             });
