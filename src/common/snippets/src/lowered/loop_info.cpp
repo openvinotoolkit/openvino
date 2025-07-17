@@ -540,7 +540,7 @@ size_t InnerSplittedUnifiedLoopInfo::get_work_amount() const {
 }
 
 LoopInfoPtr InnerSplittedUnifiedLoopInfo::get_outer_splitted_loop_info() const {
-    OPENVINO_DEBUG_ASSERT(m_outer_splitted_loop_info != nullptr, "Outer Splitted loop info is nullptr!");
+    OPENVINO_DEBUG_ASSERT(m_outer_splitted_loop_info, "Outer Splitted loop info is nullptr!");
     return m_outer_splitted_loop_info;
 }
 
@@ -617,7 +617,7 @@ bool ExpandedLoopInfo::is_dynamic() const {
 }
 
 const std::shared_ptr<UnifiedLoopInfo>& ExpandedLoopInfo::get_unified_loop_info() const {
-    OPENVINO_DEBUG_ASSERT(m_unified_loop_info != nullptr, "Failed to get unified loop info: it's nullptr");
+    OPENVINO_DEBUG_ASSERT(m_unified_loop_info, "Failed to get unified loop info: it's nullptr");
     return m_unified_loop_info;
 }
 

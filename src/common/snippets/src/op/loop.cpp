@@ -54,7 +54,7 @@ std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() const {
     OPENVINO_DEBUG_ASSERT(last_output_inputs.size() == 1,
                           "LoopBegin has more than one inputs attached to the last output");
     const auto& loop_end = ov::as_type_ptr<LoopEnd>(last_output_inputs.begin()->get_node()->shared_from_this());
-    OPENVINO_DEBUG_ASSERT(loop_end != nullptr, "LoopBegin must have LoopEnd connected to its last output");
+    OPENVINO_DEBUG_ASSERT(loop_end, "LoopBegin must have LoopEnd connected to its last output");
     return loop_end;
 }
 
@@ -85,7 +85,7 @@ void LoopEnd::validate_and_infer_types() {
     NODE_VALIDATION_CHECK(this, get_input_size() == 1, "LoopEnd must have one input");
     const auto loop_begin = ov::as_type_ptr<LoopBegin>(get_input_node_shared_ptr(0));
     const auto io_size = m_input_num + m_output_num;
-    NODE_VALIDATION_CHECK(this, loop_begin != nullptr, "LoopEnd must have LoopBegin as the last argument");
+    NODE_VALIDATION_CHECK(this, loop_begin, "LoopEnd must have LoopBegin as the last argument");
 
 #define VALIDATE_VALUES(values, name, default_value)                                                                   \
     NODE_VALIDATION_CHECK(this,                                                                                        \
@@ -144,7 +144,7 @@ std::shared_ptr<Node> LoopEnd::clone_with_new_inputs(const OutputVector& inputs)
 std::shared_ptr<LoopBegin> LoopEnd::get_loop_begin() {
     const auto& loop_begin =
         ov::as_type_ptr<LoopBegin>(get_input_source_output(get_input_size() - 1).get_node_shared_ptr());
-    OPENVINO_DEBUG_ASSERT(loop_begin != nullptr, "LoopEnd last input is not connected to LoopBegin");
+    OPENVINO_DEBUG_ASSERT(loop_begin, "LoopEnd last input is not connected to LoopBegin");
     return loop_begin;
 }
 

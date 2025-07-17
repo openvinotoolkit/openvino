@@ -91,7 +91,13 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
                     data[i] = (high << 4) | (low & 0xF);
                 }
             } else {
-                OPENVINO_ASSERT(false, "Unsupported data type for shiftting sign to unsign");
+                OPENVINO_ASSERT(false,
+                                "Unsupported data type for shifting sign to unsigned: dst_wdt=",
+                                dst_wdt,
+                                ", src_wdt=",
+                                src_wdt,
+                                ", needShiftSignedToUnsigned=",
+                                needShiftSignedToUnsigned);
             }
             return _ptr;
         }

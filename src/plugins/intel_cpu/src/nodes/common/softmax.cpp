@@ -230,7 +230,7 @@ private:
             uni_vpslld(vmm_src, vmm_src, 16);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: ", src_dt.get_type_name());
         }
     }
     void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
@@ -246,7 +246,7 @@ private:
             vmovdqu16(op, ymm_dst);
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt: ", dst_dt.get_type_name());
         }
     }
 };

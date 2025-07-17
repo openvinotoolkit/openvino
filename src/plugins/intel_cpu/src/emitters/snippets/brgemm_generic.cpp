@@ -128,7 +128,11 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
     const auto& input_pds = expr->get_input_port_descriptors();
     const auto& output_pds = expr->get_output_port_descriptors();
     OV_CPU_JIT_EMITTER_ASSERT(input_pds.size() >= 2 && output_pds.size() == 1,
-                              "Invalid number of in/out port descriptors");
+                              "Invalid number of in/out port descriptors: input_pds.size()=",
+                              input_pds.size(),
+                              ", output_pds.size()=",
+                              output_pds.size(),
+                              " (expected: input >= 2, output == 1)");
 
     const auto& in0_shape = snippets::utils::get_planar_vdims(input_pds[0]->get_shape(), input_pds[0]->get_layout());
     const auto& in1_shape = snippets::utils::get_planar_vdims(input_pds[1]->get_shape(), input_pds[1]->get_layout());

@@ -89,7 +89,7 @@ const ExpressionFactoryPtr& LinearIR::get_expr_factory() const {
 }
 
 std::vector<PortConnectorPtr> LinearIR::get_expression_inputs_by_node(const std::shared_ptr<Node>& n) const {
-    OPENVINO_DEBUG_ASSERT(n != nullptr, "Failed expression inputs getting: node is null");
+    OPENVINO_DEBUG_ASSERT(n, "Failed expression inputs getting: node is null");
     std::vector<PortConnectorPtr> inputs(n->get_input_size(), nullptr);
     for (const auto& input : n->inputs()) {
         const auto input_source = input.get_source_output();

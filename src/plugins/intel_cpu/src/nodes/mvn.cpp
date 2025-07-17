@@ -850,7 +850,9 @@ private:
                                                     {load_pool_gpr_idxs});
                 break;
             default:
-                OPENVINO_DEBUG_ASSERT(false, "MVN layer tails is processed only with 8/4/2/1 blocks.");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "MVN layer tails is processed only with 8/4/2/1 blocks. Got block_num: ",
+                                      block_num);
                 break;
             }
         } else {
@@ -880,7 +882,9 @@ private:
                                                {load_pool_gpr_idxs});
                 break;
             default:
-                OPENVINO_DEBUG_ASSERT(false, "MVN layer tails is processed only with 8/4/2/1 blocks.");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "MVN layer tails is processed only with 8/4/2/1 blocks. Got block_num: ",
+                                      block_num);
                 break;
             }
         }
@@ -1779,7 +1783,9 @@ private:
                                            {load_pool_gpr_idxs});
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "MVN layer tails is processed only with 8/4/2/1 blocks.");
+            OPENVINO_DEBUG_ASSERT(false,
+                                  "MVN layer tails is processed only with 8/4/2/1 blocks. Got block_num: ",
+                                  block_num);
             break;
         }
 
@@ -1816,7 +1822,9 @@ private:
                                             {store_pool_gpr_idxs});
             break;
         default:
-            OPENVINO_DEBUG_ASSERT(false, "MVN layer tails is processed only with 8/4/2/1 blocks.");
+            OPENVINO_DEBUG_ASSERT(false,
+                                  "MVN layer tails is processed only with 8/4/2/1 blocks. Got block_num: ",
+                                  block_num);
             break;
         }
     }

@@ -135,7 +135,11 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
      */
     const auto cyclicDependencyIsIntoduced = [&node](const std::shared_ptr<Node>& nodeToExamine,
                                                      std::pair<int64_t, int64_t>& currentBounds) -> bool {
-        OPENVINO_DEBUG_ASSERT(currentBounds.first < currentBounds.second, "Invalid currentBounds passed");
+        OPENVINO_DEBUG_ASSERT(currentBounds.first < currentBounds.second,
+                              "Invalid currentBounds passed: ",
+                              currentBounds.first,
+                              " should be less than ",
+                              currentBounds.second);
         const auto& parentNodes = ov::as_node_vector(nodeToExamine->input_values());
         const int64_t maxParentOrder =
             std::accumulate(parentNodes.begin(),
@@ -188,7 +192,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     std::pair<int64_t, int64_t> currentTopoBounds{-1, LONG_MAX};
     cyclicDependencyIsIntoduced(node, currentTopoBounds);
     OPENVINO_DEBUG_ASSERT(!cyclicDependencyIsIntoduced(node, currentTopoBounds) &&
-                          "Cyclic dependency is introduced by the node itself");
+                          "Cyclic dependency is introduced by the node itself: " + node->get_friendly_name());
     for (const auto& input_value : input_values) {
         auto input_node = input_value.get_node_shared_ptr();
         if (ov::is_type<op::Subgraph>(input_node) && !cyclicDependencyIsIntoduced(input_node, currentTopoBounds)) {

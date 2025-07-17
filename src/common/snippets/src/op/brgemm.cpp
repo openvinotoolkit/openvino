@@ -139,7 +139,9 @@ ov::element::Type Brgemm::get_output_type() const {
 }
 
 std::vector<ov::PartialShape> Brgemm::get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) {
-    OPENVINO_DEBUG_ASSERT(inputs.size() == 2, "Brgemm::get_planar_input_shapes() expects 2 inputs");
+    OPENVINO_DEBUG_ASSERT(inputs.size() == 2,
+                          "Brgemm::get_planar_input_shapes() expects 2 inputs, got ",
+                          inputs.size());
     return {utils::get_planar_pshape(inputs[0]), utils::get_planar_pshape(inputs[1])};
 }
 

@@ -91,7 +91,10 @@ void Composite::createPrimitive() {
 
 int Composite::registerToAllocationContext(int offset, AllocationContext& context) {
     CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
-                    "Number of node inputs must be equal the number of inner graph's inputs");
+                    "Number of node inputs must be equal the number of inner graph's inputs: node_inputs=",
+                    getOriginalInputsNumber(),
+                    " graph_inputs=",
+                    m_graph.inputsNumber());
 
     for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
         auto parentEdge = getParentEdgeAt(i);

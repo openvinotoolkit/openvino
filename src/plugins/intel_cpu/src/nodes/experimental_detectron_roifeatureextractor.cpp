@@ -257,7 +257,12 @@ void reord(const float* src_data, const int* ranks, const int n, const int step,
     });
     for (int i = 0; i < n; ++i) {
         const int j = dst_mapping[i];
-        OPENVINO_DEBUG_ASSERT(0 <= j && j < n, "j must be within bounds");
+        OPENVINO_DEBUG_ASSERT(0 <= j && j < n,
+                              "mapping index j=",
+                              std::to_string(j),
+                              " out of bounds [0, ",
+                              std::to_string(n),
+                              ")");
         cpu_memcpy(dst_data + i * step, src_data + j * step, sizeof(float) * step);
     }
 }
