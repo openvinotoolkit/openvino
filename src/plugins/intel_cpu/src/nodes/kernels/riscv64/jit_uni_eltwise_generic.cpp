@@ -442,6 +442,17 @@ struct EltwiseEmitter<jit_elu_emitter> {
 };
 
 template <>
+struct EltwiseEmitter<jit_is_inf_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_is_inf_emitter>(ctx.host,
+                                                           ctx.host_isa,
+                                                           ctx.opData.alpha,
+                                                           ctx.opData.beta,
+                                                           ctx.exec_prc);
+    }
+};
+
+template <>
 struct EltwiseEmitter<jit_power_static_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<jit_power_static_emitter>(ctx.host,
@@ -486,6 +497,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
               OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
+              OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
               OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
               OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
               OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
@@ -638,6 +650,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
               OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
+              OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
               OV_CASE(Algorithm::EltwiseIsNaN, jit_is_nan_emitter),
               OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
               OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
