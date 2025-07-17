@@ -722,17 +722,6 @@ std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record)
     return os;
 }
 
-void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
-    const size_t s = memory.get_desc().get_size() / sizeof(float);
-    std::cout << message << " " << id << " size: " << s << ", values: ";
-    auto* m = reinterpret_cast<float*>(memory.get_data_handle());
-    for (size_t i = 0; i < std::min(s, size); i++) {
-        std::cout << *m << " ";
-        m++;
-    }
-    std::cout << "\n";
-}
-
 }  // namespace ov::intel_cpu
 
 bool getEnvBool(const char* name) {

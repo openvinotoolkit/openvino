@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
+#include "utils/quantization_utils.hpp"
 
 namespace CPUTestUtils {
 typedef enum {
@@ -113,12 +116,14 @@ inline std::string nodeType2str(nodeType nt) {
         return "GroupConvolutionBackpropData";
     throw std::runtime_error("Undefined node type to convert to string!");
 }
+
 bool with_cpu_x86_avx2_vnni_2();
+
+using InputGenerateDataMap = std::unordered_map<size_t, ov::test::utils::InputGenerateData>;
+
 class CPUTestsBase {
 public:
-    typedef std::map<std::string, ov::Any> CPUInfo;
-
-public:
+    using CPUInfo = std::map<std::string, ov::Any>;
     static std::string getTestCaseName(CPUSpecificParams params);
     static const char* cpu_fmt2str(cpu_memory_format_t v);
     static cpu_memory_format_t cpu_str2fmt(const char* str);
@@ -139,7 +144,8 @@ public:
     std::shared_ptr<ov::Model> makeNgraphFunction(const ov::element::Type& ngPrc,
                                                   ov::ParameterVector& params,
                                                   const std::shared_ptr<ov::Node>& lastNode,
-                                                  std::string name);
+                                                  std::string name,
+                                                  const QuantizationInfo& qinfo = {});
 
     void CheckPluginRelatedResults(const ov::CompiledModel& execNet, const std::set<std::string>& nodeType) const;
     void CheckPluginRelatedResults(const ov::CompiledModel& execNet, const std::string& nodeType) const;
@@ -169,6 +175,8 @@ protected:
     std::vector<cpu_memory_format_t> inFmts, outFmts;
     std::vector<std::string> priority;
     std::string selectedType;
+    bool performEqualityCheck = false;
+    InputGenerateDataMap inputGenData;
 };
 
 // common parameters
@@ -189,4 +197,7 @@ bool containsNonSupportedFormat(const std::vector<cpu_memory_format_t>& formats,
                                 const std::vector<cpu_memory_format_t>& non_supported_f);
 bool containsSupportedFormatsOnly(const std::vector<cpu_memory_format_t>& formats,
                                   const std::vector<cpu_memory_format_t>& supported_f);
+InputGenerateDataMap updateInputRanges(const QuantizationInfo& quantizationInfo,
+                                       size_t numParams);
+void checkAllElementsAreEqual(ov::InferRequest& inferRequest, size_t numOutputs);
 }  // namespace CPUTestUtils

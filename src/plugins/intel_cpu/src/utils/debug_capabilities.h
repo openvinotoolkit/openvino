@@ -135,7 +135,20 @@ std::ostream& operator<<(std::ostream& os, dnnl::memory::format_tag format_tag);
 std::ostream& operator<<(std::ostream& os, const dnnl::primitive_attr& attr);
 std::ostream& operator<<(std::ostream& os, const dnnl::algorithm& alg);
 
-void print_dnnl_memory(const dnnl::memory& memory, size_t size, int id, const char* message = "");
+template <typename T>
+void print_dnnl_memory_as(const dnnl::memory& memory,
+                          const size_t size,
+                          const int id,
+                          const std::string& message = {}) {
+    const size_t s = memory.get_desc().get_size() / sizeof(T);
+    std::cout << message << " ARG_ID: " << id << " size: " << s << ", values: ";
+    auto m = static_cast<T*>(memory.get_data_handle());
+    for (size_t i = 0; i < std::min(s, size); i++) {
+        std::cout << std::to_string(*m) << " ";
+        m++;
+    }
+    std::cout << "\n";
+}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const PrintableVector<T>& vec) {
