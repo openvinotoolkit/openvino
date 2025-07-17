@@ -110,8 +110,8 @@ private:
     class InterpolateExecutorBase {
     public:
         InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
-                                const VectorDims& srcDims,
-                                const VectorDims& dstDims,
+                                VectorDims srcDims,
+                                VectorDims dstDims,
                                 const std::vector<float>& dataScales);
 
         virtual void exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) = 0;
@@ -338,6 +338,8 @@ private:
     std::vector<int> axes;
     std::vector<float> scales;
     bool isScaleConstant = false;
+
+    std::vector<int> conversion5DMap;
 
     // 6 ptrs for each quantization, 2 ptrs for each depth_wise
     std::vector<const void*> postOpsDataPtrs;
