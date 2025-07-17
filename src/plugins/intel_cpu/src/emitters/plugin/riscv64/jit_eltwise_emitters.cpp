@@ -1505,8 +1505,8 @@ void jit_is_inf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto one = FReg(aux_fp_gpr_idxs[0]);
     auto tmp = Reg(aux_gpr_idxs[0]);
 
-    h->vmv_v_x(dst, zero);  // dst = 0
     if (!detect_negative && !detect_positive) {
+        h->vmv_v_x(dst, zero);  // dst = 0
         return;
     }
 
@@ -1520,6 +1520,7 @@ void jit_is_inf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->vand_vx(aux0, aux0, tmp);
     h->vmsne_vx(mask_vreg(), aux0, zero);  // set mask where some of the classification bits are set
     load_table_val("one", one);
+    h->vmv_v_x(dst, zero);                   // dst = 0
     h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
 }
 
@@ -1573,8 +1574,8 @@ void jit_is_nan_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     auto one = FReg(aux_fp_gpr_idxs[0]);
 
-    h->vmv_v_x(dst, zero);                   // set dst to 0
     h->vmfne_vv(mask_vreg(), src, src);      // set mask where src is nan (i.e. not equal to itself)
+    h->vmv_v_x(dst, zero);                   // set dst to 0
     h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
 }
 
