@@ -21,11 +21,12 @@ TEST(attributes, multinomial) {
     NodeBuilder builder(op, {probs, num_samples});
     auto g_multi = ov::as_type_ptr<ov::op::v13::Multinomial>(builder.create());
 
-    constexpr auto expected_attr_count = 5;
+    constexpr auto expected_attr_count = 6;
     EXPECT_EQ(builder.get_value_map_size(), expected_attr_count);
     EXPECT_EQ(op->get_with_replacement(), g_multi->get_with_replacement());
     EXPECT_EQ(op->get_global_seed(), g_multi->get_global_seed());
     EXPECT_EQ(op->get_convert_type(), g_multi->get_convert_type());
     EXPECT_EQ(op->get_log_probs(), g_multi->get_log_probs());
     EXPECT_EQ(op->get_op_seed(), g_multi->get_op_seed());
+    EXPECT_EQ(op->get_alignment(), g_multi->get_alignment());
 }

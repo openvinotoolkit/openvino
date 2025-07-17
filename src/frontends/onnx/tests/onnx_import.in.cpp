@@ -6968,7 +6968,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_multinomial_7) {
     if (std::string("${BACKEND_NAME}") == std::string("INTERPRETER")) {
         test_case.add_expected_output<int32_t>(Shape{3, 5}, {0, 2, 0, 1, 1, 2, 1, 2, 1, 2, 0, 1, 0, 0, 0});
     } else if (std::string("${BACKEND_NAME}") == std::string("IE_CPU")) {
-        test_case.add_expected_output<int32_t>(Shape{3, 5}, {2, 2, 2, 2, 0, 2, 2, 2, 0, 0, 0, 1, 0, 1, 0});
+        test_case.add_expected_output<int32_t>(Shape{3, 5}, {0, 2, 0, 1, 1, 2, 1, 2, 1, 2, 0, 1, 0, 0, 0});
     } else if (std::string("${BACKEND_NAME}") == std::string("IE_GPU")) {
         test_case.add_expected_output<int32_t>(Shape{3, 5}, {1, 0, 0, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0});
     } else {
