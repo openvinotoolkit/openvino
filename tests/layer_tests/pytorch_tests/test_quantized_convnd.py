@@ -107,9 +107,9 @@ class TestQuantizedConv1D(PytorchLayerTest):
                     conv_cls = torch.ao.nn.intrinsic.quantized.ConvReLU1d
 
                 self.conv = conv_cls(
-                    in_channels=weights_shape[1] * groups,
-                    out_channels=weights_shape[0],
-                    kernel_size=weights_shape[2],
+                    weights_shape[1] * groups,
+                    weights_shape[0],
+                    weights_shape[2],
                     strides,
                     pads,
                     dilations,
