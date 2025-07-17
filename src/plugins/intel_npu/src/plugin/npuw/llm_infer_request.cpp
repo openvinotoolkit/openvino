@@ -307,7 +307,7 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
-        if (kvcache_desc.num_stored_tokens == kvcache_desc.total_size) {
+        if (kvcache_desc.num_stored_tokens >= kvcache_desc.total_size) {
             OPENVINO_THROW("KV-Cache is full.");
         }
 
