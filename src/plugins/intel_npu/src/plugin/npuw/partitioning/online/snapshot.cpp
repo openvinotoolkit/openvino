@@ -920,7 +920,7 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
         mics_vec.push_back(mic.second);
     }
 
-    std::sort(mics_vec.begin(), mics_vec.end(), [](const auto& a, const auto& b) {
+    std::sort(mics_vec.begin(), mics_vec.end(), [this](const auto& a, const auto& b) {
         if (a.size() == b.size()) {
             if (a.empty()) {
                 return false;  // doesn't matter for stability - no groups are fused
@@ -933,10 +933,13 @@ std::shared_ptr<Repeated> Snapshot::tryGrowRepeatingGroups(const GPtrSet& repeat
             // later optimized by the plugin.
             return a.at(0).first->getId() > b.at(0).first->getId();
         }
+        if (this->m_ctx.experimental_rep_fusion) {
+            // Experimental only - try merging smaller blocks first
+            return a.size() < b.size();
+        }
         // Generally we prefer bigger blocks (in terms of number of layers)
         // to be merged first. For other cases check the comment above
-        // FIXME: !!!
-        return a.size() < b.size();
+        return a.size() > b.size();
     });
 
     for (const auto& mic : mics_vec) {

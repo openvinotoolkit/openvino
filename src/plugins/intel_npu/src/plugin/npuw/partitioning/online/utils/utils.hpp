@@ -42,6 +42,7 @@ struct PassContext {
     std::vector<Avoid> avoids;
     std::vector<Isolate> isolates;
     std::vector<std::string> nofolds;
+    bool experimental_rep_fusion = false;
 };
 
 // Forward declaration
