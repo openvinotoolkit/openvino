@@ -70,7 +70,7 @@ jobs:
       - name: Set mock output images if pipeline should be skipped
         if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
         id: mock_image
-        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_x64\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+        run: echo "images={\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_build\":{\"ubuntu_22_04_arm64_cross_compilation\":\"mock\"}}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
@@ -82,7 +82,7 @@ jobs:
         id: handle_docker
         with:
           images: |
-            ov_build/ubuntu_22_04_x64
+            ov_build/ubuntu_22_04_arm64_cross_compilation
             ov_test/ubuntu_22_04_x64
           registry: 'openvinogithubactions.azurecr.io'
           dockerfiles_root_dir: '.github/dockerfiles'
@@ -94,7 +94,7 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64_cross_compilation }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_22_04'
