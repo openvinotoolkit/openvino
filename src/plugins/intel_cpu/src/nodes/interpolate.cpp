@@ -1783,8 +1783,8 @@ inline VectorDims to5Dim(VectorDims casesDim) {
 }
 
 template <typename T>
-T convertTo5D(const T& src, const std::vector<int>& dimMap) {
-    T dst(5, 1);
+T convertTo5D(const T& src, const std::vector<int>& dimMap, int initValue = 1) {
+    T dst(5, initValue);
     for (size_t i = 0; i < dimMap.size(); ++i) {
         dst[dimMap[i]] = src[i];
     }
@@ -2048,6 +2048,10 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                     // we can avoid reordering the input data.
                     if (lastInDim == 1) {
                         return true;
+                    }
+                    // Dynamic shape
+                    if (lastInDim == Shape::UNDEFINED_DIM) {
+                        return false;
                     }
                     auto lastOutDim = outputShape.getDims().back();
                     return static_cast<bool>(lastOutDim == lastInDim);
@@ -2530,10 +2534,11 @@ void Interpolate::prepareParams() {
         }
         return convertMap;
     };
-    auto indexMap = getConvertMapFromScale(dataScales);
-    auto src5DDims = convertTo5D(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), indexMap);
-    auto dst5DDims = convertTo5D(dstDims, indexMap);
-    auto scales5D = convertTo5D(dataScales, indexMap);
+    conversion5DMap = getConvertMapFromScale(dataScales);
+    auto src5DDims =
+        convertTo5D(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), conversion5DMap);
+    auto dst5DDims = convertTo5D(dstDims, conversion5DMap);
+    auto scales5D = convertTo5D(dataScales, conversion5DMap);
     if (scales5D[0] != 1.F || scales5D[1] != 1.F) {
         CPU_NODE_THROW("only supports resize on spatial dimensions(depth, height and width)");
     }
@@ -2702,18 +2707,17 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
         std::vector<uint8_t> srcPadded;
         if (hasPad) {
             const auto& srcDim = srcMemPtr->getStaticDims();
-            auto srcDimPad = execPtr->getSrcDimPad5d();
-            size_t dimSize = srcDim.size();
 
-            const auto srcDim5d = to5Dim(srcDim);
-            const auto srcDimPad5d = to5Dim(srcDimPad);
+            const auto srcDim5d = convertTo5D(srcDim, conversion5DMap);
+            const auto srcDimPad5d = execPtr->getSrcDimPad5d();
             const auto srcDataSize = srcMemPtr->getDesc().getPrecision().size();
+            const auto padBegin5D = convertTo5D(interpAttrs.padBegin, conversion5DMap, 0);
 
-            int padB0 = (dimSize > 2) ? interpAttrs.padBegin[0] : 0;
-            int padB1 = (dimSize > 2) ? interpAttrs.padBegin[1] : 0;
-            int padB2 = (dimSize == 5) ? interpAttrs.padBegin[dimSize - 3] : 0;
-            int padB3 = interpAttrs.padBegin[dimSize - 2];
-            int padB4 = interpAttrs.padBegin[dimSize - 1];
+            int padB0 = padBegin5D[0];
+            int padB1 = padBegin5D[1];
+            int padB2 = padBegin5D[2];
+            int padB3 = padBegin5D[3];
+            int padB4 = padBegin5D[4];
 
             VectorDims inShapeBlock = getBlockND(srcDim5d);
             VectorDims inShapePadBlock = getBlockND(srcDimPad5d);
@@ -4323,14 +4327,14 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
 }
 
 Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
-                                                              const VectorDims& srcDims,
-                                                              const VectorDims& dstDims,
+                                                              VectorDims srcDims,
+                                                              VectorDims dstDims,
                                                               const std::vector<float>& dataScales)
     : mode(interpAttrs.mode),
       coordTransMode(interpAttrs.coordTransMode),
       configured_for_layout(interpAttrs.layout),
-      srcDimPad5d(srcDims),
-      dstDim5d(dstDims),
+      srcDimPad5d(std::move(srcDims)),
+      dstDim5d(std::move(dstDims)),
       inputPrec(interpAttrs.inPrc),
       outputPrec(interpAttrs.outPrc),
       srcDataSize(interpAttrs.inPrc.size()),
