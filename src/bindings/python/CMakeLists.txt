@@ -162,7 +162,7 @@ else()
 endif()
 
 if(NOT SETUP_PY_REQUIREMENTS_FOUND)
-    # setup.py requirements are importnant to build wheel
+    # setup.py requirements are important to build wheel
     set(ENABLE_WHEEL_DEFAULT OFF)
 endif()
 
