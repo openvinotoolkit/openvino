@@ -30,6 +30,7 @@ private:
                                                          const std::shared_ptr<RemoteContextImpl>& context) const;
     void transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const;
     void register_primitives() const;
+    void set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) const;
     std::string get_device_id_from_config(const ov::AnyMap& config) const;
     std::string get_device_id(const ov::AnyMap& config) const;
     std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
