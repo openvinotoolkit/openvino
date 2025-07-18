@@ -469,7 +469,7 @@ MemoryInputBase::MemoryInputBase(const std::string& id,
     } else if (mode::single_read_value == mode) {
         executeHook = &MemoryInputBase::bypassAssignState;
     } else {
-        THROW_CPU_NODE_ERR("Unexpected MemoryInput mode");
+        CPU_NODE_THROW("Unexpected MemoryInput mode");
     }
 }
 

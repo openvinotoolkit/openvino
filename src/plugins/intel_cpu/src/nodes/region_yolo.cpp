@@ -294,9 +294,8 @@ RegionYolo::RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (op->get_input_size() != 1 || op->get_output_size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(op->get_input_size() == 1 && op->get_output_size() == 1,
+                    "has incorrect number of input/output edges!");
 
     const auto regionYolo = ov::as_type_ptr<const ov::op::v0::RegionYolo>(op);
     classes = regionYolo->get_num_classes();
@@ -416,7 +415,7 @@ inline void RegionYolo::calculate_logistic(size_t start_index, int count, uint8_
                 bf16_dst_data[i + start_index] = logistic_scalar(bf16_dst_data[i + start_index]);
             }
         } else {
-            THROW_CPU_NODE_ERR("Unsupported precision configuration outPrc=", output_prec.get_type_name());
+            CPU_NODE_ASSERT("Unsupported precision configuration outPrc=", output_prec.get_type_name());
         }
     }
 }
@@ -445,12 +444,11 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 
-    if (output_size != getDstMemoryAtPort(0)->getShape().getElementsCount()) {
-        THROW_CPU_NODE_ERR("Incorrect layer configuration or output dimensions. ",
-                           output_size,
-                           " != ",
-                           getDstMemoryAtPort(0)->getShape().getElementsCount());
-    }
+    CPU_NODE_ASSERT(output_size == getDstMemoryAtPort(0)->getShape().getElementsCount(),
+                    "Incorrect layer configuration or output dimensions. ",
+                    output_size,
+                    " != ",
+                    getDstMemoryAtPort(0)->getShape().getElementsCount());
 
     size_t inputs_size = IH * IW * num_ * (classes + coords + 1);
     size_t total_size = 2 * IH * IW;

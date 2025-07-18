@@ -323,9 +323,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
 
         auto cache = this->context->getParamsCache();
         auto qk_result = cache->getOrCreate(qk_key, builder);
-        if (!qk_result.first) {
-            OPENVINO_THROW("ScaledDotProductAttention 1st token qk gemm creation fails");
-        }
+        OPENVINO_ASSERT(qk_result.first, "ScaledDotProductAttention 1st token qk gemm creation fails");
 
         qk_gemm_ptr = qk_result.first;
         if (has_out_transpose) {
@@ -348,9 +346,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                             in_type};
 
         auto wv_result = cache->getOrCreate(wv_key, builder);
-        if (!wv_result.first) {
-            OPENVINO_THROW("ScaledDotProductAttention 1st token wv gemm creation fails");
-        }
+        OPENVINO_ASSERT(wv_result.first, "ScaledDotProductAttention 1st token wv gemm creation fails");
 
         wv_gemm_ptr = wv_result.first;
 
@@ -759,9 +755,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
 
         auto bhb_loop = [&](size_t b, size_t h, size_t m_blk) {
             auto thread_id = parallel_get_thread_num();
-            if (thread_id < 0) {
-                OPENVINO_THROW("The calling thread isn't initialized!");
-            }
+            OPENVINO_ASSERT(thread_id >= 0, "The calling thread isn't initialized!");
             auto& qk_buf = qk_buffers[thread_id];
 
             auto m_start = m_blk * m_block_size;
@@ -1238,9 +1232,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
 void ScaledDotProductAttention::createPrimitive() {
     if (m_config.config.fuse_concat) {
         auto* desc = getSelectedPrimitiveDescriptor();
-        if (desc == nullptr) {
-            THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
-        }
+        CPU_NODE_ASSERT(desc, "has unidentified preferable primitive descriptor");
     }
     auto rtPrecision = getRuntimePrecision();
     const auto keyDims = getInputShapeAtPort(1).getDims();
@@ -1257,16 +1249,13 @@ void ScaledDotProductAttention::createPrimitive() {
         m_key_quant_param.isByChannel = false;
     }
     m_value_quant_param.groupSize = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;
-    if (keyS % m_key_quant_param.groupSize != 0) {
-        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails key state " + std::to_string(keyS) +
-                       " cannot be divided by group size " + std::to_string(m_key_quant_param.groupSize));
-    }
+    OPENVINO_ASSERT(keyS % m_key_quant_param.groupSize == 0,
+                    "ScaledDotProductAttention AttentionExecutor creation fails key state " + std::to_string(keyS) +
+                        " cannot be divided by group size " + std::to_string(m_key_quant_param.groupSize));
 
-    if (valueS % m_value_quant_param.groupSize != 0) {
-        OPENVINO_THROW("ScaledDotProductAttention AttentionExecutor creation fails value state " +
-                       std::to_string(keyS) + " cannot be divided by group size " +
-                       std::to_string(m_key_quant_param.groupSize));
-    }
+    OPENVINO_ASSERT(valueS % m_value_quant_param.groupSize == 0,
+                    "ScaledDotProductAttention AttentionExecutor creation fails value state " + std::to_string(keyS) +
+                        " cannot be divided by group size " + std::to_string(m_key_quant_param.groupSize));
     ScaledDotProductAttentionKey key = {rtPrecision};
 
     auto builder = [&]([[maybe_unused]] const ScaledDotProductAttentionKey& key) -> std::shared_ptr<Executor> {
@@ -1339,9 +1328,7 @@ void ScaledDotProductAttention::createPrimitive() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-    if (!result.first) {
-        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
-    }
+    CPU_NODE_ASSERT(result.first, "AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     m_executor = result.first;
 }
 
@@ -1433,12 +1420,12 @@ void ScaledDotProductAttention::assignState(const std::shared_ptr<VariableStateK
     } else if (inputNumber - 1 == static_cast<size_t>(idx)) {
         m_v_state = state;
     } else {
-        THROW_CPU_NODE_ERR("Unexpected idx ",
-                           idx,
-                           " for a state in a node with type: ",
-                           getTypeStr(),
-                           " and name ",
-                           getName());
+        CPU_NODE_THROW("Unexpected idx ",
+                       idx,
+                       " for a state in a node with type: ",
+                       getTypeStr(),
+                       " and name ",
+                       getName());
     }
 }
 
@@ -1835,9 +1822,9 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
             no_reorder = false;
         }
     }
-    if (!no_reorder && m_key_quant_param.isByChannel) {
-        OPENVINO_THROW(this->getName(), " SDPA only support bychannel quantization with greedy search!");
-    }
+    OPENVINO_ASSERT(no_reorder || !m_key_quant_param.isByChannel,
+                    this->getName(),
+                    " SDPA only support bychannel quantization with greedy search!");
     // reorder
     if (!no_reorder) {
         auto* table = beam_idx.ptr<int32_t>();

@@ -1941,12 +1941,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
         if (const auto interp = ov::as_type_ptr<const ov::op::v4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
-            if (numInputs != 3 && numInputs != 4) {
-                THROW_CPU_NODE_ERR("has incorrect number of input edges");
-            }
-            if (outputShapes.size() != 1) {
-                THROW_CPU_NODE_ERR("has incorrect number of output edges");
-            }
+            CPU_NODE_ASSERT(numInputs == 3 || numInputs == 4, "has incorrect number of input edges");
+            CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges");
             isAxesSpecified = numInputs != 3;
 
             const auto& interpAttr = interp->get_attrs();
@@ -1965,7 +1961,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else if (interpMode == ngInterpMode::CUBIC) {
                 interpAttrs.mode = InterpolateMode::cubic;
             } else {
-                THROW_CPU_NODE_ERR("has unsupported interpolate mode");
+                CPU_NODE_THROW("has unsupported interpolate mode");
             }
 
             const auto& interpCoordTransMode = interpAttr.coordinate_transformation_mode;
@@ -1980,7 +1976,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else if (interpCoordTransMode == ngInterpCoordTransf::ALIGN_CORNERS) {
                 interpAttrs.coordTransMode = InterpolateCoordTransMode::align_corners;
             } else {
-                THROW_CPU_NODE_ERR("has unsupported coordination transformation mode");
+                CPU_NODE_THROW("has unsupported coordination transformation mode");
             }
 
             if (interpAttrs.mode == InterpolateMode::nearest) {
@@ -1996,7 +1992,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 } else if (interpNearestMode == ngInterpNearMode::SIMPLE) {
                     interpAttrs.nearestMode = InterpolateNearestMode::simple;
                 } else {
-                    THROW_CPU_NODE_ERR("has unsupported nearest mode");
+                    CPU_NODE_THROW("has unsupported nearest mode");
                 }
             } else if (interpAttrs.mode == InterpolateMode::cubic) {
                 interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);
@@ -2009,7 +2005,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
                 interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
-                THROW_CPU_NODE_ERR("has unsupported shape calculation mode");
+                CPU_NODE_THROW("has unsupported shape calculation mode");
             }
 
             if (interpAttr.pads_begin.empty()) {
@@ -2049,12 +2045,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
             is_version11 = true;
             const auto numInputs = inputShapes.size();
-            if (numInputs != 2 && numInputs != 3) {
-                THROW_CPU_NODE_ERR("has incorrect number of input edges");
-            }
-            if (outputShapes.size() != 1) {
-                THROW_CPU_NODE_ERR("has incorrect number of output edges");
-            }
+            CPU_NODE_ASSERT(numInputs == 2 || numInputs == 3, "has incorrect number of input edges");
+            CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges");
             isAxesSpecified = numInputs != 2;
 
             const auto& interpAttr = interp->get_attrs();
@@ -2065,7 +2057,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 interpAttrs.mode = InterpolateMode::bicubic_pillow;
                 interpAttrs.cubeCoeff = static_cast<float>(interpAttr.cube_coeff);  // fixed to be -0.5
             } else {
-                THROW_CPU_NODE_ERR("has unsupported interpolate mode");
+                CPU_NODE_THROW("has unsupported interpolate mode");
             }
 
             // pillow use fixed tf_half_pixel_for_nn style mode for coodinate transformation
@@ -2084,7 +2076,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             } else if (interpShapeCalcMode == ngInterpShapeCalcMode::SIZES) {
                 interpAttrs.shapeCalcMode = InterpolateShapeCalcMode::sizes;
             } else {
-                THROW_CPU_NODE_ERR("has unsupported shape calculation mode");
+                CPU_NODE_THROW("has unsupported shape calculation mode");
             }
 
             if (interpAttr.pads_begin.empty()) {
@@ -2126,14 +2118,11 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 }
 
 void Interpolate::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2 && getParentEdges().size() != 3 && getParentEdges().size() != 4) {
-        // v4: data, target_shape, scale, axis(optional).
-        // v11: data, size_or_scale, axis(optional)
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
+    // v4: data, target_shape, scale, axis(optional).
+    // v11: data, size_or_scale, axis(optional)
+    CPU_NODE_ASSERT(getParentEdges().size() == 2 || getParentEdges().size() == 3 || getParentEdges().size() == 4,
+                    "has incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
 
     // get pad
     for (int i : interpAttrs.padBegin) {
@@ -2437,43 +2426,29 @@ inline int Interpolate::get_axis_id() const {
 }
 
 void Interpolate::prepareParams() {
-    if (!shapesDefined()) {
-        THROW_CPU_NODE_ERR("input/output dims aren't defined");
-    }
+    CPU_NODE_ASSERT(shapesDefined(), "input/output dims aren't defined");
 
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined destination memory");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory");
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory");
-    }
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory");
 
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
-        if (!tsMemPtr || !tsMemPtr->isDefined()) {
-            THROW_CPU_NODE_ERR("has undefined target shape memory");
-        }
+        CPU_NODE_ASSERT(tsMemPtr && tsMemPtr->isDefined(), "has undefined target shape memory");
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
-        if (!scaleMemPtr || !scaleMemPtr->isDefined()) {
-            THROW_CPU_NODE_ERR("has undefined scales memory");
-        }
+        CPU_NODE_ASSERT(scaleMemPtr && scaleMemPtr->isDefined(), "has undefined scales memory");
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
-        if (!axesMemPtr || !axesMemPtr->isDefined()) {
-            THROW_CPU_NODE_ERR("has undefined axes memory");
-        }
+        CPU_NODE_ASSERT(axesMemPtr && axesMemPtr->isDefined(), "has undefined axes memory");
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(selected_pd, "did not set preferable primitive descriptor");
 
     const auto& srcDimsOrign = srcMemPtr->getStaticDims();
     const auto& dstDimsOrign = dstMemPtr->getStaticDims();
@@ -2506,7 +2481,7 @@ void Interpolate::prepareParams() {
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
     if (!interpAttrs.NCHWAsNHWC &&
         (getOutputShapeAtPort(0).getRank() > 2 && (dataScales[0] != 1.F || dataScales[1] != 1.F))) {
-        THROW_CPU_NODE_ERR("only supports resize on spatial dimensions(depth, height and width)");
+        CPU_NODE_THROW("only supports resize on spatial dimensions(depth, height and width)");
     }
 
     if (canUseAclExecutor) {
@@ -2568,12 +2543,8 @@ void Interpolate::prepareParams() {
 void Interpolate::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("has null input memory");
-    }
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("has null destination memory");
-    }
+    CPU_NODE_ASSERT(srcMemPtr, "has null input memory");
+    CPU_NODE_ASSERT(dstMemPtr, "has null destination memory");
 
     if (dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         interpAttrs.layout = InterpolateLayoutType::planar;
@@ -2622,11 +2593,11 @@ void Interpolate::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims)
             continue;
         }
 
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -2732,9 +2703,8 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
                 size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
                 auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-                if ((srcDim5d[0] != srcDimPad5d[0]) || (srcDim5d[1] != srcDimPad5d[1])) {
-                    THROW_CPU_NODE_ERR("does not support padding on batch and channel dimensions");
-                }
+                CPU_NODE_ASSERT((srcDim5d[0] == srcDimPad5d[0]) && (srcDim5d[1] == srcDimPad5d[1]),
+                                "does not support padding on batch and channel dimensions");
                 parallel_for5d(srcDim5d[0],
                                CB,
                                srcDim5d[2],
@@ -2767,7 +2737,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
-        THROW_CPU_NODE_ERR("Primitive wasn't created");
+        CPU_NODE_THROW("Primitive wasn't created");
     }
 }
 
@@ -4406,9 +4376,7 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* 
     size_t OH = dstDim5d[3];
     size_t OW = dstDim5d[4];
 
-    if (!interpolateKernel) {
-        OPENVINO_THROW("Can't execute, kernel for Interpolate node is not compiled");
-    }
+    OPENVINO_ASSERT(interpolateKernel, "Can't execute, kernel for Interpolate node is not compiled");
     switch (mode) {
     case InterpolateMode::nearest: {
         if (configured_for_layout == InterpolateLayoutType::planar) {

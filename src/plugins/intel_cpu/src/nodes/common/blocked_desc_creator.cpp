@@ -64,9 +64,7 @@ public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
     [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
                                                   const Shape& srcShape) const override {
-        if (srcShape.getRank() < 2) {
-            OPENVINO_THROW("Can't create blocked tensor descriptor!");
-        }
+        OPENVINO_ASSERT(srcShape.getRank() >= 2, "Can't create blocked tensor descriptor!");
 
         VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);

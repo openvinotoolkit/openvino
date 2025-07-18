@@ -1101,9 +1101,8 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
             auto allocType =
                 desc.getPrecision() == element::string ? MemoryRegion::AllocType::STRING : MemoryRegion::AllocType::POD;
 
-            if (reg.alloc_type != allocType && MemoryRegion::AllocType::UNKNOWN != reg.alloc_type) {
-                OPENVINO_THROW("Different allocation types in the same memory region");
-            }
+            OPENVINO_ASSERT(one_of(reg.alloc_type, allocType, MemoryRegion::AllocType::UNKNOWN),
+                            "Different allocation types in the same memory region");
             reg.alloc_type = allocType;
 
             isConst |= isConstOutput(edge);
@@ -1213,9 +1212,7 @@ bool Graph::ProcessDynNodes() const {
 }
 
 void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& input) {
-    if (!IsReady()) {
-        OPENVINO_THROW("Wrong state. Topology not ready.");
-    }
+    OPENVINO_ASSERT(IsReady(), "Wrong state. Topology not ready.");
     auto input_itr = inputNodesMap.find(index);
     if (input_itr != inputNodesMap.end()) {
         auto node = input_itr->second;
@@ -1247,9 +1244,7 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
 
 // suppose always being shared infer_request intel_cpu::Tensor to Graph if isDynamic.
 void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& output) {
-    if (!IsReady()) {
-        OPENVINO_THROW("Wrong state. Topology not ready.");
-    }
+    OPENVINO_ASSERT(IsReady(), "Wrong state. Topology not ready.");
 
     for (auto& outputMap : outputNodesMap) {
         auto output_index = outputMap.first;
@@ -1305,13 +1300,12 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         auto srcPrec = intr_blob.getPrecision();
         auto dstPrec = ext_blob->get_element_type();
-        if (srcPrec == dstPrec && ext_blob->get_byte_size() != intr_blob.getSize()) {
-            OPENVINO_THROW("Output tensor byte size is not equal model output byte size (",
-                           ext_blob->get_byte_size(),
-                           "!=",
-                           intr_blob.getSize(),
-                           ").");
-        }
+        OPENVINO_ASSERT(srcPrec != dstPrec || ext_blob->get_byte_size() == intr_blob.getSize(),
+                        "Output tensor byte size is not equal model output byte size (",
+                        ext_blob->get_byte_size(),
+                        "!=",
+                        intr_blob.getSize(),
+                        ").");
 
         void* ext_blob_ptr = ext_blob->data();
         void* intr_blob_ptr = intr_blob.getData();
@@ -1969,15 +1963,14 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
 bool Graph::InsertNode(const EdgePtr& edge, const NodePtr& node, bool initNode) {
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
-    if (iIndex < 0 || oIndex < 0) {
-        OPENVINO_THROW("Cannot insert node '",
-                       node->getName(),
-                       "' between nodes: ",
-                       edge->getParent()->getName(),
-                       " and ",
-                       edge->getChild()->getName(),
-                       ".");
-    }
+    OPENVINO_ASSERT(iIndex >= 0 && oIndex >= 0,
+                    "Cannot insert node '",
+                    node->getName(),
+                    "' between nodes: ",
+                    edge->getParent()->getName(),
+                    " and ",
+                    edge->getChild()->getName(),
+                    ".");
     edge->getParent()->removeChildEdge(edge);
     edge->getChild()->removeParentEdge(edge);
 
