@@ -69,7 +69,9 @@ std::shared_ptr<Node> RegSpillBegin::clone_with_new_inputs(const OutputVector& i
 std::shared_ptr<RegSpillEnd> RegSpillBegin::get_reg_spill_end() const {
     const auto& last_output_inputs = get_output_target_inputs(0);
     OPENVINO_DEBUG_ASSERT(last_output_inputs.size() == 1,
-                          "RegSpillBegin has ", last_output_inputs.size(), " inputs attached to the last output");
+                          "RegSpillBegin has ",
+                          last_output_inputs.size(),
+                          " inputs attached to the last output");
     const auto& loop_end = ov::as_type_ptr<RegSpillEnd>(last_output_inputs.begin()->get_node()->shared_from_this());
     OPENVINO_DEBUG_ASSERT(loop_end != nullptr, "RegSpillBegin must have RegSpillEnd connected to its last output");
     return loop_end;

@@ -73,7 +73,11 @@ std::vector<T> get_block_memory(size_t num_heads,
                               init_values[0].size(),
                               ", block_size=",
                               block_size);
-        OPENVINO_DEBUG_ASSERT(init_values[0][0].size() == embedding_size, "init_values[0][0].size() != embedding_size, init_values[0][0].size()=", init_values[0][0].size(), ", embedding_size=", embedding_size);
+        OPENVINO_DEBUG_ASSERT(init_values[0][0].size() == embedding_size,
+                              "init_values[0][0].size() != embedding_size, init_values[0][0].size()=",
+                              init_values[0][0].size(),
+                              ", embedding_size=",
+                              embedding_size);
         for (size_t i = 0; i < num_heads; i++) {
             for (size_t j = 0; j < block_size; j++) {
                 for (size_t k = 0; k < embedding_size; k++) {

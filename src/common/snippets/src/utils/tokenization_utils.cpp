@@ -191,8 +191,9 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     size_t num_result_children = 0;
     std::pair<int64_t, int64_t> currentTopoBounds{-1, LONG_MAX};
     cyclicDependencyIsIntoduced(node, currentTopoBounds);
-    OPENVINO_DEBUG_ASSERT(!cyclicDependencyIsIntoduced(node, currentTopoBounds) &&
-                          "Cyclic dependency is introduced by the node itself: " + node->get_friendly_name());
+    OPENVINO_DEBUG_ASSERT(!cyclicDependencyIsIntoduced(node, currentTopoBounds),
+                          "Cyclic dependency is introduced by the node itself: ",
+                          node->get_friendly_name());
     for (const auto& input_value : input_values) {
         auto input_node = input_value.get_node_shared_ptr();
         if (ov::is_type<op::Subgraph>(input_node) && !cyclicDependencyIsIntoduced(input_node, currentTopoBounds)) {
