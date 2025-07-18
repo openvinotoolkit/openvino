@@ -12,6 +12,7 @@
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
@@ -38,7 +39,7 @@ struct jit_uni_dft_kernel {
     void (*ker_)(const jit_args_dft*) = nullptr;
 
     void operator()(const jit_args_dft* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 
@@ -52,7 +53,7 @@ struct jit_uni_fft_kernel {
     void (*ker_)(const jit_args_fft*) = nullptr;
 
     void operator()(const jit_args_fft* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

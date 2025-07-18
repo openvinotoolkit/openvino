@@ -5,7 +5,6 @@
 #include "region_yolo.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
@@ -223,7 +222,7 @@ private:
             uni_vpslld(vmm_src, vmm_src, 16);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt");
         }
     }
     void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
@@ -239,7 +238,7 @@ private:
             vmovdqu16(op, ymm_dst);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
     }
     void load_scalar(Xbyak::Xmm xmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
@@ -252,7 +251,7 @@ private:
             uni_vpslld(xmm_src, xmm_src, 16);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt");
         }
     }
     void store_scalar(const Xbyak::Address& op, Xbyak::Xmm xmm_dst, ov::element::Type dst_dt) {
@@ -265,7 +264,7 @@ private:
             uni_vpextrw(op, xmm_dst, 0x0);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt");
         }
     }
 };

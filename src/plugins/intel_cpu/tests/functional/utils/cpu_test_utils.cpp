@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <memory>
 #include <regex>
+#include "openvino/core/except.hpp"
 
 #include "cpu_test_utils.hpp"
 
@@ -52,7 +53,7 @@ const char* CPUTestsBase::cpu_fmt2str(cpu_memory_format_t v) {
         CASE(ldoi);
     }
 #undef CASE
-    assert(!"unknown fmt");
+    OPENVINO_DEBUG_ASSERT(false, "unknown fmt");
     return "undef";
 }
 
@@ -119,7 +120,7 @@ cpu_memory_format_t CPUTestsBase::cpu_str2fmt(const char* str) {
     CASE(ldoi);
     CASE(ldgo);
 #undef CASE
-    assert(!"unknown memory format");
+    OPENVINO_DEBUG_ASSERT(false, "unknown memory format");
     return undef;
 }
 

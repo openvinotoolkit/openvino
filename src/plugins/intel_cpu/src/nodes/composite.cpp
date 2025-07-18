@@ -4,7 +4,6 @@
 
 #include "composite.h"
 
-#include <cassert>
 #include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
@@ -92,7 +91,10 @@ void Composite::createPrimitive() {
 
 int Composite::registerToAllocationContext(int offset, AllocationContext& context) {
     CPU_NODE_ASSERT(getOriginalInputsNumber() == m_graph.inputsNumber(),
-                    "Number of node inputs must be equal the number of inner graph's inputs");
+                    "Number of node inputs must be equal the number of inner graph's inputs: node_inputs=",
+                    getOriginalInputsNumber(),
+                    " graph_inputs=",
+                    m_graph.inputsNumber());
 
     for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
         auto parentEdge = getParentEdgeAt(i);
@@ -136,7 +138,7 @@ void Composite::executeDynamicImpl(const dnnl::stream& strm) {
         for (size_t j = getOriginalOutputsNumber(); j < childEdges.size(); j++) {
             const auto& childEdge = childEdges[j];
             auto childEdgePtr = childEdge.lock();
-            assert(childEdgePtr);
+            OPENVINO_DEBUG_ASSERT(childEdgePtr, "Child edge pointer is null");
 
             if (childEdgePtr->getInputNum() == static_cast<int>(i)) {
                 childEdgePtr->getMemoryPtr()->redefineDesc(mem->getDescPtr());

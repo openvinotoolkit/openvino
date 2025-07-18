@@ -42,7 +42,7 @@ struct jit_uni_matmul_small_kernel {
     void (*ker_)(const jit_matmul_small_call_args*) = nullptr;
 
     void operator()(const jit_matmul_small_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

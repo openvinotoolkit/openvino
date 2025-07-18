@@ -244,7 +244,6 @@ inline __m256 mm256_uni_loadu_tail_ps(const float* a, const size_t count) {
 }
 
 inline __m256 mm256_uni_loadu_tail_ps(const ov::bfloat16* a, const size_t count) {
-    assert("AVX2 version of bfloat16 tail load is just for compilation pass");
     ov::bfloat16 tmp_values[8] = {0};
     std::memcpy(tmp_values, a, count * sizeof(ov::bfloat16));
     return mm256_uni_loadu_ps(tmp_values);

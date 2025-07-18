@@ -65,7 +65,7 @@ struct jit_uni_def_conv_kernel {
     void (*ker_)(const jit_def_conv_call_args*) = nullptr;
 
     void operator()(const jit_def_conv_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

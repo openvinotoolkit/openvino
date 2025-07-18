@@ -4,7 +4,6 @@
 
 #include "nodes/executors/dnnl/dnnl_utils.hpp"
 
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -66,7 +65,11 @@ MemoryPtr prepareWeightsMemory(const DnnlMemoryDescPtr& srcWeightDesc,
         auto dst_wdt = dstWeightDesc->getPrecision();
         if (needShiftSignedToUnsigned && src_wdt.is_integral_number() && src_wdt.is_signed() &&
             dst_wdt.is_integral_number() && !dst_wdt.is_signed()) {
-            assert(src_wdt.bitwidth() == dst_wdt.bitwidth());
+            OPENVINO_DEBUG_ASSERT(src_wdt.bitwidth() == dst_wdt.bitwidth(),
+                                  "Bitwidths of source and destination weights must be equal: src_wdt.bitwidth()=",
+                                  src_wdt.bitwidth(),
+                                  ", dst_wdt.bitwidth()=",
+                                  dst_wdt.bitwidth());
 
             // prevent reorderData from doing conversion
             Memory srcMemory{eng, srcWeightDesc->cloneWithNewPrecision(dst_wdt), weightsMem->getData()};

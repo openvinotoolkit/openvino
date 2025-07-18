@@ -4,6 +4,7 @@
 
 #include "common_test_utils/include/common_test_utils/ov_tensor_utils.hpp"
 #include "internal_properties.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -188,7 +189,9 @@ public:
         pastv_assign->set_friendly_name("pastv_w");
         auto get_reshape_order = [](const ov::PartialShape& qkv_shape,
                                     const std::vector<size_t>& transposeOrder) -> std::vector<size_t> {
-            assert(transposeOrder.size() == 4);
+            OPENVINO_DEBUG_ASSERT(transposeOrder.size() == 4,
+                                  "transposeOrder must have 4 elements, got ",
+                                  transposeOrder.size());
             auto H = qkv_shape[transposeOrder[1]].get_length();
             auto S = qkv_shape[transposeOrder[3]].get_length();
             return std::vector<size_t>{0, static_cast<size_t>(H * S)};

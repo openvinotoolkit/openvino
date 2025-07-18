@@ -59,7 +59,7 @@ struct jit_uni_eltwise_kernel {
     void (*ker_)(const jit_eltwise_call_args_ptrs*, const jit_eltwise_call_args_indexes*) = nullptr;
 
     void operator()(const jit_eltwise_call_args_ptrs* const_args, const jit_eltwise_call_args_indexes* indexes) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(const_args, indexes);
     }
 

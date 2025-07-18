@@ -4,7 +4,6 @@
 
 #include "brgemm_copy_b.hpp"
 
-#include <cassert>
 #include <common/utils.hpp>
 #include <cstddef>
 #include <memory>
@@ -94,8 +93,12 @@ std::shared_ptr<ov::Node> intel_cpu::BrgemmCopyB::clone_with_new_inputs(const Ou
 }
 
 size_t BrgemmCopyB::get_offset_compensations() const {
-    assert(m_config.with_compensations() && get_output_size() == 2 &&
-           "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs!");
+    OPENVINO_DEBUG_ASSERT(m_config.with_compensations(),
+                          "get_offset_compensations() can be called only if compensations are enabled");
+    OPENVINO_DEBUG_ASSERT(
+        get_output_size() == 2,
+        "The offset for compensations must be in BrgemmCopyB only with compensations and 2 outputs, got ",
+        get_output_size());
     return get_output_offset(1);
 }
 

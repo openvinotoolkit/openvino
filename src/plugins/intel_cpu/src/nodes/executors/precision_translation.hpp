@@ -12,6 +12,7 @@
 
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/type_mask.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/precision_support.h"
 
@@ -20,7 +21,11 @@ namespace ov::intel_cpu {
 template <size_t bypassId>
 struct use {
     ov::element::Type operator()(const std::vector<ov::element::Type>& types, [[maybe_unused]] size_t idx) const {
-        assert(bypassId < types.size());
+        OPENVINO_DEBUG_ASSERT(bypassId < types.size(),
+                              "bypassId out of range: bypassId=",
+                              bypassId,
+                              ", types.size()=",
+                              types.size());
         return types[bypassId];
     }
 };
@@ -54,7 +59,11 @@ struct PortsTranslation {
     PortsTranslation(Policies... policies) : m_policies{policies...} {}
 
     std::vector<ov::element::Type> operator()(const std::vector<ov::element::Type>& types) const {
-        assert(types.size() == m_policies.size());
+        OPENVINO_DEBUG_ASSERT(types.size() == m_policies.size(),
+                              "Size mismatch: types.size()=",
+                              types.size(),
+                              ", m_policies.size()=",
+                              m_policies.size());
 
         std::vector<ov::element::Type> result;
         result.reserve(types.size());

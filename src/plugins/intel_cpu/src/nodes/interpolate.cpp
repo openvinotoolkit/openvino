@@ -5,7 +5,6 @@
 #include "interpolate.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <common/primitive_attr.hpp>
 #include <common/primitive_hashing_utils.hpp>
@@ -152,7 +151,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 break;
             }
             default:
-                assert(!"unsupported memory layout for interpolate layer with nearest neighbor mode.");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "unsupported memory layout for interpolate layer with nearest neighbor mode: ",
+                                      jcp_.layout);
             }
             break;
         }
@@ -168,7 +169,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 break;
             }
             default:
-                assert(!"unsupported memory layout for interpolate layer with linear_onnx mode.");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "unsupported memory layout for interpolate layer with linear_onnx mode: ",
+                                      jcp_.layout);
             }
             break;
         }
@@ -184,7 +187,9 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 break;
             }
             default:
-                assert(!"unsupported memory layout for interpolate layer with cubic mode.");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "unsupported memory layout for interpolate layer with cubic mode: ",
+                                      jcp_.layout);
             }
             break;
         }
@@ -196,17 +201,20 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
                 break;
             }
             default:
-                assert(
-                    !"unsupported memory layout for interpolate layer with bilinear_pillow and bicubic_pillow modes.");
+                OPENVINO_DEBUG_ASSERT(
+                    false,
+                    "unsupported memory layout for interpolate layer with bilinear_pillow and bicubic_pillow modes.");
             }
             break;
         }
         case InterpolateMode::linear: {
-            assert(!"unsupported mode for interpolate layer with JITTED implimentation.");
+            OPENVINO_DEBUG_ASSERT(false,
+                                  "unsupported mode for interpolate layer with JITTED implementation: ",
+                                  jcp_.mode);
             break;
         }
         default: {
-            assert(!"unsupported mode for interpolate layer.");
+            OPENVINO_DEBUG_ASSERT(false, "unsupported mode for interpolate layer: ", jcp_.mode);
         }
         }
 
