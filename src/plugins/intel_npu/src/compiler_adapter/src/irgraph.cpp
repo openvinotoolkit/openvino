@@ -1,6 +1,9 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+
+#ifdef NPU_LLVM_BACKEND
+
 #pragma once 
 
 
@@ -509,3 +512,4 @@ void IRGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStru
     impl->executeGraph(zeroInitStruct, commandLists, commandQueue, inferenceFence, event, profiling);
 }
 }  // namespace intel_npu
+#endif // NPU_LLVM_BACKEND

@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef NPU_LLVM_BACKEND
 
 #pragma once
 
@@ -92,3 +93,5 @@ protected:
 };
 
 }  // namespace intel_npu
+
+#endif // NPU_LLVM_BACKEND
