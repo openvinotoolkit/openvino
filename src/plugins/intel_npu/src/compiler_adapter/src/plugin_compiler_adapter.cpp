@@ -250,7 +250,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
-    ov::Tensor mainBlob,
+    ov::Tensor& mainBlob,
     const bool blobAllocatedByPlugin,
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,

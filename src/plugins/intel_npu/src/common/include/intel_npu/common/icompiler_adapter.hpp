@@ -45,7 +45,7 @@ public:
      * wrapper further details the compiled model and brings it in a state closer to execution.
      */
     virtual std::shared_ptr<IGraph> parse(
-        ov::Tensor mainBlob,
+        ov::Tensor& mainBlob,
         const bool blobAllocatedByPlugin,
         const Config& config,
         std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
