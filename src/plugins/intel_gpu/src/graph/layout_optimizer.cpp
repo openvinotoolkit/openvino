@@ -1257,7 +1257,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 } catch (ov::Exception&) {
                     fmt = format::get_default_format(in_lay_rank);
                 }
-                node.set_preferred_input_fmt(i, fmt);
+
+                if (node.is_type<reshape>()) {
+                    // Reshape from blocked to simple format is not acceptable
+                    node.set_preferred_input_fmt(i, format::get_default_format(in_lay_rank));
+                } else {
+                    node.set_preferred_input_fmt(i, fmt);
+                }
             }
         }
 
