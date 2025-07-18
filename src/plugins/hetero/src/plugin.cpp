@@ -154,14 +154,14 @@ std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(std::istrea
     return compiled_model;
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(ov::Tensor& model,
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(const ov::Tensor& model,
                                                                      const ov::AnyMap& properties) const {
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
     std::istream stream{&buffer};
     return import_model(stream, properties);
 }
 
-std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(ov::Tensor& model,
+std::shared_ptr<ov::ICompiledModel> ov::hetero::Plugin::import_model(const ov::Tensor& model,
                                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                                      const ov::AnyMap& properties) const {
     OPENVINO_NOT_IMPLEMENTED;

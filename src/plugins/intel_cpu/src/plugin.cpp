@@ -577,7 +577,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     return deserialize_model(deserializer, config);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tensor, const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model_tensor,
+                                                         const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};

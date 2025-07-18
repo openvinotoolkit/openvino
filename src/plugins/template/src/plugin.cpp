@@ -266,7 +266,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
 }
 // ! [plugin:import_model_with_remote]
 
-std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(ov::Tensor& model,
+std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(const ov::Tensor& model,
                                                                               const ov::AnyMap& properties) const {
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
     std::istream stream{&buffer};
@@ -274,7 +274,7 @@ std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(ov
 }
 
 std::shared_ptr<ov::ICompiledModel> ov::template_plugin::Plugin::import_model(
-    ov::Tensor& model,
+    const ov::Tensor& model,
     const ov::SoPtr<ov::IRemoteContext>& context,
     const ov::AnyMap& properties) const {
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};

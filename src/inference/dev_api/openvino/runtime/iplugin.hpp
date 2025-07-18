@@ -192,7 +192,7 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& model, const ov::AnyMap& properties) const;
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model, const ov::AnyMap& properties) const;
 
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
@@ -203,7 +203,7 @@ public:
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
-    virtual std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& model,
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const;
 
