@@ -29,7 +29,6 @@ if paddle.__version__ >= '2.0.0':
 else:
     relu = fluid.layers.relu(test_layer)
 
-
 exe = fluid.Executor(fluid.CPUPlace())
 exe.run(fluid.default_startup_program())
 inp_dict = {'xxx': inp_blob}

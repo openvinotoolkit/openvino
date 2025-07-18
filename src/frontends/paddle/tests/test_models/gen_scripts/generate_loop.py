@@ -295,4 +295,6 @@ if __name__ == "__main__":
     print(loop_if_loop_if().numpy())
     print(loop_if_loop_complex())
     print(loop_tensor_array().numpy())
+    #https://github.com/PaddlePaddle/Paddle/issues/73919
+    #CVS-167349
     #x, y = loop_if_tensor_array()

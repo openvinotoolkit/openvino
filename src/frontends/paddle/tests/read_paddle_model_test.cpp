@@ -83,7 +83,7 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
         result = std::make_shared<ov::opset1::Result>(add->output(0));
         result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
     } else {
-        ASSERT_TRUE(false) << "should not go here";
+        ASSERT_TRUE(false) << "Unsupported PaddlePaddle version: " << std::string(TEST_PADDLE_VERSION);
     }
 
     const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");
@@ -123,7 +123,7 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
         result = std::make_shared<ov::opset1::Result>(add->output(0));
         result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
     } else {
-        ASSERT_TRUE(false) << "should not go here";
+        ASSERT_TRUE(false) << "Unsupported PaddlePaddle version: " << std::string(TEST_PADDLE_VERSION);
     }
 
     const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");

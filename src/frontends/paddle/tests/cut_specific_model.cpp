@@ -22,8 +22,8 @@ static CutModelParam getTestData_2in_2out() {
     } else if (std::string(TEST_PADDLE_VERSION) == "2") {
         res.m_oldOutputs = {"save_infer_model/scale_0.tmp_0", "save_infer_model/scale_1.tmp_0"};
     } else {
-        // should not go here
-        res.m_oldOutputs = {};
+        // Unexpected TEST_PADDLE_VERSION value. This branch is reached if TEST_PADDLE_VERSION is neither "2" nor "3".
+        throw std::runtime_error("Unsupported TEST_PADDLE_VERSION: " + std::string(TEST_PADDLE_VERSION));
     }
     res.m_newOutputs = {"add2.tmp_0"};
     res.m_tensorValueName = "conv2dX2.tmp_0";
