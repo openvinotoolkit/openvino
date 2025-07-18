@@ -10,6 +10,7 @@
 #include "custom_stream_buffer.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/serialize.hpp"
 
 /**
  * @brief Contain all required transformation on OpenVINO model in case for external compiler usage and
@@ -19,14 +20,28 @@ namespace intel_npu::driver_compiler_utils {
 
 class IRSerializer {
 public:
-    IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset = 11);
+    IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
+                 const uint32_t supportedOpset = 11,
+                 bool serializeWeightsPtrToXml = false);
 
     size_t getXmlSize() const {
-        return _xmlSize;
+        if (_serializeWeightsPtrToXml) {
+            // Use stingstream to get xml if we use weights map
+            return _xmlString.size() + 1;
+        } else {
+            // Use custom stream buffer to get xml size
+            return _xmlSize;
+        }
     }
 
     size_t getWeightsSize() const {
-        return _weightsSize;
+        if (_serializeWeightsPtrToXml) {
+            // placeholder
+            return 1;
+        } else {
+            // Store weights content to buffer
+            return _weightsSize;
+        }
     }
 
     /**
@@ -50,6 +65,8 @@ private:
     uint32_t _supportedOpset = 11;
     size_t _xmlSize = 0;
     size_t _weightsSize = 0;
+    bool _serializeWeightsPtrToXml = false;
+    std::string _xmlString;
 };
 
 }  // namespace intel_npu::driver_compiler_utils
