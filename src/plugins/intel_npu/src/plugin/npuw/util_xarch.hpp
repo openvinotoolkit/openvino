@@ -89,6 +89,7 @@ void transpose_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, s
 
 void permute021_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);
 void permute021_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);
+void permute021_f16_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);
 
 void permute102_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);
 void permute102_f16_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_PLAS, size_t IN_ROWS, size_t IN_COLS);

@@ -1745,6 +1745,40 @@ void ov::npuw::util::XARCH::permute021_f32_avx2(const ov::Tensor& t,
 #endif
 }
 
+void ov::npuw::util::XARCH::permute021_f16_avx2(const ov::Tensor& t,
+                                                ov::Tensor& tnew,
+                                                size_t IN_PLAS,
+                                                size_t IN_ROWS,
+                                                size_t IN_COLS) {
+#if defined(HAVE_AVX2)
+    const uint16_t* src = static_cast<const uint16_t*>(t.data());
+    uint16_t* dst = static_cast<uint16_t*>(tnew.data());
+
+    constexpr size_t blockSize = 16;  // 16*16=256bit
+
+    ov::parallel_for(IN_PLAS, [&](size_t p) {
+        for (size_t r = 0; r < IN_ROWS; ++r) {
+            size_t src_base = p * IN_ROWS * IN_COLS + r * IN_COLS;
+            size_t dst_base = p * IN_COLS * IN_ROWS + r;
+            size_t c = 0;
+            for (c = 0; c + blockSize - 1 < IN_COLS; c += blockSize) {
+                __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_base + c));
+                alignas(32) uint16_t tmp[16];
+                _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
+                for (size_t k = 0; k < blockSize; ++k) {
+                    dst[dst_base + (c + k) * IN_ROWS] = tmp[k];
+                }
+            }
+            for (; c < IN_COLS; ++c) {
+                dst[dst_base + c * IN_ROWS] = src[src_base + c];
+            }
+        }
+    });
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
 void ov::npuw::util::XARCH::permute102_i4_avx2(const ov::Tensor& t,
                                                ov::Tensor& tnew,
                                                size_t IN_PLAS,
