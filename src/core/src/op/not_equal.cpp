@@ -55,7 +55,7 @@ bool NotEqual::evaluate(TensorVector& outputs, const TensorVector& inputs) const
                                       this,
                                       outputs,
                                       inputs,
-                                      OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64),
+                                      OV_PP_ET_LIST(boolean, f32, i32, i64, u32, u64, string),
                                       not_equal::Evaluate,
                                       inputs[0].get_element_type(),
                                       inputs[0],
@@ -76,6 +76,7 @@ bool NotEqual::has_evaluate() const {
     case element::i64:
     case element::u32:
     case element::u64:
+    case element::string:
         return true;
     default:
         return false;
