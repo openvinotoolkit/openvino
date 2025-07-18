@@ -276,6 +276,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
+#ifdef NPU_LLVM_BACKEND
     if (is_dynamic_shape_model(blob)) {
         // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
@@ -285,6 +286,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                        config,
                                        _compiler);
     }
+#endif
 
     _logger.debug("parse start");
     std::vector<uint8_t> network(mainBlob.get_byte_size());
