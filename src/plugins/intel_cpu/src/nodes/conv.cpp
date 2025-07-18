@@ -51,6 +51,7 @@
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "ov_ops/convolution.hpp"
 #include "post_ops.hpp"
 #include "shape_inference/custom/convolution.hpp"
 #include "utils/debug_capabilities.h"
@@ -170,8 +171,10 @@ private:
 
 bool Convolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(op)) {
-            errorMessage = "Only opset1 Convolution and GroupConvolution operations are supported";
+        if (!ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution, ov::op::internal::Convolution>(
+                op)) {
+            errorMessage = "opset1 Convolution and GroupConvolution and internal Convolution operations are "
+                           "supported only";
             return false;
         }
         size_t ndims = op->get_input_partial_shape(0).rank().get_length();
@@ -202,8 +205,40 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
 
     auto convolutionOp = ov::as_type_ptr<ov::op::v1::Convolution>(op);
     auto groupConvolutionOp = ov::as_type_ptr<ov::op::v1::GroupConvolution>(op);
+    auto internalConvolutionOp = ov::as_type_ptr<ov::op::internal::Convolution>(op);
 
-    if (convolutionOp) {
+    if (internalConvolutionOp) {
+        m_attrs.isGrouped = internalConvolutionOp->get_groups() > 1;
+        groupNum = m_attrs.isGrouped ? internalConvolutionOp->input_value(1).get_shape()[0] : 1;
+        algorithm = m_attrs.isGrouped ? Algorithm::ConvolutionGrouped : Algorithm::ConvolutionBiased;
+
+        const auto& weightDims = internalConvolutionOp->input_value(1).get_shape();
+
+        if (m_attrs.isGrouped) {
+            groupIC = weightDims[2];
+            IC = groupIC * groupNum;
+            groupOC = weightDims[1];
+        } else {
+            IC = weightDims[1];
+            groupIC = IC;
+            groupOC = weightDims[0];
+        }
+        for (size_t i : internalConvolutionOp->get_strides()) {
+            m_attrs.stride.emplace_back(i);
+        }
+        for (size_t i : internalConvolutionOp->get_dilations()) {
+            m_attrs.dilation.emplace_back(static_cast<ptrdiff_t>(i) - 1);
+        }
+        m_attrs.paddingL = internalConvolutionOp->get_pads_begin();
+        m_attrs.paddingR = internalConvolutionOp->get_pads_end();
+        if (internalConvolutionOp->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
+            m_attrs.autoPadding = AutoPaddingType::SAME_UPPER;
+        } else if (internalConvolutionOp->get_auto_pad() == ov::op::PadType::SAME_LOWER) {
+            m_attrs.autoPadding = AutoPaddingType::SAME_LOWER;
+        } else {
+            m_attrs.autoPadding = AutoPaddingType::None;
+        }
+    } else if (convolutionOp) {
         algorithm = Algorithm::ConvolutionCommon;
 
         groupNum = 1;

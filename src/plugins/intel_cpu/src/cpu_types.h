@@ -151,6 +151,7 @@ enum class Algorithm : uint8_t {
     AdaptivePoolingAvg,
 
     // Convolution algorithms
+    ConvolutionBiased,
     ConvolutionCommon,
     ConvolutionGrouped,
 
