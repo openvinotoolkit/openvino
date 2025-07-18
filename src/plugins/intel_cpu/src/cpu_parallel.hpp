@@ -27,7 +27,11 @@ public:
     void parallel_simple(const T0& D0, const F& func) const {
 #if OV_THREAD == OV_THREAD_TBB_PARTITIONER_AUTO
         const int nthr = static_cast<size_t>(D0);  // NOLINT(bugprone-misplaced-widening-cast)
-        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::STATIC) {
+        if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+            tbb::parallel_for(0, nthr, [&](int ithr) {
+                func(ithr, nthr);
+            });
+        } else {
             tbb::parallel_for(
                 0,
                 nthr,
@@ -35,10 +39,6 @@ public:
                     func(ithr, nthr);
                 },
                 tbb::static_partitioner());
-        } else {
-            tbb::parallel_for(0, nthr, [&](int ithr) {
-                func(ithr, nthr);
-            });
         }
 #else
         ov::parallel_for(D0, func);  // from core
@@ -60,7 +60,11 @@ public:
         if (virtual_threads == 1) {
             for_1d(0, 1, D0, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::STATIC) {
+            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                    for_1d(ithr, virtual_threads, D0, func);
+                });
+            } else {
                 tbb::parallel_for(
                     0,
                     virtual_threads,
@@ -68,10 +72,6 @@ public:
                         for_1d(ithr, virtual_threads, D0, func);
                     },
                     tbb::static_partitioner());
-            } else {
-                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
-                    for_1d(ithr, virtual_threads, D0, func);
-                });
             }
         }
 #else
@@ -94,7 +94,11 @@ public:
         if (virtual_threads == 1) {
             for_2d(0, 1, D0, D1, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::STATIC) {
+            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                    for_2d(ithr, virtual_threads, D0, D1, func);
+                });
+            } else {
                 tbb::parallel_for(
                     0,
                     virtual_threads,
@@ -102,10 +106,6 @@ public:
                         for_2d(ithr, virtual_threads, D0, D1, func);
                     },
                     tbb::static_partitioner());
-            } else {
-                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
-                    for_2d(ithr, virtual_threads, D0, D1, func);
-                });
             }
         }
 #else
@@ -128,7 +128,11 @@ public:
         if (virtual_threads == 1) {
             for_3d(0, 1, D0, D1, D2, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::STATIC) {
+            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                    for_3d(ithr, virtual_threads, D0, D1, D2, func);
+                });
+            } else {
                 tbb::parallel_for(
                     0,
                     virtual_threads,
@@ -136,10 +140,6 @@ public:
                         for_3d(ithr, virtual_threads, D0, D1, D2, func);
                     },
                     tbb::static_partitioner());
-            } else {
-                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
-                    for_3d(ithr, virtual_threads, D0, D1, D2, func);
-                });
             }
         }
 #else
@@ -162,7 +162,11 @@ public:
         if (virtual_threads == 1) {
             for_4d(0, 1, D0, D1, D2, D3, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::STATIC) {
+            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                    for_4d(ithr, virtual_threads, D0, D1, D2, D3, func);
+                });
+            } else {
                 tbb::parallel_for(
                     0,
                     virtual_threads,
@@ -170,10 +174,6 @@ public:
                         for_4d(ithr, virtual_threads, D0, D1, D2, D3, func);
                     },
                     tbb::static_partitioner());
-            } else {
-                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
-                    for_4d(ithr, virtual_threads, D0, D1, D2, D3, func);
-                });
             }
         }
 #else
@@ -196,7 +196,11 @@ public:
         if (virtual_threads == 1) {
             for_5d(0, 1, D0, D1, D2, D3, D4, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::STATIC) {
+            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                    for_5d(ithr, virtual_threads, D0, D1, D2, D3, D4, func);
+                });
+            } else {
                 tbb::parallel_for(
                     0,
                     virtual_threads,
@@ -204,10 +208,6 @@ public:
                         for_5d(ithr, virtual_threads, D0, D1, D2, D3, D4, func);
                     },
                     tbb::static_partitioner());
-            } else {
-                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
-                    for_5d(ithr, virtual_threads, D0, D1, D2, D3, D4, func);
-                });
             }
         }
 #else
@@ -237,7 +237,11 @@ public:
         if (virtual_threads == 1) {
             for_6d(0, 1, D0, D1, D2, D3, D4, D5, func);
         } else {
-            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::STATIC) {
+            if (m_default_partitioner == ov::intel_cpu::TbbPartitioner::AUTO) {
+                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
+                    for_6d(ithr, virtual_threads, D0, D1, D2, D3, D4, D5, func);
+                });
+            } else {
                 tbb::parallel_for(
                     0,
                     virtual_threads,
@@ -245,10 +249,6 @@ public:
                         for_6d(ithr, virtual_threads, D0, D1, D2, D3, D4, D5, func);
                     },
                     tbb::static_partitioner());
-            } else {
-                tbb::parallel_for(0, virtual_threads, [&](int ithr) {
-                    for_6d(ithr, virtual_threads, D0, D1, D2, D3, D4, D5, func);
-                });
             }
         }
 #else
