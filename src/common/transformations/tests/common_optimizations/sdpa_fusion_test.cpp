@@ -815,3 +815,49 @@ TEST_F(TransformationTestsF, SDPAFusionTest_ReshapeOptimization) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
+    // Init.
+    int64_t batch = 2;
+    const PartialShape query_shape{batch, 49, 52};
+    const PartialShape key_shape{batch, 49, 52};
+    const PartialShape value_shape{batch, 49, 52};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    // Preprocessing callback.
+    auto callback = [](auto& nodes) {
+        int64_t axis = 0;
+        auto axes_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        nodes[InputType::Q] = std::make_shared<v0::Unsqueeze>(nodes[InputType::Q], axes_node)->output(0);
+
+        auto axes_node1 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        nodes[InputType::K] = std::make_shared<v0::Unsqueeze>(nodes[InputType::K], axes_node1)->output(0);
+
+        auto axes_node2 = v0::Constant::create(ov::element::i64, ov::Shape{1}, {axis});
+        nodes[InputType::V] = std::make_shared<v0::Unsqueeze>(nodes[InputType::V], axes_node2)->output(0);
+    };
+
+    // SDPA model.
+    {
+        sdpa.set_mask({batch, 1, 1, 49});
+        sdpa.create_pattern_sdpa(true);
+
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.set_mask({batch, 1, 1, 49});
+        sdpa_ref.set_preprocessing_callback(callback);
+        sdpa_ref.create_reference_sdpa();
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
