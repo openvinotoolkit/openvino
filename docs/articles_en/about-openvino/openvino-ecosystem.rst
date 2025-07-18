@@ -24,6 +24,3 @@ external solutions, or utilizing its potential.
 
 | :doc:`The OpenVINO project <./openvino-ecosystem/openvino-project>`
 |     Check out the most noteworthy components of the OpenVINO project.
-
-| :doc:`OpenVINO adoptions <./openvino-ecosystem/openvino-adoptions>`
-|     Here, you will find information about a selection of software projects utilizing OpenVINO.

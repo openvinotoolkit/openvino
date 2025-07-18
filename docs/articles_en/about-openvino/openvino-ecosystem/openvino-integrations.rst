@@ -6,15 +6,19 @@ OpenVINO™ Integrations
    :description: Check a list of integrations between OpenVINO and other Deep Learning solutions.
 
 
-
-.. = 1 ========================================================================================
-
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   openvino-integrations/openvino-adoptions
    openvino-project/openvino-test-drive
+
+OpenVINO has been adopted by multiple AI projects in various areas. For an extensive list of
+community-based projects involving OpenVINO, see the
+`Awesome OpenVINO repository <https://github.com/openvinotoolkit/awesome-openvino>`__.
+
+
+.. = 1 ========================================================================================
+
 
 **Hugging Face Optimum-Intel**
 
@@ -202,6 +206,108 @@ OpenVINO™ Integrations
 
       python aot_optimize_and_infer.py --export --suite timm --model vgg16 --input_shape "[1, 3, 224, 224]" --device CPU
 
+.. = 6 ========================================================================================
+
+**OpenVINO Integration for LangChain**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Integrate OpenVINO with the LangChain framework to enhance runtime performance for GenAI applications. 
+      | Benefits:
+      | - Streamline the integration and chaining of language models for efficient AI workflows.
+
+   .. grid-item::
+
+      * `LangChain Integration Guide <https://python.langchain.com/docs/integrations/llms/openvino/>`__
+
+.. dropdown:: Check example code
+   :animate: fade-in-slide-down
+   :color: secondary
+
+   .. code-block:: python
+
+      ov_llm = HuggingFacePipeline.from_model_id(
+         model_id="ov_model_dir",
+         task="text-generation",
+         backend="openvino",
+         model_kwargs={"device": "CPU", "ov_config": ov_config},
+         pipeline_kwargs={"max_new_tokens": 10},
+      )
+
+      chain = prompt | ov_llm
+
+      question = "What is electroencephalography?"
+
+      print(chain.invoke({"question": question}))
+
+.. = 7 ========================================================================================
+
+**Intel® Geti™**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Build computer vision models faster with less data using Intel® Geti™. It streamlines labeling, training, and deployment, exporting models optimized for OpenVINO.
+      | Benefits:
+      | - Train with less data and deploy faster.
+      | - Export OpenVINO-compatible models for efficient edge inference.
+   .. grid-item::
+
+      * `Overview <https://docs.geti.intel.com/>`__
+      * `Documentation <https://docs.geti.intel.com/docs/user-guide/getting-started/introduction>`__
+      * `Tutorials <https://docs.geti.intel.com/docs/user-guide/getting-started/use-geti/tutorials>`__
+.. = 8 ========================================================================================
+
+**AI Playground™**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Use Intel® OpenVINO™ in AI Playground to optimize and run AI models efficiently on Intel 
+        CPUs and Arc GPUs, enabling local image generation, editing, and video processing. It 
+       supports OpenVINO-optimized models like TinyLlama, Mistral 7B, and Phi-3 mini—no conversion 
+       needed.
+      | Benefits:
+      | - Easily set up pre-optimized models.
+      | - Run faster, hardware-accelerated inference with OpenVINO.
+   .. grid-item::
+
+      * `Overview <https://www.intel.com/content/www/us/en/products/docs/discrete-gpus/arc/software/ai-playground.html>`__
+      * `GitHub  <https://github.com/intel/AI-Playground>`__
+      * `User Guide <https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf>`__
+.. = 9 ========================================================================================
+
+**AI Assistant Builder**
+
+|hr|
+
+.. grid:: 1 1 2 2
+   :gutter: 4
+
+   .. grid-item::
+
+      | Run local AI assistants with Intel® AI Assistant Builder using OpenVINO-optimized models 
+        like Phi-3 and Qwen2.5. Build secure, efficient assistants customized for your data 
+        and workflows—no cloud required.
+      | Benefits:
+      | - Build custom assistants with agentic workflows and knowledge bases.
+      | - Keep data secure by running fully local.
+   .. grid-item::
+
+      * `GitHub <https://github.com/intel/intel-ai-assistant-builder>`__
 
 
 

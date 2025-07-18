@@ -1,16 +1,9 @@
-OpenVINO™ Project Overview
+OpenVINO™ Tools Overview
 ==============================
 
 
 .. meta::
    :description: Check an overview of the most interesting components of the OpenVINO™ project.
-
-
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino-project/geti
 
 
 This page provides an overview of the most noteworthy tools and components for AI developers,
@@ -56,15 +49,6 @@ A cross-platform graphic user interface application for running and testing gene
 vision AI models on computers or edge devices.
 |hr|
 
-| **Geti™**
-| :bdg-link-dark:`GitHub <https://github.com/openvinotoolkit/geti-sdk>`
-  :bdg-link-info:`Official Website <https://geti.intel.com/>`
-
-Intel's new software for building computer vision
-models in a fraction of the time and with less data. This software eases laborious
-data labeling, model training and optimization tasks across the AI model
-development process, empowering teams to produce custom AI models at scale.
-|hr|
 
 | **Tokenizers**
 | :bdg-link-dark:`GitHub <https://github.com/openvinotoolkit/openvino_tokenizers>`
