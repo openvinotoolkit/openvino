@@ -307,9 +307,14 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
                     reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
                         current_prefill_bytes);
 
-        std::copy_n(position_ids->data<int64_t>() + kvcache_desc.num_stored_tokens,
-                    current_prompts_len,
-                    pos_ids_in_tensor->data<int64_t>() + pos_ids_in_tensor->get_size() - current_prompts_len);
+        // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH, SEQ_LEN]
+        // Copy postion ids with considering the 3D position_ids
+        auto last_dim = position_ids->get_shape().size() - 1;
+        auto actual_position_ids_slice = make_tensor_slice(position_ids,
+                            static_cast<uint32_t>(last_dim),
+                            kvcache_desc.num_stored_tokens,
+                            kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
+        pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
 
         m_prefill_request->infer();
 
