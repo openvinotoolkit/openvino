@@ -200,11 +200,8 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
 #else
     bool useMatmulPrim = false;
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-    if (useMatmulPrim) {
-        return true;
-    }
+    return useMatmulPrim;
 #endif
-    return false;
 }
 
 void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr& context) {
