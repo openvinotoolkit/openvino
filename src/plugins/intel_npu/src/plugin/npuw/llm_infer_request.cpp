@@ -279,7 +279,8 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
 
     int64_t remaining_prompts = input_prompt_len;
     if (input_prompt_len >= kvcache_desc.total_size) {
-        OPENVINO_THROW("Input prompt length (" + std::to_string(input_prompt_len) + ") exceeds maximum kv-cache size (" + std::to_string(kvcache_desc.total_size) + ")");
+        OPENVINO_THROW("Input prompt length (" + std::to_string(input_prompt_len) +
+                       ") exceeds maximum kv-cache size (" + std::to_string(kvcache_desc.total_size) + ")");
     }
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
@@ -307,13 +308,15 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
                     reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
                         current_prefill_bytes);
 
-        // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH, SEQ_LEN]
+        // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH,
+        // SEQ_LEN]
         // Copy postion ids with considering the 3D position_ids
         auto last_dim = position_ids->get_shape().size() - 1;
-        auto actual_position_ids_slice = make_tensor_slice(position_ids,
-                            static_cast<uint32_t>(last_dim),
-                            kvcache_desc.num_stored_tokens,
-                            kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
+        auto actual_position_ids_slice =
+            make_tensor_slice(position_ids,
+                              static_cast<uint32_t>(last_dim),
+                              kvcache_desc.num_stored_tokens,
+                              kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
         pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
 
         m_prefill_request->infer();
