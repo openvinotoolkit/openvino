@@ -83,6 +83,9 @@ namespace ov::intel_cpu::node {
 #    define xmm_val_p Xmm(6)
 #    define xmm_idx_p Xmm(7)
 
+#    define xmm_eq_mask Xmm(12)
+#    define xmm_gt_mask Xmm(13)
+
 #    define JMP_TO_LABEL(label)                  \
         if (isa == cpu::x64::avx512_core) {      \
             kmovw(reg_tmp_32, k_mask);           \
@@ -250,6 +253,8 @@ private:
     Vmm vmm_zero = Vmm(0);  // vmm_zero represents Vmm(0) when isa is avx512_core, otherwise vmm_mask represents Vmm(0)
 
     const Xbyak::Opmask k_mask = Xbyak::Opmask(1);
+    const Xbyak::Opmask k_eq_mask = Xbyak::Opmask(2);
+    const Xbyak::Opmask k_gt_mask = Xbyak::Opmask(3);
     const int vector_step = vlen / sizeof(float);
     const int tail_step = jcp_.work_amount % vector_step;
 
@@ -331,12 +336,12 @@ private:
     void topk_loop() {
         if (jcp_.algorithm == TopKAlgorithm::topk_bubble_sort) {
             if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost) {
-                if (jcp_.top_k == 1 && !jcp_.stable) {
+                if (jcp_.top_k == 1) {
                     topk_bubble_horiz();
                 } else {
                     topk_bubble_BLK_on_channel_verti();
                 }
-            } else if (jcp_.topk_innermost && jcp_.top_k == 1 && !jcp_.stable) {
+            } else if (jcp_.topk_innermost && jcp_.top_k == 1) {
                 topk_bubble_horiz();
             } else {
                 topk_bubble_vector();
@@ -867,6 +872,21 @@ private:
         vpcmpgtd(x1, x2, op);
     }
 
+    void uni_vpcmpeqd(const Xbyak::Xmm& x1, const Xbyak::Xmm& x2, const Xbyak::Operand& op) {
+        if (is_valid_isa(cpu::x64::avx)) {
+            vpcmpeqd(x1, x2, op);
+        } else {
+            if (x1.getIdx() != x2.getIdx()) {
+                uni_vmovups(x1, x2);
+            }
+            pcmpeqd(x1, op);
+        }
+    }
+
+    void uni_vpcmpeqd(const Xbyak::Ymm& x1, const Xbyak::Ymm& x2, const Xbyak::Operand& op) {
+        vpcmpeqd(x1, x2, op);
+    }
+
     void compare_node_xmm(Xmm xmm_val_a,
                           Xmm xmm_idx_a,
                           Xmm xmm_val_b,
@@ -874,13 +894,27 @@ private:
                           Xmm mask,
                           unsigned char val_cmp_flg,
                           unsigned char idx_cmp_flg,
-                          bool cmp_val) {
+                          bool cmp_val,
+                          bool stable = false) {
+        Xbyak::Label compare_end_label;
         if (isa == cpu::x64::avx512_core) {
             if (cmp_val) {
                 if (isFloatCompatible(data_type)) {
                     vcmpps(k_mask, xmm_val_a, xmm_val_b, val_cmp_flg);
                 } else {
                     vpcmpd(k_mask, xmm_val_a, xmm_val_b, val_cmp_flg);
+                }
+                if (stable) {
+                    if (isFloatCompatible(data_type)) {
+                        vcmpps(k_eq_mask, xmm_val_a, xmm_val_b, _cmp_eq_oq);
+                    } else {
+                        vpcmpd(k_eq_mask, xmm_val_a, xmm_val_b, _cmp_eq_oq);
+                    }
+                    kortestw(k_eq_mask, k_eq_mask);  // all zero check
+                    jz(compare_end_label, T_NEAR);
+                    vpcmpd(k_gt_mask, xmm_idx_a, xmm_idx_b, idx_cmp_flg);
+                    kandw(k_eq_mask, k_eq_mask, k_gt_mask);
+                    korw(k_mask, k_mask, k_eq_mask);
                 }
             } else {
                 vpcmpd(k_mask, xmm_idx_a, xmm_idx_b, idx_cmp_flg);
@@ -896,6 +930,18 @@ private:
                         uni_vpcmpgtd(mask, xmm_val_b, xmm_val_a);
                     }
                 }
+                if (stable) {
+                    if (isFloatCompatible(data_type)) {
+                        uni_vcmpps(xmm_eq_mask, xmm_val_a, xmm_val_b, _cmp_eq_oq);
+                    } else {
+                        uni_vpcmpeqd(xmm_eq_mask, xmm_val_a, xmm_val_b);
+                    }
+                    ptest(xmm_eq_mask, xmm_eq_mask);  // all zero check
+                    jz(compare_end_label, T_NEAR);
+                    uni_vpcmpgtd(xmm_gt_mask, xmm_idx_a, xmm_idx_b);
+                    uni_vandps(xmm_eq_mask, xmm_eq_mask, xmm_gt_mask);
+                    uni_vorps(mask, mask, xmm_eq_mask);
+                }
             } else {
                 if (idx_cmp_flg == _cmp_nle_us) {
                     uni_vpcmpgtd(mask, xmm_idx_a, xmm_idx_b);
@@ -904,6 +950,7 @@ private:
                 }
             }
         }
+        L(compare_end_label);
     }
 
     void heap_cmp_node(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, bool cmp_val = true) {
@@ -1381,7 +1428,7 @@ private:
 
             load_scalar(xmm_val(1), ptr[reg_aux], data_type);
             table_to_xmm(xmm_idx(1), reg_bubble_seq_idx, reg_i, 0, sizeof(int));
-            bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(1), xmm_idx(1));
+            bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(1), xmm_idx(1), true, jcp_.stable);
 
             add(reg_i, 1);
             add(reg_aux, jcp_.data_size);
@@ -1406,7 +1453,7 @@ private:
             Xbyak::Ymm ymm_idx_dst = Xbyak::Ymm(vmm_idx(0).getIdx());
             vextractf128(xmm_idx(2), ymm_idx_dst, 0);
             vextractf128(xmm_idx(3), ymm_idx_dst, 1);
-            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
+            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3), true, jcp_.stable);
             uni_vmovups(xmm_val(0), xmm_val(2));
             uni_vmovups(xmm_idx(0), xmm_idx(2));
             horize_top1();
@@ -1417,13 +1464,13 @@ private:
             Xbyak::Zmm zmm_idx_dst = Xbyak::Zmm(vmm_idx(0).getIdx());
             vextractf32x4(xmm_idx(2), zmm_idx_dst, 0);
             vextractf32x4(xmm_idx(3), zmm_idx_dst, 1);
-            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
+            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3), true, jcp_.stable);
             vextractf32x4(xmm_val(3), zmm_val_dst, 2);
             vextractf32x4(xmm_val(4), zmm_val_dst, 3);
             vextractf32x4(xmm_idx(3), zmm_idx_dst, 2);
             vextractf32x4(xmm_idx(4), zmm_idx_dst, 3);
-            bubble_swap_xmm(xmm_val(3), xmm_idx(3), xmm_val(4), xmm_idx(4));
-            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3));
+            bubble_swap_xmm(xmm_val(3), xmm_idx(3), xmm_val(4), xmm_idx(4), true, jcp_.stable);
+            bubble_swap_xmm(xmm_val(2), xmm_idx(2), xmm_val(3), xmm_idx(3), true, jcp_.stable);
             uni_vmovups(xmm_val(0), xmm_val(2));
             uni_vmovups(xmm_idx(0), xmm_idx(2));
             horize_top1();
@@ -1435,10 +1482,15 @@ private:
     void horize_top1() {
         uni_vmovshdup(xmm_val(3), xmm_val(0));  // dst:1,2,3,4; aux:2,2,4,4
         uni_vmovshdup(xmm_idx(3), xmm_idx(0));
-        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3));  // dst:f(1,2),f(2,2),f(3,4),f(4,4)
-        uni_vmovhlps(xmm_val(3), xmm_val(3), xmm_val(0));                 // aux:f(3,4),f(4,4),4,4
+        bubble_swap_xmm(xmm_val(0),
+                        xmm_idx(0),
+                        xmm_val(3),
+                        xmm_idx(3),
+                        true,
+                        jcp_.stable);                      // dst:f(1,2),f(2,2),f(3,4),f(4,4)
+        uni_vmovhlps(xmm_val(3), xmm_val(3), xmm_val(0));  // aux:f(3,4),f(4,4),4,4
         uni_vmovhlps(xmm_idx(3), xmm_idx(3), xmm_idx(0));
-        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3));  // dst:f(1,2,3,4),...
+        bubble_swap_xmm(xmm_val(0), xmm_idx(0), xmm_val(3), xmm_idx(3), true, jcp_.stable);  // dst:f(1,2,3,4),...
     }
 
     void topk_bubble_BLK_on_channel_verti() {
@@ -1780,8 +1832,13 @@ private:
         add(rsp, sizeof(int));
     }
 
-    void bubble_swap_xmm(Xmm xmm_val_a, Xmm xmm_idx_a, Xmm xmm_val_b, Xmm xmm_idx_b, bool cmp_val = true) {
-        compare_node_xmm(xmm_val_a, xmm_idx_a, xmm_val_b, xmm_idx_b, xmm_mask, cmp_flg, _cmp_nle_us, cmp_val);
+    void bubble_swap_xmm(Xmm xmm_val_a,
+                         Xmm xmm_idx_a,
+                         Xmm xmm_val_b,
+                         Xmm xmm_idx_b,
+                         bool cmp_val = true,
+                         bool stable = false) {
+        compare_node_xmm(xmm_val_a, xmm_idx_a, xmm_val_b, xmm_idx_b, xmm_mask, cmp_flg, _cmp_nle_us, cmp_val, stable);
 
         if (isa == cpu::x64::avx512_core) {
             uni_vmovups(xmm_tmp, xmm_val_a);
@@ -2326,9 +2383,10 @@ inline void TopK::prepare_original_idx() {
     bool shape_agnostic_alg =
         algorithm == TopKAlgorithm::topk_heap_sort || (algorithm == TopKAlgorithm::topk_bubble_sort && !bubble_inplace);
     if (shape_agnostic_alg) {
-        bool use_idx_seq = stable
-                               ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (top_k == 1 && !stable))
-                               : topk_innermost;
+        bool use_idx_seq =
+            stable ? topk_innermost && (layout == TopKLayoutType::topk_blocked || (!isDynamicNode() && top_k == 1))
+                   : topk_innermost;
+
         if (use_idx_seq) {
             if (vec_idx_seq.empty()) {
                 vec_idx_seq.resize(axis_dim);
