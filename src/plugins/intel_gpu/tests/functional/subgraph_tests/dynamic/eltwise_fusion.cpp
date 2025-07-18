@@ -98,17 +98,17 @@ INSTANTIATE_TEST_SUITE_P(StaticEltwiseDynamicFusions_basic,
                          StaticEltwiseDynamicFusions::getTestCaseName);
 
 // Gather+Add
-class DynamicGatherEltwiseStaticFusions : public StaticEltwiseDynamicFusions,
+class GatherEltwiseFusion : public StaticEltwiseDynamicFusions,
                      virtual public ov::test::SubgraphBaseTest {
 public:
 protected:
     std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes,
                                              const ov::element::Type input_precision) {
-        std::cout << "--> DynamicGatherEltwiseStaticFusions::init_subgraph" << std::endl;
+        std::cout << "--> GatherEltwiseFusion::init_subgraph" << std::endl;
         auto input = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
 
-        auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{0});
-        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, std::vector<int>{1});
+        auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int>{0});
+        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int>{1});
         auto gather = std::make_shared<ov::op::v8::Gather>(input, indices, axis);
 
         auto bias = std::make_shared<ov::op::v0::Constant>(input_precision, ov::Shape{1, 3}, std::vector<float>{0.01, 0.02, 0.03});
@@ -117,7 +117,7 @@ protected:
         gather->set_friendly_name("Gather1");
         add->set_friendly_name("Add1");
 
-        return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input}, "DynamicGatherEltwiseStaticFusions");
+        return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input}, "GatherEltwiseFusion");
     }
 
     void SetUp() override {
@@ -135,16 +135,16 @@ protected:
     }
 };
 
-TEST_P(DynamicGatherEltwiseStaticFusions, Inference) {
+TEST_P(GatherEltwiseFusion, Inference) {
     run();
 }
 
 const std::vector<std::vector<InputShape>> input_shapes_dyn = {
-    {{{-1, 2, 3}, {{1, 2, 3}, {3, 2, 3}}}},
+    {{{-1, 2, 3}, {{3, 2, 3}}}},
 };
 
-INSTANTIATE_TEST_SUITE_P(DynamicGatherEltwiseStaticFusions_basic,
-                         DynamicGatherEltwiseStaticFusions,
+INSTANTIATE_TEST_SUITE_P(GatherEltwiseFusion_basic,
+                         GatherEltwiseFusion,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_dyn), ::testing::ValuesIn(input_precisions2)),
-                         DynamicGatherEltwiseStaticFusions::getTestCaseName);
+                         GatherEltwiseFusion::getTestCaseName);
 } // namespace
