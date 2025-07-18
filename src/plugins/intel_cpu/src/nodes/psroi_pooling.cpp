@@ -85,20 +85,15 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
     const auto defPsroi = ov::as_type_ptr<const ov::op::v1::DeformablePSROIPooling>(op);
 
     noTrans = op->get_input_size() == 2;
-    if (op->get_input_shape(0).size() != 4) {
-        THROW_CPU_NODE_ERR("has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size()));
-    }
-    if (op->get_input_shape(1).size() != 2) {
-        THROW_CPU_NODE_ERR("has second input with incorrect rank: " + std::to_string(op->get_input_shape(1).size()));
-    }
-    if (!noTrans && op->get_input_shape(2).size() != 4) {
-        THROW_CPU_NODE_ERR("has third input with incorrect rank: " + std::to_string(op->get_input_shape(2).size()));
-    }
+    CPU_NODE_ASSERT(op->get_input_shape(0).size() == 4,
+                    "has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size()));
+    CPU_NODE_ASSERT(op->get_input_shape(1).size() == 2,
+                    "has second input with incorrect rank: " + std::to_string(op->get_input_shape(1).size()));
+    CPU_NODE_ASSERT(noTrans || op->get_input_shape(2).size() == 4,
+                    "has third input with incorrect rank: " + std::to_string(op->get_input_shape(2).size()));
 
     if (psroi) {
-        if (psroi->get_input_size() != 2) {
-            THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-        }
+        CPU_NODE_ASSERT(psroi->get_input_size() == 2, "has incorrect number of input/output edges!");
 
         mode = psroi->get_mode();
         if (mode == "average") {
@@ -117,9 +112,8 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
         pooledWidth = groupSize;
 
     } else if (defPsroi) {
-        if (defPsroi->get_input_size() != 2 && defPsroi->get_input_size() != 3) {
-            THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-        }
+        CPU_NODE_ASSERT(defPsroi->get_input_size() == 2 || defPsroi->get_input_size() == 3,
+                        "has incorrect number of input/output edges!");
 
         algorithm = Algorithm::PSROIPoolingBilinearDeformable;
 
@@ -228,20 +222,18 @@ void PSROIPooling::unpackParams(const BlockedMemoryDesc& srcDesc,
     size_t expectedOutBlockDimsSize = (outIsBlk ? 5 : 4);
     const auto& inBlkDims = srcDesc.getBlockDims();
     const auto& outBlkDims = dstDesc.getBlockDims();
-    if (inBlkDims.size() != expectedInBlockDimsSize) {
-        THROW_CPU_NODE_ERR("has unexpected size of blocking dims in input (given ",
-                           inBlkDims.size(),
-                           ", expected ",
-                           expectedInBlockDimsSize,
-                           ")");
-    }
-    if (outBlkDims.size() != expectedOutBlockDimsSize) {
-        THROW_CPU_NODE_ERR("has unexpected size of blocking dims in output (given ",
-                           outBlkDims.size(),
-                           ", expected ",
-                           expectedOutBlockDimsSize,
-                           ")");
-    }
+    CPU_NODE_ASSERT(inBlkDims.size() == expectedInBlockDimsSize,
+                    "has unexpected size of blocking dims in input (given ",
+                    inBlkDims.size(),
+                    ", expected ",
+                    expectedInBlockDimsSize,
+                    ")");
+    CPU_NODE_ASSERT(outBlkDims.size() == expectedOutBlockDimsSize,
+                    "has unexpected size of blocking dims in output (given ",
+                    outBlkDims.size(),
+                    ", expected ",
+                    expectedOutBlockDimsSize,
+                    ")");
 
     inBlockSize = (inpIsBlk ? srcDesc.getBlockDims()[4] : 1);
     outBlockSize = (outIsBlk ? dstDesc.getBlockDims()[4] : 1);
@@ -656,11 +648,10 @@ void PSROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    if ((inputPrec != ov::element::bf16 || outputPrec != ov::element::bf16) &&
-        (inputPrec != ov::element::f32 || outputPrec != ov::element::f32)) {
-        THROW_CPU_NODE_ERR("has different precisions on input: " + inputPrec.get_type_name() +
-                           " and output: " + outputPrec.get_type_name());
-    }
+    CPU_NODE_ASSERT((inputPrec == ov::element::bf16 && outputPrec == ov::element::bf16) ||
+                        (inputPrec == ov::element::f32 && outputPrec == ov::element::f32),
+                    "has different precisions on input: " + inputPrec.get_type_name() +
+                        " and output: " + outputPrec.get_type_name());
 
     PSROIPoolingContext ctx = {
         *this,
