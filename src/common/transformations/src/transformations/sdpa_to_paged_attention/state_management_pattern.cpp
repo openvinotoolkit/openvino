@@ -241,9 +241,10 @@ ov::pass::StateManagementPattern::StateManagementPattern(
     bool use_score_outputs,
     bool allow_cache_rotation,
     bool allow_score_aggregation,
+    bool allow_xattention,
     ParameterVector& rotated_block_indices_inputs_for_each_layer,
     ParameterVector& rotation_deltas_inputs_for_each_layer,
-    std::shared_ptr<op::v0::Parameter> model_rotation_trig_lut,
+    ParameterVector& xattention_threshold_inputs_for_each_layer,
     const std::map<std::string, std::shared_ptr<op::v0::Parameter>>& optional_model_wide_params) {
     MATCHER_SCOPE(StateManagementPattern);
 
@@ -353,7 +354,8 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                                           &score_results,
                                           &layer_index,
                                           &rotated_block_indices_inputs_for_each_layer,
-                                          &rotation_deltas_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
+                                          &rotation_deltas_inputs_for_each_layer,
+                                          &xattention_threshold_inputs_for_each_layer](ov::pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto real_q = pattern_map.at(q);
 
@@ -556,10 +558,13 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         } else {
             pa_arguments.insert(pa_arguments.end(), v0::Constant::create(element::i32, Shape{0}, {}));
         }
-
         OPENVINO_ASSERT(pa_arguments.size() == 14);
 
         if (allow_cache_rotation) {
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("model_rotation_trig_lut") != optional_model_wide_params.end(),
+                "No model_rotation_trig_lut input found. For using cache rotation, the model have to contain "
+                "an additional input (Parameter) called model_rotation_trig_lut.");
             auto rotated_block_indices = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
                                                  "rotated_block_indices." + std::to_string(layer_index - 1));
             auto rotation_deltas = setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1, -1}),
@@ -567,11 +572,44 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
             pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
             pa_arguments.insert(pa_arguments.begin() + 15, rotation_deltas);
-            pa_arguments.insert(pa_arguments.begin() + 16, model_rotation_trig_lut);
+            pa_arguments.insert(pa_arguments.begin() + 16, optional_model_wide_params.at("model_rotation_trig_lut"));
 
             rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
             rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);
         }
+        else {
+            auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, {});
+            auto rotation_deltas = v0::Constant::create(element::i32, Shape{0}, {});
+            pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
+            pa_arguments.insert(pa_arguments.begin() + 15, rotation_deltas);
+            pa_arguments.insert(pa_arguments.begin() + 16, v0::Constant::create(element::f32, Shape{0}, {}));
+        }
+
+        OPENVINO_ASSERT(pa_arguments.size() == 17);
+        if (allow_xattention) {
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("xattention_block_size") != optional_model_wide_params.end(),
+                "No xattention_block_size input found. For using XAttention, the model have to contain "
+                "an additional input (Parameter) called xattention_block_size.");
+            OPENVINO_ASSERT(
+                optional_model_wide_params.find("xattention_stride") != optional_model_wide_params.end(),
+                "No xattention_stride input found. For using XAttention, the model have to contain "
+                "an additional input (Parameter) called xattention_stride.");
+            auto xattention_threshold = setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}),
+                                                 "xattention_threshold." + std::to_string(layer_index - 1));
+            pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
+            pa_arguments.insert(pa_arguments.begin() + 18, optional_model_wide_params.at("xattention_block_size"));
+            pa_arguments.insert(pa_arguments.begin() + 19, optional_model_wide_params.at("xattention_stride"));
+            xattention_threshold_inputs_for_each_layer.push_back(xattention_threshold);
+        } else {
+            auto xattention_threshold = v0::Constant::create(element::f32, Shape{0}, {});
+            pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
+            pa_arguments.insert(pa_arguments.begin() + 18, v0::Constant::create(element::i32, Shape{}, {0}));
+            pa_arguments.insert(pa_arguments.begin() + 19, v0::Constant::create(element::i32, Shape{}, {0}));
+        }
+
+        OPENVINO_ASSERT(pa_arguments.size() == 20);
+
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 
