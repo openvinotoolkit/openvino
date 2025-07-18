@@ -10,6 +10,7 @@
 
 #include "cache/multi_cache.h"
 #include "config.h"
+#include "cpu_parallel.hpp"
 #include "dnnl_scratch_pad.h"
 #include "memory_control.hpp"
 #include "nodes/memory.hpp"
@@ -17,6 +18,7 @@
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "sub_memory_manager.hpp"
+#include "thread_pool_imp.hpp"
 #include "weights_cache.hpp"
 
 namespace ov::intel_cpu {
@@ -25,6 +27,7 @@ GraphContext::GraphContext(Config config,
                            WeightsSharing::Ptr w_cache,
                            bool isGraphQuantized,
                            ov::threading::IStreamsExecutor::Ptr streamExecutor,
+                           std::shared_ptr<CpuParallel> cpuParallel,
                            std::shared_ptr<SubMemoryManager> sub_memory_manager)
     : m_config(std::move(config)),
       m_weightsCache(std::move(w_cache)),
@@ -32,6 +35,7 @@ GraphContext::GraphContext(Config config,
       m_snippetsParamsCache(std::make_shared<MultiCache>(m_config.snippetsCacheCapacity)),
       m_isGraphQuantizedFlag(isGraphQuantized),
       m_streamExecutor(std::move(streamExecutor)),
+      m_cpuParallel(std::move(cpuParallel)),
       m_subMemoryManager(std::move(sub_memory_manager)),
 
       m_memoryStatesRegister(std::make_shared<node::MemoryStatesRegister>()),
@@ -51,6 +55,11 @@ GraphContext::GraphContext(Config config,
     for (int i = 0; i < numaNum; i++) {
         m_rtScratchPads.push_back(std::make_shared<DnnlScratchPad>(getEngine(), i));
     }
+
+    if (!m_cpuParallel) {
+        m_cpuParallel = std::make_shared<CpuParallel>(m_config.tbbPartitioner, 32);
+    }
+    m_threadPool = std::make_shared<ThreadPool>(m_cpuParallel);
 }
 
 const dnnl::engine& GraphContext::getEngine() {
