@@ -13,6 +13,7 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
+#ifdef NPU_LLVM_BACKEND
 namespace intel_npu {
 
 class IRGraph final : public IGraph {
@@ -82,3 +83,4 @@ private:
 };
 
 }  // namespace intel_npu
+#endif // NPU_LLVM_BACKEND
