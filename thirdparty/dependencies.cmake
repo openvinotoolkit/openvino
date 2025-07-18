@@ -447,10 +447,6 @@ if(ENABLE_OV_TF_LITE_FRONTEND)
         set(flatbuffers_COMPILER flatbuffers::flatc)
     else()
         add_subdirectory(thirdparty/flatbuffers EXCLUDE_FROM_ALL)
-
-        # used by NPU repo
-        set(flatc_COMMAND flatc)
-        set(flatc_TARGET flatc)
     endif()
 
     # set additional variables, used in other places of our cmake scripts
