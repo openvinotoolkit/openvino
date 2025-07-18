@@ -1729,7 +1729,7 @@ void ov::npuw::util::XARCH::permute021_f32_avx2(const ov::Tensor& t,
             size_t src_base = p * IN_ROWS * IN_COLS + r * IN_COLS;
             size_t dst_base = p * IN_COLS * IN_ROWS + r;
             size_t c = 0;
-            for (c = 0; c + blockSize - 1 < IN_COLS; c += blockSize) {
+            for (; c + blockSize - 1 < IN_COLS; c += blockSize) {
                 __m256 vec = _mm256_loadu_ps(src + src_base + c);
                 for (size_t k = 0; k < blockSize; ++k) {
                     dst[dst_base + (c + k) * IN_ROWS] = ((float*)&vec)[k];
@@ -1761,7 +1761,7 @@ void ov::npuw::util::XARCH::permute021_f16_avx2(const ov::Tensor& t,
             size_t src_base = p * IN_ROWS * IN_COLS + r * IN_COLS;
             size_t dst_base = p * IN_COLS * IN_ROWS + r;
             size_t c = 0;
-            for (c = 0; c + blockSize - 1 < IN_COLS; c += blockSize) {
+            for (; c + blockSize - 1 < IN_COLS; c += blockSize) {
                 __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_base + c));
                 alignas(32) uint16_t tmp[16];
                 _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
