@@ -307,10 +307,18 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
 
 void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    OPENVINO_DEBUG_ASSERT(classes_num_ ==
-                          static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
-    OPENVINO_DEBUG_ASSERT(4 * classes_num_ ==
-                          static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
+    OPENVINO_DEBUG_ASSERT(
+        classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]),
+        "Number of classes must match the second dimension of scores input, got ",
+        getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1],
+        " classes, but got ",
+        classes_num_);
+    OPENVINO_DEBUG_ASSERT(
+        4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]),
+        "Number of deltas must be 4 times the number of classes, got ",
+        4 * classes_num_,
+        " deltas, but got ",
+        getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]);
 
     const auto* boxes = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     const auto* deltas = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
@@ -375,7 +383,9 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
         indices_offset += n;
     }
 
-    OPENVINO_DEBUG_ASSERT(max_detections_per_image_ > 0, "max_detections_per_image_ must be greater than 0");
+    OPENVINO_DEBUG_ASSERT(max_detections_per_image_ > 0,
+                          "max_detections_per_image_ must be greater than 0, got ",
+                          max_detections_per_image_);
     if (total_detections_num > max_detections_per_image_) {
         std::partial_sort(conf_index_class_map.begin(),
                           conf_index_class_map.begin() + max_detections_per_image_,
