@@ -536,6 +536,15 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto score_aggregation_window = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+
+        auto rotated_block_indices = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+        auto rotation_deltas = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+        auto rotation_trig_lut = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_f32});
+
+        auto xattention_threshold = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_f32});
+        auto xattention_block_size = makeOP<v0::Parameter>({}, {{"shape", PartialShape{}}, el_type_i32});
+        auto xattention_stride = makeOP<v0::Parameter>({}, {{"shape", PartialShape{}}, el_type_i32});
+
         auto params = nodes_to_params({score_aggregation_window,
                                        max_context_len,
                                        block_indices_begins,

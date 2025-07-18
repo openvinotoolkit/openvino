@@ -74,6 +74,11 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
         interesting_input_patterns["rotation_deltas"] = r'^rotation_deltas\.[0-9]+';
         interesting_input_patterns["rotation_trig_lut"] = r'rotation_trig_lut';
 
+    if (allow_xattention):
+        interesting_input_patterns["xattention_threshold"] = r'^xattention_threshold\.[0-9]+';
+        interesting_input_patterns["xattention_block_size"] = r'^xattention_block_size';
+        interesting_input_patterns["xattention_stride"] = r'^xattention_stride';
+
     input_counters = {k: 0 for k in interesting_input_patterns}
     output_counters = {k: 0 for k in interesting_output_patterns}
 
@@ -94,6 +99,12 @@ def apply_transformation_and_compare_diffs(ov_model: ov.Model,
     if allow_score_aggregation:
         assert input_counters["score_aggregation_window"] == 1
         input_counters.pop("score_aggregation_window")
+
+    if allow_xattention:
+        assert input_counters["xattention_block_size"] == 1
+        input_counters.pop("xattention_block_size")
+        assert input_counters["xattention_stride"] == 1
+        input_counters.pop("xattention_stride")
 
     for input_id, count in input_counters.items():
         assert count == resulting_map["PagedAttentionExtension"], \
