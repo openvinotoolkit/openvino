@@ -1510,6 +1510,27 @@ TEST(convolution_f32_fw_gpu, basic_convolution3D_group2_dynamic) {
     }
 }
 
+TEST(convolution_f32_fw_gpu, basic_convolution1D_group16) {
+    tests::random_generator rg;
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ { 1, 192, 91 }, data_types::f32, format::bfyx });
+    auto weights = engine.allocate_memory({ {192, 1, 1, 3}, data_types::f32, format::bfyx });
+    set_values(input, rg.generate_random_1d<float>(input.use_count(), -1, 1));
+    set_values(weights, rg.generate_random_1d<float>(weights.use_count(), -1, 1));
+
+    topology topology(
+        input_layout("input", input->get_layout()),
+        data("weights", weights),
+        convolution("conv", input_info("input"), "weights", no_bias, 16, {1}, {3}, {3}, {3}, true));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    EXPECT_NO_THROW(network(engine, topology, config));
+    // No exception should be thrown in case of 1d grouped convolution.
+}
+
 TEST(convolution_f32_fw_gpu, three_convolutions_same_weights) {
     //  Filter : 1x1
     //  Input  : 2x2
