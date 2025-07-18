@@ -274,9 +274,7 @@ void IStreamsExecutor::Config::update_executor_config() {
         }
     }
 
-    if (_cpu_pinning || _cpu_reservation) {
-        reserve_available_cpus(_streams_info_table, _stream_processor_ids, _cpu_reservation ? CPU_USED : NOT_USED);
-    }
+    reserve_available_cpus(_streams_info_table, _stream_processor_ids, _cpu_reservation ? CPU_USED : NOT_USED);
 
     // Recaculate _streams, _threads and _threads_per_stream by _streams_info_table
     int num_streams = 0;
