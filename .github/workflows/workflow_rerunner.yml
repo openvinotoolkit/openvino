@@ -9,6 +9,7 @@ on:
       - "Android ARM64 with vcpkg"
       - "Android x64"
       - "Linux ARM64 (Ubuntu 22.04, Python 3.11)"
+      - "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)"
       - "Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)"
       - "Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)"
       - "Linux (Ubuntu 22.04, Python 3.11, Intel DPC\\+\\+ Compiler)"
