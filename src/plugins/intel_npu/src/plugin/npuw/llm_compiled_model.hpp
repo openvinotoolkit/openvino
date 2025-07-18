@@ -51,11 +51,12 @@ private:
     void implement_properties();
 
     void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
-    static std::pair<std::shared_ptr<LLMCompiledModel>, ov::npuw::s11n::WeightsContext> deserialize(
-        std::istream& stream,
-        const std::shared_ptr<const ov::IPlugin>& plugin,
-        const ov::AnyMap& properties,
-        const ov::npuw::s11n::CompiledContext& ctx);
+    // Prolong mmaped weights buffer life until the weights are allocated on the device
+    static std::tuple<std::shared_ptr<LLMCompiledModel>, ov::npuw::s11n::WeightsContext, ov::npuw::s11n::WeightsContext>
+    deserialize(std::istream& stream,
+                const std::shared_ptr<const ov::IPlugin>& plugin,
+                const ov::AnyMap& properties,
+                const ov::npuw::s11n::CompiledContext& ctx);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;

@@ -50,13 +50,7 @@ bool Const::operator==(const Const& other) const {
 
 ov::Tensor Const::eval() const {
     if (m_node) {
-        // Note: during regular compilation as well as import,
-        // the weights (Constants) have long enough lifetime (usually) to
-        // reallocate them on the device before the inference.
-        // Here we don't claim the ownership of the Constant,
-        // so it's important from the object calling .eval() to handle
-        // ownership by themselves.
-        return ov::npuw::util::tensor_from_const(m_node);
+        return ov::npuw::util::copy_tensor_from_const(m_node);
     }
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");

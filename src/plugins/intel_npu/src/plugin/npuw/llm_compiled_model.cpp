@@ -1146,7 +1146,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     read(stream, is_weightless);
 
     auto read_and_finalize_banks = [&](std::istream& model_stream,
-                                       const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+                                       const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                       ov::npuw::s11n::WeightsContext& ctx_ret1,
+                                       ov::npuw::s11n::WeightsContext& ctx_ret2) {
         // Deserialize weights bank name
         std::string bank_name;
         read(model_stream, bank_name);
@@ -1158,7 +1160,13 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             compiled->m_prefill_compiled->m_weights_bank = bank;
 
             compiled->m_kvcache_compiled->finalize_weights_bank();
+            // Note: It's very important to drop WeightsContext here!
+            // We might be using mmaped weights file. Prefill and kvcache model use
+            // the same weights but different mmaped weights objects, so we need to drop
+            // their respective mmaped weights object after the bank is finalized.
+            ctx_ret1 = {};
             compiled->m_prefill_compiled->finalize_weights_bank();
+            ctx_ret2 = {};
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -1173,11 +1181,13 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
     if (!encrypted) {
         CompiledContext ctx(false, nullptr, nullptr);
-        ov::npuw::s11n::WeightsContext ctx_ret;
+        // Prolong mmaped weights buffer life until the weights are allocated on the device
+        ov::npuw::s11n::WeightsContext ctx_ret1, ctx_ret2;
         std::shared_ptr<ov::npuw::LLMCompiledModel> compiled_model;
-        std::tie(compiled_model, ctx_ret) = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
+        std::tie(compiled_model, ctx_ret1, ctx_ret2) =
+            ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
-        read_and_finalize_banks(stream, compiled_model);
+        read_and_finalize_banks(stream, compiled_model, ctx_ret1, ctx_ret2);
         LOG_INFO("Done.");
         return compiled_model;
     }
@@ -1191,29 +1201,31 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
     LOG_INFO("Decryption will be done via the function provided.");
 
     std::shared_ptr<ov::npuw::LLMCompiledModel> compiled_model = nullptr;
-    ov::npuw::s11n::WeightsContext ctx_ret;
+    // Prolong mmaped weights buffer life until the weights are allocated on the device
+    ov::npuw::s11n::WeightsContext ctx_ret1, ctx_ret2;
     // Model is encrypted
     if (is_weightless) {
         std::string encrypted_str;
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
         CompiledContext ctx(false, nullptr, nullptr);
-        std::tie(compiled_model, ctx_ret) =
+        std::tie(compiled_model, ctx_ret1, ctx_ret2) =
             ov::npuw::LLMCompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
         CompiledContext ctx(true, nullptr, enc_callbacks.decrypt);
-        std::tie(compiled_model, ctx_ret) = ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
+        std::tie(compiled_model, ctx_ret1, ctx_ret2) =
+            ov::npuw::LLMCompiledModel::deserialize(stream, plugin, properties, ctx);
     }
 
     NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
-    read_and_finalize_banks(stream, compiled_model);
+    read_and_finalize_banks(stream, compiled_model, ctx_ret1, ctx_ret2);
 
     LOG_INFO("Done.");
 
     return compiled_model;
 }
 
-std::pair<std::shared_ptr<ov::npuw::LLMCompiledModel>, ov::npuw::s11n::WeightsContext>
+std::tuple<std::shared_ptr<ov::npuw::LLMCompiledModel>, ov::npuw::s11n::WeightsContext, ov::npuw::s11n::WeightsContext>
 ov::npuw::LLMCompiledModel::deserialize(std::istream& stream,
                                         const std::shared_ptr<const ov::IPlugin>& plugin,
                                         const ov::AnyMap& properties,
@@ -1251,30 +1263,31 @@ ov::npuw::LLMCompiledModel::deserialize(std::istream& stream,
         // Deserialize CompiledModels
         // Note: no need to pass any encryption here as it's done in import_model()
         CompiledContext enc_ctx(false, nullptr, nullptr);
-        ov::npuw::s11n::WeightsContext ret_ctx;
-        std::tie(compiled->m_kvcache_compiled, ret_ctx) =
+        // Prolong mmaped weights buffer life until the weights are allocated on the device
+        ov::npuw::s11n::WeightsContext ret_ctx1, ret_ctx2;
+        std::tie(compiled->m_kvcache_compiled, ret_ctx1) =
             ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
-        // Note both contexts have the same original weights, can safely rewrite it
-        std::tie(compiled->m_prefill_compiled, ret_ctx) =
+        std::tie(compiled->m_prefill_compiled, ret_ctx2) =
             ov::npuw::CompiledModel::deserialize(model_stream, plugin, properties, enc_ctx);
 
-        return std::make_pair(compiled, ret_ctx);
+        return std::make_tuple(compiled, ret_ctx1, ret_ctx2);
     };
 
     std::shared_ptr<ov::npuw::LLMCompiledModel> compiled = nullptr;
-    ov::npuw::s11n::WeightsContext ret_ctx;
+    // Prolong mmaped weights buffer life until the weights are allocated on the device
+    ov::npuw::s11n::WeightsContext ret_ctx1, ret_ctx2;
     if (ctx.encrypted) {
         std::string encrypted_string;
         read(stream, encrypted_string);
         std::istringstream decrypted_stream(std::move(ctx.decrypt(encrypted_string)));
-        std::tie(compiled, ret_ctx) = read_model_meta(decrypted_stream);
+        std::tie(compiled, ret_ctx1, ret_ctx2) = read_model_meta(decrypted_stream);
     } else {
-        std::tie(compiled, ret_ctx) = read_model_meta(stream);
+        std::tie(compiled, ret_ctx1, ret_ctx2) = read_model_meta(stream);
     }
 
     NPUW_ASSERT(compiled && "Couldn't create NPUW compiled model!");
 
-    return std::make_pair(compiled, ret_ctx);
+    return std::make_tuple(compiled, ret_ctx1, ret_ctx2);
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model() const {

@@ -142,16 +142,7 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
                 new_closure.push_back(fcall._closure[i]);
             } else {
                 bool weight_to_unpack = m.weights_to_unpack.count(i) > 0;
-                if (weight_to_unpack) {
-                    auto tensor_from_const = fcall._lazy_closure[i].eval();
-                    // Note: LazyTensor doesn't own the memory and since we are detaching the original Constant
-                    // below, it's important to get ownership of that memory, to use it later during the inference
-                    ov::Tensor own_tensor(tensor_from_const.get_element_type(), tensor_from_const.get_shape());
-                    tensor_from_const.copy_to(own_tensor);
-                    new_closure.push_back(own_tensor);
-                } else {
-                    new_closure.push_back(fcall._closure[i]);
-                }
+                new_closure.push_back(weight_to_unpack ? fcall._lazy_closure[i].eval() : fcall._closure[i]);
                 // Note: It's important here to manually detach LazyTensor since it's not going to be present in the
                 // bank - thus left in memory
                 if (weight_to_unpack) {
@@ -163,28 +154,11 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         auto scale_iter = m.scale_remap.find(i);
         auto zerop_iter = m.zerop_remap.find(i);
 
-        if (scale_iter != m.scale_remap.end()) {
-            auto tensor_from_const = fcall._lazy_closure[scale_iter->second].eval();
-            // Note: LazyTensor doesn't own the memory and since we are detaching the original Constant
-            // below, it's important to get ownership of that memory, to use it later during the inference
-            ov::Tensor own_tensor(tensor_from_const.get_element_type(), tensor_from_const.get_shape());
-            tensor_from_const.copy_to(own_tensor);
-            new_scales.push_back(own_tensor);
-        } else {
-            new_scales.push_back(ov::Tensor());
-        }
-
+        new_scales.push_back(scale_iter != m.scale_remap.end() ? fcall._lazy_closure[scale_iter->second].eval()
+                                                               : ov::Tensor());
         // Check for asymmetric zero points and add them to new_zerops
-        if (zerop_iter != m.zerop_remap.end()) {
-            auto tensor_from_const = fcall._lazy_closure[zerop_iter->second].eval();
-            // Note: LazyTensor doesn't own the memory and since we are detaching the original Constant
-            // below, it's important to get ownership of that memory, to use it later during the inference
-            ov::Tensor own_tensor(tensor_from_const.get_element_type(), tensor_from_const.get_shape());
-            tensor_from_const.copy_to(own_tensor);
-            new_zerops.push_back(own_tensor);
-        } else {
-            new_zerops.push_back(m.zero_points[i]);
-        }
+        new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
+                                                               : m.zero_points[i]);
 
         // Note: It's important here to manually detach LazyTensor since it's not going to be present in the bank - thus
         // left in memory

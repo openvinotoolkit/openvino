@@ -77,6 +77,7 @@ private:
     void report_io() const;
 
     void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
+    // Prolong mmaped weights buffer life until the weights are allocated on the device
     static std::pair<std::shared_ptr<ov::npuw::CompiledModel>, ov::npuw::s11n::WeightsContext> deserialize(
         std::istream& stream,
         const std::shared_ptr<const ov::IPlugin>& plugin,
