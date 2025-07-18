@@ -40,7 +40,7 @@ namespace intel_npu {
 
 void IRGraph::MemRefType::setSize( const intel_npu::IODescriptor& desc) {
     // Note: check difference between shape from compiler and shape from IR.
-    auto& shape = desc.shapeFromCompiler.get_shape();
+    const auto& shape = desc.shapeFromCompiler.get_shape();
     for (size_t i = 0; i < shape.size(); ++i)
         sizes[i] = shape[i];
 }
