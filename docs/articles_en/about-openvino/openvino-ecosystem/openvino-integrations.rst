@@ -6,12 +6,6 @@ OpenVINO™ Integrations
    :description: Check a list of integrations between OpenVINO and other Deep Learning solutions.
 
 
-.. toctree::
-   :maxdepth: 1
-   :hidden:
-
-   openvino-project/openvino-test-drive
-
 OpenVINO has been adopted by multiple AI projects in various areas. For an extensive list of
 community-based projects involving OpenVINO, see the
 `Awesome OpenVINO repository <https://github.com/openvinotoolkit/awesome-openvino>`__.
@@ -258,11 +252,10 @@ community-based projects involving OpenVINO, see the
 
       | Build computer vision models faster with less data using Intel® Geti™. It streamlines labeling, training, and deployment, exporting models optimized for OpenVINO.
       | Benefits:
-      | - Train with less data and deploy faster.
-      | - Export OpenVINO-compatible models for efficient edge inference.
+      | - Train with less data and deploy models faster.
    .. grid-item::
 
-      * `Overview <https://docs.geti.intel.com/>`__
+      * `Intel® Geti Overview <https://docs.geti.intel.com/>`__
       * `Documentation <https://docs.geti.intel.com/docs/user-guide/getting-started/introduction>`__
       * `Tutorials <https://docs.geti.intel.com/docs/user-guide/getting-started/use-geti/tutorials>`__
 .. = 8 ========================================================================================
@@ -278,15 +271,15 @@ community-based projects involving OpenVINO, see the
 
       | Use Intel® OpenVINO™ in AI Playground to optimize and run AI models efficiently on Intel 
         CPUs and Arc GPUs, enabling local image generation, editing, and video processing. It 
-       supports OpenVINO-optimized models like TinyLlama, Mistral 7B, and Phi-3 mini—no conversion 
+       supports OpenVINO-optimized models like TinyLlama, Mistral 7B, and Phi-3 mini — no conversion 
        needed.
       | Benefits:
       | - Easily set up pre-optimized models.
       | - Run faster, hardware-accelerated inference with OpenVINO.
    .. grid-item::
 
-      * `Overview <https://www.intel.com/content/www/us/en/products/docs/discrete-gpus/arc/software/ai-playground.html>`__
-      * `GitHub  <https://github.com/intel/AI-Playground>`__
+      * `AI Playground Overview <https://www.intel.com/content/www/us/en/products/docs/discrete-gpus/arc/software/ai-playground.html>`__
+      * `GitHub Repository <https://github.com/intel/AI-Playground>`__
       * `User Guide <https://github.com/intel/ai-playground/blob/main/AI%20Playground%20Users%20Guide.pdf>`__
 .. = 9 ========================================================================================
 
@@ -301,13 +294,13 @@ community-based projects involving OpenVINO, see the
 
       | Run local AI assistants with Intel® AI Assistant Builder using OpenVINO-optimized models 
         like Phi-3 and Qwen2.5. Build secure, efficient assistants customized for your data 
-        and workflows—no cloud required.
+        and workflows — no cloud required.
       | Benefits:
       | - Build custom assistants with agentic workflows and knowledge bases.
       | - Keep data secure by running fully local.
    .. grid-item::
 
-      * `GitHub <https://github.com/intel/intel-ai-assistant-builder>`__
+      * `GitHub Repository <https://github.com/intel/intel-ai-assistant-builder>`__
 
 
 

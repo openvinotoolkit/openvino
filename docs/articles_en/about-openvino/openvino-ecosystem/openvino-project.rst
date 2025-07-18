@@ -5,6 +5,11 @@ OpenVINO™ Tools Overview
 .. meta::
    :description: Check an overview of the most interesting components of the OpenVINO™ project.
 
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   openvino-project/openvino-test-drive
 
 This page provides an overview of the most noteworthy tools and components for AI developers,
 hosted in repositories under the OpenVINO project:
