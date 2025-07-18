@@ -74,7 +74,7 @@ inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
 }
 
 bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
-    if (one_of(algorithm,
+    if (any_of(algorithm,
                Algorithm::EltwiseSqrt,
                Algorithm::EltwiseDivide,
                Algorithm::EltwiseRelu,

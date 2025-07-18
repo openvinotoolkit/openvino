@@ -36,11 +36,11 @@ bool GemmCopyBKernelKaiConfig::operator==(const GemmCopyBKernelKaiConfig& rhs) c
 }
 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
-    return !ov::snippets::utils::one_of(0ul, m_N, m_K) || is_empty();
+    return !ov::snippets::utils::any_of(0ul, m_N, m_K) || is_empty();
 }
 
 bool GemmCopyBKernelKaiConfig::is_empty() const {
-    return everyone_is(0ul, m_N, m_K);
+    return all_of(0ul, m_N, m_K);
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -58,7 +58,7 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
 void GemmCopyBKernelKaiConfig::update(size_t N, size_t K) {
     // If one of the dims is zero, it means that GemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (ov::snippets::utils::one_of(0ul, N, K)) {
+    if (ov::snippets::utils::any_of(0ul, N, K)) {
         m_N = 0;
         m_K = 0;
     } else {

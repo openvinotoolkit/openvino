@@ -41,8 +41,9 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
             return false;
         }
 
-        if (groups == data_shape[channel_axis].get_length() &&
-            groups == output_shape[channel_axis].get_length()) {  // depthwise case
+        if (all_of(groups,
+                   data_shape[channel_axis].get_length(),
+                   output_shape[channel_axis].get_length())) {  // depthwise case
             return false;
         }
 

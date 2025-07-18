@@ -59,7 +59,7 @@ public:
     }
 
     bool IsDynamic() const {
-        return one_of(status, Status::ReadyDynamic, Status::ReadyDynamicSeq);
+        return any_of(status, Status::ReadyDynamic, Status::ReadyDynamicSeq);
     }
 
     bool IsReady() const {

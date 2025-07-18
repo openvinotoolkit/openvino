@@ -442,7 +442,7 @@ const MemoryDesc& Edge::getOutputDesc() const {
 }
 
 const MemoryDesc& Edge::getOriginalDesc() const {
-    OPENVINO_ASSERT(!one_of(status, Status::Validated, Status::Allocated),
+    OPENVINO_ASSERT(none_of(status, Status::Validated, Status::Allocated),
                     "Desc of an Allocated edge ",
                     *this,
                     " must be accessed through the memory object");
@@ -498,7 +498,7 @@ EdgePtr Edge::getSharedEdge([[maybe_unused]] std::nothrow_t nothrow_tag) const {
 }
 
 void Edge::init() {
-    if (status != Status::NeedAllocation && status != Status::Uninitialized) {
+    if (none_of(status, Status::NeedAllocation, Status::Uninitialized)) {
         return;
     }
     DEBUG_LOG(*this);
