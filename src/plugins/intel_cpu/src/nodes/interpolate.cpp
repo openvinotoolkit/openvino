@@ -4339,7 +4339,7 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
       outputPrec(interpAttrs.outPrc),
       srcDataSize(interpAttrs.inPrc.size()),
       dstDataSize(interpAttrs.outPrc.size()),
-      dataRank(srcDims.size()),
+      dataRank(srcDimPad5d.size()),
       spatialDimSize(getSpatialDimsNum(dataScales)) {
     switch (mode) {
     case InterpolateMode::nearest: {
