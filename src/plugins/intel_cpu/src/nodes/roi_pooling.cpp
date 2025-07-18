@@ -442,29 +442,23 @@ ROIPooling::ROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::
 }
 
 void ROIPooling::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 2, "has incorrect number of input edges: ", getParentEdges().size());
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges: ", getChildEdges().size());
 
-    if (getInputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(0).getRank() == 4,
+                    "doesn't support 0th input with rank: ",
+                    getInputShapeAtPort(0).getRank());
 
-    if (getInputShapeAtPort(1).getRank() != 2) {
-        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(1).getRank() == 2,
+                    "doesn't support 1st input with rank: ",
+                    getInputShapeAtPort(1).getRank());
 
-    if (getOutputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getOutputShapeAtPort(0).getRank() == 4,
+                    "doesn't support output with rank: ",
+                    getOutputShapeAtPort(0).getRank());
 
     const auto& dims = getInputShapeAtPort(1).getDims();
-    if (dims[1] != 5) {
-        THROW_CPU_NODE_ERR("has invalid shape on 1st input: [", dims[0], ",", dims[1], "]");
-    }
+    CPU_NODE_ASSERT(dims[1] == 5, "has invalid shape on 1st input: [", dims[0], ",", dims[1], "]");
 }
 
 void ROIPooling::initSupportedPrimitiveDescriptors() {
@@ -505,9 +499,7 @@ void ROIPooling::initSupportedPrimitiveDescriptors() {
 
 void ROIPooling::createPrimitive() {
     auto* selectedPD = getSelectedPrimitiveDescriptor();
-    if (!selectedPD) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPD, "doesn't have primitive descriptors.");
 
     refParams.c_block = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     ;
@@ -533,7 +525,7 @@ void ROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         const auto& dstMemory = getChildEdgeAt(0)->getMemory();
         execPtr->exec(srcMemory0, srcMemory1, dstMemory);
     } else {
-        THROW_CPU_NODE_ERR("Primitive wasn't created");
+        CPU_NODE_THROW("Primitive wasn't created");
     }
 }
 
@@ -545,18 +537,10 @@ void ROIPooling::prepareParams() {
     const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
     const auto& srcMemPtr1 = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr0 || !srcMemPtr0->isDefined()) {
-        THROW_CPU_NODE_ERR("Input memory is undefined.");
-    }
-    if (!srcMemPtr1 || !srcMemPtr1->isDefined()) {
-        THROW_CPU_NODE_ERR("Input memory is undefined.");
-    }
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination is undefined.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(srcMemPtr0 && srcMemPtr0->isDefined(), "Input memory is undefined.");
+    CPU_NODE_ASSERT(srcMemPtr1 && srcMemPtr1->isDefined(), "Input memory is undefined.");
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination is undefined.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor is not set.");
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
@@ -600,10 +584,7 @@ public:
     }
 
     void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
-        if (!roi_pooling_kernel) {
-            OPENVINO_THROW("Could not execute. Kernel for RoiPooling node was not compiled.");
-        }
-
+        OPENVINO_ASSERT(roi_pooling_kernel, "Could not execute. Kernel for RoiPooling node was not compiled.");
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];
         auto dst_strides = dst.getDescWithType<BlockedMemoryDesc>()->getStrides();
