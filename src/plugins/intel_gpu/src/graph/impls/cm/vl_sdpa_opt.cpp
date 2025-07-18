@@ -22,8 +22,6 @@ constexpr auto get_vlsdpa_build_options() {
 
 struct VLSDPARuntimeParams : public ImplRuntimeParams {
     std::vector<int32_t> cu_seqlens;
-
-    VLSDPARuntimeParams(std::vector<int32_t> seq) : cu_seqlens(std::move(seq)) {}
 };
 
 class VLSDPAGenerator : public KernelGenerator {
@@ -166,7 +164,9 @@ public:
 
     Stage::Ptr vl_sdpa = make_stage<VLSDPAGenerator>();
 
-    VLSDPAOptImpl() : PrimitiveImplOCL(VLSDPAOptImplementationManager::get_type_info_static()) {}
+    VLSDPAOptImpl() : PrimitiveImplOCL(VLSDPAOptImplementationManager::get_type_info_static()) {
+        m_rt_params = std::make_unique<VLSDPARuntimeParams>();
+    }
     VLSDPAOptImpl(const program_node& node, const RuntimeParams& params) : VLSDPAOptImpl() {
         add_stage(vl_sdpa, params);
     }
@@ -175,14 +175,13 @@ public:
         return make_deep_copy<VLSDPAOptImpl>(this);
     }
 
-    cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+    void update_rt_params(const cldnn::primitive_inst& instance) override {
+        update_stages_flags(instance);
+
+        auto rt_params = static_cast<VLSDPARuntimeParams*>(m_rt_params.get());
         cldnn::stream& stream = instance.get_network().get_stream();
-        auto& vlsdpa_instance = reinterpret_cast<typed_primitive_inst<cldnn::vl_sdpa>&>(instance);
-        auto cu_seqlens = vl_sdpa_inst::get_mask_seqlens_from_memory(vlsdpa_instance.cu_seqlens_memory_ptr(), stream);
-
-        m_rt_params = std::make_unique<VLSDPARuntimeParams>(cu_seqlens);
-
-        return PrimitiveImplCM::execute(events, instance);
+        const auto& vlsdpa_instance = dynamic_cast<const typed_primitive_inst<cldnn::vl_sdpa>&>(instance);
+        rt_params->cu_seqlens = std::move(vl_sdpa_inst::get_mask_seqlens_from_memory(vlsdpa_instance.cu_seqlens_memory_ptr(), stream));
     }
 };
 
