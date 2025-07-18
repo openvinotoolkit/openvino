@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "loop.hpp"
 #include "loop_inst.h"
 #include "registry/implementation_map.hpp"
 #include "register.hpp"
@@ -303,6 +304,11 @@ struct loop_impl : typed_primitive_impl<loop> {
 private:
     std::vector<cldnn::loop::backedge_mapping> _back_edges;
 };
+
+std::unique_ptr<primitive_impl> LoopImplementationManager::create_impl(const program_node& node, const kernel_impl_params& params) const {
+    assert(node.is_type<loop>());
+    return loop_impl::create(static_cast<const loop_node&>(node), params);
+}
 
 namespace detail {
 attach_loop_common::attach_loop_common() {
