@@ -168,6 +168,8 @@ void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const o
 
 constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
 
+constexpr std::size_t kStartOutputKVCacheLayers = 1;
+
 }  // anonymous namespace
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
@@ -243,10 +245,9 @@ void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
 
 void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     const auto& prefill_compiled = m_prefill_request->get_compiled_model();
-    const std::size_t kStartOutputKVCacheLayers = 1u;
 
-    for (std::size_t i = 0; i < prefill_compiled->outputs().size() - 1; ++i) {
-        const auto& output_name = prefill_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+    for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
+        const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
         if (m_prefill_in_ports.find(input_name) == m_prefill_in_ports.end()) {
             LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
@@ -277,6 +278,9 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
     auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids"));
 
     int64_t remaining_prompts = input_prompt_len;
+    if (input_prompt_len >= kvcache_desc.total_size) {
+        OPENVINO_THROW("Input prompt length (" + std::to_string(input_prompt_len) + ") exceeds maximum kv-cache size (" + std::to_string(kvcache_desc.total_size) + ")");
+    }
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -286,7 +290,12 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
         // Populate the attention mask for the present chunk
         // For the already processed tokens, they will be added into the attention mask after inference call
         size_t last_chunk_offset = attn_mask_in_tensor->get_size() - chunk_prompt_len;
-        fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
+        if (current_prompts_len < chunk_prompt_len) {
+            // We will populate current_prompts_len on the right side of attention mask for the processing tokens
+            // If the current prompt length is smaller than the chunk prompt length,
+            // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
+            fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
+        }
         std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
@@ -307,20 +316,15 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
-        if (kvcache_desc.num_stored_tokens >= kvcache_desc.total_size) {
-            OPENVINO_THROW("KV-Cache is full.");
-        }
-
         if (remaining_prompts <= 0) {
             LOG_DEBUG("All prompts have been prefilled in chunks");
             break;
         }
 
-        const std::size_t kStartOutputKVCacheLayers = 1u;
         const auto& prefill_compiled = m_prefill_request->get_compiled_model();
         // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-        for (std::size_t i = 0; i < prefill_compiled->outputs().size() - 1; ++i) {
-            const auto& output_name = prefill_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+        for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
+            const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
             const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
             if (m_prefill_in_ports.find(input_name) == m_prefill_in_ports.end()) {
                 LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
@@ -401,11 +405,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
     if (m_need_copy_kvcache) {
         LOG_DEBUG("Copying kv-cache from prefill to generate model.");
-        const std::size_t kStartOutputKVCacheLayers = 1u;
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
         // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-        for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
-            const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+        for (std::size_t i = kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
+            const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
             auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
             const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
@@ -506,11 +509,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     }
 
     LOG_DEBUG("Write KV-cache for the new token to the correct input position for next iteration.");
-    const std::size_t kStartOutputKVCacheLayers = 1u;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-    for (std::size_t i = 0; i < kvcache_compiled->outputs().size() - 1; ++i) {
-        const auto& output_name = kvcache_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
+    for (std::size_t i = kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
+        const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
         if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
             LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
