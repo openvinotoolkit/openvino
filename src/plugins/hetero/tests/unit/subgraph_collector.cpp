@@ -614,3 +614,55 @@ TEST_F(SubgraphCollectorTest, merge_independent_submodel) {
         ov::hetero::merge_submodels(actual_submodels, actual_mapping_info._submodels_input_to_prev_output));
     ASSERT_EQ(1, actual_submodels.size());
 }
+
+TEST_F(SubgraphCollectorTest, submodel_with_convert_constant_inputs) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{12});
+    param->set_friendly_name("input");
+    auto const_value_f16 = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{12}, {1});
+    const_value_f16->set_friendly_name("const_val_f16");
+    auto const_value = std::make_shared<ov::op::v0::Convert>(const_value_f16, ov::element::f32);
+    const_value->set_friendly_name("const_val");
+
+    auto add = std::make_shared<ov::op::v1::Add>(param, const_value);
+    add->set_friendly_name("add");
+    auto const_value1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{12}, {1});
+    const_value1->set_friendly_name("const_val1");
+    auto add1 = std::make_shared<ov::op::v1::Add>(add, const_value1);
+    add1->set_friendly_name("add1");
+
+    auto add2 = std::make_shared<ov::op::v1::Add>(add1, const_value);
+    add2->set_friendly_name("add2");
+    auto const_value2 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{12}, {1});
+    const_value2->set_friendly_name("const_val2");
+    auto add3 = std::make_shared<ov::op::v1::Add>(add2, const_value2);
+    add3->set_friendly_name("add3");
+    auto result = std::make_shared<ov::op::v0::Result>(add3);
+    result->set_friendly_name("res");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    const std::map<std::string, std::string> supported_ops_with_affinity = {
+        {"input", "MOCK.0"},
+        {"const_val_f16", "MOCK.0"},
+        {"const_val", "MOCK.0"},
+        {"add", "MOCK.0"},
+        {"const_val1", "MOCK.0"},
+        {"add1", "MOCK.0"},
+        {"add2", "MOCK.1"},
+        {"const_val2", "MOCK.1"},
+        {"add3", "MOCK.1"},
+        {"res", "MOCK.1"},
+    };
+
+    auto supported_ops = supported_ops_with_affinity;
+    ov::hetero::SubgraphsVector ordered_subgraphs;
+    ov::hetero::SubgraphsMappingInfo actual_mapping_info;
+    std::tie(ordered_subgraphs, actual_mapping_info) = get_model_subgraphs(model, supported_ops, true, false);
+    for (const auto& subgraph : ordered_subgraphs) {
+        std::set<std::string> node_set;
+        auto sub_model = std::make_shared<ov::Model>(subgraph._results, subgraph._sinks, subgraph._parameters);
+        for (auto& node : sub_model->get_ordered_ops()) {
+            node_set.insert(node->get_friendly_name());
+        }
+        OPENVINO_ASSERT(node_set.count("const_val_f16"));
+        OPENVINO_ASSERT(node_set.count("const_val"));
+    }
+}
