@@ -109,39 +109,39 @@ public:
     }
 
     NodePtr getInputNodeByIndex(std::size_t index) {
-        if (index >= inputNodesMap.size()) {
+        if (index >= inputNodes.size()) {
             return nullptr;
         }
-        return inputNodesMap[index];
+        return inputNodes[index];
     }
 
     NodePtr getOutputNodeByIndex(std::size_t index) {
-        if (index >= outputNodesMap.size()) {
+        if (index >= outputNodes.size()) {
             return nullptr;
         }
-        return outputNodesMap[index];
+        return outputNodes[index];
     }
 
     NodeConstPtr getInputNodeByIndex(std::size_t index) const {
-        if (index >= inputNodesMap.size()) {
+        if (index >= inputNodes.size()) {
             return nullptr;
         }
-        return inputNodesMap[index];
+        return inputNodes[index];
     }
 
     NodeConstPtr getOutputNodeByIndex(std::size_t index) const {
-        if (index >= outputNodesMap.size()) {
+        if (index >= outputNodes.size()) {
             return nullptr;
         }
-        return outputNodesMap[index];
+        return outputNodes[index];
     }
 
     size_t inputsNumber() const {
-        return inputNodesMap.size();
+        return inputNodes.size();
     }
 
     size_t outputsNumber() const {
-        return outputNodesMap.size();
+        return outputNodes.size();
     }
 
     dnnl::engine getEngine() const {
@@ -290,8 +290,8 @@ protected:
     void ForgetGraphData() {
         status = Status::NotReady;
 
-        inputNodesMap.clear();
-        outputNodesMap.clear();
+        inputNodes.clear();
+        outputNodes.clear();
         graphNodes.clear();
         graphEdges.clear();
         m_executableSyncNodesInds.clear();
@@ -360,8 +360,8 @@ private:
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
 
-    std::vector<NodePtr> inputNodesMap;
-    std::vector<NodePtr> outputNodesMap;
+    std::vector<NodePtr> inputNodes;
+    std::vector<NodePtr> outputNodes;
 
     OutputMemoryBlocks m_outputNodesMemBlocks;
 

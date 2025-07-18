@@ -167,10 +167,10 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
     };
 
     auto create_ngraph_node = [&](const NodePtr& node) {
-        auto found_input = std::find(graph.inputNodesMap.begin(), graph.inputNodesMap.end(), node);
-        const auto is_input = found_input != graph.inputNodesMap.end();
-        auto found_output = std::find(graph.outputNodesMap.begin(), graph.outputNodesMap.end(), node);
-        const auto is_output = found_output != graph.outputNodesMap.end();
+        auto found_input = std::find(graph.inputNodes.begin(), graph.inputNodes.end(), node);
+        const auto is_input = found_input != graph.inputNodes.end();
+        auto found_output = std::find(graph.outputNodes.begin(), graph.outputNodes.end(), node);
+        const auto is_output = found_output != graph.outputNodes.end();
 
         // The node has no consumer and is not an output.
         // Should be hold in other irregular way.
@@ -182,11 +182,11 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
             const auto& desc = node->getChildEdgeAt(0)->getMemory().getDesc();
             auto param = std::make_shared<ov::op::v0::Parameter>(desc.getPrecision(), desc.getShape().toPartialShape());
             return_node = param;
-            const auto input_index = is_input ? std::distance(graph.inputNodesMap.begin(), found_input) : -1;
+            const auto input_index = is_input ? std::distance(graph.inputNodes.begin(), found_input) : -1;
             paramsMap[input_index] = param;
         } else if (is_output) {
             auto result = std::make_shared<ov::op::v0::Result>(get_inputs(node).back());
-            const auto output_index = is_output ? std::distance(graph.outputNodesMap.begin(), found_output) : -1;
+            const auto output_index = is_output ? std::distance(graph.outputNodes.begin(), found_output) : -1;
             resultsMap[output_index] = result;
             return_node = result;
         } else {
