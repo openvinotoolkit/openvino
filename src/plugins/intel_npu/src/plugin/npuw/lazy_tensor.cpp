@@ -85,13 +85,12 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             auto dst_data = m_read_from_bin.data<dst_type>();
             ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, m_read_from_bin.get_size());
         } else {
-            m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
-            std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
+            m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape, ctx.weights->get_ptr(m_offset));
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
         NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-        m_read_from_bin = ov::npuw::util::copy_tensor_from_const(it->second);
+        m_read_from_bin = ov::npuw::util::tensor_from_const(it->second);
         NPUW_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size && m_read_from_bin.get_shape() == m_cached_shape &&
                     m_read_from_bin.get_element_type() == m_cached_type);
     }
