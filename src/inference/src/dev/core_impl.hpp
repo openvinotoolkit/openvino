@@ -347,6 +347,14 @@ public:
                                                const ov::SoPtr<ov::IRemoteContext>& context,
                                                const ov::AnyMap& config) const override;
 
+    ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& model,
+                                               const std::string& device_name = {},
+                                               const ov::AnyMap& config = {}) const override;
+
+    ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& modelStream,
+                                               const ov::SoPtr<ov::IRemoteContext>& context,
+                                               const ov::AnyMap& config) const override;
+
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const std::string& device_name,
                                     const ov::AnyMap& config) const override;
