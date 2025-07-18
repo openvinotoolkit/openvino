@@ -147,6 +147,9 @@ static const char inference_precision_message[] =
     "Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision "
     "CPU:bf16,GPU:f32'";
 
+static const char cold_start_message[] =
+    "Optional. Skip warm-up inference. Use with -niter 1 to run a single inference.";
+
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of the model.";
 
 static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of the model.";
@@ -322,6 +325,8 @@ DEFINE_bool(inference_only, true, inference_only_message);
 /// @brief Define flag for inference precision hint
 DEFINE_string(infer_precision, "", inference_precision_message);
 
+DEFINE_bool(cold, false, cold_start_message);
+
 /// @brief Specify precision for all input layers of the network
 DEFINE_string(ip, "", inputs_precision_message);
 
@@ -413,6 +418,7 @@ static void show_usage() {
     std::cout << "    -nstreams  <integer>          " << infer_num_streams_message << std::endl;
     std::cout << "    -inference_only         " << inference_only_message << std::endl;
     std::cout << "    -infer_precision        " << inference_precision_message << std::endl;
+    std::cout << "    -cold                   " << cold_start_message << std::endl;
     std::cout << std::endl;
     std::cout << "Preprocessing options:" << std::endl;
     std::cout << "    -ip   <value>           " << inputs_precision_message << std::endl;
