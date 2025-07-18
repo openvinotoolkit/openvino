@@ -12,6 +12,7 @@
 #include <iomanip>
 #include <ios>
 #include <iostream>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -166,32 +167,18 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
     };
 
     auto create_ngraph_node = [&](const NodePtr& node) {
-        bool is_input = false;
-        bool is_output = false;
-        bool should_be_hold = false;
-        size_t input_index = -1;
-        size_t output_index = -1;
-        for (size_t i = 0; i < graph.inputNodesMap.size(); ++i) {
-            if (graph.inputNodesMap[i] == node) {
-                is_input = true;
-                input_index = i;
-                break;
-            }
-        }
+        auto found_input = std::find(graph.inputNodesMap.begin(), graph.inputNodesMap.end(), node);
+        const auto is_input = found_input != graph.inputNodesMap.end();
+        // maybe creation of index can be postponed when it is used and set `-1` will be not required at all.
+        const auto input_index = is_input ? std::distance(graph.inputNodesMap.begin(), found_input) : -1;
 
-        for (size_t i = 0; i < graph.outputNodesMap.size(); ++i) {
-            if (graph.outputNodesMap[i] == node) {
-                is_output = true;
-                output_index = i;
-                break;
-            }
-        }
+        auto found_output = std::find(graph.outputNodesMap.begin(), graph.outputNodesMap.end(), node);
+        const auto is_output = found_output != graph.outputNodesMap.end();
+        const auto output_index = is_output ? std::distance(graph.outputNodesMap.begin(), found_output) : -1;
 
-        if (!is_output && node->getChildEdges().empty()) {
-            // The node has no consumer and is not an output.
-            // Should be hold in other irregular way.
-            should_be_hold = true;
-        }
+        // The node has no consumer and is not an output.
+        // Should be hold in other irregular way.
+        bool should_be_hold = !is_output && node->getChildEdges().empty();
 
         auto meta_data = extract_node_metadata(node);
         std::shared_ptr<ov::Node> return_node;

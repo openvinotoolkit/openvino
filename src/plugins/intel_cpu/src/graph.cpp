@@ -1210,6 +1210,7 @@ void Graph::PushInputData(const std::size_t& index, const ov::SoPtr<ITensor>& in
     OPENVINO_ASSERT(IsReady(), "Wrong state. Topology not ready.");
     if (index < inputNodesMap.size() && inputNodesMap[index]) {
         auto node = inputNodesMap[index];
+        auto childEdge = node->getChildEdgeAt(0);
         const auto& edgeMemory = childEdge->getMemory();
 
         const void* ext_data_ptr = input->data();
