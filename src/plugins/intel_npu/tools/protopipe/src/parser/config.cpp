@@ -372,6 +372,10 @@ struct convert<OpenVINOParams> {
             params.config.emplace("MODEL_PRIORITY", toPriority(node["priority"].as<std::string>()));
         }
 
+        if (node["clamp_outputs"]) {
+            params.clamp_outputs = node["clamp_outputs"].as<bool>();
+        }
+
         if (node["nireq"]) {
             params.nireq = node["nireq"].as<size_t>();
         }

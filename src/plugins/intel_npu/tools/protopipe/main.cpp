@@ -17,6 +17,7 @@
 
 #include "utils/error.hpp"
 #include "utils/logger.hpp"
+#include "utils/model.hpp"
 #include "version.hpp"
 
 static constexpr char help_message[] = "Optional. Print the usage message.";
@@ -265,10 +266,13 @@ int main(int argc, char* argv[]) {
         }
     } catch (const std::exception& e) {
         std::cout << e.what() << std::endl;
+        utils::cleanupTempFiles();
         throw;
     } catch (...) {
         std::cout << "Unknown error" << std::endl;
+        utils::cleanupTempFiles();
         throw;
     }
+    utils::cleanupTempFiles();
     return 0;
 }
