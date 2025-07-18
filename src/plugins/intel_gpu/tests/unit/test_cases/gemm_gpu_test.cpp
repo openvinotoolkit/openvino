@@ -3096,7 +3096,7 @@ public:
         }
     }
 
-    void test_dynamic_padding_transpose() {
+    void test_dynamic_padding_transpose(bool n_dim_only) {
         tests::random_generator rg;
         rg.set_seed(GET_SUITE_NAME);
 
@@ -3127,29 +3127,63 @@ public:
             }
         };
 
+        const auto align_size_m = 13;
+        const auto align_size_k = 16;
         const auto align_size_n = 15;
+        const auto align_size_b1 = 3;
+        const auto align_size_b2 = 19;
 
+        const auto aligned_batch1_size = align_to(1ul, align_size_b1);
+        auto padding_size_batch1 = static_cast<int>(aligned_batch1_size - 1);
+
+        const auto aligned_batch2_size = align_to(BATCH_SIZE, align_size_b2);
+        auto padding_size_batch2 = static_cast<int>(aligned_batch2_size - BATCH_SIZE);
+
+        const auto aligned_m_size = align_to(M_SIZE, align_size_m);
+        auto padding_size_m = static_cast<int>(aligned_m_size - M_SIZE);
+        const auto aligned_k_size = align_to(K_SIZE, align_size_k);
+        auto padding_size_k = static_cast<int>(aligned_k_size - K_SIZE);
         const auto aligned_n_size = align_to(N_SIZE, align_size_n);
         auto padding_size_n = static_cast<int>(aligned_n_size - N_SIZE);
 
-        ov::Shape in1_shape = { 1, BATCH_SIZE, M_SIZE, K_SIZE };
-        ov::Shape in2_shape = { 1, BATCH_SIZE, N_SIZE, K_SIZE };
-        ov::Shape in1_shape_aligned = in1_shape;
-        ov::Shape in2_shape_aligned = { 1, BATCH_SIZE, aligned_n_size, K_SIZE };
+        ov::Shape in1_shape = {1, BATCH_SIZE, M_SIZE, K_SIZE};
+        ov::Shape in2_shape = {1, BATCH_SIZE, N_SIZE, K_SIZE};
+        ov::Shape in1_shape_aligned = {aligned_batch1_size, aligned_batch2_size, aligned_m_size, aligned_k_size};
+        ov::Shape in2_shape_aligned = {aligned_batch1_size, aligned_batch2_size, aligned_n_size, aligned_k_size};
 
-        padding::DynamicDimsMask dyn_pad_dims_input2("0100");  // {0, 0, 1, 0};
+        // Use dynamic padding for all BFYX dimensions
+        padding::DynamicDimsMask dyn_pad_dims_input1;
+        padding::DynamicDimsMask dyn_pad_dims_input2;
 
-        auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
-        auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input2)};
+        if (n_dim_only) {
+            dyn_pad_dims_input1 = padding::EMPTY_MASK;               // tensor({0, 0, 0, 0}, 0).sizes();
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1000");  // tensor({0, 0, 1, 0}, 0).sizes();
+        } else {
+            dyn_pad_dims_input1 = padding::DynamicDimsMask("1111");  // tensor({1, 1, 1, 1}, 0).sizes();
+            dyn_pad_dims_input2 = padding::DynamicDimsMask("1111");  // tensor({1, 1, 1, 1}, 0).sizes();
+        }
 
+        auto in1_layout = layout{{-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1)};
+        auto in2_layout = layout{{-1, -1, -1, -1}, data_types::f16, format::bfyx, padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input2)};
+
+        auto aligned_input1_mem = engine.allocate_memory({ov::PartialShape(in1_shape_aligned), data_types::f16, format::bfyx});
         auto aligned_input2_mem = engine.allocate_memory({ov::PartialShape(in2_shape_aligned), data_types::f16, format::bfyx});
 
-        auto input1_mem = engine.allocate_memory({ov::PartialShape(in1_shape_aligned), data_types::f16, format::bfyx});
+        auto input1_mem = engine.reinterpret_buffer(
+            *aligned_input1_mem,
+            layout{ov::PartialShape(in1_shape),
+                   data_types::f16,
+                   format::bfyx,
+                   n_dim_only ? padding({0, 0, 0, 0}, {0, 0, 0, 0}, dyn_pad_dims_input1)
+                              : padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_m, padding_size_k}, dyn_pad_dims_input1)});
 
-        auto input2_mem = engine.reinterpret_buffer(*aligned_input2_mem, layout{ov::PartialShape(in2_shape),
-                                                                                data_types::f16,
-                                                                                format::bfyx,
-                                                                                padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, dyn_pad_dims_input2)});
+        auto input2_mem = engine.reinterpret_buffer(
+            *aligned_input2_mem,
+            layout{ov::PartialShape(in2_shape),
+                   data_types::f16,
+                   format::bfyx,
+                   n_dim_only ? padding({0, 0, 0, 0}, {0, 0, padding_size_n, 0}, dyn_pad_dims_input2)
+                              : padding({0, 0, 0, 0}, {padding_size_batch1, padding_size_batch2, padding_size_n, padding_size_k}, dyn_pad_dims_input2)});
 
         auto input_1_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in1_shape), -2, 2);
         auto input_2_data = rg.generate_random_1d<ov::float16>(ov::shape_size(in2_shape), -2, 2);
@@ -3158,10 +3192,10 @@ public:
         fill_mem(input2_mem, input_2_data);
 
         auto get_ref_results = [&]() {
-            ov::Shape in1_shape = { 1, BATCH_SIZE, M_SIZE, K_SIZE };
-            ov::Shape in2_shape = { 1, BATCH_SIZE, N_SIZE, K_SIZE };
-            auto in1_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
-            auto in2_layout = layout{ {-1, -1, -1, -1}, data_types::f16, format::bfyx};
+            ov::Shape in1_shape = {1, BATCH_SIZE, M_SIZE, K_SIZE};
+            ov::Shape in2_shape = {1, BATCH_SIZE, N_SIZE, K_SIZE};
+            auto in1_layout = layout{{-1, -1, -1, -1}, data_types::f16, format::bfyx};
+            auto in2_layout = layout{{-1, -1, -1, -1}, data_types::f16, format::bfyx};
 
             auto input1_mem = engine.allocate_memory(layout{ov::PartialShape(in1_shape), data_types::f16, format::bfyx});
             auto input2_mem = engine.allocate_memory(layout{ov::PartialShape(in2_shape), data_types::f16, format::bfyx});
@@ -3172,16 +3206,15 @@ public:
             topology topology;
             topology.add(input_layout("input1", in1_layout),
                          input_layout("input2", in2_layout),
-                         gemm("gemm_ref", { input_info("input1"), input_info("input2") }, data_types::f16, false, true, 1.0f, 0.0f, 4, 4),
+                         gemm("gemm_ref", {input_info("input1"), input_info("input2")}, data_types::f16, false, true, 1.0f, 0.0f, 4, 4),
                          permute("permute", input_info("gemm_ref"), {0, 2, 1, 3}),
-                         reorder("reorder", input_info("permute"), format::bfyx, data_types::f32)
-            );
+                         reorder("reorder", input_info("permute"), format::bfyx, data_types::f32));
 
-            ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
-            ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                                 ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
-                                 ov::intel_gpu::optimize_data(true),
-                                 ov::intel_gpu::allow_new_shape_infer(true) };
+            ov::intel_gpu::ImplementationDesc gemm_impl = {format::bfyx, std::string(""), impl_types::onednn};
+            ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"gemm_ref", gemm_impl}}),
+                                ov::intel_gpu::optimize_data(true),
+                                ov::intel_gpu::allow_new_shape_infer(true)};
 
             network network(engine, topology, cfg);
             network.set_input_data("input1", input1_mem);
@@ -3202,16 +3235,15 @@ public:
         topology topology;
         topology.add(input_layout("input1", in1_layout),
                      input_layout("input2", in2_layout),
-                     gemm("gemm", { input_info("input1"), input_info("input2") }, data_types::f16, false, true, 1.0f, 0.0f, 4, 4),
+                     gemm("gemm", {input_info("input1"), input_info("input2")}, data_types::f16, false, true, 1.0f, 0.0f, 4, 4),
                      permute("permute", input_info("gemm"), {0, 2, 1, 3}),
-                     reorder("reorder", input_info("permute"), format::bfyx, data_types::f32)
-        );
+                     reorder("reorder", input_info("permute"), format::bfyx, data_types::f32));
 
-        ov::intel_gpu::ImplementationDesc gemm_impl = { format::bfyx, std::string(""), impl_types::onednn };
-        ExecutionConfig cfg{ ov::intel_gpu::queue_type(QueueTypes::in_order),
-                             ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"gemm", gemm_impl} }),
-                             ov::intel_gpu::optimize_data(true),
-                             ov::intel_gpu::allow_new_shape_infer(true) };
+        ov::intel_gpu::ImplementationDesc gemm_impl = {format::bfyx, std::string(""), impl_types::onednn};
+        ExecutionConfig cfg{ov::intel_gpu::queue_type(QueueTypes::in_order),
+                            ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"gemm", gemm_impl}}),
+                            ov::intel_gpu::optimize_data(true),
+                            ov::intel_gpu::allow_new_shape_infer(true)};
         network network(engine, topology, cfg);
         network.set_input_data("input1", input1_mem);
         network.set_input_data("input2", input2_mem);
@@ -3230,21 +3262,6 @@ public:
         for (size_t i = 0; i < res->count(); i++) {
             ASSERT_EQ(res_lock[i], res_ref_lock[i]) << i;
         }
-
-        // WA: Call wait_all() to wait for all queued kernels compilation finish
-        network.get_program()->get_compilation_context().wait_all();
-        auto outputs_onednn = network.execute();
-
-        auto output_mem_onednn = outputs_onednn.at("reorder").get_memory();
-        auto output_layout_onednn = outputs_onednn.at("reorder").get_layout();
-
-        auto res_onednn = engine.reinterpret_buffer(*output_mem_onednn, output_layout_onednn);
-
-        mem_lock<ov::float16, mem_lock_type::read> res_lock_onednn(res_onednn, get_test_stream());
-        for (size_t i = 0; i < res->count(); i++) {
-            ASSERT_EQ(res_lock_onednn[i], res_ref_lock[i]) << i;
-        }
-
     }
 };
 
@@ -3272,8 +3289,12 @@ TEST_F(gemm_onednn, dynamic_padding_n_dim_only) {
     this->test_dynamic_padding(true);
 }
 
-TEST_F(gemm_onednn, dynamic_padding_input_transpose) {
-    this->test_dynamic_padding_transpose();
+TEST_F(gemm_onednn, dynamic_padding_input_transpose_all_dim) {
+    this->test_dynamic_padding_transpose(false);
+}
+
+TEST_F(gemm_onednn, dynamic_padding_input_transpose_n_dim_only) {
+    this->test_dynamic_padding_transpose(true);
 }
 
 template <typename gemm_params, typename input0_type, typename input1_type, typename input2_type, typename output_type, typename accumulator_type>
