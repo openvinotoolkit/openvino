@@ -404,14 +404,14 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
-        const uint mask_m = MSK_D2;
-        const uint mask_n = MSK_D3;
-        // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
-        // In the case of single query dimension, set ld and offset_r to zero
-        // to avoid exceeding bounds for single dimension.
-        const uint mask_ld = (mask_m == 1)? 0 : mask_n;
-        const uint mask_offset_r = (mask_m == 1)? 0 : sg_j0_kq + wg_j0;
-        tile_load_t(&mask_tile, msk, mask_m, mask_n, mask_ld, mask_offset_r, k0 + sg_i0_kq);
+        if (MSK_D2 == 1 && MSK_D3 > 1) {
+            // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
+            // In the case of single query dimension, set ld and offset_r to zero
+            // to avoid exceeding bounds for single dimension.
+            tile_load_t(&mask_tile, msk, MSK_D2, MSK_D3, 0, 0, k0 + sg_i0_kq);
+        } else {
+            tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+        }
 #endif
 
 #if REMAINDER_K
