@@ -22,4 +22,4 @@ docopt~=0.6.2
 paddlepaddle==2.6.2
 tensorflow>=1.15.5,<2.20.0
 protobuf>=3.18.1,<7.0.0
-onnx==1.17.0
+onnx==1.18.0
