@@ -285,7 +285,10 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,     {{}}},
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
+// On arm32 Mish is decomposed
+#if !defined(OPENVINO_ARCH_ARM)
         {Mish,        {{}}},
+#endif
 // On other platforms HSigmoid is decomposed
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {HSigmoid,    {{}}},
