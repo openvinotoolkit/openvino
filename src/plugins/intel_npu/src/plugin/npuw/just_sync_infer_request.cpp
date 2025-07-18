@@ -331,6 +331,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
         if (!m_closure_update_required || func_desc.forced_to_fcall) {
             unpack_closure(i, m_subrequests[real_idx]);
         }
+        alloc_quant_gather_tensors(i, m_subrequests[real_idx]);
         LOG_VERB("Done");
     }
 

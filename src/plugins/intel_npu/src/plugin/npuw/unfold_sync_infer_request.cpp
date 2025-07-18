@@ -76,6 +76,7 @@ ov::npuw::UnfoldInferRequest::UnfoldInferRequest(const std::shared_ptr<ov::npuw:
         if (comp_model_desc.replaced_by) {
             unpack_closure(i, m_subrequests[i]);
         }
+        alloc_quant_gather_tensors(i, m_subrequests[i]);
         LOG_VERB("Done");
     }
 }
