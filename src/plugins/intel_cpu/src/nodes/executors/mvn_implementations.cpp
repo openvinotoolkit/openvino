@@ -19,6 +19,7 @@
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
+#include "utils/debug_capabilities.h"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/executors/x64/jit_mvn.hpp"
@@ -73,6 +74,31 @@ static LayoutType getLayoutType(const MemoryDescPtr& desc) {
     return LayoutType::ncsp;
 }
 
+/**
+ * @brief MVN Executor Implementation Registry
+ * 
+ * This file defines available MVN executor implementations:
+ * 
+ * 1. JIT x64 Executor (Intel x86_64 only):
+ *    - Optimized implementation using JIT compilation
+ *    - Supports all precisions (f32, bf16, f16, i8, u8)
+ *    - Supports all layouts (planar, blocked, channel-last)
+ *    - Best performance on Intel CPUs with AVX2/AVX512
+ * 
+ * 2. ACL Executor (ARM only):
+ *    - Uses ARM Compute Library (NEMeanStdDevNormalizationLayer)
+ *    - Supports f32 and f16 precisions only
+ *    - Requires normalizeVariance=true and INSIDE_SQRT mode
+ *    - Optimized for ARM NEON/SVE architectures
+ * 
+ * 3. Reference Executor (fallback):
+ *    - Generic C++ implementation
+ *    - Supports all configurations
+ *    - Used when specialized executors are not available
+ * 
+ * Selection priority: JIT (if x64) -> ACL (if ARM) -> Reference
+ */
+
 // to keep OV_CPU_INSTANCE macros aligned
 // clang-format off
 template <>
@@ -85,7 +111,9 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const executor::Config<MVNAttrs>& config) -> bool {
-                return MVNJitExecutor::supports(config);
+                bool supported = MVNJitExecutor::supports(config);
+                DEBUG_LOG("MVN JIT x64 executor support check: ", supported ? "supported" : "not supported");
+                return supported;
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
@@ -100,7 +128,10 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>{},
-            CreateDefault<MVNJitExecutor, MVNAttrs>{}
+            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
+                DEBUG_LOG("Creating MVN JIT x64 executor");
+                return std::make_shared<MVNJitExecutor>(attrs, memory, context);
+            }
             )
         OV_CPU_INSTANCE_ACL(
             "mvn_acl",
@@ -109,7 +140,9 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             ShapeTolerance::Agnostic,
             // supports
             [](const executor::Config<MVNAttrs>& config) -> bool {
-                return ACLMVNExecutor::supports(config);
+                bool supported = ACLMVNExecutor::supports(config);
+                DEBUG_LOG("MVN ACL executor support check: ", supported ? "supported" : "not supported");
+                return supported;
             },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
@@ -124,7 +157,10 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>{},
-            CreateDefault<ACLMVNExecutor, MVNAttrs>{}
+            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
+                DEBUG_LOG("Creating MVN ACL executor");
+                return std::make_shared<ACLMVNExecutor>(attrs, memory, context);
+            }
             )
         OV_CPU_INSTANCE_COMMON(
             "mvn_ref",
@@ -132,7 +168,10 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
             OperationType::MVN,
             ShapeTolerance::Agnostic,
             // supports - always returns true as fallback
-            SupportsAnyConfig<MVNAttrs>{},
+            [](const executor::Config<MVNAttrs>& /*config*/) -> bool {
+                DEBUG_LOG("MVN Reference executor support check: always supported (fallback)");
+                return true;
+            },
             // createOptimalConfig
             [](const executor::Config<MVNAttrs>& config) -> std::optional<executor::Config<MVNAttrs>> {
                 // Reference implementation accepts whatever layout is provided
@@ -146,7 +185,10 @@ const std::vector<ExecutorImplementation<MVNAttrs>>& getImplementations() {
                                                  mvnMappingNotation);
             },
             AcceptsAnyShape<MVNAttrs>{},
-            CreateDefault<MVNRefExecutor, MVNAttrs>{}
+            [](const MVNAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> std::shared_ptr<Executor> {
+                DEBUG_LOG("Creating MVN Reference executor");
+                return std::make_shared<MVNRefExecutor>(attrs, memory, context);
+            }
             )
     };
     

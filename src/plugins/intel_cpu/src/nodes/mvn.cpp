@@ -29,6 +29,7 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
 #include "nodes/node_config.h"
+#include "post_ops.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -189,7 +190,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     auto srcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
     auto dstDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(outputPrecision, getOutputShapeAtPort(0));
 
-    // Prepare memory descriptor args for executor factory
+    // Prepare memory descriptor args for the executor factory
     MemoryDescArgs descs;
     descs[ARG_SRC_0] = srcDesc;
     descs[ARG_DST] = dstDesc;
@@ -197,7 +198,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
     // Set minimal required fields in mvnAttrs for getProperMemoryDescriptors
     mvnAttrs.src_prc = inputPrecision;
     mvnAttrs.dst_prc = outputPrecision;
-    mvnAttrs.layout = MVNLayoutType::mvn_planar;  // Initial layout, will be updated in prepareParams
+    mvnAttrs.layout = MVNLayoutType::mvn_planar;  // Initial layout will be updated in prepareParams
 
     // Create planar configuration
     auto planarSrcDesc = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(inputPrecision, getInputShapeAtPort(0));
@@ -299,7 +300,10 @@ void MVN::prepareParams() {
         mvnAttrs.layout = MVNLayoutType::mvn_block;
     }
 
-    // Use modern executor factory pattern for all implementations
+    // Populate post-ops from fused nodes
+    mvnAttrs.postOps = getPostOps(fusedWith);
+
+    // Use a modern executor factory pattern for all implementations
     MemoryArgs memoryArgs;
     memoryArgs[ARG_SRC_0] = getSrcMemoryAtPort(0);
     memoryArgs[ARG_DST] = getDstMemoryAtPort(0);
@@ -307,13 +311,7 @@ void MVN::prepareParams() {
     MemoryDescArgs descs;
     descs[ARG_SRC_0] = getSrcMemoryAtPort(0)->getDescPtr();
     descs[ARG_DST] = getDstMemoryAtPort(0)->getDescPtr();
-
-    // Set post-ops in mvnAttrs  
-    setPostOps(mvnAttrs.attr, true);
     
-    // Pass raw post-ops data pointer
-    mvnAttrs.postOpsDataPtr = postOpsDataPtrs.empty() ? nullptr : postOpsDataPtrs.data();
-
     auto factory =
         std::make_shared<ExecutorFactory<MVNAttrs>>(mvnAttrs,
                                                     std::make_shared<ExecutorContext>(context, getImplPriority()),
@@ -334,8 +332,8 @@ void MVN::prepareParams() {
 
 void MVN::transformTo5DCase(const VectorDims& shape) {
     size_t rank = shape.size();
-    // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under unified 5d procedure.
-    // otherwise there are not enough data in spatial dimension to process in one kernel.
+    // for 1 and 2 rank, if initAcrossChannels_ is true, adjust shape to fully vectorize under the unified 5d procedure.
+    // otherwise there is not enough data in spatial dimension to process in one kernel.
     switch (rank) {
     case 1:  // C
         if (mvnAttrs.initAcrossChannels_) {
@@ -371,32 +369,6 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
         THROW_CPU_NODE_ERR("doesn't support planar layout with rank: ", shape.size());
     }
     }
-}
-
-void MVN::setPostOps(dnnl::primitive_attr& attr, [[maybe_unused]] bool initWeights) {
-    dnnl::post_ops ops;
-    postOpsDataPtrs.clear();
-    for (auto& node : fusedWith) {
-        int channelAxis = 1;
-
-        auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(node.get());
-        if (fakeQuantizeNode) {
-            fakeQuantizeNode->appendPostOps(ops, {}, postOpsDataPtrs, channelAxis);
-            continue;
-        }
-
-        auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get());
-        if (eltwiseNode) {
-            eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs, channelAxis);
-            continue;
-        }
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
-    }
-    attr.set_post_ops(ops);
 }
 
 void MVN::executeDynamicImpl(const dnnl::stream& strm) {

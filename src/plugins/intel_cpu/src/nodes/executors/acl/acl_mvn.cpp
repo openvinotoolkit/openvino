@@ -83,10 +83,19 @@ void ACLMVNExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
     const auto srcDims = aclMemoryShapes[ACLArgs::ACL_SRC_0];
     const auto srcNumDim = aclMemoryShapes[ACLArgs::ACL_SRC_0].num_dimensions();
 
+    // Determine effective across channels mode
+    effectiveAcrossChannels = aclMVNAtrrs.initAcrossChannels_;
+    if (isNHWCLayout && !aclMVNAtrrs.initAcrossChannels_) {
+        // For NHWC layout with per-channel normalization, ACL requires across channels mode
+        effectiveAcrossChannels = true;
+    }
+
     DEBUG_LOG("ACL MVN: srcNumDim=",
               srcNumDim,
               ", initAcrossChannels=",
               aclMVNAtrrs.initAcrossChannels_,
+              ", effectiveAcrossChannels=",
+              effectiveAcrossChannels,
               ", isNHWCLayout=",
               isNHWCLayout);
     for (size_t i = 0; i < srcNumDim; i++) {
@@ -103,7 +112,7 @@ void ACLMVNExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
     }
     if (srcNumDim == 1) {
         // For 1D tensor, reshape to 2D based on normalization mode
-        if (aclMVNAtrrs.initAcrossChannels_) {
+        if (effectiveAcrossChannels) {
             DEBUG_LOG("ACL MVN: Handling 1D tensor across channels, reshaping to (", srcDims[0], ", 1)");
             aclMemoryShapes[ACLArgs::ACL_SRC_0] = aclMemoryShapes[ACLArgs::ACL_DST] =
                 arm_compute::TensorShape(srcDims[0], 1);
@@ -131,10 +140,8 @@ void ACLMVNExecutor::updateTensorsShapes(ACLShapes& aclMemoryShapes) {
             Y = 1;
             X = srcDims[0];
         }
-        // Force initAcrossChannels to true for ACL processing
-        aclMVNAtrrs.initAcrossChannels_ = true;
-        DEBUG_LOG("ACL MVN: Forced initAcrossChannels=true for NHWC layout");
-    } else if (aclMVNAtrrs.initAcrossChannels_) {
+        DEBUG_LOG("ACL MVN: Using effectiveAcrossChannels=true for NHWC layout");
+    } else if (effectiveAcrossChannels) {
         if (srcDims.num_dimensions() >= 2u) {
             Y = srcDims[srcNumDim - 1];
             X = srcDims[srcNumDim - 2];

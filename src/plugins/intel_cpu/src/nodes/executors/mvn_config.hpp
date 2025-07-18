@@ -16,10 +16,27 @@
 
 namespace ov::intel_cpu {
 
+/**
+ * @brief MVN layout types
+ * - mvn_planar: NCDHW/NCHW format (channels as separate planes)
+ * - mvn_block: Blocked format (nCsp8c, nCsp16c)
+ * - mvn_by_channel: NDHWC/NHWC format (channels as innermost dimension)
+ */
 enum MVNLayoutType : std::uint8_t { mvn_planar, mvn_block, mvn_by_channel };
 
+/**
+ * @brief MVN epsilon mode
+ * - INSIDE_SQRT: epsilon is added inside square root: sqrt(variance + eps)
+ * - OUTSIDE_SQRT: epsilon is added outside square root: sqrt(variance) + eps
+ */
 enum MVNEpsMode : std::uint8_t { INSIDE_SQRT, OUTSIDE_SQRT };
 
+/**
+ * @brief MVN operation attributes
+ * 
+ * This structure contains all configuration parameters for MVN operation.
+ * It supports different normalization modes, layouts, and precisions.
+ */
 struct MVNAttrs {
     MVNLayoutType layout = mvn_planar;
     bool initAcrossChannels_ = false;
@@ -30,8 +47,7 @@ struct MVNAttrs {
     ov::element::Type src_prc = ov::element::f32;
     ov::element::Type dst_prc = ov::element::f32;
     VectorDims shape5D;
-    PostOps postOps;
-    const void* const* postOpsDataPtr = nullptr;  // Raw pointer array for legacy executor
+    PostOps postOps;  // Post-operations configuration
     dnnl::primitive_attr attr;  // Primitive attributes with post-ops configuration
 };
 

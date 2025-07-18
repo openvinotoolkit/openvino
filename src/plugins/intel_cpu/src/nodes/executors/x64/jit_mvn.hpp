@@ -132,13 +132,16 @@ public:
 
     static bool supports(const MVNConfig& config);
 
-    bool canReuseShapeAgnosticKernel(const VectorDims& newShape5D) const;
+    bool canReuseShapeAgnosticKernel(const VectorDims& newShape5D);
 
 private:
+    void setPostOps(dnnl::primitive_attr& attr, bool initWeights = false);
+
     MVNAttrs attrs;
+    std::vector<const void*> postOpsDataPtrs;
     MemoryArgs memoryArgs;
     const ExecutorContext::CPtr context;
-    mutable VectorDims shape5D;
+    VectorDims shape5D;
     std::shared_ptr<legacy::MVNJitExecutorLagacy> legacyJitExecutor;
 };
 

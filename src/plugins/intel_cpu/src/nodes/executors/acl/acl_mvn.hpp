@@ -5,6 +5,7 @@
 #pragma once
 
 #include <utility>
+#include <memory>
 
 #include "acl_common_executor.hpp"
 #include "memory_desc/cpu_memory_desc.h"
@@ -35,10 +36,10 @@ public:
     arm_compute::Status validateTensorsInfo(const ACLInfos& aclMemoryInfos) override;
 
     ACLFunction configureFunction(const ACLTensors& aclMemoryTensors) override;
-
 private:
     MVNAttrs aclMVNAtrrs;
     bool isNHWCLayout = false;
+    bool effectiveAcrossChannels = false;  // Effective across channels mode for ACL
 };
 
 using ACLMVNExecutorPtr = std::shared_ptr<ACLMVNExecutor>;

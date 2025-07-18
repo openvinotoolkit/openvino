@@ -19,6 +19,12 @@
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
 #include "nodes/kernels/x64/mlp_utils.hpp"
+#include "utils/debug_capabilities.h"
+#include "dnnl_postops_composer.h"
+#include "dnnl_extension_utils.h"
+#include "cpu_memory.h"
+#include "memory_desc/cpu_blocked_memory_desc.h"
+#include "cpu_shape.h"
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -75,6 +81,9 @@ MVNJitExecutor::MVNJitExecutor(const MVNAttrs& mvnAttrs, MemoryArgs memory, Exec
       context(std::move(contextPtr)),
       shape5D(mvnAttrs.shape5D) {
 
+    // Set post-ops in dnnl::primitive_attr
+    setPostOps(attrs.attr, true);
+
     // Create a key for caching using the attr from MVNAttrs
     MVNKey key{attrs, attrs.attr};
 
@@ -98,11 +107,56 @@ void MVNJitExecutor::executeImpl(const MemoryArgs& memory) {
     const auto* src_data = memory.at(ARG_SRC)->getDataAs<const uint8_t>();
     auto* dst_data = memory.at(ARG_DST)->getDataAs<uint8_t>();
 
-    // Call legacy executor with proper parameters
-    legacyJitExecutor->exec(src_data, dst_data, attrs.postOpsDataPtr, shape5D);
+    // Pass post-ops data to legacy executor
+    const void* postOpsData = postOpsDataPtrs.empty() ? nullptr : postOpsDataPtrs.data();
+    legacyJitExecutor->exec(src_data, dst_data, postOpsData, shape5D);
 }
 
-bool MVNJitExecutor::canReuseShapeAgnosticKernel(const VectorDims& newShape5D) const {
+void MVNJitExecutor::setPostOps(dnnl::primitive_attr& attr, bool initWeights) {
+    dnnl::post_ops ops;
+    postOpsDataPtrs.clear();
+    
+    if (attrs.postOps.empty()) {
+        return;
+    }
+    
+    // Use DnnlPostOpsComposer to convert PostOps to dnnl format
+    const auto outputDims = shape5D;
+    const size_t idxOC = attrs.layout == MVNLayoutType::mvn_by_channel ? outputDims.size() - 1 : 1;
+    const bool isINT8 = (attrs.src_prc == ov::element::i8 || attrs.src_prc == ov::element::u8) && 
+                       attrs.dst_prc == ov::element::i8;
+    const auto outDataType = DnnlExtensionUtils::ElementTypeToDataType(attrs.dst_prc);
+    
+    // Create memory args for post-ops composer
+    MemoryArgs postOpsMemory;
+    // Create a dummy empty bias memory descriptor
+    auto biasDesc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::f32, Shape{});
+    postOpsMemory[ARG_BIAS] = std::make_shared<Memory>(context->getEngine(), biasDesc);
+    
+    DnnlPostOpsComposer composer(attrs.postOps,
+                                context->getEngine(),
+                                outputDims,
+                                idxOC,
+                                isINT8,
+                                1 << 0,  // weight scale mask per channel
+                                postOpsMemory,
+                                outDataType,
+                                {},      // legacy DQ scales
+                                true,    // use legacy post ops for compatibility
+                                false);  // use legacy zero points
+    
+    auto primAttrs = composer.compose();
+    attr = primAttrs.attr;
+    
+    // Extract post-ops data pointers from composer
+    for (const auto& cpuArg : primAttrs.cpuArgs) {
+        if (cpuArg.first & DNNL_ARG_ATTR_MULTIPLE_POST_OP_BASE) {
+            postOpsDataPtrs.push_back(cpuArg.second->getData());
+        }
+    }
+}
+
+bool MVNJitExecutor::canReuseShapeAgnosticKernel(const VectorDims& newShape5D) {
     // Shape-agnostic kernel optimization
     // Reuses kernel if the shape is the same or only batch size changed
     if (shape5D[0] != newShape5D[0]) {
