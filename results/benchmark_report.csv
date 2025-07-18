@@ -1,0 +1,31 @@
+Command line parameters;
+api;async;
+d;CPU;
+m;C:\Users\LENOVO\Documents\OpenVINO_Work\openvino_disable_fusion\public\resnet-50-pytorch\FP32\resnet-50-pytorch.xml;
+report_folder;C:\Users\LENOVO\Documents\OpenVINO_Work\openvino_disable_fusion\results;
+report_type;detailed_counters;
+
+Configuration setup;
+benchmark mode;inference only;
+topology;main_graph;
+target device;CPU;
+API;async;
+precision;dynamic;
+batch size;1;
+number of iterations;0;
+number of parallel infer requests;5;
+duration (ms);60000;
+
+Execution results;
+read model time (ms);10.871800;
+compile model time (ms);129.938300;
+first inference time (ms);26.341900;
+total execution time (ms);60250.603100;
+total number of iterations;2440;
+Median latency (ms);129.497400;
+Percentile boundary;50;
+Average latency (ms);123.375647;
+Min latency (ms);51.138600;
+Max latency (ms);202.242600;
+throughput;40.497520;
+
