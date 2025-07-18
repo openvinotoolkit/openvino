@@ -62,37 +62,6 @@ inline bool has_decompression_converts(const std::shared_ptr<const ov::Model>& f
     return false;
 }
 
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string create_ie_output_name(const Output<const Node>& output) {
-    const auto& prev_layer = output.get_node_shared_ptr();
-    auto out_name = prev_layer->get_friendly_name();
-    if (prev_layer->get_output_size() != 1) {
-        out_name += "." + std::to_string(output.get_index());
-    }
-    return out_name;
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string create_ie_output_name(const Output<Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return create_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string get_ie_output_name(const Output<const Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return create_ie_output_name(output);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
-OPENVINO_DEPRECATED("Plugins should use ov::ISyncInferRequest::find_port")
-inline std::string get_ie_output_name(const Output<Node>& output) {
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    return get_ie_output_name(ov::Output<const Node>(output.get_node(), output.get_index()));
-    OPENVINO_SUPPRESS_DEPRECATED_END
-}
-
 /**
  * \brief Convert epsilon value from double to float type.
  *
