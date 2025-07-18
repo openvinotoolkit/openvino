@@ -1073,7 +1073,6 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
 #endif
-    bool pa_use_micro_sdpa = false;
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
     explicit PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {
@@ -1082,8 +1081,8 @@ public:
         const bool has_rotated_blocks = desc->has_rotated_blocks;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        pa_use_micro_sdpa = supports_micro_sdpa(params);
-        if (pa_use_micro_sdpa) {
+        const bool use_micro_sdpa = supports_micro_sdpa(params);
+        if (use_micro_sdpa) {
             add_stage(pa_sdpa_micro, params);
         }
 #endif
@@ -1201,7 +1200,7 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
-            rt_params->use_micro_sdpa = pa_use_micro_sdpa;  // supports_micro_sdpa(params);
+            rt_params->use_micro_sdpa = supports_micro_sdpa(params);
 #else
             rt_params->use_micro_sdpa = false;
 #endif
@@ -1392,9 +1391,16 @@ public:
             }
         }
 
-        internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
-        internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
-        internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
+        bool can_use_micro_sdpa = stage == PagedAttentionStage::PREFILL;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        can_use_micro_sdpa &= has_stage(pa_sdpa_micro);
+#endif
+        if (!can_use_micro_sdpa) {
+            // GENERATE/MIXED stages and PREFILL stage without micro_sdpa
+            internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
+            internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
+            internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
+        }
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
         if (multi_tokens_mode) {
@@ -1402,7 +1408,6 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        auto can_use_micro_sdpa = pa_use_micro_sdpa;  // supports_micro_sdpa(params);
         if (can_use_micro_sdpa) {
             const auto wg_tile_q = get_micro_tile_qsize(pa_sdpa_micro->kd);
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
@@ -1410,7 +1415,6 @@ public:
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
         }
 #endif
-
         return internal_buffers;
     }
 

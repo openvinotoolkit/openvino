@@ -1199,7 +1199,7 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         args.push_back({ArgumentDescriptor::Types::INPUT, 6});  // subsequence_begins
         if (!config.has_const_scale_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, 9});        // scale
-        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 6});  // blocked_indexes_start_and_gws_mapping
+        args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // blocked_indexes_start_and_gws_mapping
     } else {
         const uint32_t attn_mask_idx = 3;
         const uint32_t scale_idx = 4;
