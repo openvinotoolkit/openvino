@@ -233,6 +233,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         if ((activation_type == utils::ActivationTypes::Abs) ||
             (activation_type == utils::ActivationTypes::Clamp) ||
+            (activation_type == utils::ActivationTypes::Elu) ||
             (activation_type == utils::ActivationTypes::Erf) ||
             (activation_type == utils::ActivationTypes::Exp) ||
             (activation_type == utils::ActivationTypes::Floor) ||
