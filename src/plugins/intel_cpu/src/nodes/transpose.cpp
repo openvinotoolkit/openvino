@@ -177,9 +177,7 @@ void Transpose::prepareParams() {
         auto dstDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
-        if (!result) {
-            THROW_CPU_NODE_ERR("reorder primitive descriptor was not found.");
-        }
+        CPU_NODE_ASSERT(result, "reorder primitive descriptor was not found.");
         prim = result;
 
         getSelectedPrimitiveDescriptor()->setImplementationType(
@@ -221,9 +219,7 @@ void Transpose::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(transposeParams.permuteParams, builder);
 
-    if (!result.first) {
-        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
-    }
+    CPU_NODE_ASSERT(result.first, "Primitive descriptor was not found.");
 
     execPtr = result.first;
 }
@@ -235,15 +231,9 @@ void Transpose::createPrimitive() {
 
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("Destination memory is null.");
-    }
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("Input memory is null.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor was not set.");
-    }
+    CPU_NODE_ASSERT(dstMemPtr, "Destination memory is null.");
+    CPU_NODE_ASSERT(srcMemPtr, "Input memory is null.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor was not set.");
 
     if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
         getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
@@ -289,7 +279,7 @@ void Transpose::execute(const dnnl::stream& strm) {
 
         execPtr->exec({srcMemPtr}, {dstMemPtr});
     } else {
-        THROW_CPU_NODE_ERR("Primitive was not created.");
+        CPU_NODE_THROW("Primitive was not created.");
     }
 }
 
