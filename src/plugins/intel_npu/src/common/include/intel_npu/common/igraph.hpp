@@ -21,7 +21,7 @@ class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph() = default;
 
-    IGraph::IGraph(const Config& config, std::optional<ov::Tensor> blob);
+    IGraph(const Config& config, std::optional<ov::Tensor> blob);
 
     /**
      * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
