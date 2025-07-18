@@ -107,8 +107,8 @@ public:
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
         configuration[ov::key_cache_group_size.name()] = keyGroupSize;
         configuration[ov::value_cache_group_size.name()] = keyGroupSize;
-        configuration[ov::intel_cpu::key_cache_quant_mode.name()] =
-            quantKeyByChannel ? ov::intel_cpu::CacheQuantMode::BY_CHANNEL : ov::intel_cpu::CacheQuantMode::BY_HIDDEN;
+        configuration[ov::internal::key_cache_quant_mode.name()] =
+            quantKeyByChannel ? ov::internal::CacheQuantMode::BY_CHANNEL : ov::internal::CacheQuantMode::BY_TOKEN;
         // explictly set u8 kv_cache for QuantByChannel
         if (quantKeyByChannel) {
             configuration[ov::hint::kv_cache_precision.name()] = ov::element::u8;
