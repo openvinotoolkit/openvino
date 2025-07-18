@@ -76,7 +76,7 @@ bool Round::has_evaluate() const {
     OV_OP_SCOPE(v5_Round_has_evaluate);
     const auto& et = get_input_element_type(0);
 
-    return et.is_static() && (et != element::f64) && (et.is_real() || et.is_integral());
+    return et.is_static() && (et.is_real() || et.is_integral());
 }
 }  // namespace v5
 }  // namespace op
