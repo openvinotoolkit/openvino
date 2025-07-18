@@ -23,6 +23,8 @@
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
+PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
+
 class PyNode : public ov::Node {
 public:
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
@@ -221,6 +223,7 @@ void regclass_graph_Node(py::module m) {
            ov::TensorVector& output_values,
            const ov::TensorVector& input_values,
            const ov::EvaluationContext& evaluationContext) -> bool {
+            std::cout<<"_pyov Node evaluate"<<std::endl;
             return self.evaluate(output_values, input_values, evaluationContext);
         },
         py::arg("output_values"),

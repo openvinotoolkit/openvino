@@ -5,6 +5,7 @@
 
 from typing import Callable, List, Optional
 from openvino import Op, Type, Shape, Tensor, PartialShape
+from openvino._pyopenvino import TensorVectorOpaque
 
 
 class PostponedConstant(Op):
@@ -19,16 +20,15 @@ class PostponedConstant(Op):
             self.friendly_name = name
         self.constructor_validate_and_infer_types()
 
-    def evaluate(self, outputs: List[Tensor], _: List[Tensor]) -> bool:  # type: ignore
-        # wa version
-        #self.m_maker(outputs[0])
-        # version that does not work
+    # def evaluate(self, outputs: List[Tensor], _: List[Tensor]) -> bool:  # type: ignore
+    def evaluate(self, outputs: TensorVectorOpaque, _: List[Tensor]) -> bool:  # type: ignore
+        print("PostponedConstant outputs1", outputs[0].data[0][0], type(outputs))
         outputs[0] = self.m_maker()
-        # version that works but there is still copy.
-        # outputs[0].data[:] = self.m_maker().data[:]
+        print("PostponedConstant outputs2", outputs[0].data[0][0])
         return True
 
     def validate_and_infer_types(self) -> None:
+        print("\nPostponedConstant validate_and_infer_types")
         self.set_output_type(0, self.m_element_type, PartialShape(self.m_shape))
 
     def clone_with_new_inputs(self, new_inputs: List[Tensor]) -> Op:

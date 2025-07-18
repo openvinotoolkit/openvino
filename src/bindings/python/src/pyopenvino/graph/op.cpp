@@ -16,6 +16,8 @@
 
 namespace py = pybind11;
 
+PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
+
 void PyOp::validate_and_infer_types() {
     PYBIND11_OVERRIDE(void, ov::op::Op, validate_and_infer_types);
 }
@@ -49,7 +51,24 @@ const ov::op::Op::type_info_t& PyOp::get_type_info() const {
 }
 
 bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    PYBIND11_OVERRIDE(bool, ov::op::Op, evaluate, output_values, input_values);
+    std::cout << "\n>>>pyop::evaluate " << std::endl;
+    // PYBIND11_OVERRIDE(bool, ov::op::Op, evaluate, output_values, input_values);
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    auto* data_ptr = output_values[0].data<float>();
+    std::cout << "PyOP output_values[0]: " << data_ptr[0] << data_ptr[1] << std::endl;
+
+    py::function overrided_py_method = pybind11::get_override(this, "evaluate");
+    std::cout << "\n>>got overrided_py_method " << std::endl;
+    if (overrided_py_method) {
+        auto res = static_cast<py::bool_>(overrided_py_method(&output_values, &input_values));
+        std::cout << "\n>>came back" << std::endl;
+
+        auto* data_ptr = output_values[0].data<float>();
+        std::cout << "PyOP output_values[0]: " << data_ptr[0] << data_ptr[1] << std::endl;
+
+        return res;  // Call the Python function.
+    }
+    return true;
 }
 
 bool PyOp::has_evaluate() const {
@@ -86,6 +105,7 @@ void regclass_graph_Op(py::module m) {
     py::class_<ov::op::Op, std::shared_ptr<ov::op::Op>, PyOp, ov::Node> op(m, "Op");
 
     op.def(py::init([](const py::object& py_obj) {
+        std::cout << "pyopenvino.Op constructor called" << std::endl;
         return PyOp(py_obj);
     }));
 
