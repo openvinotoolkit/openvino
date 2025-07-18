@@ -48,8 +48,8 @@ struct memory {
     virtual ~memory() = default;
     virtual void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) = 0;
     virtual void unlock(const stream& stream) = 0;
-    virtual event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) = 0;
-    virtual event::ptr fill(stream& stream, bool blocking = true) = 0;
+    virtual event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
+    virtual event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) = 0;
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
 
@@ -147,8 +147,8 @@ struct simple_attached_memory : memory {
 
     void* lock(const stream& /* stream */, mem_lock_type /* type */) override { return _pointer; }
     void unlock(const stream& /* stream */) override {}
-    event::ptr fill(stream& /* stream */, unsigned char, bool) override { return nullptr; }
-    event::ptr fill(stream& /* stream */, bool) override { return nullptr; }
+    event::ptr fill(stream& /* stream */, unsigned char, const std::vector<event::ptr>&, bool) override { return nullptr; }
+    event::ptr fill(stream& /* stream */, const std::vector<event::ptr>&, bool) override { return nullptr; }
     shared_mem_params get_internal_params() const override { return { shared_mem_type::shared_mem_empty, nullptr, nullptr, nullptr,
 #ifdef _WIN32
         nullptr,
