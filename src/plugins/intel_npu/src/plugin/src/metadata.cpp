@@ -71,6 +71,15 @@ Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
     _version = METADATA_VERSION_2_1;
 }
 
+Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
+                                         std::optional<OpenvinoVersion> ovVersion,
+                                         const std::optional<std::vector<uint64_t>> initSizes,
+                                         BlobType blobType)
+    : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion, initSizes},
+      _blobType(blobType) {
+    _version = METADATA_VERSION_2_2;
+}
+
 void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
     _ovVersion.read(stream);
 }
@@ -114,6 +123,22 @@ void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
     }
 }
 
+void Metadata<METADATA_VERSION_2_2>::read(std::istream& stream) {
+    Metadata<METADATA_VERSION_2_1>::read(stream);
+    stream.read(reinterpret_cast<char*>(&_blobType), sizeof(_blobType));
+}
+
+void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
+    Metadata<METADATA_VERSION_2_1>::read(tensor);
+
+    // Read the _blobType value after _initSizes
+    char* pos = tensor.data<char>() + sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
+                sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
+                sizeof(decltype(std::declval<OpenvinoVersion>().get_patch())) + sizeof(uint64_t) +  // numberOfInits
+                sizeof(uint64_t) * (_initSizes.has_value() ? _initSizes.value().size() : 0);
+    _blobType = *(reinterpret_cast<BlobType*>(pos));
+}
+
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
     size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
     size_t size = utils::align_size_to_standard_page_size(metadataSize);
@@ -146,6 +171,23 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     append_padding_blob_size_and_magic(stream);
 }
 
+void Metadata<METADATA_VERSION_2_2>::write(std::ostream& stream) {
+    Metadata<METADATA_VERSION_2_0>::write(stream);
+
+    _numberOfInits = _initSizes.has_value() ? _initSizes->size() : 0;
+    stream.write(reinterpret_cast<const char*>(&_numberOfInits), sizeof(_numberOfInits));
+
+    if (_initSizes.has_value()) {
+        for (uint64_t initSize : _initSizes.value()) {
+            stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
+        }
+    }
+
+    stream.write(reinterpret_cast<const char*>(&_blobType), sizeof(_blobType));
+
+    append_padding_blob_size_and_magic(stream);
+}
+
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
     if (MetadataBase::get_major(version) == CURRENT_METADATA_MAJOR_VERSION &&
         MetadataBase::get_minor(version) > CURRENT_METADATA_MINOR_VERSION) {
@@ -157,6 +199,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
     case METADATA_VERSION_2_1:
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
+    case METADATA_VERSION_2_2:
+        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize, std::nullopt);
     default:
         OPENVINO_THROW("Metadata version is not supported!");
     }
@@ -206,10 +250,10 @@ std::streampos MetadataBase::getFileSize(std::istream& stream) {
 }
 
 std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
-    // TODO: Need to define the format of IR to get metadata from stream, then can check version
-    if (!isELFBlob(stream)) {
-        return std::make_unique<Metadata<METADATA_VERSION_2_0>>(MetadataBase::getFileSize(stream), std::nullopt);
-    }
+    // // TODO: Need to define the format of IR to get metadata from stream, then can check version
+    // if (!isELFBlob(stream)) {
+    //     return std::make_unique<Metadata<METADATA_VERSION_2_0>>(MetadataBase::getFileSize(stream), std::nullopt);
+    // }
 
     size_t magicBytesSize = MAGIC_BYTES.size();
     std::string blobMagicBytes;
@@ -320,19 +364,12 @@ size_t Metadata<METADATA_VERSION_2_1>::get_metadata_size() const {
     return metadataSize;
 }
 
-bool isELFBlob(std::istream& stream) {
-    std::streampos pos = stream.tellg();
+size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
+    return Metadata<METADATA_VERSION_2_1>::get_metadata_size() + sizeof(_blobType);
+}
 
-    char buffer[21] = {0};
-    stream.read(buffer, 20);
-    std::streamsize count = stream.gcount();
-
-    // ov::SharedStreamBuf can not work with below call, stream status is bad after that
-    // stream.clear();
-    // stream.seekg(pos);
-    stream.seekg(-stream.tellg() + pos, std::ios::cur);
-    std::string header(buffer, count);
-    return header.find("ELF") != std::string::npos;
+BlobType MetadataBase::get_blob_type() const {
+    return BlobType::ELF;  // Default blob type, can be overridden in derived classes
 }
 
 }  // namespace intel_npu

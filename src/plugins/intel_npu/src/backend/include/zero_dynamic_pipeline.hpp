@@ -1,37 +1,33 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifdef NPU_LLVM_BACKEND
+#    pragma once
 
-#pragma once
-
-#include <mlir/ExecutionEngine/ExecutionEngine.h>
-#include <mlir/ExecutionEngine/MemRefUtils.h>
-
-#include "intel_npu/common/igraph.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
-#include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "zero_memory.hpp"
-#include "zero_pipeline.hpp"
-#include "zero_profiling.hpp"
-#include "zero_tensor.hpp"
-#include "irgraph.hpp"
+#    include "intel_npu/common/igraph.hpp"
+#    include "intel_npu/utils/zero/zero_utils.hpp"
+#    include "intel_npu/utils/zero/zero_wrappers.hpp"
+#    include "irgraph.hpp"
+#    include "zero_memory.hpp"
+#    include "zero_pipeline.hpp"
+#    include "zero_profiling.hpp"
+#    include "zero_tensor.hpp"
 
 namespace intel_npu {
 
 struct DynamicPipeline : public Pipeline {
-    struct PipelinedCommandLists {    
+    struct PipelinedCommandLists {
         mutable IRGraph::GraphArguments _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // to store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
-        
-        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal) {
+
+        PipelinedCommandLists(size_t numCommandLists,
+                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                              const uint32_t& group_ordinal) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
-                _commandLists.emplace_back(
-                    std::make_unique<CommandList>(init_structs, group_ordinal));
+                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs, group_ordinal));
             }
 
             for (size_t i = 0; i < numCommandLists; i++) {
@@ -39,9 +35,13 @@ struct DynamicPipeline : public Pipeline {
             }
         }
 
-        size_t size() const { return _commandListHandles.size(); }
+        size_t size() const {
+            return _commandListHandles.size();
+        }
 
-        ze_command_list_handle_t* data() { return _commandListHandles.data(); }
+        ze_command_list_handle_t* data() {
+            return _commandListHandles.data();
+        }
 
         void bind(IRGraph* graph);
 
@@ -61,14 +61,80 @@ struct DynamicPipeline : public Pipeline {
             // TODO
         }
 
-        void updateMutableCommandList( uint32_t arg_index, const void* arg_value ) {
+        void updateMutableCommandList(uint32_t arg_index,
+                                      const void* arg_value,
+                                      const ov::Strides& strides,
+                                      const ov::Shape& shapes) {
             if (arg_index < _binding._inputs.size()) {
+                std::ostringstream oss;
+                oss << *(_binding._inputs[arg_index]);
+                Logger::global().debug("Orig tensor MemType: %s", oss.str().c_str());
                 _binding._inputs[arg_index]->setArg(arg_value);
-            }
-            else {
-                uint32_t output_index = arg_index - _binding._inputs.size();
+                // Now MemRefType only support 4 dimension
+                size_t shapesSize = shapes.size();
+                for (size_t i = 0; i < 4; i++) {
+                    if (i < shapesSize) {
+                        _binding._inputs[arg_index]->sizes[i] = shapes[i];
+                    } else {
+                        // Set dimension to 1 if exceed region of shapes
+                        _binding._inputs[arg_index]->sizes[i] = 1;
+                    }
+                }
+
+                size_t stridesSize = strides.size();
+                for (size_t i = 0; i < 4; i++) {
+                    if (i < stridesSize) {
+                        _binding._inputs[arg_index]->strides[i] = strides[i];
+                    } else {
+                        // Set dimension to 1 if exceed region of shapes
+                        _binding._inputs[arg_index]->strides[i] = 1;
+                    }
+                }
+
+                // Need stride based on element but not byte
+                _binding._inputs[arg_index]->updateStride();
+
+                oss.clear();
+                oss.str("");
+                oss << *(_binding._inputs[arg_index]);
+                Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
+
+            } else {
+                size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
+                    std::ostringstream oss;
+                    oss << *(_binding._outputs[output_index]);
+                    Logger::global().debug("Orig output tensor MemType: %s", oss.str().c_str());
                     _binding._outputs[output_index]->setArg(arg_value);
+
+                    // Now MemRefType only support 4 dimension
+                    size_t shapesSize = shapes.size();
+                    for (size_t i = 0; i < 4; i++) {
+                        if (i < shapesSize) {
+                            _binding._outputs[output_index]->sizes[i] = shapes[i];
+                        } else {
+                            // Set dimension to 1 if exceed region of shapes
+                            _binding._outputs[output_index]->sizes[i] = 1;
+                        }
+                    }
+
+                    size_t stridesSize = strides.size();
+                    for (size_t i = 0; i < 4; i++) {
+                        if (i < stridesSize) {
+                            _binding._outputs[output_index]->strides[i] = strides[i];
+                        } else {
+                            // Set dimension to 1 if exceed region of shapes
+                            _binding._outputs[output_index]->strides[i] = 1;
+                        }
+                    }
+
+                    // Need stride based on element but not byte
+                    _binding._outputs[output_index]->updateStride();
+
+                    oss.clear();
+                    oss.str("");
+                    oss << *(_binding._outputs[output_index]);
+                    Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
                 }
             }
         }
@@ -91,7 +157,8 @@ public:
                     const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                     const std::shared_ptr<IGraph>& graph,
                     const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-                    const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
+                    const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
+                    size_t batch_size = 1);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
     DynamicPipeline& operator=(const DynamicPipeline&) = delete;
@@ -101,8 +168,19 @@ public:
     virtual void pull() override;
     virtual void reset() const override;
 
-    virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
+    void update_graph_arguments(uint32_t arg_index,
+                                const void* arg_data,
+                                size_t byte_size,
+                                [[maybe_unused]] const ov::Strides& strides,
+                                [[maybe_unused]] const ov::Shape& shapes);
+    void update_graph_arguments_batching(uint32_t arg_index,
+                                         const void* arg_data,
+                                         [[maybe_unused]] const ov::Strides& strides,
+                                         [[maybe_unused]] const ov::Shape& shapes,
+                                         size_t batch_index);
+
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
+
 protected:
     const std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     const std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
@@ -110,5 +188,3 @@ protected:
 };
 
 }  // namespace intel_npu
-
-#endif // NPU_LLVM_BACKEND

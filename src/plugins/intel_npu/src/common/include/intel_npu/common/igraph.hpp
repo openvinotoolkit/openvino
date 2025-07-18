@@ -17,11 +17,11 @@
 
 namespace intel_npu {
 
+enum class BlobType { ELF, LLVM };
+
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph() = default;
-
-    IGraph(const Config& config, std::optional<ov::Tensor> blob);
 
     /**
      * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
@@ -44,6 +44,10 @@ public:
 
     virtual const NetworkMetadata& get_metadata() const = 0;
     virtual ze_graph_handle_t get_handle() const = 0;
+    virtual BlobType get_blob_type() {
+        // 0 For ELF
+        return BlobType::ELF;
+    }
 
     virtual void update_network_name(std::string_view name) = 0;
 
@@ -68,8 +72,6 @@ public:
     virtual uint32_t get_unique_id() = 0;
     virtual void set_last_submitted_id(uint32_t id_index) = 0;
     virtual uint32_t get_last_submitted_id() const = 0;
-
-    virtual uint64_t get_num_subgraphs() const;
 
 protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the

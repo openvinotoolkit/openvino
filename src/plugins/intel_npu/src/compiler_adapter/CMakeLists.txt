@@ -5,6 +5,14 @@
 set(TARGET_NAME "openvino_npu_driver_compiler_adapter")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+
+if(NOT ENABLE_LLVM_BACKEND)
+    list(REMOVE_ITEM SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/irgraph.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/irgraph.cpp
+    )
+endif()
+
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})

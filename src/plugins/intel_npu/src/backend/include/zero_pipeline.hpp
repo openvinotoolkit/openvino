@@ -24,11 +24,12 @@ public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
-             std::string logName);
+             std::string logName,
+             size_t batch_size = 1);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    ~Pipeline() = default;
+    virtual ~Pipeline() = default;
 
     virtual void push();
 
@@ -36,48 +37,11 @@ public:
 
     virtual void pull();
 
-    template<typename command_lists_t>
-    void reset(command_lists_t& command_lists) const {
-        _logger.debug("Pipeline - rest() started");
-
-        for (size_t i = 0; i < command_lists.size(); ++i) {
-            if (_sync_output_with_fences) {
-                _fences.at(i)->reset();
-            } else {
-                _events.at(i)->reset();
-            }
-        }
-
-        _logger.debug("Pipeline - rest() completed");
-    }
-
     virtual void reset() const;
-
-    template<typename command_lists_t>
-    void update_graph_arguments( uint32_t arg_index, const void* arg_data, size_t byte_size, command_lists_t& command_lists ) {
-        const size_t number_of_command_lists = command_lists.size();
-
-        for (size_t i = 0; i < number_of_command_lists; i++) {
-            command_lists.at(i)->updateMutableCommandList(
-                arg_index,
-                static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists);
-        }
-    }
 
     virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
 
-    template<typename command_lists_t>
-    void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index, command_lists_t& command_lists) {
-        const size_t number_of_command_lists = command_lists.size();
-
-        OPENVINO_ASSERT(command_list_index < number_of_command_lists,
-                        "Command list index is higher than the number of Command lists ",
-                        command_list_index);
-
-        command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
-    };
-
-    virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index);
+    virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

@@ -161,10 +161,6 @@ void Graph::set_argument_value(uint32_t argi, const void* argv) const {
     if (_zeGraphExt == nullptr) {
         OPENVINO_THROW("Zero compiler adapter wasn't initialized");
     }
-    if (_graphDesc._handle == nullptr) {
-        _logger.warning("Graph handle is null, dynamic pipeline to handle set_argument_value");
-        return;
-    }
     _zeGraphExt->setGraphArgumentValue(_graphDesc, argi, argv);
 }
 
@@ -175,61 +171,6 @@ void Graph::initialize(const Config& config) {
         return;
     }
 
-    if (_handle == nullptr) {
-        _logger.debug("Graph initialize without graph handle");
-        // TODO: get descriptor from driver, we use pfnGetArgumentProperties3 to get the data
-        ze_graph_argument_properties_3_t arg3{};
-        _input_descriptors = {ArgumentDescriptor{arg3, 0}};
-        _output_descriptors = {ArgumentDescriptor{arg3, 1}};
-
-        _command_queue_group_ordinal =
-            zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                    ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
-
-        uint32_t command_queue_options = 0;
-
-        if (config.has<TURBO>() && config.get<TURBO>()) {
-            if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
-                OPENVINO_THROW("Turbo is not supported by the current driver");
-            }
-            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
-        }
-
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
-            config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
-        }
-
-        _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        _command_queue_group_ordinal,
-                                                        command_queue_options);
-
-        if (config.has<WORKLOAD_TYPE>()) {
-            set_workload_type(config.get<WORKLOAD_TYPE>());
-        }
-
-        //_zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
-
-        _logger.debug("Graph initialize finish");
-
-        //  We are allowed to release the original blob because weights were loaded in NPU memory during
-        //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
-        //  releasing it here to avoid unnecessary memory usage.
-        //_blobIsReleased = release_blob(config);
-
-        _batch_size = get_batch_size(_metadata);
-
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-            config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
-
-            _last_submitted_event.resize(number_of_command_lists);
-        }
-        return;
-    }
-
-    _logger.debug("graph initialize with graph handle");
     _logger.debug("performing pfnGetProperties");
     ze_graph_properties_t props{};
     props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;

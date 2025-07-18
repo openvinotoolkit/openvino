@@ -7,12 +7,12 @@
 #include <string_view>
 
 #include "graph.hpp"
-#include "irgraph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "ir_serializer.hpp"
+#include "irgraph.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -239,61 +239,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
-    if (is_dynamic_shape_blob(mainBlob)) {
-        _logger.debug("blob is not ELF format, create graph for LLVM IR!");
-        // TODO: Fake metadata here, need to get from driver|compiler
-        int64_t dynamicWidth = [] {
-            const auto env = std::getenv("DYNAMIC_WIDTH");
-            if (env != nullptr) {
-                return std::stoll(env);
-            }
-
-            return 60ll;
-        }();
-        int64_t dynamicHeight = [] {
-            const auto env = std::getenv("DYNAMIC_HEIGHT");
-            if (env != nullptr) {
-                return std::stoll(env);
-            }
-
-            return 60ll;
-        }();
-        /* const int64_t maxDynamicWidth = 1800ll; */
-        NetworkMetadata metadata;
-
-        metadata.inputs = {IODescriptor{"input",
-                                        ov::element::f32,
-                                        {1, 3, dynamicHeight, dynamicWidth},
-                                        false,
-                                        false,
-                                        false,
-                                        false,
-                                        false,
-                                        false,
-                                        {},
-                                        "input",
-                                        {"input"},
-                                        std::optional<ov::PartialShape>({1, 3, dynamicHeight, dynamicWidth})}};
-        metadata.outputs = {IODescriptor{"output",
-                                         ov::element::f32,
-                                         {1, 3, dynamicHeight, dynamicWidth},
-                                         false,
-                                         false,
-                                         false,
-                                         false,
-                                         false,
-                                         false,
-                                         {},
-                                         "output",
-                                         {"output"},
-                                         std::optional<ov::PartialShape>({1, 3, dynamicHeight, dynamicWidth})}};
-        return std::make_shared<Graph>(_zeGraphExt,
-                                       _zeroInitStruct,
-                                       nullptr,
-                                       std::move(metadata),
-                                       std::move(mainBlob),
-                                       blobAllocatedByPlugin,
-                                       config);
+    if (config.get<COMPILATION_MODE>() == "HostCompile") {
+        OPENVINO_THROW("Dynamic shape blob is only supported by MLIR compiler type now!");
     }
 
     _logger.debug("parse start");

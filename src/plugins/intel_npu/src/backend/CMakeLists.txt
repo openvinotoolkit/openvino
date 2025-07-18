@@ -5,6 +5,16 @@
 set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+
+if(NOT ENABLE_LLVM_BACKEND)
+    list(REMOVE_ITEM SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_infer_request.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_pipeline.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_infer_request.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_pipeline.cpp
+    )
+endif()
+
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
@@ -27,40 +37,6 @@ target_link_libraries(${TARGET_NAME}
         openvino::npu_al
         openvino::npu_common
 )
-
-if(ENABLE_LLVM_BACKEND)
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            MLIRAnalysis
-            MLIRBuiltinToLLVMIRTranslation
-            MLIRExecutionEngine
-            MLIRIR
-            MLIRJitRunner
-            MLIRLLVMDialect
-            MLIRLLVMToLLVMIRTranslation
-            MLIRToLLVMIRTranslationRegistration
-            MLIRParser
-            MLIRTargetLLVMIRExport
-            MLIRSupport
-            LLVMSupport
-            LLVMCore
-            LLVMX86CodeGen
-            LLVMX86AsmParser
-    )
-
-    set(TEST_SOURCE_DIR ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/jit-tools)
-    set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
-    if(WIN32)
-        set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${config})
-    endif()
-
-    message(STATUS "dest dir:${TEST_DEST_DIR}     config:${config}")
-    add_custom_command(TARGET ${TARGET_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${TEST_SOURCE_DIR} ${TEST_DEST_DIR}
-        COMMENT "Copying jit files to ${TEST_DEST_DIR} directory"
-    )
-endif()
 
 #
 # targets install
