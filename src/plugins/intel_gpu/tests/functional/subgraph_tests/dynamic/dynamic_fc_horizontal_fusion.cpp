@@ -505,6 +505,7 @@ protected:
 };
 
 TEST_P(FullyConnectedHorizontalFusion, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     size_t lora_rank = std::get<0>(GetParam()).lora_rank;
     if (lora_rank != 0) {
         auto net_type = std::get<2>(GetParam());
