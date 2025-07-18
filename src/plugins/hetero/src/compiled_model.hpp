@@ -20,7 +20,7 @@ class InferRequest;
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
-                  const std::vector<ov::hetero::SubmodelInfo>& compiled_submodels,
+                  const std::vector<ov::hetero::SubmodelInfo>& submodels,
                   const SubgraphsMappingInfo& mapping_info,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   ov::hetero::RemoteContext::Ptr context,

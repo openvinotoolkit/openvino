@@ -978,6 +978,14 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
     return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
+std::shared_ptr<ov::Model> ov::CoreImpl::get_transformed_model(const std::shared_ptr<const ov::Model>& model,
+                                                               const std::string& device_name,
+                                                               const ov::AnyMap& config) const {
+    OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::get_transformed_model");
+    auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    return get_plugin(parsed._deviceName).get_transformed_model(model, parsed._config);
+}
+
 bool ov::CoreImpl::is_hidden_device(const std::string& device_name) const {
 #ifdef PROXY_PLUGIN_ENABLED
     std::lock_guard<std::mutex> lock(get_mutex());

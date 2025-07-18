@@ -217,6 +217,16 @@ public:
                                             const ov::AnyMap& properties) const = 0;
 
     /**
+     * @brief Get a transformed model of the input model with specified configuration
+     *
+     * @param model OpenVINO Model to be transformed
+     * @param properties Optional map of pairs: (property name, property value).
+     * @return A shared pointer to the transformed ov::Model object
+     */
+    virtual std::shared_ptr<ov::Model> get_transformed_model(const std::shared_ptr<const ov::Model>& model,
+                                                             const ov::AnyMap& properties) const;
+
+    /**
      * @brief Sets pointer to ICore interface
      * @param core Pointer to Core interface
      */
