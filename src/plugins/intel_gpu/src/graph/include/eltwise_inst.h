@@ -35,6 +35,9 @@ public:
         return std::make_shared<EltwiseFuseParams>(typed_desc());
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
+    bool need_input_tensors_size_align() const;
+    std::optional<size_t> find_eltwise_const_dep_idx() const;
 };
 
 using eltwise_node = typed_program_node<eltwise>;

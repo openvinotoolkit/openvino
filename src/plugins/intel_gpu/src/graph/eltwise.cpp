@@ -469,4 +469,28 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
             break;
     }
 }
+
+bool eltwise_node::need_input_tensors_size_align() const {
+    if (get_input_layouts().size() < 2)
+        return false;
+    if (get_primitive()->broadcast_spec != ov::op::AutoBroadcastType::NUMPY)
+        return false;
+
+    auto pshape_a_rank = get_input_pshape(0).size();
+    auto pshape_b_rank = get_input_pshape(1).size();
+    if (pshape_a_rank != pshape_b_rank && pshape_a_rank > 1 && pshape_b_rank > 1)
+        return true;
+
+    return false;
+}
+
+std::optional<size_t> eltwise_node::find_eltwise_const_dep_idx() const {
+    for (size_t i = 0; i < get_dependencies().size(); ++i) {
+        if (get_dependency(i).is_constant())
+            return i;
+    }
+
+    return std::nullopt;
+}
+
 }  // namespace cldnn
