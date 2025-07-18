@@ -280,6 +280,7 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
+          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: CMake configure, build and install - OpenVINO JS API
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}

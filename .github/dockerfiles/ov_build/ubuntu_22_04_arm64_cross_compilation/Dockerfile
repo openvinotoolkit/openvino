@@ -74,11 +74,8 @@ RUN dpkg --add-architecture arm64 && \
         texlive \
         liblua5.2-0 \
         # JS API
-        xvfb \
         libgtk-3-0 \
         libgbm1 \
-        # ONNX Runtime
-        language-pack-en \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -88,7 +85,7 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-# For cross-compilation for ARM64. If installed in the first apt-get install command, it will be removed by the install_build_dependencies.sh script
+# For cross-compilation for ARM64. If installed in the first `apt-get install` command, it will be removed by the install_build_dependencies.sh script
 RUN apt-get update && \
     apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
@@ -109,7 +106,7 @@ RUN curl -O https://www.python.org/ftp/python/3.11.3/Python-3.11.3.tar.xz && \
     cd Python-3.11.3 && ./configure && make -j4 && make altinstall && \
     curl https://bootstrap.pypa.io/get-pip.py | python3.11 - --no-cache-dir pip==${PIP_VERSION} numpy cython crossenv
 
-# Cross-compile Python 3.11 for ARM
+# Cross-compile Python 3.11 for ARM64
 RUN cd Python-3.11.3 && make distclean && \
     ./configure \
         --host=aarch64-linux-gnu \
@@ -129,9 +126,6 @@ ENV PIP_CACHE_DIR=/mount/caches/pip/linux/${PIP_VERSION}
 # Using venv here because other methods to switch the default Python break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$PATH"
-
-# ONNX Runtime, see https://github.com/microsoft/onnxruntime/issues/13197#issuecomment-1264542497
-RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
 # Install Node
 ENV NODE_VERSION=21.7.3

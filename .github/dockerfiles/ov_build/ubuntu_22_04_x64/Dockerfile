@@ -60,10 +60,6 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-# For cross-compilation for ARM64. If installed in the first apt-get install command, it will be removed by the install_build_dependencies.sh script
-RUN apt-get update && \
-    apt-get install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
 ENV SCCACHE_HOME="/opt/sccache" \
