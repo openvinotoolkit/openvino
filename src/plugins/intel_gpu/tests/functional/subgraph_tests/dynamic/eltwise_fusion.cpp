@@ -98,13 +98,21 @@ INSTANTIATE_TEST_SUITE_P(StaticEltwiseDynamicFusions_basic,
                          StaticEltwiseDynamicFusions::getTestCaseName);
 
 // Gather+Add
+/****************************************
+ *    input[?,2,3]
+ *      |
+ *   Gather[?,3]  bias[1,3]
+ *           \   /
+ *            Add
+ *             |
+ *           Output
+ * **************************************/
 class GatherEltwiseFusion : public StaticEltwiseDynamicFusions,
                      virtual public ov::test::SubgraphBaseTest {
 public:
 protected:
     std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes,
                                              const ov::element::Type input_precision) {
-        std::cout << "--> GatherEltwiseFusion::init_subgraph" << std::endl;
         auto input = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
 
         auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int>{0});
