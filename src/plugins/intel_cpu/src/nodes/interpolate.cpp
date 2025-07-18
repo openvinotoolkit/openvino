@@ -3801,20 +3801,23 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
     const auto* in_ptr_f32 = reinterpret_cast<const float*>(in_ptr_);
     auto* out_ptr_f32 = reinterpret_cast<float*>(out_ptr_);
 
-    parallel_for2d(B, C, [&](size_t b, size_t c) {
-        float* out_ptr_nc = out_ptr_f32 + (OD * OH * OW * C * b + OD * OH * OW * c);
-        const float* in_ptr_nc = in_ptr_f32 + (ID * IH * IW * C * b + ID * IH * IW * c);
-        // do not combined 1d/2d to 3d unified process to get rid of invalid computing.
-        switch (spatialDimSize) {
-        case 1:
+    switch (spatialDimSize) {
+    case 1:
+        parallel_for4d(B, C, OD, OH, [&](size_t b, size_t c, size_t d, size_t h) {
+            float* out_ptr_nc = out_ptr_f32 + (OD * OH * OW * C * b + OD * OH * OW * c + OH * OW * d + OW * h);
+            const float* in_ptr_nc = in_ptr_f32 + (ID * IH * IW * C * b + ID * IH * IW * c + IH * IW * d + IW * h);
             for (int i = 0; i < OW; i++) {
                 float src0 = in_ptr_nc[indexPtr[0][i]];
                 float src1 = in_ptr_nc[indexPtr[1][i]];
 
                 out_ptr_nc[i] = src0 * weightPtr[0][i] + src1 * weightPtr[1][i];
             }
-            break;
-        case 2:
+        });
+        break;
+    case 2:
+        parallel_for3d(B, C, OD, [&](size_t b, size_t c, size_t d) {
+            float* out_ptr_nc = out_ptr_f32 + (OD * OH * OW * C * b + OD * OH * OW * c + OH * OW * d);
+            const float* in_ptr_nc = in_ptr_f32 + (ID * IH * IW * C * b + ID * IH * IW * c + IH * IW * d);
             for (int i = 0; i < OH * OW; i++) {
                 float src00 = in_ptr_nc[indexPtr[0][i]];
                 float src01 = in_ptr_nc[indexPtr[1][i]];
@@ -3824,8 +3827,12 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
                 out_ptr_nc[i] = src00 * weightPtr[2][i] * weightPtr[0][i] + src01 * weightPtr[2][i] * weightPtr[1][i] +
                                 src10 * weightPtr[3][i] * weightPtr[0][i] + src11 * weightPtr[3][i] * weightPtr[1][i];
             }
-            break;
-        case 3:
+        });
+        break;
+    case 3:
+        parallel_for2d(B, C, [&](size_t b, size_t c) {
+            float* out_ptr_nc = out_ptr_f32 + (OD * OH * OW * C * b + OD * OH * OW * c);
+            const float* in_ptr_nc = in_ptr_f32 + (ID * IH * IW * C * b + ID * IH * IW * c);
             for (int i = 0; i < OD * OH * OW; i++) {
                 float src000 = in_ptr_nc[indexPtr[0][i]];
                 float src001 = in_ptr_nc[indexPtr[1][i]];
@@ -3852,11 +3859,11 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
                     weightPtr[5][i] * (weightPtr[2][i] * (weightPtr[0][i] * src100 + weightPtr[1][i] * src101) +
                                        weightPtr[3][i] * (weightPtr[0][i] * src110 + weightPtr[1][i] * src111));
             }
-            break;
-        default:
-            break;
-        }
-    });
+        });
+        break;
+    default:
+        break;
+    }
 }
 
 void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
