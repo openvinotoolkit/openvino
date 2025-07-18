@@ -15,9 +15,9 @@ namespace intel_npu {
 
 IONodeMetadata::IONodeMetadata(const ArgumentDescriptor& d) : descriptor(d) {}
 
-std::optional<size_t> extract_batch_impl(const ov::Shape& shape,
-                                         std::optional<ov::PartialShape> partial_shape,
-                                         size_t index) {
+std::optional<size_t> IONodeMetadata::extract_batch_impl(const ov::Shape& shape,
+                                                         std::optional<ov::PartialShape> partial_shape,
+                                                         size_t index) const {
     if (partial_shape.has_value()) {
         if (partial_shape.value()[index].is_dynamic()) {
             return shape[index];

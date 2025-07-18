@@ -8,7 +8,6 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
@@ -22,6 +21,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
 #include "overload/overload_test_utils_npu.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
@@ -127,6 +127,16 @@ public:
         return std::make_shared<Model>(res, params);
     }
 };
+
+// To avoid error: no previous declaration
+void executeMutlipleTensorsBatchInfer(ov::InferRequest req,
+                                      size_t batch_value,
+                                      const Shape& non_batched_shape,
+                                      ov::RemoteContext& context);
+void executeContiguousTensorBatchInfer(ov::InferRequest req,
+                                       size_t batch_value,
+                                       const Shape& non_batched_shape,
+                                       ov::RemoteContext& context);
 
 // Second test group inheriting from the first
 using DynamicBatchedTensorsRunTests = BatchedTensorsRunTests;
