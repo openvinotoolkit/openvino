@@ -1,0 +1,230 @@
+/*******************************************************************************
+ * Copyright (c) 2022-2025 Intel Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *******************************************************************************/
+
+#include "include/batch_headers/cm_xetla.h"
+
+namespace KERNEL_NAME {
+using namespace gpu::xetla;
+using namespace gpu::xetla::group;
+using namespace gpu::xetla::kernel;
+using namespace gpu::xetla::subgroup;
+
+// 0 - none
+// 1 - bias
+// 2 - bias + sum
+// 3 - bias + sum + mul + sum
+// 4 - sum
+// 5 - sum + mul + sum
+// 6 - gn_reduce
+constexpr uint32_t post_op_combination = POST_OP;
+
+constexpr uint32_t size_n = SIZE_N;
+constexpr uint32_t size_h = SIZE_H;
+constexpr uint32_t size_w = SIZE_W;
+constexpr uint32_t size_c = SIZE_C;
+constexpr uint32_t size_p = SIZE_P;
+constexpr uint32_t size_q = SIZE_Q;
+constexpr uint32_t size_k = SIZE_K;
+
+using data_type_src = SRC_DT;
+using data_type_wei = WEI_DT;
+using data_type_out = OUT_DT;
+using data_type_acc = ACC_DT;
+
+constexpr uint32_t fsz = FILTER_SIZE;
+constexpr uint32_t pad_w = PADDING;
+constexpr uint32_t stride_w = STRIDE;
+constexpr uint32_t pad_h = PADDING;
+constexpr uint32_t stride_h = STRIDE;
+
+constexpr size_t wg_tile_n = WG_TILE_N;
+constexpr size_t wg_tile_p = WG_TILE_P;
+constexpr size_t wg_tile_q = WG_TILE_Q;
+constexpr size_t wg_tile_k = WG_TILE_K;
+
+constexpr size_t sg_tile_n = SG_TILE_N;
+constexpr size_t sg_tile_p = SG_TILE_P;
+constexpr size_t sg_tile_q = SG_TILE_Q;
+constexpr size_t sg_tile_k = SG_TILE_K;
+
+constexpr uint32_t global_slicing = GLOBAL_SLICING;
+constexpr uint32_t local_slicing = LOCAL_SLICING;
+
+static constexpr uint32_t periodic_sync_interval = 0;
+static constexpr uint32_t prefetch_distance = PREFETCH_DISTANCE;
+static constexpr uint32_t accum_step = ACCUM_STEP;
+
+constexpr mem_space local_slicing_mem_space = mem_space::global;
+
+using compute_attr
+        = compute_attr_t<data_type_src, data_type_wei, data_type_acc>;
+
+using perf_tuning_knob = perf_tuning_knob_t<accum_step, prefetch_distance,
+        periodic_sync_interval>;
+
+static constexpr gpu_arch arch_tag = gpu_arch::Xe;
+
+using compute_policy
+        = compute_policy_default_xmx<compute_attr, perf_tuning_knob, arch_tag>;
+
+using mem_desc_src
+        = mem_desc_t<data_type_src, mem_layout::nhwc, mem_space::global, 8, 4>;
+using mem_desc_weight
+        = mem_desc_t<data_type_wei, mem_layout::hwio, mem_space::global, 8, 4>;
+using mem_desc_out
+        = mem_desc_t<data_type_out, mem_layout::nhwc, mem_space::global, 8, 4>;
+
+using tile_shape = tile_shape_t<wg_tile_n, wg_tile_p, wg_tile_q, wg_tile_k,
+        sg_tile_n, sg_tile_p, sg_tile_q, sg_tile_k>;
+
+using filter_attr = brconv_filter_attr_t<fsz, pad_w, stride_w, 1, fsz, pad_h,
+        stride_h, 1>;
+
+using brconv_config = brconv_fwd_t<compute_policy, tile_shape, filter_attr,
+        mem_desc_src, mem_desc_weight>;
+
+using bias_op_t = bias_add_op_t<data_type_wei, arch_tag>;
+using sum_op_t = elemwise_reduce_op_t<reduce_op::sum, data_type_out, arch_tag>;
+using scale_shift_op_t
+        = scale_v_offset_v_op_t<data_type_out, data_type_out, arch_tag>;
+#if POST_OP == 0
+using epilogue_t = epilogue_t<epilogue_policy_default<gpu_arch::Xe>, tile_shape,
+        mem_desc_out>;
+#elif POST_OP == 1
+using tile_op_t = chained_tile_op_t<bias_op_t>;
+using epilogue_t = epilogue_t<epilogue_policy_tile_op<tile_op_t, arch_tag>,
+        tile_shape, mem_desc_out>;
+#elif POST_OP == 2
+using tile_op_t = chained_tile_op_t<bias_op_t, sum_op_t>;
+using epilogue_t = epilogue_t<epilogue_policy_tile_op<tile_op_t, arch_tag>,
+        tile_shape, mem_desc_out>;
+#elif POST_OP == 3
+using tile_op_t = chained_tile_op_t<bias_op_t, sum_op_t, scale_shift_op_t>;
+using epilogue_t = epilogue_t<epilogue_policy_tile_op<tile_op_t, arch_tag>,
+        tile_shape, mem_desc_out>;
+#elif POST_OP == 4
+using tile_op_t = chained_tile_op_t<sum_op_t>;
+using epilogue_t = epilogue_t<epilogue_policy_tile_op<tile_op_t, arch_tag>,
+        tile_shape, mem_desc_out>;
+#elif POST_OP == 5
+using tile_op_t = chained_tile_op_t<sum_op_t, scale_shift_op_t>;
+using epilogue_t = epilogue_t<epilogue_policy_tile_op<tile_op_t, arch_tag>,
+        tile_shape, mem_desc_out>;
+#elif POST_OP == 6
+constexpr size_t gn_group_size = GROUPNORM_GROUP_SIZE;
+constexpr size_t gn_group_num = GROUPNORM_GROUP_NUM;
+using data_type_stat = STAT_DT;
+
+// comment
+
+using mem_desc_stat_t
+        = mem_desc_t<data_type_stat, mem_layout::row_major, mem_space::global>;
+using gn_reduce_t
+        = groupnorm_reduce_t<tile_shape, typename brconv_config::matAcc_t,
+                mem_desc_out, mem_desc_stat_t, arch_tag>;
+using epilogue_t = epilogue_t<epilogue_policy_gn_reduce<gn_reduce_t, arch_tag>,
+        tile_shape, mem_desc_out>;
+#endif
+
+using epilogue_args_t = typename epilogue_t::arguments_t;
+
+using group_swizzle_t = group_swizzle_default<arch_tag>;
+
+using dispatch_policy_t = dispatch_policy_slicing<group_swizzle_t,
+        global_slicing, local_slicing, local_slicing_mem_space>;
+
+using conv_t = conv_fwd_t<dispatch_policy_t, brconv_config, epilogue_t>;
+
+_GENX_MAIN_ void KERNEL_NAME(svmptr_t src [[type("svmptr_t")]],
+        svmptr_t wei [[type("svmptr_t")]], svmptr_t out [[type("svmptr_t")]],
+        svmptr_t scratchpad [[type("svmptr_t")]],
+        svmptr_t acc [[type("svmptr_t")]], svmptr_t cnt [[type("svmptr_t")]]
+#if POST_OP == 0
+#elif POST_OP == 1
+                                           ,
+        svmptr_t bias [[type("svmptr_t")]]
+#elif POST_OP == 2
+                                           ,
+        svmptr_t bias [[type("svmptr_t")]], svmptr_t sum [[type("svmptr_t")]]
+#elif POST_OP == 3
+                                           ,
+        svmptr_t bias [[type("svmptr_t")]], svmptr_t sum [[type("svmptr_t")]],
+        svmptr_t scale [[type("svmptr_t")]], svmptr_t shift [[type("svmptr_t")]]
+#elif POST_OP == 4
+                                           ,
+        svmptr_t sum [[type("svmptr_t")]]
+#elif POST_OP == 5
+                                           ,
+        svmptr_t sum [[type("svmptr_t")]], svmptr_t scale [[type("svmptr_t")]],
+        svmptr_t shift [[type("svmptr_t")]]
+#elif POST_OP == 6
+                                           ,
+        svmptr_t out_sumx [[type("svmptr_t")]],
+        svmptr_t out_sumxsq [[type("svmptr_t")]]
+#endif
+) {
+    sycl::nd_item<3> item;
+    constexpr uint32_t barriers = conv_t::get_barrier_count();
+    constexpr uint32_t slm_size = conv_t::get_slm_size();
+    if constexpr (barriers > 0) { cm_nbarrier_init(barriers); }
+    if constexpr (slm_size > 0) { cm_slm_init(slm_size); }
+
+    epilogue_args_t epilogue_args;
+    typename bias_op_t::shape_t bias_shape(size_k, 1, size_k);
+    typename sum_op_t::shape_t sum_shape(
+            size_k, size_n * size_p * size_q, size_k);
+    typename scale_shift_op_t::scale_shape_t scale_shape(size_k, 1, size_k);
+    typename scale_shift_op_t::offset_shape_t shift_shape(size_k, 1, size_k);
+#if POST_OP == 0
+#elif POST_OP == 1
+    epilogue_args.init({{(data_type_wei *)bias, bias_shape}});
+#elif POST_OP == 2
+    epilogue_args.init({{(data_type_wei *)bias, bias_shape},
+            {(data_type_out *)sum, sum_shape}});
+#elif POST_OP == 3
+    epilogue_args.init({{(data_type_wei *)bias, bias_shape},
+            {(data_type_out *)sum, sum_shape},
+            {(data_type_out *)scale, scale_shape, 
+            (data_type_out *)shift, shift_shape}});
+#elif POST_OP == 4
+    epilogue_args.init({{(data_type_out *)sum, sum_shape}});
+#elif POST_OP == 5
+    epilogue_args.init({{(data_type_out *)sum, sum_shape},
+            {(data_type_out *)scale, scale_shape, 
+            (data_type_out *)shift, shift_shape}});
+#elif POST_OP == 6
+    typename mem_desc_stat_t::shape_t ng_shape {
+            gn_group_num, size_n, gn_group_num};
+    // mem_desc_out set by the epilogue
+    auto out_mem_desc = mem_desc_out {
+            (data_type_out *)out_sumx, {0, 0, 0, 0}, {0, 0, 0, 0}};
+    auto sumx_mem_desc
+            = mem_desc_stat_t((data_type_stat *)out_sumx, ng_shape, {0, 0});
+    auto sumxsq_mem_desc
+            = mem_desc_stat_t((data_type_stat *)out_sumxsq, ng_shape, {0, 0});
+    epilogue_args.init(
+            {out_mem_desc, sumx_mem_desc, sumxsq_mem_desc, gn_group_size});
+#endif
+
+    typename conv_t::arguments_t conv_args {size_n, size_h, size_w, size_k,
+            size_c, (data_type_src *)src, (data_type_wei *)wei,
+            (data_type_out *)out, (data_type_acc *)scratchpad,
+            (data_type_acc *)acc, (uint32_t *)cnt, epilogue_args};
+
+    conv_t conv;
+    conv(item, conv_args);
+}
+}

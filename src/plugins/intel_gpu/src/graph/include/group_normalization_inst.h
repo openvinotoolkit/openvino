@@ -6,6 +6,13 @@
 #include "primitive_inst.h"
 
 namespace cldnn {
+
+class GroupNormFuseParams : public NodeFuseParams {
+public:
+    GroupNormFuseParams() : NodeFuseParams(group_normalization::type_id()) {}
+    size_t ops_count() const override { return 1; }
+};
+
 template <>
 struct typed_program_node<group_normalization> : public typed_program_node_base<group_normalization> {
     using parent = typed_program_node_base<group_normalization>;
@@ -14,6 +21,8 @@ public:
     using parent::parent;
 
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override { return std::make_shared<GroupNormFuseParams>(); }
 };
 using group_normalization_node = typed_program_node<group_normalization>;
 

@@ -774,6 +774,8 @@ bool is_supported_post_ops(const program_node& node) {
                 activation_prim->activation_function == activation_func::sign)
                 return false;
         }
+        if (fo.is_type<group_normalization>())
+            return false;
     }
 
     return true;

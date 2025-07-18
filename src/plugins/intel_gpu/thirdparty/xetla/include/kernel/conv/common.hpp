@@ -1,4 +1,3 @@
-
 /*******************************************************************************
 * Copyright (c) 2022-2023 Intel Corporation
 *
@@ -20,13 +19,6 @@
 
 #pragma once
 
-/// @defgroup xetla_epilogue XeTLA EPILOGUE
-/// This is a epilogue API to compute matC = tile_op(matAcc).
-
-#include "group/epilogue/api.hpp"
-#include "group/epilogue/common.hpp"
-#include "group/epilogue/epilogue_policy.hpp"
-#include "group/epilogue/impl/default_xe.hpp"
-#include "group/epilogue/impl/groupnorm_reduce.hpp"
-#include "group/epilogue/impl/tile_op_xe.hpp"
-#include "group/tile_shape.hpp"
+#include "common/common.hpp"
+#include "group/group.hpp"
+#include "subgroup/subgroup.hpp"

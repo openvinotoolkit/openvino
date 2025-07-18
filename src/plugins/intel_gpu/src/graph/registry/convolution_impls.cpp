@@ -12,6 +12,10 @@
 #if OV_GPU_WITH_OCL
     #include "impls/ocl/convolution.hpp"
 #endif
+#if OV_GPU_WITH_CM
+    #include "impls/cm/xetla_convolution.hpp"
+#endif
+
 
 namespace ov::intel_gpu {
 
@@ -19,6 +23,7 @@ using namespace cldnn;
 
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<convolution>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
+        OV_GPU_CREATE_INSTANCE_CM(cm::ConvolutionImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_ONEDNN(onednn::ConvolutionImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ConvolutionImplementationManager, shape_types::static_shape)
         OV_GPU_CREATE_INSTANCE_OCL(ocl::ConvolutionImplementationManager, shape_types::dynamic_shape,
