@@ -119,16 +119,14 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 ov::Any value = val.as<std::string>();
                 int val_i = value.as<int>();
-                if (val_i < 0) {
-                    OPENVINO_THROW("invalid value.");
-                }
+                OPENVINO_ASSERT(val_i >= 0, "invalid value.");
                 hintNumRequests = static_cast<uint32_t>(val_i);
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                "for property key ",
                                ov::hint::num_requests.name(),
-                               ". Expected only > 0.");
+                               ". Expected only >= 0.");
             }
         } else if (key == ov::hint::enable_cpu_pinning.name()) {
             try {
@@ -204,13 +202,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
                                ". Expected only float numbers");
             }
-            if (val_f < 0.F || val_f > 1.F) {
-                OPENVINO_THROW("Wrong value for property key ",
-                               ov::intel_cpu::sparse_weights_decompression_rate.name(),
-                               ". Sparse rate must be in range [0.0f,1.0f]");
-            } else {
-                fcSparseWeiDecompressionRate = val_f;
-            }
+            OPENVINO_ASSERT(val_f >= 0.F && val_f <= 1.F,
+                            "Wrong value for property key ",
+                            ov::intel_cpu::sparse_weights_decompression_rate.name(),
+                            ". Sparse rate must be in range [0.0f,1.0f]");
+            fcSparseWeiDecompressionRate = val_f;
         } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
                 fcDynamicQuantizationGroupSizeSetExplicitly = true;
@@ -218,7 +214,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             } catch (const ov::Exception&) {
                 OPENVINO_THROW("Wrong value for property key ",
                                ov::hint::dynamic_quantization_group_size.name(),
-                               ". Expected only unsinged integer numbers");
+                               ". Expected only unsigned integer numbers");
             }
         } else if (key == ov::enable_profiling.name()) {
             try {
@@ -252,9 +248,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             }
         } else if (key == ov::device::id.name()) {
             device_id = val.as<std::string>();
-            if (!device_id.empty()) {
-                OPENVINO_THROW("CPU plugin supports only '' as device id");
-            }
+            OPENVINO_ASSERT(device_id.empty(), "CPU plugin supports only '' as device id");
         } else if (key == ov::hint::inference_precision.name()) {
             try {
                 const auto prec = val.as<ov::element::Type>();
@@ -408,7 +402,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                val.as<std::string>(),
                                " for property key ",
                                key,
-                               ". Expected only unsinged integer numbers");
+                               ". Expected only unsigned integer numbers");
             }
         } else if (key == ov::intel_cpu::key_cache_quant_mode.name()) {
             try {
