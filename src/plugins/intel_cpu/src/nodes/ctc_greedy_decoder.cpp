@@ -49,17 +49,17 @@ CTCGreedyDecoder::CTCGreedyDecoder(const std::shared_ptr<ov::Node>& op, const Gr
     }
 
     if (getOriginalInputsNumber() != 2) {
-        THROW_CPU_NODE_ERR("has invalid number of input edges: ", getOriginalInputsNumber());
+        CPU_NODE_THROW("has invalid number of input edges: ", getOriginalInputsNumber());
     }
     if (getOriginalOutputsNumber() != 1) {
-        THROW_CPU_NODE_ERR("has invalid number of outputs edges: ", getOriginalOutputsNumber());
+        CPU_NODE_THROW("has invalid number of outputs edges: ", getOriginalOutputsNumber());
     }
 
     const auto& dataDims = getInputShapeAtPort(DATA_INDEX).getDims();
     const auto& seqDims = getInputShapeAtPort(SEQUENCE_LENGTH_INDEX).getDims();
 
     if (!dimsEqualWeak(dataDims[0], seqDims[0]) || !dimsEqualWeak(dataDims[1], seqDims[1])) {
-        THROW_CPU_NODE_ERR("has invalid input shapes.");
+        CPU_NODE_THROW("has invalid input shapes.");
     }
 
     auto greedyDecOp = ov::as_type_ptr<const ov::op::v0::CTCGreedyDecoder>(op);
@@ -73,12 +73,12 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
-        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", inDataPrecision);
+        CPU_NODE_THROW("has unsupported 'data' input precision: ", inDataPrecision);
     }
 
     ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
     if (!one_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
-        THROW_CPU_NODE_ERR("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
+        CPU_NODE_THROW("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},

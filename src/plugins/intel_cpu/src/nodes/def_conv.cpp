@@ -802,9 +802,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     auto defConvNodeBase = ov::as_type_ptr<ov::op::util::DeformableConvolutionBase>(op);
-    if (defConvNodeBase == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of DeformableConvolutionBase.");
-    }
+    CPU_NODE_ASSERT(defConvNodeBase, "is not an instance of DeformableConvolutionBase.");
 
     defConvAttr.group = defConvNodeBase->get_group();
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
@@ -824,9 +822,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 
     if (op->get_type_info() == ov::op::v8::DeformableConvolution::get_type_info_static()) {
         auto defConvNode = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op);
-        if (defConvNode == nullptr) {
-            THROW_CPU_NODE_ERR("is not an instance of DeformableConvolution from opset8.");
-        }
+        CPU_NODE_ASSERT(defConvNode, "is not an instance of DeformableConvolution from opset8.");
         defConvAttr.with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
     } else {
         defConvAttr.with_bilinear_pad = false;
@@ -834,24 +830,20 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 }
 
 void DeformableConvolution::getSupportedDescriptors() {
-    if (getParentEdges().size() != 3 && getParentEdges().size() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
-    if (getInputShapeAtPort(DATA_ID).getRank() != 4) {
-        THROW_CPU_NODE_ERR("has unsupported mode. Only 4D blobs are supported as input.");
-    }
-    if (getInputShapeAtPort(OFF_ID).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(OFF_ID).getRank());
-    }
-    if (getInputShapeAtPort(WEI_ID).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 2nd input with rank: ", getInputShapeAtPort(WEI_ID).getRank());
-    }
-    if (getOutputShapeAtPort(DATA_ID).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(DATA_ID).getRank());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 3 || getParentEdges().size() == 4,
+                    "has incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
+    CPU_NODE_ASSERT(getInputShapeAtPort(DATA_ID).getRank() == 4,
+                    "has unsupported mode. Only 4D blobs are supported as input.");
+    CPU_NODE_ASSERT(getInputShapeAtPort(OFF_ID).getRank() == 4,
+                    "doesn't support 1st input with rank: ",
+                    getInputShapeAtPort(OFF_ID).getRank());
+    CPU_NODE_ASSERT(getInputShapeAtPort(WEI_ID).getRank() == 4,
+                    "doesn't support 2nd input with rank: ",
+                    getInputShapeAtPort(WEI_ID).getRank());
+    CPU_NODE_ASSERT(getOutputShapeAtPort(DATA_ID).getRank() == 4,
+                    "doesn't support output with rank: ",
+                    getOutputShapeAtPort(DATA_ID).getRank());
 }
 
 void DeformableConvolution::initSupportedPrimitiveDescriptors() {
@@ -1065,9 +1057,10 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
 DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const DefConvAttr& defConvAttr,
     const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector) {
-    if (descVector.size() != 4 && descVector.size() != 5) {
-        OPENVINO_THROW("Deformable Convolution executor got incorrect desc's count (", descVector.size(), ")");
-    }
+    OPENVINO_ASSERT(one_of(descVector.size(), 4U, 5U),
+                    "Deformable Convolution executor got incorrect desc's count (",
+                    descVector.size(),
+                    ")");
     bool withModulation = descVector.size() == 5;
 
     const auto& srcDesc = descVector[DATA_ID];
@@ -1247,30 +1240,18 @@ void DeformableConvolution::prepareParams() {
     auto offMemPtr = getSrcMemoryAtPort(OFF_ID);
     auto weiMemPtr = getSrcMemoryAtPort(WEI_ID);
 
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined destination memory");
-    }
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory");
-    }
-    if (!offMemPtr || !offMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined offsets shape memory");
-    }
-    if (!weiMemPtr || !weiMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined weights memory");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory");
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory");
+    CPU_NODE_ASSERT(offMemPtr && offMemPtr->isDefined(), "has undefined offsets shape memory");
+    CPU_NODE_ASSERT(weiMemPtr && weiMemPtr->isDefined(), "has undefined weights memory");
 
     if (getOriginalInputsNumber() > 3) {
         auto modMemPtr = getSrcMemoryAtPort(MOD_ID);
-        if (!modMemPtr || !modMemPtr->isDefined()) {
-            THROW_CPU_NODE_ERR("has undefined modulations memory");
-        }
+        CPU_NODE_ASSERT(modMemPtr && modMemPtr->isDefined(), "has undefined modulations memory");
     }
 
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     bool withModulation = getParentEdges().size() > 3;
@@ -1313,9 +1294,7 @@ void DeformableConvolution::prepareParams() {
     });
     execPtr = result.first;
 
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
-    }
+    CPU_NODE_ASSERT(execPtr, "Primitive descriptor was not found.");
 }
 
 void DeformableConvolution::executeDynamicImpl(const dnnl::stream& strm) {
@@ -1378,16 +1357,11 @@ void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* dst = dstMemory.getDataAs<float>();
 
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    if (execPtr) {
-        execPtr->exec(src, offsets, weights, modulation, dst, sampledCoordsVector.data(), interpWeightsVector.data());
-    } else {
-        THROW_CPU_NODE_ERR("executor doesn't exist");
-    }
+    CPU_NODE_ASSERT(execPtr, "executor doesn't exist");
+    execPtr->exec(src, offsets, weights, modulation, dst, sampledCoordsVector.data(), interpWeightsVector.data());
 }
 
 void DeformableConvolution::updatePadding() {

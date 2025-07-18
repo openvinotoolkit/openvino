@@ -226,7 +226,7 @@ void Math::execute([[maybe_unused]] const dnnl::stream& strm) {
         });
         break;
     default:
-        THROW_CPU_NODE_ERR("Incorrect Reduce layer type");
+        CPU_NODE_THROW("Incorrect Reduce layer type");
     }
 }
 

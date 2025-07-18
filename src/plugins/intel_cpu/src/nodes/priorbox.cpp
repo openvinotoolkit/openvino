@@ -76,9 +76,8 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     for (float aspect_ratio_item : attrs.aspect_ratio) {
         exist = false;
 
-        if (std::fabs(aspect_ratio_item) < std::numeric_limits<float>::epsilon()) {
-            THROW_CPU_NODE_ERR("has aspect_ratio param can't be equal to zero");
-        }
+        CPU_NODE_ASSERT(std::fabs(aspect_ratio_item) >= std::numeric_limits<float>::epsilon(),
+                        "has aspect_ratio param can't be equal to zero");
 
         for (float _aspect_ratio : aspect_ratio) {
             if (std::fabs(aspect_ratio_item - _aspect_ratio) < 1e-6) {
@@ -101,16 +100,14 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
     if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
         for (float i : attrs.variance) {
-            if (i < 0) {
-                THROW_CPU_NODE_ERR("variance must be > 0.");
-            }
+            CPU_NODE_ASSERT(i >= 0, "variance must be > 0.");
 
             variance.push_back(i);
         }
     } else if (attrs.variance.empty()) {
         variance.push_back(0.1F);
     } else {
-        THROW_CPU_NODE_ERR("has wrong number of variance values. Not less than 1 and more than 4 variance values.");
+        CPU_NODE_THROW("has wrong number of variance values. Not less than 1 and more than 4 variance values.");
     }
 }
 
