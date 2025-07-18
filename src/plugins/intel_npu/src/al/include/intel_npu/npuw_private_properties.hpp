@@ -305,6 +305,15 @@ static constexpr ov::Property<bool> funcall_async{"NPUW_FUNCALL_ASYNC"};
 
 /**
  * @brief
+ * Type: bool.
+ * Pipeline execution of functions (repeating blocks) and their prologues
+ * control wether we need to keep all-output tensors in func-all subrequests
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> funcall_outs_reuse{"NPUW_FUNCALL_OUTS_REUSE"};
+
+/**
+ * @brief
  * Type: boolean
  * Create individual infer requests for partitiongs, even repeating.
  * Default value: false.
@@ -483,6 +492,16 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: boolean
+ * copying prefill kv-cache tensors into generate model happened during with prefill inference
+ * number of simultaneous infer-request created for prefill model limited to optimal number
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> prefill_kv_cache_opt{"NPUW_LLM_PREFILL_KV_CACHE_OPT"};
+
 }  // namespace llm
 
 }  // namespace npuw

@@ -95,6 +95,7 @@ DEFINE_OPT(NPUW_WEIGHTS_BANK, std::string, "", npuw::weights_bank, RunTime);
 DEFINE_OPT(NPUW_WEIGHTS_BANK_ALLOC, std::string, "", npuw::weights_bank_alloc, RunTime);
 DEFINE_OPT(NPUW_CACHE_DIR, std::string, "", npuw::cache_dir, RunTime);
 DEFINE_OPT(NPUW_FUNCALL_ASYNC, bool, false, npuw::funcall_async, RunTime);
+DEFINE_OPT(NPUW_FUNCALL_OUTS_REUSE, bool, false, npuw::funcall_outs_reuse, RunTime);
 DEFINE_OPT(NPUW_UNFOLD_IREQS, bool, false, npuw::unfold_ireqs, RunTime);
 DEFINE_OPT(NPUW_ACC_CHECK, bool, false, npuw::accuracy::check, RunTime);
 DEFINE_OPT(NPUW_ACC_THRESH, double, 0.01, npuw::accuracy::threshold, RunTime);
@@ -110,6 +111,7 @@ DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, RunTime);
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, RunTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, RunTime);
+DEFINE_OPT(NPUW_LLM_PREFILL_KV_CACHE_OPT, bool, true, npuw::llm::prefill_kv_cache_opt, RunTime);
 
 namespace npuw {
 namespace llm {

@@ -53,17 +53,28 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
     using sptr = std::shared_ptr<IBaseInferRequest>;
-    using Completed = std::function<void(std::exception_ptr)>;
 
     virtual void prepare_for_infer() = 0;
     virtual bool valid_subrequest(std::size_t idx) const = 0;  // FIXME: Get rid of this!
     virtual void start_subrequest(std::size_t idx) = 0;
-    virtual void subscribe_subrequest(std::size_t idx, Completed cb) = 0;
-    virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
-    virtual void complete_subrequest(std::size_t idx) = 0;
     virtual void cancel_subrequest(std::size_t idx) = 0;
+
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
+    virtual void run_subrequest_for_success(std::size_t idx, bool& failover) = 0;
+
+    // when subrequest indicated by idx is about to start
+    // it might be used as sync point if on_output_ready() doing some asynhronous operation on tensors
+    using SubmitListener = std::function<void(std::size_t)>;
+    void on_submit_subrequest(SubmitListener cb) {
+        m_on_submit_cb = std::move(cb);
+    }
+
+    // also having idx, or returning future here, might be helpfull to track copy completion time
+    using OutputReadyListener = std::function<void(std::size_t idx, std::string, ov::SoPtr<ITensor>)>;
+    void on_output_ready(OutputReadyListener cb) {
+        m_on_output_ready_cb = std::move(cb);
+    }
 
 protected:
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
@@ -78,7 +89,6 @@ protected:
     virtual void update_subrequest_links(std::size_t idx) = 0;
 
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
-    std::vector<IBaseInferRequest::Completed> m_completion_cbs;
     RqPtrs m_subrequests;
 
     // This vector is used to track devices for individual subrequests
@@ -171,6 +181,12 @@ protected:
 
     using now_t = std::optional<std::size_t>;
     now_t now_idx() const;
+
+    OutputReadyListener m_on_output_ready_cb;
+    SubmitListener m_on_submit_cb;
+    // helper function to clean notification chain
+    void notify_subrequest_prepare(std::size_t idx);
+    void notify_subrequest_complete(std::size_t idx);
 
 private:
     now_t m_now_idx;

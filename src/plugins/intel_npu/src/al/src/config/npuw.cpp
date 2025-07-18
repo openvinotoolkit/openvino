@@ -48,6 +48,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_ACC_CHECK>();
     desc.add<NPUW_ACC_THRESH>();
     desc.add<NPUW_ACC_DEVICE>();
+    desc.add<NPUW_FUNCALL_OUTS_REUSE>();
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
     desc.add<NPUW_DUMP_FULL>();
     desc.add<NPUW_DUMP_SUBS>();
@@ -64,6 +65,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_MAX_PROMPT_LEN>();
     desc.add<NPUW_LLM_MIN_RESPONSE_LEN>();
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
+    desc.add<NPUW_LLM_PREFILL_KV_CACHE_OPT>();
     desc.add<NPUW_LLM_PREFILL_HINT>();
     desc.add<NPUW_LLM_GENERATE_HINT>();
 }
