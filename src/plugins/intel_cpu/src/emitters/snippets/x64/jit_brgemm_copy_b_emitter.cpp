@@ -4,7 +4,7 @@
 
 #include "jit_brgemm_copy_b_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -35,7 +35,7 @@ using namespace ov::snippets::utils;
 
 namespace ov::intel_cpu {
 
-jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
+jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator_t* h,
                                                      cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr,
                                                      const snippets::KernelExecutorTablePtr& kernel_table,
