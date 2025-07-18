@@ -23,6 +23,11 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
         prev_c = paddle.ones(shape=[layers * num_of_directions, 4, hidden_size], dtype=np.float32, name="const_2")
 
         y, (h, c) = rnn(data, (prev_h, prev_c))
+        # in paddle 2.6.2, it alway add a scale in the generated model, but after updated to 3.0.0, the scale is removed,
+        output1 = paddle.scale(y, scale=1.0, bias=0.0, bias_after_scale=True, act=None, name=None)
+        output2 = paddle.scale(h, scale=1.0, bias=0.0, bias_after_scale=True, act=None, name=None)
+        output3 = paddle.scale(c, scale=1.0, bias=0.0, bias_after_scale=True, act=None, name=None)
+
         relu_1 = paddle.nn.functional.relu(c, name="relu_1")
         relu_2 = paddle.nn.functional.relu(c, name="relu_2")
         relu_3 = paddle.nn.functional.relu(c, name="relu_3")
@@ -33,12 +38,12 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
 
         outs = exe.run(
             feed={'x': np.ones([4, 3, input_size]).astype(np.float32)},
-            fetch_list=[y, h, c],
+            fetch_list=[output1, output2, output3],
             program=main_program)
 
         if paddle.__version__ >= '2.0.0':
             feed_vars = [data]
-            fetch_vars = [y, h, c, relu_1, relu_2, relu_3]
+            fetch_vars = [output1, output2, output3, relu_1, relu_2, relu_3]
             saveModel("place_test_model", exe, feed_vars=feed_vars,
                     fetchlist=fetch_vars,
                     inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
@@ -66,7 +71,7 @@ def paddle_rnn_lstm(input_size, hidden_size, layers, direction):
 
         else:
             saveModel("place_test_model", exe, feed_vars=[data],
-                    fetch_vars=[y, h, c, relu_1, relu_2, relu_3],
+                    fetch_vars=[output1, output2, output3, relu_1, relu_2, relu_3],
                     inputs=[np.ones([4, 3, input_size]).astype(np.float32)],
                     outputs=outs, target_dir=sys.argv[1])
 
