@@ -1,8 +1,0 @@
-# Models with precision: FP32 -- device: CPU
-- device:
-    name: CPU
-  model:
-    name: ssd_mobilenet_v1_coco
-    precision: FP32
-    source: omz
-  references: {}
