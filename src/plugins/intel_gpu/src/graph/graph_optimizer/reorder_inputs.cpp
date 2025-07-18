@@ -749,15 +749,13 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             // e.g. (?,3,?,?,2) (?,?,2)
             auto& pshape_a = eltwise_node.get_input_pshape(0);
             auto& pshape_b = eltwise_node.get_input_pshape(1);
-            auto large_shape_idx = (pshape_a.size() > pshape_b.size()) ? 0 : 1;
-            auto small_shape_idx = 1 - large_shape_idx;
-            auto ref_pshape = eltwise_node.get_input_pshape(large_shape_idx);
-            auto small_pshape = eltwise_node.get_input_pshape(small_shape_idx);
+            auto [ref_pshape, small_pshape, large_shape_idx, small_shape_idx] = (pshape_a.size() > pshape_b.size()) ?
+                                          std::make_tuple(pshape_a, pshape_b, 0, 1) : std::make_tuple(pshape_b, pshape_a, 1, 0);
 
-            if (eltwise_node.has_eltwise_const_dep_idx() && eltwise_node.get_eltwise_const_dep_idx() < 2) {
-                auto const_shape_idx = eltwise_node.get_eltwise_const_dep_idx();
-                auto const_pshape_size = eltwise_node.get_input_pshape(const_shape_idx).size();
-                OPENVINO_ASSERT(const_pshape_size == ref_pshape.size() || const_pshape_size <= 1,
+            auto const_dep_idx = eltwise_node.find_eltwise_const_dep_idx();
+            if (const_dep_idx.has_value() && const_dep_idx.value() < 2) {
+                auto const_input_pshape_size = eltwise_node.get_input_pshape(const_dep_idx.value()).size();
+                OPENVINO_ASSERT(const_input_pshape_size == ref_pshape.size() || const_input_pshape_size <= 1,
                                 "Unexpected pshape size of NUMPY broadcast of eltwise " + eltwise_node.id());
             }
 

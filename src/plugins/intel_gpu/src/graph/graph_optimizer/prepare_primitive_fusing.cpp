@@ -219,16 +219,16 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             continue;
 
         auto& eltw_node = node->as<eltwise>();
+        auto const_dep_idx = eltw_node.find_eltwise_const_dep_idx();
         bool is_bias_add = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
                            eltw_node.get_dependencies().size() == 2 &&
-                           eltw_node.has_eltwise_const_dep_idx() &&
-                           eltw_node.get_eltwise_const_dep_idx() < 2;
+                           const_dep_idx.has_value() &&
+                           const_dep_idx.value() < 2;
 
         if (!is_bias_add)
             continue;
 
-        auto const_dep_idx = eltw_node.get_eltwise_const_dep_idx();
-        auto non_const_dep_idx = 1 - const_dep_idx;
+        auto non_const_dep_idx = 1 - const_dep_idx.value();
 
         for (auto& dep : eltw_node.get_dependencies()) {
             auto& fused_prims = dep.first->get_fused_primitives();
@@ -256,7 +256,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
                 // Numpy broadcast rule requires the dimension size which is not one to be same as the corresponding dimension of the other operand.
                 // So we can ensure that the feature size is same for this broadcasting rule, thereby being considered as bias.
-                auto const_shape = eltw_node.get_dependency(const_dep_idx).get_output_layout().get_shape();
+                auto const_shape = eltw_node.get_dependency(const_dep_idx.value()).get_output_layout().get_shape();
                 int32_t count_elements_not_one = 0;
                 int32_t idx_element_not_one = -1;
                 for (size_t i = 0; i < const_shape.size(); ++i) {
@@ -287,7 +287,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 out_features = node->get_input_layout(1).spatial(1);
                 is_3d_fc = true;
             }
-            auto& const_dep = eltw_node.get_dependency(const_dep_idx);
+            auto& const_dep = eltw_node.get_dependency(const_dep_idx.value());
             if ((const_dep.get_output_layout().feature() != out_features && !is_3d_fc) ||
                 const_dep.get_output_layout().count() != static_cast<size_t>(out_features)) {
                 continue;
@@ -296,7 +296,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             if (const_dep.get_output_layout().count() > node->get_dependency(non_const_dep_idx).get_output_layout().count())
                 continue;
         }
-        auto& bias_node = eltw_node.get_dependency(const_dep_idx);
+        auto& bias_node = eltw_node.get_dependency(const_dep_idx.value());
         primitive_id bias_name = bias_node.id();
         auto& replace_candidate = eltw_node.get_dependency(non_const_dep_idx);
 

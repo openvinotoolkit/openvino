@@ -473,33 +473,24 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
 bool eltwise_node::need_input_tensors_size_align() const {
     if (get_input_layouts().size() < 2)
         return false;
+    if (get_primitive()->broadcast_spec != ov::op::AutoBroadcastType::NUMPY)
+        return false;
 
-    auto pshape_a = get_input_pshape(0).size();
-    auto pshape_b = get_input_pshape(1).size();
-    if (pshape_a != pshape_b && pshape_a > 1 && pshape_b > 1 &&
-        get_primitive()->broadcast_spec == ov::op::AutoBroadcastType::NUMPY) {
+    auto pshape_a_rank = get_input_pshape(0).size();
+    auto pshape_b_rank = get_input_pshape(1).size();
+    if (pshape_a_rank != pshape_b_rank && pshape_a_rank > 1 && pshape_b_rank > 1)
         return true;
-    }
 
     return false;
 }
 
-bool eltwise_node::has_eltwise_const_dep_idx() const {
-    for (auto& elt_node : get_dependencies()) {
-        if (elt_node.first->is_constant())
-            return true;
-    }
-
-    return false;
-}
-
-size_t eltwise_node::get_eltwise_const_dep_idx() const {
+std::optional<size_t> eltwise_node::find_eltwise_const_dep_idx() const {
     for (size_t i = 0; i < get_dependencies().size(); ++i) {
         if (get_dependency(i).is_constant())
             return i;
     }
 
-    OPENVINO_THROW(id() + " Requested eltwise mode does not have const dependency.");
+    return std::nullopt;
 }
 
 }  // namespace cldnn
