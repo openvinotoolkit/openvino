@@ -92,8 +92,8 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 14 || orgInputNumber == 17,
-                    "The input number of PagedAttention should be 14 or 17.");
+    CPU_NODE_ASSERT(orgInputNumber == 20,
+                    "The input number of PagedAttention should be 14 or 20.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -146,23 +146,34 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32,
                                getInputShapeAtPort(PagedAttentionExecutor::ID_SCORE_AGGREGATION_WINDOW)));
-
-    if (orgInputNumber == 17) {
-        // rotated_block_indices, int, [num_rotated_blocks || 0]
-        config.inConfs[PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::i32,
-                                   getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES)));
-        // rotation_deltas, int, [num_rotated_blocks, block_size || 1] || [0]
-        config.inConfs[PagedAttentionExecutor::ID_ROTATION_DELTAS].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_DELTAS)));
-        // rotation_trig_lut, float, [max_context_len, embedding_size (aka S) || 0]
-        config.inConfs[PagedAttentionExecutor::ID_ROTATION_TRIG_LUT].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::f32,
-                                   getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_TRIG_LUT)));
-    }
+    // rotated_block_indices, int, [num_rotated_blocks || 0]
+    config.inConfs[PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES)));
+    // rotation_deltas, int, [num_rotated_blocks, block_size || 1] || [0]
+    config.inConfs[PagedAttentionExecutor::ID_ROTATION_DELTAS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_DELTAS)));
+    // rotation_trig_lut, float, [max_context_len, embedding_size (aka S) || 0]
+    config.inConfs[PagedAttentionExecutor::ID_ROTATION_TRIG_LUT].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_TRIG_LUT)));
+    // xattention_threshold, float, [B_seq, H]
+    config.inConfs[PagedAttentionExecutor::ID_XATTENTION_THRESHOLD].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES)));
+    // xattention_block_size, float, []
+    config.inConfs[PagedAttentionExecutor::ID_XATTENTION_BLOCK_SIZE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_DELTAS)));
+    // xattention_stride, float, []
+    config.inConfs[PagedAttentionExecutor::ID_XATTENTION_STRIDE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_TRIG_LUT)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }

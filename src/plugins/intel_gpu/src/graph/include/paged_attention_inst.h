@@ -68,6 +68,9 @@ public:
     memory::ptr rotated_block_indices_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES); }
     memory::ptr rotation_deltas_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ROTATION_DELTAS); }
     memory::ptr rotation_trig_lut_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::ROTATION_TRIG_LUT); }
+    memory::ptr xattention_threshold_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_THRESHOLD); }
+    memory::ptr xattention_block_size_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_BLOCK_SIZE); }
+    memory::ptr xattention_stride_memory_ptr() const { return input_memory_ptr(PagedAttentionInputIdx::XATTENTION_STRIDE); }
 };
 
 using paged_attention_inst = typed_primitive_inst<paged_attention>;
