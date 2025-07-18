@@ -91,7 +91,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     for (size_t i = 0LU; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
+        if (!isConstantInput[i] && any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
             !attrs.isSliceScatterOp) {
             shapeHasDataDependency = true;
         }
@@ -151,7 +151,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
         int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
         int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
-        attrs.equalDims = newAxis == 0 && shrinkAxis == 0;
+        attrs.equalDims = all_of(0, newAxis, shrinkAxis);
     } else {
         attrs.equalDims = true;
     }

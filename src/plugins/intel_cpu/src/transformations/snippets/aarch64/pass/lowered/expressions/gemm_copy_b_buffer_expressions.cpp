@@ -41,7 +41,7 @@ void RepackedWeightsBufferExpression::validate() const {
     OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::aarch64::GemmCopyB>(parent_out.get_expr()->get_node()) &&
                         parent_out.get_index() == 0,
                     "RepackedWeightsBufferExpression expects GemmCopyB as parent expression");
-    OPENVINO_ASSERT(one_of(get_node()->get_input_element_type(0), ov::element::f32),
+    OPENVINO_ASSERT(any_of(get_node()->get_input_element_type(0), ov::element::f32),
                     "RepackedWeightsBufferExpression after GemmCopyB currently only support f32 data type on arm");
 }
 

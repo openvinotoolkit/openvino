@@ -38,6 +38,7 @@
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/rt_info/disable_fp16_compression.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
     MATCHER_SCOPE(ConvertMatMulToFC);
@@ -75,7 +76,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
         auto rank_b = shape_b.rank().get_length();
 
         // Transformation to FC is not supported for 1D inputs
-        if (rank_a == 1 || rank_b == 1) {
+        if (any_of(1, rank_a, rank_b)) {
             return false;
         }
 
@@ -174,7 +175,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             fc_input_a = create_transpose(fc_input_a, matmul->get_friendly_name() + "/transpose_a");
         }
 
-        auto bias = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
+        auto bias = std::make_shared<ov::op::v0::Constant>(ov::element::dynamic, ov::Shape{0});
         new_ops.push_back(bias);
 
         auto fc = std::make_shared<ov::op::internal::FullyConnected>(fc_input_a,

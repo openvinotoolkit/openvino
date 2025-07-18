@@ -246,7 +246,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-                } else if (one_of(prec, element::f32, element::dynamic)) {
+                } else if (any_of(prec, element::f32, element::dynamic)) {
                     inferencePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -318,7 +318,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 kvCachePrecisionSetExplicitly = true;
                 const auto prec = val.as<ov::element::Type>();
-                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                if (any_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -334,7 +334,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 keyCachePrecisionSetExplicitly = true;
                 const auto prec = val.as<ov::element::Type>();
-                if (one_of(prec,
+                if (any_of(prec,
                            ov::element::f32,
                            ov::element::f16,
                            ov::element::bf16,
@@ -355,7 +355,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 valueCachePrecisionSetExplicitly = true;
                 const auto prec = val.as<ov::element::Type>();
-                if (one_of(prec,
+                if (any_of(prec,
                            ov::element::f32,
                            ov::element::f16,
                            ov::element::bf16,

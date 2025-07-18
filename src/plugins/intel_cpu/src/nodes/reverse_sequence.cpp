@@ -79,7 +79,7 @@ void ReverseSequence::initSupportedPrimitiveDescriptors() {
     }
 
     lengthsPrecision = getOriginalInputPrecisionAtPort(REVERSESEQUENCE_LENGTHS);
-    if (lengthsPrecision != ov::element::i32 && lengthsPrecision != ov::element::f32) {
+    if (none_of(lengthsPrecision, ov::element::i32, ov::element::f32)) {
         lengthsPrecision = ov::element::i32;
     }
 
@@ -180,7 +180,7 @@ void ReverseSequence::execute([[maybe_unused]] const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "has no compiled executor");
 
     const auto precision = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision();
-    CPU_NODE_ASSERT(one_of(precision, ov::element::f32, ov::element::i32),
+    CPU_NODE_ASSERT(any_of(precision, ov::element::f32, ov::element::i32),
                     "does not support ",
                     precision,
                     " precision");

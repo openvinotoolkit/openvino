@@ -101,7 +101,7 @@ void SoftMax::getSupportedDescriptors() {
     }
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
     }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);

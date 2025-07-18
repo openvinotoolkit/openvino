@@ -45,12 +45,12 @@ bool MatrixNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, 
         }
         const auto& attrs = nms->get_attrs();
         const auto& sortType = attrs.sort_result_type;
-        if (!one_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
+        if (none_of(sortType, ngNmsSortResultType::NONE, ngNmsSortResultType::SCORE, ngNmsSortResultType::CLASSID)) {
             errorMessage = "Does not support SortResultType mode: " + ov::as_string(sortType);
             return false;
         }
         const auto& decayType = attrs.decay_function;
-        if (!one_of(decayType, ngNmseDcayFunction::LINEAR, ngNmseDcayFunction::GAUSSIAN)) {
+        if (none_of(decayType, ngNmseDcayFunction::LINEAR, ngNmseDcayFunction::GAUSSIAN)) {
             errorMessage = "Does not support DcayFunction " + ov::as_string(decayType);
             return false;
         }
@@ -67,7 +67,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_type_info(),
+    if (any_of(op->get_type_info(),
                ov::op::internal::NmsStaticShapeIE<ov::op::v8::MatrixNms>::get_type_info_static())) {
         m_outStaticShape = true;
     }

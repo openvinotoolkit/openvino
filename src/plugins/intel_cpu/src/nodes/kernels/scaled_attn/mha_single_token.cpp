@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
@@ -1453,7 +1454,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         size_t pk = 0;
         if (start < end) {
             parallel_it_init(start, pk, kv_len, b, B, h_group, h_group_num);
-            if (q_len == 1 && h_each_group_len == 1) {
+            if (intel_cpu::all_of(1U, q_len, h_each_group_len)) {
                 if (B == 1) {
                     // the memory will be continuous when b==1
                     for (size_t iwork = start; iwork < end; ++iwork) {
@@ -1653,7 +1654,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
         size_t pv = 0;
         if (start < end) {
             parallel_it_init(start, pv, kv_len, b, B, h_group, h_group_num);
-            if (q_len == 1 && h_each_group_len == 1) {
+            if (intel_cpu::all_of(1U, q_len, h_each_group_len)) {
                 for (size_t iwork = start; iwork < end; ++iwork) {
                     auto b_kv = beams ? beams.ptr<int32_t>(b)[pv] : b;
                     auto* v = present_value.ptr<T2>(b_kv, h_group, pv);

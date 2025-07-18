@@ -31,7 +31,7 @@ namespace ov::intel_cpu::node {
 bool GatherElements::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ov::op::v6::GatherElements::get_type_info_static())) {
+        if (none_of(op->get_type_info(), ov::op::v6::GatherElements::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherElements operation from operation set v6.";
             return false;
         }
@@ -88,7 +88,7 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
     }
 
     ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(dataIndex_);
-    CPU_NODE_ASSERT(one_of(inDataPrecision.size(),
+    CPU_NODE_ASSERT(any_of(inDataPrecision.size(),
                            sizeof(element_type_traits<ov::element::i32>::value_type),
                            sizeof(element_type_traits<ov::element::i16>::value_type),
                            sizeof(element_type_traits<ov::element::i8>::value_type)),
@@ -96,7 +96,7 @@ void GatherElements::initSupportedPrimitiveDescriptors() {
                     inDataPrecision);
 
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(indicesIndex_);
-    CPU_NODE_ASSERT(one_of(indicesPrecision, ov::element::i32, ov::element::i64),
+    CPU_NODE_ASSERT(any_of(indicesPrecision, ov::element::i32, ov::element::i64),
                     "has unsupported 'indices' input precision: ",
                     indicesPrecision);
 

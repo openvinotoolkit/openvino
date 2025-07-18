@@ -30,7 +30,7 @@ namespace ov::intel_cpu::node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v0::Range::get_type_info_static(),
                     ov::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only v0 and v4 Range operation is supported";
