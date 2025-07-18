@@ -483,8 +483,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         kv_cache_config.valueCacheBlockSize = 16;
         kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
         kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
-        kv_cache_config.keyCacheQuantBychannel = config.get_key_cache_quant_mode() == ov::hint::CacheQuantMode::BY_CHANNEL;
-        kv_cache_config.keyCacheGroupSize = config.get_key_cache_quant_mode() == ov::hint::CacheQuantMode::BY_CHANNEL ? 16 : 0;
+        kv_cache_config.keyCacheQuantBychannel = config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+        kv_cache_config.keyCacheGroupSize = config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL ? 16 : 0;
         kv_cache_config.valueCacheGroupSize = 0;
         kv_cache_config.valueCacheQuantBychannel = false;
         manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,

@@ -222,13 +222,13 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     }
 
-    if (!is_set_by_user(ov::hint::key_cache_quant_mode)) {
-        m_key_cache_quant_mode = ov::hint::CacheQuantMode::BY_TOKEN;
+    if (!is_set_by_user(ov::internal::key_cache_quant_mode) || get_key_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
+        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     }
 
-    if (!is_set_by_user(ov::hint::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::hint::CacheQuantMode::AUTO) {
-        m_value_cache_quant_mode = ov::hint::CacheQuantMode::BY_TOKEN;
-    } else if (get_value_cache_quant_mode() == ov::hint::CacheQuantMode::BY_CHANNEL) {
+    if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
+        m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    } else if (get_value_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
         GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
             << "Switching to BY_TOKEN mode." << std::endl;
     }
