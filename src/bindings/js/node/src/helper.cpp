@@ -4,6 +4,7 @@
 #include "node/include/helper.hpp"
 
 #include "node/include/compiled_model.hpp"
+#include "node/include/node_wrap.hpp"
 #include "node/include/tensor.hpp"
 #include "node/include/type_validation.hpp"
 
@@ -289,6 +290,17 @@ Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Model> model) {
     const auto mw = Napi::ObjectWrap<ModelWrap>::Unwrap(model_js);
     mw->set_model(model);
     return model_js;
+}
+
+Napi::Object cpp_to_js(const Napi::Env& env, std::shared_ptr<ov::Node> node) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->node;
+    if (!prototype) {
+        OPENVINO_THROW("Invalid pointer to Node prototype.");
+    }
+    const auto& node_js = prototype.New({});
+    const auto nw = Napi::ObjectWrap<NodeWrap>::Unwrap(node_js);
+    nw->set_node(node);
+    return node_js;
 }
 
 template <>
