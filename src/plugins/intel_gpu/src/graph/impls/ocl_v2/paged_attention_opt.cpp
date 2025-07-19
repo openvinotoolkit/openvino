@@ -8,6 +8,7 @@
 #include "sdpa_gen_micro.hpp"
 // clang-format on
 #include "paged_attention_opt.hpp"
+#include "../cm/paged_attention_gen.hpp"
 
 #include <array>
 #include <cstdint>
@@ -1074,6 +1075,9 @@ public:
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
 #endif
 
+#ifdef CM_PA_ENABLE
+    Stage::Ptr pa_sdpa_cm = make_stage<cm::PagedAttentionGeneratorMultiToken>();
+#endif
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
     explicit PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {
         const auto desc = params.typed_desc<paged_attention>();
@@ -1095,6 +1099,9 @@ public:
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_sdpa_opt, params);
 
+#ifdef CM_PA_ENABLE
+        add_stage(pa_sdpa_cm, params);
+#endif
         if (has_rotated_blocks) {
             add_stage(kv_cache_rotate, params);
         }
@@ -1237,6 +1244,10 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
+#ifdef CM_PA_ENABLE
+            res_event = {execute_stage(res_event, instance, pa_sdpa_cm)};
+            std::cout << "[GPU] Using CM PA/SDPA kernel for paged attention prefill stage." << std::endl;
+#else
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
@@ -1245,6 +1256,7 @@ public:
             }
 #else
             res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
+#endif
 #endif
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;

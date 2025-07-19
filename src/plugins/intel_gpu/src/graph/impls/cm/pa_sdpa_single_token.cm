@@ -1,0 +1,320 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#define head_size HEAD_SIZE
+#define num_heads HEADS_NUM
+#define num_kv_heads KV_HEADS_NUM
+#define q_step Q_STEP
+#define kv_step KV_STEP
+#define scale_factor SCALE_FACTOR
+#define kv_split_len KV_SPLIT_LEN
+
+#define split_num KV_LEN/KV_SPLIT_LEN
+#define split_block_num kv_split_len/kv_step
+#define kv_split_data_size KV_SPLIT_LEN/KV_STEP
+
+// #define WG_SIZE WG_SIZE
+#define xe_arch XE_ARCH
+
+#if xe_arch==1
+#define REG_N 8
+#define USE_LSC_BLOCK_2D_DESC 0
+#else
+#define REG_N 16
+#define USE_LSC_BLOCK_2D_DESC 0
+#endif
+
+#define SystolicDepth 8
+#define RepeatCount 1
+#define VNNI_WIDTH 2
+#define REG_K (SystolicDepth * VNNI_WIDTH)
+#define REG_M RepeatCount
+
+#define args_verbose 0
+#define PRINT_THR_ID 1000
+#define PRINT_HEAD_ID 1000
+
+// static_assert(q_step == 16);
+static_assert(kv_step == 8 || kv_step == 16);
+
+// template<typename T, int M, int N>
+// void show(const matrix<T, M, N> mat) {
+//     for(int m = 0; m < M; m ++) {
+//         printf("\t[");
+//         for(int n = 0; n < N; n ++) {
+//             printf("%8.4f,", mat[m][n]);
+//         }
+//         printf("],\n");
+//     }
+//     printf("]\n");
+// }
+
+// CM_INLINE uint64_t get_clock() {
+//     auto clk = cm_clock();
+//     return ((uint64_t)clk[1]) << 32 | clk[0];
+// }
+
+// template <typename T1, typename T2>
+// CM_INLINE void Transpose_16x16(matrix_ref<T1, 16, 16> in,
+//                                matrix_ref<T2, 16, 16> out) {
+//   matrix<T2, 16, 16> bBuf;
+//   bBuf.row(0) = in.template select<4, 1, 4, 4>(0, 0);   // 0,4,8,c
+//   bBuf.row(1) = in.template select<4, 1, 4, 4>(4, 0);   // 0,4,8,c
+//   bBuf.row(2) = in.template select<4, 1, 4, 4>(8, 0);   // 0,4,8,c
+//   bBuf.row(3) = in.template select<4, 1, 4, 4>(12, 0);  // 0,4,8,c
+//   bBuf.row(4) = in.template select<4, 1, 4, 4>(0, 1);   // 1,5,9,d
+//   bBuf.row(5) = in.template select<4, 1, 4, 4>(4, 1);   // 1,5,9,d
+//   bBuf.row(6) = in.template select<4, 1, 4, 4>(8, 1);   // 1,5,9,d
+//   bBuf.row(7) = in.template select<4, 1, 4, 4>(12, 1);  // 1,5,9,d
+//   bBuf.row(8) = in.template select<4, 1, 4, 4>(0, 2);   // 2,6,a,e
+//   bBuf.row(9) = in.template select<4, 1, 4, 4>(4, 2);   // 2,6,a,e
+//   bBuf.row(10) = in.template select<4, 1, 4, 4>(8, 2);  // 2,6,a,e
+//   bBuf.row(11) = in.template select<4, 1, 4, 4>(12, 2); // 2,6,a,e
+//   bBuf.row(12) = in.template select<4, 1, 4, 4>(0, 3);  // 3,7,b,f
+//   bBuf.row(13) = in.template select<4, 1, 4, 4>(4, 3);  // 3,7,b,f
+//   bBuf.row(14) = in.template select<4, 1, 4, 4>(8, 3);  // 3,7,b,f
+//   bBuf.row(15) = in.template select<4, 1, 4, 4>(12, 3); // 3,7,b,f
+
+//   out.row(0) = bBuf.template select<4, 1, 4, 4>(0, 0);   // 0
+//   out.row(1) = bBuf.template select<4, 1, 4, 4>(4, 0);   // 1
+//   out.row(2) = bBuf.template select<4, 1, 4, 4>(8, 0);   // 2
+//   out.row(3) = bBuf.template select<4, 1, 4, 4>(12, 0);  // 3
+//   out.row(4) = bBuf.template select<4, 1, 4, 4>(0, 1);   // 4
+//   out.row(5) = bBuf.template select<4, 1, 4, 4>(4, 1);   // 5
+//   out.row(6) = bBuf.template select<4, 1, 4, 4>(8, 1);   // 6
+//   out.row(7) = bBuf.template select<4, 1, 4, 4>(12, 1);  // 7
+//   out.row(8) = bBuf.template select<4, 1, 4, 4>(0, 2);   // 8
+//   out.row(9) = bBuf.template select<4, 1, 4, 4>(4, 2);   // 9
+//   out.row(10) = bBuf.template select<4, 1, 4, 4>(8, 2);  // a
+//   out.row(11) = bBuf.template select<4, 1, 4, 4>(12, 2); // b
+//   out.row(12) = bBuf.template select<4, 1, 4, 4>(0, 3);  // c
+//   out.row(13) = bBuf.template select<4, 1, 4, 4>(4, 3);  // d
+//   out.row(14) = bBuf.template select<4, 1, 4, 4>(8, 3);  // e
+//   out.row(15) = bBuf.template select<4, 1, 4, 4>(12, 3); // f
+// }
+
+// template <typename T1, typename T2>
+// CM_INLINE void Transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) {
+//   matrix<T2, 8, 8> temp;
+//   temp.row(0) = in.template select<2, 1, 4, 2>(0, 0);
+//   temp.row(1) = in.template select<2, 1, 4, 2>(2, 0);
+//   temp.row(2) = in.template select<2, 1, 4, 2>(4, 0);
+//   temp.row(3) = in.template select<2, 1, 4, 2>(6, 0);
+//   temp.row(4) = in.template select<2, 1, 4, 2>(0, 1);
+//   temp.row(5) = in.template select<2, 1, 4, 2>(2, 1);
+//   temp.row(6) = in.template select<2, 1, 4, 2>(4, 1);
+//   temp.row(7) = in.template select<2, 1, 4, 2>(6, 1);
+
+//   out.row(0) = temp.template select<4, 1, 2, 4>(0, 0);
+//   out.row(2) = temp.template select<4, 1, 2, 4>(0, 1);
+//   out.row(4) = temp.template select<4, 1, 2, 4>(0, 2);
+//   out.row(6) = temp.template select<4, 1, 2, 4>(0, 3);
+//   out.row(1) = temp.template select<4, 1, 2, 4>(4, 0);
+//   out.row(3) = temp.template select<4, 1, 2, 4>(4, 1);
+//   out.row(5) = temp.template select<4, 1, 2, 4>(4, 2);
+//   out.row(7) = temp.template select<4, 1, 2, 4>(4, 3);
+// }
+
+//cm_sdpa_2nd
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    half* query [[type("svmptr_t")]],
+    half* key [[type("svmptr_t")]],
+    half* value [[type("svmptr_t")]],
+#if HAS_ATTN_MASK_INPUT
+    half* mask [[type("svmptr_t")]],
+#endif
+    half* output [[type("svmptr_t")]],
+    float* lse [[type("svmptr_t")]],
+    int q_len,// 1
+    int kv_len
+    ) {
+    //# query [batch, 1,      num_heads, S]
+    //#   key [batch, kv_len, num_heads, S]
+    //# value [batch, kv_len, num_heads, S]
+    //# output[batch, 1,      num_heads, S]
+
+    auto batch = cm_global_id(0);
+    auto h = cm_global_id(1);
+    auto hkv = h / (num_heads/num_kv_heads);
+    auto wg_local_id = cm_local_id(2);
+
+    //# kv_split_len --> EU thread
+    auto wg_thread_id = cm_global_id(2);
+    auto o_start = wg_thread_id * head_size;
+
+    uint kv_pitch = num_kv_heads * head_size * sizeof(half);
+    uint qo_pitch = num_heads * head_size * sizeof(half);
+
+    if(cm_group_id(0)==0 && cm_group_id(1)==0 && cm_group_id(2)==0) {
+        printf("cm_group_size=(%d,%d,%d), batch = %d, q_len = %d, kv_len = %d, head_size = %d, num_heads = %d, num_kv_heads = %d, q_step = %d, kv_step = %d, scale_factor = %f, kv_split_len = %d, split_num = %d, split_block_num = %d, kv_split_data_size = %d\n",
+                cm_group_count (0), cm_group_count (1), cm_group_count (2), batch, q_len, kv_len, head_size, num_heads, num_kv_heads, q_step, kv_step, scale_factor, kv_split_len, split_num, split_block_num, kv_split_data_size);
+    }
+
+#if USE_LSC_BLOCK_2D_DESC
+    //# vector load cannot be used for block_2d_desc
+    //# note: candidate template ignored: deduced type 'details::Block2DRefTy<half, 1U, 16U, 1U, (LoadOp)0U>' (aka 'vector_ref<half,32>') of 1st parameter
+    //# b2dK reinterpret as 32bit(DWORD) for transposed load(combined with VNNI)
+    lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dK(reinterpret_cast<uint*>(key + (batch*num_kv_heads*kv_len + hkv)*head_size),   kv_len - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+    lsc::block_2d_desc<half, 1, REG_K, REG_N> b2dV(value + (batch*num_kv_heads*kv_len + hkv)*head_size, kv_len - 1, head_size*sizeof(half) - 1, kv_pitch - 1, 0, 0);
+#else
+    uint kv_offset = (batch*num_kv_heads*kv_len + hkv)*head_size;
+    uint kv_stride = num_kv_heads * head_size;
+    uint kv_x0 = 0, kv_y0 = 0;
+    uint kv_x1 = head_size*sizeof(half);
+    uint kv_y1 = kv_len;
+#endif
+
+    //# Load Q into register(as dpas-A tile)
+    matrix <half, head_size/REG_K, REG_M*REG_K> Qmat;
+    uint qo_offset = (batch*num_heads*q_len + h)*head_size;
+    for(int k = 0, ri = 0; k < head_size; k += REG_K, ri++) {
+        cm_svm_block_read<half, REG_M * REG_K>((svmptr_t)(query + qo_offset + k), Qmat[ri].format<half>());
+    }
+
+    //if(wg_thread_id==PRINT_THR_ID && h == PRINT_HEAD_ID) {
+    //    printf("Qmat loaded, wg_thread_id=%d\n", wg_thread_id);
+    //    show(Qmat);
+    //}
+
+    //# rS = Q @ Kt
+    //#  split_block_num * [REG_M, REG_K] * [REG_K, REG_N] = split_block_num * [REG_M, REG_N]
+    matrix<float, REG_M * split_block_num, REG_N> rS = 0;
+    for(int kv_pos = 0, ki = 0; kv_pos < kv_split_len; kv_pos += kv_step, ki++) {
+        auto rSvec = rS[ki].format<float>();
+        uint kv_offset_y = wg_thread_id * kv_split_len + kv_pos;
+
+        #pragma unroll
+        for(int k = 0, ri = 0; k < head_size/2; k += REG_K/2, ri ++ ) {
+            matrix<half, REG_K, REG_N> Kt;
+        #if USE_LSC_BLOCK_2D_DESC
+            //# Load Kt into register & pack as VNNI(as dpas-B tile)
+            //# DWORD transposed load == (transposed + VNNI) load
+            b2dK.set_block_x(k);
+            cm_load<lsc::Transpose>(Kt.format<uint>(), b2dK.set_block_y(kv_offset_y));
+        #else
+            matrix<uint, REG_N, REG_K/2> temp;
+            uint cur_kv_offset = kv_offset + kv_offset_y * kv_stride + k * 2;// uint --> half
+            #pragma unroll
+            for(int kk = 0; kk < REG_N; kk++) {
+                cm_svm_block_read<uint, REG_K/2>((svmptr_t)(key + cur_kv_offset + kk * kv_stride), temp[kk].format<uint>());
+            }
+            #if xe_arch==1
+            Transpose_8x8(temp.select<8,1,8,1>(0,0), Kt.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,0));
+            #else
+            Transpose_8x8(temp.select<8,1,8,1>(0,0), Kt.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,0));
+            Transpose_8x8(temp.select<8,1,8,1>(8,0), Kt.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,8));
+            #endif
+        #endif
+
+            rSvec = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                        rSvec,
+                        Kt.format<int32_t>(),
+                        Qmat[ri].format<int32_t>());
+        }
+    }
+
+    // online softmax
+    float cur_sum = 0.0f;
+    float cur_lse = 0.0f;
+    #if xe_arch==1
+    matrix<half, split_block_num / 2 * REG_M, REG_K> Pmat = 0;
+    #else
+    matrix<half, split_block_num * REG_M, REG_K> Pmat = 0;
+    #endif
+    {
+#if HAS_ATTN_MASK_INPUT
+        //# Load Mask into register
+        matrix<half, REG_M * split_block_num, REG_N> MaskMat;
+        uint mask_offset = batch * q_len * kv_len + wg_thread_id * kv_split_len;
+        cm_svm_block_read<half, REG_M * split_block_num * REG_N>((svmptr_t)(mask + mask_offset), MaskMat.format<half>());
+        rS = cm_mul<float>(rS, (float)scale_factor);  // convert scale_factor into (float), or it will be promoted to double
+        rS = cm_add<float>(rS, MaskMat);
+#else
+        rS = cm_mul<float>(rS, (float)scale_factor);  // convert scale_factor into (float), or it will be promoted to double
+#endif
+        // compute lse
+        constexpr float log2e = 1.4426950408889634f;
+        vector<float, split_block_num * REG_N> rS_exp = cm_exp(rS.format<float>()*log2e);
+        cur_lse += cm_sum<float>(rS_exp);
+
+        // compute row_max
+        auto rSv = rS.format<float>();
+        float row_max = rSv[0];
+        for(int r = 1; r < rSv.n_elems(); r++)
+            row_max = cm_max<float>(row_max, rSv[r]);
+
+        // compute P = exp(rS - row_max)
+        #if xe_arch==1
+        Pmat= cm_exp((rS.format<float, split_block_num / 2 * REG_M, REG_K>() - row_max)*log2e);
+        #else
+        Pmat= cm_exp((rS - row_max)*log2e);
+        #endif
+
+        // compute row sum of P
+        auto rPv = Pmat.format<half, 1, split_block_num * REG_N>();
+        cur_sum = cm_sum<float>(rPv[0]);
+    }
+
+    //if(wg_thread_id==1) {
+    //    printf("Pmat:\n");
+    //    show(Pmat);
+    //}
+
+    //# rO = P * V
+    matrix <float, head_size/REG_N, REG_M*REG_N> Omat = 0;
+    for(int kv_pos = 0, ki = 0; kv_pos < kv_split_len; kv_pos += REG_K, ki++) {
+        uint kv_offset_y = wg_thread_id * kv_split_len + kv_pos;
+        #pragma unroll
+        for(int k = 0, ri = 0; k < head_size; k += REG_N, ri ++ ) {
+            // Load V into register & pack as VNNI(as dpas-B tile)
+            matrix<half, REG_M, REG_K*REG_N> Vmat;
+        #if USE_LSC_BLOCK_2D_DESC
+            b2dV.set_block_x(k);
+            cm_load<lsc::VNNI>(Vmat[0].format<half>(), b2dV.set_block_y(kv_offset_y));
+        #else
+            matrix<half, REG_K, REG_N> temp;
+            uint cur_kv_offset = kv_offset + kv_offset_y * kv_stride + k;
+            #pragma unroll
+            for(int kk = 0; kk < REG_K; kk++) {
+                cm_svm_block_read<half, REG_N>((svmptr_t)(value + cur_kv_offset + kk * kv_stride), temp[kk].format<half>());
+            }
+            #if xe_arch==1
+            auto Vref = Vmat[0].format<half, REG_K/2, 2*REG_N>();
+            Vref.select<REG_K/2, 1, REG_N, 2>(0, 0) = temp.select<REG_K/2, 2, REG_N, 1>(0, 0);
+            Vref.select<REG_K/2, 1, REG_N, 2>(0, 1) = temp.select<REG_K/2, 2, REG_N, 1>(1, 0);
+            #else
+            auto Vref = Vmat[0].format<half, REG_K/2, 2*REG_N>();
+            Vref.select<REG_K/2, 1, REG_N, 2>(0, 0) = temp.select<REG_K/2, 2, REG_N, 1>(0, 0);
+            Vref.select<REG_K/2, 1, REG_N, 2>(0, 1) = temp.select<REG_K/2, 2, REG_N, 1>(1, 0);
+            #endif
+        #endif
+            Omat[ri] = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, RepeatCount>(
+                        Omat[ri],
+                        Vmat[0].format<int32_t>(),
+                        Pmat[ki].format<int32_t>());
+        }
+    }
+    
+    //if(wg_thread_id==0) {
+    //    printf("Omat:\n");
+    //    show(Omat);
+    //}
+
+    //# save Output
+    matrix<half, REG_M, REG_N> cur_O_f16;
+    uint o_offset = batch * split_num * num_heads * head_size + split_num * h * head_size + wg_thread_id * head_size;
+    float div_cur_sum = 1.0/cur_sum;
+    #pragma unroll
+    for(int k = 0, ri=0; k < head_size; k += REG_N, ri++) {
+        auto cO = Omat[ri].format<float, REG_M, REG_N>();
+        #if xe_arch==1
+        cur_O_f16= cm_mul<float>(cO, div_cur_sum);
+        #else
+        cur_O_f16= cm_div_ieee(cO, cur_sum);
+        #endif
+        cm_svm_block_write<half, REG_N>((svmptr_t)(output + o_offset + k),cur_O_f16.format<half>());
+    }
+    uint lse_offset = batch * num_heads * split_num + h * split_num + wg_thread_id;
+    lse[lse_offset] = cur_lse;
+}

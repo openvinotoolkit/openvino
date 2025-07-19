@@ -18,6 +18,26 @@ namespace ov::intel_gpu::ocl {
 struct PagedAttentionOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::paged_attention::opt")
     explicit PagedAttentionOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
+
+#define CM_PA_ENABLE
+#ifdef CM_PA_ENABLE    
+    [[nodiscard]] in_out_fmts_t query_formats(const program_node& node) const override {
+        assert(node.is_type<paged_attention>());
+        std::vector<format::type> in_fmts(node.get_dependencies().size(), format::any);
+        std::vector<format::type> out_fmts(node.get_outputs_count(), format::any);
+
+        for (size_t idx = 0; idx < node.get_dependencies().size(); idx++) {
+            in_fmts[idx] = format::bfyx;
+        }
+        out_fmts[0] = format::ybfx;
+        for (size_t idx = 1; idx < node.get_outputs_count(); idx++) {
+            out_fmts[idx] = format::bfyx;
+        }
+
+        return {in_fmts, out_fmts};
+    }
+#endif
+
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         static constexpr std::array supported_q_types = {
