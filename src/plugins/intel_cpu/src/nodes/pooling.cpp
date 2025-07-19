@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include "common/primitive_attr.hpp"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -49,7 +50,12 @@
 // to access and change C pooling primitive desc internal padding field
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/core/CoreTypes.h>
+#    include <arm_compute/core/TensorInfo.h>
+#    include <arm_compute/core/Types.h>
+
 #    include "executors/acl/acl_utils.hpp"
+#    include "nodes/executors/acl/acl_pooling.hpp"
 #    include "utils/debug_capabilities.h"
 #endif
 
@@ -122,9 +128,7 @@ dnnl::pooling_forward::primitive_desc createDescriptorHelper(const dnnl::engine&
                                                              const std::vector<ptrdiff_t>& effective_pad_end,
                                                              const std::vector<ptrdiff_t>& effective_dilation,
                                                              const dnnl::primitive_attr& attr) {
-    if (alg == dnnl::algorithm::undef) {
-        OPENVINO_THROW("Unsupported pooling type");
-    }
+    OPENVINO_ASSERT(alg != dnnl::algorithm::undef, "Unsupported pooling type");
 
     auto convert = [](std::vector<ptrdiff_t> orig_dims) {
         return memory::dims(orig_dims.begin(), orig_dims.end());
@@ -297,12 +301,8 @@ void Pooling::getSupportedDescriptors() {
         return;
     }
 
-    if (getParentEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("Incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("Incorrect number of output edges");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 1, "Incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "Incorrect number of output edges");
 
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(0);
     ov::element::Type outputPrecision = getOriginalOutputPrecisionAtPort(0);
@@ -384,9 +384,8 @@ void Pooling::getSupportedDescriptors() {
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inputPrecision);
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outputPrecision);
 
-    if ((inputRank < 3) || (inputRank > 5)) {
-        THROW_CPU_NODE_ERR("Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
-    }
+    CPU_NODE_ASSERT((inputRank >= 3) && (inputRank <= 5),
+                    "Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
 
     initEffectiveAttributes(inShape, MemoryDescUtils::makeDummyShape(childShape));
 
@@ -458,9 +457,7 @@ void Pooling::getSupportedDescriptors() {
 
 void Pooling::prepareParams() {
     auto* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(selected_pd, "did not set preferable primitive descriptor");
 
     AttrPtr attr;
     if (isDynamicNode()) {
@@ -480,12 +477,8 @@ void Pooling::prepareParams() {
     if (useACL) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
-        if (!dstMemPtr || !dstMemPtr->isDefined()) {
-            THROW_CPU_NODE_ERR("Destination memory is undefined.");
-        }
-        if (!srcMemPtr || !srcMemPtr->isDefined()) {
-            THROW_CPU_NODE_ERR("Input memory is undefined.");
-        }
+        CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
+        CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "Input memory is undefined.");
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {
@@ -550,9 +543,7 @@ void Pooling::prepareParams() {
 
         dnnlExecPtr = result.first;
 
-        if (!dnnlExecPtr) {
-            THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
-        }
+        CPU_NODE_ASSERT(dnnlExecPtr, "Primitive descriptor was not found.");
 
         auto scratchpadMem = getScratchPadMem(dnnlExecPtr->getScratchPadDesc());
         primArgs[DNNL_ARG_SCRATCHPAD] = scratchpadMem->getPrimitive();
@@ -583,7 +574,7 @@ void Pooling::execute(const dnnl::stream& strm) {
 
         execPtr->exec(srcMemory, dstMemory, postOpsArgs);
     } else {
-        THROW_CPU_NODE_ERR("doesn't have an initialized executor");
+        CPU_NODE_THROW("doesn't have an initialized executor");
     }
 }
 
@@ -810,11 +801,11 @@ void Pooling::setPostOps(dnnl::primitive_attr& attr) {
             continue;
         }
 
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);

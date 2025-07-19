@@ -10,13 +10,13 @@ namespace kernel_selector {
 
 bool ConvertColorKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::CONVERT_COLOR) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convert_color_params& params = static_cast<const convert_color_params&>(p);
 
     if (params.inputs[0].Dimentions() > 4)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

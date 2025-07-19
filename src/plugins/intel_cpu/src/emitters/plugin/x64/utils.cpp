@@ -4,7 +4,7 @@
 
 #include "utils.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <common/utils.hpp>
@@ -63,8 +63,8 @@ struct regs_to_spill {
             }
         }
 
-        for (int i = 0; i < cpu_isa_traits<isa>::n_vregs; ++i) {
-            push_if_live(typename cpu_isa_traits<isa>::Vmm(i));
+        for (int i = 0; i < cpu_isa_traits_t<isa>::n_vregs; ++i) {
+            push_if_live(typename cpu_isa_traits_t<isa>::Vmm(i));
         }
 
         const int num_k_mask = isa == cpu_isa_t::avx512_core ? 8 : 0;
@@ -118,7 +118,7 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
     return aux_idx;
 }
 
-EmitABIRegSpills::EmitABIRegSpills(jit_generator* h_arg) : h(h_arg), isa(get_isa()) {}
+EmitABIRegSpills::EmitABIRegSpills(jit_generator_t* h_arg) : h(h_arg), isa(get_isa()) {}
 
 EmitABIRegSpills::~EmitABIRegSpills() {
     OPENVINO_ASSERT(spill_status, "postamble or preamble is missed");

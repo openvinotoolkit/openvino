@@ -463,41 +463,6 @@ void primitive_inst::update_shape() {
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
 
-    // WA: Skip dynamic quantization for the case where OneDNN has accuracy issue with post-op fusion
-    // This is a temporal workaround that should be removed in next release
-    if (get_node().is_type<dynamic_quantize>()) {
-        // if user instance is fully_connected, print user's input layouts
-        auto user = get_node().get_users().front();
-        if (user->is_type<fully_connected>()) {
-            auto fc_inst = _users[0];
-            auto fc_impl_params = fc_inst->get_impl_params();
-            for (auto& fd : fc_impl_params->fused_desc) {
-                if (!fd.has_outer_dep())
-                    continue;
-                const auto &layout_post_op = fc_inst->get_input_layout(fd.outer_dep_start_idx);
-                const auto &shape_post_op = layout_post_op.get_partial_shape();;
-                const auto &layout_input = _impl_params->get_input_layout(0);
-                const auto &shape_input = layout_input.get_partial_shape();
-
-                // If binary post-op is fused and its f-axis is broadcasted, skip dynamic quantization
-                if (shape_post_op.rank().is_static() && shape_post_op.rank().get_length() >= 3 &&
-                    shape_post_op[1].is_static() && shape_post_op[1].get_length() == 1 &&
-                    shape_input.rank().get_length() >= 3 &&
-                    shape_input[1].is_static() && shape_input[1].get_length() > 1 &&
-                    shape_input[0].is_static() && shape_input[0].get_length() > 1) {
-                    GPU_DEBUG_TRACE_DETAIL << fc_inst->id() << ": skip dynamic quantization because of unsupported broadcast - "
-                                    << layout_input.to_short_string() << ", " << layout_post_op.to_short_string() << std::endl;
-                    new_layouts[0] = _impl_params->get_input_layout(0);
-                    for (size_t i = 1; i < new_layouts.size(); i++) {
-                        auto output_shape = new_layouts[i].get_partial_shape();
-                        *output_shape.begin() = 0;
-                        new_layouts[i].set_partial_shape(output_shape);
-                    }
-                    break;
-                }
-            }
-        }
-    }
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
         auto& new_layout = new_layouts[idx];
         if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
@@ -1013,6 +978,12 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
+
+            if (need_reset_output_memory() && !can_be_optimized() &&
+                _outputs[i]->from_memory_pool && _outputs[i]->get_layout().data_padding) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
+                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
+            }
         }
     }
 
@@ -1183,7 +1154,12 @@ bool primitive_inst::use_async_compilation() {
         compile_gemm_impls |= _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
     }
 
-    return (get_node().is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
+    bool compile_conv_impls = get_node().is_type<convolution>();
+    if (compile_conv_impls) {
+        compile_conv_impls = !_impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
+    }
+
+    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
             (get_node().is_type<softmax>() && get_node().get_selected_impl() &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }

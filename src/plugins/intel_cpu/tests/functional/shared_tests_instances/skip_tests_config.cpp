@@ -499,7 +499,10 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)");
     // Compressed weights are not supported
     retVector.emplace_back(R"(smoke_MatMulSharedCompressedWeights.*)");
+    retVector.emplace_back(R"(smoke_Model_Distribution_MatMulSharedCompressedWeights.*)");
     retVector.emplace_back(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)");
+    // Issue: 170863
+    retVector.emplace_back(R"(smoke_Model_Distribution_MatMul_NoTranspose.*)");
     // smoke_Snippets test cases are not supported on arm32 platforms
 #if !defined(OPENVINO_ARCH_ARM64)
     retVector.emplace_back(R"(smoke_Snippets.*)");
