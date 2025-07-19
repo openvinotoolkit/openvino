@@ -46,7 +46,7 @@ private:
     executorPtr execPtr = nullptr;
     dnnl::algorithm alg;
     size_t size = 1;
-    int k = 1;
+    float k = 1.0f;
     float alpha = 1.0f;
     float beta = 1.0f;
 };

@@ -577,7 +577,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             if (bychannel) {
                 block_size += 2 * sizeof(float) * 2;
             } else {
-                head_size += sizeof(float) * 2 * group_num * 2;
+                head_size += static_cast<int64_t>(sizeof(float) * 2 * group_num * 2);
             }
         }
     };
@@ -655,8 +655,9 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(
         manager,
         [](const_node_ptr& node) -> bool {
-            return node->input_value(0).get_shape().size() <= 5LU &&
-                   node->input_value(0).get_shape().size() == node->get_output_shape(0).size();
+            return static_cast<size_t>(node->input_value(0).get_shape().size()) <= static_cast<size_t>(5) &&
+                   static_cast<size_t>(node->input_value(0).get_shape().size()) ==
+                       static_cast<size_t>(node->get_output_shape(0).size());
         },
         ov::pass::ConvertSpaceToDepth,
         ov::pass::ConvertDepthToSpace);
@@ -665,7 +666,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         manager,
         [](const_node_ptr& node) -> bool {
             const auto& rank = node->input(0).get_partial_shape().rank().get_length();
-            return rank == 4LU || rank == 5LU;
+            return rank == static_cast<size_t>(4) || rank == static_cast<size_t>(5);
         },
         ov::pass::ConvertBatchToSpace,
         ov::pass::ConvertSpaceToBatch);
@@ -791,7 +792,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(
         manager,
         [](const_node_ptr& node) -> bool {
-            return node->input_value(0).get_partial_shape().rank().get_length() <= 5;
+            return node->input_value(0).get_partial_shape().rank().get_length() <= static_cast<size_t>(5);
         },
         ov::pass::SoftmaxDecomposition);
 
@@ -914,7 +915,7 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
                                                                         const std::shared_ptr<ov::Node>& node) {
             const auto& input_partial_shape = node->get_input_partial_shape(0);
             const auto& rank = input_partial_shape.rank();
-            if (rank.is_static() && (rank.get_length() == 5)) {
+            if (rank.is_static() && (rank.get_length() == static_cast<size_t>(5))) {
                 return PrecisionsRestriction::PrecisionsByPorts{{{0}, {ov::element::u8, ov::element::i8}},
                                                                 {{1}, {ov::element::i8}}};
             }
@@ -1401,7 +1402,7 @@ void Transformations::MainSnippets() {
             if (!ignoreCallback) {
                 // Check for supported ranks
                 // todo: clarify whether we can evaluate snippets on inputs with larger ranks
-                if (t.get_partial_shape().rank().get_length() > 6) {
+                if (t.get_partial_shape().rank().get_length() > static_cast<size_t>(6)) {
                     return false;
                 }
             }
@@ -1459,12 +1460,13 @@ void Transformations::MainSnippets() {
                 const auto& input_shape = n->get_input_partial_shape(0);
                 if (input_shape.rank().is_dynamic() || input_shape.size() != 2)
                     return true;
-                if (input_shape.is_dynamic() || input_shape[0].get_length() > 8 || input_shape[1].get_length() > 256)
+                if (input_shape.is_dynamic() || input_shape[0].get_length() > static_cast<size_t>(8) ||
+                    input_shape[1].get_length() > static_cast<size_t>(256))
                     return true;
                 const auto& output_shape = n->get_output_partial_shape(0);
-                if (output_shape.rank().get_length() != 2)
+                if (output_shape.rank().get_length() != static_cast<size_t>(2))
                     return true;
-                return output_shape[1].is_dynamic() || output_shape[1].get_length() > 256;
+                return output_shape[1].is_dynamic() || output_shape[1].get_length() > static_cast<size_t>(256);
             },
             snippets::pass::TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_X64(

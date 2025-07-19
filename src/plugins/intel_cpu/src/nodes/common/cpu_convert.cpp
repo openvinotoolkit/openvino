@@ -875,7 +875,7 @@ struct ConvertFrom4BitContext {
 }
 
 [[maybe_unused]] static int8_t get_u4(const uint8_t& val, bool high) {
-    return high ? (val >> 4) : (val & 0xF);
+    return high ? static_cast<int8_t>(val >> 4) : static_cast<int8_t>(val & 0xF);
 }
 
 template <typename T>

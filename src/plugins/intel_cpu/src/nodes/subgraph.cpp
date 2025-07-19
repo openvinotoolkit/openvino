@@ -295,8 +295,9 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
                 VectorDims order(blocks.size());
                 std::iota(order.begin(), order.end(), 0);
 
-                blocks[1] = dims[1] != Shape::UNDEFINED_DIM ? div_up(blocks[1], blockSize) : Shape::UNDEFINED_DIM;
-                blocks.push_back(blockSize);
+                blocks[1] = dims[1] != Shape::UNDEFINED_DIM ? static_cast<Dim>(div_up(blocks[1], blockSize))
+                                                            : Shape::UNDEFINED_DIM;
+                blocks.push_back(static_cast<Dim>(blockSize));
                 order.push_back(1);
 
                 return std::make_shared<CpuBlockedMemoryDesc>(prc, shape, blocks, order, offset);
@@ -691,7 +692,7 @@ uint32_t Subgraph::getBroadcastingMask(const std::vector<VectorDims>& input_shap
     for (const auto& broadcastable_input : broadcastable_inputs) {
         const auto& shape = input_shapes[broadcastable_input.first];
         mask = mask << 1;
-        if (*(shape.rbegin() + broadcastable_input.second) == 1) {
+        if (*(shape.rbegin() + static_cast<std::ptrdiff_t>(broadcastable_input.second)) == 1) {
             mask = mask | 1;
         }
     }
@@ -748,7 +749,7 @@ void Subgraph::optimizeIR() {
     // Note: temporary disabled. Re-enable after ticket 132833 is resolved
     control_flow_config->disable<ov::snippets::lowered::pass::OptimizeDomain>();
 
-    subgraph->set_tile_rank(std::min(2UL, subgraph->infer_master_shape().size()));
+    subgraph->set_tile_rank(std::min(static_cast<size_t>(2), subgraph->infer_master_shape().size()));
 #endif
 
     // Note: minimal JIT work amount is a predefined value that describes the number of kernel iterations (work

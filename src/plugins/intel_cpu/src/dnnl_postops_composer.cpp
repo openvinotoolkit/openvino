@@ -929,7 +929,7 @@ void DnnlPostOpsComposer::appendAttrPostOpsLegacy(const FakeQuantizePostOp& post
     const size_t bufferAlignment = 16;
 
     if (postOp.type() == FakeQuantizePostOp::Type::binarization) {
-        const auto realAxisSize = OC;
+        const auto realAxisSize = static_cast<size_t>(OC);
         const auto axisPaddedSize = rnd_up(realAxisSize, bufferAlignment);
 
         std::vector<float> binarizationThresholds;

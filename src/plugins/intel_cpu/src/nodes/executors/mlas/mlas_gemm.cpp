@@ -44,7 +44,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
     Dim K = wgtDims.back();
     Dim N = batchDim(wgtDims);
 
-    auto packedBsize = mlas_sgemm_pack_get_size(N, K);
+    auto packedBsize = mlas_sgemm_pack_get_size(static_cast<int64_t>(N), static_cast<int64_t>(K));
 
     auto create = [&]() {
         auto* weightPtr = weightsMemory->getDataAs<float>();
@@ -54,7 +54,12 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
                                                   intel_cpu::CpuBlockedMemoryDesc(i8, intel_cpu::Shape{packedBsize}));
         auto* prepackedDst = _ptr->getDataAs<float>();
         DEBUG_LOG("MlasGemmExecutor: cache miss, perform packing");
-        mlas_sgemm_pack(weightsTransposed ? "T" : "F", N, K, ldb, weightPtr, prepackedDst);
+        mlas_sgemm_pack(weightsTransposed ? "T" : "F",
+                        static_cast<int64_t>(N),
+                        static_cast<int64_t>(K),
+                        static_cast<int64_t>(ldb),
+                        weightPtr,
+                        prepackedDst);
         return _ptr;
     };
 
@@ -107,14 +112,14 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memor
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
 
-      N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
-      K(memory.at(ARG_WEI)->getStaticDims().back()) {}
+      N(static_cast<int64_t>(batchDim(memory.at(ARG_WEI)->getStaticDims()))),
+      K(static_cast<int64_t>(memory.at(ARG_WEI)->getStaticDims().back())) {}
 
 bool MlasGemmExecutor::update(const MemoryArgs& memory) {
     const auto& dstDesc = memory.at(ARG_DST)->getDescPtr();
 
     const auto& outDims = dstDesc->getShape().getStaticDims();
-    M = outDims.size() > 2 ? batchDim(outDims) : outDims[0];
+    M = outDims.size() > 2 ? static_cast<int64_t>(batchDim(outDims)) : static_cast<int64_t>(outDims[0]);
 
     return true;
 }
@@ -136,12 +141,12 @@ void MlasGemmExecutor::execute(const MemoryArgs& memory) {
                        K,
                        1.0F,
                        srcRawMemPtr,
-                       lda,
+                       static_cast<int64_t>(lda),
                        weiRawMemPtr,
-                       ldb,
+                       static_cast<int64_t>(ldb),
                        0.0F,
                        dstRawMemPtr,
-                       ldc,
+                       static_cast<int64_t>(ldc),
                        biasRawMemPtr);
 }
 

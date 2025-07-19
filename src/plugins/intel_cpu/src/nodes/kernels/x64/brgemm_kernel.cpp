@@ -295,13 +295,15 @@ void BrgemmKernel::init_brgemm_copy_a(
     brgCopyKernelConf.copy_A_src_stride = copy_A_src_stride;
     // copy_a_kernel assumes that in/out tensor has same data type except f16
     // copy_a_kernel has special path for f16: assuming input(f16) -> output(f32)
-    brgCopyKernelConf.a_dt_sz = is_avx_f16_only
-                                    ? sizeof(ov::float16)
-                                    : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+    brgCopyKernelConf.a_dt_sz =
+        is_avx_f16_only
+            ? static_cast<dim_t>(sizeof(ov::float16))
+            : static_cast<dim_t>(DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0)));
     // copied A has the same precision of original
     brgCopyKernelConf.tr_a_dt_sz =
-        is_avx_f16_only ? sizeof(float)
-                        : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0));
+        is_avx_f16_only
+            ? static_cast<dim_t>(sizeof(float))
+            : static_cast<dim_t>(DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(dt_in0)));
     brgCopyKernelConf.transposed_A = transpose;
     brgCopyKernelConf.isa = is_avx_f16_only ? avx512_core_fp16 : avx512_core_amx;
     brgCopyKernelConf.orig_wei_dt = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
@@ -340,14 +342,13 @@ void BrgemmKernel::init_brgemm_copy_b(
     brgCopyKernelConf.K_tail = 0;
     brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
     // f16 is computed by upconverting. in(f16) -> out(f32)
-    brgCopyKernelConf.b_dt_sz =
-        is_avx_f16_only
-            ? sizeof(ov::float16)
-            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
-    brgCopyKernelConf.tr_b_dt_sz =
-        is_avx_f16_only
-            ? sizeof(float)
-            : DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt));
+    brgCopyKernelConf.b_dt_sz = is_avx_f16_only ? static_cast<dim_t>(sizeof(ov::float16))
+                                                : static_cast<dim_t>(DnnlExtensionUtils::sizeOfDataType(
+                                                      static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt)));
+    brgCopyKernelConf.tr_b_dt_sz = is_avx_f16_only
+                                       ? static_cast<dim_t>(sizeof(float))
+                                       : static_cast<dim_t>(DnnlExtensionUtils::sizeOfDataType(
+                                             static_cast<dnnl::memory::data_type>(brgCopyKernelConf.src_dt)));
     brgCopyKernelConf.req_wei_vnni_downconvert = false;
 
     if (is_with_amx) {

@@ -1299,9 +1299,9 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         auto outDims = childNode->outputShapes[0].getStaticDims();
         int elemSize = childNode->getOriginalOutputPrecisionAtPort(0).size();
 
-        int L3_cache_size = dnnl::utils::get_cache_size(3, false);
-        int dw_conv_input_size = inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize;
-        int dw_conv_output_size = outDims[0] * outDims[1] * outDims[2] * outDims[3] * elemSize;
+        int L3_cache_size = static_cast<int>(dnnl::utils::get_cache_size(3, false));
+        auto dw_conv_input_size = static_cast<int>(inDims[0] * inDims[1] * inDims[2] * inDims[3] * elemSize);
+        auto dw_conv_output_size = static_cast<int>(outDims[0] * outDims[1] * outDims[2] * outDims[3] * elemSize);
 
         auto parentConvolutionNode = std::dynamic_pointer_cast<Convolution>(parentNode);
         OPENVINO_ASSERT(parentConvolutionNode, "Cannot get convolution node ", parentNode->getName());

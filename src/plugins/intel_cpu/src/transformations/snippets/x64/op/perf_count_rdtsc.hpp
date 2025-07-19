@@ -53,7 +53,8 @@ public:
             // iteration is unlikely to exceed this threshold. So here we derive an integral part first
             // and cast only the remainder to double
             const uint64_t integral = accumulation / iteration;
-            avg = integral + static_cast<double>(accumulation - integral * iteration) / iteration;
+            avg = static_cast<double>(integral) +
+                  static_cast<double>(accumulation - integral * iteration) / static_cast<double>(iteration);
         }
         std::cerr << "name : " << get_friendly_name() << " : acc : " << accumulation << " : num_hit : " << iteration
                   << std::fixed << std::setprecision(4) << " : avg : " << avg << '\n';

@@ -117,7 +117,7 @@ public:
         auto part_dims = part_blob->getShape().getStaticDims();
 
         auto abs_stride = std::abs(stride);
-        auto sign_of_stride = stride < 0.0F ? -1 : 1;
+        auto sign_of_stride = static_cast<float>(stride) < 0.0F ? -1 : 1;
 
         iter_count = full_dims[axis] / abs_stride;
 
@@ -126,8 +126,9 @@ public:
 
         // make chunk view
         auto chunk_desc = full_blob->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
-        chunk_desc.get()->dims[axis] = abs_stride;
-        chunk_desc.get()->padded_dims[axis] = abs_stride;  // TODO: asamption that plain tensor
+        chunk_desc.get()->dims[axis] = static_cast<dnnl::memory::dim>(abs_stride);
+        chunk_desc.get()->padded_dims[axis] =
+            static_cast<dnnl::memory::dim>(abs_stride);  // TODO: asamption that plain tensor
 
         full_mem = full_blob->getPrimitive();
         auto* const full_mem_handler = full_mem.get_data_handle();
@@ -229,7 +230,7 @@ public:
     int getStatus() override {
         auto* data_ptr = static_cast<uint32_t*>(mem_holder.get_data_handle());
         OPENVINO_ASSERT(data_ptr, "TensorIterator node has not allocated memory for asIntCheck");
-        return *data_ptr;
+        return static_cast<int>(*data_ptr);
     }
 };
 
@@ -340,7 +341,7 @@ void DynamicBuffer::move_buffer(const MemoryPtr& new_buffer) {
 
     const auto valid_size = chunk_unit_in_byte * num_execs;
     const auto src_offset_in_byte = stride > 0 ? 0 : (src_stride - valid_size);
-    chunk_offset_in_byte = stride > 0 ? 0 : (dst_stride - valid_size);  // reset chunk_offset_in_byte
+    chunk_offset_in_byte = stride > 0 ? 0 : static_cast<ptrdiff_t>(dst_stride - valid_size);  // reset chunk_offset_in_byte
 
     copy(mem_holder_buffer->getDataAs<uint8_t>() + src_offset_in_byte,
          new_buffer->getDataAs<uint8_t>() + chunk_offset_in_byte,
@@ -390,7 +391,7 @@ void DynamicBuffer::transfer(const Node* node) {
         const auto& src_mem = from->getPrimitive();
         const auto& src_desc = src_mem.get_desc();
         auto dims = src_desc.get_dims();
-        dims[axis] = abs_stride * num_execs;
+        dims[axis] = static_cast<dnnl::memory::dim>(abs_stride * num_execs);
         const auto desc = node->getBaseMemDescAtOutputPort(map_rule.from)
                               ->cloneWithNewDims(DnnlExtensionUtils::convertToVectorDims(dims));
 
@@ -557,10 +558,10 @@ void TensorIterator::createPrimitive() {
         algorithm = Algorithm::TensorIteratorLoop;
         auto spec_port = loopOp->get_special_body_ports();
         if (spec_port.current_iteration_input_idx != -1) {
-            loopBodyCurrentIterationIdx.push_back(spec_port.current_iteration_input_idx);
+            loopBodyCurrentIterationIdx.push_back(static_cast<int>(spec_port.current_iteration_input_idx));
         }
         if (spec_port.body_condition_output_idx != -1) {
-            loopBodyConditionOutputIdx = spec_port.body_condition_output_idx;
+            loopBodyConditionOutputIdx = static_cast<int>(spec_port.body_condition_output_idx);
         }
         loopTripCountIdx = 0;
         loopExecutionConditionIdx = 1;
@@ -848,7 +849,7 @@ void TensorIterator::prepareTripCount(const bool compileStage) {
 inline VectorDims sliced_input_dims(const MemoryPtr& mem, const int axis, const int stride) {
     auto dims = mem->getStaticDims();
     if (axis != -1) {
-        dims[axis] = abs(stride);
+        dims[axis] = static_cast<size_t>(abs(stride));
     }
     return dims;
 }

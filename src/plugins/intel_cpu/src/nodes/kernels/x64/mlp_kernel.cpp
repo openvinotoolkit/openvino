@@ -352,7 +352,9 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
 static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
     if (N == 16 && K == 64) {
         // SIMD optimized version
-        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst, src, N_stride * sizeof(int8_t));
+        ov::Extensions::Cpu::XARCH::llm_mlp_transpose_epi32_16x16(dst,
+                                                                  src,
+                                                                  static_cast<int>(N_stride * sizeof(int8_t)));
         return;
     }
 
@@ -366,10 +368,10 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         auto* psrc = src + k;
         int n = 0;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? psrc[0] : 0;
-            *dst++ = is_k1_valid ? psrc[1] : 0;
-            *dst++ = is_k2_valid ? psrc[2] : 0;
-            *dst++ = is_k3_valid ? psrc[3] : 0;
+            *dst++ = is_k0_valid ? psrc[0] : static_cast<int8_t>(0);
+            *dst++ = is_k1_valid ? psrc[1] : static_cast<int8_t>(0);
+            *dst++ = is_k2_valid ? psrc[2] : static_cast<int8_t>(0);
+            *dst++ = is_k3_valid ? psrc[3] : static_cast<int8_t>(0);
         }
         for (; n < 16; n++) {
             *dst++ = 0;
@@ -399,9 +401,9 @@ void MKernel::BMatrix::setup(Tdst* ext_buff, ov::float16* p_weight, int weight_s
         auto valid_n1 = std::min((N - (n + 16)), 16);
         for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<Tdst*>(pdst), src0 + k, N_stride, valid_n0, valid_k);
+            repackB(reinterpret_cast<Tdst*>(pdst), src0 + k, static_cast<int>(N_stride), valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<Tdst*>(pdst), src1 + k, N_stride, valid_n1, valid_k);
+            repackB(reinterpret_cast<Tdst*>(pdst), src1 + k, static_cast<int>(N_stride), valid_n1, valid_k);
             pdst += 1024;
         }
     }
@@ -428,9 +430,9 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
         auto valid_n1 = std::min((N - (n + 16)), 16);
         for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(pdst, src0 + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, src0 + k, static_cast<int>(N_stride), valid_n0, valid_k);
             pdst += 1024;
-            repackB(pdst, src1 + k, N_stride, valid_n1, valid_k);
+            repackB(pdst, src1 + k, static_cast<int>(N_stride), valid_n1, valid_k);
             pdst += 1024;
         }
     }
@@ -459,9 +461,17 @@ void MKernel::BMatrix::setup(Tdst* ext_buff,
         auto valid_n0 = std::min((N2 - n), 16);
         for (int k = 0; k < K; k += k_step) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<Tdst*>(pdst), p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(reinterpret_cast<Tdst*>(pdst),
+                    p_weight_B0 + n * N_stride + k,
+                    static_cast<int>(N_stride),
+                    valid_n0,
+                    valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<Tdst*>(pdst), p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(reinterpret_cast<Tdst*>(pdst),
+                    p_weight_B1 + n * N_stride + k,
+                    static_cast<int>(N_stride),
+                    valid_n0,
+                    valid_k);
             pdst += 1024;
         }
     }
@@ -490,9 +500,9 @@ void MKernel::BMatrix::setup(int8_t* ext_buff,
         auto valid_n0 = std::min((N2 - n), 16);
         for (int k = 0; k < K; k += k_step) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(pdst, p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B0 + n * N_stride + k, static_cast<int>(N_stride), valid_n0, valid_k);
             pdst += 1024;
-            repackB(pdst, p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B1 + n * N_stride + k, static_cast<int>(N_stride), valid_n0, valid_k);
             pdst += 1024;
         }
     }

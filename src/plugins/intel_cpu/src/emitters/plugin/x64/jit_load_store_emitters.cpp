@@ -226,7 +226,7 @@ void jit_load_emitter::emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_i
     }
 
     if (is_fill_) {
-        int dword_num_loaded = (src_prc_ != dst_prc_) ? load_num_ : (load_size_ / sizeof(float));
+        int dword_num_loaded = (src_prc_ != dst_prc_) ? load_num_ : static_cast<int>(load_size_ / sizeof(float));
         fill_with_default(Vmm(out_vec_idx), fill_value_, dword_num_loaded);
     }
 }

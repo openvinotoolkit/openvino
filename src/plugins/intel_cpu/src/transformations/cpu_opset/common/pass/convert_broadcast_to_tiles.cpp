@@ -47,7 +47,7 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
 
         auto output_shape = shape_node->cast_vector<int64_t>();
         auto input_shape = data_node.get_shape();
-        int64_t cur_dim_id = output_shape.size() - 1;
+        int64_t cur_dim_id = static_cast<int64_t>(output_shape.size()) - 1;
         size_t dims_count = output_shape.size();
 
         auto last_node = data_node;
@@ -86,7 +86,7 @@ ov::intel_cpu::ConvertBroadcastToTiles::ConvertBroadcastToTiles() {
         auto input_shape_it = input_shape.rbegin();
         auto output_shape_it = output_shape.rbegin();
         while (output_shape_it != output_shape.rend() && input_shape_it != input_shape.rend()) {
-            int64_t in_dim = *input_shape_it;
+            auto in_dim = static_cast<int64_t>(*input_shape_it);
             int64_t out_dim = *output_shape_it;
             if (in_dim != out_dim) {
                 if (in_dim != 1) {

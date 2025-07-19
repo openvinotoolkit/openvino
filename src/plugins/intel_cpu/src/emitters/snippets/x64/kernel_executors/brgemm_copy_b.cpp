@@ -462,7 +462,12 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         dnnl_data_type_size(config.get_original_wei_dt());
 
-    config.update(N_dim, N_blk, K_dim, K_blk, copy_B_wei_stride, LDB);
+    config.update(static_cast<dnnl_dim_t>(N_dim),
+                  N_blk,
+                  static_cast<dnnl_dim_t>(K_dim),
+                  K_blk,
+                  copy_B_wei_stride,
+                  static_cast<dnnl_dim_t>(LDB));
 }
 
 void BrgemmCopyBKernelExecutor::execute(const BrgemmCopyBKernelExecutor* executor, BrgemmCopyBKernel::call_args* args) {

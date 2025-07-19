@@ -106,7 +106,7 @@ MatrixNms::MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     m_normalized = attrs.normalized;
     if (m_decayFunction == MatrixNmsDecayFunction::LINEAR) {
         m_decay_fn = [](float iou, float max_iou, [[maybe_unused]] float sigma) -> float {
-            return (1. - iou) / (1. - max_iou + 1e-10F);
+            return (1.0f - iou) / (1.0f - max_iou + 1e-10F);
         };
     } else {
         m_decay_fn = [](float iou, float max_iou, float sigma) -> float {
@@ -160,7 +160,7 @@ namespace {
 
 inline float boxArea(const float* bbox, const bool normalized) {
     if (bbox[2] < bbox[0] || bbox[3] < bbox[1]) {
-        return static_cast<float>(0.);
+        return 0.0f;
     }
     const float width = bbox[2] - bbox[0];
     const float height = bbox[3] - bbox[1];
@@ -172,13 +172,13 @@ inline float boxArea(const float* bbox, const bool normalized) {
 
 inline float intersectionOverUnion(const float* bbox1, const float* bbox2, const bool normalized) {
     if (bbox2[0] > bbox1[2] || bbox2[2] < bbox1[0] || bbox2[1] > bbox1[3] || bbox2[3] < bbox1[1]) {
-        return static_cast<float>(0.);
+        return 0.0f;
     }
     const float xMin = std::max(bbox1[0], bbox2[0]);
     const float yMin = std::max(bbox1[1], bbox2[1]);
     const float xMax = std::min(bbox1[2], bbox2[2]);
     const float yMax = std::min(bbox1[3], bbox2[3]);
-    float norm = normalized ? static_cast<float>(0.) : static_cast<float>(1.);
+    float norm = normalized ? 0.0f : 1.0f;
     float width = xMax - xMin + norm;
     float height = yMax - yMin + norm;
     const float interArea = width * height;
@@ -217,9 +217,9 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
     std::vector<float> iouMatrix((originalSize * (originalSize - 1)) >> 1);
     std::vector<float> iouMax(originalSize);
 
-    iouMax[0] = 0.;
+    iouMax[0] = 0.0f;
     ov::parallel_for(originalSize - 1, [&](size_t i) {
-        float max_iou = 0.;
+        float max_iou = 0.0f;
         size_t actual_index = i + 1;
         auto idx_a = candidateIndex[actual_index];
         for (size_t j = 0; j < actual_index; j++) {
@@ -246,7 +246,7 @@ size_t MatrixNms::nmsMatrix(const float* boxesData,
     }
 
     for (int64_t i = 1; i < originalSize; i++) {
-        float minDecay = 1.;
+        float minDecay = 1.0f;
         for (int64_t j = 0; j < i; j++) {
             auto maxIou = iouMax[j];
             auto iou = iouMatrix[i * (i - 1) / 2 + j];
@@ -291,7 +291,7 @@ void MatrixNms::prepareParams() {
         return m_numClasses - 1;
     }();
     if (m_nmsTopk >= 0) {
-        max_output_boxes_per_class = std::min(m_numBoxes, static_cast<size_t>(m_nmsTopk));
+        max_output_boxes_per_class = std::min(static_cast<int64_t>(m_numBoxes), static_cast<int64_t>(m_nmsTopk));
     } else {
         max_output_boxes_per_class = m_numBoxes;
     }
@@ -448,7 +448,7 @@ void MatrixNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto originalIndex = originalOffset + j;
             selectedIndices[j + outputOffset] = static_cast<int>(m_filteredBoxes[originalIndex].index);
             auto* selectedBase = selectedOutputs + (outputOffset + j) * 6;
-            selectedBase[0] = m_filteredBoxes[originalIndex].classIndex;
+            selectedBase[0] = static_cast<float>(m_filteredBoxes[originalIndex].classIndex);
             selectedBase[1] = m_filteredBoxes[originalIndex].score;
             selectedBase[2] = m_filteredBoxes[originalIndex].box.x1;
             selectedBase[3] = m_filteredBoxes[originalIndex].box.y1;

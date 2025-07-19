@@ -99,7 +99,7 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
     imgWidth = attributes.input_width;
     priorSize = normalized ? 4 : 5;
     coordOffset = normalized ? 0 : 1;
-    cacheSizeL3 = utils::get_cache_size(3, true);
+    cacheSizeL3 = static_cast<int>(utils::get_cache_size(3, true));
 
     withAddBoxPred = getOriginalInputsNumber() == 5;
     objScore = attributes.objectness_score;
@@ -778,10 +778,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
         float locYMax = locData[4 * p * locNumForClasses + 3];
 
         if (!normalized) {
-            priorXMin /= imgWidth;
-            priorYMin /= imgHeight;
-            priorXMax /= imgWidth;
-            priorYMax /= imgHeight;
+            priorXMin /= static_cast<float>(imgWidth);
+            priorYMin /= static_cast<float>(imgHeight);
+            priorXMax /= static_cast<float>(imgWidth);
+            priorYMax /= static_cast<float>(imgHeight);
         }
 
         if (codeType == CodeType::CORNER) {
@@ -956,11 +956,11 @@ inline void DetectionOutput::generateOutput(const float* reorderedConfData,
 
     int dstDataSize = 0;
     if (keepTopK > 0) {
-        dstDataSize = imgNum * keepTopK * DETECTION_SIZE * sizeof(float);
+        dstDataSize = static_cast<int>(imgNum * keepTopK * DETECTION_SIZE * sizeof(float));
     } else if (topK > 0) {
-        dstDataSize = imgNum * topK * classesNum * DETECTION_SIZE * sizeof(float);
+        dstDataSize = static_cast<int>(imgNum * topK * classesNum * DETECTION_SIZE * sizeof(float));
     } else {
-        dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
+        dstDataSize = static_cast<int>(imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float));
     }
 
     CPU_NODE_ASSERT(static_cast<size_t>(dstDataSize) <= getChildEdgeAt(0)->getMemory().getSize(),

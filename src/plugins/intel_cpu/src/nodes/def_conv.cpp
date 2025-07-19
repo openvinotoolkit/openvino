@@ -809,12 +809,12 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
     defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
     const auto& strides = defConvNodeBase->get_strides();
     for (uint64_t stride : strides) {
-        defConvAttr.stride.push_back(stride);
+        defConvAttr.stride.push_back(static_cast<int>(stride));
     }
 
     const auto& dilations = defConvNodeBase->get_dilations();
     for (uint64_t dilation : dilations) {
-        defConvAttr.dilation.push_back(dilation - 1);
+        defConvAttr.dilation.push_back(static_cast<int>(dilation - 1));
     }
 
     defConvAttr.padL = defConvNodeBase->get_pads_begin();
@@ -984,7 +984,8 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
                                    static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;
                 } else {
-                    skip_compute = map_w < 0 || map_w >= IW || map_h < 0 || map_h >= IH;
+                    skip_compute =
+                        map_w < 0 || map_w >= static_cast<float>(IW) || map_h < 0 || map_h >= static_cast<float>(IH);
                 }
                 if (!skip_compute) {
                     // modulations precomp.
@@ -1005,8 +1006,8 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
                     int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
 
-                    float lh = map_h - h_low;
-                    float lw = map_w - w_low;
+                    float lh = map_h - static_cast<float>(h_low);
+                    float lw = map_w - static_cast<float>(w_low);
                     float hh = 1 - lh;
                     float hw = 1 - lw;
 
@@ -1051,7 +1052,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
     };
 
     parallel_nd(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
-        precompKer(mb, dg, oh, ow);
+        precompKer(static_cast<int>(mb), static_cast<int>(dg), static_cast<int>(oh), static_cast<int>(ow));
     });
 }
 
@@ -1231,7 +1232,11 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
 
     parallel_nd(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
         dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
-            compKer(g, mb, oc, oh, ow);
+            compKer(static_cast<int>(g),
+                    static_cast<int>(mb),
+                    static_cast<int>(oc),
+                    static_cast<int>(oh),
+                    static_cast<int>(ow));
     });
 }
 

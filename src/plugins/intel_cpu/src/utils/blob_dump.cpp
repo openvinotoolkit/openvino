@@ -64,10 +64,10 @@ static IEB_HEADER prepare_header(const MemoryDesc& desc) {
 
     OPENVINO_ASSERT(desc.getShape().getRank() <= 7, "Dumper support max 7D blobs");
 
-    header.ndims = desc.getShape().getRank();
+    header.ndims = static_cast<unsigned char>(desc.getShape().getRank());
     const auto& dims = desc.getShape().getStaticDims();
     for (int i = 0; i < header.ndims; i++) {
-        header.dims[i] = dims[i];
+        header.dims[i] = static_cast<unsigned int>(dims[i]);
     }
 
     header.scaling_axis = NO_SCALES;
@@ -152,7 +152,7 @@ void BlobDumper::dump(std::ostream& stream) const {
     prepare_plain_data(this->memory, data);
 
     header.data_offset = sizeof(header);
-    header.data_size = data.size();
+    header.data_size = static_cast<uint64_t>(data.size());
     header.scaling_data_offset = 0;
     header.scaling_data_size = 0;
 
@@ -275,8 +275,8 @@ BlobDumper BlobDumper::read(std::istream& stream) {
     const auto desc = parse_header(header);
 
     BlobDumper res(desc);
-    stream.seekg(header.data_offset, std::istream::beg);
-    stream.read(reinterpret_cast<char*>(res.getDataPtr()), header.data_size);
+    stream.seekg(static_cast<std::streamoff>(header.data_offset), std::istream::beg);
+    stream.read(reinterpret_cast<char*>(res.getDataPtr()), static_cast<std::streamsize>(header.data_size));
 
     return res;
 }

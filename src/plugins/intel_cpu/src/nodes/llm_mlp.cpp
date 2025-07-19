@@ -128,7 +128,7 @@ public:
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
 
-        wbuffer.alloc(works, weight_element_size);
+        wbuffer.alloc(works, static_cast<int>(weight_element_size));
 
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];
@@ -268,7 +268,7 @@ public:
 
             start_blkN += blkN;
         }
-        wbuffer.alloc(works, weight_element_size);
+        wbuffer.alloc(works, static_cast<int>(weight_element_size));
 
         DEBUG_LOG("Linear N,K=", N, ",", K, " used_nthr=", used_nthr);
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {

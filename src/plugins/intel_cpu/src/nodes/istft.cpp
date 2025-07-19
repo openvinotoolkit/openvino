@@ -162,7 +162,9 @@ void istft_impl(const float* in_data,
 
     const auto window_length = window_shape[0] < frame_size_dim ? window_shape[0] : frame_size_dim;
     std::vector<float> pad_window(frame_size, 0);
-    std::copy(window, window + window_shape[0], pad_window.begin() + (frame_size_dim - window_length) / 2);
+    std::copy(window,
+              window + window_shape[0],
+              pad_window.begin() + static_cast<std::ptrdiff_t>((frame_size_dim - window_length) / 2));
     std::vector<float> pow_window(frame_size, 0);
     std::transform(pad_window.begin(), pad_window.end(), pow_window.begin(), [](float win_val) {
         return win_val * win_val;

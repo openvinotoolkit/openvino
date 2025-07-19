@@ -450,8 +450,9 @@ std::pair<VectorDims, VectorDims> Deconvolution::makeDummyInOutShape() {
                 for (size_t i = 0; i < dims.size() - 2; ++i) {
                     lastOutputSpatialDims[i] =
                         dims[i + 2] == Shape::UNDEFINED_DIM
-                            ? std::min(maxDims[i + 2], std::max(minDims[i + 2], static_cast<Dim>(64)))
-                            : dims[i + 2];
+                            ? static_cast<int32_t>(
+                                  std::min(maxDims[i + 2], std::max(minDims[i + 2], static_cast<Dim>(64ul))))
+                            : static_cast<int32_t>(dims[i + 2]);
                 }
             }
 
