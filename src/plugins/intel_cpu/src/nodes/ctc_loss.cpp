@@ -226,7 +226,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                     expSum += std::exp(logits[btcT + c]);
                 }
                 for (size_t s = 0LU; s < decodedTargetLen; s++) {
-                    logProbabilities[t][s] = logits[btcT + targetD[s]] - std::log(expSum);
+                    logProbabilities[t][s] = logits[btcT + targetD[s]] - static_cast<float>(std::log(expSum));
                 }
                 btcT += classesNum;
                 if (++workCounter >= end) {

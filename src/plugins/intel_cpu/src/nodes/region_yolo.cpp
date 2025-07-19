@@ -353,7 +353,7 @@ void RegionYolo::createPrimitive() {
 #if defined(OPENVINO_ARCH_X86_64)
     jit_logistic_config_params jcp;
     jcp.src_dt = jcp.dst_dt = output_prec;
-    jcp.src_data_size = jcp.dst_data_size = output_prec.size();
+    jcp.src_data_size = jcp.dst_data_size = static_cast<unsigned>(output_prec.size());
 
     block_size = 1;
     if (mayiuse(x64::avx512_core)) {
@@ -441,7 +441,7 @@ void RegionYolo::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else {
         // Yolo layer (Yolo v3)
         end_index = IW * IH * (classes + 1);
-        num_ = mask_size;
+        num_ = static_cast<int>(mask_size);
         output_size = B * IH * IW * mask_size * (classes + coords + 1);
     }
 

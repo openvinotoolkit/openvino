@@ -117,8 +117,8 @@ void GridSample::initSupportedPrimitiveDescriptors() {
     if (dataPrecision != ov::element::i32) {
         dataPrecision = ov::element::f32;
     }
-    dataTypeSize = dataPrecision.size();
-    gridTypeSize = gridPrecision.size();
+    dataTypeSize = static_cast<size_t>(dataPrecision.size());
+    gridTypeSize = static_cast<size_t>(gridPrecision.size());
 
     impl_desc_type implType = jit_sse42;
     if (x64::mayiuse(x64::avx512_core)) {
@@ -145,17 +145,17 @@ void GridSample::createPrimitive() {
 
     const auto& srcDataDims = getInputShapeAtPort(IN_DATA).getDims();
     if (!jcp.dynamicShapes) {
-        jcp.batchNum = srcDataDims[0];
-        jcp.cannelNum = srcDataDims[1];
+        jcp.batchNum = static_cast<uint64_t>(srcDataDims[0]);
+        jcp.cannelNum = static_cast<uint64_t>(srcDataDims[1]);
         jcp.dynamicBatch = false;
         jcp.dynamicChannel = false;
         jcp.srcBatchStepB =
             std::accumulate(srcDataDims.begin() + 1, srcDataDims.end(), dataTypeSize, std::multiplies<>());
     } else {
         jcp.dynamicBatch = srcDataDims[0] == Shape::UNDEFINED_DIM;
-        jcp.batchNum = jcp.dynamicBatch ? 1LU : srcDataDims[0];
+        jcp.batchNum = jcp.dynamicBatch ? 1LU : static_cast<uint64_t>(srcDataDims[0]);
         jcp.dynamicChannel = srcDataDims[1] == Shape::UNDEFINED_DIM;
-        jcp.cannelNum = jcp.dynamicChannel ? 1LU : srcDataDims[1];
+        jcp.cannelNum = jcp.dynamicChannel ? 1LU : static_cast<uint64_t>(srcDataDims[1]);
     }
 
     if (x64::mayiuse(x64::avx512_core)) {
@@ -211,7 +211,7 @@ void GridSample::prepareParams() {
     const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
     const auto& srcDataShape = dataMemPtr->getStaticDims();
     const auto& dstShape = dstMemPtr->getStaticDims();
-    const uint64_t totalWork = dstShape[2] * dstShape[3];
+    const uint64_t totalWork = static_cast<uint64_t>(dstShape[2]) * static_cast<uint64_t>(dstShape[3]);
     const uint64_t wpt = ((totalWork / dataElPerVec) / m_threads_num + 1) * dataElPerVec;
 
     parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
@@ -225,31 +225,37 @@ void GridSample::prepareParams() {
             return;
         }
 
-        p.batchNum = srcDataShape[0];
-        p.channelsNum = srcDataShape[1];
-        p.srcHeightF[0] = srcDataShape[2];
-        p.srcWidthF[0] = srcDataShape[3];
+        p.batchNum = static_cast<uint64_t>(srcDataShape[0]);
+        p.channelsNum = static_cast<uint64_t>(srcDataShape[1]);
+        p.srcHeightF[0] = static_cast<float>(srcDataShape[2]);
+        p.srcWidthF[0] = static_cast<float>(srcDataShape[3]);
 
         p.gridStartB = dstStart * 2 * gridTypeSize;
         p.dstStartB = dstStart * dataTypeSize;
 
         p.srcBatchStepB =
             std::accumulate(srcDataShape.begin() + 1, srcDataShape.end(), dataTypeSize, std::multiplies<>());
-        p.gridBatchStepB = (dstShape[2] * dstShape[3] - p.workAmount) * 2 * gridTypeSize;
-        p.dstBatchStepB = (dstShape[1] * dstShape[2] * dstShape[3] - p.workAmount) * dataTypeSize;
+        p.gridBatchStepB = (static_cast<uint64_t>(dstShape[2]) * static_cast<uint64_t>(dstShape[3]) - p.workAmount) *
+                           static_cast<uint64_t>(2) * static_cast<uint64_t>(gridTypeSize);
+        p.dstBatchStepB = (static_cast<uint64_t>(dstShape[1]) * static_cast<uint64_t>(dstShape[2]) *
+                               static_cast<uint64_t>(dstShape[3]) -
+                           p.workAmount) *
+                          static_cast<uint64_t>(dataTypeSize);
 
-        p.srcChannelStepB = srcDataShape[2] * srcDataShape[3] * dataTypeSize;
-        p.dstChannelStepB = dstShape[2] * dstShape[3] * dataTypeSize;
-        p.dataTypeSize[0] = dataTypeSize;
+        p.srcChannelStepB = static_cast<uint64_t>(srcDataShape[2]) * static_cast<uint64_t>(srcDataShape[3]) *
+                            static_cast<uint64_t>(dataTypeSize);
+        p.dstChannelStepB = static_cast<uint64_t>(dstShape[2]) * static_cast<uint64_t>(dstShape[3]) *
+                            static_cast<uint64_t>(dataTypeSize);
+        p.dataTypeSize[0] = static_cast<int>(dataTypeSize);
 
         p.srcHeightSub1F[0] = p.srcHeightF[0] - 1.F;
         p.srcWidthSub1F[0] = p.srcWidthF[0] - 1.F;
         p.srcHeightMul2F[0] = p.srcHeightF[0] * 2.F;
         p.srcWidthMul2F[0] = p.srcWidthF[0] * 2.F;
         if (interpolationMode == GridSampleInterpolationMode::BICUBIC && srcDataShape[3] >= 4) {
-            p.srcWidthB[0] = (srcDataShape[3] - 3) * dataTypeSize;
+            p.srcWidthB[0] = static_cast<int>((srcDataShape[3] - 3) * dataTypeSize);
         } else {
-            p.srcWidthB[0] = srcDataShape[3] * dataTypeSize;
+            p.srcWidthB[0] = static_cast<int>(srcDataShape[3] * dataTypeSize);
         }
         if (alignCorners) {
             p.srcHeightMul2Sub1F[0] = p.srcHeightF[0] == 1.F ? 1.F : p.srcHeightSub1F[0] * 2.F;

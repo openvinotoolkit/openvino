@@ -398,8 +398,10 @@ void RandomUniform::prepareMersenneTwisterParams() {
         auto approx_start = thread_offset * static_cast<float>(ithr);
         auto approx_end = thread_offset * (static_cast<float>(ithr + 1));
 
-        auto state_start = static_cast<uint64_t>(std::floor(approx_start) * m_uint_storage_capacity_per_thread);
-        auto state_end = static_cast<uint64_t>(std::floor(approx_end) * m_uint_storage_capacity_per_thread);
+        auto state_start =
+            static_cast<uint64_t>(std::floor(approx_start) * static_cast<float>(m_uint_storage_capacity_per_thread));
+        auto state_end =
+            static_cast<uint64_t>(std::floor(approx_end) * static_cast<float>(m_uint_storage_capacity_per_thread));
 
         // Rounding failsafes
         if (ithr == 0) {
@@ -419,7 +421,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
         params.src_start_idx = state_start;
         params.dst_start_idx = destination_start;
-        params.state_accesses_count = state_accesses;
+        params.state_accesses_count = static_cast<uint64_t>(state_accesses);
     });
 }
 
@@ -688,9 +690,9 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto mask = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float>::digits);
 
-    out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
+    out[0] = static_cast<float>(static_cast<float>(in1 & mask) * divisor) * range + min;
     if (elements_remaining >= 2L) {
-        out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
+        out[1] = static_cast<float>(static_cast<float>(in2 & mask) * divisor) * range + min;
     }
 }
 
@@ -704,9 +706,9 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto mask = static_cast<uint32_t>((static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits) - 1);
     const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits);
 
-    out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
+    out[0] = static_cast<float>(static_cast<float>(in1 & mask) * divisor) * range + min;
     if (elements_remaining >= 2L) {
-        out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
+        out[1] = static_cast<float>(static_cast<float>(in2 & mask) * divisor) * range + min;
     }
 }
 
@@ -720,9 +722,9 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto mask = static_cast<uint32_t>((1UL << 8) - 1);
     const auto divisor = static_cast<float>(1) / (1UL << 8);
 
-    out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
+    out[0] = static_cast<float>(static_cast<float>(in1 & mask) * divisor) * range + min;
     if (elements_remaining >= 2L) {
-        out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
+        out[1] = static_cast<float>(static_cast<float>(in2 & mask) * divisor) * range + min;
     }
 }
 

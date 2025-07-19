@@ -1249,13 +1249,13 @@ private:
     }
 
     const struct aux_vals_type {
-        int float_one = 0x3f800000;  // 1.0f
-        int float_abs = 0x7fffffff;  // mask to make positive
-        int float_min = 0xff7fffff;  // float minimum
-        int float_max = 0x7f7fffff;  // float maximum
-        int int32_min = 0xcf000000;  // -2^31 presented in float
-        int int32_max = 0x4effffff;  // 2^31-1 presented in float
-        int int32_one = 0x00000001;  // integer 1
+        int float_one = 0x3f800000;                    // 1.0f
+        int float_abs = 0x7fffffff;                    // mask to make positive
+        int float_min = static_cast<int>(0xff7fffff);  // float minimum
+        int float_max = 0x7f7fffff;                    // float maximum
+        int int32_min = static_cast<int>(0xcf000000);  // -2^31 presented in float
+        int int32_max = 0x4effffff;                    // 2^31-1 presented in float
+        int int32_one = 0x00000001;                    // integer 1
     } aux_vals;
 };
 

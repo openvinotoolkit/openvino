@@ -429,7 +429,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
         if (typeSize == 1) {
             pinsrb(xmmDstMask, r32Ones, i);
         } else if (typeSize == 2) {
-            pinsrw(xmmDstMask, r32Ones, i);
+            pinsrw(xmmDstMask, r32Ones, static_cast<int>(i));
         } else if (typeSize == 4) {
             pinsrd(xmmDstMask, r32Ones, i);
         } else if (typeSize == 8) {
@@ -460,7 +460,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
             if (typeSize == 1) {
                 pinsrb(xmmDstMask, r32Ones, j);
             } else if (typeSize == 2) {
-                pinsrw(xmmDstMask, r32Ones, j);
+                pinsrw(xmmDstMask, r32Ones, static_cast<int>(j));
             } else if (typeSize == 4) {
                 pinsrd(xmmDstMask, r32Ones, j);
             } else if (typeSize == 8) {

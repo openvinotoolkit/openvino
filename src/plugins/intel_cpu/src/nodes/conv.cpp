@@ -599,7 +599,7 @@ void Convolution::createPrimitive() {
     for (const auto& entry : m_atoi) {
         const auto argumentId = entry.first;
         const auto inputId = entry.second;
-        m_memory[argumentId] = getSrcMemoryAtPort(inputId);
+        m_memory[static_cast<int>(argumentId)] = getSrcMemoryAtPort(inputId);
     }
 
     if (!m_attrs.withBias) {

@@ -172,7 +172,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         auto planar_shape = ov::snippets::utils::get_planar_vdims(shape, layout);
         // In parallel impl, each thread needs buffer with only inner blocked shape to store repacking datata
         if (is_impl_parallel) {
-            const auto batch_count = planar_shape.size() - brgemm_kernel_rank;
+            const auto batch_count = static_cast<int>(planar_shape.size() - brgemm_kernel_rank);
             std::fill(planar_shape.begin(), planar_shape.begin() + batch_count, 1);
         }
 
@@ -213,7 +213,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
 
             ov::snippets::VectorDims dst_offsets;
             ov::snippets::utils::init_strides(shape_for_offset, rank, prc.size(), 0, dst_offsets);
-            dst_offsets.resize(dst_offsets.size() - inner_blocks_num);
+            dst_offsets.resize(static_cast<size_t>(dst_offsets.size() - inner_blocks_num));
             cpu_config->io_data_offsets[i] = dst_offsets;
         }
         const auto out_offsets = cpu_config->io_data_offsets[i];

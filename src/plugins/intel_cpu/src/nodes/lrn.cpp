@@ -42,7 +42,7 @@ struct LrnKey {
     impl_desc_type implType;
     dnnl::algorithm alg;
     size_t size;
-    int k;
+    float k;
     float alpha;
     float beta;
     dnnl::primitive_attr attr;
@@ -199,7 +199,7 @@ void Lrn::prepareParams() {
                                                            key.alg,
                                                            key.inp0->getDnnlDesc(),
                                                            key.inp0->getDnnlDesc(),
-                                                           key.size,
+                                                           static_cast<int>(key.size),
                                                            key.alpha,
                                                            key.beta,
                                                            key.k,
@@ -245,7 +245,7 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                                   alg,
                                                   in_candidate,
                                                   in_candidate,
-                                                  size,
+                                                  static_cast<int>(size),
                                                   alpha,
                                                   beta,
                                                   k);

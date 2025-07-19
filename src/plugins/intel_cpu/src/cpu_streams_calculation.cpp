@@ -639,7 +639,7 @@ int get_model_prefer_threads(const int num_streams,
         }
         // the more "capable" the CPU in general, the more streams we may want to keep to keep it utilized
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
-        const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
+        const auto L2_cache_size = static_cast<float>(dnnl::utils::get_cache_size(2 /*level*/, true /*per core */));
         ov::MemBandwidthPressure networkToleranceForLowCache =
             ov::mem_bandwidth_pressure_tolerance(model,
                                                  L2_cache_size,
@@ -766,7 +766,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
     auto streams_info_table = get_streams_info_table(config.streams,
                                                      config.streamsChanged,
                                                      config.threads,
-                                                     config.hintNumRequests,
+                                                     static_cast<int>(config.hintNumRequests),
                                                      model_prefer_threads,
                                                      config.enableTensorParallel,
                                                      ov::util::to_string(config.hintPerfMode),

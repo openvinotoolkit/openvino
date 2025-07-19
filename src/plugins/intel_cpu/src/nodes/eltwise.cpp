@@ -601,7 +601,7 @@ public:
             size_t offset_oc = 1;
             for (int i = outOrder.size() - 1; i >= 0; i--) {
                 if (outOrder[i] == 1) {
-                    int oc_dim_idx = i + (jep.input_size - outOrder.size());
+                    int oc_dim_idx = i + static_cast<int>(jep.input_size - outOrder.size());
                     jep.oc_offsets[oc_dim_idx] = offset_oc;
                     offset_oc *= jep.dims[oc_dim_idx];
                     if (oc_dim_idx + 1 !=

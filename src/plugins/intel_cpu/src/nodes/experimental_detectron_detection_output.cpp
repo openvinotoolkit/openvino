@@ -273,8 +273,8 @@ ExperimentalDetectronDetectionOutput::ExperimentalDetectronDetectionOutput(const
     score_threshold_ = attributes.score_threshold;
     nms_threshold_ = attributes.nms_threshold;
     max_delta_log_wh_ = attributes.max_delta_log_wh;
-    classes_num_ = attributes.num_classes;
-    max_detections_per_class_ = attributes.post_nms_count;
+    classes_num_ = static_cast<int>(attributes.num_classes);
+    max_detections_per_class_ = static_cast<int>(attributes.post_nms_count);
     max_detections_per_image_ = attributes.max_detections_per_image;
     class_agnostic_box_regression_ = attributes.class_agnostic_box_regression;
     deltas_weights_ = attributes.deltas_weights;

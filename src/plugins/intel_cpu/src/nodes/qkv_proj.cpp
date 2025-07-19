@@ -169,7 +169,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                   " used_nthr=",
                   cur_work_id);
 
-        wbuffer.alloc(works, weight_element_size);
+        wbuffer.alloc(works, static_cast<int>(weight_element_size));
 
         ov::parallel_nt_static(m_threads_num, [&](const size_t ithr, [[maybe_unused]] const size_t nthr) {
             auto& work = works[ithr];

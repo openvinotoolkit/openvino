@@ -373,8 +373,8 @@ void DFT::fft(float* inBuffer,
               bool inverse,
               bool parallelize,
               const float** resultBuf) const {
-    static int cacheSizeL3 = dnnl::utils::get_cache_size(3, false);
-    static int elementsPerCacheLine = cacheSizeL3 / sizeof(float);
+    static int cacheSizeL3 = static_cast<int>(dnnl::utils::get_cache_size(3, false));
+    static int elementsPerCacheLine = static_cast<int>(cacheSizeL3 / sizeof(float));
     size_t nComplex = dataLength / 2;
 
     std::function<void(const size_t, const size_t, const size_t)> blockIteration;

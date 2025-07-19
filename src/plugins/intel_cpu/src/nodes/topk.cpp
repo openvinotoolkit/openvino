@@ -1923,7 +1923,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         auto in_dims = topKOp->get_input_partial_shape(TOPK_DATA);
         auto out_dims = topKOp->get_output_partial_shape(TOPK_DATA);
         auto out_idx_dims = topKOp->get_output_partial_shape(TOPK_INDEX);
-        auto in_dims_size = in_dims.size();
+        auto in_dims_size = static_cast<int>(in_dims.size());
 
         if (!isDynamicNgraphNode(op)) {
             auto topKConst = ov::as_type_ptr<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
@@ -2138,12 +2138,12 @@ void TopK::prepareParams() {
 
         prepare_original_idx();
     } else {  // reference mode
-        for (int j = src_dims.size() - 1; j >= 0; j--) {
+        for (int j = static_cast<int>(src_dims.size()) - 1; j >= 0; j--) {
             if (src_dims[j] != 1) {
                 break;
             }
         }
-        dim = static_cast<int>(src_dims[axis]);
+        dim = src_dims[axis];
         before_num = count(src_dims, 0, axis);
     }
 }
@@ -2451,7 +2451,7 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
         if (axis == 0) {
             layout_axis = 0;
         } else if (axis == 1) {
-            layout_axis = static_cast<int>(layout_dims.size() - 1);
+            layout_axis = static_cast<int>(layout_dims.size()) - 1;
         } else {
             layout_axis = axis - 1;
         }
@@ -2485,7 +2485,7 @@ void TopK::topk_ref_process(const float* src_data,
                             int32_t* dst_idx,
                             const VectorDims& in_dims,
                             std::function<bool(float, float)> compare) const {
-    int after_num = count(in_dims, axis + 1, in_dims.size());
+    int after_num = count(in_dims, axis + 1, static_cast<int>(in_dims.size()));
 
     parallel_for2d(before_num, after_num, [&](int i0, int i1) {
         std::vector<float> max_values(top_k + 1);

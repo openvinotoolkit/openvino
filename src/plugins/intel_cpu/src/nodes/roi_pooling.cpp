@@ -188,7 +188,7 @@ private:
 
         mov(aux_reg_input, reg_input);
 
-        const int src_c_off = jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_prc.size();
+        const int src_c_off = static_cast<int>(jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_prc.size());
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_max = get_acc_reg(i);
 
@@ -242,7 +242,7 @@ private:
             jl(h_loop_label, T_NEAR);
         }
 
-        const int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
+        const int dst_c_off = static_cast<int>(jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size());
         for (int i = 0; i < c_blocks; i++) {
             Vmm vmm_dst = get_acc_reg(i);
 
@@ -265,7 +265,7 @@ private:
         Vmm vmm_src11 = get_src_reg(3);
 
         for (int i = 0; i < c_blocks; i++) {
-            const int src_c_off = i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_prc.size();
+            const int src_c_off = static_cast<int>(i * jpp_.ih * jpp_.iw * jpp_.c_block * jpp_.src_prc.size());
 
             mov(aux_reg_input, reg_input);
 
@@ -301,7 +301,7 @@ private:
             uni_vsubps(vmm_src11, vmm_src11, vmm_src01);
             uni_vfmadd213ps(vmm_src11, vmm_yf, vmm_src01);
 
-            const int dst_c_off = i * jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
+            const int dst_c_off = static_cast<int>(i * jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size());
 
             store_emitter->emit_code({static_cast<size_t>(vmm_src11.getIdx())},
                                      {static_cast<size_t>(reg_output.getIdx()), static_cast<size_t>(dst_c_off)},
@@ -313,7 +313,7 @@ private:
     void empty_roi(int c_blocks) {
         uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
-        const int dst_c_off = jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size();
+        const int dst_c_off = static_cast<int>(jpp_.oh * jpp_.ow * jpp_.c_block * jpp_.dst_prc.size());
         for (int i = 0; i < c_blocks; i++) {
             store_empty_roi_emitter->emit_code(
                 {static_cast<size_t>(vmm_zero.getIdx())},

@@ -195,7 +195,7 @@ void jit_emitter::emitter_preamble(const std::vector<size_t>& in_idxs,
     }
 
     for (uint64_t preserved_gpr_idx : preserved_gpr_idxs) {
-        h->push(Reg64(preserved_gpr_idx));
+        h->push(Reg64(static_cast<int>(preserved_gpr_idx)));
     }
 
     if (!preserved_vec_idxs.empty()) {
@@ -223,7 +223,7 @@ void jit_emitter::emitter_postamble() const {
     }
 
     for (int i = preserved_gpr_idxs.size() - 1; i >= 0; --i) {
-        h->pop(Reg64(preserved_gpr_idxs[i]));
+        h->pop(Reg64(static_cast<int>(preserved_gpr_idxs[i])));
     }
 
     preserved_vec_idxs.clear();

@@ -1176,7 +1176,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         isInputLowBroadcasted = (ov::is_scalar(ilShape) || ilShape[inputLowAxis] == 1);
         if (!isInputLowBroadcasted) {
             axis = inputLowAxis;
-            axisSize = ilShape[inputLowAxis];
+            axisSize = static_cast<int>(ilShape[inputLowAxis]);
         }
 
         const auto ihShape = getNormalizedDimsBySize(fq->get_input_shape(2), dataRank);
@@ -1184,7 +1184,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         isInputHighBroadcasted = (ov::is_scalar(ihShape) || ihShape[inputHighAxis] == 1);
         if (!isInputHighBroadcasted) {
             axis = inputHighAxis;
-            axisSize = ihShape[inputHighAxis];
+            axisSize = static_cast<int>(ihShape[inputHighAxis]);
         }
 
         const auto olShape = getNormalizedDimsBySize(fq->get_input_shape(3), dataRank);
@@ -1192,7 +1192,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         isOutputLowBroadcasted = (ov::is_scalar(olShape) || olShape[outputLowAxis] == 1);
         if (!isOutputLowBroadcasted) {
             axis = outputLowAxis;
-            axisSize = olShape[outputLowAxis];
+            axisSize = static_cast<int>(olShape[outputLowAxis]);
         }
 
         const auto ohShape = getNormalizedDimsBySize(fq->get_input_shape(4), dataRank);
@@ -1200,7 +1200,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         isOutputHighBroadcasted = (ov::is_scalar(ohShape) || ohShape[outputHighAxis] == 1);
         if (!isOutputHighBroadcasted) {
             axis = outputHighAxis;
-            axisSize = ohShape[outputHighAxis];
+            axisSize = static_cast<int>(ohShape[outputHighAxis]);
         }
 
         auto inputLowAxisSize = ov::is_scalar(ilShape) ? 1 : ilShape[inputLowAxis];
