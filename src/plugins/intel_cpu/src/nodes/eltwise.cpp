@@ -899,7 +899,8 @@ public:
                     Algorithm::EltwiseRelu,
                     Algorithm::EltwiseSigmoid,
                     Algorithm::EltwiseSqrt,
-                    Algorithm::EltwiseSubtract)) {
+                    Algorithm::EltwiseSubtract,
+                    Algorithm::EltwiseSwish)) {
             return false;
         }
 

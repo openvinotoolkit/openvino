@@ -1,0 +1,42 @@
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN    apt-get update        \
+    && apt-get upgrade --yes \
+    && apt-get install --yes \
+    autoconf              \
+    automake              \
+    autotools-dev         \
+    curl                  \
+    python3               \
+    python3-pip           \
+    python3-tomli         \
+    libmpc-dev            \
+    libmpfr-dev           \
+    libgmp-dev            \
+    gawk                  \
+    build-essential       \
+    bison                 \
+    flex                  \
+    texinfo               \
+    gperf                 \
+    libtool               \
+    patchutils            \
+    bc                    \
+    zlib1g-dev            \
+    libexpat-dev          \
+    ninja-build           \
+    git                   \
+    cmake                 \
+    libglib2.0-dev        \
+    libslirp-dev
+
+
+ENV RISCV=/opt/riscv
+ENV PATH=$PATH:$RISCV/bin
+
+RUN git clone https://github.com/riscv-collab/riscv-gnu-toolchain.git  \
+    && cd riscv-gnu-toolchain                                          \
+    && ./configure --prefix=$RISCV \
+    && gmake linux build-qemu -j4                                                                                      
