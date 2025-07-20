@@ -208,9 +208,27 @@ NetworkDescription VCLCompilerImpl::compile(const std::shared_ptr<const ov::Mode
                                      buildFlags.c_str(),
                                      buildFlags.size()};
     _logger.debug("compiler vcl version: %d.%d", _vclVersion.major, _vclVersion.minor);
-    if (_vclVersion.major >= 7 && _vclVersion.minor >= 4) {
+    if (_vclVersion.major >= 7 && _vclVersion.minor >= 5) {
+        // For VCL 7.5 and later, we can use vclAllocatedExecutableCreate2
+        _logger.debug("Using vclAllocatedExecutableCreate2 for 7.5 <= VCL");
+        vcl_allocator_vector allocator;
+        uint8_t* blob = nullptr;
+        size_t size = 0;
+        NetworkMetadata metadata;
+
+        THROW_ON_FAIL_FOR_VCL(
+            "vclAllocatedExecutableCreate3",
+            vclAllocatedExecutableCreate3(_compilerHandle, exeDesc, &allocator, &blob, &size, &metadata),
+            _logHandle);
+        if (size == 0 || blob == nullptr) {
+            OPENVINO_THROW("Failed to create VCL executable, size is zero or blob is null");
+        }
+
+        _logger.debug("compile end, blob size:%d", allocator.m_vec.size());
+        return NetworkDescription(std::move(allocator.m_vec), std::move(metadata));
+    } else if (_vclVersion.major >= 7 && _vclVersion.minor >= 4) {
         // For VCL 7.4 and later, we can use vclAllocatedExecutableCreate2
-        _logger.debug("Using vclAllocatedExecutableCreate2 for VCL 7.4+");
+        _logger.debug("Using vclAllocatedExecutableCreate2 for 7.4 <= VCL < 7.5");
         vcl_allocator_vector allocator;
         uint8_t* blob = nullptr;
         size_t size = 0;

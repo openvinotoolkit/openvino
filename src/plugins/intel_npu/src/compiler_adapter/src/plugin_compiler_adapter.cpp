@@ -23,7 +23,6 @@
 #include "openvino/util/shared_object.hpp"
 #include "weightless_graph.hpp"
 
-
 namespace {
 #ifndef VCL_FOR_COMPILER
 std::shared_ptr<void> load_library(const std::string& libpath) {
@@ -63,7 +62,6 @@ ov::Tensor make_tensor_from_vector(std::vector<uint8_t>& vector) {
 }
 
 }  // namespace
-
 
 namespace intel_npu {
 
@@ -107,7 +105,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
     GraphDescriptor graphDesc;
 
-    NetworkMetadata networkMeta;
+    NetworkMetadata networkMeta = std::move(networkDesc.metadata);
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
         // network
@@ -115,10 +113,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
             graphDesc =
                 _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
 #ifdef VCL_FOR_COMPILER
-            // For VCL, we need to get metadata from driver parser
-            networkMeta = _zeGraphExt->getNetworkMeta(graphDesc);
-            networkMeta.name = model->get_friendly_name();
->>>>>>> e20458aedf (Add VCLApi and VCLCompilerImpl)
+            if (networkMeta.inputs.empty() && networkMeta.outputs.empty()) {
+                // If the metadata is empty, we can try to get it from the driver parser
+                _logger.info("Metadata is empty, trying to get it from the driver parser");
+                networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
+                networkMeta.name = model->get_friendly_name();
+            }
+#endif
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -286,7 +287,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     _logger.debug("parse metadata from driver for vcl compiler");
     if (_zeGraphExt) {
         _logger.debug("parse start for vcl compiler");
-        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
+        graphHandle =
+            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
         networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
     }
     _logger.debug("parse end for vcl compiler");
@@ -298,11 +300,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     network.clear();
     network.shrink_to_fit();
 
-<<<<<<< HEAD
     GraphDescriptor mainGraphDesc;
 
-=======
->>>>>>> e20458aedf (Add VCLApi and VCLCompilerImpl)
     if (_zeGraphExt) {
         mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
     }
