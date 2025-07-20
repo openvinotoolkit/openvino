@@ -1053,10 +1053,10 @@ TEST(NegativeDepthConcatenateTest, DISABLED_TestAll) {
 
     auto f = format::bfyx;
 
-    std::vector<int> t{1, 2, 3, 4};
-    std::vector<int> t0{7, 2, 3, 4};
-    std::vector<int> t1{1, 2, 7, 4};
-    std::vector<int> t2{1, 2, 3, 7};
+    std::vector<cldnn::tensor::value_type> t{1, 2, 3, 4};
+    std::vector<cldnn::tensor::value_type> t0{7, 2, 3, 4};
+    std::vector<cldnn::tensor::value_type> t1{1, 2, 7, 4};
+    std::vector<cldnn::tensor::value_type> t2{1, 2, 3, 7};
 
     //TODO: should be ASSERT_THROW(statement, exception_type) - but what exception type?
     ASSERT_ANY_THROW(setup_depth_concatatenate_network({}, {}, {}));

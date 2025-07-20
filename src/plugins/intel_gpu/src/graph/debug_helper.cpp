@@ -47,7 +47,7 @@ template <class T>
 void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
     auto&& size = mem->get_layout().get_tensor();
 
-    auto batch_size = std::max(std::min(ExecutionConfig::get_dump_batch_limit(), size.batch[0]), 1);
+    auto batch_size = std::max<tensor::value_type>(std::min<tensor::value_type>(ExecutionConfig::get_dump_batch_limit(), size.batch[0]), 1);
     tensor tmp_size(size);
     tmp_size.batch[0] = batch_size;
     if (tmp_size == size) {
@@ -123,7 +123,7 @@ void unpack(cldnn::data_types type, uint8_t input, int8_t &v0, int8_t &v1) {
 void dump_i4u4(cldnn::data_types type, memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
     auto&& size = mem->get_layout().get_tensor();
 
-    auto batch_size = std::max(std::min(ExecutionConfig::get_dump_batch_limit(), size.batch[0]), 1);
+    auto batch_size = std::max<tensor::value_type>(std::min<tensor::value_type>(ExecutionConfig::get_dump_batch_limit(), size.batch[0]), 1);
     tensor tmp_size(size);
     tmp_size.batch[0] = batch_size;
     if (tmp_size == size) {

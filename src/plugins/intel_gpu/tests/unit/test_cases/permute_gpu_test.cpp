@@ -49,7 +49,7 @@ TEST(permute_gpu_f32, output_ordering_test)
 {
     auto& engine = get_test_engine();
 
-    std::vector<std::vector<int32_t>> input_tensors = {
+    std::vector<std::vector<cldnn::tensor::value_type>> input_tensors = {
         { 10, 5, 15, 2 },
         { 2, 4, 6, 8 },
         { 2, 2, 3, 2 },
@@ -63,9 +63,9 @@ TEST(permute_gpu_f32, output_ordering_test)
     };
     std::vector<format> input_formats = { format::bfyx, format::yxfb };
 
-    auto get_permutation = [&](const std::vector<int32_t>& inp1, const std::vector<uint16_t>& order) -> std::vector<int32_t> {
+    auto get_permutation = [&](const std::vector<cldnn::tensor::value_type>& inp1, const std::vector<uint16_t>& order) -> std::vector<cldnn::tensor::value_type> {
         EXPECT_EQ(inp1.size(), order.size());
-        std::vector<int32_t> output;
+        std::vector<cldnn::tensor::value_type> output;
         for (auto const& o : order) {
             output.push_back(inp1.at(o));
         }

@@ -34,7 +34,7 @@ void prepare_padding::run(program& p) {
                 auto weight_layout = weight_node.get_output_layout(0);
                 const auto const_shape = weight_layout.get_partial_shape().to_shape();
                 OPENVINO_ASSERT(const_shape.size() > 0, "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
-                int32_t inner_most_idx = static_cast<int32_t>(const_shape.size()) - 1;
+                auto inner_most_idx = static_cast<tensor::value_type>(const_shape.size()) - 1;
                 if (!allow_new_shape_infer) {
                     // Get the innermost index after trimming trailing elements in the canonicalized legacy shape such as [4, 64, 1, 1].
                     while (inner_most_idx > 0 && const_shape[inner_most_idx] == 1) {
@@ -46,7 +46,7 @@ void prepare_padding::run(program& p) {
                 if (const_shape[inner_most_idx] % alignment != 0) {
                     auto weight_in_layout  = weight_layout.convert_to_weights_layout(false);
                     auto weight_out_layout = weight_in_layout;
-                    std::vector<int32_t> new_paddings(const_shape.size(), 0);
+                    std::vector<tensor::value_type> new_paddings(const_shape.size(), 0);
                     new_paddings[inner_most_idx] = 1;
                     weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
                     auto weights_reorder_params = std::make_shared<WeightsReorderParams>(weight_in_layout, weight_out_layout, false, false);
@@ -125,7 +125,7 @@ void prepare_padding::run(program& p) {
                 const auto& lower_sizes = in_layout.data_padding._lower_size;
                 const auto& upper_sizes = in_layout.data_padding._upper_size;
 
-                std::vector<int32_t> needed_lpad, needed_upad;
+                std::vector<tensor::value_type> needed_lpad, needed_upad;
                 needed_lpad.push_back(lower_sizes[0]);
                 needed_lpad.push_back(lower_sizes[1]);
 
@@ -301,17 +301,17 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     tensor::value_type padding_end_x, padding_end_y, padding_end_z;
 
     if (node.get_program().is_new_shape_infer() && node.use_explicit_padding()) {
-        padding_begin_x = std::max(pad_x, 0);
-        padding_begin_y = std::max(pad_y, 0);
-        padding_begin_z = std::max(pad_z, 0);
+        padding_begin_x = std::max<tensor::value_type>(pad_x, 0);
+        padding_begin_y = std::max<tensor::value_type>(pad_y, 0);
+        padding_begin_z = std::max<tensor::value_type>(pad_z, 0);
 
         pad_z = padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0;
         pad_y = padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0;
         pad_x = padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0;
 
-        padding_end_x = std::max(pad_x, 0);
-        padding_end_y = std::max(pad_y, 0);
-        padding_end_z = std::max(pad_z, 0);
+        padding_end_x = std::max<tensor::value_type>(pad_x, 0);
+        padding_end_y = std::max<tensor::value_type>(pad_y, 0);
+        padding_end_z = std::max<tensor::value_type>(pad_z, 0);
     } else {
         auto input_limit_x = -pad_x + (conv_layout.spatial(0) - 1) * stride_x +
                             (filter_layout.spatial(0) - 1) * dilation_x + 1;
@@ -320,9 +320,9 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
         auto input_limit_z = -pad_z + (conv_layout.spatial(2) - 1) * stride_z +
                             (filter_layout.spatial(2) - 1) * dilation_z + 1;
 
-        padding_begin_x = std::max(pad_x, 0);
-        padding_begin_y = std::max(pad_y, 0);
-        padding_begin_z = std::max(pad_z, 0);
+        padding_begin_x = std::max<tensor::value_type>(pad_x, 0);
+        padding_begin_y = std::max<tensor::value_type>(pad_y, 0);
+        padding_begin_z = std::max<tensor::value_type>(pad_z, 0);
         padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(0), 0);
         padding_end_y = std::max<tensor::value_type>(input_limit_y - prev_prim_output_layout.spatial(1), 0);
         padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
