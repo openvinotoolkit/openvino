@@ -180,6 +180,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
         const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
 
+        if (concat_k_node->get_axis() != concat_v_node->get_axis()) {
+            return false;
+        }
+
         for (auto&& item : {concat_k_node, concat_v_node}) {
             auto&& children = item->get_output_target_inputs(0);
             switch (children.size()) {
