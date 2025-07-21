@@ -82,7 +82,7 @@ JitConstants FullyConnected_fb_io_block::GetJitConstants(const fully_connected_p
 
 bool FullyConnected_fb_io_block::Validate(const Params& p) const {
     if (!FullyConnectedKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const fully_connected_params&>(p);
@@ -104,12 +104,12 @@ bool FullyConnected_fb_io_block::Validate(const Params& p) const {
         (responseSize > 0) && (((responseSize * bytesPerElement) % 4) == 0) && ((xSize % 8) == 0);
 
     if (!bSupportedBatch || !bSupportedFeature) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!params.bias.empty()) {
         if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

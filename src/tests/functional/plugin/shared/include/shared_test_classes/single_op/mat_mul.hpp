@@ -10,6 +10,7 @@
 
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 
 namespace ov {
 namespace test {

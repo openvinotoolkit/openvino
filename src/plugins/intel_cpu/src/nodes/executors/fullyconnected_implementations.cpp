@@ -22,7 +22,7 @@
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#if defined(OV_CPU_WITH_MLAS)
+#if defined(OV_CPU_WITH_MLAS) && defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/executors/mlas/mlas_gemm.hpp"
 #endif
 #include "nodes/executors/precision_matcher.hpp"
@@ -170,12 +170,12 @@ static const TypeMapping dnnlMatMulTypeMapping {
     return config.attrs.postOps.empty();
 }
 
-struct RequiresFallbackDefault {
+struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
-        return requiresFallbackCommon(config,
-                                      dnnlMatMulTypeMapping,
-                                      dnnlFCLayoutConfig,
-                                      dnnlConvolutionMappingNotation);
+        return createOptimalConfigCommon(config,
+                                         dnnlMatMulTypeMapping,
+                                         dnnlFCLayoutConfig,
+                                         dnnlConvolutionMappingNotation);
     }
 };
 
@@ -200,7 +200,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 
                 return MlasGemmExecutor::supports(config);
             },
-            RequiredNoFallback<FCAttrs>{},
+            HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>{},
             CreateDefault<MlasGemmExecutor, FCAttrs>{}
             )
@@ -233,13 +233,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(getOffset0(config.descs.at(ARG_DST)) == 0, UNSUPPORTED_DST_STRIDES);
                 return true;
             },
-            // requiresFallback
+            // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
                 // @todo use dnnlConvolutionLayoutConfig after one is implemented
-                return requiresFallbackCommon(config,
-                                              dnnlConvolutionTypeMapping,
-                                              dnnlFCLayoutConfig,
-                                              dnnlFCMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 dnnlConvolutionTypeMapping,
+                                                 dnnlFCLayoutConfig,
+                                                 dnnlFCMappingNotation);
             },
             // acceptsShapes
             []([[maybe_unused]] const FCAttrs& attrs,
@@ -315,12 +315,12 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 return ACLFullyConnectedExecutor::supports(config);
             },
-            // requiresFallback
+            // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
-                return requiresFallbackCommon(config,
-                                              aclFCTypeMapping,
-                                              aclFCLayoutConfig,
-                                              aclFullyConnectedMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 aclFCTypeMapping,
+                                                 aclFCLayoutConfig,
+                                                 aclFullyConnectedMappingNotation);
             },
             AcceptsAnyShape<FCAttrs>{},
             CreateDefault<ACLFullyConnectedExecutor, FCAttrs>{}
@@ -336,12 +336,12 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 return ACLLowpFullyConnectedExecutor::supports(config);
             },
-            // requiresFallback
+            // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
-                return requiresFallbackCommon(config,
-                                              aclLowpFCTypeMapping,
-                                              aclFCLayoutConfig,
-                                              aclFullyConnectedMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 aclLowpFCTypeMapping,
+                                                 aclFCLayoutConfig,
+                                                 aclFullyConnectedMappingNotation);
             },
             // acceptsShapes
             []([[maybe_unused]] const FCAttrs& attrs,
@@ -370,7 +370,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
                 return MatMulKleidiAIExecutor::supports(config);
             },
-            RequiredNoFallback<FCAttrs>{},
+            HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>{},
             CreateDefault<MatMulKleidiAIExecutor, FCAttrs>{}
             )
@@ -388,7 +388,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
 
                 return ShlFCExecutor::supports(config);
             },
-            RequiredNoFallback<FCAttrs>{},
+            HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>{},
             CreateDefault<ShlFCExecutor, FCAttrs>{}
             )
@@ -407,12 +407,12 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     })
                 return false;
             },
-            // requiresFallback
+            // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
-                return requiresFallbackCommon(config,
-                                              dnnlMatMulTypeMapping,
-                                              dnnlFCLayoutConfig,
-                                              dnnlFCMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 dnnlMatMulTypeMapping,
+                                                 dnnlFCLayoutConfig,
+                                                 dnnlFCMappingNotation);
             },
             AcceptsAnyShape<FCAttrs>{},
             // create
@@ -450,12 +450,12 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             OperationType::FullyConnected,
             ShapeTolerance::Dependant,
             SupportsAnyConfig<FCAttrs>{},
-            // requiresFallback
+            // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
-                return requiresFallbackCommon(config,
-                                              dnnlFCTypeMapping,
-                                              dnnlFCLayoutConfig,
-                                              dnnlConvolutionMappingNotation);
+                return createOptimalConfigCommon(config,
+                                                 dnnlFCTypeMapping,
+                                                 dnnlFCLayoutConfig,
+                                                 dnnlConvolutionMappingNotation);
             },
             AcceptsAnyShape<FCAttrs>{},
             CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{false, true}

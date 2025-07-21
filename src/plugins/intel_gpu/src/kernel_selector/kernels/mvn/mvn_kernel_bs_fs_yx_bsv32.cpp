@@ -54,13 +54,13 @@ DeviceFeaturesKey MVNKernel_bs_fs_yx_bsv32::get_required_device_features_key(con
 
 bool MVNKernel_bs_fs_yx_bsv32::Validate(const Params& p) const {
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto params = static_cast<const mvn_params&>(p);
 
     // TODO Add support for input padding via iterating over y (parallel or in kernel).
     if (params.inputs[0].X().pad.Total() != 0 || params.inputs[0].Y().pad.Total() != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

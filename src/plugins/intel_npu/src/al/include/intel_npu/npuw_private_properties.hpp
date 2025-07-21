@@ -252,6 +252,14 @@ static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief
+ * Type: boolean
+ * When applicable, do embedding gather on host but leave it quantized.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> gather_quant{"NPUW_HOST_GATHER_QUANT"};
+
+/**
+ * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"
@@ -430,6 +438,16 @@ static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"
  * Default value: 128.
  */
 static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prompt chunk size for chunk prefill.
+ * The chunk size should be a power of two.
+ * Chunk prefill feature is disabled in case the value is 0.
+ * Default value: 0.
+ */
+static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
 
 /**
  * @brief

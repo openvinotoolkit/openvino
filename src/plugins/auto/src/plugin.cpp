@@ -99,6 +99,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
     OPENVINO_NOT_IMPLEMENTED;
 }
 
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model,
+                                                         const ov::SoPtr<ov::IRemoteContext>& context,
+                                                         const ov::AnyMap& properties) const {
+    OPENVINO_NOT_IMPLEMENTED;
+}
+
 bool Plugin::is_meta_device(const std::string& priorities) const {
     std::vector<std::string> candidate_devices = m_plugin_config.parse_priorities_devices(priorities);
     for (const auto& device : candidate_devices) {

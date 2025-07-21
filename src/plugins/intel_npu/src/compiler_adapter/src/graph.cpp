@@ -17,7 +17,8 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              std::optional<ov::Tensor> blob,
              bool blobAllocatedByPlugin,
              const Config& config,
-             const ov::SoPtr<ICompiler>& compiler)
+             const ov::SoPtr<ICompiler>& compiler,
+             const bool calledFromWeightlessGraph)
     : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
@@ -29,10 +30,13 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
         return;
     }
 
-    initialize(config);
+    if (!calledFromWeightlessGraph) {
+        // Will be called at a later stage from WeightlessGraph::initialize() in order to save some memory
+        initialize(config);
+    }
 }
 
-size_t Graph::export_blob(std::ostream& stream) const {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std::ostream& stream) const {
     const uint8_t* blobPtr = nullptr;
     size_t blobSize;
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
@@ -57,7 +61,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return 0;
+        return std::make_pair(0, std::nullopt);
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -71,7 +75,7 @@ size_t Graph::export_blob(std::ostream& stream) const {
         _logger.info(str.str().c_str());
     }
     _logger.info("Write blob to stream successfully.");
-    return blobSize;
+    return std::make_pair(blobSize, std::nullopt);
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -130,14 +134,15 @@ void Graph::initialize(const Config& config) {
     uint32_t command_queue_options = 0;
 
     if (config.has<TURBO>() && config.get<TURBO>()) {
-        if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
-            OPENVINO_THROW("Turbo is not supported by the current driver");
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
+            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
-        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
         config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
@@ -151,14 +156,12 @@ void Graph::initialize(const Config& config) {
     }
 
     _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
-
     _logger.debug("Graph initialize finish");
 
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
-
     _batch_size = get_batch_size(_metadata);
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
