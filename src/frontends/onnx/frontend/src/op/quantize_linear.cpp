@@ -272,7 +272,7 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
     // per-tensor quantization, axis attribute ignored
-    if (detail::is_per_tensor_quantization(scale, zero_point)) {
+    if (ai_onnx::detail::is_per_tensor_quantization(scale, zero_point)) {
         return ai_onnx::opset_1::quantize_linear(node);
     }
     return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), 0, node);
@@ -293,7 +293,7 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const auto& scale = inputs[1];
     const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
-    if (detail::is_per_tensor_quantization(scale, zero_point)) {
+    if (ai_onnx::detail::is_per_tensor_quantization(scale, zero_point)) {
         return ai_onnx::opset_1::quantize_linear(node);
     }
     return opset_13::detail::quantize_linear(x,
@@ -302,8 +302,8 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
                                              node.get_attribute_value<int64_t>("axis", 1),
                                              node.get_attribute_value<int64_t>("block_size", 0),
                                              node);
-    ONNX_OP("QuantizeLinear", OPSET_SINCE(21), ai_onnx::opset_21::quantize_linear);
 }
+ONNX_OP("QuantizeLinear", OPSET_SINCE(21), ai_onnx::opset_21::quantize_linear);
 }  // namespace opset_21
 }  // namespace ai_onnx
 }  // namespace onnx
