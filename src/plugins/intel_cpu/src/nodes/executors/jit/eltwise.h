@@ -11,6 +11,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <vector>
 
+#include "common/primitive_attr.hpp"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_types.h"
 #include "nodes/executors/eltwise_config.hpp"

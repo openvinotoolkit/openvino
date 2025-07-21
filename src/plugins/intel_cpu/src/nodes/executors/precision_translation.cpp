@@ -21,7 +21,7 @@ TypeOfArg getTypeConfiguration(const MemoryDescArgs& descriptors,
     // gather types from memory descriptors
     for (const auto& [argId, desc] : descriptors) {
         if (notation.count(argId)) {
-            types[notation.at(argId)] = desc->getPrecision();
+            types.at(notation.at(argId)) = desc->getPrecision();
         }
     }
     // match types against the mapping

@@ -327,11 +327,7 @@ bool ShlEltwiseExecutor::update(const MemoryArgs& memory) {
 
     std::vector<MemoryDescPtr> dstDescs{memory.at(ARG_DST)->getDescPtr()};
 
-    if (!init(srcDescs, dstDescs)) {
-        return false;
-    }
-
-    return true;
+    return init(srcDescs, dstDescs);
 }
 
 void ShlEltwiseExecutor::execute(const MemoryArgs& memory) {

@@ -78,11 +78,7 @@ static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
             return false;
         }
 
-        if (!implication(inputRank != 1, inputRank == outputRank)) {
-            return false;
-        }
-
-        return true;
+        return implication(inputRank != 1, inputRank == outputRank);
     });
 }
 
@@ -200,11 +196,7 @@ struct createOptimalConfigDefault {
                 return true;
             }
 
-            if (desc->getShape().getRank() > 2 && !desc->hasLayoutType(layoutConfig[i])) {
-                return false;  // layout mismatch
-            }
-
-            return true;
+            return desc->hasLayoutType(layoutConfig[i]);
         });
     };
 
@@ -265,7 +257,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             createOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
             "eltwise_jit_nspc", ExecutorType::jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
@@ -278,7 +270,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             createOptimalConfigDefault{{LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
             "eltwise_jit_nCsp16c", ExecutorType::jit_x64, OperationType::Eltwise, ShapeTolerance::Agnostic,
@@ -298,7 +290,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
             "eltwise_jit_nCsp8c", ExecutorType::jit_x64, OperationType::Eltwise, ShapeTolerance::Agnostic,
@@ -316,7 +308,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_ARM64(
             "eltwise_jit_arm", ExecutorType::jit_aarch64, OperationType::Eltwise, ShapeTolerance::Agnostic,
@@ -326,7 +318,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             HasNoOptimalConfig<EltwiseAttrs>{},
             AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_RISCV64(
             "eltwise_jit_riscv", ExecutorType::jit_riscv64, OperationType::Eltwise, ShapeTolerance::Agnostic,
@@ -336,7 +328,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             },
             HasNoOptimalConfig<EltwiseAttrs>{},
             AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
             "eltwise_acl_ncsp", ExecutorType::Acl, OperationType::Eltwise, ShapeTolerance::Agnostic,
@@ -415,7 +407,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                  eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
             "eltwise_ref_nspc", ExecutorType::Reference, OperationType::Eltwise, ShapeTolerance::Agnostic,
@@ -435,7 +427,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                  eltwiseMappingNotation);
             },
             AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStateFulExecutor, EltwiseAttrs>{}
+            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
     };
 

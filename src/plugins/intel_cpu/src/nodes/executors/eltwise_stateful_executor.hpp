@@ -19,9 +19,9 @@
 
 namespace ov::intel_cpu {
 
-class EltwiseStateFulExecutor : public Executor {
+class EltwiseStatefulExecutor : public Executor {
 public:
-    EltwiseStateFulExecutor(EltwiseAttrs attrs, const MemoryArgs& memory, ExecutorContext::CPtr context);
+    EltwiseStatefulExecutor(EltwiseAttrs attrs, const MemoryArgs& memory, ExecutorContext::CPtr context);
 
     std::vector<VectorDims> updateInputBlockDims(const MemoryArgs& memory);
 

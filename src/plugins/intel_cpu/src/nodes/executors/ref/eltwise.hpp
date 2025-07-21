@@ -389,7 +389,8 @@ public:
                     *dst_ptr_f = src_f[0] >> src_f[1];
                     break;
                 default:
-                    OPENVINO_THROW("Unsupported operation type for Bitwise Eltwise executor");
+                    OPENVINO_THROW("Unsupported operation type for Bitwise Eltwise executor: ",
+                                   algToString(this->m_opData.algo));
                 }
             }
         });

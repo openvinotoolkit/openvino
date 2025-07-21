@@ -2107,9 +2107,8 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
             auto parents = childNode->parentEdges;
             auto initialParentInNum = parentNode->getParentEdges().size();
 
-            int parentId = 0;
-            for (const auto& i : parents) {
-                auto p_edge = i.lock();
+            for (size_t parentId = 0; parentId < parents.size(); parentId++) {
+                auto p_edge = parents[parentId].lock();
                 if (!p_edge) {
                     continue;
                 }
@@ -2163,7 +2162,6 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                     parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(parentId));
                     graph.CreateEdge(parent, parentNode, inNum, outNum);
                 }
-                parentId++;
             }
             graph.DropNode(childNode);
         } else {
