@@ -14,8 +14,7 @@ template <class TShape, class TRShape = result_shape_t<TShape>>
 std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
                                  const std::vector<TShape>& input_shapes,
                                  const ITensorAccessor& ta = make_tensor_accessor()) {
-    
-    NODE_VALIDATION_CHECK(op, input_shapes.size() == 13 || input_shapes.size() == 16);
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 14 || input_shapes.size() == 17);
     auto output_shapes = std::vector<TRShape>(2);
 
     // Value head_size may be not same with key
@@ -48,10 +47,9 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
     // Compute for scores shape
     if (past_lens_ps.rank().is_static() && key_ps.rank().is_static()) {
         const auto& past_lens = get_input_const_data_as<TRShape, int32_t>(op, 5, ta);
-        NODE_VALIDATION_CHECK(op,
-                                  past_lens.has_value(),
-                                  "Failed to obtain past_lens values as a vector.");
-        auto computed_dim = key_ps[0].get_length() + std::accumulate(past_lens.value().begin(), past_lens.value().end(), 0);
+        NODE_VALIDATION_CHECK(op, past_lens.has_value(), "Failed to obtain past_lens values as a vector.");
+        auto computed_dim =
+            key_ps[0].get_length() + std::accumulate(past_lens.value().begin(), past_lens.value().end(), 0);
         scores_ps.push_back(computed_dim);
     } else {
         scores_ps.push_back(Dimension::dynamic());
