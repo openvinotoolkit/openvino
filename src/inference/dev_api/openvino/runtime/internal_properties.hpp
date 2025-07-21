@@ -126,19 +126,40 @@ inline std::istream& operator>>(std::istream& is, CacheQuantMode& mode) {
 /** @endcond */
 
 /**
- * @brief Define quant mode for key cache.
- * @param AUTO - default mode by plugin
- * @param BY_CHANNEL - quant by channel
- * @param BY_TOKEN - quant by token
- */
+ * @brief Define quantization mode for key cache. Group size decision policy may be different per plugin.
+ * @param AUTO - Default mode decided by plugin.
+ * @param BY_CHANNEL - Quantize key cache by channel dimension.
+ * @param BY_TOKEN - Quantize key cache by token dimension.
 
+    By channel: Quantize along with tokens in each channel
+    ┌──┬──┬─────────────────────────┐
+    │  │  │                         │ token[0]
+    │  │  │                         │ token[1]
+    │  │  │  ...                    │ token[2]
+    │  │  │                         │ ..
+    │  │  │                         │ token[seq_len - 1]
+    └──┴──┴─────────────────────────┘
+    c[0] c[1] ...    c[head_size - 1]
+
+    By token: Quantize along with channel dim per each token
+    ┌───────────────────────────────┐
+    ├───────────────────────────────┤ token[0]
+    ├───────────────────────────────┤ token[1]
+    │                               │ ...
+    │                               │ 
+    │                               │ 
+    │                               │ token[seq_len - 1]
+    └───────────────────────────────┘
+    c[0] c[1] ...    c[head_size - 1]
+ */
+                                                      
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> key_cache_quant_mode{"KEY_CACHE_QUANT_MODE"};
 
 /**
- * @brief Define quant mode for value cache.
- * @param AUTO - default mode by plugin
- * @param BY_CHANNEL - quant by channel
- * @param BY_TOKEN - quant by token
+ * @brief Define quantization mode for value cache. Group size decision policy may be different per plugin.
+ * @param AUTO - Default mode decided by plugin
+ * @param BY_CHANNEL - Quantize value cache by channel dimension.
+ * @param BY_TOKEN - Quantize key cache by token dimension.
  */
 
 static constexpr Property<CacheQuantMode, PropertyMutability::RW> value_cache_quant_mode{"VALUE_CACHE_QUANT_MODE"};
