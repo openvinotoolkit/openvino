@@ -92,7 +92,7 @@ void Unique::initSupportedPrimitiveDescriptors() {
 
     impl_desc_type implType = ref;
 
-    std::vector<PortConfigurator> inPortConfigs = {PortConfigurator(LayoutType::ncsp, dataPrecision)};
+    std::vector<PortConfigurator> inPortConfigs = {{LayoutType::ncsp, dataPrecision}};
     if (!flattened) {
         inPortConfigs.emplace_back(LayoutType::ncsp, axisPrecision);
     }

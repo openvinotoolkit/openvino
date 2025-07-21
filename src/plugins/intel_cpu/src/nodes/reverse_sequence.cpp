@@ -83,9 +83,8 @@ void ReverseSequence::initSupportedPrimitiveDescriptors() {
         lengthsPrecision = ov::element::i32;
     }
 
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-                          {PortConfigurator(LayoutType::ncsp, lengthsPrecision)}},
-                         {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, lengthsPrecision}},
+                         {{LayoutType::ncsp, ov::element::f32}},
                          impl_desc_type::ref_any);
 }
 

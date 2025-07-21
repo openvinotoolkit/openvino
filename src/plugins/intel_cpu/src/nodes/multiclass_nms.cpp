@@ -156,19 +156,18 @@ void MultiClassNms::initSupportedPrimitiveDescriptors() {
 
     if (getOriginalInputsNumber() == 3) {
         checkPrecision(getOriginalInputPrecisionAtPort(NMS_ROISNUM), supportedIntOutputPrecision, "roisnum", m_inType);
-        addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-                              {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-                              {PortConfigurator(LayoutType::ncsp, ov::element::i32)}},
-                             {{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-                              {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                              {PortConfigurator(LayoutType::ncsp, ov::element::i32)}},
+        addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::i32}},
+                             {{LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32}},
                              impl_desc_type::ref_any);
     } else {
-        addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-                              {PortConfigurator(LayoutType::ncsp, ov::element::f32)}},
-                             {{PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-                              {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                              {PortConfigurator(LayoutType::ncsp, ov::element::i32)}},
+        addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
+                             {{LayoutType::ncsp, ov::element::f32},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32}},
                              impl_desc_type::ref_any);
     }
 }

@@ -484,9 +484,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
         CPU_NODE_THROW("has unsupported precision: ", precision.get_type_name());
     }
 
-    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, precision)},
-                         {PortConfigurator(LayoutType::ncsp, precision)},
-                         impl_desc_type::ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
 }
 
 void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {

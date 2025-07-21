@@ -59,9 +59,7 @@ void ShapeOf::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, precision)},
-                         {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                         impl_desc_type::ref);
+    addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
 }
 
 void ShapeOf::initOptimalPrimitiveDescriptor() {

@@ -60,13 +60,13 @@ void SparseFillEmptyRows::initSupportedPrimitiveDescriptors() {
     }
     const auto& valuesPrecision = getOriginalInputPrecisionAtPort(0);
     const auto& indicesPrecision = getOriginalInputPrecisionAtPort(2);
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, valuesPrecision)},        // values
-                          {PortConfigurator(LayoutType::ncsp, indicesPrecision)},       // dense_shape
-                          {PortConfigurator(LayoutType::ncsp, indicesPrecision)},       // indices
-                          {PortConfigurator(LayoutType::ncsp, valuesPrecision)}},       // default_value
-                         {{PortConfigurator(LayoutType::ncsp, indicesPrecision)},       // output_indices
-                          {PortConfigurator(LayoutType::ncsp, valuesPrecision)},        // output_values
-                          {PortConfigurator(LayoutType::ncsp, ov::element::boolean)}},  // empty_row_indicator
+    addSupportedPrimDesc({{LayoutType::ncsp, valuesPrecision},        // values
+                          {LayoutType::ncsp, indicesPrecision},       // dense_shape
+                          {LayoutType::ncsp, indicesPrecision},       // indices
+                          {LayoutType::ncsp, valuesPrecision}},       // default_value
+                         {{LayoutType::ncsp, indicesPrecision},       // output_indices
+                          {LayoutType::ncsp, valuesPrecision},        // output_values
+                          {LayoutType::ncsp, ov::element::boolean}},  // empty_row_indicator
                          impl_desc_type::ref);
 }
 

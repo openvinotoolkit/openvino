@@ -55,10 +55,10 @@ void StringTensorPack::initSupportedPrimitiveDescriptors() {
         return;
     }
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(0);
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, indicesPrecision)},
-                          {PortConfigurator(LayoutType::ncsp, indicesPrecision)},
-                          {PortConfigurator(LayoutType::ncsp, ov::element::u8)}},
-                         {PortConfigurator(LayoutType::ncsp, ov::element::string)},
+    addSupportedPrimDesc({{LayoutType::ncsp, indicesPrecision},
+                          {LayoutType::ncsp, indicesPrecision},
+                          {LayoutType::ncsp, ov::element::u8}},
+                         {{LayoutType::ncsp, ov::element::string}},
                          impl_desc_type::ref);
 }
 

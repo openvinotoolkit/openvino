@@ -216,27 +216,27 @@ void Gather::initSupportedPrimitiveDescriptors() {
             have_scalar_zp = getInputShapeAtPort(GATHER_ZP).getElementsCount() == 1U;
             zp_group_size =
                 getInputShapeAtPort(GATHER_DATA).getElementsCount() / getInputShapeAtPort(GATHER_ZP).getElementsCount();
-            addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)},
-                                  {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                                  {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                                  {PortConfigurator(LayoutType::ncsp, scalePrecision)},
-                                  {PortConfigurator(LayoutType::ncsp, zpPrecision)}},
-                                 {PortConfigurator(LayoutType::ncsp, outPrecision)},
+            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                                  {LayoutType::ncsp, ov::element::i32},
+                                  {LayoutType::ncsp, ov::element::i32},
+                                  {LayoutType::ncsp, scalePrecision},
+                                  {LayoutType::ncsp, zpPrecision}},
+                                 {{LayoutType::ncsp, outPrecision}},
                                  ref_any);
         } else {
-            addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)},
-                                  {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                                  {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                                  {PortConfigurator(LayoutType::ncsp, scalePrecision)}},
-                                 {PortConfigurator(LayoutType::ncsp, outPrecision)},
+            addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                                  {LayoutType::ncsp, ov::element::i32},
+                                  {LayoutType::ncsp, ov::element::i32},
+                                  {LayoutType::ncsp, scalePrecision}},
+                                 {{LayoutType::ncsp, outPrecision}},
                                  ref_any);
         }
         return;
     }  // Implementation desc type will be redefined in the fn prepareParams if a kernel will be created.
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)},
-                          {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                          {PortConfigurator(LayoutType::ncsp, ov::element::i32, isAxisInputConst)}},
-                         {PortConfigurator(LayoutType::ncsp, outPrecision)},
+    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
+                         {{LayoutType::ncsp, outPrecision}},
                          ref_any);
 
     // Let's check for the special inPlace memory use case
@@ -277,10 +277,10 @@ void Gather::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, dataPrecision)},
-                          {PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                          {PortConfigurator(LayoutType::ncsp, ov::element::i32, isAxisInputConst)}},
-                         {PortConfigurator(LayoutType::ncsp, dataPrecision, false, GATHER_DATA)},
+    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32, isAxisInputConst}},
+                         {{LayoutType::ncsp, dataPrecision, false, GATHER_DATA}},
                          unknown);
 }
 

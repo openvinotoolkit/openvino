@@ -81,11 +81,11 @@ void GatherTree::initSupportedPrimitiveDescriptors() {
         CPU_NODE_THROW("has incorrect input/output data precision. Must be the same.");
     }
 
-    addSupportedPrimDesc({{PortConfigurator(LayoutType::ncsp, precision)},
-                          {PortConfigurator(LayoutType::ncsp, precision)},
-                          {PortConfigurator(LayoutType::ncsp, precision)},
-                          {PortConfigurator(LayoutType::ncsp, precision)}},
-                         {PortConfigurator(LayoutType::ncsp, precision)},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision},
+                          {LayoutType::ncsp, precision},
+                          {LayoutType::ncsp, precision},
+                          {LayoutType::ncsp, precision}},
+                         {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
 }
 

@@ -81,10 +81,9 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
         CPU_NODE_THROW("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
     }
 
-    addSupportedPrimDesc(
-        {PortConfigurator(LayoutType::ncsp, ov::element::f32), PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-        {PortConfigurator(LayoutType::ncsp, ov::element::f32)},
-        impl_desc_type::ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::f32}},
+                         {{LayoutType::ncsp, ov::element::f32}},
+                         impl_desc_type::ref_any);
 }
 
 void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {

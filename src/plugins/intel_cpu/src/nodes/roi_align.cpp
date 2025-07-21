@@ -861,11 +861,10 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
     }
 
     for (auto fmts : supportedFormats) {
-        addSupportedPrimDesc({PortConfigurator(fmts.first, inputPrec0),
-                              PortConfigurator(LayoutType::ncsp, ov::element::f32),
-                              PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                             {PortConfigurator(fmts.second, outputPrec)},
-                             impl_type);
+        addSupportedPrimDesc(
+            {{fmts.first, inputPrec0}, {LayoutType::ncsp, ov::element::f32}, {LayoutType::ncsp, ov::element::i32}},
+            {{fmts.second, outputPrec}},
+            impl_type);
     }
 }
 

@@ -102,10 +102,9 @@ void GatherND::initSupportedPrimitiveDescriptors() {
         CPU_NODE_THROW("has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
-    addSupportedPrimDesc(
-        {{PortConfigurator(LayoutType::ncsp, inDataPrecision)}, {PortConfigurator(LayoutType::ncsp, ov::element::i32)}},
-        {PortConfigurator(LayoutType::ncsp, inDataPrecision)},
-        impl_desc_type::ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}},
+                         {{LayoutType::ncsp, inDataPrecision}},
+                         impl_desc_type::ref_any);
 }
 
 void GatherND::prepareParams() {

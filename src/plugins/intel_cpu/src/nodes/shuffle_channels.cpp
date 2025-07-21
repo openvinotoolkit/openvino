@@ -125,20 +125,12 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     auto firstCreatorType = context->isGraphQuantized() ? LayoutType::nspc : LayoutType::ncsp;
     auto secondCreatorType = context->isGraphQuantized() ? LayoutType::ncsp : LayoutType::nspc;
 
-    addSupportedPrimDesc({PortConfigurator(firstCreatorType, precision)},
-                         {PortConfigurator(firstCreatorType, precision)},
-                         impl_type);
-    addSupportedPrimDesc({PortConfigurator(secondCreatorType, precision)},
-                         {PortConfigurator(secondCreatorType, precision)},
-                         impl_type);
+    addSupportedPrimDesc({{firstCreatorType, precision}}, {{firstCreatorType, precision}}, impl_type);
+    addSupportedPrimDesc({{secondCreatorType, precision}}, {{secondCreatorType, precision}}, impl_type);
     // canUseBlocked
     if (attrs.axis != 1) {
-        addSupportedPrimDesc({PortConfigurator(LayoutType::nCsp8c, precision)},
-                             {PortConfigurator(LayoutType::nCsp8c, precision)},
-                             impl_type);
-        addSupportedPrimDesc({PortConfigurator(LayoutType::nCsp16c, precision)},
-                             {PortConfigurator(LayoutType::nCsp16c, precision)},
-                             impl_type);
+        addSupportedPrimDesc({{LayoutType::nCsp8c, precision}}, {{LayoutType::nCsp8c, precision}}, impl_type);
+        addSupportedPrimDesc({{LayoutType::nCsp16c, precision}}, {{LayoutType::nCsp16c, precision}}, impl_type);
     }
 }
 

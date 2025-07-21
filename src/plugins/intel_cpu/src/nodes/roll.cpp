@@ -101,11 +101,10 @@ void Roll::initSupportedPrimitiveDescriptors() {
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
 
-    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, precision),
-                          PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                          PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                         {PortConfigurator(LayoutType::ncsp, precision)},
-                         impl_desc_type::ref);
+    addSupportedPrimDesc(
+        {{LayoutType::ncsp, precision}, {LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+        {{LayoutType::ncsp, precision}},
+        impl_desc_type::ref);
 }
 
 void Roll::prepareParams() {

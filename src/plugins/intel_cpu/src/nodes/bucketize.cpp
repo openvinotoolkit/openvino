@@ -81,10 +81,9 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
         output_precision = ov::element::i32;
     }
 
-    addSupportedPrimDesc(
-        {PortConfigurator(LayoutType::ncsp, input_precision), PortConfigurator(LayoutType::ncsp, boundaries_precision)},
-        {PortConfigurator(LayoutType::ncsp, output_precision)},
-        impl_desc_type::ref_any);
+    addSupportedPrimDesc({{LayoutType::ncsp, input_precision}, {LayoutType::ncsp, boundaries_precision}},
+                         {{LayoutType::ncsp, output_precision}},
+                         impl_desc_type::ref_any);
 }
 
 constexpr uint32_t getElementsMask(ov::element::Type precision1,

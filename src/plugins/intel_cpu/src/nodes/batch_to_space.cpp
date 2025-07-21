@@ -72,32 +72,32 @@ void BatchToSpace::initSupportedPrimitiveDescriptors() {
                     "has unsupported precision: ",
                     precision.get_type_name());
 
-    addSupportedPrimDesc({PortConfigurator(LayoutType::nspc, precision),
-                          PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                          PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                          PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                         {PortConfigurator(LayoutType::nspc, precision)},
+    addSupportedPrimDesc({{LayoutType::nspc, precision},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32}},
+                         {{LayoutType::nspc, precision}},
                          impl_desc_type::ref_any);
-    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, precision),
-                          PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                          PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                          PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                         {PortConfigurator(LayoutType::ncsp, precision)},
+    addSupportedPrimDesc({{LayoutType::ncsp, precision},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32},
+                          {LayoutType::ncsp, ov::element::i32}},
+                         {{LayoutType::ncsp, precision}},
                          impl_desc_type::ref_any);
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 8 == 0) {
-        addSupportedPrimDesc({PortConfigurator(LayoutType::nCsp8c, precision),
-                              PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                              PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                              PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                             {PortConfigurator(LayoutType::nCsp8c, precision)},
+        addSupportedPrimDesc({{LayoutType::nCsp8c, precision},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32}},
+                             {{LayoutType::nCsp8c, precision}},
                              impl_desc_type::ref_any);
     }
     if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] % 16 == 0) {
-        addSupportedPrimDesc({PortConfigurator(LayoutType::nCsp16c, precision),
-                              PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                              PortConfigurator(LayoutType::ncsp, ov::element::i32),
-                              PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-                             {PortConfigurator(LayoutType::nCsp16c, precision)},
+        addSupportedPrimDesc({{LayoutType::nCsp16c, precision},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32},
+                              {LayoutType::ncsp, ov::element::i32}},
+                             {{LayoutType::nCsp16c, precision}},
                              impl_desc_type::ref_any);
     }
 }

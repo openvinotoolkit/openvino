@@ -128,10 +128,9 @@ void GridSample::initSupportedPrimitiveDescriptors() {
     }
 
     // 95905 - to add nspc layout support.
-    addSupportedPrimDesc(
-        {{PortConfigurator(LayoutType::ncsp, dataPrecision)}, {PortConfigurator(LayoutType::ncsp, gridPrecision)}},
-        {PortConfigurator(LayoutType::ncsp, dataPrecision)},
-        implType);
+    addSupportedPrimDesc({{LayoutType::ncsp, dataPrecision}, {LayoutType::ncsp, gridPrecision}},
+                         {{LayoutType::ncsp, dataPrecision}},
+                         implType);
 }
 
 void GridSample::createPrimitive() {

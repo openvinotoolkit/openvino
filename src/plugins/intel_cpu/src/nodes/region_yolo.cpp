@@ -342,9 +342,7 @@ void RegionYolo::initSupportedPrimitiveDescriptors() {
         return impl_desc_type::ref;
     }();
 
-    addSupportedPrimDesc({PortConfigurator(LayoutType::ncsp, input_prec)},
-                         {PortConfigurator(LayoutType::ncsp, output_prec)},
-                         impl_type);
+    addSupportedPrimDesc({{LayoutType::ncsp, input_prec}}, {{LayoutType::ncsp, output_prec}}, impl_type);
 }
 
 void RegionYolo::createPrimitive() {

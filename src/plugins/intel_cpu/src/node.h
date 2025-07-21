@@ -67,10 +67,10 @@ public:
           constant(constant),
           inPlace(inPlace) {}
 
-    explicit PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                              ov::element::Type prc = ov::element::dynamic,
-                              bool constant = false,
-                              int inPlace = -1)
+    PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
+                     ov::element::Type prc,
+                     bool constant = false,
+                     int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
           prc(prc),
           constant(constant),

@@ -85,10 +85,9 @@ void CTCGreedyDecoderSeqLen::initSupportedPrimitiveDescriptors() {
         inDataConf.emplace_back(LayoutType::ncsp, ov::element::i32);
     }
 
-    addSupportedPrimDesc(
-        inDataConf,
-        {PortConfigurator(LayoutType::ncsp, ov::element::i32), PortConfigurator(LayoutType::ncsp, ov::element::i32)},
-        impl_desc_type::ref_any);
+    addSupportedPrimDesc(inDataConf,
+                         {{LayoutType::ncsp, ov::element::i32}, {LayoutType::ncsp, ov::element::i32}},
+                         impl_desc_type::ref_any);
 }
 
 void CTCGreedyDecoderSeqLen::execute([[maybe_unused]] const dnnl::stream& strm) {
