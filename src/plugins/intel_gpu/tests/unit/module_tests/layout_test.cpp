@@ -37,9 +37,9 @@ TEST_P(data_layout_test, size_check) {
 
     auto l = layout(p.dt, p.fmt, tensor{default_fmt, p.size}, p.padd);
 
-    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), static_cast<size_t>(1), std::multiplies<cldnn::tensor::value_type>());
+    size_t expected_count = std::accumulate(p.size.begin(), p.size.end(), static_cast<size_t>(1), std::multiplies<ov::Dimension::value_type>());
     size_t expected_bytes_count = std::accumulate(p.expected_aligned_size.begin(), p.expected_aligned_size.end(), static_cast<size_t>(1),
-                                                  std::multiplies<cldnn::tensor::value_type>()) * data_type_traits::size_of(p.dt);
+                                                  std::multiplies<ov::Dimension::value_type>()) * data_type_traits::size_of(p.dt);
 
     ASSERT_EQ(l.bytes_count(), expected_bytes_count);
     ASSERT_EQ(l.count(), expected_count);

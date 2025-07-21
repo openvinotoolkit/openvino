@@ -23,7 +23,7 @@ using namespace ::tests;
 namespace {
 
 typedef std::tuple<
-    std::vector<cldnn::tensor::value_type>, // Input shape
+    std::vector<ov::Dimension::value_type>, // Input shape
     std::size_t,                            // Number of groups
     double,                                 // Epsilon
     format,                                 // First input layout
@@ -37,7 +37,7 @@ public:
     GroupNormalizationGPUTest() = default;
 
     void SetUp() override {
-        std::vector<cldnn::tensor::value_type> input_shape;
+        std::vector<ov::Dimension::value_type> input_shape;
         const auto& params = GetParam();
         std::tie(input_shape, num_groups_, epsilon_, in_format_, out_format_, output_pad_) = params;
         std::copy(std::begin(input_shape), std::end(input_shape), std::back_inserter(data_shape_));
@@ -166,8 +166,8 @@ const std::vector<cldnn::format> f_planar_5d_formats {
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_planar_layouts_support_4d, GroupNormalizationGPUTest,
     ::testing::Combine(
-        ::testing::ValuesIn({std::vector<cldnn::tensor::value_type>{3, 64, 32, 64}, std::vector<cldnn::tensor::value_type>{3, 124, 97, 61},
-                             std::vector<cldnn::tensor::value_type>{1, 1536, 151, 1}, std::vector<cldnn::tensor::value_type>{1, 12, 2175, 1}}),
+        ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 32, 64}, std::vector<ov::Dimension::value_type>{3, 124, 97, 61},
+                             std::vector<ov::Dimension::value_type>{1, 1536, 151, 1}, std::vector<ov::Dimension::value_type>{1, 12, 2175, 1}}),
         ::testing::ValuesIn(std::vector<size_t>{1, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_planar_4d_formats),
@@ -177,8 +177,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_blocked_layouts_support_4d, GroupNormalizationGPUTest,
     ::testing::Combine(
-        ::testing::ValuesIn({std::vector<cldnn::tensor::value_type>{3, 64, 32, 64}, std::vector<cldnn::tensor::value_type>{3, 124, 97, 61},
-                             std::vector<cldnn::tensor::value_type>{1, 1536, 151, 1}, std::vector<cldnn::tensor::value_type>{1, 12, 2175, 1}}),
+        ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 32, 64}, std::vector<ov::Dimension::value_type>{3, 124, 97, 61},
+                             std::vector<ov::Dimension::value_type>{1, 1536, 151, 1}, std::vector<ov::Dimension::value_type>{1, 12, 2175, 1}}),
         ::testing::ValuesIn(std::vector<size_t>{1, 2, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_blocked_4d_formats),
@@ -188,8 +188,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     GroupNormalizationGPUTest_planar_layouts_support_5d, GroupNormalizationGPUTest,
     ::testing::Combine(
-        ::testing::ValuesIn({std::vector<cldnn::tensor::value_type>{3, 64, 28, 32, 12}, std::vector<cldnn::tensor::value_type>{3, 124, 10, 97, 61},
-                             std::vector<cldnn::tensor::value_type>{1, 1536, 9, 151, 1}, std::vector<cldnn::tensor::value_type>{1, 12, 8, 2175, 1}}),
+        ::testing::ValuesIn({std::vector<ov::Dimension::value_type>{3, 64, 28, 32, 12}, std::vector<ov::Dimension::value_type>{3, 124, 10, 97, 61},
+                             std::vector<ov::Dimension::value_type>{1, 1536, 9, 151, 1}, std::vector<ov::Dimension::value_type>{1, 12, 8, 2175, 1}}),
         ::testing::ValuesIn(std::vector<size_t>{1, 4}),
         ::testing::Values(0.0025),
         ::testing::ValuesIn(f_planar_5d_formats),

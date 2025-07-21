@@ -275,8 +275,8 @@ int64_t number_of_priors(const std::vector<float>& aspect_ratio,
     return num_priors;
 }
 
-tensor get_output_shape(tensor::value_type height, tensor::value_type width, tensor::value_type number_of_priors) {
-    return tensor{std::vector<tensor::value_type>{2, 4 * height * width * number_of_priors}};
+tensor get_output_shape(ov::Dimension::value_type height, ov::Dimension::value_type width, ov::Dimension::value_type number_of_priors) {
+    return tensor{std::vector<ov::Dimension::value_type>{2, 4 * height * width * number_of_priors}};
 }
 }  // namespace
 

@@ -32,7 +32,7 @@ layout experimental_detectron_topk_rois_inst::calc_output_layout(
     auto input_layout = impl_param.get_input_layout();
     auto desc = impl_param.typed_desc<experimental_detectron_topk_rois>();
 
-    tensor::value_type roi_num = std::min(input_layout.get_tensor().sizes()[0], static_cast<tensor::value_type>(desc->max_rois));
+    ov::Dimension::value_type roi_num = std::min(input_layout.get_tensor().sizes()[0], static_cast<ov::Dimension::value_type>(desc->max_rois));
 
     return {input_layout.data_type, input_layout.format,
             {roi_num, input_layout.get_tensor().sizes()[1], 1, 1 }};

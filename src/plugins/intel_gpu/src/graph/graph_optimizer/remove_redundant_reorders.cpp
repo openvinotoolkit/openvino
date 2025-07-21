@@ -334,9 +334,9 @@ void remove_redundant_reorders::run(program& p) {
                 r_node.can_be_optimized(true);
                 r_node.requires_reinterpret(true);
 
-                std::vector<tensor::value_type> pad_lo(o_layout.data_padding._lower_size.begin(),
+                std::vector<ov::Dimension::value_type> pad_lo(o_layout.data_padding._lower_size.begin(),
                                                        o_layout.data_padding._lower_size.begin() + o_layout.get_rank());
-                std::vector<tensor::value_type> pad_hi(o_layout.data_padding._upper_size.begin(),
+                std::vector<ov::Dimension::value_type> pad_hi(o_layout.data_padding._upper_size.begin(),
                                                        o_layout.data_padding._upper_size.begin() + o_layout.get_rank());
 
                 pad_lo[0] = i_layout.data_padding._lower_size[0];
