@@ -34,6 +34,11 @@ public:
         void updateStride();
     };
 
+    struct GraphArguments {
+        std::vector<MemRefType*> _inputs;
+        std::vector<MemRefType*> _outputs;
+    };
+
     class Impl {
         using MemRefType = IRGraph::MemRefType;
 
@@ -42,7 +47,8 @@ public:
         virtual void setArgumentValue(uint32_t argi, const void* argv) = 0;
         virtual uint64_t getNumSubgraphs() = 0;
         virtual void initializeGraph(uint64_t command_queue_group_ordinal) = 0;
-        virtual void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t fence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) = 0;
+        virtual void getBinding(GraphArguments& binding) = 0;
+        virtual void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t fence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) = 0;
         virtual ~Impl() {};
     };
 
@@ -63,8 +69,9 @@ public:
 
     ~IRGraph() override;
 
-    void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) override;
+    void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
 
+    void getBinding(GraphArguments& args);
 private:
 
     bool release_blob(const Config& config);

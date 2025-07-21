@@ -172,10 +172,12 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
         }
 
+        _command_lists.at(i)->bind(dynamic_cast<intel_npu::IRGraph*>(graph.get()));
+
         // FIXME(askrebko): commands will added on the fly
         //_command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()),
         //                                         _profiling_query ? _profiling_query->getHandle() : nullptr);
-
+        
         /// append timestamp command if feature was activated
         if (_npu_profiling != nullptr) {
             _command_lists.at(i)->appendBarrier();
@@ -200,6 +202,10 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             _command_lists.at(i)->appendSignalEvent(_events.at(i));
         }
     }
+}
+
+void DynamicPipeline::PipelinedCommandLists::bind( IRGraph* graph ) {
+    graph->getBinding(_binding);
 }
 
 void DynamicPipeline::push() {
@@ -242,7 +248,8 @@ void DynamicPipeline::push() {
             // TODO
         }
 
-        _graph->execute(_init_structs, _command_lists.at(i)->getHandles(), commandQueueHandle, fence, event, nullptr);
+        auto& command_lists = _command_lists.at(i);
+        dynamic_cast<IRGraph*>(_graph.get())->execute(_init_structs, command_lists->getBinding(), command_lists->getHandles(), commandQueueHandle, fence, event, nullptr);
     }
 
     _logger.debug("DynamicPipeline - push() completed");
