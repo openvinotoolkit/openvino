@@ -94,12 +94,12 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
 
     // Apply memory offsets to input/output pointers
     // Reserve space on stack for input/output pointers
-    h->sub(h->sp, h->sp, 2 * get_vec_length());
+    h->sub(h->sp, h->sp, 2 * get_gpr_length());
 
     // Apply offsets and store pointers on stack
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         const auto& ptr_reg = mem_ptrs[i];
-        int32_t stack_offset = i * get_vec_length();
+        int32_t stack_offset = i * get_gpr_length();
 
         if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
             // Dynamic offset: read from runtime parameters
@@ -113,10 +113,10 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
 
     // Load back the adjusted pointers for function call
     h->ldr(x1, Xbyak_aarch64::ptr(h->sp));                    // input pointer
-    h->ldr(x2, Xbyak_aarch64::ptr(h->sp, get_vec_length()));  // output pointer
+    h->ldr(x2, Xbyak_aarch64::ptr(h->sp, get_gpr_length()));  // output pointer
 
     // Restore stack pointer
-    h->add(h->sp, h->sp, 2 * get_vec_length());
+    h->add(h->sp, h->sp, 2 * get_gpr_length());
 
     // Set up executor pointer as first argument
     const auto& compiled_kernel = get_compiled_kernel_ptr();
