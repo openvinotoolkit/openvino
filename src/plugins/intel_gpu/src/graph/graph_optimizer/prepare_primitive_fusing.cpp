@@ -57,8 +57,27 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
-    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
-        return;
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions()) {
+        auto value = p.get_config().get_disable_post_ops_fusions();
+        switch (value) {
+            case 2:
+                fuse_reorders(p); return;
+            case 3:
+                remove_redundant_reshape(p); return;
+            case 4:
+                fuse_swiglu(p); return;
+            case 5:
+                fuse_bias(p); return;
+            case 6:
+                fuse_simple_primitives(p); return;
+            case 7:
+                fuse_constant_transposes(p); return;
+            case 8:
+                optimize_fused_ops(p); return;
+            default:
+                return;
+        }
+    }
 
     fuse_reorders(p);
     remove_redundant_reshape(p);
