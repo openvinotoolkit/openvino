@@ -17,7 +17,6 @@
 #include "compiled_model.h"
 #include "config.h"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/xbyak/xbyak_util.h"
 #include "cpu_streams_calculation.hpp"
 #include "graph_context.h"
 #include "internal_properties.hpp"
@@ -53,6 +52,7 @@
 #include "utils/precision_support.h"
 #include "utils/serialize.hpp"
 #include "weights_cache.hpp"
+#include "xbyak/xbyak_util.h"
 
 using namespace ov::threading;
 
@@ -227,18 +227,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
 
-    if ((cloned_model->inputs().size() != model->inputs().size()) ||
-        (cloned_model->outputs().size() != model->outputs().size())) {
-        OPENVINO_THROW("Input/output ports count mismatch between the original model and after the transformation! "
-                       "Original model inputs count: ",
-                       model->inputs().size(),
-                       " after the transformations ",
-                       cloned_model->inputs().size(),
-                       ". Original model outputs count:",
-                       model->inputs().size(),
-                       " after the transformations ",
-                       cloned_model->outputs().size());
-    }
+    OPENVINO_ASSERT(cloned_model->inputs().size() == model->inputs().size() &&
+                        cloned_model->outputs().size() == model->outputs().size(),
+                    "Input/output ports count mismatch between the original model and after the transformation! "
+                    "Original model inputs count: ",
+                    model->inputs().size(),
+                    " after the transformations ",
+                    cloned_model->inputs().size(),
+                    ". Original model outputs count:",
+                    model->inputs().size(),
+                    " after the transformations ",
+                    cloned_model->outputs().size());
     // Make output ports have the same tensor names with original model
     for (size_t idx = 0; idx < cloned_model->outputs().size(); idx++) {
         auto new_result = cloned_model->output(idx);
@@ -521,10 +520,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
-    if (model == nullptr) {
-        OPENVINO_THROW("Only ngraph-based models are supported!");
-    }
-
+    OPENVINO_ASSERT(model, "Only ngraph-based models are supported!");
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);
@@ -570,18 +566,35 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         decript_from_string = true;
     }
 
-    auto _config = config;
-    std::shared_ptr<ov::AlignedBuffer> model_buffer;
-    if (auto blob_it = _config.find(ov::hint::compiled_blob.name()); blob_it != _config.end()) {
-        auto compiled_blob = blob_it->second.as<ov::Tensor>();
-        model_buffer = std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(compiled_blob.data()),
-                                                                      compiled_blob.get_byte_size(),
-                                                                      compiled_blob);
-        _config.erase(blob_it);
-    }
-
     ModelDeserializer deserializer(
         model_stream,
+        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
+            return get_core()->read_model(model, weights);
+        },
+        decrypt,
+        decript_from_string);
+
+    return deserialize_model(deserializer, config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model_tensor,
+                                                         const ov::AnyMap& config) const {
+    OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
+
+    CacheDecrypt decrypt{codec_xor};
+    bool decript_from_string = false;
+    if (auto it = config.find(ov::cache_encryption_callbacks.name()); it != config.end()) {
+        const auto& encryption_callbacks = it->second.as<EncryptionCallbacks>();
+        decrypt.m_decrypt_str = encryption_callbacks.decrypt;
+        decript_from_string = true;
+    }
+
+    std::shared_ptr<ov::AlignedBuffer> model_buffer =
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(model_tensor.data()),
+                                                       model_tensor.get_byte_size(),
+                                                       model_tensor);
+
+    ModelDeserializer deserializer(
         model_buffer,
         [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
             return get_core()->read_model(model, weights);
@@ -589,9 +602,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         decrypt,
         decript_from_string);
 
+    return deserialize_model(deserializer, config);
+}
+
+std::shared_ptr<ov::ICompiledModel> Plugin::deserialize_model(ModelDeserializer& deserializer,
+                                                              const ov::AnyMap& config) const {
     std::shared_ptr<ov::Model> model;
     deserializer >> model;
 
+    auto _config = config;
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);
