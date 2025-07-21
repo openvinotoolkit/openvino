@@ -1160,7 +1160,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             compiled->m_prefill_compiled->m_weights_bank = bank;
 
             compiled->m_kvcache_compiled->finalize_weights_bank();
-            // Note: It's very important to drop WeightsContext here!
+            // Note: It's important to drop WeightsContext here.
             // We might be using mmaped weights file. Prefill and kvcache model use
             // the same weights but different mmaped weights objects, so we need to drop
             // their respective mmaped weights object after the bank is finalized.

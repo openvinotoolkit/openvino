@@ -159,7 +159,6 @@ void apply_remap(Subgraph& fcall, const ClosureRemap& m) {
         // Check for asymmetric zero points and add them to new_zerops
         new_zerops.push_back(zerop_iter != m.zerop_remap.end() ? fcall._lazy_closure[zerop_iter->second].eval()
                                                                : m.zero_points[i]);
-
         // Note: It's important here to manually detach LazyTensor since it's not going to be present in the bank - thus
         // left in memory
         if (scale_iter != m.scale_remap.end()) {

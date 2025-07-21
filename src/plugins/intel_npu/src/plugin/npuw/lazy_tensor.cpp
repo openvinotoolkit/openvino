@@ -54,7 +54,10 @@ ov::Tensor Const::eval() const {
     }
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
-    return m_read_from_bin;
+    // Get ownership of the memory, so it's available during the infer.
+    ov::Tensor t(m_read_from_bin.get_element_type(), m_read_from_bin.get_shape());
+    m_read_from_bin.copy_to(t);
+    return t;
 }
 
 LazyTensor::Meta Const::eval_meta() const {
