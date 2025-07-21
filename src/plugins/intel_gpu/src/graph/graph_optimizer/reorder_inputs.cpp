@@ -740,36 +740,27 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
-    const auto reorder_eltwise = [&p](typed_program_node<eltwise>& eltwise_node) {
+    const auto reorder_eltwise_input_for_np_broadcast = [&p](typed_program_node<eltwise>& eltwise_node) {
         // Add reorder to align tensor size of eltwise inputs for NUMPY broadcasting
-        // This manual alignment of tensor size does not need if format is simple or compatible
+        // This manual alignment of tensor size is not needed if format is simple or compatible
         auto& out_layout = eltwise_node.get_output_layout();
         if (eltwise_node.need_input_tensors_size_align() && !format::is_simple_data_format(out_layout.format)) {
             // Eltwise input tensor can be smaller than perferred format by NUMPY broad casting.
-            // e.g. (?,3,?,?,2) (?,?,2)
             auto& pshape_a = eltwise_node.get_input_pshape(0);
             auto& pshape_b = eltwise_node.get_input_pshape(1);
-            auto [ref_pshape, small_pshape, large_shape_idx, small_shape_idx] = (pshape_a.size() > pshape_b.size()) ?
+            auto [large_pshape, small_pshape, large_shape_idx, small_shape_idx] = (pshape_a.size() > pshape_b.size()) ?
                                           std::make_tuple(pshape_a, pshape_b, 0, 1) : std::make_tuple(pshape_b, pshape_a, 1, 0);
+            auto& small_input = eltwise_node.get_dependency(small_shape_idx);
+            if (small_input.get_output_layout().format != out_layout.format) {
+                GPU_DEBUG_TRACE_DETAIL << "Add reorder for" << eltwise_node.id() << " align tensor size. small_input " <<
+                                        small_input.get_output_layout().format.to_string() << " output " << out_layout.format.to_string() << std::endl;
 
-            auto const_dep_idx = eltwise_node.find_eltwise_const_dep_idx();
-            if (const_dep_idx.has_value() && const_dep_idx.value() < 2) {
-                auto const_input_pshape_size = eltwise_node.get_input_pshape(const_dep_idx.value()).size();
-                OPENVINO_ASSERT(const_input_pshape_size == ref_pshape.size() || const_input_pshape_size <= 1,
-                                "Unexpected pshape size of NUMPY broadcast of eltwise " + eltwise_node.id());
-            }
-
-            auto& input = eltwise_node.get_dependency(small_shape_idx);
-            if (input.get_output_layout().format != out_layout.format) {
-                GPU_DEBUG_TRACE_DETAIL << "Add reorder for" << eltwise_node.id() << " align tensor size. input " <<
-                                        input.get_output_layout().format.to_string() << " output " << out_layout.format.to_string() << std::endl;
-
-                ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(ref_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
+                ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(large_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
 
                 auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
-                auto new_reorder = std::make_shared<reorder>(eltwise_node.id() + "_reorder_eltwise_broadcast", input.id(), out_layout);
+                auto new_reorder = std::make_shared<reorder>(small_input.id() + "_reorder_eltwise_broadcast", small_input.id(), out_layout);
                 auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
-                p.add_intermediate(new_reorder_node, eltwise_node, input);
+                p.add_intermediate(new_reorder_node, eltwise_node, small_input);
                 new_reorder_node.set_output_layout(small_pshape_layout);
             }
         }
@@ -817,7 +808,7 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
             reorder_convolution,
             reorder_input_fully_connected,
             reorder_input_pooling,
-            reorder_eltwise);
+            reorder_eltwise_input_for_np_broadcast);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         program_helpers::do_for_types<gemm>(
