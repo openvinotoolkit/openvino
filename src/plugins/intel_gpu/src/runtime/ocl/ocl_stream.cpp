@@ -47,6 +47,15 @@ inline cl::NDRange toNDRange(const std::vector<size_t>& v) {
     }
 }
 
+
+cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, uint32_t size) {
+    if (size == 0)
+        return CL_INVALID_ARG_VALUE;
+
+    GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg " << idx << " local memory size : " << size << std::endl;
+    return kernel.setArg(idx, size, NULL);
+}
+
 cl_int set_kernel_arg(ocl_kernel_type& kernel, uint32_t idx, cldnn::memory::cptr mem) {
     if (!mem)
         return CL_INVALID_ARG_VALUE;
@@ -173,6 +182,12 @@ void set_arguments_impl(ocl_kernel_type& kernel,
                 break;
             case args_t::SHAPE_INFO:
                 status = set_kernel_arg(kernel, i, data.shape_info);
+                break;
+            case args_t::LOCAL_MEMORY_SIZE:
+                OPENVINO_ASSERT(args[i].index < data.local_memory_args->size() && data.local_memory_args->at(args[i].index),
+                                "The allocated local memory is necessary to set kernel arguments.");
+                status = set_kernel_arg(kernel, i,  data.local_memory_args->at(args[i].index));
+                break;
                 break;
             default:
                 break;
