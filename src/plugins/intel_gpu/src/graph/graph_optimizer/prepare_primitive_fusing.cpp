@@ -42,6 +42,7 @@
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
 #include "group_normalization_inst.h"
+#include "lora_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -463,7 +464,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
 
-            auto fc_with_bias_prim = desc->clone();
+            auto fc_with_bias_prim = desc->typed_clone();
             fc_with_bias_prim->id = desc->id + "_tmp";
             fc_with_bias_prim->bias = bias_name;
             fc_with_bias_prim->output_data_types = {optional_data_type{fc.get_output_layout().data_type}};
@@ -712,6 +713,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return true;
         };
 
+        auto lora_supports_fusings = [&](lora_node& node) -> bool {
+            const auto& lora_dep = node.get_dependency(0);
+            bool lora_is_single_user = lora_dep.get_users().size() == 1;
+
+            size_t lora_count = (node.get_kernel_impl_params()->desc->input_size() - 2) / 3;
+            bool is_simple_lora = lora_count == 1;
+
+            return lora_is_single_user && is_simple_lora;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto activation_func = activation_node.get_primitive()->activation_function;
             if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
@@ -802,6 +813,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
+            should_fuse |= input.is_type<lora>() && lora_supports_fusings(input.as<lora>());
+
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -851,7 +864,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
-            if (in_layout.is_dynamic() || out_layout.is_dynamic())
+
+            // In dynamic shape, quantize-fusion is enabled in only onednn convolution.
+            if ((in_layout.is_dynamic() || out_layout.is_dynamic()) &&
+                (!input_data.is_type<convolution>() || (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute())))
                 return;
 
             auto out_dt = out_layout.data_type;
@@ -872,11 +888,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            ((out_dt == data_types::f32 || out_dt == data_types::f16)  ||
                             in_layout.format == format::b_fs_yx_fsv16 ||
                             in_layout.format == format::bs_fs_yx_bsv32_fsv16 ||
-                            (lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
-                             !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
                            (lo.has_all_enabled_onednn_impls_optimization_attribute()) ||
-                           (in_dt_is_i8_u8 && out_dt_is_i8_u8));
+                           (in_dt_is_i8_u8 && out_dt_is_i8_u8) ||
+                           (lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
+                            !is_grouped_conv(input_data.as<convolution>())));
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
@@ -995,7 +1011,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>());
+                                      (parents[i].first->is_type<lrn>()) ||
+                                      (parents[i].first->is_type<lora>() &&
+                                       lora_supports_fusings(parents[i].first->as<lora>()));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1146,7 +1164,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
-                    && !fused_node->is_type<fully_connected>())
+                    && !fused_node->is_type<fully_connected>()
+                    && !fused_node->is_type<convolution>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))

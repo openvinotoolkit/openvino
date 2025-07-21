@@ -26,6 +26,12 @@ public:
     virtual ~RuntimeAttribute();
     virtual bool is_copyable() const;
     virtual bool is_copyable(const std::shared_ptr<Node>& to) const;
+    /**
+     * @brief If attribute is deterministic it should be included in cache hash computation.
+     *
+     * @return true if deterministic otherwise false.
+     */
+    virtual bool is_deterministic() const;
     virtual Any init(const std::shared_ptr<Node>& node) const;
     virtual Any merge(const ov::NodeVector& nodes) const;
     virtual Any merge(const ov::OutputVector& outputs) const;

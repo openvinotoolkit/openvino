@@ -572,3 +572,7 @@ extern template bool evaluate_node<ov::op::PagedAttentionExtension>(std::shared_
 extern template bool evaluate_node<ov::op::v16::SparseFillEmptyRows>(std::shared_ptr<ov::Node> node,
                                                                      ov::TensorVector& outputs,
                                                                      const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v13::ScaledDotProductAttention>(std::shared_ptr<ov::Node> node,
+                                                                           ov::TensorVector& outputs,
+                                                                           const ov::TensorVector& inputs);

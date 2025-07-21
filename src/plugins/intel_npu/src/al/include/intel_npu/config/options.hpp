@@ -615,7 +615,7 @@ struct DEFER_WEIGHTS_LOAD final : OptionBase<DEFER_WEIGHTS_LOAD, bool> {
     }
 #endif
     static bool isPublic() {
-        return false;
+        return true;
     }
     static OptionMode mode() {
         return OptionMode::RunTime;
@@ -791,8 +791,12 @@ struct TURBO final : OptionBase<TURBO, bool> {
         return true;
     }
 
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(7, 21);
+    }
+
     static OptionMode mode() {
-        return OptionMode::RunTime;
+        return OptionMode::Both;
     }
 
     static ov::PropertyMutability mutability() {
@@ -983,42 +987,6 @@ struct COMPILATION_MODE_PARAMS final : OptionBase<COMPILATION_MODE_PARAMS, std::
     static ov::PropertyMutability mutability() {
         return ov::PropertyMutability::RW;
     }
-};
-
-//
-// DPU_GROUPS
-//
-
-struct DPU_GROUPS final : OptionBase<DPU_GROUPS, int64_t> {
-    static std::string_view key() {
-        return ov::intel_npu::dpu_groups.name();
-    }
-
-    static std::vector<std::string_view> deprecatedKeys() {
-        return {};
-    }
-
-    static int64_t defaultValue() {
-        return -1;
-    }
-
-    static OptionMode mode() {
-        return OptionMode::CompileTime;
-    }
-
-    static bool isPublic() {
-        return false;
-    }
-
-    static ov::PropertyMutability mutability() {
-        return ov::PropertyMutability::RW;
-    }
-
-#ifdef NPU_PLUGIN_DEVELOPER_BUILD
-    static std::string_view envVar() {
-        return "IE_NPU_DPU_GROUPS";
-    }
-#endif
 };
 
 //

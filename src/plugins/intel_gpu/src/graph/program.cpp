@@ -58,6 +58,7 @@
 #include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
@@ -734,6 +735,10 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
                         return true;
                     if (lhs_layout.is_dynamic())
                         return false;
+
+                    if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
+                        return lhs->get_unique_id() < rhs->get_unique_id();
+                    }
 
                     return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
             });

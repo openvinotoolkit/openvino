@@ -292,7 +292,8 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
         if ((eltwise_type == utils::EltwiseTypes::ADD) ||
             (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
             (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
-            (eltwise_type == utils::EltwiseTypes::DIVIDE)) {
+            (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
+            (eltwiseType == utils::EltwiseTypes::MOD)) {
             return "jit";
         }
     }
@@ -356,6 +357,7 @@ const std::vector<utils::EltwiseTypes>& eltwiseOpTypesBinInpSnippets() {
         utils::EltwiseTypes::MULTIPLY,
         utils::EltwiseTypes::FLOOR_MOD,
         utils::EltwiseTypes::MOD,
+        utils::EltwiseTypes::POWER,
     };
     return eltwiseOpTypesBinInp;
 }

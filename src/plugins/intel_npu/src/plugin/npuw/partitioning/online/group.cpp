@@ -244,7 +244,6 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
-    // Update ov::node to own::ade::NodeHandle map
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {

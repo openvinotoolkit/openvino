@@ -104,6 +104,10 @@ TEST_F(CoreThreadingTests, RegisterPlugin) {
 
 // tested function: RegisterPlugins
 TEST_F(CoreThreadingTests, RegisterPlugins) {
+#    ifdef _WIN32
+    // TODO: CVS-133087
+    GTEST_SKIP() << "This test sporadically crashes on Windows";
+#    endif
     ov::Core core;
     std::atomic<unsigned int> index{0};
     auto file_prefix = ov::test::utils::generateTestFilePrefix();

@@ -281,6 +281,7 @@ void add_required_reorders::run(program& p) {
                     p.add_intermediate(new_reorder_node, *usr, dep);
                     // Need to invalidate users because the output format of mvn follows input format.
                     new_reorder_node.recalc_output_layout(true);
+                    usr->recalc_output_layout(false);
                 }
             }
         }
@@ -324,7 +325,9 @@ void add_required_reorders::run(program& p) {
             }
             // This list of preferred layouts has been selected arbitrary due to developers' experience
             preferred_layout_formats = { cldnn::format::get_default_format(max_in_dims) };
-            if (max_in_dims == 7) {
+            if (max_in_dims == 8) {
+                preferred_layout_formats.push_back(cldnn::format::bfvuwzyx);
+            } else if (max_in_dims == 7) {
                 preferred_layout_formats.push_back(cldnn::format::bfuwzyx);
             } else if (max_in_dims == 6) {
                 preferred_layout_formats.push_back(cldnn::format::bfwzyx);

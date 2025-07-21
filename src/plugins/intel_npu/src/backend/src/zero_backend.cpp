@@ -50,6 +50,12 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice() const {
 }
 
 const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& name) const {
+    // sanity check. are we off-device?
+    // return empty device for off-device compilation case
+    if (_devices.empty()) {
+        _logger.debug("ZeroEngineBackend - getDevice() returning empty list");
+        return {};
+    }
     // sanity check - if string is empty, call the default function
     // which will pick the first available  and valid npu device
     if (name.length() == 0) {
@@ -92,6 +98,14 @@ const std::shared_ptr<IDevice> ZeroEngineBackend::getDevice(const std::string& n
             // we asume this is an arch number, so we search for the first one
             for (auto it = _devices.begin(); it != _devices.end(); ++it) {
                 if (it->second->getName() == name) {
+                    return it->second;
+                }
+            }
+            // if arch number is not found, we also try, one last time, for AUTO_DETECT devices too
+            // Devices with unpublished names will appear report AUTO_DETECT as id
+            // If we find any, we return it (the first one)
+            for (auto it = _devices.begin(); it != _devices.end(); ++it) {
+                if (it->second->getName() == "AUTO_DETECT") {
                     return it->second;
                 }
             }
