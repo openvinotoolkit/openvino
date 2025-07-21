@@ -69,21 +69,22 @@ public:
     void initializeGraph(uint64_t command_queue_group_ordinal) override;
     uint64_t getNumSubgraphs() override { return _numOfSubgraphs; }
     void executeGraph(std::vector<MemRefType*>& inputs, std::vector<MemRefType*>& outputs, const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
-    void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
+    void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, IRGraph::GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
+    void getBinding(IRGraph::GraphArguments& binding);
     ~IRGraphImpl() {}
 public:
     std::unique_ptr<mlir::MLIRContext> _context;
     mlir::DialectRegistry _registry;
     std::unique_ptr<mlir::ExecutionEngine> _engine;
-    std::vector<MemRefType*> _inputs;
-    std::vector<MemRefType*> _outputs;
+
+    IRGraph::GraphArguments _binding;
     uint64_t _numOfSubgraphs;
     static bool _initializedMLIR;
 };
 
 bool IRGraphImpl::_initializedMLIR = false;
 
-void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs)
+void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& arg_inputs, std::vector<ArgumentDescriptor>& arg_outputs)
 {
     if (_initializedMLIR == false) {
         llvm::InitializeNativeTarget();
@@ -95,19 +96,23 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
     }
 
     _context = std::make_unique<mlir::MLIRContext>(_registry);
-    initializeIRGraphExecution(blob, metadata, inputs, outputs);
+    initializeIRGraphExecution(blob, metadata, arg_inputs, arg_outputs);
     
-    this->_inputs.resize( inputs.size());
-    for (size_t i = 0;i < _inputs.size(); ++i) {
-        _inputs[i] = new MemRefType();
-        _inputs[i]->setSize(metadata.inputs[i]);
-        _inputs[i]->updateStride();
+    _binding._inputs.resize( arg_inputs.size());
+   
+    auto& inputs = _binding._inputs;
+    for (size_t i = 0;i < inputs.size(); ++i) {
+        inputs[i] = new MemRefType();
+        inputs[i]->setSize(metadata.inputs[i]);
+        inputs[i]->updateStride();
     }
-    this->_outputs.resize( outputs.size());
-    for (size_t i = 0;i < _outputs.size(); ++i) {
-        _outputs[i] = new MemRefType();
-        _outputs[i]->setSize(metadata.outputs[i]);
-        _outputs[i]->updateStride();
+    
+    _binding._outputs.resize(arg_outputs.size());
+    auto& outputs = _binding._outputs;
+    for (size_t i = 0;i < outputs.size(); ++i) {
+        outputs[i] = new MemRefType();
+        outputs[i]->setSize(metadata.outputs[i]);
+        outputs[i]->updateStride();
     }
 }
 
@@ -179,6 +184,10 @@ std::unique_ptr<mlir::ExecutionEngine> IRGraphImpl::createExecutionEngine(const 
     return engine;
 }
 
+void IRGraphImpl::getBinding(IRGraph::GraphArguments& binding) {
+    binding = _binding;
+}
+
 void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs) {
     const std::string adapterPrefix = std::string("_mlir_ciface_");
     const std::string entryName = "main";
@@ -197,13 +206,15 @@ void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob, Ne
 
 void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv)
 {
-    if (argi < _inputs.size()) {
-        _inputs[argi]->basePtr = _inputs[argi]->data = const_cast<void*>(argv);
+    auto inputs = _binding._inputs;
+    if (argi < inputs.size()) {
+        inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
     }
     else {
-        auto idx = argi - _inputs.size();
-        if (idx < _outputs.size()) {
-            _outputs[idx]->basePtr = _outputs[idx]->data = const_cast<void*>(argv);
+        auto outputs = _binding._outputs;
+        auto idx = argi - inputs.size();
+        if (idx < outputs.size()) {
+            outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
         }
     }
 }
@@ -248,8 +259,8 @@ llvm::Error invokePacked(
     return engine->invokePacked(adapterName, packedArgs);
 }
 
-void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t fence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) {
-    executeGraph(_inputs, _outputs, zeroInitStruct, commandLists, commandQueue, fence, event, profiling);
+void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, IRGraph::GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t fence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) {
+    executeGraph(args._inputs, args._outputs, zeroInitStruct, commandLists, commandQueue, fence, event, profiling);
 }
 
 void IRGraphImpl::executeGraph(std::vector<MemRefType*>& inputMefRefs, std::vector<MemRefType*>& outputMemRefs,
@@ -503,13 +514,22 @@ IRGraph::~IRGraph() {
     }
 }
 
-void IRGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling)
+void IRGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, IRGraph::GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling)
 {
     auto impl = reinterpret_cast<IRGraphImpl*>(_impl.get());
 
     if (impl == nullptr) return;
 
-    impl->executeGraph(zeroInitStruct, commandLists, commandQueue, inferenceFence, event, profiling);
+    impl->executeGraph(zeroInitStruct, args, commandLists, commandQueue, inferenceFence, event, profiling);
+}
+
+void IRGraph::getBinding( GraphArguments& args )
+{
+    auto impl = reinterpret_cast<IRGraphImpl*>(_impl.get());
+    
+    if (impl == nullptr) return;
+    
+    impl->getBinding(args);
 }
 }  // namespace intel_npu
 #endif // NPU_LLVM_BACKEND
