@@ -1038,11 +1038,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (shared_head_enabled) {
         LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
         lm_head_model = cut_lm_head(kvcache_model);
-    }
-    if (lm_head_model) {
-        LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
+        if (lm_head_model) {
+            LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
+        } else {
+            LOG_WARN("Three-model pipeline is requested, but LM head cutting is failed,"
+                     " two-model pipeline will be created!");
+        }
     } else {
-        LOG_INFO("Two-model pipeline will be created");
+        LOG_INFO("Two-model pipeline will be created.");
     }
 
     LOG_DEBUG("Creating prefill model as clone of transformed kvcache one.");
