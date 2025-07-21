@@ -41,6 +41,10 @@ namespace intel_npu {
 #define MLIR_ZERO_WRAPPER_FILE_NAME "liblevel_zero_wrapper.so"
 #endif
 
+void IRGraph::MemRefType::setArg(const void* arg) {
+    basePtr = data = arg;
+}
+
 void IRGraph::MemRefType::setSize( const intel_npu::IODescriptor& desc) {
     // Note: check difference between shape from compiler and shape from IR.
     const auto& shape = desc.shapeFromCompiler.get_shape();
@@ -57,11 +61,63 @@ void IRGraph::MemRefType::updateStride() {
     }
 }
 
+IRGraph::GraphArguments::GraphArguments(const GraphArguments& args) {
+    *this = args;
+}
+
+IRGraph::GraphArguments& IRGraph::GraphArguments::operator=(const GraphArguments& args) {
+    if (_inputs.size() != args._inputs.size()) {
+        if (_inputs.size() > args._inputs.size()) {
+            for (size_t i = args._inputs.size(); i < _inputs.size(); ++i) {
+                delete _inputs[i];
+                _inputs[i] = nullptr;
+            }
+        }
+
+        _inputs.resize(args._inputs.size());
+    }
+    
+    auto& inputs = args._inputs;
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        if (_inputs[i] == nullptr) _inputs[i] = new MemRefType();
+        *_inputs[i] = *inputs[i];
+    }
+
+    if (_outputs.size() != args._outputs.size()) {
+        if (_outputs.size() > args._outputs.size()) {
+            for (size_t i = args._outputs.size(); i < _outputs.size(); ++i) {
+                delete _outputs[i];
+                _outputs[i] = nullptr;
+            }
+        }
+        _outputs.resize(args._outputs.size());
+    }
+
+    auto& outputs = args._outputs;
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        if (_outputs[i] == nullptr) _outputs[i] = new MemRefType();
+        *_outputs[i] = *outputs[i];
+    }
+
+    return *this;
+}
+
+IRGraph::GraphArguments::~GraphArguments() {
+    for (auto& input : _inputs) {
+        delete input;
+    }
+
+    for (auto& output : _outputs) {
+        delete output;
+    }
+}
+
 class IRGraphImpl : public IRGraph::Impl {
 public:
     using MemRefType = IRGraph::MemRefType;
 
 public:
+    IRGraphImpl() = default;
     void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs) override;
     std::unique_ptr<mlir::ExecutionEngine> createExecutionEngine(const std::string& entryName, std::optional<ov::Tensor>& blob, mlir::MLIRContext* context);
     void initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs);
@@ -71,7 +127,7 @@ public:
     void executeGraph(std::vector<MemRefType*>& inputs, std::vector<MemRefType*>& outputs, const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
     void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, IRGraph::GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
     void getBinding(IRGraph::GraphArguments& binding);
-    ~IRGraphImpl() {}
+    virtual ~IRGraphImpl() {}
 public:
     std::unique_ptr<mlir::MLIRContext> _context;
     mlir::DialectRegistry _registry;

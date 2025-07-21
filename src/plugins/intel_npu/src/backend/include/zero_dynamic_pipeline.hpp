@@ -21,7 +21,7 @@ namespace intel_npu {
 
 struct DynamicPipeline : public Pipeline {
     struct PipelinedCommandLists {    
-        IRGraph::GraphArguments _binding;
+        mutable IRGraph::GraphArguments _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // to store command list handles to pass it to ExecutionEngine
@@ -61,8 +61,16 @@ struct DynamicPipeline : public Pipeline {
             // TODO
         }
 
-        void updateMutableCommandList(uint32_t arg_index, const void* arg_value) const {
-            // TODO
+        void updateMutableCommandList( uint32_t arg_index, const void* arg_value ) {
+            if (arg_index < _binding._inputs.size()) {
+                _binding._inputs[arg_index]->setArg(arg_value);
+            }
+            else {
+                uint32_t output_index = arg_index - _binding._inputs.size();
+                if (output_index < _binding._outputs.size()) {
+                    _binding._outputs[output_index]->setArg(arg_value);
+                }
+            }
         }
 
         void appendWaitOnEvent(const std::shared_ptr<Event>& event) {
