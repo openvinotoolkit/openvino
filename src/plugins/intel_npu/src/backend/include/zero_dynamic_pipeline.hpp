@@ -15,11 +15,14 @@
 #include "zero_pipeline.hpp"
 #include "zero_profiling.hpp"
 #include "zero_tensor.hpp"
+#include "irgraph.hpp"
 
 namespace intel_npu {
 
 struct DynamicPipeline : public Pipeline {
-    struct PipelinedCommandLists {
+    struct PipelinedCommandLists {    
+        IRGraph::GraphArguments _binding;
+
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // to store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
@@ -40,8 +43,14 @@ struct DynamicPipeline : public Pipeline {
 
         ze_command_list_handle_t* data() { return _commandListHandles.data(); }
 
+        void bind(IRGraph* graph);
+
         std::vector<ze_command_list_handle_t>& getHandles() {
             return _commandListHandles;
+        }
+
+        IRGraph::GraphArguments& getBinding() {
+            return _binding;
         }
 
         void appendBarrier() const {
