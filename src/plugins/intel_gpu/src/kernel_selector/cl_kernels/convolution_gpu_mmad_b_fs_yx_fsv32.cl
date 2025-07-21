@@ -40,6 +40,16 @@
 #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported block size"
 #endif
 
+#ifdef FILTER_TYPE_UCHAR
+    #define PACKED_WEIGHTS_TYPE uint
+    #define AS_PACKED_WEIGHTS_TYPE_VEC8(x) as_uint8(x)
+#elif defined(FILTER_TYPE_CHAR)
+    #define PACKED_WEIGHTS_TYPE int
+    #define AS_PACKED_WEIGHTS_TYPE_VEC8(x) as_int8(x)
+#else
+    #error "convolution_gpu_mmad_b_fs_yx_fsv32: Unsupported FILTER_TYPE"
+#endif
+
 __attribute__((reqd_work_group_size(8, OW_GROUP, 1)))
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
 KERNEL(convolution_mmad_b_fs_yx_fsv32)(
@@ -165,10 +175,10 @@ KERNEL(convolution_mmad_b_fs_yx_fsv32)(
                                      + kh * ISV_SIZE * OSV_SIZE * FILTER_SIZE_X
                                      + kw * ISV_SIZE * OSV_SIZE;
 
-                    int8 weights_data0 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
-                    int8 weights_data1 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
-                    int8 weights_data2 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
-                    int8 weights_data3 = as_int8(_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data0 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 0*8*ISV_SIZE)));
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data1 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 1*8*ISV_SIZE)));
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data2 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 2*8*ISV_SIZE)));
+                    MAKE_VECTOR_TYPE(PACKED_WEIGHTS_TYPE, 8) weights_data3 = AS_PACKED_WEIGHTS_TYPE_VEC8(_sub_group_block_read8((const __global uint*)(weights + f_off + 3*8*ISV_SIZE)));
 
                     acc[0] = MMAD(src, weights_data0, acc[0]); // 8 elements in 4*lid+0 out channel
                     acc[1] = MMAD(src, weights_data1, acc[1]); // 8 elements in 4*lid+1 out channel

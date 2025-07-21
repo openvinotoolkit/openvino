@@ -90,7 +90,7 @@ class BinaryManager {
     }
 
     // Install binaries from directories if possible
-    if (process.env.npm_package_resolved.startsWith("file:")) {
+    if (process.env.npm_package_resolved?.startsWith("file:")) {
       const binDir = path
         .join(path.dirname(process.env.npm_package_resolved), "bin")
         .replace("file:", "");

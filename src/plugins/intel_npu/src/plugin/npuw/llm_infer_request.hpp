@@ -32,11 +32,18 @@ public:
 
 private:
     void prepare_for_new_conversation();
+
+    void clear_chunk_prefill_kv_cache();
+
     void init_tensor(const ov::Output<const ov::Node>& port);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids);
+
+    void infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> input_ids,
+                                ov::SoPtr<ov::ITensor> attention_mask,
+                                ov::SoPtr<ov::ITensor> position_ids);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,

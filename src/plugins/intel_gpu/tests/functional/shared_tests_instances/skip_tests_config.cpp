@@ -8,6 +8,7 @@
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/core/core.hpp"
 #include "common_test_utils/ov_plugin_cache.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
 
 namespace {
 bool isGPU1Present() {
@@ -19,6 +20,13 @@ bool isGPU1Present() {
         return false;
     }
     return true;
+}
+
+bool immadSupported() {
+    ov::Core ie = ov::test::utils::create_core();
+    auto properties = ie.get_property(ov::test::utils::DEVICE_GPU, ov::device::capabilities);
+    bool support_immad = std::find(properties.begin(), properties.end(), ov::intel_gpu::capability::HW_MATMUL) != properties.end();
+    return support_immad;
 }
 } // namespace
 
@@ -193,6 +201,55 @@ std::vector<std::string> disabledTestPatterns() {
         returnVal.push_back(R"(.*nightly_OVClassSpecificDevice0Test/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow/GPU.1.*)");
         returnVal.push_back(R"(.*nightly_OVClassSetDefaultDeviceIDPropTest/OVClassSetDefaultDeviceIDPropTest.SetDefaultDeviceIDNoThrow/0.*)");
         returnVal.push_back(R"(.*nightly_OVClassSeveralDevicesTest/OVClassSeveralDevicesTestCompileModel.CompileModelActualSeveralDevicesNoThrow/0.*)");
+    }
+    if (immadSupported()) {
+        // Failure list
+        // Case (first 20 chars)                                                   Fail Count, Pass Count
+        // ----------------------------------------------------------------------  ------------------------
+        // LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hidden_si  [146, 622]
+        // LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hidden_si  [132, 636]
+        // smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompre  [96, 288]
+        // smoke_MaxPool8_ExplicitPad_FloorRounding/MaxPoolingV8LayerTest.Inferen  [64, 128]
+        // smoke_MaxPool8_ExplicitPad_CeilRounding/MaxPoolingV8LayerTest.Inferenc  [32, 64]
+        // MatMulCompressedWeights_corner_cases_big/MatmulWeightsDecompression.In  [22, 362]
+        // smoke_MatMulCompressedWeights_basic/MatmulWeightsDecompression.Inferen  [16, 44]
+        // smoke_MatmulAndGatherSharedWeightsDecompression/SharedMatmulAndGatherW  [14, 10]
+        // smoke_LoRA_HorizontalFusion/FullyConnectedHorizontalFusion.Inference/d  [12, 0]
+        // smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hid  [8, 56]
+        // smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hid  [8, 56]
+        // smoke_Decomposition_3D/Mvn6LayerTest.Inference/IS=([])_TS={(1.37.9)}_M  [2, 46]
+        // smoke_MatmulWeightsDecompressionQuantizeConvolution_basic/MatmulWeight  [2, 10]
+        // smoke_MatMulCompressedWeights_dyn_quan/MatmulWeightsDecompression.Infe  [2, 4]
+        // smoke_MatMul_NoTranspose/MatMulLayerTest.Inference/IS=([]_[])_TS={(1.2  [2, 2]
+        // smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam  [2, 0]
+        // LSTMSequenceCM/LSTMSequenceGPUTest.Inference/mode=PURE_SEQ_seq_lengths  [2, 0]
+        // smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled/GroupConvo  [2, 0]
+        // LSTMSequenceCommonZeroClip/LSTMSequenceGPUTest.Inference/mode=CONVERT_  [1, 323]
+        // LSTMSequenceCommonZeroClip/LSTMSequenceGPUTest.Inference/mode=PURE_SEQ  [1, 323]
+        // smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP  [1, 63]
+        // smoke_FC_3D/MatMulLayerGPUTest.Inference/IS=[]_[]_TS=((1.429))_((1.429  [1, 1]
+        // Inference_without_convert/BF16WeightsDecompression.Inference_without_c  [1, 1]
+        // smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest.  [1, 0]
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_corner_cases_basic/MatmulWeightsDecompre.*)");
+        returnVal.push_back(R"(.*smoke_MaxPool8_ExplicitPad_FloorRounding/MaxPoolingV8LayerTest.Inferen.*)");
+        returnVal.push_back(R"(.*smoke_MaxPool8_ExplicitPad_CeilRounding/MaxPoolingV8LayerTest.Inferenc.*)");
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_basic/MatmulWeightsDecompression.Inferen.*)");
+        returnVal.push_back(R"(.*smoke_MatmulAndGatherSharedWeightsDecompression/SharedMatmulAndGatherW.*)");
+        returnVal.push_back(R"(.*smoke_LoRA_HorizontalFusion/FullyConnectedHorizontalFusion.Inference/d.*)");
+        returnVal.push_back(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition0_batch=5_hid.*)");
+        returnVal.push_back(R"(.*smoke_LSTMCellCommon/LSTMCellTest.Inference/decomposition1_batch=5_hid.*)");
+        returnVal.push_back(R"(.*smoke_Decomposition_3D/Mvn6LayerTest.Inference/IS=.*)");
+        returnVal.push_back(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic/MatmulWeight.*)");
+        returnVal.push_back(R"(.*smoke_MatMulCompressedWeights_dyn_quan/MatmulWeightsDecompression.Infe.*)");
+        returnVal.push_back(R"(.*smoke_MatMul_NoTranspose/MatMulLayerTest.Inference/IS=.*)");
+        returnVal.push_back(R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic1DSymPad_Disabled/GroupConvo.*)");
+        returnVal.push_back(R"(.*smoke_static_conv_n_dynamic_concat/ConvStaticConcatDynamicGPUTestDynam.*)");
+        returnVal.push_back(R"(.*smoke_ScaledAttnStatic_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/netP.*)");
+        returnVal.push_back(R"(.*smoke_FC_3D/MatMulLayerGPUTest.Inference/.*)");
+        returnVal.push_back(R"(.*smoke_ConvolutionLayerGPUTest_3D_tensor_basic/ConvolutionLayerGPUTest..*)");
+        returnVal.push_back(R"(.*smoke_MatmulWeightsDecompressionQuantizeConvolution_basic.*)");
+        returnVal.push_back(R"(.*smoke_Nms9LayerTest/Nms9LayerTest.Inference/num_batches=2_num_boxes=50.*)");
+        returnVal.push_back(R"(.*smoke_ScaledAttnDynamic4D_GPU/ScaledAttnLayerGPUTest.CompareWithRefs/n.*)");
     }
     return returnVal;
 }

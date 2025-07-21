@@ -886,9 +886,41 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
+    m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
+    const bool use_chunk_prefill = m_prefill_chunk_size > 0;
+    LOG_VERB("Enabled prefill chunking: " << use_chunk_prefill);
+    LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
+    LOG_VERB("Maximum prompt length: " << max_prompt_len);
+
+    auto is_power_of_two = [](uint64_t n) {
+        return n > 0 && (n & (n - 1)) == 0;
+    };
+    if (use_chunk_prefill) {
+        if (!is_power_of_two(m_prefill_chunk_size)) {
+            OPENVINO_THROW("Configuration Error: chunk size (",
+                           m_prefill_chunk_size,
+                           ") is not power of 2. Please adjust NPUW_LLM_PREFILL_CHUNK_SIZE.");
+        }
+
+        if (max_prompt_len % m_prefill_chunk_size) {
+            OPENVINO_THROW("Configuration Error: The maximum prompt length (",
+                           max_prompt_len,
+                           ") is not a multiple of chunk size (",
+                           m_prefill_chunk_size,
+                           "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
+        }
+    }
+
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("4. Make prefill model with static shapes");
-    reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
+    if (use_chunk_prefill) {
+        reshape_to_static(prefill_model,
+                          static_cast<uint32_t>(m_prefill_chunk_size),
+                          m_kvcache_desc.max_prompt_size,
+                          axes);
+    } else {
+        reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
+    }
     LOG_DEBUG("5. Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
 
@@ -909,7 +941,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("6. Check and apply opt layout --- SKIPPED");
     }
-    NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+
+    if (!use_chunk_prefill) {
+        NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
+    } else {
+        prefill_model = redirect_new_kv_to_output(prefill_model);
+    }
     LOG_DEBUG("7. Optimize kvcache model to output key/values for new token.");
     kvcache_model = redirect_new_kv_to_output(kvcache_model);
     LOG_DEBUG("8. Converting KV-cache in kvcache model to FP16.");

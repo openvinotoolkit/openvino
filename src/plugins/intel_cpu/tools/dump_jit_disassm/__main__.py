@@ -1,6 +1,7 @@
 import os
 import re
 import argparse
+import platform
 import subprocess
 import sys
 from colorama import Fore
@@ -65,12 +66,21 @@ if __name__ == "__main__":
         traces[exefile] = addr2line(exefile, addrs, args.addr2line)
 
     print("objdump...")
-    disassemble = subprocess.check_output(f"objdump -D -b binary -mi386:x86-64 -M intel {args.bin}", shell=True, encoding="utf-8")
+    if platform.machine() == "x86_64":
+        disassemble = subprocess.check_output(f"objdump -D -b binary -mi386:x86-64 -M intel {args.bin}", shell=True, encoding="utf-8")
+    elif platform.machine() == "aarch64":
+        disassemble = subprocess.check_output(f"objdump -D -b binary -m aarch64 {args.bin}", shell=True, encoding="utf-8")
+    else:
+        print(f"Unsupported platform for objdump: {platform.machine()}")
+        sys.exit(1)
 
     pattern = re.compile("^\s*([\da-f]*):.*")
     print("parsing...")
 
-    rm_prefix = "dnnl::impl::cpu::x64::"
+    rm_prefixes = [
+        "dnnl::impl::cpu::x64::",
+        "dnnl::impl::cpu::aarch64::",
+    ]
     for line in disassemble.splitlines():
         m = pattern.match(line)
         debug_info = []
@@ -79,8 +89,9 @@ if __name__ == "__main__":
             if offset in offset2addr:
                 for exefile, addr in offset2addr[offset]:
                     t = traces[exefile][addr]
-                    if t.startswith(rm_prefix):
-                        t = t[len(rm_prefix):]
+                    for rm_prefix in rm_prefixes:
+                        if t.startswith(rm_prefix):
+                            t = t[len(rm_prefix):]
                     file_lino = t.split(" at ")[1]
                     if not skip_src_file(file_lino):
                         debug_info.append(file_lino)

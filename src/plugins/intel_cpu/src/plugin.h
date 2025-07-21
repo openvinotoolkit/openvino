@@ -38,8 +38,9 @@ public:
 
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
-    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& model, const ov::AnyMap& properties) const override;
-    std::shared_ptr<ov::ICompiledModel> import_model([[maybe_unused]] ov::Tensor& model,
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model([[maybe_unused]] const ov::Tensor& model,
                                                      [[maybe_unused]] const ov::SoPtr<ov::IRemoteContext>& context,
                                                      [[maybe_unused]] const ov::AnyMap& properties) const override {
         OPENVINO_THROW_NOT_IMPLEMENTED("import_model with RemoteContext is not supported by CPU plugin!");
