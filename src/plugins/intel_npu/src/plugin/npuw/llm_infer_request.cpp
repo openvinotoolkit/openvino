@@ -11,8 +11,6 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "util_xarch.hpp"
 
-using layer_names = ov::npuw::LLMInferRequest::layer_names;
-
 namespace {
 
 template <typename T>
@@ -538,7 +536,6 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
 
-    // TODO: Use another solution than flag if multithreading comes to play.
     if (!m_generate_initialized) {
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
         copy_kvcache();
