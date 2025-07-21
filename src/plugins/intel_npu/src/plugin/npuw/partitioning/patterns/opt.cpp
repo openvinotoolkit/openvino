@@ -167,7 +167,7 @@ Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
     return new_param;
 }
 
-bool Context::found_host_gather_quant() {
+bool Context::found_host_gather_quant() const {
     return params_to_quant_gather_unpack.has_value();
 }
 
@@ -1374,7 +1374,10 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        if (out_len >= 2048) {
+        auto matched_qweight = node_to_output.at(qweight);
+        auto w_type = matched_qweight.get_element_type();
+
+        if (out_len >= 2048 && w_type == ov::element::u8) {
             if (verify_only) {
                 // No transformations needed, just set dummy QuantizedGather
                 ctx.get().params_to_quant_gather_unpack = Context::QuantizedGather{};

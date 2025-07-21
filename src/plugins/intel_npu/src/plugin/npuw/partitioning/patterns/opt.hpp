@@ -67,7 +67,7 @@ struct Context {
     };
     std::optional<QuantizedGather> params_to_quant_gather_unpack;
     PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr z, PPtr s, ov::element::Type type);
-    bool found_host_gather_quant();
+    bool found_host_gather_quant() const;
 
     using Ref = std::reference_wrapper<Context>;
 };
