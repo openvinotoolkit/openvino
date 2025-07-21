@@ -4372,7 +4372,7 @@ INSTANTIATE_TEST_SUITE_P(eltwise_same_input,
                         ));
 
 // mode, input type, input sizes
-using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<cldnn::tensor::value_type>>>;
+using eltwise_test_params = std::tuple<eltwise_mode, data_types, std::vector<std::vector<ov::Dimension::value_type>>>;
 
 template<typename T>
 class BaseEltwiseTest : public ::testing::TestWithParam<T> {
@@ -4504,7 +4504,7 @@ TEST_P(eltwise_test, fsv16) {
 
 static std::vector<eltwise_mode> modes = {eltwise_mode::sum, eltwise_mode::prod};
 static std::vector<data_types> types = {data_types::f32, data_types::f16};
-static std::vector<std::vector<std::vector<cldnn::tensor::value_type>>> inputs = {
+static std::vector<std::vector<std::vector<ov::Dimension::value_type>>> inputs = {
         {{1, 2, 3, 4}, {1, 2, 3, 4}},
         {{1, 16, 8, 2}, {1, 16, 8, 2}},
         {{1, 128, 16, 8}, {1, 1, 16, 8}},
@@ -4608,7 +4608,7 @@ TEST_P(eltwise_test_6d, bfwzyx) {
     }
 }
 
-static std::vector<std::vector<std::vector<cldnn::tensor::value_type>>> inputs_6d = {
+static std::vector<std::vector<std::vector<ov::Dimension::value_type>>> inputs_6d = {
         {{1, 2, 3, 4, 5, 6},  {1, 2, 3, 4, 5, 6}},
         {{1, 32, 1, 1, 1, 1}, {8, 32, 4, 5, 6, 7}},
         {{1, 32, 1, 1, 1, 7}, {8, 32, 4, 5, 6, 7}},
@@ -4706,8 +4706,8 @@ INSTANTIATE_TEST_SUITE_P(eltwise, eltwise_test_mixed_precision,
 
 struct eltwise_layout_test_params {
     eltwise_mode mode;
-    std::vector<cldnn::tensor::value_type> input0_size;
-    std::vector<cldnn::tensor::value_type> input1_size;
+    std::vector<ov::Dimension::value_type> input0_size;
+    std::vector<ov::Dimension::value_type> input1_size;
     format input0_format;
     format input1_format;
     std::string selected_kernel_name;
