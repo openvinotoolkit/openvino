@@ -144,6 +144,16 @@ std::shared_ptr<ov::Node> make_fake_quantize(const ov::Output<ov::Node>& y_scale
         std::make_shared<v0::FakeQuantize>(data, input_low, input_high, output_low, output_high, levels),
         destination_type);
 }
+
+bool is_per_tensor_quantization(const ov::Output<ov::Node>& scale, const ov::Output<ov::Node>& zero_point) {
+    auto scale_shape = scale.get_partial_shape();
+    auto zero_point_shape = zero_point.get_partial_shape();
+    return scale_shape.rank().is_static() &&
+           (scale_shape.rank().get_length() == 0 || (scale_shape.rank().get_length() == 1 && scale_shape[0] == 1)) &&
+           zero_point_shape.rank().is_static() &&
+           (zero_point_shape.rank().get_length() == 0 ||
+            (zero_point_shape.rank().get_length() == 1 && zero_point_shape[0] == 1));
+}
 }  // namespace detail
 
 namespace opset_1 {
@@ -262,23 +272,39 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
 
     // per-tensor quantization, axis attribute ignored
-    if (scale.get_partial_shape().rank().is_static() &&
-        (scale.get_partial_shape().rank().get_length() == 0 ||
-         (scale.get_partial_shape().rank().get_length() == 1 && scale.get_partial_shape()[0] == 1)) &&
-        zero_point.get_partial_shape().rank().is_static() &&
-        (zero_point.get_partial_shape().rank().get_length() == 0 ||
-         (zero_point.get_partial_shape().rank().get_length() == 1 && zero_point.get_partial_shape()[0] == 1))) {
+    if (detail::is_per_tensor_quantization(scale, zero_point)) {
         return ai_onnx::opset_1::quantize_linear(node);
     }
-    return detail::quantize_linear(x,
-                                   scale,
-                                   zero_point,
-                                   node.get_attribute_value<int64_t>("axis", 1),
-                                   node.get_attribute_value<int64_t>("block_size", 0),
-                                   node);
+    return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), 0, node);
 }
-ONNX_OP("QuantizeLinear", OPSET_SINCE(13), ai_onnx::opset_13::quantize_linear);
+ONNX_OP("QuantizeLinear", OPSET_RANGE(13, 19), ai_onnx::opset_13::quantize_linear);
 }  // namespace opset_13
+
+namespace opset_21 {
+ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
+    const ov::OutputVector inputs{node.get_ov_inputs()};
+
+    FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
+                            "The QuantizeLinear op expects 2 required and one optional "
+                            "input. Got: ",
+                            inputs.size());
+
+    const auto& x = inputs[0];
+    const auto& scale = inputs[1];
+    const auto zero_point = ai_onnx::detail::get_zero_point(inputs);
+
+    if (detail::is_per_tensor_quantization(scale, zero_point)) {
+        return ai_onnx::opset_1::quantize_linear(node);
+    }
+    return opset_13::detail::quantize_linear(x,
+                                             scale,
+                                             zero_point,
+                                             node.get_attribute_value<int64_t>("axis", 1),
+                                             node.get_attribute_value<int64_t>("block_size", 0),
+                                             node);
+    ONNX_OP("QuantizeLinear", OPSET_SINCE(21), ai_onnx::opset_21::quantize_linear);
+}
+}  // namespace opset_21
 }  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
