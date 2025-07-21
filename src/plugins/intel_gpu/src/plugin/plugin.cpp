@@ -157,17 +157,6 @@ std::shared_ptr<ov::Model> Plugin::clone_and_transform_model(const std::shared_p
         ov::pass::VisualizeTree(path_base + ".svg").run_on_model(cloned_model);
     }
 
-    ov::CacheMode cache_mode = config.get_cache_mode();
-
-    // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
-    // This is a temporary solution. A common way of handling weightless caching will be defined later.
-    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
-        const std::string& weights_path = config.get_weights_path();
-
-        if (!ov::util::validate_weights_path(weights_path) && !is_weightless_cache_attributes_set(cloned_model))
-            set_weightless_cache_attributes(cloned_model);
-    }
-
     transform_model(cloned_model, config_copy, context);
 
     // Transformations for some reason may drop output tensor names, so here we copy those from the original model
@@ -236,6 +225,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
 
+    ov::CacheMode cache_mode = config.get_cache_mode();
+
+    // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
+    // This is a temporary solution. A common way of handling weightless caching will be defined later.
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE && !is_weightless_cache_attributes_set(model)) {
+        set_weightless_cache_attributes(model);
+    }
+
     auto transformed_model = clone_and_transform_model(model, config, context);
 
     config.finalize(context.get(), transformed_model.get());
@@ -257,6 +254,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     ExecutionConfig config = m_configs_map.at(device_id);
     config.set_user_property(orig_config, OptionVisibility::RELEASE);
+
+    ov::CacheMode cache_mode = config.get_cache_mode();
+
+    // Set weighless cache attribute only for non IR (e.g. onnxruntime) models
+    // This is a temporary solution. A common way of handling weightless caching will be defined later.
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE && !is_weightless_cache_attributes_set(model)) {
+        set_weightless_cache_attributes(model);
+    }
 
     auto transformed_model = clone_and_transform_model(model, config, context_impl);
 
