@@ -40,7 +40,7 @@ public:
 
     typed_primitive_inst(network& network, const vl_sdpa_node& node);
 
-    static std::vector<int32_t> get_mask_seqlens_from_memory(memory::ptr mem, stream& stream);
+    void get_mask_seqlens_from_memory(std::vector<int32_t>& cu_seqlens) const;
 
     memory::ptr cu_seqlens_memory_ptr() const { return dep_memory_ptr(3); }
 };

@@ -11,8 +11,6 @@
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
 
-#include "include/primitive_inst.h"
-
 namespace micro {
 struct MicroKernelPackage;
 }  // namespace micro

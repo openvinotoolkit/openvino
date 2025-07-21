@@ -5,6 +5,7 @@
 #include "vl_sdpa_inst.h"
 #include "primitive_type_base.h"
 #include "json_object.h"
+#include "intel_gpu/runtime/utils.hpp"
 
 namespace cldnn {
 GPU_DEFINE_PRIMITIVE_TYPE_ID(vl_sdpa);
@@ -29,16 +30,19 @@ std::string vl_sdpa_inst::to_string(const vl_sdpa_node& node) {
 
 vl_sdpa_inst::typed_primitive_inst(network& network, const vl_sdpa_node& node) : parent(network, node) {}
 
-std::vector<int32_t> vl_sdpa_inst::get_mask_seqlens_from_memory(memory::ptr cu_seqlens_mem, stream& stream) {
-    // TODO: wait for attention_mask_seqlen input only
+void vl_sdpa_inst::get_mask_seqlens_from_memory(std::vector<int32_t>& cu_seqlens) const {
+    cldnn::stream& stream = get_network().get_stream();
     stream.finish();
 
-    std::vector<int32_t> buf(cu_seqlens_mem->count());
-    cu_seqlens_mem->copy_to(stream, buf.data(), 0, 0, buf.size() * sizeof(int32_t), true);
+    const auto cu_seqlens_mem = cu_seqlens_memory_ptr();
 
-    GPU_DEBUG_TRACE_DETAIL << " get_mask_seqlens_from_memory " << cu_seqlens_mem->buffer_ptr() << std::endl;
+    auto size = cu_seqlens_mem->count();
+    OPENVINO_ASSERT(cu_seqlens_mem->get_layout().data_type == ov::element::i32 && size > 0);
 
-    return buf;
+    cu_seqlens.resize(size);
+    cu_seqlens_mem->copy_to(stream, cu_seqlens.data(), 0, 0, size * sizeof(int32_t), true);
+
+    GPU_DEBUG_TRACE_DETAIL << " get_mask_seqlens_from_memory " << cu_seqlens << std::endl;
 }
 
 }  // namespace cldnn

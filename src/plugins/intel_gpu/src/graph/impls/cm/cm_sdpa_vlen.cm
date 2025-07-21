@@ -97,9 +97,6 @@ _GENX_MAIN_ void KERNEL_NAME(
         if (q_start + q_len > seq_end) {
             q_len = seq_end - q_start;
         }
-
-        //printf("wg:%d.%d  q: %d, +%d   kv: %d, +%d\n", wg_id, wg_local_id, q_start, q_len, kv_start, kv_seq_len);
-
     } else {
         q_start = cu_seqlens[wg_id] + wg_local_id * q_step;
         q_len = q_step;

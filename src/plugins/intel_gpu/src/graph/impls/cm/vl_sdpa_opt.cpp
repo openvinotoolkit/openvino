@@ -105,7 +105,7 @@ protected:
             const auto query_shape = transpose_pshape(params.get_input_layout(0).get_shape(), desc->input_q_transpose_order);
             const size_t num_q_heads = query_shape[query_shape.size() - 3];  // TODO: make it to be configuration of primitive_inst
 
-            const auto& vlsdpa_rt_params = reinterpret_cast<VLSDPARuntimeParams&>(*rt_params);
+            const auto& vlsdpa_rt_params = static_cast<VLSDPARuntimeParams&>(*rt_params);
             const auto& cu_seqlens = vlsdpa_rt_params.cu_seqlens;
 
             size_t max_seq_len = 0;
@@ -179,9 +179,15 @@ public:
         update_stages_flags(instance);
 
         auto rt_params = static_cast<VLSDPARuntimeParams*>(m_rt_params.get());
-        cldnn::stream& stream = instance.get_network().get_stream();
-        const auto& vlsdpa_instance = dynamic_cast<const typed_primitive_inst<cldnn::vl_sdpa>&>(instance);
-        rt_params->cu_seqlens = std::move(vl_sdpa_inst::get_mask_seqlens_from_memory(vlsdpa_instance.cu_seqlens_memory_ptr(), stream));
+        auto& vlsdpa_instance = dynamic_cast<const typed_primitive_inst<cldnn::vl_sdpa>&>(instance);
+        vlsdpa_instance.get_mask_seqlens_from_memory(rt_params->cu_seqlens);
+    }
+
+    cldnn::event::ptr execute(const std::vector<cldnn::event::ptr>& events, cldnn::primitive_inst& instance) override {
+        if (m_rt_params == nullptr) {
+            m_rt_params = std::make_unique<VLSDPARuntimeParams>();
+        }
+        return PrimitiveImplCM::execute(events, instance);
     }
 };
 
