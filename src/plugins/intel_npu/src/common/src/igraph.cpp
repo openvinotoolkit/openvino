@@ -157,6 +157,11 @@ std::optional<size_t> IGraph::determine_batch_size(const NetworkMetadata& metada
         return std::nullopt;  // Return std::nullopt if the shape is empty
     }
 
+    if (!metadata.inputs.at(0).shapeFromIRModel.has_value()) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
     // A first dimensionin shape  may be appeared 'C' as well.
     // We need to get batch Idx and determine a true batch value here.
     // Let's use input_output_info as a helper.
