@@ -1087,9 +1087,9 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     std::vector<std::shared_ptr<Node>> inputs = {pattern::any_input(), pattern::any_input()};
 
     // Broadcast pattern
-    auto const_broadcast_axes = 
+    auto const_broadcast_axes =
         pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::u8) && pattern::value_matches("{0}"));
-    auto broadcast = 
+    auto broadcast =
         pattern::wrap_type<op::v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
 
     // Multiply pattern (expand broadcast)
