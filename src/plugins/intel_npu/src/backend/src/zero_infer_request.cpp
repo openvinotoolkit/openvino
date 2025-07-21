@@ -21,6 +21,8 @@ constexpr std::size_t SINGLE_TENSOR = 0;
 constexpr bool INPUT = true;
 constexpr bool OUTPUT = false;
 
+constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
+
 /**
  * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
  * structure.
@@ -219,7 +221,7 @@ void ZeroInferRequest::create_pipeline() {
                                            _graph,
                                            _levelZeroInputTensors,
                                            _levelZeroOutputTensors,
-                                           batchSize.has_value() ? batchSize.value() : 1);
+                                           batchSize.has_value() ? batchSize.value() : DEFAULT_BATCH_SIZE);
 
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
@@ -344,7 +346,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             get_user_inputs(foundPort.idx).resize(1);
             get_user_inputs(foundPort.idx).shrink_to_fit();
 
-            _graph->set_batch_size(batchSizeCandidate.has_value() ? batchSizeCandidate.value() : 1);
+            _graph->set_batch_size(batchSizeCandidate.has_value() ? batchSizeCandidate.value() : DEFAULT_BATCH_SIZE);
         }
 
         get_user_input(foundPort.idx) = tensor;
@@ -535,7 +537,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     if (!isInput && _pipelineNeedsReallocation) {
         _logger.debug(
             "ZeroInferRequest::get_tensor - set new output tensor as pipeline reallocated required, batch size: %zu",
-            batch_size.has_value() ? batch_size.value() : 0);
+            batch_size.has_value() ? batch_size.value() : DEFAULT_BATCH_SIZE);
         userTensors = levelZeroTensors;
     }
 

@@ -165,8 +165,8 @@ std::optional<size_t> IGraph::determine_batch_size(const NetworkMetadata& metada
     // A first dimensionin shape  may be appeared 'C' as well.
     // We need to get batch Idx and determine a true batch value here.
     // Let's use input_output_info as a helper.
-    const ov::PartialShape& first_partial_shape = *metadata.inputs.at(0).shapeFromIRModel;
-    auto candidateBatchSizeIfExist = input_output_info.extract_batch(first_shape, first_partial_shape);
+    const ov::PartialShape& firstPartialShape = *metadata.inputs.at(0).shapeFromIRModel;
+    auto candidateBatchSizeIfExist = input_output_info.extract_batch(first_shape, firstPartialShape);
     if (!candidateBatchSizeIfExist.has_value()) {
         return std::nullopt;  // Return std::nullopt if there is no batch dimension
     }
