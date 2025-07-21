@@ -46,7 +46,7 @@
 
 namespace ov::intel_cpu {
 
-EltwiseStateFulExecutor::EltwiseStateFulExecutor(EltwiseAttrs attrs,
+EltwiseStatefulExecutor::EltwiseStatefulExecutor(EltwiseAttrs attrs,
                                                  const MemoryArgs& memory,
                                                  ExecutorContext::CPtr context)
     : m_attrs(std::move(attrs)),
@@ -73,6 +73,8 @@ EltwiseStateFulExecutor::EltwiseStateFulExecutor(EltwiseAttrs attrs,
         eltwiseImplType = EltwiseImplType::optimizedShapeAgnostic;
     } else if (canUseOptimizedImpl) {
         eltwiseImplType = EltwiseImplType::optimized;
+    } else {
+        eltwiseImplType = EltwiseImplType::reference;
     }
 
     size_t inputNum = memory.size() - 1;  // -1 for output
@@ -144,7 +146,7 @@ EltwiseStateFulExecutor::EltwiseStateFulExecutor(EltwiseAttrs attrs,
     }
 }
 
-std::vector<VectorDims> EltwiseStateFulExecutor::updateInputBlockDims(const MemoryArgs& memory) {
+std::vector<VectorDims> EltwiseStatefulExecutor::updateInputBlockDims(const MemoryArgs& memory) {
     std::vector<VectorDims> dims_in;
     auto outBlockingDesc = memory.at(ARG_DST)->getDescWithType<BlockedMemoryDesc>();
     const auto& outOrder = outBlockingDesc->getOrder();
@@ -199,7 +201,7 @@ std::vector<VectorDims> EltwiseStateFulExecutor::updateInputBlockDims(const Memo
 // we can skip searching in the cache if broadcast policy for last input dims is not changed
 // last input dim == 1 means broadcasted (also if output dim == 1)
 // last input dim != 1 means not broadcasted
-bool EltwiseStateFulExecutor::canReuseCurrentExecutor(const std::vector<VectorDims>& dims_in) {
+bool EltwiseStatefulExecutor::canReuseCurrentExecutor(const std::vector<VectorDims>& dims_in) {
     if (eltwiseImplType != EltwiseImplType::optimizedShapeAgnostic) {
         return false;
     }
@@ -226,7 +228,7 @@ bool EltwiseStateFulExecutor::canReuseCurrentExecutor(const std::vector<VectorDi
     return canSkipSearchInCache;
 }
 
-void EltwiseStateFulExecutor::updateExecutionParams(const std::vector<VectorDims>& inDims,
+void EltwiseStatefulExecutor::updateExecutionParams(const std::vector<VectorDims>& inDims,
                                                     const VectorDims& currentOutBlkDims) {
     auto& outDims = m_execParams.outDims;
     auto& inOffsets = m_execParams.inOffsets;
@@ -272,7 +274,7 @@ void EltwiseStateFulExecutor::updateExecutionParams(const std::vector<VectorDims
     }
 }
 
-bool EltwiseStateFulExecutor::update(const MemoryArgs& memory) {
+bool EltwiseStatefulExecutor::update(const MemoryArgs& memory) {
     const std::vector<VectorDims> inDims = updateInputBlockDims(memory);
 
     const auto& currentOutBlkDims = memory.at(ARG_DST)->getDescWithType<BlockedMemoryDesc>()->getBlockDims();
@@ -301,7 +303,7 @@ bool EltwiseStateFulExecutor::update(const MemoryArgs& memory) {
     return true;
 }
 
-void EltwiseStateFulExecutor::execute(const MemoryArgs& memory) {
+void EltwiseStatefulExecutor::execute(const MemoryArgs& memory) {
     // Convert MemoryArgs to jit_eltwise_call_args_ptrs
     jit_eltwise_call_args_ptrs args_ptrs = {};
 
@@ -329,7 +331,7 @@ void EltwiseStateFulExecutor::execute(const MemoryArgs& memory) {
     m_executor->exec(args_ptrs, outDims);
 }
 
-impl_desc_type EltwiseStateFulExecutor::implType() const {
+impl_desc_type EltwiseStatefulExecutor::implType() const {
     if (eltwiseImplType == EltwiseImplType::reference) {
         return impl_desc_type::ref;
     }

@@ -203,11 +203,11 @@ std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor:
                 return false;  // type mismatch
             }
 
-            if (desc->getShape().getRank() > 2 && !desc->hasLayoutType(layoutConfig[i])) {
-                return false;  // layout mismatch
+            if (desc->getShape().getRank() == 1) {
+                return true;  // rank 1 tensors are always ncsp
             }
 
-            return true;
+            return desc->hasLayoutType(layoutConfig[i]);
         });
     };
 

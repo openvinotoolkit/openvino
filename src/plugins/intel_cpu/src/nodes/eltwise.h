@@ -75,6 +75,10 @@ public:
         return m_attrs.shifts;
     }
 
+    const EltwiseAttrs& attrs() const {
+        return m_attrs;
+    }
+
     dnnl::algorithm getOneDnnAlgorithm() const {
         return m_attrs.data.onednnAlgorithm;
     }

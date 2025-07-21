@@ -374,10 +374,6 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                                   const size_t rank,
                                   [[maybe_unused]] const std::vector<ov::element::Type>& input_precisions,
                                   [[maybe_unused]] const std::vector<ov::element::Type>& output_precisions) {
-    // // print input_precisions:
-    // std::cout << input_precisions << "\n";
-    // std::cout << output_precisions << "\n";
-
 #if defined(OPENVINO_ARCH_X86_64)
     const auto isISASupportedByJIT = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41);
 #elif defined(OPENVINO_ARCH_ARM64)
@@ -401,7 +397,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseLeftShift,
                Algorithm::EltwiseBitwiseRightShift)) {
-        return false;
+        return false;  // NOLINT(readability-simplify-boolean-expr) since no further checks on x64 are required
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -447,12 +443,18 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     if (!one_of(algorithm,
                 Algorithm::EltwiseAbs,
                 Algorithm::EltwiseAdd,
-                Algorithm::EltwiseLogicalAnd,
                 Algorithm::EltwiseClamp,
                 Algorithm::EltwiseDivide,
+                Algorithm::EltwiseElu,
+                Algorithm::EltwiseErf,
                 Algorithm::EltwiseExp,
                 Algorithm::EltwiseFloor,
+                Algorithm::EltwiseEqual,
                 Algorithm::EltwiseGreaterEqual,
+                Algorithm::EltwiseLessEqual,
+                Algorithm::EltwiseLogicalAnd,
+                Algorithm::EltwiseLogicalNot,
+                Algorithm::EltwiseLogicalXor,
                 Algorithm::EltwiseMaximum,
                 Algorithm::EltwiseMinimum,
                 Algorithm::EltwiseMod,
@@ -479,23 +481,19 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto check_precisions = [&](const std::vector<ov::element::Type>& input_precisions,
                                       const std::vector<ov::element::Type>& output_precisions) {
-        if (std::any_of(input_precisions.begin(),
-                        input_precisions.end(),
-                        [&supported_input_precisions](const ov::element::Type& precision) {
-                            return !contains(supported_input_precisions, precision);
-                        })) {
+        if (!std::all_of(input_precisions.begin(),
+                         input_precisions.end(),
+                         [&supported_input_precisions](const ov::element::Type& precision) {
+                             return contains(supported_input_precisions, precision);
+                         })) {
             return false;
         }
 
-        if (std::any_of(output_precisions.begin(),
-                        output_precisions.end(),
-                        [&supported_output_precisions](const ov::element::Type& precision) {
-                            return !contains(supported_output_precisions, precision);
-                        })) {
-            return false;
-        }
-
-        return true;
+        return std::all_of(output_precisions.begin(),
+                           output_precisions.end(),
+                           [&supported_output_precisions](const ov::element::Type& precision) {
+                               return contains(supported_output_precisions, precision);
+                           });
     };
 
     return check_precisions(input_precisions, output_precisions);
@@ -554,7 +552,7 @@ impl_desc_type EltwiseJitExecutor::implType() const {
         return impl_desc_type::jit_sse42;
     }
 #endif
-    return impl_desc_type::ref;
+    OPENVINO_THROW("Unsupported architecture for Eltwise JIT executor");
 }
 
 std::shared_ptr<EltwiseJitExecutor> EltwiseJitExecutor::create(const MemoryArgs& memory,
