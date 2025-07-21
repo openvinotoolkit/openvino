@@ -669,8 +669,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
 
     auto npu_plugin_properties = properties;
     // NPUW properties from npu_plugin_properties will be erased if import_model_npuw returns nullptr
-    std::shared_ptr<ov::ICompiledModel> compiledModel =
-        import_model_npuw(stream, npu_plugin_properties, shared_from_this());
+    auto compiledModel = import_model_npuw(stream, npu_plugin_properties, shared_from_this());
     if (compiledModel) {
         return compiledModel;
     }
@@ -695,14 +694,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }
         stream.read(tensor.data<char>(), static_cast<std::streamsize>(blobSize));
-        compiledModel = parse(tensor, std::move(metadata), /* blobAllocatedByPlugin = */ true, npu_plugin_properties);
+        return parse(tensor, std::move(metadata), /* blobAllocatedByPlugin = */ true, npu_plugin_properties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
         OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
     }
-
-    return compiledModel;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,
@@ -720,13 +717,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
                                                          const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::import_model");
 
+    // Need to create intermediate istream for NPUW
     ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
     std::istream stream{&buffer};
 
     auto npu_plugin_properties = properties;
     // NPUW properties from npu_plugin_properties will be erased if import_model_npuw returns nullptr
-    std::shared_ptr<ov::ICompiledModel> compiledModel =
-        import_model_npuw(stream, npu_plugin_properties, shared_from_this());
+    auto compiledModel = import_model_npuw(stream, npu_plugin_properties, shared_from_this());
     if (compiledModel) {
         return compiledModel;
     }
@@ -747,15 +744,12 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compi
         const ov::Tensor roiTensor(compiled_blob,
                                    ov::Coordinate{0},
                                    ov::Coordinate{blobSize});  // ROI tensor to skip NPU plugin metadata
-        compiledModel =
-            parse(roiTensor, std::move(metadata), /* blobAllocatedByPlugin = */ false, npu_plugin_properties);
+        return parse(roiTensor, std::move(metadata), /* blobAllocatedByPlugin = */ false, npu_plugin_properties);
     } catch (const std::exception& ex) {
         OPENVINO_THROW("Can't import network: ", ex.what());
     } catch (...) {
         OPENVINO_THROW("NPU import_model got unexpected exception from CompiledModel");
     }
-
-    return compiledModel;
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& compiled_blob,
