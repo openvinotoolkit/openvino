@@ -37,7 +37,7 @@ namespace cldnn::ocl::utils {
 std::vector<cl::Event> get_cl_events(const std::vector<event::ptr>& events) {
     std::vector<cl::Event> cl_events;
     for (const auto& ev : events) {
-        if (auto ocl_base_ev = downcast<ocl_base_event>(ev.get())) {
+        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get())) {
             if (ocl_base_ev->get().get() != nullptr) {
                 cl_events.push_back(ocl_base_ev->get());
             }
