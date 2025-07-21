@@ -2044,11 +2044,7 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
                 auto outputShape = getOutputShapeAtPort(0);
                 auto avoidReorder = [](const auto& inputDataShape, const auto& outputShape) {
                     auto lastInDim = inputDataShape.getDims().back();
-                    // When the lowest dimension of the operator does not change,
-                    // we can avoid reordering the input data.
-                    if (lastInDim == 1) {
-                        return true;
-                    }
+
                     // Dynamic shape
                     if (lastInDim == Shape::UNDEFINED_DIM) {
                         return false;
@@ -2531,6 +2527,13 @@ void Interpolate::prepareParams() {
         for (size_t i = 0; i < dimsNum; ++i) {
             *rbegin = ncdhwMaxIndex - i;
             rbegin++;
+        }
+        if (scales.size() == 4 && dimsNum == 3) {
+            // Has insert reorder and need to change the shape
+            // DHW -> HWD
+            convertMap[1] = 4;
+            convertMap[2] = 2;
+            convertMap[3] = 3;
         }
         return convertMap;
     };
