@@ -66,6 +66,7 @@ void jit_gemm_emitter::validate_arguments(const std::vector<size_t>& in, const s
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 2, "Expects 2 input regs, got", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == 3, "Expected 3 memory offsets for A, B, C");
+    OV_CPU_JIT_EMITTER_ASSERT(m_buffer_ids.size() == 3, "Expected 3 buffer IDs for A, B, C");
 }
 
 void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -104,9 +105,12 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     }
 
     // Load back the adjusted pointers for function call
+    h->ldr(x1, Xbyak_aarch64::ptr(h->sp));                        // matrix A (in0)
+    h->ldr(x2, Xbyak_aarch64::ptr(h->sp, get_vec_length()));      // matrix B (in1)
     h->ldr(x3, Xbyak_aarch64::ptr(h->sp, 2 * get_vec_length()));  // matrix C (out)
-    h->ldr(x2, Xbyak_aarch64::ptr(h->sp, 1 * get_vec_length()));  // matrix B (in1)
-    h->ldr(x1, Xbyak_aarch64::ptr(h->sp, 0 * get_vec_length()));  // matrix A (in0)
+
+    // Restore stack pointer
+    h->add(h->sp, h->sp, 3 * get_vec_length());
 
     // Set up executor pointer as first argument
     const auto& compiled_kernel = get_compiled_kernel_ptr();
@@ -115,9 +119,6 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     Xbyak_aarch64::XReg func_reg(9);
     h->mov(func_reg, get_execute_function_ptr());
     h->blr(func_reg);
-
-    // Restore stack pointer
-    h->add(h->sp, h->sp, 3 * get_vec_length());
 
     restore_context(exclude);
 }

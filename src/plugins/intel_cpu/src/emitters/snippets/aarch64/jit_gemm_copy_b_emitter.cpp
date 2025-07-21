@@ -74,6 +74,7 @@ void jit_gemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in, 
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "Expects 1 input reg, got", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
     OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == 2, "Expected 2 memory offsets for input and output");
+    OV_CPU_JIT_EMITTER_ASSERT(m_buffer_ids.size() == 2, "Expected 2 buffer IDs for input and output");
 }
 
 void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -111,8 +112,11 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     }
 
     // Load back the adjusted pointers for function call
-    h->ldr(x2, Xbyak_aarch64::ptr(h->sp, 1 * get_vec_length()));  // output pointer
-    h->ldr(x1, Xbyak_aarch64::ptr(h->sp, 0 * get_vec_length()));  // input pointer
+    h->ldr(x1, Xbyak_aarch64::ptr(h->sp));                    // input pointer
+    h->ldr(x2, Xbyak_aarch64::ptr(h->sp, get_vec_length()));  // output pointer
+
+    // Restore stack pointer
+    h->add(h->sp, h->sp, 2 * get_vec_length());
 
     // Set up executor pointer as first argument
     const auto& compiled_kernel = get_compiled_kernel_ptr();
@@ -121,9 +125,6 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     Xbyak_aarch64::XReg func_reg(9);
     h->mov(func_reg, get_execute_function_ptr());
     h->blr(func_reg);
-
-    // Restore stack pointer
-    h->add(h->sp, h->sp, 2 * get_vec_length());
 
     restore_context(exclude);
 }
