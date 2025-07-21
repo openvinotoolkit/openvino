@@ -7,11 +7,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image to use for the job'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
 
 permissions: read-all
 
@@ -20,14 +20,18 @@ jobs:
     name: OpenVINO JS API
     timeout-minutes: 10
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     defaults:
       run:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      OPENVINO_JS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node
-      OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
+      OPENVINO_JS_DIR: ${{ github.workspace }}/src/bindings/js/node
+      OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/src/bindings/js/node/bin
       NODE_VERSION: 21
       DISPLAY: ':99'
     steps:
@@ -37,17 +41,10 @@ jobs:
         with:
           sparse-checkout: |
             src/bindings/js
-          path: 'openvino'
       
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "OPENVINO_JS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node" >> "$GITHUB_ENV"
-          echo "OPENVINO_JS_LIBS_DIR=$GITHUB_WORKSPACE/openvino/src/bindings/js/node/bin" >> "$GITHUB_ENV"
 
       - name: Download OpenVINO artifacts (JS)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -57,7 +54,7 @@ jobs:
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_js_package.tar.gz | tar -xf - -C ${OPENVINO_JS_LIBS_DIR}
+        run: pigz -dc openvino_js_package.tar.gz | tar -xf - -v
         working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}

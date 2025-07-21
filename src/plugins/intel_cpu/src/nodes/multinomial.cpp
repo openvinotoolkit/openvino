@@ -80,7 +80,7 @@ void Multinomial::getSupportedDescriptors() {
         THROW_CPU_NODE_ERR("has incorrect number of input edges.");
     }
     if (getChildEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        CPU_NODE_THROW("has incorrect number of output edges.");
     }
 }
 
@@ -126,15 +126,13 @@ void Multinomial::prepareParams() {
     const auto& num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
 
     if (probs_shape.size() != 2) {
-        THROW_CPU_NODE_ERR("has incompatible 'probs' shape ",
-                           PartialShape(probs_shape),
-                           ". Only 2D tensors are allowed.");
+        CPU_NODE_THROW("has incompatible 'probs' shape ", PartialShape(probs_shape), ". Only 2D tensors are allowed.");
     }
 
     if (num_samples_shape.size() != 1) {
-        THROW_CPU_NODE_ERR("has incompatible 'num_samples' shape ",
-                           PartialShape(num_samples_shape),
-                           ". Only scalar and 1D single element tensors are allowed.");
+        CPU_NODE_THROW("has incompatible 'num_samples' shape ",
+                       PartialShape(num_samples_shape),
+                       ". Only scalar and 1D single element tensors are allowed.");
     }
 
     if (m_num_samples_precision == ov::element::i32) {
@@ -198,7 +196,7 @@ void Multinomial::execute([[maybe_unused]] const dnnl::stream& strm) {
         break;
     }
     default:
-        THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
+        CPU_NODE_THROW("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
     }
 }
 
@@ -212,7 +210,7 @@ void Multinomial::execute_probs_type() {
     case ov::element::i32:
         return execute_convert_type<P, int32_t>();
     default:
-        THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support output convert type: ", m_output_precision);
+        CPU_NODE_THROW("Multinomial CPU implementation does not support output convert type: ", m_output_precision);
     }
 }
 
