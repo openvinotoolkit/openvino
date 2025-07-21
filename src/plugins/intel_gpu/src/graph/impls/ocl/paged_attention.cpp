@@ -741,6 +741,12 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         if (data_type_traits::is_i8_u8(impl_param.get_input_layout(PagedAttentionInputIdx::KEY_CACHE).data_type)) {
             config.is_kv_compressed = true;
             config.is_key_by_channel = impl_param.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+            if (desc->has_rotated_blocks && config.is_key_by_channel) {
+                config.is_key_by_channel = false;
+                // CVS-170994
+                GPU_DEBUG_COUT << "[Warning] Currently, rotated blocks are not supported by BY_CHANNEL quant mode. Switching to BY_TOKEN quant mode."
+                               << std::endl;
+            }
             config.use_asymmetric_quantization = true;
         }
 
@@ -789,7 +795,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                                                                              const kernel_selector::MultiDataTensor& input_tensors,
                                                                              bool is_dynamic = false) {
         auto params = get_default_params<kv_cache_update_kernel_params_t>(impl_param, is_dynamic);
-
+        const auto& desc = impl_param.typed_desc<paged_attention>();
         const auto& key_tensor = input_tensors[PagedAttentionInputIdx::KEY];
         const auto& value_tensor = input_tensors[PagedAttentionInputIdx::VALUE];
         const auto& key_cache_tensor = input_tensors[PagedAttentionInputIdx::KEY_CACHE];
@@ -812,6 +818,11 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.outputs[0] = key_cache_tensor;
         params.outputs[1] = value_cache_tensor;
         params.is_key_by_channel = impl_param.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+        if (desc->has_rotated_blocks && params.is_key_by_channel) {
+            // CVS-170994
+            GPU_DEBUG_COUT << "[Warning] Currently, rotated blocks are not supported by BY_CHANNEL quant mode. Switching to BY_TOKEN quant mode." << std::endl;
+            params.is_key_by_channel = false;
+        }
         const auto pa_block_size = static_cast<int32_t>(paged_attention::block_size);
         if (params.is_key_by_channel)
             params.key_group_size = pa_block_size;
