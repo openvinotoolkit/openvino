@@ -16,9 +16,7 @@ namespace zeroMemory {
 void* HostMemAllocator::allocate(const size_t bytes, const size_t /*alignment*/) noexcept {
     size_t size = bytes + _alignment - (bytes % _alignment);
 
-    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC,
-                                     nullptr,
-                                     static_cast<ze_host_mem_alloc_flags_t>(_flag)};
+    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, _flag};
     void* data = nullptr;
     auto result = zeMemAllocHost(_initStructs->getContext(), &desc, size, _alignment, &data);
 
@@ -56,9 +54,7 @@ void* HostMemSharedAllocator::allocate(const size_t /*bytes*/, const size_t /*al
 
     void* data = nullptr;
 
-    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC,
-                                     &memory_import,
-                                     static_cast<ze_host_mem_alloc_flags_t>(_flag)};
+    ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_DEVICE_MEM_ALLOC_DESC, &memory_import, _flag};
     auto result = zeMemAllocHost(_initStructs->getContext(), &desc, _tensor->get_byte_size(), _alignment, &data);
 
     if (result == ZE_RESULT_SUCCESS) {

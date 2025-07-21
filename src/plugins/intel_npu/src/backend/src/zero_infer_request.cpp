@@ -269,7 +269,10 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         if (_externalMemoryStandardAllocationSupported &&
             memory_and_size_aligned_to_standard_page_size(tensor->data(), tensor->get_byte_size())) {
             _logger.debug("ZeroInferRequest::set_tensor_data - import memory from a system memory pointer");
-            auto hostMemSharedAllocator = zeroMemory::HostMemSharedAllocator(_initStructs, tensor);
+            auto hostMemSharedAllocator =
+                zeroMemory::HostMemSharedAllocator(_initStructs,
+                                                   tensor,
+                                                   isInput ? ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED : 0);
             levelZeroTensors = std::make_shared<ZeroTensor>(_initStructs,
                                                             _config,
                                                             tensor->get_element_type(),

@@ -21,8 +21,7 @@ namespace zeroMemory {
 // Create an allocator that uses the ov::Allocator signature that will be used to create the tensor.
 class HostMemAllocator {
 public:
-    explicit HostMemAllocator(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
-                              ze_host_mem_alloc_flag_t flag = {})
+    explicit HostMemAllocator(const std::shared_ptr<ZeroInitStructsHolder>& initStructs, uint32_t flag = 0)
         : _initStructs(initStructs),
           _logger("HostMemAllocator", Logger::global().level()),
           _flag(flag) {}
@@ -50,7 +49,7 @@ protected:
 
     Logger _logger;
 
-    ze_host_mem_alloc_flag_t _flag;
+    uint32_t _flag;
     static const std::size_t _alignment = utils::STANDARD_PAGE_SIZE;
 };
 
@@ -58,7 +57,7 @@ class HostMemSharedAllocator final : public HostMemAllocator {
 public:
     explicit HostMemSharedAllocator(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                     const std::shared_ptr<ov::ITensor>& tensor,
-                                    ze_host_mem_alloc_flag_t flag = {})
+                                    uint32_t flag = 0)
         : HostMemAllocator(initStructs, flag),
           _tensor(tensor) {}
 
