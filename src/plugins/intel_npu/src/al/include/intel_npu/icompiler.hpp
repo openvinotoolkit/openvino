@@ -57,6 +57,38 @@ public:
     virtual NetworkDescription compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
+     * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
+     * the same scope.
+     * @return A "NetworkDescription" object for each init schedule, followed by another one corresponding to the main
+     * part.
+     */
+    virtual std::vector<std::shared_ptr<NetworkDescription>> compileWsOneShot(
+        const std::shared_ptr<ov::Model>& /*model*/,
+        const Config& /*config*/) const {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    /**
+     * @brief Sequential compilation of Init(s) and Main
+     *
+     * "Stateless compiler" approach
+     * We want to get multiple Inits in the case of a large number of weights.
+     * This allows us to build pipeline:
+     * Allocate W1 -> Init1
+     *             Allocate W2 -> Init2
+     *                          Allocate W3 -> Init2
+     *
+     * This is why there is an additional parameter callNumber:
+     * Compiler should somehow understand wich Init(or Main) to return
+     * Plugin does not know total numbers of Init schedules
+     */
+    virtual NetworkDescription compileWsIterative(const std::shared_ptr<ov::Model>& /*model*/,
+                                                  const Config& /*config*/,
+                                                  size_t /*callNumber*/) const {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
      * @param config A reference to NPUConfig containing plugin config options

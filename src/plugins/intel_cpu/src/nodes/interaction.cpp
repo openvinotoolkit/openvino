@@ -36,7 +36,7 @@
 #include "utils/debug_capabilities.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <common/utils.hpp>
 
@@ -52,22 +52,22 @@ namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
-struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator {
+struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_move_scale_kernel)
 
     explicit jit_move_scale_kernel(const jit_move_scale_compile_params& jcp)
         : jit_uni_move_scale_kernel(jcp),
-          jit_generator(jit_name()) {
+          jit_generator_t(jit_name()) {
         runtime_prc = jcp_.src_prc == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
         if (jcp_.dst_prc == ov::element::i8 || jcp_.dst_prc == ov::element::u8) {
             runtime_prc = ov::element::f32;
         }
-        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen / runtime_prc.size();
+        vec_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen / runtime_prc.size();
     }
     ~jit_move_scale_kernel() override = default;
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
@@ -367,7 +367,7 @@ void Interaction::prepareParams() {
         moveFeatureKernel->create_ker();
         moveInteractKernel->create_ker();
     } else {
-        THROW_CPU_NODE_ERR("cannot create jit eltwise kernel");
+        CPU_NODE_THROW("cannot create jit eltwise kernel");
     }
 #ifdef CPU_DEBUG_CAPS
     if (prim) {
