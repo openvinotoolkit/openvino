@@ -93,7 +93,6 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
     // Apply memory offsets to input/output pointers
-    // Reserve space on stack for input/output pointers
     h->sub(h->sp, h->sp, 2 * get_gpr_length());
 
     // Apply offsets and store pointers on stack
