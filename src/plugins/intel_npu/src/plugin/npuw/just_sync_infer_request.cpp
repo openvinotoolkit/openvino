@@ -864,7 +864,6 @@ void ov::npuw::JustInferRequest::unsafe_run_this_prep_next(std::size_t idx, bool
                 unsafe_during(real_idx, [&]() {
                     if (!next_prepared) {
                         bind_global_parameters(next_idx);
-                        // FIXME: fails here for AoT importd blob during infer
                         next_prepared = true;
                     }
                     if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
