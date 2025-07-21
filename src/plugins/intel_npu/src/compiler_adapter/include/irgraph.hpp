@@ -19,8 +19,8 @@ namespace intel_npu {
 class IRGraph final : public IGraph {
 public:
     struct MemRefType {
-        void *basePtr;
-        void *data;
+        const void *basePtr;
+        const void *data;
         int64_t offset;
         int64_t sizes[4];
         int64_t strides[4];
@@ -30,6 +30,7 @@ public:
             offset = 0;
         }
 
+        void setArg(const void* arg);
         void setSize(const intel_npu::IODescriptor& descriptor);
         void updateStride();
     };
@@ -37,6 +38,11 @@ public:
     struct GraphArguments {
         std::vector<MemRefType*> _inputs;
         std::vector<MemRefType*> _outputs;
+
+        GraphArguments() = default;
+        GraphArguments(const GraphArguments& args);
+        GraphArguments& operator=(const GraphArguments& args);
+        ~GraphArguments();
     };
 
     class Impl {
