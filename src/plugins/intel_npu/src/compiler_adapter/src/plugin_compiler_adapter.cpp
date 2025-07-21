@@ -117,7 +117,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkDesc.metadata),
                                    std::move(tensor),
-                                   /* blobAllocatedByPlugin = */ false,
                                    config,
                                    _compiler);
 }
@@ -237,7 +236,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             /* blobAllocatedByPlugin = */ false,
                                              mainGraphHandle,
                                              std::move(mainNetworkDescription->metadata),
                                              std::move(tensorMain),
@@ -251,7 +249,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     ov::Tensor& mainBlob,
-    const bool blobAllocatedByPlugin,
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
@@ -280,7 +277,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                        graphHandle,
                                        std::move(networkMeta),
                                        std::move(mainBlob),
-                                       blobAllocatedByPlugin,
                                        config,
                                        _compiler);
     }
@@ -306,7 +302,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     _logger.debug("init schedules parse end");
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             blobAllocatedByPlugin,
                                              graphHandle,
                                              std::move(networkMeta),
                                              std::move(mainBlob),

@@ -78,15 +78,12 @@ private:
      * will be one or multiple weights initialization schedules found there as well.
      *
      * @param tensorBig Contains the whole binary object.
-     * @param metadata Parsed metadata at the end of the blob. Can be nullptr if compatibility checks were disabled
-     * @param blobAllocatedByPlugin Indicates whether or not the compiled model has been provided to the plugin as a
-     * tensor object.
+     * @param metadata Parsed metadata at the end of the blob. Can be nullptr if compatibility checks were disabled.
      * @param properties Configuration taking the form of an "ov::AnyMap".
      * @return A compiled model
      */
     std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
                                               std::unique_ptr<MetadataBase> metadata,
-                                              const bool blobAllocatedByPlugin,
                                               const ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;

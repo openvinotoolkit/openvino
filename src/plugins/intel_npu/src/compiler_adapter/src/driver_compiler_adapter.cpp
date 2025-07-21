@@ -247,7 +247,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   /* blobAllocatedByPlugin = */ false,
                                    config);
 }
 
@@ -347,7 +346,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             /* blobAllocatedByPlugin = */ false,
                                              mainGraphHandle,
                                              std::move(mainNetworkMetadata),
                                              /* mainBlob = */ std::nullopt,
@@ -360,7 +358,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     ov::Tensor& mainBlob,
-    const bool blobAllocatedByPlugin,
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
@@ -380,7 +377,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        graphHandle,
                                        std::move(networkMeta),
                                        std::move(mainBlob),
-                                       blobAllocatedByPlugin,
                                        config);
     }
 
@@ -397,7 +393,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             blobAllocatedByPlugin,
                                              graphHandle,
                                              std::move(networkMeta),
                                              std::move(mainBlob),
