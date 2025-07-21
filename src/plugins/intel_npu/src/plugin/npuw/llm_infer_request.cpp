@@ -359,7 +359,7 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                                                kvcache_desc.num_stored_tokens - num_tokens,
                                                kvcache_desc.num_stored_tokens);
             auto src_tensor = request->get_tensor(out_ports.at(output_name));
-            copy_tensor_by_dim(src_tensor, dst_tensor, kv_dim);
+            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
         }
     }
     LOG_DEBUG("Done.");
