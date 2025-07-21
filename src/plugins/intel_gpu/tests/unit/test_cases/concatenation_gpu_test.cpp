@@ -1677,8 +1677,8 @@ TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     auto test_dt = data_types::f16;
     auto test_format = format::b_fs_yx_fsv16;
 
-    layout input0_layout = { test_dt, test_format, { input_b, input_f, input_y, input_x } };
-    layout input1_layout = { test_dt, test_format, { input_b, input_f, input_y, input_x } };
+    layout input0_layout = { test_dt, test_format, { input_b, input_f, input_x, input_y } };
+    layout input1_layout = { test_dt, test_format, { input_b, input_f, input_x, input_y } };
     auto input0 = engine.allocate_memory(input0_layout);
     auto input1 = engine.allocate_memory(input1_layout);
 
@@ -1692,7 +1692,7 @@ TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     set_values<test_data_type>(input1, data_input1_flat);
 
     auto output_name = "reorder";
-    layout reorder_layout = { test_dt, format::bfyx, { input_b, input_f * 2, input_y, input_x } };
+    layout reorder_layout = { test_dt, format::bfyx, { input_b, input_f * 2, input_x, input_y } };
 
     topology topology(
             input_layout("input0", input0_layout),
