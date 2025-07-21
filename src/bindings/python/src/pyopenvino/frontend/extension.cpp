@@ -15,7 +15,6 @@
 #include "openvino/frontend/extension/op.hpp"
 #include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
-#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;

@@ -13,7 +13,6 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
-#include "pyopenvino/core/common.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;

@@ -7,7 +7,6 @@
 #include <pybind11/functional.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
 
 #include <sstream>
 
@@ -15,8 +14,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "pyopenvino/core/common.hpp"
-#include "pyopenvino/graph/node_output.hpp"
-#include "pyopenvino/graph/op.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
