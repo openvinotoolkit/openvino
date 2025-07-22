@@ -27,7 +27,6 @@ using namespace dnnl::impl::cpu::aarch64;
 
 namespace ov::intel_cpu::aarch64::utils {
 
-
 Xbyak_aarch64::XReg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
     // SP - stack pointer should be preserved, X0 and X1 - runtime parameter registers in the kernel
     // X18 - platform register should not be used
@@ -74,16 +73,11 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generat
     // Load the runtime offset from abi_param1 (X0) and add it to the pointer
     Xbyak_aarch64::XReg abi_param1(0);
     Xbyak_aarch64::XReg offset_reg(4);
+    Xbyak_aarch64::XReg temp_reg(h->X_TMP_0);
 
-    // Handle large runtime offsets by using a temporary register
-    if (runtime_offset > 4095) {
-        Xbyak_aarch64::XReg temp_offset_reg(6);
-        h->mov(temp_offset_reg, static_cast<uint64_t>(runtime_offset));
-        h->add(temp_offset_reg, abi_param1, temp_offset_reg);
-        h->ldr(offset_reg, Xbyak_aarch64::ptr(temp_offset_reg));
-    } else {
-        h->ldr(offset_reg, Xbyak_aarch64::ptr(abi_param1, static_cast<int32_t>(runtime_offset)));
-    }
+    // Load the offset value from the runtime parameter location
+    h->add_imm(temp_reg, abi_param1, runtime_offset, Xbyak_aarch64::XReg(h->X_TMP_1));
+    h->ldr(offset_reg, Xbyak_aarch64::ptr(temp_reg));
 
     h->add(aux_reg, aux_reg, offset_reg);
 
@@ -102,17 +96,9 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generato
     }
 
     // For non-zero offsets, apply the offset and then store
-    Xbyak_aarch64::XReg temp_reg(4);
+    Xbyak_aarch64::XReg temp_reg(h->X_TMP_0);
     h->mov(temp_reg, ptr_reg);
-
-    // For large offsets, use a register to hold the offset value
-    if (ptr_offset > 4095) {  // 12-bit immediate limit for add instruction
-        Xbyak_aarch64::XReg offset_reg(6);
-        h->mov(offset_reg, static_cast<uint64_t>(ptr_offset));
-        h->add(temp_reg, temp_reg, offset_reg);
-    } else {
-        h->add(temp_reg, temp_reg, static_cast<int32_t>(ptr_offset));
-    }
+    h->add_imm(temp_reg, temp_reg, ptr_offset, Xbyak_aarch64::XReg(h->X_TMP_1));
 
     // Store the adjusted pointer on stack
     h->str(temp_reg, Xbyak_aarch64::ptr(h->sp, stack_offset));

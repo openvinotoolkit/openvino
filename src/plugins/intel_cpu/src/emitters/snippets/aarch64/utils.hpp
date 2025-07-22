@@ -61,6 +61,7 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generat
 
 /**
  * @brief Push data pointer on stack adding static offset `ptr_offset`
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
  * @param h generator
  * @param stack_offset stack offset
  * @param ptr_reg register contains data pointer
