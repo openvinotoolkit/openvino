@@ -84,7 +84,7 @@ uint8_t f32_to_f4e2m1_bits(float value) {
     const uint32_t bits = util::f32_to_u32_bits(value);
     const uint8_t f32_exp = (bits & f32_e_mask) >> f32_m_size;  // Extract exponent
     const uint32_t f32_mantissa = bits & f32_m_mask;            // 23 bits
-    const int32_t unbiased_exp = f32_exp - f32_e_bias + 1;
+    int32_t f4e2m1_exp = f32_exp - f32_e_bias + f4e2m1_e_bias;
 
     /*
         The f4e2m1 exponent mapping based on the unbiased exponent:
@@ -98,7 +98,12 @@ uint8_t f32_to_f4e2m1_bits(float value) {
 
         Clamp exponent to 2 bits (0-3) using bitwise min/max
     */
-    int8_t f4e2m1_exp = (unbiased_exp & ~(unbiased_exp >> 7)) & 0x3;
+    if (f4e2m1_exp < 0) {
+        f4e2m1_exp = 0;
+    }
+    if (f4e2m1_exp > f4e2m1_e_max) {
+        f4e2m1_exp = f4e2m1_e_max;
+    }
     f4e2m1_exp <<= f4e2m1_m_size;
 
     const auto abs_val = std::abs(value);
@@ -115,7 +120,7 @@ uint8_t f32_to_f4e2m1_bits(float value) {
 
     else if ((f32_exp == 127 || f32_exp == 128 || f32_exp == 129) && (f32_mantissa <= f32_m_round_even)) {
         // 1.0f <= abs_val <= 1.25f || 2.0f <= abs_val <= 2.5f || 4.0f <= abs_val <= 5.0f
-        return (f4_sign_bit | f4e2m1_exp) + 0;
+        return (f4_sign_bit | f4e2m1_exp);
     }
 
     else {
