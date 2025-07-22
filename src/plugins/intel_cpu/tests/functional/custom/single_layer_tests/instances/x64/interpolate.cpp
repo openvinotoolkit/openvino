@@ -308,8 +308,12 @@ const std::vector<ShapeParams> shapeParams4D_Smoke = {
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
         ov::test::utils::InputLayerType::PARAMETER,
         {{1.f, 1.f, 1.25f, 1.5f}, {1.f, 1.f, 1.25f, 1.25f}, {1.f, 1.f, 1.25f, 1.5f}},
-        defaultAxes4D.front()
-    },
+        defaultAxes4D.front()},
+    ShapeParams{ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
+                InputShape{{}, {{1, 128, 1, 1}}},
+                ov::test::utils::InputLayerType::CONSTANT,
+                {{1, 128, 64, 64}},
+                defaultAxes4D.front()},
     ShapeParams{
         ov::op::v11::Interpolate::ShapeCalcMode::SIZES,
         InputShape{{-1, {2, 20}, -1, -1}, {{1, 11, 4, 4}, {2, 7, 6, 5}, {1, 11, 4, 4}}},
