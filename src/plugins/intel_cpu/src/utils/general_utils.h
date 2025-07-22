@@ -59,6 +59,15 @@ constexpr bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
+template <typename T, typename... Ts>
+constexpr bool all_of_v = std::conjunction_v<std::is_same<T, Ts>...>;
+
+template <typename T, typename... Ts>
+constexpr bool any_of_v = std::disjunction_v<std::is_same<T, Ts>...>;
+
+template <typename T, typename... Ts>
+constexpr bool none_of_v = std::negation_v<std::disjunction<std::is_same<T, Ts>...>>;
+
 #ifdef __cpp_lib_make_unique
 using std::make_unique;
 #else

@@ -15,12 +15,12 @@ namespace ov::intel_cpu::hash {
 // Copyright 2005-2014 Daniel James.
 // Distributed under the Boost Software License, Version 1.0. (See accompanying
 // file LICENSE or copy at http://www.boost.org/LICENSE_1_0.txt)
-template <typename T, std::enable_if_t<!std::is_enum_v<T>, int> = 0>
+template <typename T, typename = std::enable_if_t<!std::is_enum_v<T>>>
 size_t combine(size_t seed, const T& v) {
     return seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
 }
 
-template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+template <typename T, typename = std::enable_if_t<std::is_enum_v<T>>>
 size_t combine(size_t seed, const T& v) {
     using underlying_t = std::underlying_type_t<T>;
     return combine(seed, static_cast<underlying_t>(v));
