@@ -1758,29 +1758,6 @@ inline VectorDims getBlockND(const VectorDims& shape) {
     }
     return blockND;
 }
-// w/hw/ncw/nchw/ncdhw to ncdhw
-inline VectorDims to5Dim(VectorDims casesDim) {
-    size_t caseSize = casesDim.size();
-    VectorDims dim5(5, 1LU);
-    dim5[4] = casesDim[caseSize - 1];
-    if (caseSize > 1) {
-        dim5[3] = casesDim[caseSize - 2];
-    }
-    if (caseSize > 2) {
-        dim5[0] = casesDim[0];
-    }
-    if (caseSize > 3) {
-        dim5[1] = casesDim[1];
-    }
-    if (caseSize > 4) {
-        dim5[2] = casesDim[2];
-    }
-    if (caseSize == 3) {  // nhw -> ncw
-        dim5[1] = dim5[3];
-        dim5[3] = 1LU;
-    }
-    return dim5;
-}
 
 template <typename T>
 T convertTo5D(const T& src, const std::vector<int>& dimMap, int initValue = 1) {
