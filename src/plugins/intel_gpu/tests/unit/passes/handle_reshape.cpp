@@ -290,10 +290,7 @@ public:
         auto reshape_layout_in = prog->get_node("reshape").get_input_layouts()[0];
         auto reshape_layout_out = prog->get_node("reshape").get_output_layout();
 
-        // At this moment transfomations insert reorder before reshape which
-        // converts tensor to default format with rank = reshape_out_rank
-        // Likely in the future we'll update that reorder so it will use reshape_input_rank
-        // After that expected in format will be bfzyx
+        // Expected in format will be bfzyx for 5dims
         // [Updated] get_preferred_format() updated to use 'in_lay_rank' instead of 'out_lay_rank' for preferred input format
         ASSERT_EQ(reshape_layout_in.format, format::bfzyx);
         ASSERT_EQ(reshape_layout_out.format, format::bfyx);
