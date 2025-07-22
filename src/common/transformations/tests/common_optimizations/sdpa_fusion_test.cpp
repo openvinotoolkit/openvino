@@ -63,6 +63,17 @@ public:
         m_preprocessing_callback = cb;
     }
 
+    void scale_q_input(float scale) {
+        auto c = op::v0::Constant::create(m_type, {}, {scale});
+        nodes[InputType::Q] = std::make_shared<op::v1::Multiply>(nodes[InputType::Q], c);
+    }
+
+    void scale_qk_inputs(float scale) {
+        auto c = op::v0::Constant::create(m_type, {}, {scale});
+        nodes[InputType::Q] = std::make_shared<op::v1::Multiply>(nodes[InputType::Q], c);
+        nodes[InputType::K] = std::make_shared<op::v1::Multiply>(nodes[InputType::K], c);
+    }
+
     void reshape(InputType which, const Shape& shape) {
         auto shape_const = op::v0::Constant::create(element::i64, {shape.size()}, shape);
         nodes[which] = make_shared<op::v1::Reshape>(nodes[which], shape_const, false);
@@ -95,6 +106,19 @@ public:
     }
     void transpose_v(const vector<size_t>& order) {
         transpose(InputType::V, order);
+    }
+    void multiply_input(InputType which, float scale) {
+        auto scale_const = op::v0::Constant::create(m_type, ov::Shape{}, {scale});
+        nodes[which] = std::make_shared<op::v1::Multiply>(nodes[which], scale_const);
+    }
+    void multiply_q(float scale) {
+        multiply_input(InputType::Q, scale);
+    }
+    void multiply_k(float scale) {
+        multiply_input(InputType::K, scale);
+    }
+    void multiply_v(float scale) {
+        multiply_input(InputType::V, scale);
     }
 
     // Build pattern (MatMul -> scale -> mask -> Softmax -> MatMul)
@@ -946,6 +970,118 @@ TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
     {
         sdpa_ref.set_mask({batch, 1, 1, 49});
         sdpa_ref.set_preprocessing_callback(callback);
+        sdpa_ref.create_reference_sdpa();
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_KScaledInput) {
+    // Init.
+    const PartialShape query_shape{1, 1, 4096, 512};
+    const PartialShape key_shape{1, 1, 4096, 512};
+    const PartialShape value_shape{1, 1, 4096, 512};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    // Preprocessing callback that scales the K input
+    auto callback = [](auto& nodes) {
+        auto scale_const = v0::Constant::create(f16, Shape{}, {1.f});
+        nodes[InputType::K] = std::make_shared<v1::Multiply>(nodes[InputType::K], scale_const);
+    };
+
+    // SDPA model.
+    {
+        sdpa.set_preprocessing_callback(callback);
+        sdpa.transpose_k(get_tranpose_order(query_shape.size()));
+        sdpa.create_pattern_sdpa();
+
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.set_scale(1.f);
+        sdpa_ref.transpose_k(get_tranpose_order(query_shape.size()));
+        sdpa_ref.transpose_k(get_tranpose_order(query_shape.size()));
+        sdpa_ref.create_reference_sdpa();
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_WithConvertAfterScale) {
+    using namespace ov;
+    using namespace ov::element;
+
+    const PartialShape query_shape{1, 1, 4096, 512};
+    const PartialShape key_shape{1, 1, 4096, 512};
+    const PartialShape value_shape{1, 1, 4096, 512};
+
+    SDPA sdpa(f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
+
+    auto callback = [](auto& nodes) {
+        auto scale_const = v0::Constant::create(f16, {1}, {0.125f});
+        nodes[InputType::Q] = std::make_shared<v1::Multiply>(nodes[InputType::Q], scale_const);
+        auto mul_k = std::make_shared<v1::Multiply>(nodes[InputType::K], scale_const);
+        nodes[InputType::K] = std::make_shared<v0::Convert>(mul_k, f16);
+    };
+
+    sdpa.set_preprocessing_callback(callback);
+    sdpa_ref.set_preprocessing_callback(callback);
+
+    // SDPA model.
+    {
+        sdpa.create_pattern_sdpa(true);
+        model = sdpa.build_model();
+
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.create_reference_sdpa();
+
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_QKInputScale) {
+    const ov::PartialShape query_shape{1, 1, 8, 64};
+    const ov::PartialShape key_shape{1, 1, 64, 8};
+    const ov::PartialShape value_shape{1, 1, 8, 64};
+
+    SDPA sdpa(ov::element::f16, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(ov::element::f16, query_shape, key_shape, value_shape);
+
+    // SDPA model with scaled inputs
+    {
+        sdpa.multiply_q(0.5f);
+        sdpa.multiply_k(0.5f);
+        sdpa.create_pattern_sdpa();
+
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // Reference model with fused scale and scaled query input
+    {
+        sdpa_ref.multiply_q(0.5f);
+        sdpa_ref.set_scale(0.5f);
+        sdpa_ref.transpose_k(get_tranpose_order(key_shape.size()));
         sdpa_ref.create_reference_sdpa();
 
         model_ref = sdpa_ref.build_model();
