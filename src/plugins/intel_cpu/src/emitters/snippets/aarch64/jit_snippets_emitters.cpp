@@ -42,12 +42,7 @@ jit_broadcast_move_emitter::jit_broadcast_move_emitter(jit_generator* h, cpu_isa
                               " and ",
                               n->get_output_element_type(0));
     const auto element_type = n->get_input_element_type(0);
-    OV_CPU_JIT_EMITTER_ASSERT(
-        element_type == ov::element::f32 || element_type == ov::element::u8 || element_type == ov::element::i8 ||
-            element_type == ov::element::u16 || element_type == ov::element::i16 || element_type == ov::element::u32 ||
-            element_type == ov::element::i32 || element_type == ov::element::f16 || element_type == ov::element::bf16,
-        "Unsupported element type: ",
-        element_type);
+    OV_CPU_JIT_EMITTER_ASSERT(one_of(element_type.size(), 1, 2, 4), "Unsupported element type: ", element_type);
 
     byte_size = n->get_input_element_type(0).size();
 }

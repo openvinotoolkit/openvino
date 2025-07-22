@@ -508,7 +508,9 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
     // smoke_Snippets test cases are not supported on arm64 platforms, except for listed below
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_FQDecomposition_|_MatMul/|_Reduce|_Softmax|_AddSoftmax).*)");
+    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_CheckBroadcast|_Convert|_FQDecomposition_|_MatMul/|_Reduce|_Softmax|_AddSoftmax).*)");
+    // TODO: pdpd broadcast is not supported on ARM platforms
+    retVector.emplace_back(R"(smoke_Snippets_CheckBroadcast.*BCT=pdpd.*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
