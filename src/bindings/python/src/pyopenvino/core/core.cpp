@@ -505,7 +505,7 @@ void regclass_Core(py::module m) {
                 return self.read_model(model_path_cpp, weights_path_cpp, any_map);
             }
 
-            throw py::type_error("Provided python object type " + (std::string)(py::str(model_path.get_type())) +
+            throw py::type_error("Provided python object type " + (std::string)(py::str(py::type::of(model_path))) +
                                  " isn't supported as 'model' argument.");
         },
         py::arg("model"),

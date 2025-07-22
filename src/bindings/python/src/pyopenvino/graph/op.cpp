@@ -39,7 +39,7 @@ std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& ne
         return result.cast<std::shared_ptr<ov::Node>>();
     }
     // Default implementation for clone_with_new_inputs
-    auto py_handle_type = py_handle.get_type();
+    auto py_handle_type = py::type::handle_of(py_handle);
     auto new_py_object = py_handle_type(new_args);
     return new_py_object.cast<std::shared_ptr<ov::Node>>();
 }
