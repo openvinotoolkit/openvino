@@ -235,12 +235,67 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
     }
 }
 
+// 通用匹配函数
+bool matchStringWithPattern(const std::string& input, const std::string& pattern_suffix) {
+    // 构建完整的正则表达式模式
+    std::string pattern = "^lora_state.*" + pattern_suffix + "$";
+    std::regex regex_pattern(pattern);
+
+    // 使用正则表达式进行匹配
+    return std::regex_match(input, regex_pattern);
+}
+
+// 使用通用函数进行匹配
+bool matchAString(const std::string& input) {
+    return matchStringWithPattern(input, "MatMul\\.A");
+}
+
+bool matchBString(const std::string& input) {
+    return matchStringWithPattern(input, "MatMul\\.B");
+}
+
+bool matchAlphaString(const std::string& input) {
+    return matchStringWithPattern(input, "MatMul\\.alpha");
+}
+
+void initializeTensorToZero(ov::SoPtr<ov::ITensor> tensor) {
+    // 确保张量的数据类型是 fp16
+    if (tensor->get_element_type() != ov::element::f16) {
+        throw std::runtime_error("Tensor element type is not fp16.");
+    }
+
+    // 获取张量的数据指针
+    auto data = tensor->data<ov::float16>();
+
+    // 获取张量的总元素数量
+    size_t num_elements = tensor->get_size();
+
+    // 初始化所有元素为零
+    for (size_t i = 0; i < num_elements; ++i) {
+        data[i] = static_cast<ov::float16>(0.0f);
+    }
+}
+
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
     fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("attention_mask")), 0);
     fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids")), 0);
     fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask")), 0);
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
+
+    for (auto state : m_npuw_llm_compiled_model->m_variableStates) {
+        auto state_name = state->get_name();
+        auto state_tensor = state->get_state();
+        if (state_tensor->get_size() == 0) {
+            // Generate without LoRA:
+            // the size of applied LoRA tensor from GenAI is 0
+            state->reset();
+        } else {
+            // Generate with LoRA
+            m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), state_tensor);
+            m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), state_tensor);
+        }
+    }
 }
 
 void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
@@ -364,6 +419,45 @@ void ov::npuw::LLMInferRequest::infer_prefill_in_chunk(ov::SoPtr<ov::ITensor> in
     m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
 }
 
+void saveTensorToBinaryFile(const ov::SoPtr<ov::ITensor>& tensor, const std::string& filename) {
+    // 使用 std::filesystem 确保目录存在
+    std::filesystem::path filePath(filename);
+    std::filesystem::create_directories(filePath.parent_path());
+
+    // 打开文件以二进制模式写入
+    std::ofstream file(filename, std::ios::binary);
+    if (!file.is_open()) {
+        throw std::runtime_error("Failed to open file: " + filename);
+    }
+
+    // 获取张量的数据指针
+    const auto* data = tensor->data<const char>();
+
+    // 获取张量的总字节数
+    size_t num_bytes = tensor->get_byte_size();
+
+    // 将数据写入文件
+    file.write(data, num_bytes);
+
+    // 关闭文件
+    file.close();
+}
+
+
+std::string simplifyName(const std::string& input) {
+    // 使用正则表达式匹配并提取所需部分
+    std::regex pattern(R"(lora_state_(\d+)__.*\.(q_proj|k_proj|v_proj|o_proj|gate_proj|up_proj|down_proj).*MatMul\.(A|alpha|B))");
+    std::smatch match;
+
+    if (std::regex_search(input, match, pattern)) {
+        // 构建新的字符串
+        return "lora_state_" + match[1].str() + "_" + match[2].str() + "_MatMul." + match[3].str();
+    } else {
+        throw std::runtime_error("Input string does not match the expected pattern.");
+    }
+}
+
+static int64_t count = 0;
 void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                               ov::SoPtr<ov::ITensor> attention_mask,
                                               ov::SoPtr<ov::ITensor> position_ids) {
@@ -388,6 +482,29 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at("position_ids"));
     pad_position_ids(padded_position_ids, position_ids);
 
+#if 0
+    std::string prefix;
+    if (count == 0) {
+        prefix = "with_lora\\";
+    } else if (count == 1) {
+        prefix = "no_lora\\";
+    } else {
+        throw std::runtime_error("unkown count.");
+    }
+
+    const auto& prefill_compiled = m_prefill_request->get_compiled_model();
+    for (std::size_t i = 0; i < prefill_compiled->inputs().size(); ++i) {
+        const auto& input_name = prefill_compiled->inputs()[i].get_any_name();
+        auto tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
+        if (matchAString(input_name) || matchBString(input_name) || matchAlphaString(input_name)) {
+            auto simpleName = simplifyName(input_name);
+            saveTensorToBinaryFile(tensor, prefix + simpleName + ".bin");
+        } else {
+            saveTensorToBinaryFile(tensor, prefix + input_name + ".bin");
+        }
+    }
+#endif
+
     m_prefill_request->infer();
 
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens +=
@@ -397,6 +514,8 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at("logits"));
 
     LOG_DEBUG("Done");
+
+    count ++;
 }
 
 void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,

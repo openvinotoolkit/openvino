@@ -27,7 +27,7 @@ public:
         return {};
     }
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
+        return m_npuw_llm_compiled_model->m_variableStates;
     }
 
 private:
