@@ -8,8 +8,17 @@
 
 namespace ov::pass::pattern::op {
 
-// Registers one anchor by name
+/**
+ * @brief A utility macro to register named anchors in a Block.
+ *
+ * This macro simplifies the process of registering multiple anchors in a Block.
+ * It expands to a series of calls to `block->register_anchor(...)` for each provided argument.
+ */
 #define MAKE_ANCHOR(x) block->register_anchor(#x, x);
+#define REGISTER_ANCHORS(block, ...)       \
+    do {                                   \
+        FOR_EACH(MAKE_ANCHOR, __VA_ARGS__) \
+    } while (0)
 
 /**
  * @brief Block is a reusable subgraph pattern composed of named inputs and outputs.
