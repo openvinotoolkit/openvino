@@ -561,8 +561,13 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_mixed_inputs,
                          ),
                          PrintToStringParamName());
 
+using scatter_elements_update_gpu_reduction_test_f16 = scatter_elements_update_gpu_reduction_test<ov::float16, int32_t>;
 using scatter_elements_update_gpu_reduction_test_f32 = scatter_elements_update_gpu_reduction_test<float, int32_t>;
 using scatter_elements_update_gpu_reduction_test_i32 = scatter_elements_update_gpu_reduction_test<int32_t, int32_t>;
+
+TEST_P(scatter_elements_update_gpu_reduction_test_f16, basic) {
+    ASSERT_NO_FATAL_FAILURE(test(false));
+}
 
 TEST_P(scatter_elements_update_gpu_reduction_test_f32, basic) {
     ASSERT_NO_FATAL_FAILURE(test(false));
@@ -580,6 +585,15 @@ const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduce_modes{
     ov::op::v12::ScatterElementsUpdate::Reduction::MEAN
 };
 
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f16_2d,
+                         scatter_elements_update_gpu_reduction_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<ov::float16, int32_t>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_2d,
                          scatter_elements_update_gpu_reduction_test_f32,
@@ -601,6 +615,16 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_i32_2d,
                          ),
                          PrintToStringParamName());
 
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f16_3d,
+                         scatter_elements_update_gpu_reduction_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams3D<ov::float16, int32_t>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfzyx)
+                         ),
+                         PrintToStringParamName());
+
 INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_3d,
                          scatter_elements_update_gpu_reduction_test_f32,
                          ::testing::Combine(
@@ -608,6 +632,16 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_3d,
                                  ::testing::ValuesIn(reduce_modes),
                                  ::testing::ValuesIn({true, false}),
                                  ::testing::Values(format::bfzyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f16_4d,
+                         scatter_elements_update_gpu_reduction_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams4D<ov::float16, int32_t>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfwzyx)
                          ),
                          PrintToStringParamName());
 
