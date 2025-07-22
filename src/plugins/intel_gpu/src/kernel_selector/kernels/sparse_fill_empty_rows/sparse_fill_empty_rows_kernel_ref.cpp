@@ -33,12 +33,11 @@ ParamsKey SparseFillEmptyRowsKernelRef::GetSupportedKey() const {
 namespace {
 SparseFillEmptyRowsKernelRef::DispatchData SetDefault(const sparse_fill_empty_rows_params& params) {
     SparseFillEmptyRowsKernelRef::DispatchData dispatchData;
-    //dispatchData.gws[0] = params.outputs[0].LogicalSize();
-    dispatchData.gws[0] = 1;
+    auto thread_count = params.inputs[2].LogicalSize() / 2;
+    dispatchData.gws[0] = thread_count;
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = 1;
-    //dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
-    dispatchData.lws = {1, 1, 1};
+    dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }
@@ -91,7 +90,7 @@ bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
 
 JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_empty_rows_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
-    jit.AddConstant(MakeJitConstant("INDICES_COUNT", params.inputs[0].LogicalSize() / 2));
+    jit.AddConstant(MakeJitConstant("INDICES_COUNT", params.inputs[2].LogicalSize() / 2));
     return jit;
 }
 

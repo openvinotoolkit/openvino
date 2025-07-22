@@ -36,40 +36,6 @@ public:
         }
         return params;
     }
-
-    // [NOTE]: Has to be added as a separete static function, since it is called via static dispatching in
-    // typed_primitive_impl_ocl::create()..
-    //static kernel_impl_params static_canonicalize_shapes(const kernel_impl_params& impl_params) {
-    //    auto updated_impl_params = canonicalize_fused_shapes(impl_params);
-    //    // Debug prints for input layouts
-    //    for (size_t i = 0; i < updated_impl_params.input_layouts.size(); ++i) {
-    //        const auto& layout = updated_impl_params.input_layouts[i];
-    //        std::cout << "[sparse_fill_empty_rows] Setting input_layout[" << i << "]: "
-    //              << "partial_shape=" << layout.get_partial_shape().to_string()
-    //              << std::endl;
-    //    }
-//
-    //    // Debug prints for output layouts
-    //    for (size_t i = 0; i < updated_impl_params.output_layouts.size(); ++i) {
-    //        const auto& layout = updated_impl_params.output_layouts[i];
-    //        std::cout << "[sparse_fill_empty_rows] Setting output_layout[" << i << "]: "
-    //              << "partial_shape=" << layout.get_partial_shape().to_string()
-    //              << std::endl;
-    //    }
-    //    for (auto& input_layout : updated_impl_params.input_layouts) {
-    //        input_layout.set_partial_shape(extend_shape_to_rank_from_begin(input_layout.get_partial_shape()));
-    //    }
-//
-    //    for (auto& output_layout : updated_impl_params.output_layouts) {
-    //        output_layout.set_partial_shape(extend_shape_to_rank_from_begin(output_layout.get_partial_shape()));
-    //    }
-//
-    //    return updated_impl_params;
-    //}
-//
-    //kernel_impl_params canonicalize_shapes(const kernel_impl_params& impl_params) const override {
-    //    return static_canonicalize_shapes(impl_params);
-    //}
 };
 
 namespace detail {
