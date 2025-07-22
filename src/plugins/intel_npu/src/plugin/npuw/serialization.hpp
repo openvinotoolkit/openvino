@@ -132,6 +132,10 @@ struct WeightsContext {
                             const ConstsCache& _consts_cache,
                             const BF16Cache& _bf16_consts);
 
+    void reset() {
+        weights = nullptr;
+    }
+
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
     ov::npuw::s11n::Weights weights = nullptr;
