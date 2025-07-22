@@ -175,7 +175,7 @@ def test_infer_postponned_constant():
     maker = Maker()
     model = create_model(maker)
     assert maker.called_times() == 0
-    print("Model created")
+
     compiled_model = ov.compile_model(model, "CPU")
     assert isinstance(compiled_model, ov.CompiledModel)
 
