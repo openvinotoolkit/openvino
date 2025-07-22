@@ -740,13 +740,14 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (data_type_traits::is_i8_u8(impl_param.get_input_layout(PagedAttentionInputIdx::KEY_CACHE).data_type)) {
             config.is_kv_compressed = true;
-            config.is_key_by_channel = impl_param.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
-            if (desc->has_rotated_blocks && config.is_key_by_channel) {
-                config.is_key_by_channel = false;
-                // CVS-170994
-                GPU_DEBUG_COUT << "[Warning] Currently, rotated blocks are not supported by BY_CHANNEL quant mode. Switching to BY_TOKEN quant mode."
-                               << std::endl;
-            }
+            config.is_key_by_channel = true;
+//            config.is_key_by_channel = impl_param.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
+//            if (desc->has_rotated_blocks && config.is_key_by_channel) {
+//                config.is_key_by_channel = false;
+//                // CVS-170994
+//                GPU_DEBUG_COUT << "[Warning] Currently, rotated blocks are not supported by BY_CHANNEL quant mode. Switching to BY_TOKEN quant mode."
+//                               << std::endl;
+//            }
             config.use_asymmetric_quantization = true;
         }
 
@@ -817,12 +818,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.inputs[5] = subsequence_begins_tensor;
         params.outputs[0] = key_cache_tensor;
         params.outputs[1] = value_cache_tensor;
-        params.is_key_by_channel = impl_param.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
-        if (desc->has_rotated_blocks && params.is_key_by_channel) {
-            // CVS-170994
-            GPU_DEBUG_COUT << "[Warning] Currently, rotated blocks are not supported by BY_CHANNEL quant mode. Switching to BY_TOKEN quant mode." << std::endl;
-            params.is_key_by_channel = false;
-        }
+        params.is_key_by_channel = true;
         const auto pa_block_size = static_cast<int32_t>(paged_attention::block_size);
         if (params.is_key_by_channel)
             params.key_group_size = pa_block_size;
