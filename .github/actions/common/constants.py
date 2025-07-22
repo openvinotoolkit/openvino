@@ -32,7 +32,7 @@ platformKeys = (
     'debian10_armhf',
     'rhel8_x86_64',
     'ubuntu22_arm64_native',
-    'ubuntu22_arm64_cross_compilation',
+    'ubuntu22_arm64',
     'ubuntu20_x86_64',
     'ubuntu22_x86_64',
     'ubuntu24_x86_64',
