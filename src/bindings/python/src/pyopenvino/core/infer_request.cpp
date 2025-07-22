@@ -15,6 +15,8 @@
 
 namespace py = pybind11;
 
+PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
+
 inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings) {
     {
         py::gil_scoped_release release;
@@ -143,7 +145,7 @@ void regclass_InferRequest(py::module m) {
             :param tensors:  Input tensors for batched infer request. The type of each tensor
                              must match the model input element type and shape (except batch dimension).
                              Total size of tensors needs to match with input's size.
-            :type tensors: List[openvino.Tensor]
+            :type tensors: Union[list[openvino.Tensor], TensorVectorOpaque]
         )");
 
     cls.def(
@@ -163,6 +165,7 @@ void regclass_InferRequest(py::module m) {
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
                             Total size of tensors needs to match with input's size.
+            :type tensors: Union[list[openvino.Tensor], TensorVectorOpaque]
         )");
 
     // Overload for single input, it will throw error if a model has more than one input.

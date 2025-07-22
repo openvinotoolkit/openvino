@@ -20,15 +20,11 @@ class PostponedConstant(Op):
             self.friendly_name = name
         self.constructor_validate_and_infer_types()
 
-    # def evaluate(self, outputs: List[Tensor], _: List[Tensor]) -> bool:  # type: ignore
     def evaluate(self, outputs: TensorVectorOpaque, _: List[Tensor]) -> bool:  # type: ignore
-        print("PostponedConstant outputs1", outputs[0].data[0][0], type(outputs))
         outputs[0] = self.m_maker()
-        print("PostponedConstant outputs2", outputs[0].data[0][0])
         return True
 
     def validate_and_infer_types(self) -> None:
-        print("\nPostponedConstant validate_and_infer_types")
         self.set_output_type(0, self.m_element_type, PartialShape(self.m_shape))
 
     def clone_with_new_inputs(self, new_inputs: List[Tensor]) -> Op:

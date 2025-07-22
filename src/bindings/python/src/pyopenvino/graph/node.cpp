@@ -23,8 +23,6 @@
 #include "pyopenvino/graph/rt_map.hpp"
 #include "pyopenvino/utils/utils.hpp"
 
-PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
-
 class PyNode : public ov::Node {
 public:
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& inputs) const override {
@@ -41,6 +39,20 @@ namespace py = pybind11;
 using PyRTMap = ov::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
+PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
+
+template <typename T>
+void cast_list_to_vector_inplace(const py::list& py_list, std::vector<T>& target_vector) {
+    target_vector.clear();
+    target_vector.reserve(py_list.size());
+    for (auto item : py_list) {
+        try {
+            target_vector.emplace_back(std::move(item.cast<T>()));
+        } catch (const py::cast_error& e) {
+            throw py::type_error("All elements in the list must be convertible to the specified type");
+        }
+    }
+}
 
 void regclass_graph_Node(py::module m) {
     py::class_<ov::Node, std::shared_ptr<ov::Node>, PyNode> node(m, "Node", py::dynamic_attr());
@@ -223,7 +235,6 @@ void regclass_graph_Node(py::module m) {
            ov::TensorVector& output_values,
            const ov::TensorVector& input_values,
            const ov::EvaluationContext& evaluationContext) -> bool {
-            std::cout<<"_pyov Node evaluate"<<std::endl;
             return self.evaluate(output_values, input_values, evaluationContext);
         },
         py::arg("output_values"),
@@ -245,6 +256,27 @@ void regclass_graph_Node(py::module m) {
         "evaluate",
         [](const ov::Node& self, ov::TensorVector& output_values, const ov::TensorVector& input_values) -> bool {
             return self.evaluate(output_values, input_values);
+        },
+        py::arg("output_values"),
+        py::arg("input_values"),
+        R"(
+                Evaluate the function on inputs, putting results in outputs
+
+                :param output_tensors: Tensors for the outputs to compute. One for each result.
+                :type output_tensors: List[openvino.Tensor]
+                :param input_tensors: Tensors for the inputs. One for each inputs.
+                :type input_tensors: List[openvino.Tensor]
+                :rtype: bool
+             )");
+    node.def(
+        "evaluate",
+        [](const ov::Node& self, py::list& output_values, const py::list& input_values) -> bool {
+            ov::TensorVector casted_output_values;
+            ov::TensorVector casted_input_values;
+            cast_list_to_vector_inplace<ov::Tensor>(output_values, casted_output_values);
+            cast_list_to_vector_inplace<ov::Tensor>(input_values, casted_input_values);
+
+            return self.evaluate(casted_output_values, casted_input_values);
         },
         py::arg("output_values"),
         py::arg("input_values"),
@@ -463,7 +495,7 @@ void regclass_graph_Node(py::module m) {
                 :type name: str
              )");
     node.def("input",
-             (ov::Input<ov::Node>(ov::Node::*)(size_t)) & ov::Node::input,
+             (ov::Input<ov::Node> (ov::Node::*)(size_t))&ov::Node::input,
              py::arg("input_index"),
              R"(
                 A handle to the input_index input of this node.
@@ -474,7 +506,7 @@ void regclass_graph_Node(py::module m) {
                 :rtype: openvino.Input
              )");
     node.def("inputs",
-             (std::vector<ov::Input<ov::Node>>(ov::Node::*)()) & ov::Node::inputs,
+             (std::vector<ov::Input<ov::Node>> (ov::Node::*)())&ov::Node::inputs,
              R"(
                 A list containing a handle for each of this node's inputs, in order.
 
@@ -482,7 +514,7 @@ void regclass_graph_Node(py::module m) {
                 :rtype: List[openvino.Input]
              )");
     node.def("output",
-             (ov::Output<ov::Node>(ov::Node::*)(size_t)) & ov::Node::output,
+             (ov::Output<ov::Node> (ov::Node::*)(size_t))&ov::Node::output,
              py::arg("output_index"),
              R"(
                 A handle to the output_index output of this node.
@@ -493,7 +525,7 @@ void regclass_graph_Node(py::module m) {
                 :rtype: openvino.Output
              )");
     node.def("outputs",
-             (std::vector<ov::Output<ov::Node>>(ov::Node::*)()) & ov::Node::outputs,
+             (std::vector<ov::Output<ov::Node>> (ov::Node::*)())&ov::Node::outputs,
              R"(
                 A list containing a handle for each of this node's outputs, in order.
 

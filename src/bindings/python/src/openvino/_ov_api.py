@@ -14,7 +14,7 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Node, Tensor, Type
+from openvino._pyopenvino import Node, Tensor, Type, RTMap, TensorVectorOpaque
 
 from openvino.utils.data_helpers import (
     OVDict,
@@ -88,6 +88,28 @@ class Model(object, metaclass=ModelMeta):
     def __dir__(self) -> list:
         wrapper_methods = ["__copy__", "__deepcopy__", "__dict__", "__enter__", "__exit__", "__getattr__", "__weakref__"]
         return dir(self.__model) + wrapper_methods
+
+    def evaluate(
+        self,
+        output_tensors: Union[list[Tensor], TensorVectorOpaque],
+        input_tensors: Union[list[Tensor], TensorVectorOpaque],
+        evaluation_context: Optional[RTMap] = None
+    ) -> bool:
+        """Evaluate the model on inputs, putting results in outputs.
+
+        :param output_tensors: Tensors for the outputs to compute. One for each result
+        :type output_tensors: Union[list[Tensor], TensorVectorOpaque]
+        :param input_tensors: Tensors for the inputs. One for each inputs.
+        :type input_tensors: Union[list[Tensor], TensorVectorOpaque]
+        :param evaluation_context: Storage of additional settings and attributes that can be used
+                                    when evaluating the model. This additional information can be
+                                    shared across nodes.
+        :type evaluation_context: openvino.RTMap
+        :rtype: bool
+        """
+        if evaluation_context:
+            self.__model.evaluate(TensorVectorOpaque(output_tensors), TensorVectorOpaque(input_tensors), evaluation_context)
+        return self.__model.evaluate(TensorVectorOpaque(output_tensors), TensorVectorOpaque(input_tensors))
 
 
 class InferRequest(_InferRequestWrapper):
@@ -246,6 +268,14 @@ class InferRequest(_InferRequestWrapper):
         :rtype: openvino.CompiledModel
         """
         return CompiledModel(super().get_compiled_model())
+
+    def set_input_tensors(self, *args: Any, **kwargs: Any) -> None:
+        if isinstance(args[0], int):
+            super().set_input_tensors(args[0], TensorVectorOpaque(args[1]))
+        elif isinstance(args[0], list) or isinstance(args[0], TensorVectorOpaque):
+            super().set_input_tensors(TensorVectorOpaque(args[0]))
+        else:
+            super().set_input_tensors(*args, **kwargs)
 
     @property
     def results(self) -> OVDict:
