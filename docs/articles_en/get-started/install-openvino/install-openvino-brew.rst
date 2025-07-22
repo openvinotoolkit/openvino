@@ -7,12 +7,13 @@ Install OpenVINO™ Runtime via Homebrew
                  operating systems, using Homebrew.
 
 .. note::
-    Recent OpenVINO releases currently unavailable via Homebrew
-    Due to an issue with protobuf in the internal Homebrew CI infrastructure, the latest OpenVINO releases are temporarily unavailable via Homebrew. 
-    The problem affects the ability to build and publish formula updates reliably.
-    We are actively monitoring the upstream resolution and will restore availability as soon as the issue is resolved.
+    Recent OpenVINO releases are currently unavailable via Homebrew due to an issue with
+    `protobuf` in the internal Homebrew CI infrastructure. This affects the ability
+    to build and publish formula updates. The upstream issue is actively monitored,
+    and availability will be restored as soon as it is resolved.
      
-    In the meantime, we recommend using the S3 archive as an alternative to Homebrew installation on :doc:`Linux <install-openvino-archive-linux>` and :doc:`macOS <install-openvino-archive-macos>`.
+    Until then, use the S3 archive as an alternative to Homebrew on Linux and macOS.
+    For more information, see :doc:`Linux Installation Guide <install-openvino-archive-linux>` and :doc:`macOS Installation Guide <install-openvino-archive-macos>`.
 
 .. note::
 
