@@ -58,8 +58,10 @@ using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
     GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
-        auto value = p.get_config().get_disable_post_ops_fusions();
+        size_t value = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_post_ops_fusions(), 0);
         switch (value) {
+            case 0:
+                break;
             case 2:
                 fuse_reorders(p); return;
             case 3:
