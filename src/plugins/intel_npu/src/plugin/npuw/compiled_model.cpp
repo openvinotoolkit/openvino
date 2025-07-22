@@ -823,8 +823,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
 
     if (!encrypted) {
         CompiledContext ctx(false, nullptr, nullptr);
-        std::shared_ptr<ov::npuw::CompiledModel> compiled_model;
-        compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
+        auto compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_bank(stream, compiled_model);
         LOG_INFO("Done.");
@@ -840,6 +839,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
     LOG_INFO("Decryption will be done via the function provided.");
 
     std::shared_ptr<ov::npuw::CompiledModel> compiled_model = nullptr;
+
     // Model is encrypted
     if (is_weightless) {
         std::string encrypted_str;
@@ -1094,7 +1094,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         compiled->implement_properties();
         compiled->report_io();
         LOG_INFO("Done.");
-
         return compiled;
     };
 
