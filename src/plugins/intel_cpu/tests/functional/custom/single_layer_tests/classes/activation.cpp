@@ -237,6 +237,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Erf) ||
             (activation_type == utils::ActivationTypes::Exp) ||
             (activation_type == utils::ActivationTypes::Floor) ||
+            (activation_type == utils::ActivationTypes::HSigmoid) ||
+            (activation_type == utils::ActivationTypes::HSwish) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
@@ -283,7 +285,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
 // On other platforms HSigmoid is decomposed
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {HSigmoid,    {{}}},
 #endif
         {HSwish,      {{}}},
