@@ -50,9 +50,8 @@ public:
     }
 
     Shape(const VectorDims& minDims, const VectorDims& maxDims) {
-        if (minDims.size() != maxDims.size()) {
-            OPENVINO_THROW("Can't create shape due to min/max vectors dims size mismatch");
-        }
+        OPENVINO_ASSERT(minDims.size() == maxDims.size(),
+                        "Can't create shape due to min/max vectors dims size mismatch");
         this->minDims = minDims;
         this->maxDims = maxDims;
 
@@ -126,10 +125,7 @@ public:
      * @return return shape
      */
     [[nodiscard]] const VectorDims& getStaticDims() const {
-        if (type != ShapeType::Static) {
-            OPENVINO_THROW("Cannot get dims for non static shape");
-        }
-
+        OPENVINO_ASSERT(type == ShapeType::Static, "Cannot get dims for non static shape");
         return minDims;
     }
 
@@ -167,10 +163,7 @@ public:
     }
 
     [[nodiscard]] size_t getElementsCount() const {
-        if (type != ShapeType::Static) {
-            OPENVINO_THROW("Cannot get elements count for non static shape");
-        }
-
+        OPENVINO_ASSERT(type == ShapeType::Static, "Cannot get elements count for non static shape");
         size_t size = 1;
 
         for (uint64_t minDim : minDims) {
