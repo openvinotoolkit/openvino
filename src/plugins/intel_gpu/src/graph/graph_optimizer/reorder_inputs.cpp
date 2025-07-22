@@ -757,11 +757,14 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 
                 ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(large_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
 
-                auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
+                auto small_pshape_layout = layout(small_pshape, out_layout.data_type,  out_layout.format.get_default_format());
                 auto new_reorder = std::make_shared<reorder>(small_input.id() + "_reorder_eltwise_broadcast", small_input.id(), out_layout);
                 auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
                 p.add_intermediate(new_reorder_node, eltwise_node, small_input);
                 new_reorder_node.set_output_layout(small_pshape_layout);
+
+                if (format::is_default_format(small_input.get_output_layout().format))
+                    new_reorder_node.can_be_optimized(true);
             }
         }
     };
