@@ -251,7 +251,7 @@ KERNEL(pa_sdpa_opt)(
                 unroll_for (uint i = 0; i < KEY_VEC_SIZE; i++) {
                     k_vals[i] = BLOCK_READN(INPUT1_TYPE, 1, key_cache, key_block_offset + qk_idx * hidden_stride * KEY_VEC_SIZE + i * hidden_stride);
                  #ifdef IS_KEY_BY_CHANNEL
-                    half key_orig = k_vals[i];
+                    INPUT0_TYPE key_orig = k_vals[i];
                     k_vals[i] = (k_vals[i] - _sub_group_shuffle(comp_zp, i)) * _sub_group_shuffle(comp_scale, i);
                 #else
                     half key_orig = k_vals[i];

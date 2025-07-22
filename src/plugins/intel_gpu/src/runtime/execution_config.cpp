@@ -231,6 +231,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     } else if (get_value_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
         GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
             << "Switching to BY_TOKEN mode." << std::endl;
+        m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
     }
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
     if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
