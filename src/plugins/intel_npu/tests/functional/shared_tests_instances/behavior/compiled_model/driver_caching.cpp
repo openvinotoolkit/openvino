@@ -8,7 +8,7 @@ using namespace ov::test::behavior;
 
 const std::vector<ov::AnyMap> Config = {{}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_CompilationUMDCacheg,
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          CompileAndDriverCaching,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(Config)),
