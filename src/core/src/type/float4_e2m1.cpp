@@ -91,9 +91,9 @@ uint8_t f32_to_f4e2m1_bits(float value) {
         f32_exp      | f4e2m1_exp
         -------------+-----------
         125 and less | (0b0000)
-        126	         | (0b0000)
-        127	         | (0b0010)
-        128	         | (0b0100)
+        126          | (0b0000)
+        127          | (0b0010)
+        128          | (0b0100)
         129 and more | (0b0110)
 
         Clamp exponent to 2 bits (0-3) using bitwise min/max
