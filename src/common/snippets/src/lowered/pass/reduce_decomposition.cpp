@@ -124,11 +124,10 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
 
         // Transfer original ExpressionPorts
         replace_input_port_connectors({fill.first->get()->get_input_port(0)}, reduce_expr->get_input_port_connector(0));
-        replace_input_port_connectors(reduce_expr->get_output_port_connector(0)->get_consumers(),
-                                      horizon.first->get()->get_output_port_connector(0));
+        const auto reduce_consumers = reduce_expr->get_output_port_connector(0)->get_consumers();
+        replace_input_port_connectors(reduce_consumers, horizon.first->get()->get_output_port_connector(0));
 
         // Update input shapes of consumers
-        const auto reduce_consumers = horizon.first->get()->get_output_port_connector(0)->get_consumers();
         for (const auto& consumer : reduce_consumers) {
             consumer.get_expr()->updateShapes();
         }
