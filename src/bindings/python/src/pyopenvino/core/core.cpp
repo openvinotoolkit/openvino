@@ -452,7 +452,7 @@ void regclass_Core(py::module m) {
     cls.def(
         "read_model",
         (std::shared_ptr<ov::Model>(ov::Core::*)(const std::string&, const ov::Tensor&) const) & ov::Core::read_model,
-        CALL_GUARD_GIL_RELEASE_IF_GIL,
+        call_guard_gil_release_if_gil(),
         py::arg("model"),
         py::arg("weights"),
         R"(
@@ -738,7 +738,7 @@ void regclass_Core(py::module m) {
 
     cls.def("get_available_devices",
             &ov::Core::get_available_devices,
-            CALL_GUARD_GIL_RELEASE_IF_GIL,
+            call_guard_gil_release_if_gil(),
             R"(
                 Returns devices available for inference Core objects goes over all registered plugins.
 
@@ -753,7 +753,7 @@ void regclass_Core(py::module m) {
 
     cls.def_property_readonly("available_devices",
                               &ov::Core::get_available_devices,
-                              CALL_GUARD_GIL_RELEASE_IF_GIL,
+                              call_guard_gil_release_if_gil(),
                               R"(
                                     Returns devices available for inference Core objects goes over all registered plugins.
 

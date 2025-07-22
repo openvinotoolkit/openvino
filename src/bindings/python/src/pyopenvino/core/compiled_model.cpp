@@ -171,7 +171,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("get_runtime_model",
             &ov::CompiledModel::get_runtime_model,
-            CALL_GUARD_GIL_RELEASE_IF_GIL,
+            call_guard_gil_release_if_gil(),
             R"(
                 Gets runtime model information from a device.
 
@@ -186,7 +186,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("release_memory",
             &ov::CompiledModel::release_memory,
-            CALL_GUARD_GIL_RELEASE_IF_GIL,
+            call_guard_gil_release_if_gil(),
             R"(
                 Release intermediate memory.
 

@@ -79,7 +79,7 @@ void regclass_RemoteContext(py::module m) {
         [](RemoteContextWrapper& self, const ov::element::Type& type, const ov::Shape& shape) {
             return self.context.create_host_tensor(type, shape);
         },
-        CALL_GUARD_GIL_RELEASE_IF_GIL,
+        call_guard_gil_release_if_gil(),
         py::arg("type"),
         py::arg("shape"),
         R"(
@@ -174,7 +174,7 @@ void regclass_VAContext(py::module m) {
                                  {ov::intel_gpu::va_plane.name(), plane}};
             return VASurfaceTensorWrapper(self.context.create_tensor(type, shape, params));
         },
-        CALL_GUARD_GIL_RELEASE_IF_GIL,
+        call_guard_gil_release_if_gil(),
         py::arg("type"),
         py::arg("shape"),
         py::arg("surface"),

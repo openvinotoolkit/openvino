@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 
 #include <filesystem>
+#include <variant>
 
 #ifdef _MSC_VER
 // Warning occurred at the junction of pybind11
@@ -33,26 +34,19 @@
 namespace py = pybind11;
 
 // Conditional GIL management for PEP 703 (free-threaded Python)
+inline constexpr bool PY_GIL_DISABLED {
 #if defined(Py_GIL_DISABLED) && Py_GIL_DISABLED
-struct gil_scoped_release_if_gil {
-    gil_scoped_release_if_gil() {}
-};
-struct gil_scoped_acquire_if_gil {
-    gil_scoped_acquire_if_gil() {}
-};
-// For free-threaded Python, we don't need call_guard - use empty call_guard
-#define CALL_GUARD_GIL_RELEASE_IF_GIL pybind11::call_guard<>()
+    true
 #else
-struct gil_scoped_release_if_gil {
-    pybind11::gil_scoped_release release;
-    gil_scoped_release_if_gil() {}
-};
-struct gil_scoped_acquire_if_gil {
-    pybind11::gil_scoped_acquire acquire;
-    gil_scoped_acquire_if_gil() {}
-};
-#define CALL_GUARD_GIL_RELEASE_IF_GIL pybind11::call_guard<pybind11::gil_scoped_release>()
+    false
 #endif
+};
+
+using gil_scoped_release_if_gil = std::conditional_t<PY_GIL_DISABLED , std::monostate, py::gil_scoped_release>;
+using gil_scoped_acquire_if_gil = std::conditional_t<PY_GIL_DISABLED , std::monostate, py::gil_scoped_acquire>;
+
+// For free-threaded Python, we don't need call_guard - use empty call_guard
+using call_guard_gil_release_if_gil = std::conditional_t<PY_GIL_DISABLED , py::call_guard<>, pybind11::call_guard<py::gil_scoped_release>>;
 
 namespace Common {
 namespace utils {
