@@ -576,8 +576,7 @@ ov::pass::StateManagementPattern::StateManagementPattern(
 
             rotated_block_indices_inputs_for_each_layer.push_back(rotated_block_indices);
             rotation_deltas_inputs_for_each_layer.push_back(rotation_deltas);
-        }
-        else {
+        } else {
             auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, {});
             auto rotation_deltas = v0::Constant::create(element::i32, Shape{0}, {});
             pa_arguments.insert(pa_arguments.begin() + 14, rotated_block_indices);
@@ -591,12 +590,11 @@ ov::pass::StateManagementPattern::StateManagementPattern(
                 optional_model_wide_params.find("xattention_block_size") != optional_model_wide_params.end(),
                 "No xattention_block_size input found. For using XAttention, the model have to contain "
                 "an additional input (Parameter) called xattention_block_size.");
-            OPENVINO_ASSERT(
-                optional_model_wide_params.find("xattention_stride") != optional_model_wide_params.end(),
-                "No xattention_stride input found. For using XAttention, the model have to contain "
-                "an additional input (Parameter) called xattention_stride.");
+            OPENVINO_ASSERT(optional_model_wide_params.find("xattention_stride") != optional_model_wide_params.end(),
+                            "No xattention_stride input found. For using XAttention, the model have to contain "
+                            "an additional input (Parameter) called xattention_stride.");
             auto xattention_threshold = setName(std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, -1}),
-                                                 "xattention_threshold." + std::to_string(layer_index - 1));
+                                                "xattention_threshold." + std::to_string(layer_index - 1));
             pa_arguments.insert(pa_arguments.begin() + 17, xattention_threshold);
             pa_arguments.insert(pa_arguments.begin() + 18, optional_model_wide_params.at("xattention_block_size"));
             pa_arguments.insert(pa_arguments.begin() + 19, optional_model_wide_params.at("xattention_stride"));
@@ -609,7 +607,6 @@ ov::pass::StateManagementPattern::StateManagementPattern(
         }
 
         OPENVINO_ASSERT(pa_arguments.size() == 20);
-
 
         auto paged_attention = std::make_shared<ov::op::PagedAttentionExtension>(pa_arguments);
 
