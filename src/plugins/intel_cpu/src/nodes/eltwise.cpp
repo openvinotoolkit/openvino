@@ -2031,6 +2031,15 @@ void Eltwise::prepareParams() {
         }
     }
 
+    if (getAlgorithm() == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
+        if (gamma < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())) {
+            gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        }
+        if (gamma > static_cast<float>(std::numeric_limits<ov::bfloat16>::max())) {
+            gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        }
+    }
+
     if (!canSkipSearchInCache) {
         EltwiseData thisOp{getAlgorithm(), getOneDnnAlgorithm(), getAlpha(), getBeta(), getGamma()};
         EltwiseKey key =
