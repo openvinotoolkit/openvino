@@ -75,7 +75,7 @@ std::vector<layout> calc_output_layout_impl(convolution_node const& node, kernel
                             // should remain the same as original filter's
 
         return {cldnn::layout{output_type,
-                      input_layout.format,
+                      /*input_layout.format,*/ format::byxf,
                       tensor{input_layout.batch(),
                              weights_layout.ofm() * weights_layout.group(),
                              input_layout.spatial(0),
