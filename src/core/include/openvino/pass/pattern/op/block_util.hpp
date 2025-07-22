@@ -53,9 +53,3 @@ namespace {
     (M, __VA_ARGS__)
 
 }  // namespace
-
-// Public macro
-#define REGISTER_ANCHORS(block, ...)       \
-    do {                                   \
-        FOR_EACH(MAKE_ANCHOR, __VA_ARGS__) \
-    } while (0)
