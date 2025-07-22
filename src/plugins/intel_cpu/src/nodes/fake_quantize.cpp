@@ -53,7 +53,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
 #endif
@@ -76,15 +76,15 @@ namespace ov::intel_cpu::node {
 #    define GET_OFF(field) offsetof(jit_quantize_call_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_generator {
+struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_binarization_kernel)
 
     explicit jit_uni_binarization_kernel(const jit_quantize_params& jqp)
         : jit_uni_quantize_kernel(jqp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     };
 
@@ -277,15 +277,15 @@ private:
 };
 
 template <cpu_isa_t isa>
-struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_generator {
+struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_quantization_kernel)
 
     explicit jit_uni_quantization_kernel(const jit_quantize_params& jqp)
         : jit_uni_quantize_kernel(jqp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     };
 
@@ -1151,16 +1151,10 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         const auto fq = ov::as_type_ptr<const ov::op::v0::FakeQuantize>(op);
 
         levels = fq->get_levels();
-        if (levels <= 1) {
-            THROW_CPU_NODE_ERR("supports 'levels' attribute greater than or equal to 2");
-        }
+        CPU_NODE_ASSERT(levels > 1, "supports 'levels' attribute greater than or equal to 2");
 
-        if (inputShapes.size() != 5) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges: ", inputShapes.size());
-        }
-        if (outputShapes.size() != 1) {
-            THROW_CPU_NODE_ERR("has incorrect number of output edges: ", outputShapes.size());
-        }
+        CPU_NODE_ASSERT(inputShapes.size() == 5, "has incorrect number of input edges: ", inputShapes.size());
+        CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges: ", outputShapes.size());
 
         auto initAxisIdx = [&](const VectorDims& inputDims) {
             size_t axisIdx = 0;
@@ -1214,9 +1208,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         auto outputLowAxisSize = ov::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
         auto outputHighAxisSize = ov::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
-        if (axisSize != -1 && !dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis])) {
-            THROW_CPU_NODE_ERR("has different quantization axis size on 'data' and 'range' inputs");
-        }
+        CPU_NODE_ASSERT(axisSize == -1 || dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis]),
+                        "has different quantization axis size on 'data' and 'range' inputs");
 
         const auto inputLowNode = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
@@ -1371,7 +1364,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if ((il == ih && levels != 2) || il > ih || std::isnan(il) || std::isnan(ih) || std::isinf(il) ||
                     std::isinf(ih)) {
-                    THROW_CPU_NODE_ERR("has invalid input quantize ranges: ", "inputLow = ", il, ", inputHigh = ", ih);
+                    CPU_NODE_THROW("has invalid input quantize ranges: ", "inputLow = ", il, ", inputHigh = ", ih);
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1389,7 +1382,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
 
 #if defined(VALIDATE_QUANTIZATION_RANGES)
                 if (std::isnan(ol) || std::isnan(oh) || std::isinf(ol) || std::isinf(oh)) {
-                    THROW_CPU_NODE_ERR("has wrong output quantize ranges: ", "outputLow = ", ol, ", outputHigh = ", oh);
+                    CPU_NODE_THROW("has wrong output quantize ranges: ", "outputLow = ", ol, ", outputHigh = ", oh);
                 }
 #endif
 #ifdef FQ_DOUBLE_PRECISION
@@ -1490,30 +1483,19 @@ void FakeQuantize::init() {
 }
 
 void FakeQuantize::getSupportedDescriptors() {
-    if (getParentEdges().size() != 5) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 5, "has incorrect number of input edges: ", getParentEdges().size());
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges: ", getChildEdges().size());
 
-    if (getInputShapeAtPort(0).getRank() != getOutputShapeAtPort(0).getRank()) {
-        THROW_CPU_NODE_ERR("has different ranks for input and output tensors");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(0).getRank() == getOutputShapeAtPort(0).getRank(),
+                    "has different ranks for input and output tensors");
 
     if (isBinarization()) {
-        if (getInputShapeAtPort(0).getRank() != 4UL) {
-            THROW_CPU_NODE_ERR("doesn't support input/output rank != 4");
-        }
+        CPU_NODE_ASSERT(getInputShapeAtPort(0).getRank() == 4UL, "doesn't support input/output rank != 4");
     }
 
     if (getAxis() != 1) {
-        if (isBinarization()) {
-            THROW_CPU_NODE_ERR("doesn't support non per-tensor binarization for axis: ", getAxis());
-        }
-        if (getAxis() != 0) {
-            THROW_CPU_NODE_ERR("doesn't support non per-tensor quantization for axis: ", getAxis());
-        }
+        CPU_NODE_ASSERT(!isBinarization(), "doesn't support non per-tensor binarization for axis: ", getAxis());
+        CPU_NODE_ASSERT(getAxis() == 0, "doesn't support non per-tensor quantization for axis: ", getAxis());
     }
 }
 
@@ -1582,9 +1564,7 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
 bool FakeQuantize::needPrepareParams() const {
     if (isBinarization()) {
         const auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-        if (!selectedPrimitiveDescriptor) {
-            THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-        }
+        CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
 
         if (internalBlobMemory.empty() ||
             (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref && inputShapesModified())) {
@@ -1660,9 +1640,7 @@ void FakeQuantize::prepareParams() {
 void FakeQuantize::createPrimitive() {
     Node::createPrimitive();
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
     if (selectedPrimitiveDescriptor->getImplementationType() != impl_desc_type::ref) {
         const auto& config = getSelectedPrimitiveDescriptor()->getConfig();
 
@@ -2483,10 +2461,7 @@ FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor([[maybe_unused]] 
 }
 
 void FakeQuantize::FakeQuantizeJitExecutor::exec(const FakeQuantize& node) {
-    if (!pKernel) {
-        OPENVINO_THROW("Can't execute, kernel for fake quantize node is not compiled");
-    }
-
+    OPENVINO_ASSERT(pKernel, "Can't execute, kernel for fake quantize node is not compiled");
     if (pKernel->jqp_.op_type == Algorithm::FQBinarization) {
         node.executeBinarization(pKernel);
     } else {
