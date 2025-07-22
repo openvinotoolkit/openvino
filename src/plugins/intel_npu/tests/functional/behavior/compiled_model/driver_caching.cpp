@@ -1,7 +1,6 @@
-#include "overload/driver_caching.hpp"
+#include "internal/overload/compiled_model/driver_caching.hpp"
 #include "common/npu_test_env_cfg.hpp"
-//#include "iostream"
-
+#include "common/utils.hpp"
 namespace {
 
 using namespace ov::test::behavior;

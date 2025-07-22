@@ -3,7 +3,7 @@
 #include <common_test_utils/test_assertions.hpp>
 #include <sstream>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/except.hpp"
@@ -16,8 +16,6 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 
-#include "intel_npu/config/common.hpp"
-#include "intel_npu/config/runtime.hpp"
 #include "intel_npu/config/config.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
@@ -200,11 +198,6 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
     //Check the initial state if this testp is called separately
     std::string driverLogInitContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     std::printf("==[2.1][OVCacheConfig] driver log content : #%s#\n", driverLogInitContent.c_str());
-
-    //ZE DynamicCaching cache_status_t or empty
-    // if (!driverLogInitContent.empty() && !containsCacheStatus(driverLogInitContent, "ZE DynamicCaching cache_status_t")) {
-    //         FAIL() << "Due TO NOW UMD CACHE LOG ";
-    // }
 
     configuration[ov::cache_dir.name()] = "./testCacheDir";
     m_cachedir = configuration[ov::cache_dir.name()].as<std::string>();
