@@ -544,12 +544,8 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::getSupportedDescriptors() {
-    if (getParentEdges().empty()) {
-        CPU_NODE_THROW("Incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        CPU_NODE_THROW("Incorrect number of output edges");
-    }
+    CPU_NODE_ASSERT(!getParentEdges().empty(), "Incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "Incorrect number of output edges");
 }
 
 static void sortSupportedPrimitiveDescriptors(std::vector<NodeDesc>& supportedPrimitiveDescriptors,
@@ -693,7 +689,7 @@ bool Eltwise::created() const {
 
 bool Eltwise::canFuse(const NodePtr& node) const {
     auto isIntegerComputeSupported = [](const Node* node) {
-        if (!one_of(node->getAlgorithm(),
+        if (none_of(node->getAlgorithm(),
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseMultiply,
                     Algorithm::EltwiseMulAdd,
@@ -718,7 +714,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
     }
 #endif
 
-    if (one_of(getAlgorithm(),
+    if (any_of(getAlgorithm(),
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
@@ -726,7 +722,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                Algorithm::EltwiseBitwiseXor,
                Algorithm::EltwiseBitwiseLeftShift,
                Algorithm::EltwiseBitwiseRightShift) ||
-        one_of(node->getAlgorithm(),
+        any_of(node->getAlgorithm(),
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
@@ -761,7 +757,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         if (node->getParentEdgeAt(0)->getParent().get() != this) {
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for
             // 0-th port.
-            if (one_of(node->getAlgorithm(),
+            if (any_of(node->getAlgorithm(),
                        Algorithm::EltwiseSubtract,
                        Algorithm::EltwiseDivide,
                        Algorithm::EltwiseFloorMod,
@@ -829,7 +825,7 @@ void Eltwise::prepareParams() {
 }
 
 void Eltwise::execute([[maybe_unused]] const dnnl::stream& strm) {
-    assert(m_executor);
+    OPENVINO_DEBUG_ASSERT(m_executor, "Eltwise executor not created");
     m_executor->execute(m_memory);
 }
 
@@ -975,9 +971,7 @@ void Eltwise::appendPostOpsImpl(dnnl::post_ops& ops,
         m_depthwiseData.resize(m_depthwiseDataSize + bufferPaddingSize, 0);
     }
 
-    if (m_depthwiseData.empty()) {
-        CPU_NODE_THROW("cannot be performed since buffers are not allocated");
-    }
+    CPU_NODE_ASSERT(!m_depthwiseData.empty(), "cannot be performed since buffers are not allocated");
 
     std::array<size_t, 2> offsets = {0};
     offsets[1] = offsets[0] + channelSize;
@@ -1010,6 +1004,8 @@ void Eltwise::appendPostOps(dnnl::post_ops& ops,
                             const int channelAxis) {
     std::vector<MemoryPtr> postOpsMemPtrs;
     appendPostOpsImpl(ops, postOpDims, postOpsMemPtrs, channelAxis);
+
+    CPU_NODE_ASSERT(postOpsMemPtrs.size() <= 1, "at most 1 post ops memory args can be appended.");
 
     if (!postOpsMemPtrs.empty()) {
         postOpsMem[DNNL_ARG_ATTR_MULTIPLE_POST_OP(ops.len() - 1) | DNNL_ARG_SRC_1] = postOpsMemPtrs[0];
@@ -1113,7 +1109,7 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
 }
 
 bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
-    if (!one_of(convertNode->getOriginalOutputPrecisionAtPort(0),
+    if (none_of(convertNode->getOriginalOutputPrecisionAtPort(0),
                 ov::element::i8,
                 ov::element::u8,
                 ov::element::f16,

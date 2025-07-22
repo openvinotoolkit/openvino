@@ -227,7 +227,7 @@ std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor:
                 continue;  // skip if argId is not in notation
             }
 
-            const int i = notation.at(argId);
+            const size_t i = notation.at(argId);
             const auto& type = typeConfig.at(argId);
             const auto& layout = layoutConfig[i];
 
@@ -306,7 +306,7 @@ inline bool MatchesMemoryFormatFilter(const MemoryDescArgs& descs,
             continue;  // skip if argId is not in notation
         }
 
-        const int i = notation.at(argId);
+        const size_t i = notation.at(argId);
 
         if (!dnnlDesc.hasLayoutType(layoutConfig[i])) {
             return false;

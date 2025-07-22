@@ -17,10 +17,7 @@ std::string ExecutorTypeToString(const ExecutorType type) {
         CASE(Graph);
         CASE(Reference);
         CASE(Common);
-        CASE(jit);
-        CASE(jit_x64);
-        CASE(jit_aarch64);
-        CASE(jit_riscv64);
+        CASE(Jit);
         CASE(Dnnl);
         CASE(Acl);
         CASE(Mlas);
@@ -40,10 +37,7 @@ ExecutorType ExecutorTypeFromString(const std::string& typeStr) {
     CASE(Graph);
     CASE(Reference);
     CASE(Common);
-    CASE(jit);
-    CASE(jit_x64);
-    CASE(jit_aarch64);
-    CASE(jit_riscv64);
+    CASE(Jit);
     CASE(Dnnl);
     CASE(Acl);
     CASE(Mlas);

@@ -5,6 +5,7 @@
 #include "precision_translation.hpp"
 
 #include <cassert>
+#include <cstdlib>
 
 #include "nodes/executors/memory_arguments.hpp"
 #include "openvino/core/except.hpp"
@@ -41,7 +42,7 @@ TypeOfArg getTypeConfiguration(const MemoryDescArgs& descriptors,
                 continue;
             }
 
-            int id = notation.at(argId);
+            const size_t id = notation.at(argId);
             types[id] = descriptors.at(argId)->getPrecision();
             typeConfig[argId] = entry.translate(types, id);
         }

@@ -116,7 +116,7 @@ public:
     void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) override;
     [[nodiscard]] const VectorDims& getOutDims() const override;
     [[nodiscard]] size_t getBatchDimIdx() const override;
-    [[nodiscard]] impl_desc_type implType() const override;
+    [[nodiscard]] static impl_desc_type implType();
 
     static bool supports(const EltwiseAttrs& attrs,
                          size_t inputRank,
