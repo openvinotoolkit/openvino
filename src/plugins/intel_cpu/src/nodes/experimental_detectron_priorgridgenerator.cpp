@@ -47,7 +47,7 @@ ExperimentalDetectronPriorGridGenerator::ExperimentalDetectronPriorGridGenerator
 
     const auto priorGridGen = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronPriorGridGenerator>(op);
     if (getOriginalInputsNumber() != 3 || getOriginalOutputsNumber() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
+        CPU_NODE_THROW("has incorrect number of input/output edges!");
     }
 
     const auto& attr = priorGridGen->get_attrs();
