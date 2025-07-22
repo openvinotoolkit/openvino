@@ -2252,6 +2252,9 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
 
     const auto& nodes = graph.GetNodes();
     for (const auto& node : nodes) {
+        if (!node) {
+            continue;
+        }
         if (processed.find(node) == processed.end() && node->getType() == Type::Reorder &&
             node->getChildEdges().size() == 1 && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
