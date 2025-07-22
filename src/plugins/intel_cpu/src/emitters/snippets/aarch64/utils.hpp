@@ -26,13 +26,6 @@ inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std:
     return regs;
 }
 
-/**
- * @brief If the passed `port` is connected to a Buffer, return its cluster ID.
- *        Otherwise returns SIZE_MAX
- * @param port expression port of memory access op
- * @return cluster ID of the connected Buffer or SIZE_MAX
- */
-size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port);
 
 /**
  * @brief Find the available register from the pool excepting: abi_param1, abi_param2, SP and `used_gpr_idxs`

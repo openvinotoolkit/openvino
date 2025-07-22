@@ -23,6 +23,7 @@
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -70,13 +71,13 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                               "Jit emitter is called when the shapes are unknown");
 
     m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
-    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
-                    utils::get_buffer_cluster_id(expr->get_input_port(1)),
-                    utils::get_buffer_cluster_id(expr->get_output_port(0))};
+    m_buffer_ids = {ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_input_port(1)),
+                    ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_output_port(0))};
     m_with_scratchpad = brgemm_config.with_scratchpad();
     if (m_with_scratchpad) {
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
-        m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
+        m_buffer_ids.push_back(ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
     m_gemm_inputs_count = brgemm_node->get_gemm_inputs_count();
 }

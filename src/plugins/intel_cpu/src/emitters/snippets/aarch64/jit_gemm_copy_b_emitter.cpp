@@ -18,6 +18,7 @@
 
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
 #include "emitters/snippets/aarch64/utils.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
@@ -60,8 +61,8 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     m_memory_offsets = {gemm_repack->get_offset_in(), gemm_repack->get_offset_out()};
 
     // Initialize buffer IDs using the utils function
-    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
-                    utils::get_buffer_cluster_id(expr->get_output_port(0))};
+    m_buffer_ids = {ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_output_port(0))};
 }
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(
