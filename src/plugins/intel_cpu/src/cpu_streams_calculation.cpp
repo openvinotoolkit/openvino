@@ -744,9 +744,8 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
                                                    int preferred_nthreads_per_stream) {
-    if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
-        OPENVINO_THROW("proc_type_table is empty. No CPU resources available!");
-    }
+    OPENVINO_ASSERT(!proc_type_table.empty() && proc_type_table[0][ALL_PROC] != 0,
+                    "proc_type_table is empty. No CPU resources available!");
     int model_prefer_threads = preferred_nthreads_per_stream;
     proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
 
@@ -762,9 +761,8 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
         const auto cur_numa_node_id = input_numa_node_id < 0 ? get_current_numa_node_id() : input_numa_node_id;
         sort_table_by_numa_node_id(cur_numa_node_id, proc_type_table);
     }
-    if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
-        OPENVINO_THROW("proc_type_table is empty. No valid CPU resources available!");
-    }
+    OPENVINO_ASSERT(!proc_type_table.empty() && proc_type_table[0][ALL_PROC] != 0,
+                    "proc_type_table is empty. No valid CPU resources available!");
     auto streams_info_table = get_streams_info_table(config.streams,
                                                      config.streamsChanged,
                                                      config.threads,
@@ -774,9 +772,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
-    if (streams_info_table.empty()) {
-        OPENVINO_THROW("streams_info_table is empty!");
-    }
+    OPENVINO_ASSERT(!streams_info_table.empty(), "streams_info_table is empty!");
     if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
         config.modelDistributionPolicy.end()) {
         config.streamsRankTable =

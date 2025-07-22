@@ -604,7 +604,8 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
         return transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32);
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32 ||
+                    t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[0], shape[2], shape[1]};
         ov::Tensor tnew(t.get_element_type(), tshape);
 
@@ -621,6 +622,13 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                                       p * shape[2] + c,
                                       r,
                                       shape[1]);
+                        break;
+                    case ov::element::f16:
+                        twrite<uint16_t>(tnew,
+                                         tread<uint16_t>(t, p * shape[1] + r, c, shape[2]),
+                                         p * shape[2] + c,
+                                         r,
+                                         shape[1]);
                         break;
                     default:
                         NPUW_ASSERT(false && "Element type is not supported yet");

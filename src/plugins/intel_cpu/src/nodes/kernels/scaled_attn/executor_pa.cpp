@@ -1934,22 +1934,20 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                                      : 1;
 
         // check by_hidden_dims parameter of value cache
-        if ((value_group_num == 0U) && v_cache.get_precision().is_integral()) {
-            OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
-                           _helper._params.value_group_size,
-                           " should be smaller than hidden_dims");
-        }
+        OPENVINO_ASSERT(value_group_num != 0U || !v_cache.get_precision().is_integral(),
+                        "PagedAttn value cache gets wrong group_size, ",
+                        _helper._params.value_group_size,
+                        " should be smaller than hidden_dims");
         size_t S = 0;
         // check parameter of quantized key cache
         if (k_cache.get_precision().is_integral()) {
             if (_helper._params.quant_key_bychannel) {
                 S = k_cache.size(3);
             } else {
-                if (!key_group_num) {
-                    OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
-                                   _helper._params.key_group_size,
-                                   " should be smaller than hidden_dims");
-                }
+                OPENVINO_ASSERT(key_group_num,
+                                "PagedAttn key cache gets wrong group_size, ",
+                                _helper._params.key_group_size,
+                                " should be smaller than hidden_dims");
                 S = k_cache.size(3) - key_params_size * key_group_num;
                 _helper._params.key_group_size = _helper._params.key_group_size ? _helper._params.key_group_size : S;
             }
@@ -1963,11 +1961,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             if (_helper._params.quant_value_bychannel) {
                 SV = v_cache.size(3);
             } else {
-                if (!value_group_num) {
-                    OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
-                                   _helper._params.value_group_size,
-                                   " should be smaller than hidden_dims");
-                }
+                OPENVINO_ASSERT(value_group_num,
+                                "PagedAttn value cache gets wrong group_size, ",
+                                _helper._params.value_group_size,
+                                " should be smaller than hidden_dims");
                 SV = v_cache.size(3) - value_params_size * value_group_num;
                 _helper._params.value_group_size =
                     _helper._params.value_group_size ? _helper._params.value_group_size : SV;
