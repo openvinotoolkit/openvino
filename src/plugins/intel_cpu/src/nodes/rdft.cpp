@@ -807,8 +807,8 @@ std::vector<float> RDFTExecutor::generateTwiddlesFFT(size_t N) {
     for (size_t numBlocks = 1; numBlocks < N; numBlocks *= 2) {
         for (size_t block = 0; block < numBlocks; block++) {
             double angle = 2 * PI * block / (numBlocks * 2);
-            twiddles.push_back(std::cos(angle));
-            twiddles.push_back(-std::sin(angle));
+            twiddles.push_back(static_cast<float>(std::cos(angle)));
+            twiddles.push_back(static_cast<float>(-std::sin(angle)));
         }
     }
     return twiddles;
@@ -889,18 +889,18 @@ struct RDFTJitExecutor : public RDFTExecutor {
             if (type == real_to_complex) {
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[((K * inputSize + n) * simdSize + k) * 2] = std::cos(angle);
-                    twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = -std::sin(angle);
+                    twiddles[((K * inputSize + n) * simdSize + k) * 2] = static_cast<float>(std::cos(angle));
+                    twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = static_cast<float>(-std::sin(angle));
                 }
             } else if (type == complex_to_real || type == complex_to_complex) {
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
-                    twiddles[(K * inputSize + n) * 2 * simdSize + k] = std::cos(angle);
+                    twiddles[(K * inputSize + n) * 2 * simdSize + k] = static_cast<float>(std::cos(angle));
                 }
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[((K * inputSize + n) * 2 + 1) * simdSize + k] =
-                        isInverse ? std::sin(angle) : -std::sin(angle);
+                        isInverse ? static_cast<float>(std::sin(angle)) : static_cast<float>(-std::sin(angle));
                 }
             }
         });
@@ -909,8 +909,9 @@ struct RDFTJitExecutor : public RDFTExecutor {
             parallel_for2d(outputSize - start, inputSize, [&](size_t k, size_t n) {
                 k += start;
                 double angle = 2 * PI * k * n / inputSize;
-                twiddles[2 * (k * inputSize + n)] = std::cos(angle);
-                twiddles[2 * (k * inputSize + n) + 1] = isInverse ? std::sin(angle) : -std::sin(angle);
+                twiddles[2 * (k * inputSize + n)] = static_cast<float>(std::cos(angle));
+                twiddles[2 * (k * inputSize + n) + 1] =
+                    isInverse ? static_cast<float>(std::sin(angle)) : static_cast<float>(-std::sin(angle));
             });
         }
         return twiddles;
@@ -967,8 +968,8 @@ private:
             if (!isInverse) {
                 angle = -angle;
             }
-            twiddles[(k * inputSize + n) * 2] = std::cos(angle);
-            twiddles[(k * inputSize + n) * 2 + 1] = std::sin(angle);
+            twiddles[(k * inputSize + n) * 2] = static_cast<float>(std::cos(angle));
+            twiddles[(k * inputSize + n) * 2 + 1] = static_cast<float>(std::sin(angle));
         });
         return twiddles;
     }
