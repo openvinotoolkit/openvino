@@ -188,6 +188,12 @@ public:
         throwWhenUnsupported("pfnCompilerIsOptionSupported", ZE_GRAPH_EXT_VERSION_1_11);
         return _impl->pfnCompilerIsOptionSupported(hDevice, type, pOption, pValue);
     }
+
+    // version 1.12
+    ze_result_t ZE_APICALL pfnGetProperties3(ze_graph_handle_t hGraph, ze_graph_properties_3_t* pGraphProperties) {
+        throwWhenUnsupported("ze_pfnGraphGetProperties_ext_3_t", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnGetProperties3(hGraph, pGraphProperties);
+    }
 };
 
 /**

@@ -119,6 +119,32 @@ void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, uint32_t
         _logger.debug("Use initialize_graph_through_command_list for ext version smaller than 1.8");
         initialize_graph_through_command_list(graphHandle, commandQueueGroupOrdinal);
     } else {
+
+        std::cout << "===== ZeGraphExtWrappers pfnGetProperties3\n";
+        ze_graph_properties_3_t properties3 = {};
+        properties3.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+        _logger.debug("initializeGraph - perform pfnGetProperties3");
+        _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphHandle, &properties3);
+        std::cout << "properties3.flags: " << properties3.flags << "\n";
+
+        switch (properties3.flags){
+            case ZE_GRAPH_PROPERTIES_FLAG_LOADED_FROM_CACHE:
+                std::cout << "properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_LOADED_FROM_CACHE\n";
+                break;
+            case ZE_GRAPH_PROPERTIES_FLAG_COMPILED:
+                std::cout << "properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_COMPILED\n";
+                break;
+            case ZE_GRAPH_PROPERTIES_FLAG_PRE_COMPILED:
+                std::cout << "properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_PRE_COMPILED\n";
+                break;
+            case ZE_GRAPH_PROPERTIES_FLAG_FORCE_UINT32:
+                std::cout << "properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_FORCE_UINT32\n";
+                break;
+            default:
+                std::cout << "properties3.flags: default\n";
+                break;
+        }
+ 
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
         properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
