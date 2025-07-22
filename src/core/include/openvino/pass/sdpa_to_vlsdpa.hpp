@@ -12,7 +12,8 @@
 namespace ov {
 namespace pass {
 /**
- * @brief The transformation replaces KV-cache processing part in LLMs by PagedAttention operation.
+ * @brief The transformation replaces SDPA in ViTs by VLSDPA operation.
+ * The input "attention_mask" is replaced by "accumulated sequence lengths".
  * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API SDPAToVLSDPA : public ModelPass {

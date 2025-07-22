@@ -3,18 +3,19 @@
 //
 
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
-
-#include <map>
+#include "ov_ops/vl_sdpa.hpp"
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/manager.hpp"
-#include "ov_ops/vl_sdpa.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::op;
+#include <map>
 
-ov::pass::SDPAToVLSDPA::SDPAToVLSDPA() {}
+using namespace ov::op;
+using namespace ov::pass;
+
+SDPAToVLSDPA::SDPAToVLSDPA() {}
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
@@ -25,7 +26,7 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
     return node;
 }
 
-bool ov::pass::SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
+bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToVLSDPA);
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "

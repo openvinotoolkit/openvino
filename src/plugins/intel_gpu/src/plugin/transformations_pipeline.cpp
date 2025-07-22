@@ -190,6 +190,7 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
+#include "transformations/utils/print_model.hpp"
 
 namespace {
 template<typename T>
@@ -370,7 +371,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return true;
         };
         if (check_vlsdpa_available()) {
+            manager.register_pass<ov::pass::PrintModel>("prior_SDPAToVLSDPA.cpp");
             manager.register_pass<ov::pass::SDPAToVLSDPA>();
+            manager.register_pass<ov::pass::PrintModel>("post_SDPAToVLSDPA.cpp");
         }
 
         // Temporary solution, global rt info cleanup is needed
@@ -1214,7 +1217,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+        manager.register_pass<ov::pass::PrintModel>("prior_TransposeFusion.cpp");
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
+        manager.register_pass<ov::pass::PrintModel>("prior_TransposeFusion.cpp");
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
