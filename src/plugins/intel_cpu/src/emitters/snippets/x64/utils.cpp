@@ -30,7 +30,6 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::utils {
 
-
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
     // RSP - stack pointer should be preserved, abi_param1 and abi_param2 - runtime parameter register in the kernel
     static std::unordered_set<size_t> blacklist_gpr_idxs = {Xbyak::Operand::RSP,

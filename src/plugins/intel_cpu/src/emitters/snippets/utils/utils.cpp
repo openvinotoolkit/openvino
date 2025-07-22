@@ -4,16 +4,17 @@
 
 #include "utils.hpp"
 
-#include <algorithm>
 #include <cstddef>
+#include <memory>
 
+#include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
-#include "emitters/utils.hpp"
 
 #define IMPLICATION(cause, effect) (!(cause) || !!(effect))
 

@@ -26,7 +26,6 @@ inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std:
     return regs;
 }
 
-
 /**
  * @brief Find the available register from the pool excepting: abi_param1, abi_param2, SP and `used_gpr_idxs`
  * @param used_gpr_idxs current used gpr register indexes

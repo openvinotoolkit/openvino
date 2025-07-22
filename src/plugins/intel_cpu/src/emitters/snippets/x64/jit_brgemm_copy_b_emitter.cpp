@@ -16,10 +16,10 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
 #include "emitters/snippets/x64/utils.hpp"
-#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
 #include "snippets/kernel_executor_table.hpp"
@@ -62,7 +62,8 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
                     ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_output_port(0))};
     if (m_with_comp) {
         m_memory_offsets.push_back(brgemm_repack->get_offset_compensations());
-        m_buffer_ids.push_back(ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_output_port(1)));
+        m_buffer_ids.push_back(
+            ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_output_port(1)));
     }
 }
 

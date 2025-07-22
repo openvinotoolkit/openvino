@@ -19,11 +19,11 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_base.hpp"
-#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -77,7 +77,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
     m_with_scratchpad = brgemm_config.with_scratchpad();
     if (m_with_scratchpad) {
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
-        m_buffer_ids.push_back(ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_input_port(2)));
+        m_buffer_ids.push_back(
+            ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
     m_gemm_inputs_count = brgemm_node->get_gemm_inputs_count();
 }
