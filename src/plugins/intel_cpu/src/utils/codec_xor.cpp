@@ -17,11 +17,11 @@ void codec_xor(char* dst_str, const char* src_str, size_t len) {
 
     if (dst_str == src_str) {
         parallel_for(len, [&](size_t key_idx) {
-            dst_str[key_idx] ^= codec_key[key_idx % key_size];
+            dst_str[key_idx] = static_cast<char>(dst_str[key_idx] ^ codec_key[key_idx % key_size]);
         });
     } else {
         parallel_for(len, [&](size_t key_idx) {
-            dst_str[key_idx] = src_str[key_idx] ^ codec_key[key_idx % key_size];
+            dst_str[key_idx] = static_cast<char>(src_str[key_idx] ^ codec_key[key_idx % key_size]);
         });
     }
 }

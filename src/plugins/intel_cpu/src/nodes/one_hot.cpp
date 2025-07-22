@@ -64,7 +64,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (depthNode) {
         depth = depthNode->cast_vector<uint32_t>()[0];
     }
-    axis = oneHot->get_axis();
+    axis = static_cast<int32_t>(oneHot->get_axis());
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
     if (ov::is_scalar(srcDims)) {

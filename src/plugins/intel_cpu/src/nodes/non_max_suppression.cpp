@@ -886,7 +886,10 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
             auto* sorted_indices_ptr = sorted_indices.data();
             auto* filtered_boxes_ptr = filtered_boxes.data() + batch_idx * m_classes_num * m_output_boxes_per_class +
                                        class_idx * m_output_boxes_per_class;
-            *filtered_boxes_ptr = FilteredBox(sorted_indices[0].first, batch_idx, class_idx, sorted_indices[0].second);
+            *filtered_boxes_ptr = FilteredBox(sorted_indices[0].first,
+                                              static_cast<int>(batch_idx),
+                                              static_cast<int>(class_idx),
+                                              sorted_indices[0].second);
             io_selection_size++;
             if (sorted_boxes_size > 1LU) {
                 sorted_indices_ptr++;
@@ -919,8 +922,8 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
 
                     if (candidate_status == NMSCandidateStatus::SELECTED) {
                         *(++filtered_boxes_ptr) = FilteredBox((*sorted_indices_ptr).first,
-                                                              batch_idx,
-                                                              class_idx,
+                                                              static_cast<int>(batch_idx),
+                                                              static_cast<int>(class_idx),
                                                               (*sorted_indices_ptr).second);
                         io_selection_size++;
                     }

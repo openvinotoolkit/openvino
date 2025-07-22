@@ -769,7 +769,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 for (const auto& counter : mean_reduction_counters) {
                     auto dst = &dataPtr[offsets[0] + counter.first * dataBlock_axisplus1];
                     const auto N = counter.second + static_cast<int32_t>(use_init_val);
-                    *dst = static_cast<DataType>(static_cast<double>(*dst) / N);
+                    *dst = static_cast<DataType>(static_cast<double>(*dst) / static_cast<double>(N));
                 }
 
                 // increment
@@ -896,7 +896,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             axis = *axisPtr32;
         } else {
             auto* axisPtr64 = reinterpret_cast<int64_t*>(axisPtr);
-            axis = *axisPtr64;
+            axis = static_cast<int>(*axisPtr64);
         }
 
         CPU_NODE_ASSERT(axis < static_cast<int>(srcRank) && axis >= (static_cast<int>(srcRank) * -1),

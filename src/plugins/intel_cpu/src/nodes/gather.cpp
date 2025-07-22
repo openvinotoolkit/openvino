@@ -862,9 +862,9 @@ int8_t Gather::get_i4(const uint8_t& val, bool high) {
 
 int8_t Gather::get_u4(const uint8_t& val, bool high) {
     if (high) {
-        return (val >> 4) & 0xF;
+        return static_cast<int8_t>((val >> 4) & 0xF);
     }
-    return val & 0xF;
+    return static_cast<int8_t>(val & 0xF);
 }
 
 struct ExecCompressedContext {

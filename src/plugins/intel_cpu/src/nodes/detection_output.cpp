@@ -778,10 +778,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
         float locYMax = locData[4 * p * locNumForClasses + 3];
 
         if (!normalized) {
-            priorXMin /= imgWidth;
-            priorYMin /= imgHeight;
-            priorXMax /= imgWidth;
-            priorYMax /= imgHeight;
+            priorXMin /= static_cast<float>(imgWidth);
+            priorYMin /= static_cast<float>(imgHeight);
+            priorXMax /= static_cast<float>(imgWidth);
+            priorYMax /= static_cast<float>(imgHeight);
         }
 
         if (codeType == CodeType::CORNER) {

@@ -420,7 +420,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             const auto& box_info = m_filtBoxes[original_index];
 
             auto* selected_base = selected_outputs + (output_offset + j) * 6;
-            selected_base[0] = box_info.class_index;
+            selected_base[0] = static_cast<float>(box_info.class_index);
             selected_base[1] = box_info.score;
 
             auto& selected_index = selected_indices[j + output_offset];
@@ -436,7 +436,8 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
                     offset += roisnum[i];
                 }
                 // selected index from (M, C, 4)
-                selected_index = _flattened_index((offset + box_info.box_index), box_info.class_index, m_numClasses);
+                selected_index =
+                    _flattened_index(static_cast<int>(offset + box_info.box_index), box_info.class_index, m_numClasses);
                 int idx = box_info.class_index * boxesStrides[0] + offset * boxesStrides[1];
                 const float* curboxes = boxes + idx;  // a slice of boxes of current class current image
                 selected_base[2] = curboxes[4 * box_info.box_index];

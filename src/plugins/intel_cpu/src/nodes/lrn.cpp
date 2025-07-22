@@ -137,7 +137,7 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
-        k = static_cast<float>(lrn->get_bias());
+        k = static_cast<int>(lrn->get_bias());
         size = lrn->get_nsize();
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -202,7 +202,7 @@ void Lrn::prepareParams() {
                                                            key.size,
                                                            key.alpha,
                                                            key.beta,
-                                                           key.k,
+                                                           static_cast<float>(key.k),
                                                            key.attr);
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
@@ -248,7 +248,7 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                                   size,
                                                   alpha,
                                                   beta,
-                                                  k);
+                                                  static_cast<float>(k));
 
     descs.push_back(desc);
 }

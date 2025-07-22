@@ -116,7 +116,8 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 1] = y0;
             proposals[p_idx + 2] = x1;
             proposals[p_idx + 3] = y1;
-            proposals[p_idx + 4] = static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h) * score;
+            proposals[p_idx + 4] =
+                static_cast<float>(min_box_W <= box_w) * static_cast<float>(min_box_H <= box_h) * score;
         }
     });
 }
@@ -325,8 +326,8 @@ ExperimentalDetectronGenerateProposalsSingleImage::ExperimentalDetectronGenerate
 
     min_size_ = proposalAttrs.min_size;
     nms_thresh_ = proposalAttrs.nms_threshold;
-    pre_nms_topn_ = proposalAttrs.pre_nms_count;
-    post_nms_topn_ = proposalAttrs.post_nms_count;
+    pre_nms_topn_ = static_cast<int>(proposalAttrs.pre_nms_count);
+    post_nms_topn_ = static_cast<int>(proposalAttrs.post_nms_count);
 
     coordinates_offset = 0.0F;
 

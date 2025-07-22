@@ -169,12 +169,12 @@ void CTCGreedyDecoder::execute([[maybe_unused]] const dnnl::stream& strm) {
     parallel_nt(0, threadBody);
 
     parallel_for(B, [&](size_t b) {
-        int prevClassIdx = -1;
+        float prevClassIdx = -1.0f;
         size_t outputIndex = b * T;
         const size_t sequenceLength = sequenceLengths[b];
         float* shiftedOut = outputSequences + b * T;
         for (size_t t = 0; t < sequenceLength; ++t) {
-            if (*shiftedOut < blankIndex && (!mergeRepeated || *shiftedOut != prevClassIdx)) {
+            if (*shiftedOut < static_cast<float>(blankIndex) && (!mergeRepeated || *shiftedOut != prevClassIdx)) {
                 outputSequences[outputIndex++] = *shiftedOut;
             }
             prevClassIdx = *shiftedOut;

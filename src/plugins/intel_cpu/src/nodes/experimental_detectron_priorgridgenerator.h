@@ -43,8 +43,8 @@ private:
 
     const int OUTPUT_ROIS{0};
 
-    int grid_w_;
-    int grid_h_;
+    int64_t grid_w_;
+    int64_t grid_h_;
     float stride_w_;
     float stride_h_;
 };
