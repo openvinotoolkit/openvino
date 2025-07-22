@@ -192,6 +192,8 @@
 #include "openvino/op/transpose.hpp"
 #include "transformations/utils/print_model.hpp"
 
+#include "openvino/util/log.hpp"
+
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
@@ -364,7 +366,19 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const auto& info = engine.get_device_info();
 
             // CM optimized for Xe1/Xe2 architectures
-            if (!check_cm_jit_support(engine, config) || !(info.arch >= cldnn::gpu_arch::xe_lp) || !config.get_use_cm()) {
+            if (!(info.arch >= cldnn::gpu_arch::xe_lp)) {
+                return false;
+            }
+
+            if (!config.get_use_cm()) {
+                OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                              "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
+                return false;
+            }
+
+            if (!check_cm_jit_support(engine, config)) {
+                OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                              "as CM environment is unavailable. Enable it by installing proper GPU driver and CM compiler.");
                 return false;
             }
 
