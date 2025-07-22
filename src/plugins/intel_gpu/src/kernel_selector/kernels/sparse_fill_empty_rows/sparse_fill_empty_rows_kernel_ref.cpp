@@ -33,8 +33,11 @@ ParamsKey SparseFillEmptyRowsKernelRef::GetSupportedKey() const {
 namespace {
 SparseFillEmptyRowsKernelRef::DispatchData SetDefault(const sparse_fill_empty_rows_params& params) {
     SparseFillEmptyRowsKernelRef::DispatchData dispatchData;
-    auto thread_count = params.inputs[2].LogicalSize() / 2;
-    dispatchData.gws[0] = thread_count;
+    const auto temp = params.outputs[2];
+    const auto temp_dims = params.outputs[2].GetDims();
+    const auto rows_count = params.outputs[2].GetDims()[3].v;  // empty_row_indicator has size [rows]
+    std::cout<< "\n\nSparseFillEmptyRowsKernelRef::SetDefault: rows_count = " << rows_count << "\n\n";
+    dispatchData.gws[0] = rows_count;
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = 1;
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);

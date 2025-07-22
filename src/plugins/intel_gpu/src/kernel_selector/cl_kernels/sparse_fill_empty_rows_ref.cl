@@ -27,7 +27,7 @@ KERNEL(sparse_fill_empty_rows_ref)(
     const uint row_idx = get_global_id(0);
     printf("Thread %d: Processing row %d of %d, indices_count=%d, default_value=%f\n", 
            get_global_id(0), row_idx, num_rows, indices_count, (float)*default_value);
-    
+
     // Print input indices, values, dense_shape, and default_value
     printf("dense_shape: [%d, %d]\n", dense_shape[0], dense_shape[1]);
     printf("default_value: %f\n", (float)*default_value);

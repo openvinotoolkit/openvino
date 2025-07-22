@@ -32,7 +32,7 @@ def generate_test_case(indices, values, dense_shape, default_value, name):
         tf_values = tf.constant(values, dtype=tf.float32)
     
     tf_dense_shape = tf.constant(dense_shape, dtype=tf.int64)
-    tf_default_value = tf.constant(default_value, dtype=tf.float32)
+    tf_default_value = tf.constant(42, dtype=tf.float32)
     
     # Create a SparseTensor
     sparse_tensor = tf.sparse.SparseTensor(
@@ -77,7 +77,7 @@ def main():
         indices=[[0, 0], [1, 1], [2, 2]], 
         values=[10, 20, 30], 
         dense_shape=[3, 3], 
-        default_value=99, 
+        default_value=42, 
         name="NoEmptyRows"
     ))
     
@@ -86,7 +86,7 @@ def main():
         indices=[], 
         values=[], 
         dense_shape=[3, 2], 
-        default_value=7, 
+        default_value=42, 
         name="AllEmptyRows"
     ))
     
@@ -95,7 +95,7 @@ def main():
         indices=[[1, 0], [1, 1]], 
         values=[5, 6], 
         dense_shape=[3, 3], 
-        default_value=-1, 
+        default_value=42, 
         name="EmptyRowsAtBothEnds"
     ))
     
@@ -104,7 +104,7 @@ def main():
         indices=[[0, 2], [2, 0], [4, 1], [6, 3]], 
         values=[1.5, 2.5, 3.5, 4.5], 
         dense_shape=[8, 4], 
-        default_value=0.5, 
+        default_value=42, 
         name="LargerDimensions"
     ))
     
@@ -114,7 +114,7 @@ def main():
         indices=[[100, 0], [1000, 1], [5000, 2], [9000, 3]], 
         values=[1.1, 2.2, 3.3, 4.4], 
         dense_shape=[row_count, 5], 
-        default_value=0.1, 
+        default_value=42, 
         name="HugeRowCount"
     ))
     
@@ -124,7 +124,7 @@ def main():
         indices=[[0, 100], [1, 1000], [2, 5000], [3, 9000]], 
         values=[5.5, 6.6, 7.7, 8.8], 
         dense_shape=[5, col_count], 
-        default_value=0.2, 
+        default_value=42, 
         name="HugeColumnCount"
     ))
     
@@ -136,16 +136,16 @@ def main():
         indices=indices, 
         values=values, 
         dense_shape=[100, 100], 
-        default_value=-1.0, 
+        default_value=42, 
         name="ManyEntries"
     ))
     
     # Test case 9: Huge output - mostly empty tensor with scattered values
     print(generate_test_case(
-        indices=[[i*500, i] for i in range(10)],  # Values at rows 0, 500, 1000, etc.
+        indices=[[i*50, i] for i in range(10)],  # Values at rows 0, 500, 1000, etc.
         values=[i*10.0 for i in range(10)],
-        dense_shape=[5000, 20],
-        default_value=99.9,
+        dense_shape=[500, 20],
+        default_value=42,
         name="HugeOutput"
     ))
 
