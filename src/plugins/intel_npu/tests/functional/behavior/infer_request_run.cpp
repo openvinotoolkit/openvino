@@ -54,6 +54,15 @@ INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                                             ::testing::ValuesIn(batchingConfigs)),
                          InferRequestRunTests::getTestCaseName);
 
+const std::vector<ov::AnyMap> DynamicBatchedConfigs = {
+    {ov::intel_npu::batch_mode(ov::intel_npu::BatchMode::PLUGIN), ov::log::level(ov::log::Level::WARNING)}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_DynamicBatchingSeqTests,
+                         DynamicBatchingRunSeqTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(DynamicBatchedConfigs)),
+                         InferRequestRunTests::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                          ROITensorInference,
                          ::testing::Combine(::testing::Values(tensor_roi::roi_nchw()),

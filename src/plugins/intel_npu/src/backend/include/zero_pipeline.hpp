@@ -19,7 +19,8 @@ public:
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
              const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors);
+             const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
+             size_t batch_size = 1);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
