@@ -5,7 +5,7 @@
 
 namespace {
 
-// FOR_EACH macros up to 16 arguments (no semicolons here!)
+// FOR_EACH macros up to 16 arguments:
 #define FOR_EACH_1(M, x1)                                 M(x1)
 #define FOR_EACH_2(M, x1, x2)                             M(x1) M(x2)
 #define FOR_EACH_3(M, x1, x2, x3)                         M(x1) M(x2) M(x3)

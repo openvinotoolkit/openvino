@@ -3,8 +3,8 @@
 #include <optional>
 
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/block_util.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 
 namespace ov::pass::pattern::op {
 
@@ -52,7 +52,7 @@ public:
         return m_outputs;
     }
 
-       void register_anchor(const std::string& name, const ov::Output<ov::Node>& output) {
+    void register_anchor(const std::string& name, const ov::Output<ov::Node>& output) {
         m_named_anchors[name] = output;
     }
 
@@ -77,6 +77,7 @@ public:
     std::map<std::string, Output<Node>>& get_registered_anchors() {
         return m_named_anchors;
     }
+
 private:
     OutputVector m_inputs;
     OutputVector m_outputs;
