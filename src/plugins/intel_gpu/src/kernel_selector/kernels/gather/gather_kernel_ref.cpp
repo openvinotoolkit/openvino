@@ -212,6 +212,20 @@ static std::string GetIndicesIdxOrder(const gather_params& params, size_t axis, 
     return GetOrderString(idx_order);
 }
 
+static bool OutputBiasPositionCompatible(const gather_params& params) {
+    // Default should be compatible.
+    auto rank = params.outputs[0].Dimentions();
+    if (rank == 4) {
+        std::vector<size_t> bias_bfyx = {params.fused_ops[0].output_tensor.Batch().v,
+                                         params.fused_ops[0].output_tensor.Feature().v,
+                                         params.fused_ops[0].output_tensor.Y().v,
+                                         params.fused_ops[0].output_tensor.X().v};
+        std::vector<size_t> output_bfyx = {params.outputs[0].Batch().v, params.outputs[0].Feature().v, params.outputs[0].Y().v, params.outputs[0].X().v};
+        return ov::PartialShape(output_bfyx).compatible(ov::PartialShape(bias_bfyx));
+    }
+    return true;
+}
+
 CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) const {
     CommonDispatchData dispatchData;
     const auto& output = params.outputs[0];
@@ -274,7 +288,7 @@ JitConstants GatherKernelRef::GetJitConstants(const gather_params& params) const
             params.inputs[1].LogicalSize() == 1) {
             idx_order = {"(f)", "(y)", "(x)", "(1)"};
         } else if (params.inputs[0].GetDims().size() == 4 && GetGatherChannelIndex(params) == 1 && !params.inputs[1].is_dynamic() &&
-                   params.inputs[1].LogicalSize() == 1) {
+                   params.inputs[1].LogicalSize() == 1 && !OutputBiasPositionCompatible(params)) {
             idx_order = {"(b)", "(y)", "(x)", "(1)"};
         } else {
             idx_order = GetOrder(params.inputs[0].GetDims().size());

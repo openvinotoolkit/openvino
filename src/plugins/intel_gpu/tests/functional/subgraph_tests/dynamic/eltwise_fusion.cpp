@@ -107,23 +107,52 @@ INSTANTIATE_TEST_SUITE_P(StaticEltwiseDynamicFusions_basic,
  *             |
  *           Output
  * **************************************/
-class GatherEltwiseFusion : public StaticEltwiseDynamicFusions,
-                     virtual public ov::test::SubgraphBaseTest {
+
+using GatherEltwiseFusionsParams = std::tuple<std::vector<InputShape>,  // input shapes
+                                              ov::element::Type,        // input precision
+                                              bool>;                    // gather indices is scalor or not.
+class GatherEltwiseFusion : public testing::WithParamInterface<GatherEltwiseFusionsParams>, virtual public ov::test::SubgraphBaseTest {
 public:
+    static std::string getTestCaseName(testing::TestParamInfo<GatherEltwiseFusionsParams> obj) {
+        std::vector<InputShape> input_shapes;
+        ov::element::Type input_precision;
+        bool input_scalar_indices;
+
+        std::tie(input_shapes, input_precision, input_scalar_indices) = obj.param;
+
+        std::ostringstream result;
+        result << "IS=(";
+        for (const auto& shape : input_shapes) {
+            result << ov::test::utils::partialShape2str({shape.first}) << "_";
+        }
+        result << ")_TS=";
+        for (const auto& shape : input_shapes) {
+            result << "(";
+            if (!shape.second.empty()) {
+                auto itr = shape.second.begin();
+                do {
+                    result << ov::test::utils::vec2str(*itr);
+                } while (++itr != shape.second.end() && result << "_");
+            }
+            result << ")_";
+        }
+        result << "input_precision=" << input_precision;
+        result << "_input_scalar_indices=" << input_scalar_indices;
+        return result.str();
+    }
+
 protected:
     std::shared_ptr<ov::Model> init_subgraph(std::vector<ov::PartialShape>& input_shapes,
-                                             const ov::element::Type input_precision) {
+                                             const ov::element::Type input_precision,
+                                             const bool input_scalar_indices) {
         auto input = std::make_shared<ov::op::v0::Parameter>(input_precision, input_shapes[0]);
 
-        auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int>{0});
-        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, std::vector<int>{1});
+        auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i32, input_scalar_indices ? ov::Shape{} : ov::Shape{1}, std::vector<int>{0});
+        auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, input_scalar_indices ? ov::Shape{} : ov::Shape{1}, std::vector<int>{1});
         auto gather = std::make_shared<ov::op::v8::Gather>(input, indices, axis);
 
         auto bias = std::make_shared<ov::op::v0::Constant>(input_precision, ov::Shape{1, 3}, std::vector<float>{0.01, 0.02, 0.03});
         auto add = std::make_shared<ov::op::v1::Add>(gather, bias);
-
-        gather->set_friendly_name("Gather1");
-        add->set_friendly_name("Add1");
 
         return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input}, "GatherEltwiseFusion");
     }
@@ -133,13 +162,14 @@ protected:
 
         std::vector<InputShape> input_shapes;
         ov::element::Type input_precision;
+        bool input_scalar_indices;
 
-        std::tie(input_shapes, input_precision) = GetParam();
+        std::tie(input_shapes, input_precision, input_scalar_indices) = GetParam();
 
         init_input_shapes(input_shapes);
 
         inType = outType = input_precision;
-        function = init_subgraph(inputDynamicShapes, input_precision);
+        function = init_subgraph(inputDynamicShapes, input_precision, input_scalar_indices);
     }
 };
 
@@ -151,8 +181,12 @@ const std::vector<std::vector<InputShape>> input_shapes_dyn = {
     {{{-1, 2, 3}, {{3, 2, 3}}}},
 };
 
+const std::vector<bool> input_scalar_indices = {false, true};
+
 INSTANTIATE_TEST_SUITE_P(GatherEltwiseFusion_basic,
                          GatherEltwiseFusion,
-                         ::testing::Combine(::testing::ValuesIn(input_shapes_dyn), ::testing::ValuesIn(input_precisions2)),
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_dyn),
+                                            ::testing::ValuesIn(input_precisions2),
+                                            ::testing::ValuesIn(input_scalar_indices)),
                          GatherEltwiseFusion::getTestCaseName);
 } // namespace
