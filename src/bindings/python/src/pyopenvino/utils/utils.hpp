@@ -42,11 +42,11 @@ inline constexpr bool PY_GIL_DISABLED {
 #endif
 };
 
-using gil_scoped_release_if_gil = std::conditional_t<PY_GIL_DISABLED , std::monostate, py::gil_scoped_release>;
-using gil_scoped_acquire_if_gil = std::conditional_t<PY_GIL_DISABLED , std::monostate, py::gil_scoped_acquire>;
+using ConditionalGILScopedRelease = std::conditional_t<PY_GIL_DISABLED, std::monostate, py::gil_scoped_release>;
+using ConditionalGILScopedAcquire = std::conditional_t<PY_GIL_DISABLED, std::monostate, py::gil_scoped_acquire>;
 
 // For free-threaded Python, we don't need call_guard - use empty call_guard
-using call_guard_gil_release_if_gil = std::conditional_t<PY_GIL_DISABLED , py::call_guard<>, pybind11::call_guard<py::gil_scoped_release>>;
+using CallGuardConditionalGILRelease = std::conditional_t<PY_GIL_DISABLED, py::call_guard<>, pybind11::call_guard<py::gil_scoped_release>>;
 
 namespace Common {
 namespace utils {

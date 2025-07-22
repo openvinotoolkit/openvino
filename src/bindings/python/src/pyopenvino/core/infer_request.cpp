@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings) {
     {
-        gil_scoped_release_if_gil release;
+        ConditionalGILScopedRelease release;
         *self.m_start_time = Time::now();
         self.m_request->infer();
         *self.m_end_time = Time::now();
@@ -231,7 +231,7 @@ void regclass_InferRequest(py::module m) {
                     PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function to pass `userdata` into!", 1);
                 }
             }
-            gil_scoped_release_if_gil release;
+            ConditionalGILScopedRelease release;
             *self.m_start_time = Time::now();
             self.m_request->start_async();
         },
@@ -270,7 +270,7 @@ void regclass_InferRequest(py::module m) {
                     PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
                 }
             }
-            gil_scoped_release_if_gil release;
+            ConditionalGILScopedRelease release;
             *self.m_start_time = Time::now();
             self.m_request->start_async();
         },
@@ -303,7 +303,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "wait",
         [](InferRequestWrapper& self) {
-            gil_scoped_release_if_gil release;
+            ConditionalGILScopedRelease release;
             self.m_request->wait();
         },
         R"(
@@ -316,7 +316,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "wait_for",
         [](InferRequestWrapper& self, const int timeout) {
-            gil_scoped_release_if_gil release;
+            ConditionalGILScopedRelease release;
             return self.m_request->wait_for(std::chrono::milliseconds(timeout));
         },
         py::arg("timeout"),
@@ -352,7 +352,7 @@ void regclass_InferRequest(py::module m) {
                     OPENVINO_THROW("Caught exception: ", e.what());
                 }
                 // Acquire GIL, execute Python function
-                gil_scoped_acquire_if_gil acquire;
+                ConditionalGILScopedAcquire acquire;
                 (*callback_sp)(self.m_userdata);
             });
         },
@@ -609,7 +609,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->get_profiling_info();
         },
-        call_guard_gil_release_if_gil(),
+        CallGuardConditionalGILRelease(),
         R"(
             Queries performance is measured per layer to get feedback on what
             is the most time-consuming operation, not all plugins provide
@@ -626,7 +626,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->query_state();
         },
-        call_guard_gil_release_if_gil(),
+        CallGuardConditionalGILRelease(),
         R"(
             Gets state control interface for given infer request.
 
@@ -724,7 +724,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->get_profiling_info();
         },
-        call_guard_gil_release_if_gil(),
+        CallGuardConditionalGILRelease(),
         R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!

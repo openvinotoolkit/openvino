@@ -22,7 +22,7 @@ void PyOp::validate_and_infer_types() {
 }
 
 bool PyOp::visit_attributes(ov::AttributeVisitor& value) {
-    gil_scoped_acquire_if_gil gil;  // Acquire the GIL while in this scope.
+    ConditionalGILScopedAcquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "visit_attributes");
     if (overrided_py_method) {                                       // method is found
@@ -32,7 +32,7 @@ bool PyOp::visit_attributes(ov::AttributeVisitor& value) {
 }
 
 std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    gil_scoped_acquire_if_gil gil;  // Acquire the GIL while in this scope.
+    ConditionalGILScopedAcquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "clone_with_new_inputs");
     if (overrided_py_method) {                        // method is found
@@ -54,7 +54,7 @@ bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& inp
 }
 
 bool PyOp::has_evaluate() const {
-    gil_scoped_acquire_if_gil gil;  // Acquire the GIL while in this scope.
+    ConditionalGILScopedAcquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "has_evaluate");
     if (overrided_py_method) {                                 // method is found
@@ -68,7 +68,7 @@ bool PyOp::has_evaluate() const {
 }
 
 void PyOp::update_type_info() {
-    gil_scoped_acquire_if_gil gil;  // Acquire the GIL while in this scope.
+    ConditionalGILScopedAcquire gil;  // Acquire the GIL while in this scope.
 
     // Try to look up the overridden method on the Python side.
     py::function overriden_py_method = pybind11::get_override(this, "get_type_info");
