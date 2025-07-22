@@ -326,11 +326,11 @@ INSTANTIATE_TEST_SUITE_P(rounding_params,
                          ::testing::PrintToStringParamName());
 
 TEST_P(F32ToF4E2M1RoundingTest, round_behavior) {
-    auto [input, expected_bits, expected_float] = GetParam();
+    const auto& [input, expected_bits, expected_float] = GetParam();
 
     const auto f4 = ov::float4_e2m1(input);
     EXPECT_EQ(f4.to_bits(), expected_bits);
-    EXPECT_EQ(static_cast<float>(f4), expected_float);
+    EXPECT_NEAR(static_cast<float>(f4), expected_float, 0.0001f);
 }
 
 }  // namespace test
