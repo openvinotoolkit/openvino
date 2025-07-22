@@ -40,7 +40,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
     auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
+    OV_ASSERT_NO_THROW(meta.append_padding_blob_size_and_magic(stream));
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
@@ -61,7 +61,7 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidOpenvinoVersion) {
     auto meta = MetadataTest(blobSize, wrongOvVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
+    OV_ASSERT_NO_THROW(meta.append_padding_blob_size_and_magic(stream));
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
@@ -84,7 +84,7 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
+    OV_ASSERT_NO_THROW(meta.append_padding_blob_size_and_magic(stream));
     ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
@@ -104,7 +104,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
+    OV_ASSERT_NO_THROW(meta.append_padding_blob_size_and_magic(stream));
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
     storedMeta->is_compatible();
@@ -190,7 +190,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtEnd) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
+    OV_ASSERT_NO_THROW(meta.append_padding_blob_size_and_magic(stream));
 
     // inserting a new field at the end of the blob, between last metadata field and blobDataSize
     std::string temp = stream.str();
@@ -222,7 +222,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtMiddle) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
+    OV_ASSERT_NO_THROW(meta.append_padding_blob_size_and_magic(stream));
 
     // inserting a new field at the middle of the blob, between metadata version and OV version size
     std::string temp = stream.str();
@@ -252,7 +252,7 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
+    OV_ASSERT_NO_THROW(meta.append_padding_blob_size_and_magic(stream));
 
     // removing fields between metadata version and blob data size
     std::string temp = stream.str();

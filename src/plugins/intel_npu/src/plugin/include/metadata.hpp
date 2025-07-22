@@ -41,7 +41,7 @@ public:
      * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
      * method writes at the end. This change allows better extension of class hierarchy.
      */
-    void append_blob_size_and_magic(std::ostream& stream);
+    void append_padding_blob_size_and_magic(std::ostream& stream);
 
     virtual bool is_compatible() = 0;
 
@@ -55,6 +55,8 @@ public:
     virtual ~MetadataBase() = default;
 
     static std::streampos getFileSize(std::istream& stream);
+
+    virtual size_t get_medata_size() const = 0;
 
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
@@ -150,6 +152,8 @@ public:
 
     uint16_t get_patch() const;
 
+    size_t get_openvino_version_size() const;
+
     bool operator!=(const OpenvinoVersion& version);
 
 private:
@@ -206,6 +210,8 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
+    size_t get_medata_size() const override;
+
 protected:
     OpenvinoVersion _ovVersion;
 };
@@ -236,8 +242,11 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
+    size_t get_medata_size() const override;
+
 private:
     std::optional<std::vector<uint64_t>> _initSizes;
+    uint64_t _numberOfInits = 0;
 };
 
 /**

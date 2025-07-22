@@ -68,6 +68,8 @@ private:
     ze_device_graph_properties_t _compilerProperties = {};
 
     Logger _logger;
+
+    uint32_t _graphExtVersion = 0;
 };
 
 }  // namespace intel_npu

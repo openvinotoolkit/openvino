@@ -5,9 +5,11 @@
 #include "metadata.hpp"
 
 #include <cstring>
+#include <iterator>
 #include <optional>
 
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 
 namespace intel_npu {
@@ -49,6 +51,10 @@ void OpenvinoVersion::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_major), sizeof(_major));
     stream.write(reinterpret_cast<const char*>(&_minor), sizeof(_minor));
     stream.write(reinterpret_cast<const char*>(&_patch), sizeof(_patch));
+}
+
+size_t OpenvinoVersion::get_openvino_version_size() const {
+    return sizeof(_major) + sizeof(_minor) + sizeof(_patch);
 }
 
 MetadataBase::MetadataBase(uint32_t version, uint64_t blobDataSize) : _version(version), _blobDataSize(blobDataSize) {}
@@ -108,7 +114,14 @@ void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
     }
 }
 
-void MetadataBase::append_blob_size_and_magic(std::ostream& stream) {
+void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
+    auto metadataSize = get_medata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
+    auto size = (metadataSize + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
+    auto paddingSize = size - metadataSize;
+    if (paddingSize) {
+        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
+    }
+
     stream.write(reinterpret_cast<const char*>(&_blobDataSize), sizeof(_blobDataSize));
     stream.write(MAGIC_BYTES.data(), MAGIC_BYTES.size());
 }
@@ -121,8 +134,8 @@ void Metadata<METADATA_VERSION_2_0>::write(std::ostream& stream) {
 void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
     Metadata<METADATA_VERSION_2_0>::write(stream);
 
-    uint64_t numberOfInits = _initSizes.has_value() ? _initSizes->size() : 0;
-    stream.write(reinterpret_cast<const char*>(&numberOfInits), sizeof(numberOfInits));
+    _numberOfInits = _initSizes.has_value() ? _initSizes->size() : 0;
+    stream.write(reinterpret_cast<const char*>(&_numberOfInits), sizeof(_numberOfInits));
 
     if (_initSizes.has_value()) {
         for (uint64_t initSize : _initSizes.value()) {
@@ -282,6 +295,22 @@ std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_0>::get_init_si
 
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
+}
+
+size_t Metadata<METADATA_VERSION_2_0>::get_medata_size() const {
+    return sizeof(_version) + _ovVersion.get_openvino_version_size();
+}
+
+size_t Metadata<METADATA_VERSION_2_1>::get_medata_size() const {
+    auto metdataSize = Metadata<METADATA_VERSION_2_0>::get_medata_size() + sizeof(_numberOfInits);
+
+    if (_initSizes.has_value()) {
+        for (uint64_t initSize : _initSizes.value()) {
+            metdataSize += sizeof(initSize);
+        }
+    }
+
+    return metdataSize;
 }
 
 }  // namespace intel_npu
