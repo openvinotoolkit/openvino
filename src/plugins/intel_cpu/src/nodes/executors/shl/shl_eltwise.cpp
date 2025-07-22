@@ -27,7 +27,7 @@
 
 namespace ov::intel_cpu {
 
-static bool ShlEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
+static bool isEltwiseAlgorithmSupported(Algorithm algorithm) {
     return any_of(algorithm,
                   Algorithm::EltwiseAdd,
                   Algorithm::EltwiseSubtract,

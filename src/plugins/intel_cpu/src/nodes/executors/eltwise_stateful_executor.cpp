@@ -32,18 +32,6 @@
 #include "post_ops.hpp"
 #include "utils/debug_capabilities.h"
 
-#if defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/cpu_isa_traits.hpp>
-#endif
-
-#if defined(OPENVINO_ARCH_ARM64)
-#    include <cpu/aarch64/cpu_isa_traits.hpp>
-#endif
-
-#if defined(OPENVINO_ARCH_RISCV64)
-#    include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
-#endif
-
 namespace ov::intel_cpu {
 
 EltwiseStatefulExecutor::EltwiseStatefulExecutor(EltwiseAttrs attrs,
@@ -287,18 +275,16 @@ bool EltwiseStatefulExecutor::update(const MemoryArgs& memory) {
         }
     }
 
-    auto executor = eltwiseImplType == EltwiseImplType::reference
-                        ? create(inDims, currentOutBlkDims, m_outPrc, m_context, m_shapeAgnosticData)
-                        : EltwiseJitExecutor::create(memory,
-                                                     inDims,
-                                                     currentOutBlkDims,
-                                                     m_outPrc,
-                                                     m_context,
-                                                     m_shapeAgnosticData,
-                                                     eltwiseImplType);
-    assert(executor);
-
-    m_executor = executor;
+    m_executor = eltwiseImplType == EltwiseImplType::reference
+                     ? createEltwiseRefExecutor(inDims, currentOutBlkDims, m_outPrc, m_context, m_shapeAgnosticData)
+                     : EltwiseJitExecutor::create(memory,
+                                                  inDims,
+                                                  currentOutBlkDims,
+                                                  m_outPrc,
+                                                  m_context,
+                                                  m_shapeAgnosticData,
+                                                  eltwiseImplType);
+    OPENVINO_DEBUG_ASSERT(m_executor, "Failed to create Eltwise executor");
 
     return true;
 }
@@ -336,29 +322,7 @@ impl_desc_type EltwiseStatefulExecutor::implType() const {
         return impl_desc_type::ref;
     }
 
-#if defined(OPENVINO_ARCH_ARM64)
-    if (dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
-        return impl_desc_type::jit_asimd;
-    }
-#elif defined(OPENVINO_ARCH_RISCV64)
-    if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
-        return impl_desc_type::jit_gv;
-    }
-#elif defined(OPENVINO_ARCH_X86_64)
-    using namespace dnnl::impl::cpu::x64;
-    if (mayiuse(avx512_core)) {
-        return impl_desc_type::jit_avx512;
-    }
-
-    if (mayiuse(dnnl::impl::cpu::x64::avx2)) {
-        return impl_desc_type::jit_avx2;
-    }
-
-    if (mayiuse(sse41)) {
-        return impl_desc_type::jit_sse42;
-    }
-#endif
-    OPENVINO_THROW("not supported architecture");
+    return EltwiseJitExecutor::implType();
 }
 
 }  // namespace ov::intel_cpu

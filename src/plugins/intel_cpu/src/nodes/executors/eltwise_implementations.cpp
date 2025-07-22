@@ -47,7 +47,7 @@ using namespace executor;
 
 static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
     const auto algorithm = config.attrs.data.algo;
-    return one_of(algorithm,
+    return any_of(algorithm,
                   Algorithm::EltwiseBitwiseAnd,
                   Algorithm::EltwiseBitwiseNot,
                   Algorithm::EltwiseBitwiseOr,
@@ -58,7 +58,7 @@ static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
 
 [[maybe_unused]] static bool isChannelFirstApplicable(const EltwiseConfig& config) {
     auto acceptableRank = [](const size_t rank) {
-        return one_of(rank, 1U, 2U, 3U, 4U, 5U);
+        return any_of(rank, 1U, 2U, 3U, 4U, 5U);
     };
 
     const auto outputRank = dstRank(config);
@@ -84,7 +84,7 @@ static bool isBitwiseAlgorithm(const EltwiseConfig& config) {
 
 [[maybe_unused]] static bool isBlockedApplicable(const EltwiseConfig& config) {
     auto acceptableRank = [](const size_t rank) {
-        return one_of(rank, 1U, 3U, 4U, 5U);
+        return any_of(rank, 1U, 3U, 4U, 5U);
     };
 
     const auto outputRank = dstRank(config);
@@ -191,8 +191,10 @@ struct createOptimalConfigDefault {
                 return false;  // type mismatch
             }
 
-            const int i = notation.at(argId);
-            if (desc->getShape().getRank() < 2 || (one_of(layoutConfig[i], LayoutType::nCsp16c, LayoutType::nCsp8c) && desc->getShape().getMinDims()[1] == 1)) {
+            const size_t i = notation.at(argId);
+
+            const bool blocked1C = any_of(layoutConfig[i], LayoutType::nCsp16c, LayoutType::nCsp8c) && desc->getShape().getMinDims()[1] == 1;
+            if (desc->getShape().getRank() < 2 || blocked1C) {
                 return true;
             }
 
@@ -212,7 +214,7 @@ struct createOptimalConfigDefault {
                 continue;  // skip empty descriptors
             }
 
-            const int i = notation.at(argId);
+            const size_t i = notation.at(argId);
             const auto& type = typeConfig.at(argId);
             const auto& layout = layoutConfig[i];
 
@@ -220,8 +222,8 @@ struct createOptimalConfigDefault {
                 continue;  // already optimal
             }
 
-            if (desc->getShape().getRank() < 2 || // rank 1 tensors are always ncsp
-                (one_of(layout, LayoutType::nCsp16c, LayoutType::nCsp8c) && desc->getShape().getMinDims()[1] <= 1)) {
+            const bool blocked1C = any_of(layout, LayoutType::nCsp16c, LayoutType::nCsp8c) && desc->getShape().getMinDims()[1] <= 1;
+            if (desc->getShape().getRank() < 2 || blocked1C) { // no reason to use blocked
                 descs[argId] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(type, desc->getShape());
                 continue;
             }
@@ -247,7 +249,7 @@ template <>
 const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<EltwiseAttrs>> eltwiseImplementations {
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_jit_ncsp", ExecutorType::jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_ncsp", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -260,7 +262,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_jit_nspc", ExecutorType::jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_nspc", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
@@ -273,7 +275,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
-            "eltwise_jit_nCsp16c", ExecutorType::jit_x64, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_nCsp16c", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nCsp16c, LayoutType::nCsp16c},
@@ -293,7 +295,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
-            "eltwise_jit_nCsp8c", ExecutorType::jit_x64, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_nCsp8c", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nCsp8c, LayoutType::nCsp8c},
@@ -311,7 +313,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_ARM64(
-            "eltwise_jit_arm", ExecutorType::jit_aarch64, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_arm", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config) -> bool {
                 return EltwiseJitExecutor::supports(config);
@@ -321,7 +323,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_RISCV64(
-            "eltwise_jit_riscv", ExecutorType::jit_riscv64, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_riscv", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
             // supports
             [](const EltwiseConfig& config) -> bool {
                 return EltwiseJitExecutor::supports(config);

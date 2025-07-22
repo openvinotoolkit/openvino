@@ -393,7 +393,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     }
 
     const auto algorithm = attrs.data.algo;
-    if (one_of(algorithm,
+    if (any_of(algorithm,
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseLeftShift,
                Algorithm::EltwiseBitwiseRightShift)) {
@@ -404,7 +404,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     return true;
 
 #elif defined(OPENVINO_ARCH_ARM64)
-    if (one_of(algorithm,
+    if (any_of(algorithm,
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
                Algorithm::EltwiseBitwiseOr,
@@ -419,7 +419,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                                                                                                ov::element::u8};
 
     std::vector<ov::element::Type> supported_output_precisions = supported_input_precisions;
-    if (one_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
+    if (any_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
         supported_input_precisions = std::vector<ov::element::Type>{ov::element::f16, ov::element::f32};
     }
 
@@ -440,7 +440,7 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     }
 
 #elif defined(OPENVINO_ARCH_RISCV64)
-    if (!one_of(algorithm,
+    if (!any_of(algorithm,
                 Algorithm::EltwiseAbs,
                 Algorithm::EltwiseAdd,
                 Algorithm::EltwiseClamp,
@@ -449,14 +449,17 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                 Algorithm::EltwiseErf,
                 Algorithm::EltwiseExp,
                 Algorithm::EltwiseFloor,
+                Algorithm::EltwiseHsigmoid,
+                Algorithm::EltwiseHswish,
                 Algorithm::EltwiseEqual,
-                Algorithm::EltwiseGreaterEqual,
                 Algorithm::EltwiseLessEqual,
+                Algorithm::EltwiseGreaterEqual,
                 Algorithm::EltwiseLogicalAnd,
                 Algorithm::EltwiseLogicalNot,
                 Algorithm::EltwiseLogicalXor,
                 Algorithm::EltwiseMaximum,
                 Algorithm::EltwiseMinimum,
+                Algorithm::EltwiseMish,
                 Algorithm::EltwiseMod,
                 Algorithm::EltwiseMulAdd,
                 Algorithm::EltwiseMultiply,
@@ -530,7 +533,7 @@ size_t EltwiseJitExecutor::getBatchDimIdx() const {
     return m_batchDimIdx;
 }
 
-impl_desc_type EltwiseJitExecutor::implType() const {
+impl_desc_type EltwiseJitExecutor::implType() {
 #if defined(OPENVINO_ARCH_ARM64)
     if (mayiuse(dnnl::impl::cpu::aarch64::asimd)) {
         return impl_desc_type::jit_asimd;
@@ -591,7 +594,7 @@ std::shared_ptr<EltwiseJitExecutor> EltwiseJitExecutor::create(const MemoryArgs&
     auto runtimeCache = context->getRuntimeCache();
     const auto result = runtimeCache->getOrCreate(key, builder);
     const auto& executor = result.first;
-    assert(executor);
+    OPENVINO_DEBUG_ASSERT(executor, "Failed to create Eltwise jit executor");
 
     return executor;
 }

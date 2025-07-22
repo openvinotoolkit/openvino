@@ -21,7 +21,6 @@ public:
     virtual void exec(const jit_eltwise_call_args_ptrs& args_ptrs, const VectorDims& dims_out) = 0;
     [[nodiscard]] virtual size_t getBatchDimIdx() const = 0;
     [[nodiscard]] virtual const VectorDims& getOutDims() const = 0;
-    [[nodiscard]] virtual impl_desc_type implType() const = 0;
 };
 
 using EltwiseExecutorPtr = std::shared_ptr<IEltwiseExecutor>;

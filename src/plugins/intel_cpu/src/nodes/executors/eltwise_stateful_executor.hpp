@@ -38,6 +38,7 @@ public:
 
     [[nodiscard]] impl_desc_type implType() const override;
 
+private:
     EltwiseAttrs m_attrs;
     ExecutorContext::CPtr m_context;
     std::vector<ptrdiff_t> m_srcOffsets;
