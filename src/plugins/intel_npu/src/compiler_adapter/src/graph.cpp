@@ -157,13 +157,11 @@ void Graph::initialize(const Config& config) {
 
     _zeGraphExt->initializeGraph(_handle, _command_queue_group_ordinal);
     _logger.debug("Graph initialize finish");
-
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
     _batch_size = get_batch_size(_metadata);
-
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
