@@ -136,8 +136,6 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                     desc.post_ops = 5;
                 }
             }
-            if (desc.post_ops == -1)
-                std::cout << "-1 postops" << std::endl;
             return desc;
         }
 
