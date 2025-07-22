@@ -40,8 +40,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
 
     if (_blobIsReleased) {
-        OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
-                       "its lifetime.");
+        OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
     }
 
     if (_blob ==
@@ -171,8 +170,10 @@ void Graph::initialize(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
+    //  import_model(...) -> export_model(...) permitted only if called by OV caching
+    //  user will be limited to compile_model(...) -> export_model(...) for now
     if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
-        config.get<PERF_COUNT>()) {
+        config.get<PERF_COUNT>() || config.get<LOADED_FROM_CACHE>()) {
         return false;
     }
 
