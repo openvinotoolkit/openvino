@@ -21,7 +21,7 @@ layout paged_attention_inst::calc_output_layout(const paged_attention_node& /*no
 
 template<typename ShapeType>
 std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_node const& /*node*/, kernel_impl_params const& impl_param) {
-    const auto& q_layout = impl_param.get_input_layout(0);
+    const auto& q_layout = impl_param.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::QUERY);
     const auto& desc = impl_param.typed_desc<paged_attention>();
     auto data_layout = q_layout;
 
@@ -34,22 +34,23 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
 
     data_layout.data_padding = padding();
 
-    const auto& key_cache_ps = impl_param.get_input_layout(3).get_partial_shape();
+    const auto& key_cache_idx = cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE;
+    const auto& key_cache_ps = impl_param.get_input_layout(key_cache_idx).get_partial_shape();
     const auto& key_cache_quant_mode = impl_param.get_program().get_config().get_key_cache_quant_mode();
-    bool key_cache_compressed = impl_param.get_input_layout(3).data_type == ov::element::i8 ||
-                                impl_param.get_input_layout(3).data_type == ov::element::u8;
-    size_t expected_block_size = paged_attention::block_size;
+    bool key_cache_compressed = impl_param.get_input_layout(key_cache_idx).data_type == ov::element::i8 ||
+                                impl_param.get_input_layout(key_cache_idx).data_type == ov::element::u8;
+    auto expected_block_size = paged_attention::block_size;
     if (key_cache_compressed && key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
         expected_block_size += 4;
     }
-    bool valid_block_size = key_cache_ps[3].is_dynamic() ||
-                            (key_cache_ps[3].get_length() == expected_block_size);
+    bool valid_block_size = key_cache_ps.is_dynamic() ||
+                            (key_cache_ps[key_cache_idx].get_length() == static_cast<long int>(expected_block_size));
     OPENVINO_ASSERT(valid_block_size, "[GPU] Incorrect block size for Paged Attention operation. "
-                                      "Expected ", expected_block_size, ", but got ", key_cache_ps[3].get_length());
+                                      "Expected ", expected_block_size, ", but got ", key_cache_ps[key_cache_idx].get_length());
     std::vector<layout> output_layouts{ data_layout };
 
     if (desc->has_scores_output()) {
-        const auto past_lens_idx = 5;
+        const auto past_lens_idx = cldnn::paged_attention::PagedAttentionInputIdx::PAST_LENS;
         const auto output_dt = data_layout.data_type;
         if (impl_param.get_input_layout(past_lens_idx).is_static()) {
             const auto& memory_deps = impl_param.memory_deps;
@@ -91,8 +92,8 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     paged_attention_info.add("has_alibi", desc->has_alibi);
     paged_attention_info.add("has_score_aggregation", desc->has_score_aggregation);
     paged_attention_info.add("has_rotated_blocks", desc->has_rotated_blocks);
-    paged_attention_info.add("key_cache_dt", node.get_input_layout(3).data_type);
-    paged_attention_info.add("value_cache_dt", node.get_input_layout(4).data_type);
+    paged_attention_info.add("key_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE).data_type);
+    paged_attention_info.add("value_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::VALUE_CACHE).data_type);
     paged_attention_info.add("score_output", desc->has_scores_output());
     paged_attention_info.add("score_aggregation", desc->has_score_aggregation);
     node_info->add("paged_attention primitive info", paged_attention_info);
