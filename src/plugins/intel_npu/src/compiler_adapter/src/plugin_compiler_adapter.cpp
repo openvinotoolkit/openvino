@@ -13,6 +13,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
@@ -78,15 +79,15 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         return;
     }
 
-    uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
+    _graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _logger.info("PluginCompilerAdapter creating adapter using graphExtVersion");
 
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(graphExtVersion),
-                 ZE_MINOR_VERSION(graphExtVersion));
+                 ZE_MAJOR_VERSION(_graphExtVersion),
+                 ZE_MINOR_VERSION(_graphExtVersion));
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
@@ -117,8 +118,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkDesc.metadata),
                                    std::move(tensor),
-                                   /* persistentBlob = */ true,
                                    config,
+                                   /* blobAllocatedByPlugin = */ true,
+                                   /* npuMemory = */ nullptr,
                                    _compiler);
 }
 
@@ -264,11 +266,30 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     network.clear();
     network.shrink_to_fit();
 
+    bool inputGraphPersistent = false;
     ze_graph_handle_t graphHandle = nullptr;
+    void* npuMemory = nullptr;
 
     if (_zeGraphExt) {
-        graphHandle =
-            _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
+        if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13) &&
+            utils::memory_and_size_aligned_to_standard_page_size(mainBlob.data(), mainBlob.get_byte_size())) {
+            npuMemory = _zeGraphExt->getNpuMemory(mainBlob.data(),
+                                                  mainBlob.get_byte_size(),
+                                                  ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+
+            if (npuMemory) {
+                inputGraphPersistent = true;
+                graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(npuMemory),
+                                                          mainBlob.get_byte_size(),
+                                                          inputGraphPersistent);
+            }
+        }
+
+        if (!inputGraphPersistent) {
+            graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()),
+                                                      mainBlob.get_byte_size(),
+                                                      inputGraphPersistent);
+        }
     }
 
     _logger.debug("main schedule parse end");
@@ -281,8 +302,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                        graphHandle,
                                        std::move(networkMeta),
                                        std::move(mainBlob),
-                                       persistentBlob,
                                        config,
+                                       inputGraphPersistent ? inputGraphPersistent : !blobAllocatedByPlugin,
+                                       npuMemory,
                                        _compiler);
     }
 

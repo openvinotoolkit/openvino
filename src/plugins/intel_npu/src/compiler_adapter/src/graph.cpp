@@ -4,7 +4,10 @@
 
 #include "graph.hpp"
 
+#include <iterator>
+
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
@@ -15,14 +18,16 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              ze_graph_handle_t graphHandle,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
-             const bool persistentBlob,
              const Config& config,
+             const bool persistentBlob,
+             void* importedNpuData,
              const ov::SoPtr<ICompiler>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _persistentBlob(persistentBlob),
+      _importedNpuData(importedNpuData),
       _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -73,8 +78,22 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
         _logger.info(str.str().c_str());
     }
+
+    auto size = (blobSize + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
+    auto paddingSize = size - blobSize;
+    if (paddingSize) {
+        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
+
+        if (!stream) {
+            _logger.error("Write padding to stream failed. Blob is broken!");
+            return std::make_pair(0, std::nullopt);
+        }
+
+        _logger.info("Blob size with padding: %ld", size);
+    }
+
     _logger.info("Write blob to stream successfully.");
-    return std::make_pair(blobSize, std::nullopt);
+    return std::make_pair(size, std::nullopt);
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -176,12 +195,8 @@ void Graph::initialize(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
-    if (_persistentBlob) {
-        return false;
-    }
-
-    if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
-        config.get<PERF_COUNT>()) {
+    if (_persistentBlob || _blob == std::nullopt ||
+        _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) || config.get<PERF_COUNT>()) {
         return false;
     }
 
@@ -206,6 +221,16 @@ Graph::~Graph() {
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle = nullptr;
+        }
+    }
+
+    if (_importedNpuData != nullptr) {
+        auto result = zeMemFree(_zeroInitStruct->getContext(), _importedNpuData);
+        if (ZE_RESULT_SUCCESS != result) {
+            _logger.error("L0 zeMemFree result: %s, code %#X - %s",
+                          ze_result_to_string(result).c_str(),
+                          uint64_t(result),
+                          ze_result_to_description(result).c_str());
         }
     }
 

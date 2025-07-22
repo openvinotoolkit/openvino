@@ -15,6 +15,7 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "npuw/compiled_model.hpp"
 #include "npuw/llm_compiled_model.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/allocator.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
@@ -184,6 +186,25 @@ std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
     }
     return nullptr;
 }
+struct CustomNpuAllocator {
+public:
+    CustomNpuAllocator(const size_t align_size) : _align_size(align_size) {}
+
+    void* allocate(const size_t bytes, const size_t /*alignment*/) {
+        return ::operator new(bytes, std::align_val_t(_align_size));
+    }
+
+    void deallocate(void* handle, const size_t /*bytes*/, const size_t /*alignment*/) noexcept {
+        ::operator delete(handle, std::align_val_t(_align_size));
+    }
+
+    bool is_equal(const CustomNpuAllocator&) const {
+        return true;
+    }
+
+private:
+    const size_t _align_size;
+};
 
 }  // namespace
 
@@ -689,7 +710,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
             }
             blobSize = metadata->get_blob_size();
         }
-        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize});
+        ov::Allocator customAllocator{CustomNpuAllocator{utils::STANDARD_PAGE_SIZE}};
+        ov::Tensor tensor(ov::element::u8, ov::Shape{blobSize}, customAllocator);
         if (blobSize > static_cast<decltype(blobSize)>(std::numeric_limits<std::streamsize>::max())) {
             OPENVINO_THROW("Blob size is too large to be represented on a std::streamsize!");
         }

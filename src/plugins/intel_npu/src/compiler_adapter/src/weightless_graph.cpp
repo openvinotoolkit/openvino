@@ -162,8 +162,9 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             mainGraphHandle,
             std::move(mainMetadata),
             std::move(mainBlob),
-            persistentBlob,
             config,
+            blobAllocatedByPlugin,
+            nullptr,
             compiler,
             true),
       _initsHandles(initGraphHandles),
@@ -571,7 +572,7 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
-    if (_initBlobs == std::nullopt || config.get<PERF_COUNT>()) {
+    if (_persistentBlob || _initBlobs == std::nullopt || config.get<PERF_COUNT>()) {
         return;
     }
 

@@ -14,6 +14,7 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
@@ -193,7 +194,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
       _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize DriverCompilerAdapter start");
 
-    uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
+    _graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
@@ -202,8 +203,8 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize DriverCompilerAdapter complete, using graphExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(graphExtVersion),
-                 ZE_MINOR_VERSION(graphExtVersion));
+                 ZE_MAJOR_VERSION(_graphExtVersion),
+                 ZE_MINOR_VERSION(_graphExtVersion));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
@@ -247,7 +248,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   /* persistentBlob = */ false,
                                    config);
 }
 
@@ -366,8 +366,30 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
     _logger.debug("parse start");
-    ze_graph_handle_t graphHandle =
-        _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()), mainBlob.get_byte_size());
+    bool inputGraphPersistent = false;
+    ze_graph_handle_t graphHandle = nullptr;
+    void* npuMemory = nullptr;
+
+    if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13) &&
+        utils::memory_and_size_aligned_to_standard_page_size(mainBlob.data(), mainBlob.get_byte_size())) {
+        npuMemory = _zeGraphExt->getNpuMemory(mainBlob.data(),
+                                              mainBlob.get_byte_size(),
+                                              ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+
+        if (npuMemory) {
+            inputGraphPersistent = true;
+            graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(npuMemory),
+                                                      mainBlob.get_byte_size(),
+                                                      inputGraphPersistent);
+        }
+    }
+
+    if (!inputGraphPersistent) {
+        graphHandle = _zeGraphExt->getGraphHandle(*reinterpret_cast<const uint8_t*>(mainBlob.data()),
+                                                  mainBlob.get_byte_size(),
+                                                  inputGraphPersistent);
+    }
+
     _logger.debug("parse end");
 
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
@@ -381,8 +403,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        graphHandle,
                                        std::move(networkMeta),
                                        std::move(mainBlob),
-                                       persistentBlob,
-                                       config);
+                                       config,
+                                       inputGraphPersistent ? inputGraphPersistent : !blobAllocatedByPlugin,
+                                       npuMemory);
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific

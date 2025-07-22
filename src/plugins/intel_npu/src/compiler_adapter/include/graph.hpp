@@ -23,8 +23,9 @@ public:
           ze_graph_handle_t graphHandle,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          const bool persistentBlob,
           const Config& config,
+          const bool persistentBlob = true,
+          void* importedNpuData = nullptr,
           const ov::SoPtr<ICompiler>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
@@ -49,7 +50,9 @@ protected:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _persistentBlob = false;
+    bool _persistentBlob = true;
+
+    void* _importedNpuData = nullptr;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;
