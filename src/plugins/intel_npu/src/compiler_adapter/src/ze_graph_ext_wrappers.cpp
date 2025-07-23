@@ -283,7 +283,7 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t,
     return std::unordered_set<std::string>();
 }
 
-void* ZeGraphExtWrappers::getNpuMemory(void* data, size_t size, const uint32_t flags) {
+void* ZeGraphExtWrappers::getNpuMemory(void* data, size_t size, const uint32_t flags) const {
     ze_device_external_memory_properties_t externalMemorydDesc = {};
     externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
 
@@ -356,48 +356,43 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(std::pair<size_t, std::shar
     return graphHandle;
 }
 
-ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData,
-                                                     size_t blobSize,
-                                                     const bool inputGraphPersistent) const {
+std::pair<ze_graph_handle_t, bool> ZeGraphExtWrappers::getGraphHandle(void* blobData, size_t blobSize) const {
     ze_graph_handle_t graphHandle = nullptr;
 
     if (blobSize == 0) {
         OPENVINO_THROW("Empty blob");
     }
 
-    if (inputGraphPersistent) {
-        uint32_t flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
+    uint32_t flags = 0;
+    void* npuMemory = nullptr;
 
-        ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
-                                  nullptr,
-                                  ZE_GRAPH_FORMAT_NATIVE,
-                                  blobSize,
-                                  &blobData,
-                                  nullptr,
-                                  flags};
+    if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13) &&
+        utils::memory_and_size_aligned_to_standard_page_size(blobData, blobSize)) {
+        npuMemory = getNpuMemory(blobData, blobSize, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
 
-        _logger.debug("getGraphHandle - perform pfnCreate2 with ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT flag set");
-
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
-                                                                     _zeroInitStruct->getDevice(),
-                                                                     &desc,
-                                                                     &graphHandle);
-        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
-
-        return graphHandle;
+        if (npuMemory) {
+            _logger.debug("getGraphHandle - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT");
+            flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
+        }
     }
 
-    ze_graph_desc_t desc =
-        {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES, nullptr, ZE_GRAPH_FORMAT_NATIVE, blobSize, &blobData, nullptr};
+    ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
+                              nullptr,
+                              ZE_GRAPH_FORMAT_NATIVE,
+                              blobSize,
+                              reinterpret_cast<const uint8_t*>(blobData),
+                              nullptr,
+                              flags};
 
-    _logger.debug("getGraphHandle - perform pfnCreate");
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate(_zeroInitStruct->getContext(),
-                                                                _zeroInitStruct->getDevice(),
-                                                                &desc,
-                                                                &graphHandle);
-    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate", result, _zeroInitStruct->getGraphDdiTable());
+    _logger.debug("getGraphHandle - perform pfnCreate2");
 
-    return graphHandle;
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnCreate2(_zeroInitStruct->getContext(),
+                                                                 _zeroInitStruct->getDevice(),
+                                                                 &desc,
+                                                                 &graphHandle);
+    THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnCreate2", result, _zeroInitStruct->getGraphDdiTable());
+
+    return std::make_pair(graphHandle, npuMemory ? true : false);
 }
 
 /**

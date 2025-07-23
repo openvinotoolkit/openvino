@@ -5,11 +5,13 @@
 #include "weightless_graph.hpp"
 
 #include <condition_variable>
+#include <iterator>
 #include <mutex>
 #include <queue>
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -147,15 +149,15 @@ void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>
 
 WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                                  const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                 const bool persistentBlob,
-                                 ze_graph_handle_t mainGraphHandle,
+                                 std::pair<ze_graph_handle_t, bool> mainGraphHandle,
                                  NetworkMetadata mainMetadata,
                                  std::optional<ov::Tensor> mainBlob,
-                                 const std::vector<ze_graph_handle_t>& initGraphHandles,
+                                 const std::vector<std::pair<ze_graph_handle_t, bool>>& initGraphHandles,
                                  std::vector<NetworkMetadata> initMetadata,
                                  std::optional<std::vector<ov::Tensor>> initBlobs,
                                  const std::shared_ptr<const ov::Model>& model,
                                  const Config& config,
+                                 const bool persistentBlob,
                                  const ov::SoPtr<ICompiler>& compiler)
     : Graph(zeGraphExt,
             zeroInitStruct,
@@ -163,8 +165,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
-            blobAllocatedByPlugin,
-            nullptr,
+            persistentBlob,
             compiler,
             true),
       _initsHandles(initGraphHandles),
@@ -230,18 +231,31 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             _logger.info(str.str().c_str());
         }
 
-        return blobSize;
+        auto size = (blobSize + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
+        auto paddingSize = size - blobSize;
+        if (paddingSize) {
+            std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
+
+            if (!stream) {
+                _logger.error("Write padding to stream failed. Blob is broken!");
+                return 0;
+            }
+
+            _logger.info("Blob size with padding: %ld", size);
+        }
+
+        return size;
     };
 
     // By convention, first write the main part
-    uint64_t mainBlobSize = writeToStream(_handle, _blob);
+    uint64_t mainBlobSize = writeToStream(_handle.first, _blob);
     uint64_t totalBlobSize = mainBlobSize;
     ++blobIndex;
 
     // Then the init schedules
     std::vector<uint64_t> initSizes;
     for (size_t initIndex = 0; initIndex < _initsHandles.size(); ++initIndex) {
-        uint64_t initBlobSize = writeToStream(_initsHandles.at(initIndex),
+        uint64_t initBlobSize = writeToStream(_initsHandles.at(initIndex).first,
                                               _initBlobs.has_value() && _initBlobs->at(initIndex)
                                                   ? std::make_optional(_initBlobs->at(initIndex))
                                                   : std::nullopt);
@@ -270,7 +284,7 @@ void WeightlessGraph::initialize(const Config& config) {
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         _logger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
 
-        ze_graph_handle_t initHandle = _initsHandles.at(initIndex);
+        ze_graph_handle_t initHandle = _initsHandles.at(initIndex).first;
         std::vector<ArgumentDescriptor>& initInputDescriptors = _initsInputDescriptors.at(initIndex);
         std::vector<ArgumentDescriptor>& initOutputDescriptors = _initsOutputDescriptors.at(initIndex);
         uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
@@ -528,17 +542,22 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     size_t io_index = 0;
     for (const auto& desc : _initsInputDescriptors.at(initIndex)) {
         void* data = inputTensors.at(io_index++)->data();
-        _zeGraphExt->setGraphArgumentValue(_initsHandles.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
+        _zeGraphExt->setGraphArgumentValue(_initsHandles.at(initIndex).first,
+                                           desc.idx,
+                                           static_cast<unsigned char*>(data));
     }
 
     io_index = 0;
     for (const auto& desc : _initsOutputDescriptors.at(initIndex)) {
         void* data = outputTensors.at(io_index++)->data();
-        _zeGraphExt->setGraphArgumentValue(_initsHandles.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
+        _zeGraphExt->setGraphArgumentValue(_initsHandles.at(initIndex).first,
+                                           desc.idx,
+                                           static_cast<unsigned char*>(data));
     }
 
-    _initsCommandLists.at(initIndex)->appendGraphExecute(static_cast<ze_graph_handle_t>(_initsHandles.at(initIndex)),
-                                                         nullptr);
+    _initsCommandLists.at(initIndex)->appendGraphExecute(
+        static_cast<ze_graph_handle_t>(_initsHandles.at(initIndex).first),
+        nullptr);
 
     _logger.debug("Init Pipeline - initialize completed");
 }
@@ -572,16 +591,34 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
-    if (_persistentBlob || _initBlobs == std::nullopt || config.get<PERF_COUNT>()) {
+    if (_initBlobs == std::nullopt) {
         return;
     }
 
     ze_graph_properties_2_t properties = {};
     properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsHandles.at(initIndex), &properties);
+    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsHandles.at(initIndex).first, &properties);
 
     if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
         return;
+    }
+
+    if (_initsHandles[initIndex].first != nullptr) {
+        auto result = _zeGraphExt->destroyGraph(_initsHandles[initIndex].first);
+
+        if (ZE_RESULT_SUCCESS == result) {
+            _initsHandles[initIndex].first = nullptr;
+        }
+
+        if (_initsHandles[initIndex].second) {
+            auto result = zeMemFree(_zeroInitStruct->getContext(), _initBlobs->at(initIndex).data());
+            if (ZE_RESULT_SUCCESS != result) {
+                _logger.error("L0 zeMemFree result: %s, code %#X - %s",
+                              ze_result_to_string(result).c_str(),
+                              uint64_t(result),
+                              ze_result_to_description(result).c_str());
+            }
+        }
     }
 
     _initBlobs->at(initIndex) = ov::Tensor();
@@ -590,14 +627,30 @@ void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& co
 
 WeightlessGraph::~WeightlessGraph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
+    size_t initIndex = 0;
     for (auto& initHandle : _initsHandles) {
-        if (initHandle != nullptr) {
-            auto result = _zeGraphExt->destroyGraph(initHandle);
+        if (initHandle.first != nullptr) {
+            auto result = _zeGraphExt->destroyGraph(initHandle.first);
 
             if (ZE_RESULT_SUCCESS == result) {
-                initHandle = nullptr;
+                initHandle.first = nullptr;
+            }
+
+            if (initHandle.second) {
+                if (_initBlobs->at(initIndex).data() == nullptr) {
+                    _logger.error("Blob was already release, can not Free NPU memory");
+                }
+                auto result = zeMemFree(_zeroInitStruct->getContext(), _initBlobs->at(initIndex).data());
+                if (ZE_RESULT_SUCCESS != result) {
+                    _logger.error("L0 zeMemFree result: %s, code %#X - %s",
+                                  ze_result_to_string(result).c_str(),
+                                  uint64_t(result),
+                                  ze_result_to_description(result).c_str());
+                }
             }
         }
+
+        initIndex++;
     }
 }
 
