@@ -128,8 +128,8 @@ class AsyncInferQueue:
     @property
     def userdata(self) -> list[typing.Any]:
         """
-                :return: List of all passed userdata. List is filled with `None` if the data wasn't passed yet.
-                :rtype: List[Any]
+                :return: list of all passed userdata. list is filled with `None` if the data wasn't passed yet.
+                :rtype: list[Any]
         """
 class AttributeVisitor:
     def on_attributes(self, arg0: dict) -> None:
@@ -333,7 +333,7 @@ class CompiledModel:
         """
                     Sets properties for current compiled model.
         
-                    :param properties: Dict of pairs: (property name, property value)
+                    :param properties: dict of pairs: (property name, property value)
                     :type properties: dict
                     :rtype: None
         """
@@ -342,7 +342,7 @@ class CompiledModel:
         """
                     Sets properties for current compiled model.
         
-                    :param property: Tuple of (property name, matching property value).
+                    :param property: tuple of (property name, matching property value).
                     :type property: tuple
         """
     @property
@@ -351,7 +351,7 @@ class CompiledModel:
                                         Gets all inputs of a compiled model.
         
                                         :return: Inputs of a compiled model.
-                                        :rtype: List[openvino.ConstOutput]
+                                        :rtype: list[openvino.ConstOutput]
         """
     @property
     def outputs(self) -> list[ConstOutput]:
@@ -359,7 +359,7 @@ class CompiledModel:
                                         Gets all outputs of a compiled model.
         
                                         :return: Outputs of a compiled model.
-                                        :rtype: List[openvino.ConstOutput]
+                                        :rtype: list[openvino.ConstOutput]
         """
 class ConstOutput:
     """
@@ -413,8 +413,8 @@ class ConstOutput:
         """
                         The tensor names associated with this output.
         
-                        :return: Set of tensor names.
-                        :rtype: Set[str]
+                        :return: set of tensor names.
+                        :rtype: set[str]
         """
     def get_node(self) -> Node:
         """
@@ -449,8 +449,8 @@ class ConstOutput:
                         A set containing handles for all inputs, targeted by the output,
                         referenced by this output handle.
         
-                        :return: Set of Inputs.
-                        :rtype: Set[openvino.Input]
+                        :return: set of Inputs.
+                        :rtype: set[openvino.Input]
         """
     def get_tensor(self) -> DescriptorTensor:
         """
@@ -572,8 +572,8 @@ class Core:
         """
                     Registers extensions to a Core object.
         
-                    :param extensions: List of Extension objects.
-                    :type extensions: typing.List[openvino.Extension]
+                    :param extensions: list of Extension objects.
+                    :type extensions: list[openvino.Extension]
         """
     @typing.overload
     def add_extension(self, custom_op: typing.Any) -> None:
@@ -581,7 +581,7 @@ class Core:
                     Registers custom Op to a Core object.
         
                     :param custom_op: type of custom Op
-                    :type custom_op: typing.Type[openvino.Op]
+                    :type custom_op: type[openvino.Op]
         """
     @typing.overload
     def compile_model(self, model: Model, device_name: str, properties: dict[str, typing.Any]) -> CompiledModel:
@@ -597,7 +597,7 @@ class Core:
                     :param device_name: Name of the device which will load the model.
                     :type device_name: str
                     :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-                    :type properties: typing.Dict[str, typing.Any]
+                    :type properties: dict[str, typing.Any]
                     :return: A compiled model.
                     :rtype: openvino.CompiledModel
         """
@@ -613,7 +613,7 @@ class Core:
                     :param model: Model acquired from read_model function.
                     :type model: openvino.Model
                     :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-                    :type properties: typing.Dict[str, typing.Any]
+                    :type properties: dict[str, typing.Any]
                     :return: A compiled model.
                     :rtype: openvino.CompiledModel
         """
@@ -631,7 +631,7 @@ class Core:
                     :param device_name: Name of the device to load the model to.
                     :type device_name: str
                     :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-                    :type properties: typing.Dict[str, typing.Any]
+                    :type properties: dict[str, typing.Any]
                     :return: A compiled model.
                     :rtype: openvino.CompiledModel
         """
@@ -667,7 +667,7 @@ class Core:
                     :param model_path: A path to a model in IR / ONNX / PDPD / TF and TFLite format.
                     :type model_path: typing.Union[str, pathlib.Path]
                     :param properties: Optional dict of pairs: (property name, property value) relevant only for this load operation.
-                    :type properties: typing.Dict[str, typing.Any]
+                    :type properties: dict[str, typing.Any]
                     :return: A compiled model.
                     :rtype: openvino.CompiledModel
         """
@@ -683,7 +683,7 @@ class Core:
                     :param context: RemoteContext instance.
                     :type context: openvino.RemoteContext
                     :param properties: dict of pairs: (property name, property value) relevant only for this load operation.
-                    :type properties: typing.Dict[str, typing.Any]
+                    :type properties: dict[str, typing.Any]
                     :return: A compiled model.
                     :rtype: openvino.CompiledModel
         """
@@ -695,7 +695,7 @@ class Core:
                     :param device_name: Name of a device to create a new shared context on.
                     :type device_name: str
                     :param properties: dict of device-specific shared context remote properties.
-                    :type properties: typing.Dict[str, typing.Any]
+                    :type properties: dict[str, typing.Any]
                     :return: Remote context instance.
                     :rtype: openvino.RemoteContext
         """
@@ -709,7 +709,7 @@ class Core:
                             If there more than one device of specific type, they are enumerated with .# suffix.
                             Such enumerated device can later be used as a device name in all Core methods like:
                             compile_model, query_model, set_property and so on.
-                        :rtype: typing.List[str]
+                        :rtype: list[str]
         """
     def get_default_context(self, device_name: str) -> RemoteContext:
         """
@@ -763,7 +763,7 @@ class Core:
                         :param device_name: Device name to identify a plugin.
                         :type device_name: str
                         :return: Plugin version information.
-                        :rtype: typing.Dict[str, openvino.Version]
+                        :rtype: dict[str, openvino.Version]
         """
     def import_model(self, model_stream: typing.Any, device_name: str, properties: dict[str, typing.Any]) -> CompiledModel:
         """
@@ -781,7 +781,7 @@ class Core:
                                         Note: if device_name is not used to compile the original model, an exception is thrown.
                     :type device_name: str
                     :param properties: Optional map of pairs: (property name, property value) relevant only for this load operation.
-                    :type properties: typing.Dict[str, typing.Any], optional
+                    :type properties: dict[str, typing.Any], optional
                     :return: A compiled model.
                     :rtype: openvino.CompiledModel
         
@@ -809,9 +809,9 @@ class Core:
                     :param device_name: A name of a device to query.
                     :type device_name: str
                     :param properties: Optional dict of pairs: (property name, property value)
-                    :type properties: typing.Dict[str, typing.Any]
+                    :type properties: dict[str, typing.Any]
                     :return: Pairs a operation name -> a device name supporting this operation.
-                    :rtype: typing.Dict[str, str]
+                    :rtype: dict[str, str]
         """
     @typing.overload
     def read_model(self, model: bytes, weights: bytes = b'') -> Model:
@@ -845,7 +845,7 @@ class Core:
                                     For TFLite format (*.tflite) weights parameter is not used.
                     :type weights: str
                     :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
-                    :type config: typing.Dict[str, typing.Any], optional
+                    :type config: dict[str, typing.Any], optional
                     :return: A model.
                     :rtype: openvino.Model
         """
@@ -882,7 +882,7 @@ class Core:
                                     For TFLite format (*.tflite) weights parameter is not used.
                     :type weights: typing.Union[pathlib.Path, io.BytesIO]
                     :param config: Optional map of pairs: (property name, property value) relevant only for this read operation.
-                    :type config: typing.Dict[str, typing.Any], optional
+                    :type config: dict[str, typing.Any], optional
                     :return: A model.
                     :rtype: openvino.Model
         """
@@ -912,7 +912,7 @@ class Core:
                         :param device_name: A device name to register plugin for.
                         :type device_name: str
                         :param config: Plugin default configuration
-                        :type config: typing.Dict[str, typing.Any], optional
+                        :type config: dict[str, typing.Any], optional
         """
     def register_plugins(self, xml_config_file: str) -> None:
         """
@@ -927,16 +927,16 @@ class Core:
         """
                     Sets properties.
         
-                    :param properties: Dict of pairs: (property name, property value).
-                    :type properties: typing.Dict[str, typing.Any]
+                    :param properties: dict of pairs: (property name, property value).
+                    :type properties: dict[str, typing.Any]
         """
     @typing.overload
     def set_property(self, property: tuple[str, typing.Any]) -> None:
         """
                     Sets properties for the device.
         
-                    :param property: Tuple of (property name, matching property value).
-                    :type property: typing.Tuple[str, typing.Any]
+                    :param property: tuple of (property name, matching property value).
+                    :type property: tuple[str, typing.Any]
         """
     @typing.overload
     def set_property(self, device_name: str, properties: dict[str, typing.Any]) -> None:
@@ -945,8 +945,8 @@ class Core:
         
                     :param device_name: Name of the device.
                     :type device_name: str
-                    :param properties: Dict of pairs: (property name, property value).
-                    :type properties: typing.Dict[str, typing.Any]
+                    :param properties: dict of pairs: (property name, property value).
+                    :type properties: dict[str, typing.Any]
         """
     @typing.overload
     def set_property(self, device_name: str, property: tuple[str, typing.Any]) -> None:
@@ -955,8 +955,8 @@ class Core:
         
                     :param device_name: Name of the device.
                     :type device_name: str
-                    :param property: Tuple of (property name, matching property value).
-                    :type property: typing.Tuple[str, typing.Any]
+                    :param property: tuple of (property name, matching property value).
+                    :type property: tuple[str, typing.Any]
         """
     def unload_plugin(self, device_name: str) -> None:
         """
@@ -978,7 +978,7 @@ class Core:
                                                 If there more than one device of specific type, they are enumerated with .# suffix.
                                                 Such enumerated device can later be used as a device name in all Core methods like:
                                                 compile_model, query_model, set_property and so on.
-                                            :rtype: typing.List[str]
+                                            :rtype: list[str]
         """
 class DecoderTransformationExtension(Extension):
     pass
@@ -1054,10 +1054,10 @@ class DescriptorTensor:
         """
     def get_value_symbol(self) -> list[Symbol]:
         """
-                        Returns the List of symbols.
+                        Returns the list of symbols.
         
-                        :return: List of Symbols.
-                        :rtype: List[openvino.Symbol]
+                        :return: list of Symbols.
+                        :rtype: list[openvino.Symbol]
         """
     def set_lower_value(self, lower_bound: Tensor) -> None:
         """
@@ -1070,7 +1070,7 @@ class DescriptorTensor:
         """
                         Set names for tensor.
         
-                        :param names: Set of names.
+                        :param names: set of names.
                         :type names: set
         """
     def set_upper_value(self, upper_bound: Tensor) -> None:
@@ -1084,8 +1084,8 @@ class DescriptorTensor:
         """
                         Sets the value symbol of the tensor.
         
-                        :param value_symbol: List of Symbols
-                        :type value_symbol: List[openvino.Symbol]
+                        :param value_symbol: list of Symbols
+                        :type value_symbol: list[openvino.Symbol]
         """
     @property
     def any_name(self) -> str:
@@ -1344,7 +1344,7 @@ class FrontEnd:
                         used in order to extend capabilities of Frontend.
         
                         :param extension: Provided extension objects.
-                        :type extension: List[Extension]
+                        :type extension: list[Extension]
         """
     @typing.overload
     def add_extension(self, arg0: typing.Any) -> None:
@@ -1448,8 +1448,8 @@ class FrontEndManager:
         """
                         Gets list of registered frontends.
         
-                        :return: List of available frontend names.
-                        :rtype: List[str]
+                        :return: list of available frontend names.
+                        :rtype: list[str]
         """
     def load_by_framework(self, framework: str) -> FrontEnd:
         """
@@ -1553,8 +1553,8 @@ class InferRequest:
         
                     GIL is released while running this function.
         
-                    :return: List of profiling information for operations in model.
-                    :rtype: List[openvino.ProfilingInfo]
+                    :return: list of profiling information for operations in model.
+                    :rtype: list[openvino.ProfilingInfo]
         """
     @typing.overload
     def get_tensor(self, name: str) -> Tensor:
@@ -1598,7 +1598,7 @@ class InferRequest:
                     :param inputs: Data to set on single input tensor.
                     :type inputs: openvino.Tensor
                     :return: Dictionary of results from output tensors with ports as keys.
-                    :rtype: Dict[openvino.ConstOutput, numpy.array]
+                    :rtype: dict[openvino.ConstOutput, numpy.array]
         """
     @typing.overload
     def infer(self, inputs: dict, share_outputs: bool, decode_strings: bool) -> typing.Any:
@@ -1610,9 +1610,9 @@ class InferRequest:
                     GIL is released while running the inference.
         
                     :param inputs: Data to set on input tensors.
-                    :type inputs: Dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
+                    :type inputs: dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
                     :return: Dictionary of results from output tensors with ports as keys.
-                    :rtype: Dict[openvino.ConstOutput, numpy.array]
+                    :rtype: dict[openvino.ConstOutput, numpy.array]
         """
     def query_state(self) -> list[VariableState]:
         """
@@ -1620,8 +1620,8 @@ class InferRequest:
         
                     GIL is released while running this function.
         
-                    :return: List of VariableState objects.
-                    :rtype: List[openvino.VariableState]
+                    :return: list of VariableState objects.
+                    :rtype: list[openvino.VariableState]
         """
     def reset_state(self) -> None:
         """
@@ -1665,7 +1665,7 @@ class InferRequest:
                     Set input tensors using given indexes.
         
                     :param inputs: Data to set on output tensors.
-                    :type inputs: Dict[int, openvino.Tensor]
+                    :type inputs: dict[int, openvino.Tensor]
         """
     @typing.overload
     def set_input_tensors(self, tensors: list[Tensor]) -> None:
@@ -1677,7 +1677,7 @@ class InferRequest:
                     :param tensors:  Input tensors for batched infer request. The type of each tensor
                                      must match the model input element type and shape (except batch dimension).
                                      Total size of tensors needs to match with input's size.
-                    :type tensors: List[openvino.Tensor]
+                    :type tensors: list[openvino.Tensor]
         """
     @typing.overload
     def set_input_tensors(self, idx: int, tensors: list[Tensor]) -> None:
@@ -1718,7 +1718,7 @@ class InferRequest:
                     Set output tensors using given indexes.
         
                     :param outputs: Data to set on output tensors.
-                    :type outputs: Dict[int, openvino.Tensor]
+                    :type outputs: dict[int, openvino.Tensor]
         """
     @typing.overload
     def set_tensor(self, name: str, tensor: RemoteTensor) -> None:
@@ -1770,7 +1770,7 @@ class InferRequest:
                     Set tensors using given keys.
         
                     :param inputs: Data to set on tensors.
-                    :type inputs: Dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
+                    :type inputs: dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
         """
     @typing.overload
     def set_tensors(self, tensor_name: str, tensors: list[Tensor]) -> None:
@@ -1786,7 +1786,7 @@ class InferRequest:
                     :param tensors: Input tensors for batched infer request. The type of each tensor
                                     must match the model input element type and shape (except batch dimension).
                                     Total size of tensors needs to match with input's size.
-                    :type tensors: List[openvino.Tensor]
+                    :type tensors: list[openvino.Tensor]
         """
     @typing.overload
     def set_tensors(self, port: ConstOutput, tensors: list[Tensor]) -> None:
@@ -1803,7 +1803,7 @@ class InferRequest:
                     :param tensors: Input tensors for batched infer request. The type of each tensor
                                     must match the model input element type and shape (except batch dimension).
                                     Total size of tensors needs to match with input's size.
-                    :type tensors: List[openvino.Tensor]
+                    :type tensors: list[openvino.Tensor]
                     :rtype: None
         """
     @typing.overload
@@ -1834,7 +1834,7 @@ class InferRequest:
                     running will lead to throwing exceptions.
         
                     :param inputs: Data to set on input tensors.
-                    :type inputs: Dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
+                    :type inputs: dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
                     :param userdata: Any data that will be passed inside callback call.
                     :type userdata: Any
         """
@@ -1863,7 +1863,7 @@ class InferRequest:
         """
                                         Gets all input tensors of this InferRequest.
                                         
-                                        :rtype: List[openvino.Tensor]
+                                        :rtype: list[openvino.Tensor]
         """
     @property
     def latency(self) -> float:
@@ -1877,21 +1877,21 @@ class InferRequest:
         """
                     Gets all inputs of a compiled model which was used to create this InferRequest.
         
-                    :rtype: List[openvino.ConstOutput]
+                    :rtype: list[openvino.ConstOutput]
         """
     @property
     def model_outputs(self) -> list[ConstOutput]:
         """
                     Gets all outputs of a compiled model which was used to create this InferRequest.
         
-                    :rtype: List[openvino.ConstOutput]
+                    :rtype: list[openvino.ConstOutput]
         """
     @property
     def output_tensors(self) -> list[Tensor]:
         """
                                         Gets all output tensors of this InferRequest.
                                         
-                                        :rtype: List[openvino.Tensor]
+                                        :rtype: list[openvino.Tensor]
         """
     @property
     def profiling_info(self) -> list[ProfilingInfo]:
@@ -1902,7 +1902,7 @@ class InferRequest:
                     GIL is released while running this function.
                     
                     :return: Inference time.
-                    :rtype: List[openvino.ProfilingInfo]
+                    :rtype: list[openvino.ProfilingInfo]
         """
     @property
     def results(self) -> dict:
@@ -1912,7 +1912,7 @@ class InferRequest:
                     Note: All string-based data is decoded by default.
         
                     :return: Dictionary of results from output tensors with ports as keys.
-                    :rtype: Dict[openvino.ConstOutput, numpy.array]
+                    :rtype: dict[openvino.ConstOutput, numpy.array]
         """
     @property
     def userdata(self) -> typing.Any:
@@ -1992,6 +1992,15 @@ class Input:
                         :param new_source_output: A handle for the output that will replace this input's source.
                         :type new_source_output: openvino.Input
         """
+    def set_rt_info(self, value: typing.Any, key: str) -> None:
+        """
+                        Add a value to the runtime info.
+        
+                        :param value: Value for the runtime info.
+                        :type value: Any
+                        :param key: String that defines a key in the runtime info dictionary.
+                        :type key: str
+        """
     @property
     def rt_info(self) -> RTMap:
         ...
@@ -2040,9 +2049,9 @@ class InputModel:
                         Leaves only subgraph that are defined by new inputs and new outputs.
         
                         :param inputs: Array of new input places.
-                        :type inputs: List[openvino.frontend.Place]
+                        :type inputs: list[openvino.frontend.Place]
                         :param outputs: Array of new output places.
-                        :type outputs: List[openvino.frontend.Place]
+                        :type outputs: list[openvino.frontend.Place]
         """
     def free_name_for_operation(self, name: str) -> None:
         """
@@ -2072,14 +2081,14 @@ class InputModel:
                         Returns all inputs for a model.
         
                         :return: A list of input places.
-                        :rtype: List[openvino.frontend.Place]
+                        :rtype: list[openvino.frontend.Place]
         """
     def get_outputs(self) -> list[Place]:
         """
                         Returns all outputs for a model. An output is a terminal place in a graph where data escapes the flow.
         
                         :return: A list of output places.
-                        :rtype: List[openvino.frontend.Place]
+                        :rtype: list[openvino.frontend.Place]
         """
     def get_partial_shape(self, place: Place) -> PartialShape:
         """
@@ -2147,7 +2156,7 @@ class InputModel:
                         should completely satisfy all existing outputs.
         
                         :param inputs: Array of new input places.
-                        :type inputs: List[openvino.frontend.Place]
+                        :type inputs: list[openvino.frontend.Place]
         """
     def override_all_outputs(self, outputs: list[Place]) -> None:
         """
@@ -2155,7 +2164,7 @@ class InputModel:
                         is not required for new outputs.
         
                         :param outputs: Vector with places that will become new outputs; may intersect existing outputs.
-                        :type outputs: List[openvino.frontend.Place]
+                        :type outputs: list[openvino.frontend.Place]
         """
     def remove_output(self, place: Place) -> None:
         """
@@ -2281,12 +2290,12 @@ class Model:
         """
                             Create user-defined Model which is a representation of a model.
         
-                            :param results: List of results.
-                            :type results: List[op.Result]
-                            :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                            :type sinks: List[openvino.Node]
-                            :param parameters: List of parameters.
-                            :type parameters: List[op.Parameter]
+                            :param results: list of results.
+                            :type results: list[op.Result]
+                            :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                            :type sinks: list[openvino.Node]
+                            :param parameters: list of parameters.
+                            :type parameters: list[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
         """
@@ -2295,10 +2304,10 @@ class Model:
         """
                             Create user-defined Model which is a representation of a model.
         
-                            :param results: List of results.
-                            :type results: List[op.Result]
-                            :param parameters: List of parameters.
-                            :type parameters: List[op.Parameter]
+                            :param results: list of results.
+                            :type results: list[op.Result]
+                            :param parameters: list of parameters.
+                            :type parameters: list[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
         """
@@ -2307,10 +2316,10 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model.
         
-                    :param results: List of Nodes to be used as results.
-                    :type results: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters:  List[op.Parameter]
+                    :param results: list of Nodes to be used as results.
+                    :type results: list[openvino.Node]
+                    :param parameters: list of parameters.
+                    :type parameters:  list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2321,8 +2330,8 @@ class Model:
         
                             :param result: Node to be used as result.
                             :type result: openvino.Node
-                            :param parameters: List of parameters.
-                            :type parameters: List[op.Parameter]
+                            :param parameters: list of parameters.
+                            :type parameters: list[op.Parameter]
                             :param name: String to set as model's friendly name.
                             :type name: str
         """
@@ -2331,10 +2340,10 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of outputs.
-                    :type results: List[openvino.Output]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of outputs.
+                    :type results: list[openvino.Output]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2343,12 +2352,12 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of outputs.
-                    :type results: List[openvino.Output]
-                    :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of outputs.
+                    :type results: list[openvino.Output]
+                    :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                    :type sinks: list[openvino.Node]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2357,12 +2366,12 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of outputs.
-                    :type results: List[openvino.Output]
-                    :param sinks: List of Output sink node handles.
-                    :type sinks: List[openvino.Output]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of outputs.
+                    :type results: list[openvino.Output]
+                    :param sinks: list of Output sink node handles.
+                    :type sinks: list[openvino.Output]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2371,14 +2380,14 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of outputs.
-                    :type results: List[openvino.Output]
-                    :param sinks: List of Output sink node handles.
-                    :type sinks: List[openvino.Output]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
-                    :param variables: List of variables.
-                    :type variables: List[op.util.Variable]
+                    :param results: list of outputs.
+                    :type results: list[openvino.Output]
+                    :param sinks: list of Output sink node handles.
+                    :type sinks: list[openvino.Output]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
+                    :param variables: list of variables.
+                    :type variables: list[op.util.Variable]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2387,12 +2396,12 @@ class Model:
         """
                 Create user-defined Model which is a representation of a model
         
-                :param results: List of results.
-                :type results: List[op.Result]
-                :param sinks: List of Output sink node handles.
-                :type sinks: List[openvino.Output]
-                :param parameters: List of parameters.
-                :type parameters: List[op.Parameter]
+                :param results: list of results.
+                :type results: list[op.Result]
+                :param sinks: list of Output sink node handles.
+                :type sinks: list[openvino.Output]
+                :param parameters: list of parameters.
+                :type parameters: list[op.Parameter]
                 :param name: String to set as model's friendly name.
                 :type name: str
         """
@@ -2401,14 +2410,14 @@ class Model:
         """
                 Create user-defined Model which is a representation of a model
         
-                :param results: List of results.
-                :type results: List[op.Result]
-                :param sinks: List of Output sink node handles.
-                :type sinks: List[openvino.Output]
-                :param parameters: List of parameters.
-                :type parameters: List[op.Parameter]
-                :param variables: List of variables.
-                :type variables: List[op.util.Variable]
+                :param results: list of results.
+                :type results: list[op.Result]
+                :param sinks: list of Output sink node handles.
+                :type sinks: list[openvino.Output]
+                :param parameters: list of parameters.
+                :type parameters: list[op.Parameter]
+                :param variables: list of variables.
+                :type variables: list[op.util.Variable]
                 :param name: String to set as model's friendly name.
                 :type name: str
         """
@@ -2417,14 +2426,14 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of results.
-                    :type results: List[op.Result]
-                    :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[openvino.Node]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
-                    :param variables: List of variables.
-                    :type variables: List[op.util.Variable]
+                    :param results: list of results.
+                    :type results: list[op.Result]
+                    :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                    :type sinks: list[openvino.Node]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
+                    :param variables: list of variables.
+                    :type variables: list[op.util.Variable]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2433,12 +2442,12 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of results.
-                    :type results: List[openvino.Output]
-                    :param sinks: List of Nodes to be used as Sinks (e.g. Assign ops).
-                    :type sinks: List[openvino.Node]
-                    :param variables: List of variables.
-                    :type variables: List[op.util.Variable]
+                    :param results: list of results.
+                    :type results: list[openvino.Output]
+                    :param sinks: list of Nodes to be used as Sinks (e.g. Assign ops).
+                    :type sinks: list[openvino.Node]
+                    :param variables: list of variables.
+                    :type variables: list[op.util.Variable]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2447,12 +2456,12 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of results.
-                    :type results: List[op.Result]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
-                    :param variables: List of variables.
-                    :type variables: List[op.util.Variable]
+                    :param results: list of results.
+                    :type results: list[op.Result]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
+                    :param variables: list of variables.
+                    :type variables: list[op.util.Variable]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2461,10 +2470,10 @@ class Model:
         """
                     Create user-defined Model which is a representation of a model
         
-                    :param results: List of results.
-                    :type results: List[openvino.Output]
-                    :param parameters: List of parameters.
-                    :type parameters: List[op.Parameter]
+                    :param results: list of results.
+                    :type results: list[openvino.Output]
+                    :param parameters: list of parameters.
+                    :type parameters: list[op.Parameter]
                     :param name: String to set as model's friendly name.
                     :type name: str
         """
@@ -2493,7 +2502,7 @@ class Model:
                             * call graph validation to check correctness of changes
         
                             :param parameter: new Parameter nodes.
-                            :type parameter: List[op.Parameter]
+                            :type parameter: list[op.Parameter]
         """
     def add_results(self, results: list[op.Result]) -> None:
         """
@@ -2502,7 +2511,7 @@ class Model:
                             Method doesn't validate graph, it should be done manually after all changes.
         
                             :param results: new Result nodes.
-                            :type results: List[op.Result]
+                            :type results: list[op.Result]
         """
     def add_sinks(self, sinks: list) -> None:
         """
@@ -2511,7 +2520,7 @@ class Model:
                     Method doesn't validate graph, it should be done manually after all changes.
         
                     :param sinks: new sink nodes.
-                    :type sinks: List[openvino.Node]
+                    :type sinks: list[openvino.Node]
         """
     def add_variables(self, variables: list[op.util.Variable]) -> None:
         """
@@ -2520,7 +2529,7 @@ class Model:
                             Method doesn't validate graph, it should be done manually after all changes.
         
                             :param variables: new variables to add.
-                            :type variables: List[op.util.Variable]
+                            :type variables: list[op.util.Variable]
         """
     def clone(self) -> Model:
         """
@@ -2533,9 +2542,9 @@ class Model:
                     Evaluate the model on inputs, putting results in outputs
         
                     :param output_tensors: Tensors for the outputs to compute. One for each result
-                    :type output_tensors: List[openvino.Tensor]
+                    :type output_tensors: list[openvino.Tensor]
                     :param input_tensors: Tensors for the inputs. One for each inputs.
-                    :type input_tensors: List[openvino.Tensor]
+                    :type input_tensors: list[openvino.Tensor]
                     :param evaluation_context: Storage of additional settings and attributes that can be used
                                                when evaluating the model. This additional information can be
                                                shared across nodes.
@@ -2562,15 +2571,15 @@ class Model:
         """
                             Return ops used in the model.
         
-                            :return: List of Nodes representing ops used in model.
-                            :rtype: List[openvino.Node]
+                            :return: list of Nodes representing ops used in model.
+                            :rtype: list[openvino.Node]
         """
     def get_ordered_ops(self) -> list[Node]:
         """
                             Return ops used in the model in topological order.
         
-                            :return: List of sorted Nodes representing ops used in model.
-                            :rtype: List[openvino.Node]
+                            :return: list of sorted Nodes representing ops used in model.
+                            :rtype: list[openvino.Node]
         """
     def get_output_element_type(self, index: int) -> Type:
         """
@@ -2631,7 +2640,7 @@ class Model:
                             Return the model parameters.
                             
                             :return: a list of model's parameters.
-                            :rtype: List[op.Parameter]
+                            :rtype: list[op.Parameter]
         """
     def get_result(self) -> Node:
         """
@@ -2681,7 +2690,7 @@ class Model:
                             Return a list of model outputs.
         
                             :return: a list of model's result nodes.
-                            :rtype: List[op.Result]
+                            :rtype: list[op.Result]
         """
     @typing.overload
     def get_rt_info(self) -> RTMap:
@@ -2696,8 +2705,8 @@ class Model:
         """
                         Returns runtime attribute as a OVAny object.
         
-                        :param path: List of strings which defines a path to runtime info.
-                        :type path: List[str]
+                        :param path: list of strings which defines a path to runtime info.
+                        :type path: list[str]
         
                         :return: A runtime attribute.
                         :rtype: openvino.OVAny
@@ -2707,7 +2716,7 @@ class Model:
         """
                         Returns runtime attribute as a OVAny object.
         
-                        :param path: List of strings which defines a path to runtime info.
+                        :param path: list of strings which defines a path to runtime info.
                         :type path: str
         
                         :return: A runtime attribute.
@@ -2754,7 +2763,7 @@ class Model:
                     Return a list of model's sinks.
         
                     :return: a list of model's sinks.
-                    :rtype: List[openvino.Node]
+                    :rtype: list[openvino.Node]
         """
     def get_variable_by_id(self, arg0: str) -> op.util.Variable:
         """
@@ -2770,15 +2779,15 @@ class Model:
                             Return a list of model's variables.
                             
                             :return: a list of model's variables.
-                            :rtype: List[op.util.Variable]
+                            :rtype: list[op.util.Variable]
         """
     @typing.overload
     def has_rt_info(self, path: list) -> bool:
         """
                         Checks if given path exists in runtime info of the model.
         
-                        :param path: List of strings which defines a path to runtime info.
-                        :type path: List[str]
+                        :param path: list of strings which defines a path to runtime info.
+                        :type path: list[str]
         
                         :return: `True` if path exists, otherwise `False`.
                         :rtype: bool
@@ -2788,7 +2797,7 @@ class Model:
         """
                         Checks if given path exists in runtime info of the model.
         
-                        :param path: List of strings which defines a path to runtime info.
+                        :param path: list of strings which defines a path to runtime info.
                         :type path: str
         
                         :return: `True` if path exists, otherwise `False`.
@@ -2917,7 +2926,7 @@ class Model:
                         :param partial_shape: New shape.
                         :type partial_shape: openvino.PartialShape
                         :param variables_shapes: New shapes for variables
-                        :type variables_shapes: Dict[keys, values]
+                        :type variables_shapes: dict[keys, values]
                         :return : void
         """
     @typing.overload
@@ -2950,7 +2959,7 @@ class Model:
                         :param partial_shape: New shape.
                         :type partial_shape: list
                         :param variables_shapes: New shapes for variables
-                        :type variables_shapes: Dict[keys, values]
+                        :type variables_shapes: dict[keys, values]
                         :return : void
         """
     @typing.overload
@@ -2983,7 +2992,7 @@ class Model:
                         :param partial_shape: New shape.
                         :type partial_shape: tuple
                         :param variables_shapes: New shapes for variables
-                        :type variables_shapes: Dict[keys, values]
+                        :type variables_shapes: dict[keys, values]
                         :return : void
         """
     @typing.overload
@@ -3017,7 +3026,7 @@ class Model:
                         :param partial_shape: New shape.
                         :type partial_shape: str
                         :param variables_shapes: New shapes for variables
-                        :type variables_shapes: Dict[keys, values]
+                        :type variables_shapes: dict[keys, values]
                         :return : void
         """
     @typing.overload
@@ -3076,9 +3085,9 @@ class Model:
                     GIL is released while running this function.
         
                     :param partial_shapes: New shapes.
-                    :type partial_shapes: Dict[keys, values]
+                    :type partial_shapes: dict[keys, values]
                     :param variables_shapes: New shapes for variables
-                    :type variables_shapes: Dict[keys, values]
+                    :type variables_shapes: dict[keys, values]
         """
     def set_friendly_name(self, name: str) -> None:
         """
@@ -3097,8 +3106,8 @@ class Model:
         
                         :param obj: value for the runtime info
                         :type obj: py:object
-                        :param path: List of strings which defines a path to runtime info.
-                        :type path: List[str]
+                        :param path: list of strings which defines a path to runtime info.
+                        :type path: list[str]
         """
     @typing.overload
     def set_rt_info(self, obj: typing.Any, path: str) -> None:
@@ -3135,7 +3144,7 @@ class Model:
                                                 Return the model parameters.
                                                 
                                                 :return: a list of model's parameters.
-                                                :rtype: List[op.Parameter]
+                                                :rtype: list[op.Parameter]
         """
     @property
     def result(self) -> Node:
@@ -3151,7 +3160,7 @@ class Model:
                                             Return a list of model outputs.
         
                                             :return: a list of model's result nodes.
-                                            :rtype: List[op.Result]
+                                            :rtype: list[op.Result]
         """
     @property
     def rt_info(self) -> RTMap:
@@ -3162,7 +3171,7 @@ class Model:
                     Return a list of model's sinks.
         
                     :return: a list of model's sinks.
-                    :rtype: List[openvino.Node]
+                    :rtype: list[openvino.Node]
         """
     @property
     def variables(self) -> list[op.util.Variable]:
@@ -3170,7 +3179,7 @@ class Model:
                                             Return a list of model's variables.
                                             
                                             :return: a list of model's variables.
-                                            :rtype: List[op.util.Variable]
+                                            :rtype: list[op.util.Variable]
         """
 class Node:
     """
@@ -3235,9 +3244,9 @@ class Node:
                         Evaluate the node on inputs, putting results in outputs
                         
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
-                        :type output_tensors: List[openvino.Tensor]
+                        :type output_tensors: list[openvino.Tensor]
                         :param input_tensors: Tensors for the inputs. One for each inputs.
-                        :type input_tensors: List[openvino.Tensor]
+                        :type input_tensors: list[openvino.Tensor]
                         :param evaluation_context: Storage of additional settings and attributes that can be used
                         when evaluating the function. This additional information can be shared across nodes.
                         :type evaluation_context: openvino.RTMap
@@ -3249,9 +3258,9 @@ class Node:
                         Evaluate the function on inputs, putting results in outputs
         
                         :param output_tensors: Tensors for the outputs to compute. One for each result.
-                        :type output_tensors: List[openvino.Tensor]
+                        :type output_tensors: list[openvino.Tensor]
                         :param input_tensors: Tensors for the inputs. One for each inputs.
-                        :type input_tensors: List[openvino.Tensor]
+                        :type input_tensors: list[openvino.Tensor]
                         :rtype: bool
         """
     def get_attributes(self) -> dict:
@@ -3375,7 +3384,7 @@ class Node:
         """
     def get_rt_info(self) -> RTMap:
         """
-                        Returns PyRTMap which is a dictionary of user defined runtime info.
+                        Returns RTMap which is a dictionary of user defined runtime info.
         
                         :return: A dictionary of user defined data.
                         :rtype: openvino.RTMap
@@ -3411,15 +3420,15 @@ class Node:
         """
                          Returns list of node's inputs, in order.
         
-                         :return: List of node's inputs
-                         :rtype: List[openvino.Input]
+                         :return: list of node's inputs
+                         :rtype: list[openvino.Input]
         """
     def inputs(self) -> list[Input]:
         """
                         A list containing a handle for each of this node's inputs, in order.
         
-                        :return: List of node's inputs.
-                        :rtype: List[openvino.Input]
+                        :return: list of node's inputs.
+                        :rtype: list[openvino.Input]
         """
     def output(self, output_index: int) -> Output:
         """
@@ -3434,8 +3443,8 @@ class Node:
         """
                         A list containing a handle for each of this node's outputs, in order.
         
-                        :return: List of node's outputs.
-                        :rtype: List[openvino.Output]
+                        :return: list of node's outputs.
+                        :rtype: list[openvino.Output]
         """
     def set_argument(self, arg0: int, arg1: Output) -> None:
         ...
@@ -3473,6 +3482,15 @@ class Node:
                         :type element_type: openvino.Type
                         :param shape: Shape of the output.
                         :type shape: openvino.PartialShape
+        """
+    def set_rt_info(self, value: typing.Any, key: str) -> None:
+        """
+                        Add a value to the runtime info.
+        
+                        :param value: Value for the runtime info.
+                        :type value: Any
+                        :param key: String that defines a key in the runtime info dictionary.
+                        :type key: str
         """
     def validate_and_infer_types(self) -> None:
         """
@@ -3586,7 +3604,7 @@ class OVAny:
                     :type dtype: Union[bool, int, str, float]
         
                     :return: A runtime attribute as a list.
-                    :rtype: Union[List[float], List[int], List[str], List[bool]]
+                    :rtype: Union[list[float], list[int], list[str], list[bool]]
         """
     def astype(self, arg0: typing.Any) -> typing.Any:
         """
@@ -3661,8 +3679,8 @@ class Output:
         """
                     Add tensor names associated with this output.
         
-                    :param names: Set of tensor names.
-                    :type names: Set[str]
+                    :param names: set of tensor names.
+                    :type names: set[str]
         """
     def get_any_name(self) -> str:
         """
@@ -3690,8 +3708,8 @@ class Output:
         """
                         The tensor names associated with this output.
         
-                        :return: Set of tensor names.
-                        :rtype: Set[str]
+                        :return: set of tensor names.
+                        :rtype: set[str]
         """
     def get_node(self) -> ...:
         """
@@ -3726,8 +3744,8 @@ class Output:
                         A set containing handles for all inputs, targeted by the output,
                         referenced by this output handle.
         
-                        :return: Set of Inputs.
-                        :rtype: Set[openvino.Input]
+                        :return: set of Inputs.
+                        :rtype: set[openvino.Input]
         """
     def get_tensor(self) -> ...:
         """
@@ -3754,8 +3772,17 @@ class Output:
         """
                     Set tensor names associated with this output.
         
-                    :param names: Set of tensor names.
-                    :type names: Set[str]
+                    :param names: set of tensor names.
+                    :type names: set[str]
+        """
+    def set_rt_info(self, value: typing.Any, key: str) -> None:
+        """
+                        Add a value to the runtime info.
+        
+                        :param value: Value for the runtime info.
+                        :type value: Any
+                        :param key: String that defines a key in the runtime info dictionary.
+                        :type key: str
         """
     @property
     def any_name(self) -> str:
@@ -3973,14 +4000,14 @@ class Place:
                             May not be set if node has only one output port.
                         :type output_port_index: int
                         :return: A list with all operation node references that consumes data from this place
-                        :rtype: List[openvino.frontend.Place]
+                        :rtype: list[openvino.frontend.Place]
         """
     def get_consuming_ports(self) -> list[Place]:
         """
                         Returns all input ports that consume data flows through this place.
         
                         :return: Input ports that consume data flows through this place.
-                        :rtype: List[openvino.frontend.Place]
+                        :rtype: list[openvino.frontend.Place]
         """
     def get_input_port(self, input_name: typing.Any = None, input_port_index: typing.Any = None) -> Place:
         """
@@ -3999,7 +4026,7 @@ class Place:
         
                         :return: A vector of strings each representing a name that identifies this place in the graph.
                                  Can be empty if there are no names associated with this place or name cannot be attached.
-                        :rtype: List[str]
+                        :rtype: list[str]
         """
     def get_output_port(self, output_name: typing.Any = None, output_port_index: typing.Any = None) -> Place:
         """
@@ -4543,8 +4570,8 @@ class Tensor:
                         Creates a Tensor from a given Python list.
                         Warning: It is always a copy of list's data!
         
-                        :param array: List to create the tensor from.
-                        :type array: List[int, float, str]
+                        :param array: list to create the tensor from.
+                        :type array: list[int, float, str]
         """
     @typing.overload
     def __init__(self, type: Type, shape: Shape) -> None:
@@ -4971,7 +4998,7 @@ class VAContext(RemoteContext):
                     :param nv12_surface: NV12 `VASurfaceID` to create NV12 from.
                     :type nv12_surface: int
                     :return: A pair of remote tensors for each plane.
-                    :rtype: Tuple[openvino.VASurfaceTensor, openvino.VASurfaceTensor]
+                    :rtype: tuple[openvino.VASurfaceTensor, openvino.VASurfaceTensor]
         """
 class VASurfaceTensor(RemoteTensor):
     def __repr__(self) -> str:

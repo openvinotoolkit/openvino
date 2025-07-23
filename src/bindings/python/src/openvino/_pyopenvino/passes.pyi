@@ -125,7 +125,7 @@ class MakeStateful(ModelPass, PassBase):
          The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
                             
                               :param pairs_to_replace:
-                              :type pairs_to_replace: List[Tuple[op.Parameter, op.Result]
+                              :type pairs_to_replace: list[tuple[op.Parameter, op.Result]
         """
     @typing.overload
     def __init__(self, pairs_to_replace: dict[str, str]) -> None:
@@ -133,7 +133,7 @@ class MakeStateful(ModelPass, PassBase):
                 The transformation replaces the provided pairs Parameter and Result with openvino Memory operations ReadValue and Assign.
                 
                 :param pairs_to_replace: a dictionary of names of the provided Parameter and Result operations.
-                :type pairs_to_replace: Dict[str, str]
+                :type pairs_to_replace: dict[str, str]
         """
     def __repr__(self) -> str:
         ...
@@ -199,7 +199,7 @@ class Matcher:
                         Get NodeVector of matched nodes. Should be used after match() method is called.
         
                         :return: matched nodes vector.
-                        :rtype: List[openvino.Node]
+                        :rtype: list[openvino.Node]
         """
     def get_match_root(self) -> openvino._pyopenvino.Node:
         """
@@ -220,7 +220,7 @@ class Matcher:
                         Get OutputVector of matched outputs. Should be used after match() method is called.
         
                         :return: matched outputs vector.
-                        :rtype: List[openvino.Output]
+                        :rtype: list[openvino.Output]
         """
     def get_name(self) -> str:
         """
@@ -339,7 +339,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         """
     @typing.overload
     def __init__(self: typing.Optional, type_names: list[str], input: openvino._pyopenvino.Output) -> None:
@@ -347,7 +347,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type and input node.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: input node's output.
                 :type input: openvino.Output
@@ -358,7 +358,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: input node.
                 :type input: openvino.Node
@@ -369,10 +369,10 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type and input node.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: input node's output list.
-                :type inputs: List[openvino.Output]
+                :type inputs: list[openvino.Output]
         """
     @typing.overload
     def __init__(self: typing.Optional, type_names: list[str], inputs: list[openvino._pyopenvino.Node]) -> None:
@@ -380,10 +380,10 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type and input node.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: input node list
-                :type inputs: List[openvino.Node]
+                :type inputs: list[openvino.Node]
         """
     @typing.overload
     def __init__(self: typing.Optional, type_names: list[str], predicate: typing.Callable[[openvino._pyopenvino.Output], bool]) -> None:
@@ -391,7 +391,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -402,7 +402,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -413,7 +413,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: input node's output.
                 :type input: openvino.Output
@@ -427,7 +427,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: input node's output.
                 :type input: openvino.Output
@@ -441,7 +441,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: input node
                 :type input: openvino.Node
@@ -455,7 +455,7 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: input node
                 :type input: openvino.Node
@@ -469,10 +469,10 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: input node's output list.
-                :type inputs: List[openvino.Output]
+                :type inputs: list[openvino.Output]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -483,10 +483,10 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: input node's output list.
-                :type inputs: List[openvino.Output]
+                :type inputs: list[openvino.Output]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -497,10 +497,10 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: input node list
-                :type inputs: List[openvino.Node]
+                :type inputs: list[openvino.Node]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -511,10 +511,10 @@ class Optional(openvino._pyopenvino.Node):
                 Create Optional with the given node type, input node and predicate.
         
                 :param type_names: node type. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: input node list
-                :type inputs: List[openvino.Node]
+                :type inputs: list[openvino.Node]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -531,7 +531,7 @@ class Or(openvino._pyopenvino.Node):
                         Create pattern Or operation which is used to match any of given inputs.
         
                         :param inputs: Operation inputs.
-                        :type inputs: List[openvino.Output]
+                        :type inputs: list[openvino.Output]
         """
     @typing.overload
     def __init__(self, inputs: list[openvino._pyopenvino.Node]) -> None:
@@ -539,7 +539,7 @@ class Or(openvino._pyopenvino.Node):
                         Create pattern Or operation which is used to match any of given inputs.
         
                         :param inputs: Operation inputs.
-                        :type inputs: List[openvino.Node]
+                        :type inputs: list[openvino.Node]
         """
     def __repr__(self) -> str:
         ...
@@ -600,7 +600,7 @@ class PatternSymbolValue:
                 Create PatternSymbolValue with the given value.
         
                 :param value: list of values representing a group of pattern values
-                :type value: List[PatternSymbolValue]
+                :type value: list[PatternSymbolValue]
         """
     def d(self) -> float:
         ...
@@ -852,7 +852,7 @@ class WrapType(openvino._pyopenvino.Node):
                           :type type_name: str
         
                           :param inputs: Node outputs.
-                          :type inputs: List[openvino.Output]
+                          :type inputs: list[openvino.Output]
         """
     @typing.overload
     def __init__(self, type_name: str, inputs: list[openvino._pyopenvino.Node]) -> None:
@@ -863,7 +863,7 @@ class WrapType(openvino._pyopenvino.Node):
                           :type type_name: str
         
                           :param inputs: Input nodes.
-                          :type inputs: List[openvino.Node]
+                          :type inputs: list[openvino.Node]
         """
     @typing.overload
     def __init__(self, type_name: str, inputs: list[openvino._pyopenvino.Output], predicate: typing.Callable[[openvino._pyopenvino.Output], bool]) -> None:
@@ -874,7 +874,7 @@ class WrapType(openvino._pyopenvino.Node):
                           :type type_name: str
         
                           :param inputs: Node outputs.
-                          :type inputs: List[openvino.Output]
+                          :type inputs: list[openvino.Output]
         
                           :param predicate: Function that performs additional checks for matching.
                           :type predicate: Callable
@@ -888,7 +888,7 @@ class WrapType(openvino._pyopenvino.Node):
                           :type type_name: str
         
                           :param inputs: Node outputs.
-                          :type inputs: List[openvino.Output]
+                          :type inputs: list[openvino.Output]
         
                           :param predicate: Function that performs additional checks for matching.
                           :type predicate: Callable
@@ -902,7 +902,7 @@ class WrapType(openvino._pyopenvino.Node):
                           :type type_name: str
         
                           :param inputs: Input nodes.
-                          :type inputs: List[openvino.Node]
+                          :type inputs: list[openvino.Node]
         
                           :param predicate: Function that performs additional checks for matching.
                           :type predicate: Callable
@@ -916,7 +916,7 @@ class WrapType(openvino._pyopenvino.Node):
                           :type type_name: str
         
                           :param inputs: Input nodes.
-                          :type inputs: List[openvino.Node]
+                          :type inputs: list[openvino.Node]
         
                           :param predicate: Function that performs additional checks for matching.
                           :type predicate: Callable
@@ -927,7 +927,7 @@ class WrapType(openvino._pyopenvino.Node):
                           Create WrapType with given node types.
         
                           :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                          :type type_names: List[str]
+                          :type type_names: list[str]
         """
     @typing.overload
     def __init__(self, type_names: list[str], predicate: typing.Callable[[openvino._pyopenvino.Output], bool]) -> None:
@@ -935,7 +935,7 @@ class WrapType(openvino._pyopenvino.Node):
                           Create WrapType with given node types and predicate.
         
                           :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                          :type type_names: List[str]
+                          :type type_names: list[str]
         
                           :param predicate: Function that performs additional checks for matching.
                           :type predicate: Callable
@@ -946,7 +946,7 @@ class WrapType(openvino._pyopenvino.Node):
                           Create WrapType with given node types and predicate.
         
                           :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                          :type type_names: List[str]
+                          :type type_names: list[str]
         
                           :param predicate: Function that performs additional checks for matching.
                           :type predicate: Callable
@@ -957,7 +957,7 @@ class WrapType(openvino._pyopenvino.Node):
                           Create WrapType with given node types and input.
         
                           :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                          :type type_names: List[str]
+                          :type type_names: list[str]
         
                           :param input: Node output.
                           :type input: openvino.Output
@@ -968,7 +968,7 @@ class WrapType(openvino._pyopenvino.Node):
                           Create WrapType with given node types and input.
         
                           :param type_name: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                          :type type_name: List[str]
+                          :type type_name: list[str]
         
                           :param input: Input node.
                           :type input: openvino.Node
@@ -979,7 +979,7 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types, input and predicate.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: Node output.
                 :type input: openvino.Output
@@ -993,7 +993,7 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types, input and predicate.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: Node output.
                 :type input: openvino.Output
@@ -1007,7 +1007,7 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types, input and predicate.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: Input node.
                 :type input: openvino.Node
@@ -1021,7 +1021,7 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types, input and predicate.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param input: Input node.
                 :type input: openvino.Node
@@ -1035,10 +1035,10 @@ class WrapType(openvino._pyopenvino.Node):
               Create WrapType with given node types and input.
         
               :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-              :type type_names: List[str]
+              :type type_names: list[str]
         
               :param inputs: Nodes outputs.
-              :type inputs: List[openvino.Output]
+              :type inputs: list[openvino.Output]
         """
     @typing.overload
     def __init__(self, type_names: list[str], inputs: list[openvino._pyopenvino.Node]) -> None:
@@ -1046,10 +1046,10 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types and inputs.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: Input nodes.
-                :type inputs: List[openvino.Node]
+                :type inputs: list[openvino.Node]
         """
     @typing.overload
     def __init__(self, type_names: list[str], inputs: list[openvino._pyopenvino.Output], predicate: typing.Callable[[openvino._pyopenvino.Output], bool]) -> None:
@@ -1057,10 +1057,10 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types, inputs and predicate.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: Nodes outputs.
-                :type inputs: List[openvino.Output]
+                :type inputs: list[openvino.Output]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -1071,10 +1071,10 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types, inputs and predicate.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: Nodes outputs.
-                :type inputs: List[openvino.Output]
+                :type inputs: list[openvino.Output]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -1085,10 +1085,10 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types, inputs and predicate.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: Input nodes.
-                :type inputs: List[openvino.Node]
+                :type inputs: list[openvino.Node]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable
@@ -1099,10 +1099,10 @@ class WrapType(openvino._pyopenvino.Node):
                 Create WrapType with given node types, inputs and predicate.
         
                 :param type_names: node types. For example: ["opset8.Abs", "opset8.Relu"]
-                :type type_names: List[str]
+                :type type_names: list[str]
         
                 :param inputs: Input nodes.
-                :type inputs: List[openvino.Node]
+                :type inputs: list[openvino.Node]
         
                 :param predicate: Function that performs additional checks for matching.
                 :type predicate: Callable

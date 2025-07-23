@@ -1,5 +1,6 @@
 # type: ignore
 from __future__ import annotations
+from builtins import list as TensorShape
 from functools import partial
 from functools import singledispatch
 from openvino._pyopenvino import Node
@@ -62,6 +63,5 @@ def mvn(*args, **kwargs) -> openvino._pyopenvino.Node:
     """
 NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvino.Node, int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
-TensorShape: typing._GenericAlias  # value = typing.List[int]
 _get_node_factory_opset6: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset6')
 read_value: openvino.utils.decorators.MultiMethod  # value = <openvino.utils.decorators.MultiMethod object>
