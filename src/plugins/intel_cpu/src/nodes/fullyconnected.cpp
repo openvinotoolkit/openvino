@@ -68,7 +68,7 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
 
     if (useMatmulPrim) {
-        return {Type_t::u8, Type_t::i8};
+        return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
     }
 #if defined(OPENVINO_ARCH_X86_64)
     ov::element::TypeVector supportedDataTypes =
