@@ -97,7 +97,7 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
         m_algo = MERSENNE_TWISTER;
         break;
     default:
-        THROW_CPU_NODE_ERR("Alignment of RandomUniform ", alignment, " is not supported by the CPU plugin.");
+        CPU_NODE_THROW("Alignment of RandomUniform ", alignment, " is not supported by the CPU plugin.");
     }
 
     for (size_t i = 0LU; i < op->get_input_size(); i++) {
@@ -113,10 +113,10 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
 
 void RandomUniform::getSupportedDescriptors() {
     if (getParentEdges().size() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+        CPU_NODE_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        CPU_NODE_THROW("has incorrect number of output edges.");
     }
 }
 
@@ -204,7 +204,7 @@ void RandomUniform::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (m_algo == STL) {
         computeStl(data, m_output_elements_count);
     } else {
-        THROW_CPU_NODE_ERR("does not support the selected algorithm.");
+        CPU_NODE_THROW("does not support the selected algorithm.");
     }
 }
 
@@ -295,7 +295,7 @@ void RandomUniform::evalRange() {
         EL_CASE(i64)
         EL_CASE(i32)
     default:
-        THROW_CPU_NODE_ERR("has unsupported output precision: ", m_output_prc);
+        CPU_NODE_THROW("has unsupported output precision: ", m_output_prc);
     }
 
 #undef EL_CASE
@@ -315,7 +315,7 @@ void RandomUniform::initEdgeValues(OutputType& dst, const void* src, const eleme
         EL_CASE(i64)
         EL_CASE(i32)
     default:
-        THROW_CPU_NODE_ERR("has unsupported output precision: ", output_type);
+        CPU_NODE_THROW("has unsupported output precision: ", output_type);
     }
 
 #undef EL_CASE
@@ -398,8 +398,10 @@ void RandomUniform::prepareMersenneTwisterParams() {
         auto approx_start = thread_offset * static_cast<float>(ithr);
         auto approx_end = thread_offset * (static_cast<float>(ithr + 1));
 
-        auto state_start = static_cast<uint64_t>(std::floor(approx_start) * m_uint_storage_capacity_per_thread);
-        auto state_end = static_cast<uint64_t>(std::floor(approx_end) * m_uint_storage_capacity_per_thread);
+        auto state_start =
+            static_cast<uint64_t>(std::floor(approx_start) * static_cast<double>(m_uint_storage_capacity_per_thread));
+        auto state_end =
+            static_cast<uint64_t>(std::floor(approx_end) * static_cast<double>(m_uint_storage_capacity_per_thread));
 
         // Rounding failsafes
         if (ithr == 0) {
@@ -419,7 +421,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
         params.src_start_idx = state_start;
         params.dst_start_idx = destination_start;
-        params.state_accesses_count = state_accesses;
+        params.state_accesses_count = static_cast<uint64_t>(state_accesses);
     });
 }
 
@@ -618,7 +620,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                 EXEC_CASE(i32)
                 EXEC_CASE(i64)
             default:
-                THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
+                CPU_NODE_THROW("Unsupported type of RandomUniform: ", m_output_prc.to_string());
             }
 
 #undef EXEC_CASE
@@ -865,7 +867,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                     EXEC_CASE(i32)
                     EXEC_CASE(i64)
                 default:
-                    THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
+                    CPU_NODE_THROW("Unsupported type of RandomUniform: ", m_output_prc.to_string());
                 }
             });
         }
@@ -905,7 +907,7 @@ void RandomUniform::computeStl(void* out, size_t work_amount) {
             work_amount);
     } break;
     default:
-        THROW_CPU_NODE_ERR("has unsupported output type: ", m_output_prc);
+        CPU_NODE_THROW("has unsupported output type: ", m_output_prc);
     }
 }
 

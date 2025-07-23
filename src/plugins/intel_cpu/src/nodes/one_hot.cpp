@@ -64,7 +64,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (depthNode) {
         depth = depthNode->cast_vector<uint32_t>()[0];
     }
-    axis = oneHot->get_axis();
+    axis = static_cast<int32_t>(oneHot->get_axis());
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
     if (ov::is_scalar(srcDims)) {
@@ -79,14 +79,12 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (axis < 0) {
         axis += output_dims_size;
     }
-    if (axis < 0 || axis >= output_dims_size) {
-        THROW_CPU_NODE_ERR("has unsupported 'axis' attribute: ", oneHot->get_axis());
-    }
+    CPU_NODE_ASSERT(axis >= 0 && axis < output_dims_size, "has unsupported 'axis' attribute: ", oneHot->get_axis());
 
-    if (((1 + srcDims.size()) != dstDims.size()) &&
-        (!depthNode || srcDims.size() != 1 || dstDims.size() != 1 || dstDims[0] != depth || srcDims[0] != 1)) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions!");
-    }
+    CPU_NODE_ASSERT(
+        ((1 + srcDims.size()) == dstDims.size()) ||
+            (depthNode && srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1),
+        "has incorrect number of input/output dimensions!");
 }
 
 bool OneHot::needShapeInfer() const {
@@ -106,9 +104,8 @@ void OneHot::initSupportedPrimitiveDescriptors() {
 
     // check a precision of the input tensor
     auto input_precision = getOriginalInputPrecisionAtPort(INDICES_ID);
-    if (input_precision != ov::element::i32) {
-        THROW_CPU_NODE_ERR("has incorrect input precision for the input. Only I32 is supported!");
-    }
+    CPU_NODE_ASSERT(input_precision == ov::element::i32,
+                    "has incorrect input precision for the input. Only I32 is supported!");
     output_precision = getOriginalOutputPrecisionAtPort(0);
 
     addSupportedPrimDesc({{LayoutType::ncsp, input_precision},

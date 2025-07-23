@@ -40,7 +40,7 @@ Supported configurations:
 
 4. Build generated solution in Visual Studio or run `cmake --build . --config Release --verbose -j<number_of_jobs>` to build from the command line. View the number of available processing units with `WMIC cpu get numberofLogicalProcessors`. Be aware that this process may take some time.
 
-5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<path/to/openvino>/temp/tbb/bin` folder.
+5. Before running the samples, add paths to the Threading Building Blocks (TBB) binaries used for the build to the `%PATH%` environment variable. By default, TBB binaries are downloaded by the CMake-based script to the `<path/to/openvino>/temp/<platform>/tbb/bin` folder.
 
 ### Building with PDB files support
 
@@ -71,7 +71,7 @@ To pack PDB files, it's essential to run cmake command to create a dedicated arc
 3. After the build process finishes, export the newly built Python libraries to the user environment variables:
     ```
     set PYTHONPATH=<openvino_repo>/bin/<arch>/Release/python;<openvino_repo>/tools/ovc;%PYTHONPATH%
-    set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/tbb/bin
+    set OPENVINO_LIB_PATHS=<openvino_repo>/bin/<arch>/Release;<openvino_repo>/temp/<platform>/tbb/bin
     set PATH=<openvino_repo>/tools/ovc/openvino/tools/ovc:%PATH%
     ```
     or install the wheel with pip:
