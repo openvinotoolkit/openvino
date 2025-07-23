@@ -495,7 +495,7 @@ void regclass_graph_Node(py::module m) {
                 :type name: str
              )");
     node.def("input",
-             (ov::Input<ov::Node> (ov::Node::*)(size_t))&ov::Node::input,
+             (ov::Input<ov::Node>(ov::Node::*)(size_t)) & ov::Node::input,
              py::arg("input_index"),
              R"(
                 A handle to the input_index input of this node.
@@ -506,7 +506,7 @@ void regclass_graph_Node(py::module m) {
                 :rtype: openvino.Input
              )");
     node.def("inputs",
-             (std::vector<ov::Input<ov::Node>> (ov::Node::*)())&ov::Node::inputs,
+             (std::vector<ov::Input<ov::Node>>(ov::Node::*)()) & ov::Node::inputs,
              R"(
                 A list containing a handle for each of this node's inputs, in order.
 
@@ -514,7 +514,7 @@ void regclass_graph_Node(py::module m) {
                 :rtype: list[openvino.Input]
              )");
     node.def("output",
-             (ov::Output<ov::Node> (ov::Node::*)(size_t))&ov::Node::output,
+             (ov::Output<ov::Node>(ov::Node::*)(size_t)) & ov::Node::output,
              py::arg("output_index"),
              R"(
                 A handle to the output_index output of this node.
@@ -525,7 +525,7 @@ void regclass_graph_Node(py::module m) {
                 :rtype: openvino.Output
              )");
     node.def("outputs",
-             (std::vector<ov::Output<ov::Node>> (ov::Node::*)())&ov::Node::outputs,
+             (std::vector<ov::Output<ov::Node>>(ov::Node::*)()) & ov::Node::outputs,
              R"(
                 A list containing a handle for each of this node's outputs, in order.
 

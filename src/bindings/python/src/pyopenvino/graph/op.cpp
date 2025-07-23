@@ -56,7 +56,7 @@ bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& inp
     py::function overrided_py_method = pybind11::get_override(this, "evaluate");
 
     if (overrided_py_method) {
-        return static_cast<py::bool_>(overrided_py_method(&output_values, &input_values)); // Call the Python function.
+        return static_cast<py::bool_>(overrided_py_method(&output_values, &input_values));  // Call the Python function.
     }
     return true;
 }
