@@ -15,12 +15,14 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              ze_graph_handle_t graphHandle,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
+             const bool persistentBlob,
              const Config& config,
              const ov::SoPtr<ICompiler>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
+      _persistentBlob(persistentBlob),
       _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -170,10 +172,12 @@ void Graph::initialize(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
-    //  import_model(...) -> export_model(...) permitted only if called by OV caching
-    //  user will be limited to compile_model(...) -> export_model(...) for now
+    if (_persistentBlob) {
+        return false;
+    }
+
     if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
-        config.get<PERF_COUNT>() || config.get<LOADED_FROM_CACHE>()) {
+        config.get<PERF_COUNT>()) {
         return false;
     }
 

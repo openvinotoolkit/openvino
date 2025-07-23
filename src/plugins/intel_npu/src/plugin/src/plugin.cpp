@@ -884,7 +884,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::parse(const ov::Tensor& tensorBig,
         check_weightless_cache_attribute_occurrence(originalModel);
     }
 
-    auto graph = compiler->parse(tensorMain,
+    auto graph = compiler->parse(std::move(tensorMain),
                                  localConfig,
                                  weightsSeparationEnabled ? std::make_optional(std::move(tensorsInits)) : std::nullopt,
                                  weightsSeparationEnabled ? std::make_optional(originalModel) : std::nullopt);

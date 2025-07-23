@@ -24,7 +24,7 @@ public:
     std::shared_ptr<IGraph> compileWS(const std::shared_ptr<ov::Model>& model, const Config& config) const override;
 
     std::shared_ptr<IGraph> parse(
-        ov::Tensor& mainBlob,
+        ov::Tensor mainBlob,
         const Config& config,
         std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const override;

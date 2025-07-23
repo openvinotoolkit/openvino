@@ -23,6 +23,7 @@ class WeightlessGraph final : public Graph {
 public:
     WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                     const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                    const bool persistentBlob,
                     ze_graph_handle_t mainGraphHandle,
                     NetworkMetadata mainMetadata,
                     std::optional<ov::Tensor> mainBlob,
