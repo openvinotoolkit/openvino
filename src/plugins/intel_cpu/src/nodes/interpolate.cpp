@@ -3147,29 +3147,29 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
                                                               int inShape,
                                                               int outShape) const {
     if (scale == 1.0F || (inShape == outShape)) {
-        return outCoord;
+        return static_cast<float>(outCoord);
     }
     switch (coordTransMode) {
     case InterpolateCoordTransMode::half_pixel: {
-        return (outCoord + 0.5F) / scale - 0.5F;
+        return (static_cast<float>(outCoord) + 0.5F) / scale - 0.5F;
     }
     case InterpolateCoordTransMode::pytorch_half_pixel: {
         if (outShape > 1) {
-            return (outCoord + 0.5F) / scale - 0.5F;
+            return (static_cast<float>(outCoord) + 0.5F) / scale - 0.5F;
         }
-        return 0;
+        return 0.0F;
     }
     case InterpolateCoordTransMode::asymmetric: {
         return static_cast<float>(outCoord) / scale;
     }
     case InterpolateCoordTransMode::tf_half_pixel_for_nn: {
-        return (outCoord + 0.5F) / scale;
+        return (static_cast<float>(outCoord) + 0.5F) / scale;
     }
     case InterpolateCoordTransMode::align_corners: {
         if (outShape > 1) {
-            return outCoord * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
+            return static_cast<float>(outCoord) * (static_cast<float>(inShape - 1) / static_cast<float>(outShape - 1));
         }
-        return 0;
+        return 0.0F;
     }
     default: {
         OPENVINO_THROW("does not support specified coordinate transformation mode");
@@ -3183,7 +3183,7 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
                                                        InterpolateNearestMode nearestMode) {
     switch (nearestMode) {
     case InterpolateNearestMode::round_prefer_floor: {
-        if (originCoord == (static_cast<int>(originCoord) + 0.5F)) {
+        if (originCoord == (static_cast<float>(static_cast<int>(originCoord)) + 0.5F)) {
             return static_cast<int>(std::floor(originCoord));
         }
         return static_cast<int>(std::round(originCoord));
@@ -3223,8 +3223,8 @@ void Interpolate::InterpolateExecutorBase::linearOnnxCF(int outCoord,
     index0 = std::min(static_cast<int>(inCoord), inShape - 1);
     index1 = std::min(index0 + 1, inShape - 1);
 
-    weight1 = std::fabs(inCoord - index0);
-    weight0 = std::fabs(inCoord - index1);
+    weight1 = std::fabs(inCoord - static_cast<float>(index0));
+    weight0 = std::fabs(inCoord - static_cast<float>(index1));
     if (index0 == index1) {
         weight0 = 0.5F;
         weight1 = 0.5F;
@@ -3414,7 +3414,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
                 if (r < 0 || r >= static_cast<int>(ID)) {
                     weightOD[oz * diaOD + i] = 0.F;
                 } else {
-                    float dz = iz - r;
+                    float dz = iz - static_cast<float>(r);
                     weightOD[oz * diaOD + i] = az * triangleCoeff(az * dz);
                 }
             }
@@ -3427,7 +3427,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
                 if (r < 0 || r >= static_cast<int>(IH)) {
                     weightOH[oy * diaOH + i] = 0.F;
                 } else {
-                    float dy = iy - r;
+                    float dy = iy - static_cast<float>(r);
                     weightOH[oy * diaOH + i] = ay * triangleCoeff(ay * dy);
                 }
             }
@@ -3440,7 +3440,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
                 if (r < 0 || r >= static_cast<int>(IW)) {
                     weightOW[ox * diaOW + i] = 0.F;
                 } else {
-                    float dx = ix - r;
+                    float dx = ix - static_cast<float>(r);
                     weightOW[ox * diaOW + i] = ax * triangleCoeff(ax * dx);
                 }
             }
@@ -3452,10 +3452,10 @@ std::vector<float> Interpolate::InterpolateExecutorBase::getCubicCoeffs(float ma
     float m = std::fabs(mantissa);
     std::vector<float> coeffs(4, 0.F);
 
-    coeffs[0] = a * (m - 1.0) * (m - 1.0) * m;
-    coeffs[1] = ((a + 2.0) * m - (a + 3.0)) * m * m + 1.0;
-    coeffs[2] = (((-a - 2.0) * m + (2.0 * a + 3.0)) * m - a) * m;
-    coeffs[3] = -a * m * m * (m - 1.0);
+    coeffs[0] = a * (m - 1.0F) * (m - 1.0F) * m;
+    coeffs[1] = ((a + 2.0F) * m - (a + 3.0F)) * m * m + 1.0F;
+    coeffs[2] = (((-a - 2.0F) * m + (2.0F * a + 3.0F)) * m - a) * m;
+    coeffs[3] = -a * m * m * (m - 1.0F);
     return coeffs;
 }
 
@@ -3493,7 +3493,7 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
         float ix = coordTransToInput(ox, fx, IW, OW);
         auto ix_r = static_cast<int>(std::floor(ix));
         xOrigin[ox] = ix_r;
-        float m = ix - ix_r;
+        float m = ix - static_cast<float>(ix_r);
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
         xFactor[CUBIC_GRID_LEN * ox] = coffes[0];
         xFactor[CUBIC_GRID_LEN * ox + 1] = coffes[1];
@@ -3509,7 +3509,7 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
         float iy = coordTransToInput(oy, fy, IH, OH);
         auto iy_r = static_cast<int>(std::floor(iy));
         yOrigin[oy] = iy_r;
-        float m = iy - iy_r;
+        float m = iy - static_cast<float>(iy_r);
         std::vector<float> coffes = getCubicCoeffs(m, cubicCoeff);
         yFactor[CUBIC_GRID_LEN * oy] = coffes[0];
         yFactor[CUBIC_GRID_LEN * oy + 1] = coffes[1];
@@ -3548,7 +3548,7 @@ float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
         m = -m;
     }
     if (m < 1.0) {
-        return ((a + 2.0) * m - (a + 3.0)) * m * m + 1.0;
+        return static_cast<float>(((a + 2.0) * m - (a + 3.0)) * m * m + 1.0);
     }
     if (m < 2.0F) {
         return (((m - 5) * m + 8) * m - 4) * a;
@@ -3595,17 +3595,18 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
     filterArgs filterArgsY = generateArgs(1.0F / fy);
 
     // index with Run Length Coding(start+len for each ow/oh)
-    size_t weightLen = filterArgsX.filterLen * OW + filterArgsY.filterLen * OH;
+    size_t weightLen =
+        static_cast<size_t>(filterArgsX.filterLen) * OW + static_cast<size_t>(filterArgsY.filterLen) * OH;
     size_t boundLen = 2 * OW + 2 * OH;
     auxTable.resize(2 + weightLen + boundLen);
     size_t offset = 0;
-    auxTable[offset] = filterArgsX.filterLen;
-    auxTable[offset + 1] = filterArgsY.filterLen;
+    auxTable[offset] = static_cast<int>(filterArgsX.filterLen);
+    auxTable[offset + 1] = static_cast<int>(filterArgsY.filterLen);
     offset += 2;
     auto* weightX = reinterpret_cast<float*>(&auxTable[offset]);
-    offset += filterArgsX.filterLen * OW;
+    offset += static_cast<size_t>(filterArgsX.filterLen) * OW;
     auto* weightY = reinterpret_cast<float*>(&auxTable[offset]);
-    offset += filterArgsY.filterLen * OH;
+    offset += static_cast<size_t>(filterArgsY.filterLen) * OH;
     auto* indexX = static_cast<int*>(&auxTable[offset]);
     offset += 2 * OW;
     auto* indexY = static_cast<int*>(&auxTable[offset]);
@@ -3629,12 +3630,12 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
             idxTbl[2 * ox] = min;
             idxTbl[2 * ox + 1] = max;
 
-            size_t offset = ox * args.filterLen;
+            size_t offset = ox * static_cast<size_t>(args.filterLen);
             float weightSum = 0;
             int ix = 0;
             for (ix = 0; ix < max; ix++) {
                 // use distance to center as a parameter to compute weight
-                float w = args.weightGen((ix + min - ixCenter + 0.5) * args.ScaleClipReciprocal);
+                float w = args.weightGen((static_cast<float>(ix + min) - ixCenter + 0.5F) * args.ScaleClipReciprocal);
                 weightTbl[offset + ix] = w;
                 weightSum += w;
             }
@@ -3645,7 +3646,7 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
             }
 
             // filterlen is maximum possible len, set others to 0 for possible uniform process(vector)
-            for (; ix < args.filterLen; ix++) {
+            for (; ix < static_cast<int>(args.filterLen); ix++) {
                 weightTbl[offset + ix] = 0.F;
             }
         }

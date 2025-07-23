@@ -80,7 +80,7 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
             std::stack<PortConnectorPtr> to_visit;
             to_visit.push(expr->get_output_port_connector(i));
             while (!to_visit.empty()) {
-                const auto& current = to_visit.top();
+                const auto current = to_visit.top();
                 current->get_source().get_descriptor_ptr()->set_reg(reg);
                 to_visit.pop();
                 for (const auto& consumer : current->get_consumers()) {

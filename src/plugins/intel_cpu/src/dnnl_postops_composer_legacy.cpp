@@ -128,7 +128,7 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
     bool fuseIntoWeiScale = false;
     // Use dest scale when last post-ops is per-tensor quantization.
     if ((isINT8 && isLastPostOp && scale.size() == 1)) {
-        dst_scale_val = 1.0 / scale[0];
+        dst_scale_val = 1.0F / scale[0];
         updateDestScales();
         return true;
     }

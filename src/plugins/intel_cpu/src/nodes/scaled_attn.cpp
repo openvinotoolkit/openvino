@@ -169,7 +169,7 @@ struct MHAKernel {
         auto Hk = present_key.size(1);
         size_t h_each_group_len = H / Hk;
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / static_cast<float>(sqrt(head_size));
         }
 
         auto k_stride_s = present_key.stride(3);
@@ -532,7 +532,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     float d_scale = 0.0F) {
         auto head_size = query.size(3);
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / static_cast<float>(sqrt(head_size));
         }
 
         prepare_brgemm_prim(strm, query, present_key, present_value, has_out_transpose);
@@ -748,7 +748,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
         size_t h_each_group_len = H / h_group_num;
 
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / static_cast<float>(sqrt(head_size));
         }
         auto k_stride_s = present_key.stride(3);
 
