@@ -359,7 +359,7 @@ IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
     initialize(config);
 }
 
-size_t IRGraph::export_blob(std::ostream& stream) const {
+std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IRGraph::export_blob(std::ostream& stream) const {
 
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = 0;
@@ -386,7 +386,7 @@ size_t IRGraph::export_blob(std::ostream& stream) const {
 
     if (!stream) {
         _logger.error("Write blob to stream failed. Blob is broken!");
-        return 0;
+        return std::make_pair(0, std::nullopt);
     }
 
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -401,7 +401,7 @@ size_t IRGraph::export_blob(std::ostream& stream) const {
     }
     _logger.info("Write blob to stream successfully.");
 
-    return blobSize;
+    return std::make_pair(blobSize, std::nullopt);
 }
 
 std::vector<ov::ProfilingInfo> IRGraph::process_profiling_output(const std::vector<uint8_t>& profData,

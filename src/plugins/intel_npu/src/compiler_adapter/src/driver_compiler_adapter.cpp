@@ -7,6 +7,7 @@
 #include <string_view>
 
 #include "graph.hpp"
+#include "irgraph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -238,13 +239,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
-    // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
-    // Check If blob is ELF, if not, create graph for LLVM IR
-    size_t blobSize = blob.get_byte_size();
-    // Temporarily use 20 as header length
-    size_t headerSize = blobSize > 20 ? 20 : blobSize;
-    std::string header(reinterpret_cast<const char*>(blob.data()), headerSize);
-    if (header.find("ELF") == std::string::npos) {
+    if (is_dynamic_shape_blob(mainBlob)) {
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
         // TODO: Fake metadata here, need to get from driver|compiler
         int64_t dynamicWidth = [] {
@@ -272,6 +267,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                         false,
                                         false,
                                         false,
+                                        false,
+                                        false,
+                                        false,
                                         {},
                                         "input",
                                         {"input"},
@@ -279,6 +277,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
         metadata.outputs = {IODescriptor{"output",
                                          ov::element::f32,
                                          {1, 3, dynamicHeight, dynamicWidth},
+                                         false,
+                                         false,
+                                         false,
                                          false,
                                          false,
                                          false,
@@ -290,7 +291,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        _zeroInitStruct,
                                        nullptr,
                                        std::move(metadata),
-                                       std::move(blob),
+                                       std::move(mainBlob),
                                        blobAllocatedByPlugin,
                                        config);
     }
