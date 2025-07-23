@@ -40,7 +40,7 @@ void ov::intel_cpu::ScaledDotProductAttentionWithKVCache::validate_and_infer_typ
     auto beam_idx_ps = get_input_partial_shape(input_num - 3);
 
     auto output_logits = q_ps;
-    NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == false);
+    NODE_VALIDATION_CHECK(this, !m_config.output_BLHxS);
     NODE_VALIDATION_CHECK(this, q_ps.rank().is_static());
     NODE_VALIDATION_CHECK(this, q_ps.size() >= 3);
     // permute_axes from original to [B, H, L, S]
@@ -127,8 +127,8 @@ void ov::intel_cpu::SDPAWithTransposeReshape::validate_and_infer_types() {
     // [B,L,H*S]
     auto q_ps = get_input_partial_shape(0);
     const auto& output_ps = q_ps;
-    NODE_VALIDATION_CHECK(this, m_config.output_BLHxS == true);
-    NODE_VALIDATION_CHECK(this, m_config.input_BLHxS == true);
+    NODE_VALIDATION_CHECK(this, m_config.output_BLHxS);
+    NODE_VALIDATION_CHECK(this, m_config.input_BLHxS);
     NODE_VALIDATION_CHECK(this, q_ps.size() == 3U);
 
     // permute_axes should be [B, H, L, S]

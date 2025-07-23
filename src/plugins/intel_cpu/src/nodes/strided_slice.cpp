@@ -75,9 +75,9 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         attrs.AXES_ID = 5;
     }
 
-    CPU_NODE_ASSERT(!(attrs.isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) &&
-                        !(!attrs.isStridedSliceOp &&
-                          (inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1))),
+    CPU_NODE_ASSERT((!attrs.isStridedSliceOp || (inputShapes.size() >= 3 && inputShapes.size() <= 4)) &&
+                        (attrs.isStridedSliceOp ||
+                          (inputShapes.size() >= (attrs.STRIDE_ID + 1) && inputShapes.size() <= (attrs.AXES_ID + 1))),
                     "has incorrect number of input edges");
     CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges");
 

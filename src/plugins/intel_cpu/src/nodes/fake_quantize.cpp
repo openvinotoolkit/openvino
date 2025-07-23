@@ -1877,10 +1877,10 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && any_of(srcDesc.getShape().getRank(), 4U, 5U);
     int blk_size = 1;
-    if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) &&
+    if ((!srcDesc.hasLayoutType(LayoutType::ncsp) || !any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) &&
         mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
-    } else if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U))) {
+    } else if (!srcDesc.hasLayoutType(LayoutType::ncsp) || !any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) {
         blk_size = 8;
     }
 

@@ -68,7 +68,7 @@ BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjust
 
         const auto& brgemm_config = brgemm->get_config();
         if (brgemm_config.with_wei_repacking() && consumer.get_index() == 1) {
-            OPENVINO_ASSERT(brgemm_config.with_compensations() == false,
+            OPENVINO_ASSERT(!brgemm_config.with_compensations(),
                             "External repacking for BrgemmCPU with compensations is not supported.");
             const auto kernel_config = BrgemmCopyBKernelConfig(brgemm_config);
             executor = std::make_shared<BrgemmCopyBKernelExecutor>(cache, kernel_config);

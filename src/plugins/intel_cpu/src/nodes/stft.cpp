@@ -188,7 +188,7 @@ void STFT::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool STFT::needShapeInfer() const {
-    return !(m_is_frame_size_const && m_is_frame_step_const) || Node::needShapeInfer();
+    return !m_is_frame_size_const || !m_is_frame_step_const || Node::needShapeInfer();
 }
 
 void STFT::createPrimitive() {

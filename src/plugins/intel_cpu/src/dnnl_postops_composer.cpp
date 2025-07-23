@@ -1082,7 +1082,7 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                     }
                 }
 
-                return !(hasSubsequentSum && hasSubsequentFQ);
+                return !hasSubsequentSum || !hasSubsequentFQ;
             };
 
             auto round = i == 0 ? doRounding() : true;

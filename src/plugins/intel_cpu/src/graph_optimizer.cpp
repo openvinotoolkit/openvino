@@ -1606,7 +1606,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             if (fuseCandidate->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto isNotSpecialConvolutionAddFusing = [](const NodePtr& fusedNode) {
                     const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
-                    return !(eltwise && eltwise->isSpecialConvolutionAddFusing());
+                    return !eltwise || !eltwise->isSpecialConvolutionAddFusing();
                 };
                 auto allFusedNodesNotSpecial = [&]() {
                     return std::all_of(binConv->fusedWith.begin(),
@@ -2533,7 +2533,7 @@ bool GraphOptimizer::canBeInplaced(const NodePtr& parentNode, const NodePtr& chi
     const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
         return edge->inPlace(Edge::LOOK_DOWN);
     });
-    return !(parentInPlace && childInPlace);
+    return !parentInPlace || !childInPlace;
 }
 
 bool GraphOptimizer::checkAscendingFinalOrder(const VectorDims& transposeOrder,

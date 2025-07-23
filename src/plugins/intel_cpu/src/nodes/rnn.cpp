@@ -654,7 +654,7 @@ void RNN::initCell() {
                        "; Hidden state rank: ",
                        getInputShapeAtPort(1).getRank());
     }
-    CPU_NODE_ASSERT(!(is_augru && getInputShapeAtPort(5).getRank() != 2LU),
+    CPU_NODE_ASSERT(!is_augru || getInputShapeAtPort(5).getRank() == 2LU,
                     "has incorrect input ranks. Attention rank: ",
                     getInputShapeAtPort(2).getRank());
 

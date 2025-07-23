@@ -234,7 +234,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
 void* Memory::getData() const {
     void* data = getDataNoThrow();
     OPENVINO_ASSERT(
-        data != nullptr || !m_pMemDesc->getShape().isStatic() || m_pMemDesc->getShape().getElementsCount() == 0,
+        data != nullptr || m_pMemDesc->getShape().isDynamic() || m_pMemDesc->getShape().getElementsCount() == 0,
         "Memory has not been allocated");
     return data;
 }

@@ -187,7 +187,10 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                ov::intel_cpu::sparse_weights_decompression_rate.name(),
                                ". Expected only float numbers");
             }
-            OPENVINO_ASSERT(val_f >= 0.F && val_f <= 1.F,
+            OPENVINO_ASSERT(val_f >= 0.0f,
+                            "Value must be non-negative for property key ",
+                            ov::intel_cpu::sparse_weights_decompression_rate.name());
+            OPENVINO_ASSERT(val_f <= 1.0f,
                             "Wrong value for property key ",
                             ov::intel_cpu::sparse_weights_decompression_rate.name(),
                             ". Sparse rate must be in range [0.0f,1.0f]");
