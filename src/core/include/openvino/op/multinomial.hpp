@@ -26,10 +26,12 @@ public:
      * @param convert_type Data type to which to convert the output class indices. Allowed values: i32/i64
      * @param with_replacement Boolean that determines whether a sampled class can appear more than once in the output.
      * @param log_probs Boolean that determines whether to treat input probabilities as log probabilities.
-     * @param global_seed First seed value (key) of Philox random number generation algorithm. (See RandomUniform for
+     * @param global_seed First seed value (key) of the random number generation algorithm. (See RandomUniform for
      * details)
-     * @param op_seed Second seed value (counter) of Philox random number generation algorithm. (See RandomUniform for
+     * @param op_seed Second seed value (counter) of the random number generation algorithm. (See RandomUniform for
      * details)
+     * @param alignment Selects which framework's algoritm should be used to generate the random samples. (See
+     * RandomUniform for details)
      */
     Multinomial(const Output<Node>& input,
                 const Output<Node>& num_samples,
@@ -37,7 +39,38 @@ public:
                 const bool with_replacement,
                 const bool log_probs,
                 const uint64_t global_seed = 0,
-                const uint64_t op_seed = 0);
+                const uint64_t op_seed = 0,
+                const PhiloxAlignment alignment = PhiloxAlignment::TENSORFLOW);
+
+    /**
+     * @brief Multinomial operation creates a sequence of indices of classes sampled from the multinomial distribution.
+     *
+     * @param probs Input tensor containing at each index poisition probability/log probability of sampling a given
+     * class. Any floating-point precision values are allowed.
+     * @param num_samples Scalar or 1D tensor with a single value that determines the number of samples to generate per
+     * batch. Values should be of an integer type.
+     * @param random_samples 1D tensor of size equal to the value of num_samples with random float values between 0 and
+     * 1, used as a source of randomness inside the generator. When provided, seeds aren't used. Otherwise,
+     * RandomUniform operator will be used as this source.
+     * @param convert_type Data type to which to convert the output class indices. Allowed values: i32/i64
+     * @param with_replacement Boolean that determines whether a sampled class can appear more than once in the output.
+     * @param log_probs Boolean that determines whether to treat input probabilities as log probabilities.
+     * @param global_seed First seed value (key) of the random number generation algorithm. (See RandomUniform for
+     * details)
+     * @param op_seed Second seed value (counter) of the random number generation algorithm. (See RandomUniform for
+     * details)
+     * @param alignment Selects which framework's algoritm should be used to generate the random samples. (See
+     * RandomUniform for details)
+     */
+    Multinomial(const Output<Node>& input,
+                const Output<Node>& num_samples,
+                const Output<Node>& random_samples,
+                const ov::element::Type_t convert_type,
+                const bool with_replacement,
+                const bool log_probs,
+                const uint64_t global_seed = 0,
+                const uint64_t op_seed = 0,
+                const op::PhiloxAlignment alignment = op::PhiloxAlignment::TENSORFLOW);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
@@ -48,12 +81,14 @@ public:
     bool get_log_probs() const;
     uint64_t get_global_seed() const;
     uint64_t get_op_seed() const;
+    op::PhiloxAlignment get_alignment() const;
 
     void set_convert_type(const ov::element::Type_t convert_type);
     void set_with_replacement(const bool with_replacement);
     void set_log_probs(const bool log_probs);
     void set_global_seed(const uint64_t global_seed);
     void set_op_seed(const uint64_t op_seed);
+    void set_alignment(const op::PhiloxAlignment alignment);
 
 private:
     ov::element::Type_t m_convert_type;
@@ -61,6 +96,7 @@ private:
     bool m_log_probs;
     uint64_t m_global_seed;
     uint64_t m_op_seed;
+    op::PhiloxAlignment m_alignment;
 };
 }  // namespace v13
 }  // namespace op
