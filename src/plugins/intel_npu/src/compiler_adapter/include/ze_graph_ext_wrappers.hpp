@@ -32,13 +32,11 @@ public:
     std::unordered_set<std::string> queryGraph(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                const std::string& buildFlags) const;
 
-    void* getNpuMemory(void* data, size_t size, const uint32_t flags = 0);
-
     ze_graph_handle_t getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                      const std::string& buildFlags,
                                      const uint32_t& flags) const;
 
-    ze_graph_handle_t getGraphHandle(const uint8_t& data, size_t size, const bool inputGraphPersistent = false) const;
+    std::pair<ze_graph_handle_t, bool> getGraphHandle(void* data, size_t size) const;
 
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 
@@ -68,6 +66,8 @@ private:
                      std::vector<IODescriptor>& outputs) const;
 
     void initialize_graph_through_command_list(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
+
+    void* getNpuMemory(void* data, size_t size, const uint32_t flags = 0) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;

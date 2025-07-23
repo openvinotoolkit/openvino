@@ -20,12 +20,11 @@ class Graph : public IGraph {
 public:
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-          ze_graph_handle_t graphHandle,
+          std::pair<ze_graph_handle_t, bool> graphHandle,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
           const Config& config,
-          const bool persistentBlob = true,
-          void* importedNpuData = nullptr,
+          const bool persistentBlob = false,
           const ov::SoPtr<ICompiler>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
@@ -50,9 +49,8 @@ protected:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _persistentBlob = true;
-
-    void* _importedNpuData = nullptr;
+    bool _persistentBlob = false;
+    bool _inputGraphPersistent = false;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;
