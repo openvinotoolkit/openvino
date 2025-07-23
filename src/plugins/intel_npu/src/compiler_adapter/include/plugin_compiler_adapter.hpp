@@ -38,8 +38,6 @@ public:
     uint32_t get_version() const override;
 
 private:
-    bool is_dynamic_shape_model(const ov::Tensor& blob) const;
-
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
