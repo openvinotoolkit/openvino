@@ -47,9 +47,10 @@ void cast_list_to_vector_inplace(const py::list& py_list, std::vector<T>& target
     target_vector.reserve(py_list.size());
     for (auto item : py_list) {
         try {
-            target_vector.emplace_back(std::move(item.cast<T>()));
+            target_vector.emplace_back(item.cast<T>());
         } catch (const py::cast_error& e) {
-            throw py::type_error("All elements in the list must be convertible to the specified type");
+            throw py::type_error("Cast of list[openvino.Tensor] to std::vector<openvino::Tensor> failed. " +
+                                 std::string(e.what()));
         }
     }
 }
