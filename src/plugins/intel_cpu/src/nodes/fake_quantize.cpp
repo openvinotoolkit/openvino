@@ -1748,7 +1748,9 @@ void FakeQuantize::executeReference() {
 
         parallel_nd(N, CB, D, H, W, [&](dim_t n, dim_t cb, dim_t d, dim_t h, dim_t w) {
             uint8_t bin_val = 0x00;
-            for (int c = cb * nbits, shift = 0; c < std::min(static_cast<dim_t>(C), (cb + 1) * nbits); c++, shift++) {
+            for (int c = static_cast<int>(cb) * nbits, shift = 0;
+                 c < std::min(static_cast<int>(C), (static_cast<int>(cb) + 1) * nbits);
+                 c++, shift++) {
                 size_t src_off = n * s_str[0] + c * s_str[1];
                 if (srcDims.size() == 4) {
                     src_off += h * s_str[2] + w * s_str[3];
@@ -1791,7 +1793,7 @@ void FakeQuantize::executeReference() {
 
             float src_val = src[src_off];
 
-            int wei_idx = getAxis() == 0 ? n : c;
+            int wei_idx = getAxis() == 0 ? static_cast<int>(n) : static_cast<int>(c);
             float cl = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_LOW)] ? cropLow[0] : cropLow[wei_idx];
             float ch = broadcasted[static_cast<size_t>(FQ_add_input_type::CROP_HIGH)] ? cropHigh[0] : cropHigh[wei_idx];
             float isc =
@@ -1922,7 +1924,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         parallel_nd(N, CB, D, [&](dim_t n, dim_t cb, [[maybe_unused]] dim_t d) {
             auto arg = jit_quantize_call_args();
 
-            int c = cb * blk_size;
+            int c = static_cast<int>(cb) * blk_size;
 
             size_t data_off = n * s_str[0] + c * s_str[1];
 
@@ -1953,9 +1955,9 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         parallel_nd(N, CB, D, B, [&](dim_t n, dim_t cb, dim_t d, dim_t b) {
             auto arg = jit_quantize_call_args();
 
-            const int c = cb * blk_size;
-            const int h = b * batch_size / W;
-            const int w = b * batch_size % W;
+            const int c = static_cast<int>(cb) * blk_size;
+            const int h = static_cast<int>(b) * batch_size / W;
+            const int w = static_cast<int>(b) * batch_size % W;
 
             const size_t data_off = srcDims.size() == 3 || srcDims.size() == 4
                                         ? n * s_str[0] + c * s_str[1] + h * s_str[2] + w
@@ -1988,7 +1990,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
         parallel_nd_legacy(N, CB, D, H, [&](dim_t n, dim_t cb, dim_t d, dim_t h) {
             auto arg = jit_quantize_call_args();
 
-            int c = cb * blk_size;
+            int c = static_cast<int>(cb) * blk_size;
 
             size_t data_off = 0;
             if (srcDims.size() == 2) {
