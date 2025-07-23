@@ -110,12 +110,6 @@ if(DEFINED OPENVINO_STDLIB)
     message (STATUS "STDLIB ................................ " ${OPENVINO_STDLIB})
 endif()
 
-if(DEFINED TBBBIND_2_5_AVAILABLE)
-    message(STATUS "TBBBIND_2_5_AVAILABLE is defined as ${TBBBIND_2_5_AVAILABLE}")
-else()
-    message(STATUS "TBBBIND_2_5_AVAILABLE is disabled")
-endif()
-
 # remove file with exported targets to force its regeneration
 file(REMOVE "${CMAKE_BINARY_DIR}/OpenVINOTargets.cmake")
 
