@@ -236,6 +236,8 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
 }
 
 void ov::npuw::LLMInferRequest::apply_lora() {
+    uint32_t max_rank_size = m_npuw_llm_compiled_model->m_max_lora_rank;
+
     for (auto state : m_npuw_llm_compiled_model->m_variableStates) {
         auto state_name = state->get_name();
         auto state_tensor = state->get_state();
@@ -245,6 +247,21 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             state->reset();
         } else {
             // Generate with LoRA
+            uint32_t lora_rank = 0;
+            if (ov::npuw::matchLoRAMatMulAString(state_name)) {
+                lora_rank = static_cast<uint32_t>(state_tensor->get_shape()[0]);
+            } else if (ov::npuw::matchLoRAMatMulBString(state_name)) {
+                lora_rank = static_cast<uint32_t>(state_tensor->get_shape()[1]);
+            } else if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
+                lora_rank = static_cast<uint32_t>(state_tensor->get_shape()[1]);
+            } else {
+                OPENVINO_THROW("Unknown LoRA state name: " + state_name);
+            }
+
+            if (lora_rank > max_rank_size) {
+                OPENVINO_THROW("LoRA rank: " + std::to_string(lora_rank) + " is larger than maximum LoRA rank " + std::to_string(max_rank_size));
+            }
+
             m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), state_tensor);
             m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), state_tensor);
         }

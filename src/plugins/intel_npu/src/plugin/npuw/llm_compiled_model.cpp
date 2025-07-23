@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <regex>
-
 #include "llm_compiled_model.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
@@ -650,31 +648,6 @@ struct KVAxesPosition {
     uint32_t seq_len;
 };
 
-struct LoRANames {
-    static constexpr const char* MatMul_A = "MatMul\\.A";
-    static constexpr const char* MatMul_B = "MatMul\\.B";
-    static constexpr const char* MatMul_alpha = "MatMul\\.alpha";
-};
-
-bool matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix) {
-    std::string pattern = "^lora_state.*" + pattern_suffix + "$";
-    std::regex regex_pattern(pattern);
-
-    return std::regex_match(input, regex_pattern);
-}
-
-bool matchLoRAMatMulAString(const std::string& input) {
-    return matchStringWithLoRAPattern(input, LoRANames::MatMul_A);
-}
-
-bool matchLoRAMatMulBString(const std::string& input) {
-    return matchStringWithLoRAPattern(input, LoRANames::MatMul_B);
-}
-
-bool matchLoRAMatmMulAlphaString(const std::string& input) {
-    return matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
-}
-
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
@@ -701,11 +674,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             new_shape =
                 partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
-        } else if (matchLoRAMatMulAString(input_name)) {
+        } else if (ov::npuw::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
-        } else if (matchLoRAMatmMulAlphaString(input_name)) {
+        } else if (ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else if (matchLoRAMatMulBString(input_name)) {
+        } else if (ov::npuw::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else {
             const auto& partial_shape = input.get_partial_shape();
@@ -992,19 +965,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("4. Make prefill model with static shapes");
-    auto max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
-    std::cout << "Maximum LoRA rank: " << max_lora_rank << std::endl;
+    m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
+    std::cout << "Maximum LoRA rank: " << m_max_lora_rank << std::endl;
     if (use_chunk_prefill) {
         reshape_to_static(prefill_model,
                           static_cast<uint32_t>(m_prefill_chunk_size),
                           m_kvcache_desc.max_prompt_size,
                           axes,
-                          max_lora_rank);
+                          m_max_lora_rank);
     } else {
-        reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes, max_lora_rank);
+        reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes, m_max_lora_rank);
     }
     LOG_DEBUG("5. Make kvcache model with static shapes");
-    reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, max_lora_rank);
+    reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, m_max_lora_rank);
 
     LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
     decompose_GQA(prefill_model, true);
