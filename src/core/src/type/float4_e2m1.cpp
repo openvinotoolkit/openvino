@@ -30,14 +30,16 @@ static constexpr std::array<float, 16> f4e2m1_to_f32_lut{
 
 namespace {
 
-constexpr uint8_t f4e2m1_e_bias = 1;              // f4e2m1 exponent bias
-constexpr uint8_t f4e2m1_e_max = 0x03;            // f4e2m1 exponent max value
-constexpr uint8_t f4e2m1_m_size = 1;              // f4e2m1 mantissa bits size
-constexpr uint32_t f32_m_size = 23;               // f32 mantissa bits size
-constexpr uint32_t f32_e_mask = 0x7F800000;       // f32 exponent bits mask
-constexpr uint32_t f32_m_mask = 0x007FFFFF;       // f32 mantissa bits mask
-constexpr uint32_t f32_e_bias = 127;              // f32 exponent bias
-constexpr uint32_t f32_m_round_even = 0x200000U;  // f32 mantissa round even
+constexpr uint8_t f4e2m1_e_bias = 1;                     // f4e2m1 exponent bias
+constexpr uint8_t f4e2m1_e_max = 0x03;                   // f4e2m1 exponent max value
+constexpr uint8_t f4e2m1_m_size = 1;                     // f4e2m1 mantissa bits size
+constexpr uint32_t f32_m_size = 23;                      // f32 mantissa bits size
+constexpr uint32_t f32_e_mask = 0x7F800000;              // f32 exponent bits mask
+constexpr uint32_t f32_m_mask = 0x007FFFFF;              // f32 mantissa bits mask
+constexpr uint32_t f32_e_bias = 127;                     // f32 exponent bias
+constexpr uint32_t f32_m_round_even_down = 0x200000U;    // f32 mantissa round even down
+constexpr uint32_t f32_m_round_even_up_126 = 0x400000U;  // f32 mantissa round even up for exponent 126
+constexpr uint32_t f32_m_round_even_up = 0x600000U;      // f32 mantissa round even up
 
 // clang-format off
 /**
@@ -87,7 +89,7 @@ uint8_t f32_to_f4e2m1_bits(float value) {
     int32_t f4e2m1_exp = f32_exp - f32_e_bias + f4e2m1_e_bias;
 
     /*
-        The f4e2m1 exponent mapping based on the unbiased exponent:
+        The f4e2m1 exponent mapping:
         f32_exp      | f4e2m1_exp
         -------------+-----------
         125 and less | (0b0000)
@@ -95,8 +97,6 @@ uint8_t f32_to_f4e2m1_bits(float value) {
         127          | (0b0010)
         128          | (0b0100)
         129 and more | (0b0110)
-
-        Clamp exponent to 2 bits (0-3) using bitwise min/max
     */
     if (f4e2m1_exp < 0) {
         f4e2m1_exp = 0;
@@ -112,18 +112,16 @@ uint8_t f32_to_f4e2m1_bits(float value) {
     if (abs_val <= 0.25f) {
         return f4_sign_bit;
     }
-
-    else if ((0.75f <= abs_val && abs_val < 1.0f) || (1.75f <= abs_val && abs_val < 2.0f) ||
-             (3.5f <= abs_val && abs_val < 4.0f)) {
+    // For the performance reason the if else statements are not using direct float comparison
+    else if ((f32_exp == 126 && f32_mantissa >= f32_m_round_even_up_126) ||
+             (f32_exp == 127 && f32_mantissa >= f32_m_round_even_up) ||
+             (f32_exp == 128 && f32_mantissa >= f32_m_round_even_up)) {
+        // 0.75f <= abs_val < 1.0f) || (1.75f <= abs_val < 2.0f) || (3.5f <= abs_val < 4.0f
         return (f4_sign_bit | f4e2m1_exp) + 2;  // mantissa affect exponent bits
-    }
-
-    else if ((f32_exp == 127 || f32_exp == 128 || f32_exp == 129) && (f32_mantissa <= f32_m_round_even)) {
+    } else if ((f32_exp == 127 || f32_exp == 128 || f32_exp == 129) && (f32_mantissa <= f32_m_round_even_down)) {
         // 1.0f <= abs_val <= 1.25f || 2.0f <= abs_val <= 2.5f || 4.0f <= abs_val <= 5.0f
         return (f4_sign_bit | f4e2m1_exp);
-    }
-
-    else {
+    } else {
         // 0.25f < abs_val < 0.75f || 1.25f < abs_val < 1.75f || 2.5f < abs_val < 3.5f || 5.0f < abs_val
         return (f4_sign_bit | f4e2m1_exp) + 1;
     }
