@@ -16,8 +16,7 @@
 #include "snippets/op/loop.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
-
-#define IMPLICATION(cause, effect) (!(cause) || !!(effect))
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::emitters::snippets::utils {
 
@@ -46,7 +45,7 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
     default:
         OV_CPU_JIT_EMITTER_THROW("Uknown type of expression port!");
     }
-    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(ov::snippets::utils::is_dynamic_value(offset), id != SIZE_MAX),
+    OV_CPU_JIT_EMITTER_ASSERT(implication(ov::snippets::utils::is_dynamic_value(offset), id != SIZE_MAX),
                               "In dynamic case Buffer Cluster ID must be known!");
     return id;
 }

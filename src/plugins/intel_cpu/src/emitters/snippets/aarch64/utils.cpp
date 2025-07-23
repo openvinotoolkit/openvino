@@ -72,14 +72,13 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generat
 
     // Load the runtime offset from abi_param1 (X0) and add it to the pointer
     Xbyak_aarch64::XReg abi_param1(0);
-    Xbyak_aarch64::XReg offset_reg(4);
     Xbyak_aarch64::XReg temp_reg(h->X_TMP_0);
 
     // Load the offset value from the runtime parameter location
     h->add_imm(temp_reg, abi_param1, runtime_offset, Xbyak_aarch64::XReg(h->X_TMP_1));
-    h->ldr(offset_reg, Xbyak_aarch64::ptr(temp_reg));
+    h->ldr(temp_reg, Xbyak_aarch64::ptr(temp_reg));
 
-    h->add(aux_reg, aux_reg, offset_reg);
+    h->add(aux_reg, aux_reg, temp_reg);
 
     // Store the adjusted pointer on stack
     h->str(aux_reg, Xbyak_aarch64::ptr(h->sp, stack_offset));
@@ -97,8 +96,7 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generato
 
     // For non-zero offsets, apply the offset and then store
     Xbyak_aarch64::XReg temp_reg(h->X_TMP_0);
-    h->mov(temp_reg, ptr_reg);
-    h->add_imm(temp_reg, temp_reg, ptr_offset, Xbyak_aarch64::XReg(h->X_TMP_1));
+    h->add_imm(temp_reg, ptr_reg, ptr_offset, Xbyak_aarch64::XReg(h->X_TMP_1));
 
     // Store the adjusted pointer on stack
     h->str(temp_reg, Xbyak_aarch64::ptr(h->sp, stack_offset));
