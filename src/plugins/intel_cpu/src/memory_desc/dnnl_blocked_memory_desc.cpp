@@ -137,7 +137,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
     }
 
     if (std::any_of(blockedDims.begin() + shape.getRank(), blockedDims.end(), [](size_t val) {
-            return val == Shape::UNDEFINED_DIM || val == 0;
+            return any_of(val, Shape::UNDEFINED_DIM, 0U);
         })) {
         OPENVINO_THROW("DnnlBlockedMemoryDesc doesn't support undefined or zero blockedDims.");
     }
@@ -178,7 +178,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
     if (!strides.empty() && !emptyDesc && std::none_of(strides.begin(), strides.end(), [](size_t x) {
             return Shape::UNDEFINED_DIM == x;
         })) {
-        bool inner_block_are_dense = one_of(strides.back(), 0U, 1U);  // stride 1 - is dense case, 0 - broad casted
+        bool inner_block_are_dense = any_of(strides.back(), 0U, 1U);  // stride 1 - is dense case, 0 - broad casted
         for (size_t i = outer_ndims; i < strides.size() - 1; i++) {
             inner_block_are_dense &= (strides[i] == strides[i + 1] * blockedDims[i + 1]);
         }
@@ -250,7 +250,7 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(const Shape& shape,
                                              dnnl::memory::format_tag format)
     : MemoryDesc(shape, DnnlBlocked) {
     using namespace dnnl;
-    OPENVINO_ASSERT(format != memory::format_tag::any && format != memory::format_tag::undef,
+    OPENVINO_ASSERT(none_of(format, memory::format_tag::any, memory::format_tag::undef),
                     "Unexpected: Can't create dnnl::desc with any or undef format");
     const auto& dims = shape.getDims();
     if (format == memory::format_tag::x && shape.getRank() == 0) {
@@ -318,7 +318,7 @@ bool DnnlBlockedMemoryDesc::isCompatible(const DnnlBlockedMemoryDesc& rhs, CmpMa
         return true;
     }
 
-    if (one_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any)) {
+    if (any_of(wrappedThis.format_kind(), format_kind::undef, format_kind::any)) {
         return false;
     }
 
@@ -514,8 +514,7 @@ bool DnnlBlockedMemoryDesc::isSame(dnnl::memory::format_tag fmt) const {
         return false;
     }
 
-    OPENVINO_ASSERT(desc.get_format_kind() == dnnl::memory::format_kind::blocked &&
-                        refDesc.get_format_kind() == dnnl::memory::format_kind::blocked,
+    OPENVINO_ASSERT(all_of(dnnl::memory::format_kind::blocked, desc.get_format_kind(), refDesc.get_format_kind()),
                     "DnnlMemoryDesc::isSame is not implemented for non blocked memory format");
 
     auto actualBlkDesc = desc.get()->format_desc.blocking;

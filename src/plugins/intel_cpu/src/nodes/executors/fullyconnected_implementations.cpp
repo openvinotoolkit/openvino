@@ -196,7 +196,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
 
                 return MlasGemmExecutor::supports(config);
             },
@@ -227,7 +227,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 //   M = 1, K = (IC*H*W), when M = 1 it should not be efficient since acts as a vector multiply
                 // if layout is nchw/nChw16c: brg1x1 not support. Although jit supports, it should have similar
                 //   problems with the above.
-                VERIFY(one_of(srcRank(config), 2U, 3U), UNSUPPORTED_SRC_RANK);
+                VERIFY(any_of(srcRank(config), 2U, 3U), UNSUPPORTED_SRC_RANK);
                 VERIFY(weiRank(config) == 2, UNSUPPORTED_WEI_RANK);
                 // brg convolution does not support stride
                 VERIFY(getOffset0(config.descs.at(ARG_DST)) == 0, UNSUPPORTED_DST_STRIDES);
@@ -362,8 +362,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
-                VERIFY(everyone_is(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
-                VERIFY(one_of(weiType(config), f32, i8), UNSUPPORTED_WEI_PRECISIONS);
+                VERIFY(all_of(f32, srcType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(any_of(weiType(config), f32, i8), UNSUPPORTED_WEI_PRECISIONS);
                 if (config.attrs.withBias) {
                     VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
                 }
@@ -384,7 +384,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                VERIFY(everyone_is(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
 
                 return ShlFCExecutor::supports(config);
             },
