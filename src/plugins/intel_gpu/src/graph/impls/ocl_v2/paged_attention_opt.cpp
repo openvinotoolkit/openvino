@@ -1170,7 +1170,7 @@ public:
         rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
         rt_params->num_of_partitions = ceil_div(rt_params->max_context_len, rt_params->partition_size);
 
-        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED)/* && !params.is_dynamic()*/)
+        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
             rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
         rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
 
@@ -1431,7 +1431,7 @@ public:
         }
 #endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: internal_buffers.size = " << internal_buffers.size() << std::endl;
-        for(size_t i = 0; i < internal_buffers.size(); i++) {
+        for (size_t i = 0; i < internal_buffers.size(); i++) {
             GPU_DEBUG_TRACE_DETAIL << "\tinternal_buffers[" << i << "] = " << internal_buffers[i].m_layout.to_short_string() << std::endl;
         }
         return internal_buffers;
@@ -1539,7 +1539,7 @@ public:
         }
 
         if (stage == PagedAttentionStage::PREFILL && use_micro_sdpa) {
-            const auto memory_idx = 3; // intermediate_idx for micro kernel
+            const auto memory_idx = 3;  // intermediate_idx for micro kernel
             auto memory = intermediates_memories[memory_idx];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }
