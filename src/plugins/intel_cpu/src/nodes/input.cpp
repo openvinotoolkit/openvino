@@ -4,14 +4,8 @@
 
 #include "input.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
-#include <atomic>
 #include <cmath>
-#include <common/c_types_map.hpp>
-#include <common/utils.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -24,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_memory.h"
 #include "cpu_shape.h"
 #include "cpu_types.h"
@@ -37,7 +30,6 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/bfloat16.hpp"
@@ -50,15 +42,28 @@
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "utils/general_utils.h"
 
-using namespace dnnl;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <atomic>
+#    include <common/c_types_map.hpp>
+#    include <common/utils.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "openvino/core/parallel.hpp"
+
 using namespace dnnl::impl::cpu::x64;
 using namespace Xbyak;
+#endif
+
+using namespace dnnl;
 
 namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 namespace {
-struct jit_has_special_value_base : public jit_generator {
+struct jit_has_special_value_base : public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_special_value_base)
 
     using args_t = struct {
@@ -69,7 +74,7 @@ struct jit_has_special_value_base : public jit_generator {
 
     using fn_t = void (*)(const args_t*);
 
-    jit_has_special_value_base() : jit_generator(jit_name()) {
+    jit_has_special_value_base() : jit_generator_t(jit_name()) {
         jit_ker_ = nullptr;
     }
 
@@ -548,7 +553,7 @@ void Input::cloneBlobIfRequired() {
         return ptr;
     };
 
-    auto isBlobAligned = [](const std::shared_ptr<ov::op::v0::Constant>& constant) {
+    auto isBlobAligned = []([[maybe_unused]] const std::shared_ptr<ov::op::v0::Constant>& constant) {
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
         // Majority of arithmetic and data processing instructions in legacy SSE isa requires
         // the memory address in the operands must be aligned on 16-byte boundary. To ensure
@@ -664,19 +669,11 @@ MemoryCPtr Input::getMemoryPtr() const {
 
 void Input::getSupportedDescriptors() {
     if (getType() == Type::Input) {
-        if (!getParentEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-        }
-        if (getChildEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-        }
+        CPU_NODE_ASSERT(getParentEdges().empty(), "has incorrect number of input edges.");
+        CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges.");
     } else if (getType() == Type::Output) {
-        if (getParentEdges().size() != 1) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-        }
-        if (!getChildEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-        }
+        CPU_NODE_ASSERT(getParentEdges().size() == 1, "has incorrect number of input edges.");
+        CPU_NODE_ASSERT(getChildEdges().empty(), "has incorrect number of output edges.");
     }
 }
 
@@ -726,28 +723,26 @@ void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getDstMemoryAtPort(i);
         if (!dstMemPtr) {
-            THROW_CPU_NODE_ERR("has null memory object at port ",
-                               i,
-                               " to node ",
-                               getChildEdgeAt(i)->getChild()->getName(),
-                               ".");
+            CPU_NODE_THROW("has null memory object at port ",
+                           i,
+                           " to node ",
+                           getChildEdgeAt(i)->getChild()->getName(),
+                           ".");
         }
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr) {
-            THROW_CPU_NODE_ERR("has null memory object at port ",
-                               i,
-                               " from node ",
-                               getParentEdgeAt(i)->getParent()->getName(),
-                               ".");
+            CPU_NODE_THROW("has null memory object at port ",
+                           i,
+                           " from node ",
+                           getParentEdgeAt(i)->getParent()->getName(),
+                           ".");
         }
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("doesn't have selected primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "doesn't have selected primitive descriptor.");
 }
 
 bool Input::created() const {

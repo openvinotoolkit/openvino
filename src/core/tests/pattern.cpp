@@ -1459,7 +1459,7 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
     auto reshape = std::make_shared<ov::op::v1::Reshape>(input,
                                                          ov::op::v0::Constant::create(element::i64, {4}, {0, 0, 0, 20}),
                                                          true);
-    pattern::PatternSymbolMap m;
+    ov::pass::pattern::Matcher m;
     for (size_t i = 0; i < 10; ++i) {
         predicate_and = predicate_and && pattern::consumers_count(i);
         predicate_or = predicate_and || pattern::consumers_count(i);
@@ -1468,7 +1468,7 @@ TEST(pattern, pattern_symbol_predicate_and_operators) {
         else
             predicate_mixed = predicate_mixed || pattern::consumers_count(i);
 
-        ASSERT_NO_THROW(predicate_and(m, input));
+        ASSERT_NO_THROW(predicate_and(&m, input));
     }
 }
 
@@ -1535,7 +1535,7 @@ TEST(pattern, predicate_attr_match) {
     auto ss_pattern = pattern::any_input({{"begin_mask", std::vector<int64_t>{0, 1}}});
     // TODO: to allow initializer list as attribute value -- need to update ov::Attribute value type -- wrap ov::Any and
     //  allow implicit conversion from initializer lists of different types.
-    //  For now it seems excessive as it impacts quality of life of limited number of developers aka there is a WA
+    //  For now it seems excessive as it impacts quality of life of limited number of developers.
     ASSERT_TRUE(tm.match(ss_pattern, ss));
 }
 

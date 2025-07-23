@@ -8,17 +8,15 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "openvino/core/version.hpp"
 
 namespace intel_npu {
 
-struct MetadataBase {
-protected:
-    uint32_t _version;
-
+class MetadataBase {
 public:
-    MetadataBase(uint32_t version) : _version(version) {}
+    MetadataBase(uint32_t version, uint64_t blobDataSize);
 
     /**
      * @brief Reads metadata from a stream.
@@ -30,9 +28,23 @@ public:
      */
     virtual void write(std::ostream& stream) = 0;
 
+    /**
+     * @brief Adds the size of the binary object and the magic string to the end of the stream.
+     * @details This should be called after the "write" method in order to conclude writing the metadata into the given
+     * stream.
+     * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
+     * method writes at the end. This change allows better extension of class hierarchy.
+     */
+    void append_blob_size_and_magic(std::ostream& stream);
+
     virtual bool is_compatible() = 0;
 
-    virtual uint64_t get_blob_size() const = 0;
+    virtual uint64_t get_blob_size() const;
+
+    /**
+     * @returns The sizes of the init schedules. Populated only if "weights separation" has been enabled.
+     */
+    virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
 
     virtual ~MetadataBase() = default;
 
@@ -65,6 +77,10 @@ public:
     static constexpr uint16_t get_minor(uint32_t version) {
         return static_cast<uint16_t>(version);
     }
+
+protected:
+    uint32_t _version;
+    uint64_t _blobDataSize;
 };
 
 /**
@@ -76,21 +92,17 @@ constexpr std::string_view MAGIC_BYTES = "OVNPU";
  * @brief List of supported version formats.
  */
 constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
+constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_0};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_1};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
 
-struct OpenvinoVersion {
-private:
-    uint16_t _major;
-    uint16_t _minor;
-    uint16_t _patch;
-
+class OpenvinoVersion final {
 public:
     constexpr OpenvinoVersion(uint16_t major, uint16_t minor, uint16_t patch)
         : _major(major),
@@ -98,6 +110,18 @@ public:
           _patch(patch) {}
 
     OpenvinoVersion(const OpenvinoVersion& version);
+
+    OpenvinoVersion& operator=(const OpenvinoVersion& other) {
+        if (this != &other) {
+            _major = other.get_major();
+            _minor = other.get_minor();
+            _patch = other.get_patch();
+        }
+
+        return *this;
+    }
+
+    ~OpenvinoVersion() = default;
 
     /**
      * @brief Reads version data from a stream.
@@ -116,6 +140,11 @@ public:
     uint16_t get_patch() const;
 
     bool operator!=(const OpenvinoVersion& version);
+
+private:
+    uint16_t _major;
+    uint16_t _minor;
+    uint16_t _patch;
 };
 
 constexpr OpenvinoVersion CURRENT_OPENVINO_VERSION(OPENVINO_VERSION_MAJOR,
@@ -132,11 +161,7 @@ struct Metadata : public MetadataBase {};
  * @brief Template specialization for metadata version 1.0.
  */
 template <>
-struct Metadata<METADATA_VERSION_2_0> : public MetadataBase {
-protected:
-    OpenvinoVersion _ovVersion;
-    uint64_t _blobDataSize;
-
+class Metadata<METADATA_VERSION_2_0> : public MetadataBase {
 public:
     Metadata(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion = std::nullopt);
 
@@ -165,7 +190,38 @@ public:
      */
     bool is_compatible() override;
 
-    uint64_t get_blob_size() const override;
+    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
+
+protected:
+    OpenvinoVersion _ovVersion;
+};
+
+/**
+ * @brief The version that adds support for init schedules (weights separation).
+ */
+template <>
+class Metadata<METADATA_VERSION_2_1> : public Metadata<METADATA_VERSION_2_0> {
+public:
+    Metadata(uint64_t blobSize,
+             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt);
+
+    /**
+     * @details The number of init schedules, along with the size of each init binary object are read in addition to the
+     * information provided by the previous metadata versions.
+     */
+    void read(std::istream& stream) override;
+
+    /**
+     * @details The number of init schedules, along with the size of each init binary object are written in addition to
+     * the information registered by the previous metadata versions.
+     */
+    void write(std::ostream& stream) override;
+
+    std::optional<std::vector<uint64_t>> get_init_sizes() const override;
+
+private:
+    std::optional<std::vector<uint64_t>> _initSizes;
 };
 
 /**

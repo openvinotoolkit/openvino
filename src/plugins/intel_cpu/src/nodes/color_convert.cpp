@@ -4,14 +4,9 @@
 
 #include "color_convert.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
-#include <array>
 #include <cmath>
-#include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
-#include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -28,7 +23,6 @@
 
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "kernels/x64/jit_kernel.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "onednn/iml_type_mapper.h"
@@ -37,6 +31,16 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/custom/color_convert.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <array>
+#    include <common/c_types_map.hpp>
+#    include <cpu/x64/jit_generator.hpp>
+
+#    include "kernels/x64/jit_kernel.hpp"
+#endif
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -146,9 +150,7 @@ protected:
 jit_uni_converter::jit_uni_converter() : jit_kernel(jit_name()), _consts(*this) {}
 
 void jit_uni_converter::init() {
-    if (create_kernel() != status::success) {
-        OPENVINO_THROW("Can't generate jit color converter kernel");
-    }
+    OPENVINO_ASSERT(create_kernel() == status::success, "Can't generate jit color converter kernel");
     _fn = reinterpret_cast<function_t>(const_cast<uint8_t*>(jit_ker()));
 }
 
@@ -338,12 +340,9 @@ protected:
 };
 
 RefConverter::RefConverter(Node* node) : Converter(node) {
-    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 2)) {
-        OPENVINO_THROW("NV12Converter node has incorrect number of inputs");
-    }
-    if (!node->getOriginalOutputsNumber()) {
-        OPENVINO_THROW("NV12Converter node has incorrect number of outputs");
-    }
+    OPENVINO_ASSERT(node->getOriginalInputsNumber() == (singlePlane() ? 1 : 2),
+                    "NV12Converter node has incorrect number of inputs");
+    OPENVINO_ASSERT(node->getOriginalOutputsNumber(), "NV12Converter node has incorrect number of outputs");
 }
 
 template <typename T>
@@ -674,12 +673,9 @@ protected:
 };
 
 RefConverter::RefConverter(Node* node) : Converter(node) {
-    if (node->getOriginalInputsNumber() != (singlePlane() ? 1 : 3)) {
-        OPENVINO_THROW("I420Converter node has incorrect number of inputs");
-    }
-    if (!node->getOriginalOutputsNumber()) {
-        OPENVINO_THROW("I420Converter node has incorrect number of outputs");
-    }
+    OPENVINO_ASSERT(node->getOriginalInputsNumber() == (singlePlane() ? 1 : 3),
+                    "I420Converter node has incorrect number of inputs");
+    OPENVINO_ASSERT(node->getOriginalOutputsNumber(), "I420Converter node has incorrect number of outputs");
 }
 
 template <typename T>
@@ -1107,9 +1103,7 @@ void ColorConvert::initSupportedI420Impls() {
 
 void ColorConvert::createPrimitive() {
     const NodeDesc* desc = getSelectedPrimitiveDescriptor();
-    if (!desc) {
-        THROW_CPU_NODE_ERR("has no optimal primitive descriptor selected");
-    }
+    CPU_NODE_ASSERT(desc, "has no optimal primitive descriptor selected");
 
     if (!_impl) {
         const auto& cfg = desc->getConfig();
@@ -1122,9 +1116,7 @@ void ColorConvert::createPrimitive() {
 }
 
 void ColorConvert::execute(const dnnl::stream& strm) {
-    if (!_impl) {
-        THROW_CPU_NODE_ERR("has no any implemented converter");
-    }
+    CPU_NODE_ASSERT(_impl, "has no any implemented converter");
     _impl->execute(strm);
 }
 

@@ -33,9 +33,7 @@
 #include "utils/general_utils.h"
 
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
-
 #    include "emitters/snippets/x64/jit_segfault_detector_emitter.hpp"
-std::mutex err_print_lock;
 #endif
 
 namespace ov::intel_cpu {
@@ -180,6 +178,7 @@ void SubgraphExecutor::separately_repack_input(const MemoryPtr& src_mem_ptr,
 #if defined(__linux__) && defined(SNIPPETS_DEBUG_CAPS)
 // NOLINTBEGIN(misc-include-cleaner) bug in clang-tidy
 void SubgraphExecutor::segfault_detector() const {
+    static std::mutex err_print_lock;
     if (enabled_segfault_detector) {
         __sighandler_t signal_handler = []([[maybe_unused]] int signal) {
             std::lock_guard<std::mutex> guard(err_print_lock);

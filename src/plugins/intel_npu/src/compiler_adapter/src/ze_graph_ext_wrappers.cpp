@@ -36,6 +36,11 @@
 
 #define UseCopyForNativeBinary(T) (T < ZE_GRAPH_EXT_VERSION_1_7)
 
+namespace {
+constexpr std::size_t BATCH_AXIS = 0;
+constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
+}  // namespace
+
 namespace intel_npu {
 
 ZeGraphExtWrappers::ZeGraphExtWrappers(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
@@ -348,6 +353,7 @@ ze_graph_handle_t ZeGraphExtWrappers::getGraphHandle(const uint8_t& blobData, si
  */
 static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                                     const std::optional<ze_graph_argument_metadata_t>& metadata) {
+    auto logger = Logger::global().clone("getIODescriptor");
     ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
     ov::Shape shapeFromCompiler;
     ov::PartialShape shapeFromIRModel;
@@ -369,25 +375,45 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                 // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
                 // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
                 // in case of dynamic dimensions
-                shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+                if (id == BATCH_AXIS && shapeFromCompiler[id] == DEFAULT_BATCH_SIZE) {
+                    logger.info("Ignore dynamic batch size upper limit, but keep the dimension dynamic as a metadata "
+                                "from compiler has been lost.");
+                    // We need to kepp batch dimension dynamic
+                    shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
+                } else {
+                    shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
+                }
             }
         }
     }
 
     // Flags will be used instead of indices for informing the type of the current entry
     std::string nameFromCompiler = arg.name;
+    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT);
     bool isStateInput = false;
     bool isStateOutput = false;
     bool isShapeTensor = false;
-    if (isStateInputName(nameFromCompiler)) {
+    bool isInitInputWeights = false;
+    bool isInitOutputWeights = false;
+    bool isMainInputWeights = false;
+    if (isInput && isStateInputName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
         isStateInput = true;
-    } else if (isStateOutputName(nameFromCompiler)) {
+    } else if (!isInput && isStateOutputName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
         isStateOutput = true;
     } else if (isShapeTensorName(nameFromCompiler)) {
         nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
         isShapeTensor = true;
+    } else if (isInput && isInitInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
+        isInitInputWeights = true;
+    } else if (!isInput && isInitOutputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
+        isInitOutputWeights = true;
+    } else if (isInput && isMainInputWeightsName(nameFromCompiler)) {
+        nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
+        isMainInputWeights = true;
     }
 
     return {std::move(nameFromCompiler),
@@ -396,6 +422,9 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
             isStateInput,
             isStateOutput,
             isShapeTensor,
+            isInitInputWeights,
+            isInitOutputWeights,
+            isMainInputWeights,
             std::nullopt,
             arg.debug_friendly_name,
             std::move(outputTensorNames),
@@ -432,7 +461,9 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 
         std::optional<ze_graph_argument_metadata_t> optionalMetadata = std::nullopt;
 
-        if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name)) {
+        if (!isStateInputName(arg.name) && !isStateOutputName(arg.name) && !isShapeTensorName(arg.name) &&
+            !isInitInputWeightsName(arg.name) && !isInitOutputWeightsName(arg.name) &&
+            !isMainInputWeightsName(arg.name)) {
             _logger.debug("getMetadata - perform pfnGetArgumentMetadata");
             ze_graph_argument_metadata_t metadata = {};
             result = _zeroInitStruct->getGraphDdiTable().pfnGraphGetArgumentMetadata(graphHandle, index, &metadata);

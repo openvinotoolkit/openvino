@@ -16,7 +16,6 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "kernels/scaled_attn/executor_pa.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
@@ -30,8 +29,13 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-using namespace ov::Extensions::Cpu;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#    include "kernels/scaled_attn/executor_pa.hpp"
+
 using namespace ov::Extensions::Cpu::XARCH;
+#endif
+
+using namespace ov::Extensions::Cpu;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
@@ -210,7 +214,7 @@ void PagedAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+        CPU_NODE_THROW("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }

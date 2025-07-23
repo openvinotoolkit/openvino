@@ -48,13 +48,19 @@ namespace intel_npu {
 void registerNPUWOptions(OptionsDesc& desc);
 void registerNPUWLLMOptions(OptionsDesc& desc);
 
-#define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode)                     \
-    struct Name final : OptionBase<Name, Type> {                                    \
-        static std::string_view key() { return ov::intel_npu::PropertyKey.name(); } \
-                                                                                    \
-        static Type defaultValue() { return DefaultValue; }                         \
-                                                                                    \
-        static OptionMode mode() { return OptionMode::Mode; }                       \
+#define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode) \
+    struct Name final : OptionBase<Name, Type> {                \
+        static std::string_view key() {                         \
+            return ov::intel_npu::PropertyKey.name();           \
+        }                                                       \
+                                                                \
+        static Type defaultValue() {                            \
+            return DefaultValue;                                \
+        }                                                       \
+                                                                \
+        static OptionMode mode() {                              \
+            return OptionMode::Mode;                            \
+        }                                                       \
     };
 
 DEFINE_OPT(NPU_USE_NPUW, bool, false, use_npuw, RunTime);
@@ -76,6 +82,7 @@ DEFINE_OPT(NPUW_DQ_FULL, bool, true, npuw::partitioning::dyn_quant_full, RunTime
 DEFINE_OPT(NPUW_PMM, std::string, "2", npuw::partitioning::par_matmul_merge_dims, RunTime);
 DEFINE_OPT(NPUW_SLICE_OUT, bool, false, npuw::partitioning::slice_out, RunTime);
 DEFINE_OPT(NPUW_HOST_GATHER, bool, true, npuw::partitioning::host_gather, RunTime);
+DEFINE_OPT(NPUW_HOST_GATHER_QUANT, bool, false, npuw::partitioning::gather_quant, RunTime);
 DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, RunTime);
 DEFINE_OPT(NPUW_F16IC, bool, true, npuw::partitioning::f16_interconnect, RunTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, RunTime);
@@ -103,6 +110,7 @@ DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, RunTime);
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, RunTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, RunTime);
+DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, uint64_t, 0, npuw::llm::prefill_chunk_size, RunTime);
 
 namespace npuw {
 namespace llm {

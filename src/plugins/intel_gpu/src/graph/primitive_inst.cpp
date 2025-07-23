@@ -463,41 +463,6 @@ void primitive_inst::update_shape() {
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
 
-    // WA: Skip dynamic quantization for the case where OneDNN has accuracy issue with post-op fusion
-    // This is a temporal workaround that should be removed in next release
-    if (get_node().is_type<dynamic_quantize>()) {
-        // if user instance is fully_connected, print user's input layouts
-        auto user = get_node().get_users().front();
-        if (user->is_type<fully_connected>()) {
-            auto fc_inst = _users[0];
-            auto fc_impl_params = fc_inst->get_impl_params();
-            for (auto& fd : fc_impl_params->fused_desc) {
-                if (!fd.has_outer_dep())
-                    continue;
-                const auto &layout_post_op = fc_inst->get_input_layout(fd.outer_dep_start_idx);
-                const auto &shape_post_op = layout_post_op.get_partial_shape();;
-                const auto &layout_input = _impl_params->get_input_layout(0);
-                const auto &shape_input = layout_input.get_partial_shape();
-
-                // If binary post-op is fused and its f-axis is broadcasted, skip dynamic quantization
-                if (shape_post_op.rank().is_static() && shape_post_op.rank().get_length() >= 3 &&
-                    shape_post_op[1].is_static() && shape_post_op[1].get_length() == 1 &&
-                    shape_input.rank().get_length() >= 3 &&
-                    shape_input[1].is_static() && shape_input[1].get_length() > 1 &&
-                    shape_input[0].is_static() && shape_input[0].get_length() > 1) {
-                    GPU_DEBUG_TRACE_DETAIL << fc_inst->id() << ": skip dynamic quantization because of unsupported broadcast - "
-                                    << layout_input.to_short_string() << ", " << layout_post_op.to_short_string() << std::endl;
-                    new_layouts[0] = _impl_params->get_input_layout(0);
-                    for (size_t i = 1; i < new_layouts.size(); i++) {
-                        auto output_shape = new_layouts[i].get_partial_shape();
-                        *output_shape.begin() = 0;
-                        new_layouts[i].set_partial_shape(output_shape);
-                    }
-                    break;
-                }
-            }
-        }
-    }
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
         auto& new_layout = new_layouts[idx];
         if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
@@ -1013,6 +978,12 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
+
+            if (need_reset_output_memory() && !can_be_optimized() &&
+                _outputs[i]->from_memory_pool && _outputs[i]->get_layout().data_padding) {
+                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
+                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
+            }
         }
     }
 
@@ -1183,7 +1154,12 @@ bool primitive_inst::use_async_compilation() {
         compile_gemm_impls |= _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
     }
 
-    return (get_node().is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
+    bool compile_conv_impls = get_node().is_type<convolution>();
+    if (compile_conv_impls) {
+        compile_conv_impls = !_impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
+    }
+
+    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
             (get_node().is_type<softmax>() && get_node().get_selected_impl() &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -2205,16 +2181,25 @@ primitive_inst::primitive_inst(network & network, program_node const& node, bool
             }
         }
 
-        // TODO: Remove WA for arg_max_min node.
-        // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
-        // but kernels always write both outputs to the same memory object which leads to wrong result.
-        if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>()
-                                                       && !node.is_type<experimental_detectron_roi_feature_extractor>()) {
-            for (auto& user : node.get_users())
-                if (user->is_type<mutable_data>())
-                    _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+        if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
+            // sum post-op can use the input buffer as the output buffer
+            auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
+            const auto& eltw_inst = _network.get_primitive(eltw_node.id());
+            auto& eltw_mem = eltw_inst->output_memory();
+            auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node.get_output_layout());
+            _outputs.push_back(new_mem);
         } else {
-            _outputs = allocate_outputs();
+            // TODO: Remove WA for arg_max_min node.
+            // For now it's required to handle the case when only second output of TopK primitive is used in plugin,
+            // but kernels always write both outputs to the same memory object which leads to wrong result.
+            if (user_count == 1 && mutable_data_count == 1 && !node.is_type<arg_max_min>() &&
+                !node.is_type<experimental_detectron_roi_feature_extractor>()) {
+                for (auto& user : node.get_users())
+                    if (user->is_type<mutable_data>())
+                        _outputs[0] = user->as<mutable_data>().get_attached_memory_ptr();
+            } else {
+                _outputs = allocate_outputs();
+            }
         }
     }
     if (_node) {

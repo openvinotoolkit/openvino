@@ -4,10 +4,16 @@
 
 #include "jit_loop_emitters.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
 #include <algorithm>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -78,7 +84,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
     }
 
     auto reg_work_amount = XReg(out[0]);
-    XReg reg_runtime_params = XReg(Operand::X0);
+    auto reg_runtime_params = XReg(Operand::X0);
     if (is_work_amount_dynamic) {
         XReg reg_aux = h->X_TMP_1;
         const auto id_offset = loop_id * sizeof(jit_snippets_call_args::loop_args_t);
@@ -179,7 +185,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
     std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
 
     auto reg_work_amount = XReg(in.back());
-    XReg reg_runtime_params = XReg(Operand::X0);
+    auto reg_runtime_params = XReg(Operand::X0);
     XReg reg_aux = h->X_TMP_1;
 
     auto apply_increments = [&](const std::vector<int64_t>& increments_vec,
@@ -207,9 +213,9 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
             } else {
                 int64_t offset = increments_vec[idx] * increment_multiplier * data_sizes[idx];
                 if (offset > 0) {
-                    h->add_imm(data_reg, data_reg, offset, h->X_TMP_0);
+                    h->add_imm(data_reg, data_reg, offset, reg_aux);
                 } else if (offset < 0) {
-                    h->sub_imm(data_reg, data_reg, -offset, h->X_TMP_0);
+                    h->sub_imm(data_reg, data_reg, -offset, reg_aux);
                 }
             }
         }
@@ -217,7 +223,7 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
 
     if (!evaluate_once) {
         apply_increments(ptr_increments, wa_increment, GET_OFF_LOOP_ARGS(m_ptr_increments));
-        h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, h->X_TMP_0);
+        h->sub_imm(reg_work_amount, reg_work_amount, wa_increment, reg_aux);
         h->cmp(reg_work_amount, wa_increment);
         h->b(GE, *loop_begin_label);
     }

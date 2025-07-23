@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <memory>
 #include <mutex>
-#include <oneapi/dnnl/dnnl.hpp>
 #include <set>
 #include <string>
 #include <unordered_set>
@@ -17,7 +16,6 @@
 #include <vector>
 
 #include "config.h"
-#include "onednn/dnnl.h"
 #include "openvino/core/any.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -26,10 +24,14 @@
 
 #if (defined(OPENVINO_ARCH_ARM64) && defined(__linux__))
 #    include "cpu/aarch64/cpu_isa_traits.hpp"
+#else
+#    include <oneapi/dnnl/dnnl.hpp>
+
+#    include "onednn/dnnl.h"
+#    include "openvino/runtime/performance_heuristics.hpp"
 #endif
 #include "cpu_map_scheduling.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "transformations/utils.hpp"
@@ -55,11 +57,12 @@ void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::ve
 };
 
 std::vector<std::vector<int>> get_streams_info_table(
-    const int input_streams,
-    const bool input_streams_changed,
-    const int input_threads,
-    const int input_infer_requests,
-    const int model_prefer_threads,
+    int input_streams,
+    bool input_streams_changed,
+    int input_threads,
+    int input_infer_requests,
+    int model_prefer_threads,
+    bool enable_tensor_parallel,
     const std::string& input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table) {
@@ -533,6 +536,16 @@ std::vector<std::vector<int>> get_streams_info_table(
                     stream_table_size = streams_info_table.size();
                 }
             }
+
+            if ((total_streams == 1) && (proc_type_table.size() == 1) && enable_tensor_parallel &&
+                (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
+                 hint_model_distribution_policy.end())) {
+                streams_info_table.push_back(streams_info_table[0]);
+                streams_info_table.push_back(streams_info_table[0]);
+                streams_info_table[0][THREADS_PER_STREAM] = streams_info_table[0][THREADS_PER_STREAM] * 2;
+                streams_info_table[1][NUMBER_OF_STREAMS] = -1;
+                streams_info_table[2][NUMBER_OF_STREAMS] = -1;
+            }
         }
     } else if (proc_type_table.size() == 1) {
         if (stream_info[PROC_TYPE] == ALL_PROC) {
@@ -628,7 +641,10 @@ int get_model_prefer_threads(const int num_streams,
         const float memThresholdAssumeLimitedForISA = ov::MemBandwidthPressure::LIMITED / isaSpecificThreshold;
         const float L2_cache_size = dnnl::utils::get_cache_size(2 /*level*/, true /*per core */);
         ov::MemBandwidthPressure networkToleranceForLowCache =
-            ov::mem_bandwidth_pressure_tolerance(model, L2_cache_size, memThresholdAssumeLimitedForISA);
+            ov::mem_bandwidth_pressure_tolerance(model,
+                                                 L2_cache_size,
+                                                 memThresholdAssumeLimitedForISA,
+                                                 config.inferencePrecision);
 
 #    if (defined(OPENVINO_ARCH_ARM) && defined(__linux__))
         config.modelPreferThreads = 4;
@@ -728,9 +744,8 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
                                                    int preferred_nthreads_per_stream) {
-    if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
-        OPENVINO_THROW("proc_type_table is empty. No CPU resources available!");
-    }
+    OPENVINO_ASSERT(!proc_type_table.empty() && proc_type_table[0][ALL_PROC] != 0,
+                    "proc_type_table is empty. No CPU resources available!");
     int model_prefer_threads = preferred_nthreads_per_stream;
     proc_type_table = apply_scheduling_core_type(config.schedulingCoreType, proc_type_table);
 
@@ -746,20 +761,18 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
         const auto cur_numa_node_id = input_numa_node_id < 0 ? get_current_numa_node_id() : input_numa_node_id;
         sort_table_by_numa_node_id(cur_numa_node_id, proc_type_table);
     }
-    if (proc_type_table.empty() || proc_type_table[0][ALL_PROC] == 0) {
-        OPENVINO_THROW("proc_type_table is empty. No valid CPU resources available!");
-    }
+    OPENVINO_ASSERT(!proc_type_table.empty() && proc_type_table[0][ALL_PROC] != 0,
+                    "proc_type_table is empty. No valid CPU resources available!");
     auto streams_info_table = get_streams_info_table(config.streams,
                                                      config.streamsChanged,
                                                      config.threads,
                                                      config.hintNumRequests,
                                                      model_prefer_threads,
+                                                     config.enableTensorParallel,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
-    if (streams_info_table.empty()) {
-        OPENVINO_THROW("streams_info_table is empty!");
-    }
+    OPENVINO_ASSERT(!streams_info_table.empty(), "streams_info_table is empty!");
     if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
         config.modelDistributionPolicy.end()) {
         config.streamsRankTable =

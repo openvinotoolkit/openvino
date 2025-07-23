@@ -18,7 +18,7 @@ class ExperimentalDetectronPriorGridGenerator : public Node {
 public:
     ExperimentalDetectronPriorGridGenerator(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
@@ -43,8 +43,8 @@ private:
 
     const int OUTPUT_ROIS{0};
 
-    int grid_w_;
-    int grid_h_;
+    int64_t grid_w_;
+    int64_t grid_h_;
     float stride_w_;
     float stride_h_;
 };

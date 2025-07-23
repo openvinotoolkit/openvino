@@ -90,6 +90,7 @@
 #include "plugin/transformations/transpose_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_matmul_fusion.hpp"
 #include "plugin/transformations/unsqueeze_broadcast_reshape_sdpa_fusion.hpp"
+#include "plugin/transformations/disable_fp16_comp_for_periodic_funcs.hpp"
 #include "transformations/common_optimizations/activations_scaling.hpp"
 #include "transformations/common_optimizations/broadcast_elementwise_fusion.hpp"
 #include "transformations/common_optimizations/broadcast_transition.hpp"
@@ -193,7 +194,7 @@ namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
-        if (op->input(0).get_partial_shape()[0].is_static()) {
+        if (op->input(0).get_partial_shape().is_static()) {
             bool fp16_batch_not_1 = op->get_element_type() == ov::element::f16 && op->input(0).get_partial_shape()[0] != 1;
             return !fp16_batch_not_1;
         }
@@ -227,9 +228,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
     for (const auto& consumer : consumers) {
         const auto& type_info = consumer.get_node()->get_type_info();
         if (cldnn::one_of(type_info, target_consumers)) {
-            if (cldnn::one_of(type_info, convolutions) && consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                return false;
-            }
             return true;
         }
     }
@@ -242,9 +240,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
         for (const auto& child_consumer : child_consumers) {
             const auto& type_info = child_consumer.get_node()->get_type_info();
             if (cldnn::one_of(type_info, target_consumers)) {
-                if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                    return false;
-                }
                 return true;
             }
         }
@@ -259,9 +254,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
-                    if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                        return false;
-                    }
                     return true;
                 }
                 if (are_multiply_from_decompression(child_consumer)) {
@@ -279,9 +271,6 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             for (const auto& child_consumer : child_consumers) {
                 const auto& type_info = child_consumer.get_node()->get_type_info();
                 if (cldnn::one_of(type_info, target_consumers)) {
-                    if (cldnn::one_of(type_info, convolutions) && child_consumer.get_node()->input_value(0).get_partial_shape().is_dynamic()) {
-                        return false;
-                    }
                     return true;
                 } else if (are_converts_from_decompression(child_consumers)) {
                     return true;
@@ -419,6 +408,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
+        if (infer_precision == ov::element::f16) {
+            manager.register_pass<DisableFP16CompressionForPeriodicFuncs>();
+        }
         type_to_fuse_map empty_fuse_map = {};
         manager.register_pass<ov::pass::Validate>();
 
@@ -1166,8 +1158,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         if (!disable_horizontal_fc_fusion) {
             manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>(fuse_mlp_swiglu);
 
-            // Disabled until an optimized kernel for horizontal LoRA fusing appears
-            // manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
+            if (config.get_enable_lora_operation()) {
+                manager.register_pass<ov::intel_gpu::LoRASubgraphHorizontalFusion>();
+            }
 
             // Temporary disabling for BMG due to regression
             if (device_info.arch != cldnn::gpu_arch::xe2 && !config.get_enable_lora_operation()) {
