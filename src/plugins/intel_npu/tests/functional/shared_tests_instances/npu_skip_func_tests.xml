@@ -204,21 +204,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#70764 -->
-    <skip_config>
-        <message>Tests enabled only for L0 NPU3720</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*</filter>
-            <filter>.*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*</filter>
-            <filter>.*DriverCompilerAdapterInputsOutputsTestNPU.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#32075 -->
     <skip_config>
         <message>Exception during loading to the device</message>
@@ -911,7 +896,21 @@ Example:
 
     <!-- E#170977 -->
     <skip_config>
-        <message>Tests currently skipped until u2 precision fully supported (need NPU compiler alignment/driver update)</message>
+        <message>Skip tests with u2 precision not supported on NPU3720.</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#176909 -->
+    <skip_config>
+        <message>Tests currently skipped for NPU4000 until u2 precision fully supported (need driver update)</message>
+        <enable_rules>
+            <device>4000</device>
+        </enable_rules>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
         </filters>
