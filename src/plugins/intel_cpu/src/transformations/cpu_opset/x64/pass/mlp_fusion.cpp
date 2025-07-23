@@ -27,11 +27,25 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov::pass;
 
-ov::intel_cpu::MLPFusion::MLPFusion() {
-    MATCHER_SCOPE(MLPFusion);
+ov::intel_cpu::MLPFusion::MLPFusion() {}
+
+bool ov::intel_cpu::MLPFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(MLPFusion);
+    
+    pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+    
+    symbolic_ctx_manager->register_pass<intel_cpu::MLPFusionPass>();
+
+    return symbolic_optimizations.run_on_model(model);
+}
+
+ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
+    MATCHER_SCOPE(MLPFusionPass);
 
     auto input = pattern::any_input(pattern::rank_equals(3));
 
