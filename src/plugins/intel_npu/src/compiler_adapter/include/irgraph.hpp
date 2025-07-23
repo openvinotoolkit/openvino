@@ -13,9 +13,9 @@
 #include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
-#ifdef NPU_LLVM_BACKEND
 namespace intel_npu {
 
+#ifdef NPU_LLVM_BACKEND
 class IRGraph final : public IGraph {
 public:
     struct MemRefType {
@@ -95,6 +95,8 @@ private:
     std::unique_ptr<Impl> _impl;
 };
 
+#endif // NPU_LLVM_BACKEND
+
 inline bool is_dynamic_shape_blob( const ov::Tensor& blob ) {
     // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
     // Check If blob is ELF, if not, create Graph for LLVM IR
@@ -108,4 +110,3 @@ inline bool is_dynamic_shape_blob( const ov::Tensor& blob ) {
 }
 
 }  // namespace intel_npu
-#endif // NPU_LLVM_BACKEND
