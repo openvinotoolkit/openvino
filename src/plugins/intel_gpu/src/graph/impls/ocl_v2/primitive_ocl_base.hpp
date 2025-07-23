@@ -198,8 +198,13 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
 
     void update_stages_flags(const cldnn::primitive_inst& instance) {
         const auto current_flags = instance.get_impl_params()->flags.to_ulong();
-        constexpr size_t mask_args = (1 << cldnn::ExecutionFlags::ARG_UPDATE_REQUIRED) | (1 << cldnn::ExecutionFlags::IMPL_CHANGED);
-        constexpr size_t mask_dispatch = (1 << cldnn::ExecutionFlags::SHAPE_CHANGED);
+        constexpr size_t mask_args =
+            (1 << cldnn::ExecutionFlags::ARG_UPDATE_REQUIRED) |
+            (1 << cldnn::ExecutionFlags::IMPL_CHANGED) |
+            (1 << cldnn::ExecutionFlags::FIRST_EXECUTION);
+        constexpr size_t mask_dispatch =
+            (1 << cldnn::ExecutionFlags::SHAPE_CHANGED) |
+            (1 << cldnn::ExecutionFlags::FIRST_EXECUTION);
         for (auto& stage : _stages) {
             stage->kd.need_args_update = (current_flags & mask_args) != 0;
             stage->kd.need_dispatch_data_update = (current_flags & mask_dispatch) != 0;
