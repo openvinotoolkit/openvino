@@ -1406,9 +1406,9 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                 const int i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
                 const int kh_padding = KH - div_up(i_top_overflow, (KDH + 1)) - div_up(i_bottom_overflow, (KDH + 1));
 
-                return IC * kh_padding * kw_padding;
+                return static_cast<float>(IC * kh_padding * kw_padding);
             }
-            return IC * KH * KW;
+            return static_cast<float>(IC * KH * KW);
         }();
 
         float a_fp = base_value - static_cast<float>(2 * a);
