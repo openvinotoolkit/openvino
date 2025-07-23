@@ -88,11 +88,11 @@ void regclass_graph_AttributeVisitor(py::module m) {
                         break;
                     default:
                         throw py::type_error("Unsupported attribute type in provided list: " +
-                                             std::string(py::str(_list[0].get_type())));
+                                             std::string(py::str(py::type::of(_list[0]))));
                     }
                 } else {
                     throw py::type_error("Unsupported attribute type: " +
-                                         std::string(py::str(attribute.second.get_type())));
+                                         std::string(py::str(py::type::of(attribute.second))));
                 }
             }
         },
