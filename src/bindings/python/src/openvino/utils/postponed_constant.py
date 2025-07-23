@@ -21,7 +21,7 @@ class PostponedConstant(Op):
             self.friendly_name = name
         self.constructor_validate_and_infer_types()
 
-    def evaluate(self, outputs: TensorVectorOpaque, _: List[Tensor]) -> bool:  # type: ignore
+    def evaluate(self, outputs: TensorVectorOpaque, _: list[Tensor]) -> bool:  # type: ignore
         outputs[0] = self.m_maker()
         return True
 
