@@ -7,33 +7,10 @@
 #include <memory>
 
 #include "compiled_model.hpp"
+#include "llm_lora_states.hpp"
 
 namespace ov {
 namespace npuw {
-
-class VariableState final : public ov::IVariableState {
-public:
-    explicit VariableState(const std::string& name, const ov::SoPtr<ov::ITensor>& tensor) : ov::IVariableState(name) {
-        m_state = tensor;
-    }
-
-    virtual void set_state(const ov::SoPtr<ov::ITensor>& newState) override {
-#if 0
-        if (newState->get_byte_size() != m_state->get_byte_size()) {
-            OPENVINO_THROW("Byte size mismatch");
-        }
-
-        std::memcpy(m_state->data(), newState->data(), newState->get_byte_size());
-#endif
-        m_state = newState;
-    }
-
-    virtual void reset() override {
-        std::memset(m_state->data(), 0, m_state->get_byte_size());
-    }
-
-    ~VariableState() override = default;
-};
 
 class LLMInferRequest;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
