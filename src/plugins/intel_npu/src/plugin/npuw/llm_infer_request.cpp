@@ -268,6 +268,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
         if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+            // FIXME: Totally wrong debug message. input_name is an invalid name of input layer.
             LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
             continue;
         }
@@ -338,29 +339,26 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
               " layers.");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    // FIXME: this check is actual only for the generate model?
-    if (kvcache_desc.num_stored_tokens != kvcache_desc.total_size) {
-        auto& compiled = request->get_compiled_model();
-        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-        for (std::size_t i = kStartOutputKVCacheLayers; i < compiled->outputs().size(); ++i) {
-            const auto& output_name = compiled->outputs()[i].get_any_name();
-            const auto& input_name =
-                std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
-            if (in_ports.find(input_name) == in_ports.end()) {
-                LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-                continue;
-            }
-            auto dst_tensor = request->get_tensor(in_ports.at(input_name));
-            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                     ? 3u
-                                     : kvcache_desc.dim;
-            auto dst_slice = make_tensor_slice(dst_tensor,
-                                               kv_dim,
-                                               kvcache_desc.num_stored_tokens - num_tokens,
-                                               kvcache_desc.num_stored_tokens);
-            auto src_tensor = request->get_tensor(out_ports.at(output_name));
-            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+    auto& compiled = request->get_compiled_model();
+    // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
+    for (std::size_t i = kStartOutputKVCacheLayers; i < compiled->outputs().size(); ++i) {
+        const auto& output_name = compiled->outputs()[i].get_any_name();
+        const auto& input_name = std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
+        if (in_ports.find(input_name) == in_ports.end()) {
+            // FIXME: Totally wrong debug message. input_name is an invalid name of input layer.
+            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+            continue;
         }
+        auto dst_tensor = request->get_tensor(in_ports.at(input_name));
+        const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                 ? 3u
+                                 : kvcache_desc.dim;
+        auto dst_slice = make_tensor_slice(dst_tensor,
+                                           kv_dim,
+                                           kvcache_desc.num_stored_tokens - num_tokens,
+                                           kvcache_desc.num_stored_tokens);
+        auto src_tensor = request->get_tensor(out_ports.at(output_name));
+        copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
     }
     LOG_DEBUG("Done.");
 }
@@ -372,6 +370,7 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
         const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
         if (m_prefill_in_ports.find(input_name) == m_prefill_in_ports.end()) {
+            // FIXME: Totally wrong debug message. input_name is an invalid name of input layer.
             LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
             continue;
         }
@@ -577,13 +576,17 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     if (m_lm_head_request) {
         LOG_DEBUG("Calling inference for LM head model asynchronously");
         m_lm_head_request->start_async();
-        update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, 1);
+        if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
+            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, 1);
+        }
         m_lm_head_request->wait();
         LOG_DEBUG("Calling inference for LM head model -- done.");
 
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
-        update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, 1);
+        if (kvcache_desc.num_stored_tokens < kvcache_desc.total_size) {
+            update_kvcache_for(m_kvcache_request, m_kvcache_in_ports, m_kvcache_out_ports, 1);
+        }
 
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
     }

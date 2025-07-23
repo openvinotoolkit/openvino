@@ -542,7 +542,7 @@ static constexpr ov::Property<ov::AnyMap> shared_lm_head_config{"NPUW_LLM_SHARED
 /**
  * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation/execution of shared LM model. If specified, it
+ * Configuration for compilation/execution of shared LM head model. If specified, it
  * will be appended to the default configuration, prepared by NPUW.
  * For duplicated options, preference will be given to values from given map.
  *

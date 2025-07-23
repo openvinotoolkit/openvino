@@ -682,13 +682,13 @@ public:
             auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
             std::shared_ptr<ov::Node> matched_node_last_op = nullptr;
             if (node_to_output.count(matmul_add)) {
-                matched_node_last_op = node_to_output.at(matmul_add).get_node_shared_ptr();
+                matched_node_last_op = node_to_output[matmul_add].get_node_shared_ptr();
             } else if (node_to_output.count(matmul_transpose)) {
-                matched_node_last_op = node_to_output.at(matmul_transpose).get_node_shared_ptr();
+                matched_node_last_op = node_to_output[matmul_transpose].get_node_shared_ptr();
             } else if (node_to_output.count(matmul_convert)) {
-                matched_node_last_op = node_to_output.at(matmul_convert).get_node_shared_ptr();
+                matched_node_last_op = node_to_output[matmul_convert].get_node_shared_ptr();
             } else if (node_to_output.count(matmul_multiply)) {
-                matched_node_last_op = node_to_output.at(matmul_multiply).get_node_shared_ptr();
+                matched_node_last_op = node_to_output[matmul_multiply].get_node_shared_ptr();
             } else {
                 matched_node_last_op = matched_node_matmul;
             }
@@ -1100,7 +1100,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
         // the Prefill model:
         slice_out_embeds(prefill_model, axes.batch);
-        LOG_DEBUG("Make LLM head model with static shapes");
+        LOG_DEBUG("Make LM head model with static shapes");
         reshape_sliced_head_to_static(lm_head_model, axes.batch);
     }
 
