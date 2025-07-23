@@ -24,100 +24,80 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 
-using namespace ov::gen_pattern;
 using namespace ov::pass;
 
 ov::intel_cpu::MLPFusion::MLPFusion() {
     MATCHER_SCOPE(MLPFusion);
 
-    auto input = makePattern("[?,?,?]");
+    auto input = pattern::any_input(pattern::rank_equals(3));
 
-    auto gate_proj_weight_compressed = makePattern<op::v0::Constant>({});  // [up_size, down_size]
-    auto gate_proj_weight = makePattern<op::v0::Convert>({gate_proj_weight_compressed}, {{"destination_type", "f32"}});
+    auto gate_proj_weight_compressed = pattern::wrap_type<op::v0::Constant>();  // [up_size, down_size]
+    auto gate_proj_weight = pattern::wrap_type<op::v0::Convert>(gate_proj_weight_compressed, pattern::type_matches(element::f32));
 
-    auto up_proj_weight_compressed = makePattern<op::v0::Constant>({});  // [up_size, down_size]
-    auto up_proj_weight = makePattern<op::v0::Convert>({up_proj_weight_compressed}, {{"destination_type", "f32"}});
+    auto up_proj_weight_compressed = pattern::wrap_type<op::v0::Constant>();  // [up_size, down_size]
+    auto up_proj_weight = pattern::wrap_type<op::v0::Convert>(up_proj_weight_compressed, pattern::type_matches(element::f32));
 
-    auto down_proj_weight_compressed = makePattern<op::v0::Constant>({});  // [down_size, up_size]
-    auto down_proj_weight = makePattern<op::v0::Convert>({down_proj_weight_compressed}, {{"destination_type", "f32"}});
+    auto down_proj_weight_compressed = pattern::wrap_type<op::v0::Constant>();  // [down_size, up_size]
+    auto down_proj_weight = pattern::wrap_type<op::v0::Convert>(down_proj_weight_compressed, pattern::type_matches(element::f32));
 
     // symmetrically INT8 quantized version
     // all 3 layers must be quantized at the same time (checked in callback)
-    auto gate_proj_weight_i8 =
-        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto gate_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto gate_proj_weight_f32 = makePattern<op::v0::Convert>({gate_proj_weight_i8}, {{"destination_type", "f32"}});
+    auto gate_proj_weight_i8 = 
+        pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
+
+    auto gate_proj_weight_scales_per_OC =
+        pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[?, 1]"));
+    auto gate_proj_weight_f32 =
+        pattern::wrap_type<op::v0::Convert>(gate_proj_weight_i8, pattern::type_matches(element::f32));
     auto gate_proj_weight_deq =
-        makePattern<ov::op::v1::Multiply>({gate_proj_weight_f32, gate_proj_weight_scales_per_OC},
-                                          {{"auto_broadcast", "numpy"}});
+        pattern::wrap_type<op::v1::Multiply>({gate_proj_weight_f32, gate_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
-    auto up_proj_weight_i8 = makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto up_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto up_proj_weight_f32 = makePattern<op::v0::Convert>({up_proj_weight_i8}, {{"destination_type", "f32"}});
-    auto up_proj_weight_deq = makePattern<ov::op::v1::Multiply>({up_proj_weight_f32, up_proj_weight_scales_per_OC},
-                                                                {{"auto_broadcast", "numpy"}});
+    auto up_proj_weight_i8 = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
+    auto up_proj_weight_scales_per_OC = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[?, 1]"));
+    auto up_proj_weight_f32 = pattern::wrap_type<op::v0::Convert>(up_proj_weight_i8, pattern::type_matches(element::f32));
+    auto up_proj_weight_deq = pattern::wrap_type<op::v1::Multiply>({up_proj_weight_f32, up_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
-    auto down_proj_weight_i8 =
-        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto down_proj_weight_scales_per_OC = makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto down_proj_weight_f32 = makePattern<op::v0::Convert>({down_proj_weight_i8}, {{"destination_type", "f32"}});
-    auto down_proj_weight_deq =
-        makePattern<ov::op::v1::Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC},
-                                          {{"auto_broadcast", "numpy"}});
+    auto down_proj_weight_i8 = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
+    auto down_proj_weight_scales_per_OC = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[?, 1]"));
+    auto down_proj_weight_f32 = pattern::wrap_type<op::v0::Convert>(down_proj_weight_i8, pattern::type_matches(element::f32));
+    auto down_proj_weight_deq = pattern::wrap_type<op::v1::Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
     // gate-up weights are combined
-    auto gate_up_proj_weight =
-        makeConst(ov::element::f16, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto gate_up_proj_weight_f32 = makePattern<op::v0::Convert>({gate_up_proj_weight}, {{"destination_type", "f32"}});
+    auto gate_up_proj_weight = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::f16) && pattern::rank_equals(2));
+    auto gate_up_proj_weight_f32 = pattern::wrap_type<op::v0::Convert>(gate_up_proj_weight, pattern::type_matches(element::f32));
 
-    auto gate_up_proj_weight_const_i8 =
-        makeConst(ov::element::i8, ov::PartialShape({ov::Dimension(), ov::Dimension()}), nullptr);
-    auto gate_up_proj_weight_cvt_f32 =
-        makePattern<op::v0::Convert>({gate_up_proj_weight_const_i8}, {{"destination_type", "f32"}});
-    auto gate_up_proj_weight_scales_per_OC =
-        makeConst(ov::element::f32, ov::PartialShape({ov::Dimension(), 1}), nullptr);
-    auto gate_up_proj_weight_deq =
-        makePattern<ov::op::v1::Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC},
-                                          {{"auto_broadcast", "numpy"}});
+    auto gate_up_proj_weight_const_i8 = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i8) && pattern::rank_equals(2));
+    auto gate_up_proj_weight_cvt_f32 = pattern::wrap_type<op::v0::Convert>(gate_up_proj_weight_const_i8, pattern::type_matches(element::f32));
+    auto gate_up_proj_weight_scales_per_OC = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::f32) && pattern::shape_matches("[?, 1]"));
+    auto gate_up_proj_weight_deq = pattern::wrap_type<op::v1::Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
-    auto gate_up_proj = makePattern<op::v0::MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq},
-                                                    {{"transpose_a", false}, {"transpose_b", true}});
-    auto gate_up_split_lengths = makeConst(ov::element::i32,
-                                           ov::Shape({
-                                               2,
-                                           }),
-                                           nullptr);
-    auto gate_up_proj_split = makePattern<ov::op::v1::VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});
+    auto gate_up_proj =
+        pattern::wrap_type<op::v0::MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto gate_up_split_lengths = pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::i32) && pattern::shape_matches("[2]"));
+    auto gate_up_proj_split = pattern::wrap_type<op::v1::VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});  // [?,?,up_size], [?,?,up_size]
     gate_up_proj_split->set_output_size(2);
 
-    auto mlp_gate_proj =
-        makePattern<op::v0::MatMul>({input, gate_proj_weight | gate_proj_weight_compressed | gate_proj_weight_deq},
-                                    {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
-    auto mlp_silu_gate = makePattern<ov::op::v4::Swish>({mlp_gate_proj | gate_up_proj_split->output(0)});
-    auto mlp_gelu_gate = makePattern<ov::op::v7::Gelu>({mlp_gate_proj | gate_up_proj_split->output(0)});
-    auto mlp_up_proj =
-        makePattern<op::v0::MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq},
-                                    {{"transpose_a", false}, {"transpose_b", true}});
+    auto mlp_gate_proj = pattern::wrap_type<op::v0::MatMul>(
+        {input, gate_proj_weight | gate_proj_weight_compressed | gate_proj_weight_deq}, 
+        {{"transpose_a", false}, {"transpose_b", true}});  // [?,?,up_size]
+    auto mlp_silu_gate = pattern::wrap_type<op::v4::Swish>({mlp_gate_proj | gate_up_proj_split->output(0)});
+    auto mlp_gelu_gate = pattern::wrap_type<op::v7::Gelu>({mlp_gate_proj | gate_up_proj_split->output(0)});
+    auto mlp_up_proj = pattern::wrap_type<op::v0::MatMul>(
+        {input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq}, 
+        {{"transpose_a", false}, {"transpose_b", true}});
 
-    auto mlp_gated_up =
-        makePattern<ov::op::v1::Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split->output(1)},
-                                          {{"auto_broadcast", "numpy"}});
-    auto down_proj = makePattern<op::v0::MatMul>(
-        {mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
-        {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
+    auto mlp_gated_up = pattern::wrap_type<op::v1::Multiply>(
+        {mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split->output(1)}, {{"auto_broadcast", "numpy"}});
+    auto down_proj = pattern::wrap_type<op::v0::MatMul>(
+        {mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq}, {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,down_size]
 
     auto result = down_proj;
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
-
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto src = pattern_map.at(input);
