@@ -56,7 +56,7 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
     if (dimsSize == 0) {
         dimsSize += 1;
     }
-    axis = logSoftMax->get_axis();
+    axis = static_cast<int>(logSoftMax->get_axis());
     if (axis < 0) {
         axis += dimsSize;
     }

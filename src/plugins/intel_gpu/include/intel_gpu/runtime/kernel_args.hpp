@@ -66,6 +66,7 @@ struct scalar_desc {
 
 using scalars_desc = std::vector<scalar_desc>;
 
+using local_memory_args_desc = std::vector<size_t>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // ArgumentDescpirtor
@@ -85,7 +86,8 @@ struct argument_desc {
         ACTIVATIONS_ZERO_POINTS,
         COMPENSATION,
         INPUT_OF_FUSED_PRIMITIVE,
-        SHAPE_INFO
+        SHAPE_INFO,
+        LOCAL_MEMORY_SIZE
     };
 
     Types t;
@@ -102,6 +104,7 @@ struct kernel_arguments_desc {
     arguments_desc arguments;
     scalars_desc scalars;
     std::string layerID;
+    local_memory_args_desc local_memory_args;
 };
 
 struct kernel_arguments_data {
@@ -123,6 +126,7 @@ struct kernel_arguments_data {
 
     std::vector<memory::cptr> fused_op_inputs;
     const scalars_desc* scalars = nullptr;
+    const local_memory_args_desc* local_memory_args = nullptr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
