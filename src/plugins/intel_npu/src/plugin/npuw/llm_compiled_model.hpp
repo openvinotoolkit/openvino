@@ -72,7 +72,8 @@ private:
 
     uint64_t m_prefill_chunk_size;
 
-    void convertStatefulLoRAtoStateless(std::shared_ptr<ov::Model>& model);
+    // Support LoRA
+    void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     mutable std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
 };
 

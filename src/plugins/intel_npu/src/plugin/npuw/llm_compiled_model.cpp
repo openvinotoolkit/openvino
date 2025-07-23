@@ -1,8 +1,10 @@
 // Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "llm_compiled_model.hpp"
 
+#include <regex>
+
+#include "llm_compiled_model.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/op/group_query_attention.hpp"
@@ -648,19 +650,36 @@ struct KVAxesPosition {
     uint32_t seq_len;
 };
 
+struct LoRANames {
+    static constexpr const char* MatMul_A = "MatMul\\.A";
+    static constexpr const char* MatMul_B = "MatMul\\.B";
+    static constexpr const char* MatMul_alpha = "MatMul\\.alpha";
+};
+
+bool matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix) {
+    std::string pattern = "^lora_state.*" + pattern_suffix + "$";
+    std::regex regex_pattern(pattern);
+
+    return std::regex_match(input, regex_pattern);
+}
+
+bool matchLoRAMatMulAString(const std::string& input) {
+    return matchStringWithLoRAPattern(input, LoRANames::MatMul_A);
+}
+
+bool matchLoRAMatMulBString(const std::string& input) {
+    return matchStringWithLoRAPattern(input, LoRANames::MatMul_B);
+}
+
+bool matchLoRAMatmMulAlphaString(const std::string& input) {
+    return matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
+}
+
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
                        const KVAxesPosition& kv_axes_position,
                        const uint32_t lora_rank) {
-    auto endsWith = [](const std::string& str, const std::string& suffix) {
-        if (str.size() < suffix.size()) {
-            return false;
-        }
-
-        return str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-    };
-
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -682,11 +701,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             new_shape =
                 partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
-        } else if (endsWith(input_name, "MatMul.A")) {
+        } else if (matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
-        } else if (endsWith(input_name, "MatMul.alpha")) {
+        } else if (matchLoRAMatmMulAlphaString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else if (endsWith(input_name, "MatMul.B")) {
+        } else if (matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else {
             const auto& partial_shape = input.get_partial_shape();
@@ -855,7 +874,7 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 }  // namespace
 
-void ov::npuw::LLMCompiledModel::convertStatefulLoRAtoStateless(std::shared_ptr<ov::Model>& model) {
+void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model) {
     typedef std::shared_ptr<ov::op::util::AssignBase> PAssign;
     typedef std::shared_ptr<ov::op::util::ReadValueBase> PReadValue;
     std::vector<PReadValue> readValues;
@@ -904,7 +923,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
       m_options_desc(std::make_shared<::intel_npu::OptionsDesc>()),
       m_cfg(m_options_desc) {
     LOG_DEBUG("Creating LLMCompiledModel");
-    std::cout << "[NPUW]Creating LLMCompiledModel" << std::endl;
     LOG_BLOCK();
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
@@ -930,7 +948,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("2. Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
     std::cout << "Convert stateful LoRA to stateless." << std::endl;
-    convertStatefulLoRAtoStateless(kvcache_model);
+    convert_stateful_lora_to_stateless(kvcache_model);
     std::cout << "Done." << std::endl;
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
