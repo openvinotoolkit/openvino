@@ -18,6 +18,7 @@ import argparse as argparse
 import logging as log
 import numpy
 import numpy as np
+import openvino._pyopenvino
 import openvino.frontend.frontend
 import os as os
 import sys as sys
@@ -37,6 +38,6 @@ def moc_pipeline(argv: argparse.Namespace, moc_front_end: openvino.frontend.fron
         :return: converted nGraph function ready for serialization
         
     """
-def raise_exception_for_input_output_cut(model_inputs_or_outputs: typing.List[openvino._pyopenvino.Place], new_nodes: typing.List[dict], is_input: bool):
+def raise_exception_for_input_output_cut(model_inputs_or_outputs: list[openvino._pyopenvino.Place], new_nodes: list[dict], is_input: bool):
     ...
 np_map_cast: dict  # value = {bool: <function <lambda> at memory_address>, numpy.int8: <function <lambda> at memory_address>, numpy.int16: <function <lambda> at memory_address>, numpy.int32: <function <lambda> at memory_address>, numpy.int64: <function <lambda> at memory_address>, numpy.uint8: <function <lambda> at memory_address>, numpy.uint16: <function <lambda> at memory_address>, numpy.uint32: <function <lambda> at memory_address>, numpy.uint64: <function <lambda> at memory_address>, numpy.float16: <function <lambda> at memory_address>, numpy.float32: <function <lambda> at memory_address>, numpy.float64: <function <lambda> at memory_address>, str: <function <lambda> at memory_address>}

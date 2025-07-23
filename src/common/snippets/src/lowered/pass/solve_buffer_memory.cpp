@@ -119,7 +119,7 @@ std::vector<ov::MemorySolver::Box> SolveBufferMemory::init_boxes(const Buffers& 
     for (auto& p : map_boxes) {
         auto& box = p.second;
         // Align with cache line size. The experiments show that it affects performance.
-        box.size = utils::div_up(box.size, byte_alignment);
+        box.size = static_cast<int64_t>(utils::div_up(box.size, byte_alignment));
 
         boxes.push_back(box);
     }
