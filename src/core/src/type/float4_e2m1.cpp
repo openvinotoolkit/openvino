@@ -126,7 +126,6 @@ uint8_t f32_to_f4e2m1_bits(float value) {
         return (f4_sign_bit | f4e2m1_exp) + 1;
     }
 }
-
 }  // namespace
 
 float4_e2m1::float4_e2m1(const float value) : m_value(f32_to_f4e2m1_bits(value)) {};
