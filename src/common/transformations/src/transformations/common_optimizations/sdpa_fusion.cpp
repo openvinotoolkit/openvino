@@ -266,7 +266,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         return static_cast<size_t>(input_rank.get_length() - 1) == axis;
     });
     auto softmax_pred =
-        axis_predicate && (shape_matches("..., H, S_q, S_kv") || shape_matches("S_q, S_kv")) && consumers_count(1);
+        consumers_count(1) && axis_predicate && (shape_matches("..., H, S_q, S_kv") || shape_matches("S_q, S_kv"));
     auto softmax = wrap_type<v8::Softmax>({qk_post_mask_opt_reshaped}, softmax_pred);
     auto softmax_opt_reshaped = optional<v1::Reshape>({softmax, any_input()});
 

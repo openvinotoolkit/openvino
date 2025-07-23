@@ -432,10 +432,7 @@ class SDPAFusionSoftmaxAxis : public TransformationTestsF,
 // Test for SDPAFusion with axis = 3 in softmax
 TEST_P(SDPAFusionSoftmaxAxis, SDPAFusionTest_softmax_axis) {
     // Parametrization
-    const auto& type = std::get<0>(GetParam());
-    const auto& with_mask = std::get<1>(GetParam());
-    const auto& with_scale = std::get<2>(GetParam());
-    const auto& param = std::get<3>(GetParam());
+    const auto& [type, with_mask, with_scale, param] = GetParam();
 
     // Init.
     SDPA sdpa(type, param.q_shape, param.k_shape, param.v_shape);
