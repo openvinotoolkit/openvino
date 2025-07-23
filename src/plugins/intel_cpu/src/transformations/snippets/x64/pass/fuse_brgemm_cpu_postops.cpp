@@ -156,7 +156,7 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseUnaryEltwise")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
-        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCPU node is expected");
+        OPENVINO_ASSERT(brgemm, "BrgemmCPU node is expected");
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
         if (!can_be_fused(post_op)) {
             return false;
@@ -213,11 +213,10 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                 return true;
             }
             const auto& consumer = output.get_target_inputs().begin()->get_node();
-            if (ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
-                                                           is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
-                return false;
-            }
-            return true;
+            const bool is_scale_shift_pattern =
+                ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                                                           is_type<Scalar>(consumer->get_input_node_shared_ptr(1)));
+            return !is_scale_shift_pattern;
         },
         "not_scale_shift_pattern");
     ov::pass::pattern::op::Predicate not_clip_pattern(
@@ -226,12 +225,10 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                 return true;
             }
             const auto& consumer = output.get_target_inputs().begin()->get_node();
-            if (ov::is_type<ov::op::v1::Minimum>(consumer) &&
-                (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
-                 is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
-                return false;
-            }
-            return true;
+            const bool is_clip_pattern = ov::is_type<ov::op::v1::Minimum>(consumer) &&
+                                         (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                                          is_type<Scalar>(consumer->get_input_node_shared_ptr(1)));
+            return !is_clip_pattern;
         },
         "not_clip_pattern");
 
@@ -331,7 +328,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         }
 
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
-        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCPU node is expected");
+        OPENVINO_ASSERT(brgemm, "BrgemmCPU node is expected");
 
         const size_t OC = brgemm->get_output_partial_shape(0).rbegin()->get_length();
         const DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape({1, OC}));
