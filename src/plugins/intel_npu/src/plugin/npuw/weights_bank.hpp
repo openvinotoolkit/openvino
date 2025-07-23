@@ -25,12 +25,14 @@ namespace weights {
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core,
-                  const std::string& alloc_device,
-                  const std::string& bank_name)
+    Bank(const std::shared_ptr<const ov::ICore>& core,
+         const std::string& alloc_device,
+         const std::string& bank_name,
+         bool weightless_import = false)
         : m_core(core),
           m_alloc_device(alloc_device),
-          m_bank_name(bank_name) {}
+          m_bank_name(bank_name),
+          m_weightless_import(weightless_import) {}
 
     // Register LazyTensor in a bank if it's not there. Returns LazyTensor's unique id
     int64_t registerLT(const LazyTensor& tensor, const std::string& device);
@@ -77,11 +79,13 @@ private:
     std::string m_alloc_device;
     int64_t uid_count = 0;
     std::string m_bank_name;
+    bool m_weightless_import = false;
 };
 
 std::shared_ptr<Bank> bank(const std::string& bank_name,
                            const std::shared_ptr<const ov::ICore>& core,
-                           const std::string& alloc_device);
+                           const std::string& alloc_device,
+                           bool weightless_import = false);
 
 }  // namespace weights
 }  // namespace npuw

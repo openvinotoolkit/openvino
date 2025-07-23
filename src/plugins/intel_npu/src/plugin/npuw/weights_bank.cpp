@@ -110,7 +110,16 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
-        device_bank.storage.at(uid).tensor = lt.eval();
+        auto t = lt.eval();
+        if (m_weightless_import) {
+            // Weightless import case. Need to get ownership of the weights, before mmaped object is freed
+            ov::Tensor own(t.get_element_type(), t.get_shape());
+            t.copy_to(own);
+            device_bank.storage.at(uid).tensor = own;
+        } else {
+            // Default case, owning the memory
+            device_bank.storage.at(uid).tensor = t;
+        }
         const_cast<LazyTensor&>(lt).detach();
     });
 }
@@ -309,10 +318,11 @@ std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
 
 std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
                                               const std::shared_ptr<const ov::ICore>& core,
-                                              const std::string& alloc_device) {
+                                              const std::string& alloc_device,
+                                              bool weightless_import) {
     if (bank_name.empty()) {
         // Don't share this bank in manager
-        return std::make_shared<Bank>(core, alloc_device, bank_name);
+        return std::make_shared<Bank>(core, alloc_device, bank_name, weightless_import);
     }
 
     auto& instance = BankManager::getInstance();

@@ -810,7 +810,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         read(model_stream, bank_name);
 
         if (is_weightless) {
-            compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
+            compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "", true);
             compiled->finalize_weights_bank();
             // Free mmaped weights file memory
             compiled->m_import_weights_ctx.reset();
