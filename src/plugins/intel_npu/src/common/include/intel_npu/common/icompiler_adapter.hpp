@@ -34,8 +34,6 @@ public:
      * be loaded on the device depending on the provided configuration (if "NPU_DEFER_WEIGHTS_LOAD" is off).
      *
      * @param mainBlob The core binary object to be parsed and used to build the "Graph" object.
-     * @param blobAllocatedByPlugin Information required for managing the memory region allocated for the compiled
-     * model.
      * @param config Used to influence the downstream flow of the implementation based on preferences.
      * @param initBlobs Optional. If provided, the "weights separation" flow is enabled and the binary objects
      * corresponding to the init schedules will be parsed as well.
@@ -46,7 +44,6 @@ public:
      */
     virtual std::shared_ptr<IGraph> parse(
         ov::Tensor mainBlob,
-        const bool blobAllocatedByPlugin,
         const Config& config,
         std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const = 0;

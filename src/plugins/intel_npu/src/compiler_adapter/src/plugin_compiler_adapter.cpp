@@ -117,7 +117,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkDesc.metadata),
                                    std::move(tensor),
-                                   /* blobAllocatedByPlugin = */ false,
+                                   /* persistentBlob = */ true,
                                    config,
                                    _compiler);
 }
@@ -237,7 +237,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             /* blobAllocatedByPlugin = */ false,
+                                             /* persistentBlob = */ true,
                                              mainGraphHandle,
                                              std::move(mainNetworkDescription->metadata),
                                              std::move(tensorMain),
@@ -251,7 +251,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     ov::Tensor mainBlob,
-    const bool blobAllocatedByPlugin,
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
@@ -274,13 +273,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
 
     _logger.debug("main schedule parse end");
 
+    const bool persistentBlob = config.get<LOADED_FROM_CACHE>();
+
     if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        graphHandle,
                                        std::move(networkMeta),
                                        std::move(mainBlob),
-                                       blobAllocatedByPlugin,
+                                       persistentBlob,
                                        config,
                                        _compiler);
     }
@@ -306,7 +307,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     _logger.debug("init schedules parse end");
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             blobAllocatedByPlugin,
+                                             persistentBlob,
                                              graphHandle,
                                              std::move(networkMeta),
                                              std::move(mainBlob),

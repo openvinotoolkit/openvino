@@ -247,7 +247,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
                                    graphHandle,
                                    std::move(networkMeta),
                                    /* blob = */ std::nullopt,
-                                   /* blobAllocatedByPlugin = */ false,
+                                   /* persistentBlob = */ false,
                                    config);
 }
 
@@ -347,7 +347,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             /* blobAllocatedByPlugin = */ false,
+                                             /* persistentBlob = */ false,
                                              mainGraphHandle,
                                              std::move(mainNetworkMetadata),
                                              /* mainBlob = */ std::nullopt,
@@ -360,7 +360,6 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(const std::shared_ptr<o
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     ov::Tensor mainBlob,
-    const bool blobAllocatedByPlugin,
     const Config& config,
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
@@ -374,13 +373,15 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(graphHandle);
 
+    const bool persistentBlob = config.get<LOADED_FROM_CACHE>();
+
     if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
                                        graphHandle,
                                        std::move(networkMeta),
                                        std::move(mainBlob),
-                                       blobAllocatedByPlugin,
+                                       persistentBlob,
                                        config);
     }
 
@@ -397,7 +398,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
 
     return std::make_shared<WeightlessGraph>(_zeGraphExt,
                                              _zeroInitStruct,
-                                             blobAllocatedByPlugin,
+                                             persistentBlob,
                                              graphHandle,
                                              std::move(networkMeta),
                                              std::move(mainBlob),
