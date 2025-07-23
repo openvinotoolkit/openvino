@@ -14,7 +14,7 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("MLPFusionPass");
     MLPFusionPass();
 };
-    
+
 class MLPFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("MLPFusion");
