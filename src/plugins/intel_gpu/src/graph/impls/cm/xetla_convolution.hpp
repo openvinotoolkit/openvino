@@ -104,15 +104,14 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                     desc.post_ops = 1;
             }
 
-            if (fused_ops.size() >= 1 && fused_ops[0].is_type<group_normalization>()) {
-                auto groupnorm0 = std::static_pointer_cast<const group_normalization>(fused_ops[0].desc);
-                desc.group_count = groupnorm0->num_groups;
-                desc.group_size = desc.k / desc.group_count.value();
-                desc.post_ops = 6;
-            }
-
             if (fused_ops.size() == 1) {
-                if (fused_ops[0].is_type<eltwise>()) {
+                if (fused_ops[0].is_type<group_normalization>()) {
+                    auto groupnorm0 = std::static_pointer_cast<const group_normalization>(fused_ops[0].desc);
+                    desc.group_count = groupnorm0->num_groups;
+                    desc.group_size = desc.k / desc.group_count.value();
+                    if (!bias)
+                        desc.post_ops = 6;
+                } else if (fused_ops[0].is_type<eltwise>()) {
                     auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
                     if (eltwise0->mode != eltwise_mode::sum)
                         return desc;
@@ -126,6 +125,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                     return desc;
                 }
             }
+
             if (fused_ops_are_one_of<eltwise>(fused_ops) && fused_ops.size() == 3) {
                 auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
                 auto eltwise1 = std::static_pointer_cast<const eltwise>(fused_ops[1].desc);

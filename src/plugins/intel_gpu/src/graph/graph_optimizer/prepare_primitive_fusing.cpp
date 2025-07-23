@@ -504,14 +504,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             if (lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::cm) {
                 if (node.get_fused_primitives().size() >= 1 &&
-                    node.get_fused_primitives()[0].is_type<group_normalization>()){
+                    node.get_fused_primitives()[0].is_type<group_normalization>())
                     return false;
-                }
                 else
                     return true;
             }
-            
-            
 
             if (node.get_output_layout().is_dynamic() || node.get_input_layout().is_dynamic()) {
                 return true;
@@ -1296,6 +1293,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
 
             if (input_data.get_fused_primitives().size() > 0 || groupnorm_node.get_fused_primitives().size() > 0)
+                return;
+
+            if (input_data.as<convolution>().bias_term())
                 return;
 
             p.fuse_nodes(input_data, groupnorm_node, &fusing_history);
