@@ -17,7 +17,7 @@ namespace ov::intel_gpu {
 static constexpr Property<std::string, PropertyMutability::RO> driver_version{"GPU_DRIVER_VERSION"};
 
 /**
- * @brief Read-only property to get GPU driver version
+ * @brief Read-only property to get GPU device_id
  */
 static constexpr Property<std::string, PropertyMutability::RO> device_id{"GPU_DEVICE_ID"};
 
