@@ -435,6 +435,13 @@ struct EltwiseEmitter<jit_clamp_emitter> {
 };
 
 template <>
+struct EltwiseEmitter<jit_elu_emitter> {
+    void operator()(EltwiseEmitterContext& ctx) {
+        ctx.emitter = std::make_shared<jit_elu_emitter>(ctx.host, ctx.host_isa, ctx.opData.alpha, ctx.exec_prc);
+    }
+};
+
+template <>
 struct EltwiseEmitter<jit_power_static_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
         ctx.emitter = std::make_shared<jit_power_static_emitter>(ctx.host,
@@ -467,11 +474,14 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
               OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
+              OV_CASE(Algorithm::EltwiseElu, jit_elu_emitter),
               OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
               OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
+              OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
+              OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
               OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
               OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
               OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
@@ -609,11 +619,14 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseAdd, jit_add_emitter),
               OV_CASE(Algorithm::EltwiseClamp, jit_clamp_emitter),
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
+              OV_CASE(Algorithm::EltwiseElu, jit_elu_emitter),
               OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
+              OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
+              OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
               OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
               OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
               OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
