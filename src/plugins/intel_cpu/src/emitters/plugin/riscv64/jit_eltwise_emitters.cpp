@@ -1384,7 +1384,7 @@ jit_is_finite_emitter::jit_is_finite_emitter(ov::intel_cpu::riscv64::jit_generat
 
 jit_is_finite_emitter::jit_is_finite_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                              ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                             const std::shared_ptr<ov::Node>& node,
+                                             [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                              ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
@@ -1512,10 +1512,12 @@ void jit_is_inf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 
     h->vfclass_v(aux0, src);  // classify into aux0
     uint32_t bitsToCheck = 0;
-    if (detect_negative)
+    if (detect_negative) {
         bitsToCheck |= (1 << 0);
-    if (detect_positive)
+    }
+    if (detect_positive) {
         bitsToCheck |= (1 << 7);
+    }
     h->li(tmp, bitsToCheck);
     h->vand_vx(aux0, aux0, tmp);
     h->vmsne_vx(mask_vreg(), aux0, zero);  // set mask where some of the classification bits are set
@@ -1543,7 +1545,7 @@ jit_is_nan_emitter::jit_is_nan_emitter(ov::intel_cpu::riscv64::jit_generator_t* 
 
 jit_is_nan_emitter::jit_is_nan_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                        ov::intel_cpu::riscv64::cpu_isa_t host_isa,
-                                       const std::shared_ptr<ov::Node>& node,
+                                       [[maybe_unused]] const std::shared_ptr<ov::Node>& node,
                                        ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
