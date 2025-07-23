@@ -5,9 +5,9 @@ Example:
         <enable_rules>
             <backend>LEVEL0</backend>
             <backend>IMD</backend>
-            <backend></backend> (empty brackets denote no backend)
+            <backend></backend> (special case for no backend)
             <device>3720</device>
-            <device>4000</device>
+            <device>!4000</device> (using "!" to negate rule)
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -199,8 +199,7 @@ Example:
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=i64.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
         </filters>
     </skip_config>
 
@@ -398,16 +397,6 @@ Example:
         <message>Other devices than NPU doesn't allow to set NPU properties with OV1.0 and CACHE_DIR + MLIR is not supported</message>
         <filters>
             <filter>.*smoke_AutoBatch_BehaviorTests/CorrectConfigTests.*</filter>
-        </filters>
-    </skip_config>
-
-    <skip_config>
-        <message>OpenVINO issues when using caching mechanism</message>
-        <filters>
-            <!-- C#119359 -->
-            <filter>.*smoke_Auto_BehaviorTests_CachingSupportCase_NPU/CompileModelLoadFromFileTestBase.*</filter>
-            <!-- C#120240 -->
-            <filter>.*smoke_BehaviorTests_CachingSupportCase_NPU/CompileModelLoadFromFileTestBase.*</filter>
         </filters>
     </skip_config>
 
