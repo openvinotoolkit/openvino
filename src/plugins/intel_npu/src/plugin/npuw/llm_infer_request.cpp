@@ -107,9 +107,14 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
     }
 }
 
-void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim) {
+void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim,
+                        bool optimized = false) {
     if (kv_dim == 3u) {
-        copy_columns_by_row_chunks(src_tensor, dst_tensor);
+        if (optimized) {
+            ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor);
+        } else {
+            copy_columns_by_row_chunks(src_tensor, dst_tensor);
+        }
     } else if (kv_dim == 2u) {
         copy_by_planes(src_tensor, dst_tensor);
     } else {
@@ -358,7 +363,11 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                                            kvcache_desc.num_stored_tokens - num_tokens,
                                            kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
-        copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        if (num_tokens == 1) {
+            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, true);
+        } else {
+            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim, false);
+        }
     }
     LOG_DEBUG("Done.");
 }
