@@ -110,9 +110,9 @@ FormatStyle: file
 HeaderFilterRegex: 'src/common/snippets/.*\.h(pp)?$'
 CheckOptions:
   - key: bugprone-narrowing-conversions.IgnoreConversionFromTypes
-    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int;ov::intel_cpu::Dim"
+    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int"
   - key: cppcoreguidelines-narrowing-conversions.IgnoreConversionFromTypes
-    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int;ov::intel_cpu::Dim"
+    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int"
   - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
     value: true
   # use = instead of {} for initialization
