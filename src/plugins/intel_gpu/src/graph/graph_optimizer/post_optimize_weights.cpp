@@ -127,9 +127,9 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
                 if (node.type() == lstm_seq::type_id()) {
                     program_node& prev_node = node.get_dependency(i);
                     if (i == 5) {
-                        add_lstm_bias_reorder(prev_node.id(), weights_reorder_params, p, prev_node, node);
+                        add_lstm_bias_reorder(prev_node.id() + node.id(), weights_reorder_params, p, prev_node, node);
                     } else {
-                        add_lstm_weights_reorder(prev_node.id(), weights_reorder_params, p, prev_node, node, i);
+                        add_lstm_weights_reorder(prev_node.id() + node.id(), weights_reorder_params, p, prev_node, node, i);
                     }
                     auto& weights_reorder_node = node.get_dependency(i);
                     weights_reorder_node.get_output_layout(false);
