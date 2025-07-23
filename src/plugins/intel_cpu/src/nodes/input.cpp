@@ -43,7 +43,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include <atomic>
 #    include <common/c_types_map.hpp>
@@ -63,7 +63,7 @@ namespace ov::intel_cpu::node {
 
 #if defined(OPENVINO_ARCH_X86_64)
 namespace {
-struct jit_has_special_value_base : public jit_generator {
+struct jit_has_special_value_base : public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_has_special_value_base)
 
     using args_t = struct {
@@ -74,7 +74,7 @@ struct jit_has_special_value_base : public jit_generator {
 
     using fn_t = void (*)(const args_t*);
 
-    jit_has_special_value_base() : jit_generator(jit_name()) {
+    jit_has_special_value_base() : jit_generator_t(jit_name()) {
         jit_ker_ = nullptr;
     }
 
@@ -669,19 +669,11 @@ MemoryCPtr Input::getMemoryPtr() const {
 
 void Input::getSupportedDescriptors() {
     if (getType() == Type::Input) {
-        if (!getParentEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-        }
-        if (getChildEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-        }
+        CPU_NODE_ASSERT(getParentEdges().empty(), "has incorrect number of input edges.");
+        CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges.");
     } else if (getType() == Type::Output) {
-        if (getParentEdges().size() != 1) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-        }
-        if (!getChildEdges().empty()) {
-            THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-        }
+        CPU_NODE_ASSERT(getParentEdges().size() == 1, "has incorrect number of input edges.");
+        CPU_NODE_ASSERT(getChildEdges().empty(), "has incorrect number of output edges.");
     }
 }
 
@@ -731,28 +723,26 @@ void Input::createPrimitive() {
     for (size_t i = 0; i < getChildEdges().size(); i++) {
         auto dstMemPtr = getDstMemoryAtPort(i);
         if (!dstMemPtr) {
-            THROW_CPU_NODE_ERR("has null memory object at port ",
-                               i,
-                               " to node ",
-                               getChildEdgeAt(i)->getChild()->getName(),
-                               ".");
+            CPU_NODE_THROW("has null memory object at port ",
+                           i,
+                           " to node ",
+                           getChildEdgeAt(i)->getChild()->getName(),
+                           ".");
         }
     }
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         auto srcMemPtr = getSrcMemoryAtPort(i);
         if (!srcMemPtr) {
-            THROW_CPU_NODE_ERR("has null memory object at port ",
-                               i,
-                               " from node ",
-                               getParentEdgeAt(i)->getParent()->getName(),
-                               ".");
+            CPU_NODE_THROW("has null memory object at port ",
+                           i,
+                           " from node ",
+                           getParentEdgeAt(i)->getParent()->getName(),
+                           ".");
         }
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("doesn't have selected primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "doesn't have selected primitive descriptor.");
 }
 
 bool Input::created() const {

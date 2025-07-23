@@ -344,6 +344,22 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                                                 ov::get_tensor_impl(wraped_scale),
                                                 to,
                                                 unpack_options);
+        } else if (scale_shape.size() == 3 && scale_shape[0] == 1 && scale_shape[2] == 1) {
+            // Special case for broadcasting vocab by 2 dimensions
+            // FIXME: all this logic probably should be in some specific unpack or another util function
+            ov::Tensor wraped_from(from->get_element_type(), ov::Shape{from_shape[1], from_shape[2]}, from->data());
+            ov::Tensor wraped_zerop(zerop->get_element_type(),
+                                    ov::Shape{zerop_shape[1], zerop_shape[2]},
+                                    zerop->data());
+            ov::Tensor wraped_scale(scale->get_element_type(),
+                                    ov::Shape{scale_shape[1], scale_shape[2]},
+                                    scale->data());
+
+            ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
+                                                ov::get_tensor_impl(wraped_zerop),
+                                                ov::get_tensor_impl(wraped_scale),
+                                                to,
+                                                unpack_options);
         } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
             ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
         } else {
@@ -358,7 +374,9 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     const auto src_type = src->get_element_type();
     const auto dst_type = dst->get_element_type();
     NPUW_ASSERT(idx->get_element_type() == ov::element::i64);
-    NPUW_ASSERT(src_type == ov::element::f16 || src_type == ov::element::f32);
+    NPUW_ASSERT(src_type == ov::element::f16 || src_type == ov::element::f32 || src_type == ov::element::f8e4m3 ||
+                src_type == ov::element::f8e5m2 || src_type == ov::element::f8e8m0 || src_type == ov::element::i8 ||
+                src_type == ov::element::u8);
     NPUW_ASSERT(src_type == dst_type);
 
     const auto& idx_shape = idx->get_shape();
@@ -586,7 +604,8 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
     if (axes[0] == 2 && axes[1] == 0 && axes[2] == 1) {
         return transpose(t);
     } else if (axes[0] == 0 && axes[1] == 2 && axes[2] == 1) {
-        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32);
+        NPUW_ASSERT(t.get_element_type() == ov::element::i4 || t.get_element_type() == ov::element::f32 ||
+                    t.get_element_type() == ov::element::f16);
         ov::Shape tshape = {shape[0], shape[2], shape[1]};
         ov::Tensor tnew(t.get_element_type(), tshape);
 
@@ -603,6 +622,13 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
                                       p * shape[2] + c,
                                       r,
                                       shape[1]);
+                        break;
+                    case ov::element::f16:
+                        twrite<uint16_t>(tnew,
+                                         tread<uint16_t>(t, p * shape[1] + r, c, shape[2]),
+                                         p * shape[2] + c,
+                                         r,
+                                         shape[1]);
                         break;
                     default:
                         NPUW_ASSERT(false && "Element type is not supported yet");

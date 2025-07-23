@@ -137,7 +137,7 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
-        k = static_cast<float>(lrn->get_bias());
+        k = static_cast<int>(lrn->get_bias());
         size = lrn->get_nsize();
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -149,12 +149,8 @@ void Lrn::getSupportedDescriptors() {
         return;
     }
 
-    if (getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 2, "has incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
 
     ov::element::Type precision = getOriginalOutputPrecisionAtPort(0);
     if (precision != ov::element::f32 && precision != ov::element::bf16) {
@@ -183,17 +179,11 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_
 void Lrn::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("input memory is undefined");
-    }
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("destination memory is undefined");
-    }
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "input memory is undefined");
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "destination memory is undefined");
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("preferable primitive descriptor did not set");
-    }
+    CPU_NODE_ASSERT(selected_pd, "preferable primitive descriptor did not set");
 
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
 
@@ -212,7 +202,7 @@ void Lrn::prepareParams() {
                                                            key.size,
                                                            key.alpha,
                                                            key.beta,
-                                                           key.k,
+                                                           static_cast<float>(key.k),
                                                            key.attr);
 
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
@@ -227,9 +217,7 @@ void Lrn::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     execPtr = result.first;
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
-    }
+    CPU_NODE_ASSERT(execPtr, "Primitive descriptor was not found.");
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
@@ -260,17 +248,14 @@ void Lrn::createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                                                   size,
                                                   alpha,
                                                   beta,
-                                                  k);
+                                                  static_cast<float>(k));
 
     descs.push_back(desc);
 }
 
 void Lrn::execute(const dnnl::stream& strm) {
-    if (execPtr) {
-        execPtr->exec(primArgs, strm);
-    } else {
-        THROW_CPU_NODE_ERR("doesn't have an initialized executor");
-    }
+    CPU_NODE_ASSERT(execPtr, "doesn't have an initialized executor");
+    execPtr->exec(primArgs, strm);
 }
 
 void Lrn::executeDynamicImpl(const dnnl::stream& strm) {
