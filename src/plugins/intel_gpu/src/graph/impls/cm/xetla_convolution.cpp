@@ -283,7 +283,11 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::KernelKn
     {"1x128x128x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
     {"1x256x256x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
     {"1x256x256x256x256x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
-    {"1x512x512x128x128x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}}};
+    {"1x512x512x128x128x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
+    {"1x512x512x256x128x1x0x1x1", KernelKnobs{1, 16, 16, 128, 1, 8, 4, 32, 1, 1, 3, 32}},
+    {"1x512x512x128x128x1x1x1x1", KernelKnobs{1, 16, 16, 128, 1, 8, 4, 32, 1, 1, 3, 32}},
+    {"1x512x512x128x3x3x1x1x1", KernelKnobs{1, 16, 16, 3, 1, 8, 4, 3, 1, 1, 3, 32}},
+    {"1x512x512x256x128x3x1x1x1", KernelKnobs{1, 16, 16, 128, 1, 8, 4, 32, 1, 1, 3, 32}}};
 
 const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnobs> ConvolutionImplementationManager::NormMap = {
     {"1x14x14x256x512x3x1x1x1", NormKnobs{1, 7 * 2 * 8 * 2, 32 * 4, 1, 7 * 8, 32}},  // C2 (post op variants: [bias+eltwise_add])
@@ -303,7 +307,11 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnob
     {"1x128x128x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
     {"1x256x256x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
     {"1x256x256x256x256x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
-    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}}};
+    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
+    {"1x512x512x256x128x1x0x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}},
+    {"1x512x512x128x128x1x1x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}},
+    {"1x512x512x128x3x3x1x1x1", NormKnobs{1, 16 * 16, 3, 1, 8 * 4, 3}},
+    {"1x512x512x256x128x3x1x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}}};
 }  // namespace ov::intel_gpu::cm
 
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::ConvolutionImpl)
