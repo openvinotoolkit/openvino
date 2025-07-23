@@ -92,8 +92,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 20U,
-                    "The input number of PagedAttention should be 20.");
+    CPU_NODE_ASSERT(orgInputNumber == 20U, "The input number of PagedAttention should be 20.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -159,7 +158,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
     config.inConfs[PagedAttentionExecutor::ID_ROTATION_TRIG_LUT].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_TRIG_LUT)));
-    // xattention_threshold, float, [B_seq, H]
+    // xattention_threshold, float, [B_seq]
     config.inConfs[PagedAttentionExecutor::ID_XATTENTION_THRESHOLD].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_XATTENTION_THRESHOLD)));
