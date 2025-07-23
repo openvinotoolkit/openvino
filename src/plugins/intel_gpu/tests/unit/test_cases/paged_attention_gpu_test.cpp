@@ -1009,6 +1009,7 @@ public:
         pa_prim.has_rotated_blocks = p.rotation_config.apply_rotation;
         pa_prim.has_score_aggregation = p.scores_mode == ScoresMode::SNAPKV;
         pa_prim.sliding_window = p.sliding_window_size;
+        pa_prim.is_key_by_channel = (p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
 
         topology topology;
 
