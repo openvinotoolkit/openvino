@@ -116,7 +116,7 @@ uint8_t f32_to_f4e2m1_bits(float value) {
     else if ((f32_exp == 126 && f32_mantissa >= f32_m_round_even_up_126) ||
              (f32_exp == 127 && f32_mantissa >= f32_m_round_even_up) ||
              (f32_exp == 128 && f32_mantissa >= f32_m_round_even_up)) {
-        // 0.75f <= abs_val < 1.0f) || (1.75f <= abs_val < 2.0f) || (3.5f <= abs_val < 4.0f
+        // 0.75f <= abs_val < 1.0f || 1.75f <= abs_val < 2.0f || 3.5f <= abs_val < 4.0f
         return (f4_sign_bit | f4e2m1_exp) + 2;  // mantissa affect exponent bits
     } else if ((f32_exp == 127 || f32_exp == 128 || f32_exp == 129) && (f32_mantissa <= f32_m_round_even_down)) {
         // 1.0f <= abs_val <= 1.25f || 2.0f <= abs_val <= 2.5f || 4.0f <= abs_val <= 5.0f
