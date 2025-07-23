@@ -8,6 +8,7 @@
 #include <string>
 
 #include "graph.hpp"
+#include "irgraph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -18,7 +19,6 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
-#include "ir_graph.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -90,18 +90,6 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
                  ZE_MAJOR_VERSION(graphExtVersion),
                  ZE_MINOR_VERSION(graphExtVersion));
-}
-
-bool PluginCompilerAdapter::is_dynamic_shape_model( const ov::Tensor& blob ) const {
-    // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
-    // Check If blob is ELF, if not, create Graph for LLVM IR
-
-    size_t blobSize = blob.get_byte_size();
-    // Temporarily use 20 as header length
-    size_t headerSize = blobSize > 20 ? 20 : blobSize;
-    std::string header(reinterpret_cast<const char*>(blob.data()), headerSize);
-
-    return (header.find("ELF") == std::string::npos);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
@@ -277,11 +265,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "parse");
 
 #ifdef NPU_LLVM_BACKEND
-    if (is_dynamic_shape_model(blob)) {
+    if (is_dynamic_shape_blob(mainBlob)) {
         // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
         return std::make_shared<IRGraph>(_zeroInitStruct,
-                                       std::move(blob),
+                                       std::move(mainBlob),
                                        blobAllocatedByPlugin,
                                        config,
                                        _compiler);
