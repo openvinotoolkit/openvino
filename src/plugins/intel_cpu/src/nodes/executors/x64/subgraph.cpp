@@ -164,7 +164,7 @@ void SubgraphExecutor::separately_repack_input(const MemoryPtr& src_mem_ptr,
 
     const auto& in_strides = input_repacker.in_offsets();
     const auto& out_strides = input_repacker.out_offsets();
-    OPENVINO_ASSERT(everyone_is(tensor_rank, in_strides.size(), out_strides.size(), dom.size()),
+    OPENVINO_ASSERT(all_of(tensor_rank, in_strides.size(), out_strides.size(), dom.size()),
                     "Unsupported shape rank of repacking data");
 
     const auto& kernel = input_repacker.kernel<BrgemmCopyBKernel>();

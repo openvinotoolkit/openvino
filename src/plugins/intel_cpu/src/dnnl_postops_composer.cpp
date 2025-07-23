@@ -199,7 +199,7 @@ bool DnnlPostOpsComposer::appendAttrPostOps(const ScaleShiftPostOp& postOp, bool
 static float roundHalfToEven(float f) {
     const float RHAFZ = std::round(f);  // r is round-half-away-from-zero
     const float d = RHAFZ - f;          // f + d -> RHAFZ
-    if ((d != 0.5F) && (d != -0.5F)) {
+    if (none_of(d, 0.5F, -0.5F)) {
         return RHAFZ;
     }
 
@@ -272,12 +272,12 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
                           outputScale.size(),
                           outputShift.size()});
 
-    OPENVINO_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
-    OPENVINO_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
-    OPENVINO_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
-    OPENVINO_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
-    OPENVINO_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
-    OPENVINO_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
+    OPENVINO_ASSERT(any_of(inputScale.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(inputShift.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(cropLow.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(cropHigh.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(outputScale.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(outputShift.size(), 1U, OC));
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any
@@ -369,7 +369,7 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
     }
 
     // we can save an additional eltwise linear for negligible shift
-    if (f.ish.size() == 1 && f.clo.size() == 1 && f.chi.size() == 1) {
+    if (all_of(1U, f.ish.size(), f.clo.size(), f.chi.size())) {
         auto range = (f.chi[0] - f.clo[0]);
         if (abs(f.ish[0]) < range * 0.00001F) {
             f.ish[0] = 0.0F;
@@ -514,7 +514,7 @@ void DnnlPostOpsComposer::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    OPENVINO_ASSERT(scale.size() == OC || scale.size() == 1);
+    OPENVINO_ASSERT(any_of(scale.size(), OC, 1U));
 
     bool fuseIntoWeiScale = false;
     // Use dest scale when last post-ops is per-tensor quantization.
@@ -555,7 +555,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
         }
 
         // (x + dst[:])*s = (x*s + s*dst[:])
-        if (scale.size() == 1 && ops.len() == 1) {
+        if (all_of(1, static_cast<int>(scale.size()), ops.len())) {
             auto& cur_op = ops.get()->entry_.back();
             if (cur_op.kind == dnnl::impl::primitive_kind::sum) {
                 cur_op.sum.scale *= scale[0];
@@ -622,7 +622,7 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
                                        const std::vector<float>& shift,
                                        bool isLastPostOp,
                                        bool allowBinary) {
-    if (scale.size() == 1 && shift.size() == 1) {
+    if (all_of(1U, scale.size(), shift.size())) {
         if (shift[0] == 0.0F) {
             return appendScale(scale, isLastPostOp, allowBinary);
         }
@@ -649,7 +649,7 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
 }
 
 void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::vector<float>& high) {
-    if (low.size() == 1 && high.size() == 1) {
+    if (all_of(1U, low.size(), high.size())) {
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], high[0]);
     } else if (low.size() == 1) {
         OPENVINO_ASSERT(high.size() == OC);
@@ -721,11 +721,11 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
                                             ov::element::Type dstPrc,
                                             const dnnl::engine& engine) {
     auto shape = paramsPtr->getShape().getStaticDims();
-    if (shape.size() == 1 && shape[0] == 1) {
+    if (all_of(1U, shape.size(), shape[0])) {
         shape.push_back(1);
     }
 
-    OPENVINO_ASSERT(shape.size() == 2 || shape.size() == 3,
+    OPENVINO_ASSERT(any_of(shape.size(), 2U, 3U),
                     "DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
 
     // weights without batch: (OC, G)
@@ -752,7 +752,7 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
 }
 
 static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDims& scaleDims) {
-    if (scaleDims[0] == 1 && scaleDims[1] == 1) {
+    if (all_of(1U, scaleDims[0], scaleDims[1])) {
         return {};
     }
 

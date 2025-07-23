@@ -64,7 +64,7 @@ bool Gather::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         if (op->get_output_element_type(0) == element::string) {
             return false;
         }
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v7::Gather::get_type_info_static(),
                     ov::op::v8::Gather::get_type_info_static())) {
             errorMessage = "Not supported Gather operation version. CPU plug-in supports only 7 and 8 versions.";
@@ -89,7 +89,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_input_size(), 4U, 5U) && op->get_output_size() == 1U) {
+    if (any_of(op->get_input_size(), 4U, 5U) && op->get_output_size() == 1U) {
         compressed = true;
     } else {
         CPU_NODE_ASSERT(op->get_input_size() == 3 && op->get_output_size() == 1,
@@ -190,7 +190,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
     }
     if (compressed) {
         // gatherCompressed support input precision (u4/i4/u8/i8) to output precision (f16/bf16/f32).
-        if (!one_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
+        if (none_of(dataPrecision, ov::element::u8, ov::element::u4, ov::element::i8, ov::element::i4)) {
             dataPrecision = ov::element::f32;
         }
 
@@ -199,7 +199,7 @@ void Gather::initSupportedPrimitiveDescriptors() {
             scalePrecision = ov::element::f32;
         }
 
-        if (!one_of(outPrecision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+        if (none_of(outPrecision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             outPrecision = ov::element::f32;
         }
         scale_group_size =
@@ -1029,7 +1029,7 @@ bool Gather::canFuse(const NodePtr& node) const {
     if (node->getType() != Type::Convert) {
         return false;
     }
-    return one_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16) &&
+    return any_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16) &&
            node->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
 }
 

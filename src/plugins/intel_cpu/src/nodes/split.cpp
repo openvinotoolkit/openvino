@@ -47,7 +47,7 @@ namespace ov::intel_cpu::node {
 
 bool Split::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v1::Split::get_type_info_static(),
                     ov::op::v1::VariadicSplit::get_type_info_static())) {
             errorMessage = "Only opset1 Split and VariadicSplit operations are supported";
@@ -187,7 +187,7 @@ void Split::initSupportedPrimitiveDescriptors() {
         if (itr->first == LayoutType::ncsp) {
             // at least the plain layout can be optimized inplace.
             pdIndexesToReuse.emplace_back(supportedPrimitiveDescriptors.size() - 1);
-        } else if (itr->first == LayoutType::nCsp8c || itr->first == LayoutType::nCsp16c) {
+        } else if (any_of(itr->first, LayoutType::nCsp8c, LayoutType::nCsp16c)) {
             if (axis < 2) {
                 pdIndexesToReuse.emplace_back(supportedPrimitiveDescriptors.size() - 1);
             }
@@ -216,7 +216,7 @@ void Split::initSupportedPrimitiveDescriptors() {
     }
 
     // Special nspc -> ncsp case when splitting channels
-    if (axis == 1 && (dstFirstDims.size() == 4 || dstFirstDims.size() == 5)) {
+    if (axis == 1 && (any_of(dstFirstDims.size(), 4U, 5U))) {
         NodeConfig config;
 
         config.inConfs.resize(INPUTS_NUM);
@@ -350,7 +350,7 @@ void Split::initOptimalPrimitiveDescriptor() {
     canUseOptimizedNspc2Ncsp = false;
     CPU_NODE_ASSERT(!config.inConfs.empty(), "Incorrect number of input configurations");
     const auto inConfDesc = config.inConfs[0].getMemDesc();
-    if (axis == 1 && one_of(inConfDesc->getShape().getRank(), 4U, 5U) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
+    if (axis == 1 && any_of(inConfDesc->getShape().getRank(), 4U, 5U) && inConfDesc->hasLayoutType(LayoutType::nspc)) {
         canUseOptimizedNspc2Ncsp = true;
         for (const auto& outConf : config.outConfs) {
             if (!outConf.getMemDesc()->hasLayoutType(LayoutType::ncsp)) {

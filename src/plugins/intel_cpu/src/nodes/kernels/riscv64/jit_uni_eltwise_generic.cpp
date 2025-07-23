@@ -269,7 +269,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(size_t vec_idx,
     update_vlen(gpr_work_amount, needed_sew, needed_lmul);
 
     OPENVINO_ASSERT(dst_prc.size() == sew2bytes(exec_sew), "Incompatible execution SEW and dst SEW");
-    OPENVINO_ASSERT(one_of(dst_prc, ov::element::f32, ov::element::i32), "Unsupported dst prc");
+    OPENVINO_ASSERT(any_of(dst_prc, ov::element::f32, ov::element::i32), "Unsupported dst prc");
 
     switch (src_prc) {
     case ov::element::f32:
@@ -306,11 +306,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(size_t vec_idx,
     }
     }
 
-    if (one_of(dst_prc, ov::element::f32) && one_of(src_prc, ov::element::i8, ov::element::u8, ov::element::i32)) {
+    if (any_of(dst_prc, ov::element::f32) && any_of(src_prc, ov::element::i8, ov::element::u8, ov::element::i32)) {
         vfcvt_f_x_v(src_vec(vec_idx), src_vec(vec_idx));  // int32 -> fp32
     }
 
-    if (one_of(dst_prc, ov::element::i32) && one_of(src_prc, ov::element::f16, ov::element::f32)) {
+    if (any_of(dst_prc, ov::element::i32) && any_of(src_prc, ov::element::f16, ov::element::f32)) {
         vfcvt_x_f_v(src_vec(vec_idx), src_vec(vec_idx));  // fp32 -> int32
     }
 }
@@ -320,13 +320,13 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
                                                 const ov::element::Type& src_prc,
                                                 const ov::element::Type& dst_prc) {
     OPENVINO_ASSERT(src_prc.size() == sew2bytes(exec_sew), "Incompatible execution SEW and src SEW");
-    OPENVINO_ASSERT(one_of(src_prc, ov::element::f32, ov::element::i32), "Unsupported src prc");
+    OPENVINO_ASSERT(any_of(src_prc, ov::element::f32, ov::element::i32), "Unsupported src prc");
 
-    if (one_of(src_prc, ov::element::f32) && one_of(dst_prc, ov::element::i8, ov::element::u8, ov::element::i32)) {
+    if (any_of(src_prc, ov::element::f32) && any_of(dst_prc, ov::element::i8, ov::element::u8, ov::element::i32)) {
         vfcvt_x_f_v(dst_vec(), dst_vec());  // fp32 -> int32
     }
 
-    if (one_of(src_prc, ov::element::i32) && one_of(dst_prc, ov::element::f16, ov::element::f32)) {
+    if (any_of(src_prc, ov::element::i32) && any_of(dst_prc, ov::element::f16, ov::element::f32)) {
         vfcvt_f_x_v(dst_vec(), dst_vec());  // int32 -> fp32
     }
 

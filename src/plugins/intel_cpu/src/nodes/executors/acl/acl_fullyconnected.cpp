@@ -76,13 +76,13 @@ ACLFullyConnectedExecutor::ACLFullyConnectedExecutor(const FCAttrs& attrs,
 }
 
 bool ACLFullyConnectedExecutor::supports(const FCConfig& config) {
-    VERIFY(one_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
-    VERIFY(one_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
+    VERIFY(any_of(srcType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_SRC_PRECISIONS);
+    VERIFY(any_of(weiType(config), ov::element::f16, ov::element::f32), UNSUPPORTED_WEI_PRECISIONS);
     VERIFY(postOpsNumbers(config) < 2, UNSUPPORTED_NUMBER_OF_POSTOPS);
 
     VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
-    VERIFY(one_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
-    VERIFY(one_of(weiRank(config), 2U, 3U), UNSUPPORTED_WEI_RANK);
+    VERIFY(any_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
+    VERIFY(any_of(weiRank(config), 2U, 3U), UNSUPPORTED_WEI_RANK);
     return true;
 }
 

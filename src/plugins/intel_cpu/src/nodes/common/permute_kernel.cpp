@@ -16,6 +16,10 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "utils/general_utils.h"
+#endif
+
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
@@ -110,7 +114,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
         Xbyak::Label exit_label;
 
         if (n + 1 == static_cast<int>(jcp.ndims)) {
-            if (jcp.src_strides[n] == 1 && jcp.dst_strides[n] == 1) {
+            if (all_of(1U, jcp.src_strides[n], jcp.dst_strides[n])) {
                 uint32_t step = vlen / jcp.data_size;
 
                 L(main_loop_label);

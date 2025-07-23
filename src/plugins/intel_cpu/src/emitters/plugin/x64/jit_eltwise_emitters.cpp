@@ -24,6 +24,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/op/powerstatic.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu;
@@ -1794,7 +1795,7 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     }
 
     if (power == 1.F) {
-    } else if (power == 0.5F || power == -0.5F) {
+    } else if (any_of(power, 0.5F, -0.5F)) {
         h->uni_vsqrtps(vmm_dst, vmm_dst);
 
         if (power < 0.F) {
@@ -2680,7 +2681,7 @@ void jit_bitwise_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             h->uni_vmovups(vmm_dst, vmm_src0);
         }
         h->andps(vmm_dst, vmm_src1);
-    } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
+    } else if (any_of(host_isa_, x64::avx2, x64::avx512_core)) {
         h->vandps(vmm_dst, vmm_src0, vmm_src1);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
@@ -2741,7 +2742,7 @@ void jit_bitwise_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             h->uni_vmovups(vmm_dst, vmm_src);
         }
         h->andnps(vmm_dst, table_val("all_bits"));
-    } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
+    } else if (any_of(host_isa_, x64::avx2, x64::avx512_core)) {
         h->vandnps(vmm_dst, vmm_src, table_val("all_bits"));
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);
@@ -2799,7 +2800,7 @@ void jit_bitwise_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             h->uni_vmovups(vmm_dst, vmm_src0);
         }
         h->orps(vmm_dst, vmm_src1);
-    } else if ((host_isa_ == x64::avx2) || (host_isa_ == x64::avx512_core)) {
+    } else if (any_of(host_isa_, x64::avx2, x64::avx512_core)) {
         h->vorps(vmm_dst, vmm_src0, vmm_src1);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported ISA ", host_isa_);

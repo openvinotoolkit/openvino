@@ -60,7 +60,7 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(one_of(op->get_input_size(), 1U, 2U) && op->get_output_size() == 4,
+    CPU_NODE_ASSERT(any_of(op->get_input_size(), 1U, 2U) && op->get_output_size() == 4,
                     "has incorrect number of input/output edges.");
 
     for (int i = 0; i < 4; i++) {
@@ -84,7 +84,7 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 
 void Unique::initSupportedPrimitiveDescriptors() {
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
-    if (dataPrecision != ov::element::i32 && dataPrecision != ov::element::i8 && dataPrecision != ov::element::u8) {
+    if (none_of(dataPrecision, ov::element::i32, ov::element::i8, ov::element::u8)) {
         dataPrecision = ov::element::f32;
     }
     dataTypeSize = dataPrecision.size();

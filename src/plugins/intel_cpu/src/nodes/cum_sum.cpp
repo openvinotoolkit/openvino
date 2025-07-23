@@ -54,8 +54,7 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if ((getOriginalInputsNumber() != numOfInputs && getOriginalInputsNumber() != (numOfInputs - 1)) ||
-        getOriginalOutputsNumber() != 1) {
+    if ((none_of(getOriginalInputsNumber(), numOfInputs, (numOfInputs - 1U))) || getOriginalOutputsNumber() != 1) {
         CPU_NODE_THROW("has incorrect number of input/output edges!");
     }
 
@@ -84,7 +83,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
     }
 
     dataPrecision = getOriginalInputPrecisionAtPort(CUM_SUM_DATA);
-    if (!one_of(dataPrecision,
+    if (none_of(dataPrecision,
                 ov::element::i8,
                 ov::element::u8,
                 ov::element::i16,
@@ -99,7 +98,7 @@ void CumSum::initSupportedPrimitiveDescriptors() {
 
     if (inputShapes.size() == numOfInputs) {
         const auto& axisTensorPrec = getOriginalInputPrecisionAtPort(AXIS);
-        CPU_NODE_ASSERT(axisTensorPrec == ov::element::i32 || axisTensorPrec == ov::element::i64,
+        CPU_NODE_ASSERT(any_of(axisTensorPrec, ov::element::i32, ov::element::i64),
                         "has unsupported 'axis' input precision: ",
                         axisTensorPrec.get_type_name());
     }

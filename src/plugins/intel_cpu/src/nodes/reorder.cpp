@@ -100,8 +100,7 @@ void Reorder::initSupportedPrimitiveDescriptors() {
     if (input && output) {
         config.inConfs[0].setMemDesc(input);
         config.outConfs[0].setMemDesc(output);
-    } else if (parent->getSelectedPrimitiveDescriptor() != nullptr &&
-               child->getSelectedPrimitiveDescriptor() != nullptr) {
+    } else if (none_of(nullptr, parent->getSelectedPrimitiveDescriptor(), child->getSelectedPrimitiveDescriptor())) {
         config.inConfs[0].setMemDesc(parent->getSelectedPrimitiveDescriptor()->getConfig().outConfs[0].getMemDesc());
         config.outConfs[0].setMemDesc(child->getSelectedPrimitiveDescriptor()->getConfig().inConfs[0].getMemDesc());
     } else {
@@ -122,14 +121,14 @@ void Reorder::initSupportedPrimitiveDescriptors() {
     }
     if (!isOptimized) {
         const auto& inShape = getInputShapeAtPort(0);
-        if (one_of(inShape.getRank(), 4U, 5U) && config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
+        if (any_of(inShape.getRank(), 4U, 5U) && config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
             config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
             config.inConfs[0].getMemDesc()->getPrecision() == ov::element::f32 &&
             config.outConfs[0].getMemDesc()->getPrecision() == ov::element::f32) {
             // oneDNN JIT reorder shows bad perf for nspc to ncsp reorder case so we fallback on simple c++
             // implementation
             isNspc2NcspCase = true;
-        } else if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && one_of(inShape.getRank(), 4U, 5U) &&
+        } else if (!dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && any_of(inShape.getRank(), 4U, 5U) &&
                    config.inConfs[0].getMemDesc()->hasLayoutType(LayoutType::ncsp) &&
                    config.outConfs[0].getMemDesc()->hasLayoutType(LayoutType::nspc) &&
                    config.inConfs[0].getMemDesc()->getPrecision() == config.outConfs[0].getMemDesc()->getPrecision() &&
@@ -230,10 +229,10 @@ void Reorder::prepareParams() {
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     // @todo current oneDNN v3.2 lacks optimized jit implementation for fp16 reorders.
     // Use transpose executor as a temporary WA.
-    if (everyone_is(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
+    if (all_of(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
         ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
          (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
-        one_of(parentDesc->getShape().getRank(), 3u, 4u)) {
+        any_of(parentDesc->getShape().getRank(), 3u, 4u)) {
         prepareReorderAsTranspose(parentDesc, childDesc);
         return;
     }
@@ -459,7 +458,7 @@ std::string Reorder::getReorderArgs(const MemoryDesc& parentDesc, const MemoryDe
     }
     auto formatSrc = parentDesc.serializeFormat();
     auto formatDst = childDesc.serializeFormat();
-    if (formatSrc != formatDst || one_of(std::string("undef"), formatSrc, formatDst)) {
+    if (formatSrc != formatDst || intel_cpu::any_of(std::string("undef"), formatSrc, formatDst)) {
         inArgs += (inArgs.empty() ? "" : "_") + formatSrc;
         outArgs += (outArgs.empty() ? "" : "_") + formatDst;
     }

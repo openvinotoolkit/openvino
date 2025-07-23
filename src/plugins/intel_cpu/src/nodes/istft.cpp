@@ -77,7 +77,7 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
     }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!one_of(dataPrecision, ov::element::f32)) {
+    if (none_of(dataPrecision, ov::element::f32)) {
         dataPrecision = ov::element::f32;
     }
 

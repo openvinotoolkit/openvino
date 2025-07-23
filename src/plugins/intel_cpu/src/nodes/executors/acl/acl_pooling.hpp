@@ -78,7 +78,7 @@ public:
             return false;
         }
 
-        if (dstDescs.size() == 2u && !one_of(dstDescs[1]->getPrecision(), ov::element::u32, ov::element::i32)) {
+        if (dstDescs.size() == 2u && none_of(dstDescs[1]->getPrecision(), ov::element::u32, ov::element::i32)) {
             DEBUG_LOG("AclPoolingExecutor supports U32 as indices precisions only. ",
                       "Passed indices precision: ",
                       dstDescs[1]->getPrecision());

@@ -56,7 +56,7 @@ public:
             auto weight_dims_size = weight_dims.size();
             if (attn_mask_dims_size >= 2 && attn_mask_dims_size <= weight_dims_size) {
                 auto check_broadcast = [](const size_t& target, const size_t& to) -> bool {
-                    return target == to || target == 1;
+                    return any_of(target, to, 1U);
                 };
                 weight_dims[3] = present_v_dims[length_index];
                 auto offset = weight_dims_size - attn_mask_dims_size;

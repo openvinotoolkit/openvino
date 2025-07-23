@@ -22,6 +22,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/grn.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -48,7 +49,7 @@ GRN::GRN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     const auto grn = ov::as_type_ptr<const ov::op::v0::GRN>(op);
     CPU_NODE_ASSERT(grn, "is not an instance of GRN from v0.");
 
-    CPU_NODE_ASSERT(inputShapes.size() == 1 && outputShapes.size() == 1, "has incorrect number of input/output edges!");
+    CPU_NODE_ASSERT(all_of(1U, inputShapes.size(), outputShapes.size()), "has incorrect number of input/output edges!");
 
     const auto dataRank = getInputShapeAtPort(0).getRank();
 

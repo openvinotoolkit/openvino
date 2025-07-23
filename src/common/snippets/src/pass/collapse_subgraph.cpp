@@ -85,6 +85,7 @@
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/remarks.hpp"
 #include "snippets/utils/tokenization_utils.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::pass {
 
@@ -99,9 +100,9 @@ auto is_supported_op(const std::shared_ptr<const Node>& n) -> bool {
         }
         const auto intype_0 = matmul->get_input_element_type(0);
         const auto intype_1 = matmul->get_input_element_type(1);
-        const bool is_f32 = intype_0 == element::f32 && intype_1 == element::f32;
-        const bool is_int8 = (intype_0 == element::i8 || intype_0 == element::u8) && (intype_1 == element::i8);
-        const bool is_bf16 = intype_0 == element::bf16 && intype_1 == element::bf16;
+        const bool is_f32 = utils::all_of(element::f32, intype_0, intype_1);
+        const bool is_int8 = utils::any_of(intype_0, element::i8, element::u8) && (intype_1 == element::i8);
+        const bool is_bf16 = utils::all_of(element::bf16, intype_0, intype_1);
         return is_f32 || is_bf16 || is_int8;
     };
     auto is_supported_transpose = [](const std::shared_ptr<const Node>& n) -> bool {

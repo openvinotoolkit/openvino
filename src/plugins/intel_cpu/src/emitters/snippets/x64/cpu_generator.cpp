@@ -423,7 +423,7 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_gp_reg_pool() const 
     const auto num_gp_regs = 16;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
-        if (!one_of(i, Xbyak::Operand::RSP)) {
+        if (none_of(i, Xbyak::Operand::RSP)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }

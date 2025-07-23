@@ -243,16 +243,15 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     const size_t ndims = outputShapes[0].getRank();
     // Domain sensitive operations and dynamic Subgraphs support only Planar layout
     const bool isOnlyPlanarApplicable = subgraph_attrs->snippet->has_domain_sensitive_ops();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1U, 2U, 3U, 4U, 5U) && dimRanksAreEqual &&
-                                           !isOnlyPlanarApplicable && !isDynamic;
+    const bool isChannelsFirstApplicable =
+        any_of(ndims, 1U, 2U, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
     // Todo: Subgraphs currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
 #if defined(OPENVINO_ARCH_ARM64)
     bool isBlockedApplicable = false;
 #else
-    bool isBlockedApplicable =
-        dnnl::impl::utils::one_of(ndims, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
+    bool isBlockedApplicable = any_of(ndims, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1) {
@@ -530,7 +529,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::snippets::pass::AnalyzeBroadcastableInputs,
                                            broadcastable_inputs);
 
-    if (one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
+    if (any_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement

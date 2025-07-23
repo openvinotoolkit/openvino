@@ -105,7 +105,7 @@ void MvnLayerCPUTest::SetUp() {
     }
 
     rel_threshold = 5e-4;
-    if (one_of(additionalConfig[ov::hint::inference_precision.name()], ov::element::f16, ov::element::bf16)) {
+    if (any_of(additionalConfig[ov::hint::inference_precision.name()], ov::element::f16, ov::element::bf16)) {
         rel_threshold = 1e-2;
         abs_threshold = .03f;
     }

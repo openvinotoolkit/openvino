@@ -832,7 +832,7 @@ public:
         }
 
         const auto algorithm = node->getAlgorithm();
-        if (one_of(algorithm,
+        if (any_of(algorithm,
                    Algorithm::EltwiseLog,
                    Algorithm::EltwiseBitwiseLeftShift,
                    Algorithm::EltwiseBitwiseRightShift)) {
@@ -843,7 +843,7 @@ public:
         return true;
 
 #elif defined(OPENVINO_ARCH_ARM64)
-        if (one_of(algorithm,
+        if (any_of(algorithm,
                    Algorithm::EltwiseBitwiseAnd,
                    Algorithm::EltwiseBitwiseNot,
                    Algorithm::EltwiseBitwiseOr,
@@ -858,14 +858,14 @@ public:
                                                                                              ov::element::u8};
 
         std::set<ov::element::Type> supported_output_precisions = supported_input_precisions;
-        if (one_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
+        if (any_of(algorithm, Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
             supported_input_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
         }
 
         auto fusedOps = node->getFusedWith();
         if (!fusedOps.empty()) {
             // Divide and Floor (issue #138629) operations are supported for fp32 and fp16 only.
-            if (one_of(fusedOps.back()->getAlgorithm(), Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
+            if (any_of(fusedOps.back()->getAlgorithm(), Algorithm::EltwiseDivide, Algorithm::EltwiseFloor)) {
                 supported_output_precisions = std::set<ov::element::Type>{ov::element::f16, ov::element::f32};
             }
         } else {
@@ -873,7 +873,7 @@ public:
         }
 
 #elif defined(OPENVINO_ARCH_RISCV64)
-        if (!one_of(algorithm,
+        if (none_of(algorithm,
                     Algorithm::EltwiseAbs,
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseClamp,
@@ -1493,7 +1493,7 @@ void Eltwise::getSupportedDescriptors() {
 
 void Eltwise::initSupportedPrimitiveDescriptors() {
     const auto isBitwise = [](const Algorithm& algorithm) {
-        return one_of(algorithm,
+        return any_of(algorithm,
                       Algorithm::EltwiseBitwiseAnd,
                       Algorithm::EltwiseBitwiseNot,
                       Algorithm::EltwiseBitwiseOr,
@@ -1584,7 +1584,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         implType = EltwiseImplType::reference;
     }
 
-    const auto useJitExecutor = one_of(implType, EltwiseImplType::optimizedShapeAgnostic, EltwiseImplType::optimized);
+    const auto useJitExecutor = any_of(implType, EltwiseImplType::optimizedShapeAgnostic, EltwiseImplType::optimized);
 
 #ifdef OPENVINO_ARCH_X86_64
     if (!hasHardwareSupport(ov::element::bf16)) {
@@ -1664,7 +1664,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 }
                 if (std::find(supportedPrecisions.begin(), supportedPrecisions.end(), prc) ==
                     supportedPrecisions.end()) {
-                    if (one_of(prc, ov::element::u32, ov::element::i64, ov::element::u64)) {
+                    if (any_of(prc, ov::element::u32, ov::element::i64, ov::element::u64)) {
                         return ov::element::i32;
                     }
                     if (prc == ov::element::f64) {
@@ -1827,24 +1827,24 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         return {config, impl_type};
     };
 
-    bool isChannelsFirstApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1U, 2U, 3U, 4U, 5U);
+    bool isChannelsFirstApplicable = any_of(getOutputShapeAtPort(0).getRank(), 1U, 2U, 3U, 4U, 5U);
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         isChannelsFirstApplicable =
-            isChannelsFirstApplicable && one_of(getInputShapeAtPort(i).getRank(), 1U, 2U, 3U, 4U, 5U);
+            isChannelsFirstApplicable && any_of(getInputShapeAtPort(i).getRank(), 1U, 2U, 3U, 4U, 5U);
         isChannelsFirstApplicable = isChannelsFirstApplicable &&
                                     implication(getInputShapeAtPort(i).getRank() != 1,
                                                 getOutputShapeAtPort(0).getRank() == getInputShapeAtPort(i).getRank());
     }
 
 #if defined(OPENVINO_ARCH_ARM64)
-    bool isBlockedApplicable = (!useJitExecutor) && one_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
+    bool isBlockedApplicable = (!useJitExecutor) && any_of(getOutputShapeAtPort(0).getRank(), 1u, 3u, 4u, 5u);
 #else
-    bool isBlockedApplicable = one_of(getOutputShapeAtPort(0).getRank(), 1U, 3U, 4U, 5U);
+    bool isBlockedApplicable = any_of(getOutputShapeAtPort(0).getRank(), 1U, 3U, 4U, 5U);
 #endif
 
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& inShape = getInputShapeAtPort(i);
-        isBlockedApplicable = isBlockedApplicable && one_of(inShape.getRank(), 1U, 3U, 4U, 5U);
+        isBlockedApplicable = isBlockedApplicable && any_of(inShape.getRank(), 1U, 3U, 4U, 5U);
         isBlockedApplicable =
             isBlockedApplicable &&
             implication(inShape.getRank() != 1, getOutputShapeAtPort(0).getRank() == inShape.getRank());
@@ -2437,7 +2437,7 @@ bool Eltwise::canFuseParent(const NodePtr& parentNode) const {
 }
 
 bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
-    if (!one_of(convertNode->getOriginalOutputPrecisionAtPort(0),
+    if (none_of(convertNode->getOriginalOutputPrecisionAtPort(0),
                 ov::element::i8,
                 ov::element::u8,
                 ov::element::f16,
@@ -2457,7 +2457,7 @@ bool Eltwise::canFuseConvert(const NodePtr& convertNode) {
 
 bool Eltwise::canFuse(const NodePtr& node) const {
     auto isIntegerComputeSupported = [](const Node* node) {
-        if (!one_of(node->getAlgorithm(),
+        if (none_of(node->getAlgorithm(),
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseMultiply,
                     Algorithm::EltwiseMulAdd,
@@ -2483,7 +2483,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
 #endif
 
     // TODO: EltwiseLog is supported only via reference executor
-    if (one_of(getAlgorithm(),
+    if (any_of(getAlgorithm(),
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
@@ -2491,7 +2491,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
                Algorithm::EltwiseBitwiseXor,
                Algorithm::EltwiseBitwiseLeftShift,
                Algorithm::EltwiseBitwiseRightShift) ||
-        one_of(node->getAlgorithm(),
+        any_of(node->getAlgorithm(),
                Algorithm::EltwiseLog,
                Algorithm::EltwiseBitwiseAnd,
                Algorithm::EltwiseBitwiseNot,
@@ -2526,7 +2526,7 @@ bool Eltwise::canFuse(const NodePtr& node) const {
         if (node->getParentEdgeAt(0)->getParent().get() != this) {
             // Eltwise jitter doesn't respect commutative property, so fusing is disabled in case it applied not for
             // 0-th port.
-            if (one_of(node->getAlgorithm(),
+            if (any_of(node->getAlgorithm(),
                        Algorithm::EltwiseSubtract,
                        Algorithm::EltwiseDivide,
                        Algorithm::EltwiseFloorMod,

@@ -1880,7 +1880,7 @@ private:
 
 bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v1::TopK::get_type_info_static(),
                     ov::op::v3::TopK::get_type_info_static(),
                     ov::op::v11::TopK::get_type_info_static())) {
@@ -1901,7 +1901,7 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             errorMessage = "Unsupported mode.";
             return false;
         }
-        if (!one_of(topKOp->get_sort_type(),
+        if (none_of(topKOp->get_sort_type(),
                     ov::op::TopKSortType::NONE,
                     ov::op::TopKSortType::SORT_VALUES,
                     ov::op::TopKSortType::SORT_INDICES)) {

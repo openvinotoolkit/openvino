@@ -52,13 +52,13 @@ Eye::Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     }
     outType = op->get_output_element_type(0);
     withBatchShape = (op->get_input_size() == 4);
-    if (!one_of(outType, ov::element::f32, ov::element::bf16, ov::element::i32, ov::element::i8, ov::element::u8)) {
+    if (none_of(outType, ov::element::f32, ov::element::bf16, ov::element::i32, ov::element::i8, ov::element::u8)) {
         CPU_NODE_THROW("doesn't support demanded output precision");
     }
 }
 
 void Eye::getSupportedDescriptors() {
-    if (!one_of(getParentEdges().size(), 3U, 4U)) {
+    if (none_of(getParentEdges().size(), 3U, 4U)) {
         CPU_NODE_THROW("has incorrect number of input edges: ", getParentEdges().size());
     }
     if (getChildEdges().empty()) {

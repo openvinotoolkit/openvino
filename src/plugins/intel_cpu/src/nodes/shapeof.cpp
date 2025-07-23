@@ -25,7 +25,7 @@ namespace ov::intel_cpu::node {
 
 bool ShapeOf::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v0::ShapeOf::get_type_info_static(),
                     ov::op::v3::ShapeOf::get_type_info_static())) {
             errorMessage = "Node is not an instance of ShapeOf form the operation set v1 or v3.";

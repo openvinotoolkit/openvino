@@ -60,7 +60,7 @@ void GemmCopyB::validate_and_infer_types() {
 }
 
 void GemmCopyB::validate_element_type(const ov::element::Type& element_type) {
-    OPENVINO_ASSERT(one_of(element_type, element::f32),
+    OPENVINO_ASSERT(any_of(element_type, element::f32),
                     "GemmCopyB doesn't support element type" + element_type.get_type_name());
 }
 

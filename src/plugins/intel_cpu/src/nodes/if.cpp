@@ -74,7 +74,7 @@ void If::PortMapHelper::redefineTo() {
 
 bool If::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ov::op::v8::If::get_type_info_static())) {
+        if (none_of(op->get_type_info(), ov::op::v8::If::get_type_info_static())) {
             errorMessage = "Not supported If operation version " + std::string(op->get_type_info().version_id) +
                            " with name '" + op->get_friendly_name() + "'. Node If supports only opset8 version.";
             return false;
