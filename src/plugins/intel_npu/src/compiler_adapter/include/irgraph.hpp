@@ -64,7 +64,7 @@ public:
           const Config& config,
           const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
-    size_t export_blob(std::ostream& stream) const override;
+    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
@@ -94,6 +94,18 @@ private:
 
     std::unique_ptr<Impl> _impl;
 };
+
+inline bool is_dynamic_shape_blob( const ov::Tensor& blob ) {
+    // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
+    // Check If blob is ELF, if not, create Graph for LLVM IR
+
+    size_t blobSize = blob.get_byte_size();
+    // Temporarily use 20 as header length
+    size_t headerSize = blobSize > 20 ? 20 : blobSize;
+    std::string header(reinterpret_cast<const char*>(blob.data()), headerSize);
+
+    return (header.find("ELF") == std::string::npos);
+}
 
 }  // namespace intel_npu
 #endif // NPU_LLVM_BACKEND
