@@ -36,6 +36,7 @@ env:
   INSTALL_TEST_DIR: /__w/openvino/openvino/install/tests/
   INSTALL_DIR: /__w/openvino/openvino/install
   PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
+  REQ_PATH: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/
   PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
   TBB_ENABLE_SANITIZERS: 1
   ASAN_OPTIONS: halt_on_error=0:suppressions=/__w/openvino/openvino/openvino/tests/sanitizers/asan/suppressions.supp
@@ -331,8 +332,8 @@ jobs:
       - name: Install python dependencies - 2
         run: |
           # For tests runner
-          # python3 -m pip install -r ${INSTALL_TEST_DIR}/functional_test_utils/layer_tests_summary/requirements.txt
-          ls -la ${INSTALL_TEST_DIR}
+          python3 -m pip install -r ${REQ_PATH}/requirements.txt
+          # ls -la ${INSTALL_TEST_DIR}
 
       - name: Fetch Sanitizer Suppression Lists
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
@@ -376,6 +377,9 @@ jobs:
           echo 'libasas path'
           gcc -print-file-name=libasan.so
           echo 'end of path'
+          echo 'ls -la'
+          ls -la ${INSTALL_TEST_DIR}
+          echo 'end of ls -la'
           export LD_PRELOAD=$(gcc -print-file-name=libasan.so)
           python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }}
         timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 40 }}
