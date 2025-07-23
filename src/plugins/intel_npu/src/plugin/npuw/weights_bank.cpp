@@ -28,7 +28,8 @@ public:
     // Public API
     std::shared_ptr<Bank> getBank(const std::string& bank_name,
                                   const std::shared_ptr<const ov::ICore>& core,
-                                  const std::string& alloc_device);
+                                  const std::string& alloc_device,
+                                  bool weightless_import = false);
 
 private:
     // Data
@@ -304,12 +305,13 @@ std::string Bank::get_name() const {
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,
-                                           const std::string& alloc_device) {
+                                           const std::string& alloc_device,
+                                           bool weightless_import) {
     std::unique_lock guard(m_mutex);
 
     auto iter = m_bank_map.find(bank_name);
     if (iter == m_bank_map.end() || iter->second.expired()) {
-        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name);
+        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name, weightless_import);
         m_bank_map[bank_name] = bank;
         return bank;
     }
@@ -326,5 +328,5 @@ std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
     }
 
     auto& instance = BankManager::getInstance();
-    return instance.getBank(bank_name, core, alloc_device);
+    return instance.getBank(bank_name, core, alloc_device, weightless_import);
 }
