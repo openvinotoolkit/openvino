@@ -92,12 +92,11 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc,
         this->strides = strides;
     }
 
-    if (!everyone_is(this->order.size(),
-                     this->blockedDims.size(),
-                     this->offsetPaddingToData.size(),
-                     this->strides.size())) {
-        OPENVINO_THROW("Order, blocked dims, offset padding to data and strides must have equals size");
-    }
+    OPENVINO_ASSERT(everyone_is(this->order.size(),
+                                this->blockedDims.size(),
+                                this->offsetPaddingToData.size(),
+                                this->strides.size()),
+                    "Order, blocked dims, offset padding to data and strides must have equals size");
 }
 
 bool CpuBlockedMemoryDesc::isDefinedImp() const {
@@ -204,9 +203,8 @@ size_t CpuBlockedMemoryDesc::getOffset(const VectorDims& v) const {
     VectorDims off_v = v;
 
     size_t n_blocked_dims = order.size();
-    if (blockedDims.size() != n_blocked_dims || strides.size() != n_blocked_dims) {
-        OPENVINO_THROW("Cannot calculate offset. Incorrect primitive descriptor!");
-    }
+    OPENVINO_ASSERT(blockedDims.size() == n_blocked_dims && strides.size() == n_blocked_dims,
+                    "Cannot calculate offset. Incorrect primitive descriptor!");
     VectorDims blockedShift(n_blocked_dims);
     for (size_t i = 1; i <= n_blocked_dims; i++) {
         blockedShift[n_blocked_dims - i] = off_v[order[n_blocked_dims - i]] % blockedDims[n_blocked_dims - i];

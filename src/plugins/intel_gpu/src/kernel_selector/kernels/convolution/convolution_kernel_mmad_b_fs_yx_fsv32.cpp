@@ -22,6 +22,7 @@ ParamsKey ConvolutionKernel_mmad_b_fs_yx_fsv32::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::F16);
 
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT8);
 
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
@@ -144,6 +145,11 @@ JitConstants ConvolutionKernel_mmad_b_fs_yx_fsv32::GetJitConstants(const convolu
 
     jit.Merge(MakeTypeJitConstants(GetPackedInputType(params), "PACKED_IN"));
     jit.Merge(MakeTypeJitConstants(GetPackedOutputType(params), "PACKED_OUT"));
+    if (params.weights.GetDType() == WeightsType::INT8) {
+        jit.AddConstant(MakeJitConstant("FILTER_TYPE_CHAR", 1));
+    } else if (params.weights.GetDType() == WeightsType::UINT8) {
+        jit.AddConstant(MakeJitConstant("FILTER_TYPE_UCHAR", 1));
+    }
 
     if (!params.fused_ops.empty()) {
         auto input_dt = GetActivationType(params);

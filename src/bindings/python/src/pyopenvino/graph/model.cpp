@@ -103,7 +103,7 @@ static ov::Output<ov::Node> output_from_handle(ov::Model& model, const py::handl
     } else if (py::isinstance<ov::Output<ov::Node>>(handle)) {
         return handle.cast<ov::Output<ov::Node>>();
     } else {
-        throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect key type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected keys as openvino.Output, int or str.");
     }
 }
@@ -116,7 +116,7 @@ static ov::PartialShape partial_shape_from_handle(const py::handle& handle) {
     } else if (py::isinstance<py::str>(handle)) {
         return ov::PartialShape(handle.cast<std::string>());
     } else {
-        throw py::type_error("Incorrect value type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect value type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected values as openvino.PartialShape, str, list or tuple.");
     }
 }
@@ -125,7 +125,7 @@ static std::string string_from_handle(const py::handle& handle) {
     if (py::isinstance<py::str>(handle)) {
         return handle.cast<std::string>();
     } else {
-        throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect key type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected values as str.");
     }
 }

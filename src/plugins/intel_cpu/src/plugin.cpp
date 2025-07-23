@@ -227,18 +227,17 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     DEBUG_LOG(PrintableModel(*cloned_model, "cpu_"));
 
-    if ((cloned_model->inputs().size() != model->inputs().size()) ||
-        (cloned_model->outputs().size() != model->outputs().size())) {
-        OPENVINO_THROW("Input/output ports count mismatch between the original model and after the transformation! "
-                       "Original model inputs count: ",
-                       model->inputs().size(),
-                       " after the transformations ",
-                       cloned_model->inputs().size(),
-                       ". Original model outputs count:",
-                       model->inputs().size(),
-                       " after the transformations ",
-                       cloned_model->outputs().size());
-    }
+    OPENVINO_ASSERT(cloned_model->inputs().size() == model->inputs().size() &&
+                        cloned_model->outputs().size() == model->outputs().size(),
+                    "Input/output ports count mismatch between the original model and after the transformation! "
+                    "Original model inputs count: ",
+                    model->inputs().size(),
+                    " after the transformations ",
+                    cloned_model->inputs().size(),
+                    ". Original model outputs count:",
+                    model->inputs().size(),
+                    " after the transformations ",
+                    cloned_model->outputs().size());
     // Make output ports have the same tensor names with original model
     for (size_t idx = 0; idx < cloned_model->outputs().size(); idx++) {
         auto new_result = cloned_model->output(idx);
@@ -521,10 +520,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
 ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& model, const ov::AnyMap& config) const {
     WeightsSharing::Ptr fake_w_cache;
 
-    if (model == nullptr) {
-        OPENVINO_THROW("Only ngraph-based models are supported!");
-    }
-
+    OPENVINO_ASSERT(model, "Only ngraph-based models are supported!");
     Config conf = engConfig;
     Config::ModelType modelType = getModelType(model);
     conf.applyRtInfo(model);
@@ -581,7 +577,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
     return deserialize_model(deserializer, config);
 }
 
-std::shared_ptr<ov::ICompiledModel> Plugin::import_model(ov::Tensor& model_tensor, const ov::AnyMap& config) const {
+std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model_tensor,
+                                                         const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
