@@ -1868,8 +1868,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& rotation_deltas,
               PlainTensor& rotation_trig_lut,
               PlainTensor& xattention_threshold,
-              float& xattention_block_size,
-              float& xattention_stride,
+              int32_t& xattention_block_size,
+              int32_t& xattention_stride,
               PlainTensor& output_emb,
               PlainTensor& output_score) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
@@ -1906,7 +1906,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         if (!inputs[ID_XATTENTION_THRESHOLD]->getShape().hasZeroDims()) {
-            xattention_threshold.reset(inputs[ID_XATTENTION_THRESHOLD]);  // [B_seq, H]
+            xattention_threshold.reset(inputs[ID_XATTENTION_THRESHOLD]);  // [B_seq]
         }
         xattention_stride = *inputs[ID_XATTENTION_STRIDE]->getDataAs<int32_t>();
         xattention_block_size = *inputs[ID_XATTENTION_BLOCK_SIZE]->getDataAs<int32_t>();
@@ -2046,7 +2046,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             init_rotation_coefficient_scratch = true;
         }
         if (xattention_threshold) {
-            xattention_threshold.assert_dims({B_seq, H});
+            xattention_threshold.assert_dims({B_seq});
             OPENVINO_ASSERT(xattention_block_size > 0);
             OPENVINO_ASSERT(xattention_stride > 0);
             // TODO: add assertions on the block size and stride limitations as defined by the
@@ -2145,8 +2145,8 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         PlainTensor rotation_trig_lut;
 
         PlainTensor xattention_threshold;
-        float xattention_block_size = 0.0;
-        float xattention_stride = 0.0;
+        int32_t xattention_block_size = 0;
+        int32_t xattention_stride = 0;
 
         PlainTensor output_emb;
         PlainTensor output_score;

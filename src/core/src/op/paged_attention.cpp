@@ -101,7 +101,7 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
     input_check(this, 15, "rotation_deltas", {1, 2}, {element::i32});
     input_check(this, 16, "rotation_trig_lut", {1, 2}, {element::f16, element::f32});
-    input_check(this, 17, "xattention_threshold", {1, 2}, {element::f32});
+    input_check(this, 17, "xattention_threshold", {1}, {element::f32});
     input_check(this, 18, "xattention_block_size", {0}, {element::i32});
     input_check(this, 19, "xattention_stride", {0}, {element::i32});
 

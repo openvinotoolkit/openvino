@@ -31,7 +31,7 @@ TEST(type_prop, paged_attention_static_eviction_per_block) {
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 1});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
-    const auto xattention_threshold = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 2});
+    const auto xattention_threshold = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5});
     const auto xattention_block_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     const auto xattention_stride = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
 
@@ -81,7 +81,7 @@ TEST(type_prop, paged_attention_static_eviction_per_token) {
     const auto rotation_deltas = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{12, 5});
     const auto rotation_trig_lut = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{256, 4});
 
-    const auto xattention_threshold = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5, 2});
+    const auto xattention_threshold = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{5});
     const auto xattention_block_size = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
     const auto xattention_stride = std::make_shared<op::v0::Parameter>(element::i32, PartialShape{});
 
