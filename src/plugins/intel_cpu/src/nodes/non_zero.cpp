@@ -71,7 +71,7 @@ void NonZero::initSupportedPrimitiveDescriptors() {
     }
 
     const auto& inPrc = getOriginalInputPrecisionAtPort(0);
-    CPU_NODE_ASSERT(one_of(inPrc,
+    CPU_NODE_ASSERT(any_of(inPrc,
                            ov::element::f32,
                            ov::element::f16,
                            ov::element::bf16,

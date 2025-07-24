@@ -99,7 +99,7 @@ static dnnl::algorithm ie2dnnl(const std::string& act_type) {
 }
 
 static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
-    if (one_of(op->get_type_info(),
+    if (any_of(op->get_type_info(),
                ov::op::v3::GRUCell::get_type_info_static(),
                ov::op::v5::GRUSequence::get_type_info_static())) {
         auto gruCellOp = ov::as_type_ptr<const ov::op::v3::GRUCell>(op);
@@ -109,7 +109,7 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
         }
         return dnnl::algorithm::vanilla_gru;
     }
-    if (one_of(op->get_type_info(),
+    if (any_of(op->get_type_info(),
                ov::op::internal::AUGRUCell::get_type_info_static(),
                ov::op::internal::AUGRUSequence::get_type_info_static())) {
         auto gruCellOp = ov::as_type_ptr<const ov::op::internal::AUGRUCell>(op);
@@ -119,13 +119,13 @@ static dnnl::algorithm ie2dnnl(const std::shared_ptr<const ov::Node>& op) {
         }
         return dnnl::algorithm::vanilla_augru;
     }
-    if (one_of(op->get_type_info(),
+    if (any_of(op->get_type_info(),
                ov::op::v0::LSTMCell::get_type_info_static(),
                ov::op::v4::LSTMCell::get_type_info_static(),
                ov::op::v5::LSTMSequence::get_type_info_static())) {
         return dnnl::algorithm::vanilla_lstm;
     }
-    if (one_of(op->get_type_info(),
+    if (any_of(op->get_type_info(),
                ov::op::v0::RNNCell::get_type_info_static(),
                ov::op::v5::RNNSequence::get_type_info_static())) {
         return dnnl::algorithm::vanilla_rnn;
@@ -174,7 +174,7 @@ inline bool haveCellState(const dnnl::algorithm& alg) {
     return alg == dnnl::algorithm::vanilla_lstm;
 }
 inline bool haveAttention(const dnnl::algorithm& alg) {
-    return alg == dnnl::algorithm::vanilla_augru || alg == dnnl::algorithm::lbr_augru;
+    return any_of(alg, dnnl::algorithm::vanilla_augru, dnnl::algorithm::lbr_augru);
 }
 
 // what weight data type should be used for particular input data type
@@ -256,7 +256,7 @@ bool RNNKey::operator==(const RNNKey& rhs) const {
 
 bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v3::GRUCell::get_type_info_static(),
                     ov::op::internal::AUGRUCell::get_type_info_static(),
                     ov::op::internal::AUGRUSequence::get_type_info_static(),
@@ -270,7 +270,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             return false;
         }
 
-        if (one_of(op->get_type_info(),
+        if (any_of(op->get_type_info(),
                    ov::op::v0::RNNCell::get_type_info_static(),
                    ov::op::v3::GRUCell::get_type_info_static())) {
             // Plug-in does not support dynamism on weights.
@@ -280,7 +280,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 errorMessage = "Node expects constants as W, R, B inputs.";
                 return false;
             }
-        } else if (one_of(op->get_type_info(),
+        } else if (any_of(op->get_type_info(),
                           ov::op::v0::LSTMCell::get_type_info_static(),
                           ov::op::v4::LSTMCell::get_type_info_static(),
                           ov::op::v5::GRUSequence::get_type_info_static(),
@@ -296,7 +296,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 errorMessage = "Node expects 6 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
             }
-        } else if (one_of(op->get_type_info(), ov::op::v5::LSTMSequence::get_type_info_static())) {
+        } else if (any_of(op->get_type_info(), ov::op::v5::LSTMSequence::get_type_info_static())) {
             if (op->get_input_size() != 7) {
                 errorMessage = "Node expects 7 inputs. Actual: " + std::to_string(op->get_input_size());
                 return false;
@@ -316,7 +316,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                 errorMessage = "Clipping is not supported for RNN primitive.";
                 return false;
             }
-            if (one_of(rnnCellBase->get_type_info(),
+            if (any_of(rnnCellBase->get_type_info(),
                        ov::op::v0::LSTMCell::get_type_info_static(),
                        ov::op::v4::LSTMCell::get_type_info_static(),
                        ov::op::v5::LSTMSequence::get_type_info_static())) {
@@ -324,7 +324,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                     errorMessage = "Not supported activation functions";
                     return false;
                 }
-            } else if (one_of(rnnCellBase->get_type_info(),
+            } else if (any_of(rnnCellBase->get_type_info(),
                               ov::op::v3::GRUCell::get_type_info_static(),
                               ov::op::v5::GRUSequence::get_type_info_static(),
                               ov::op::internal::AUGRUCell::get_type_info_static(),
@@ -334,11 +334,11 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
                     errorMessage = "Not supported activation functions";
                     return false;
                 }
-            } else if (one_of(rnnCellBase->get_type_info(),
+            } else if (any_of(rnnCellBase->get_type_info(),
                               ov::op::v5::RNNSequence::get_type_info_static(),
                               ov::op::v0::RNNCell::get_type_info_static())) {
                 if (rnnCellBase->get_activations().empty() ||
-                    !one_of(rnnCellBase->get_activations().front(), "sigmoid", "tanh", "relu")) {
+                    none_of(rnnCellBase->get_activations().front(), "sigmoid", "tanh", "relu")) {
                     errorMessage = "Not supported activation functions";
                     return false;
                 }
@@ -361,7 +361,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
             seqLenIdx = 2;
         }
 
-        if (!one_of(direction,
+        if (none_of(direction,
                     ov::op::RecurrentSequenceDirection::FORWARD,
                     ov::op::RecurrentSequenceDirection::REVERSE)) {
             errorMessage = "Unsupported sequence direction.";
@@ -398,7 +398,7 @@ bool RNN::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 }
 
 bool RNN::isCell(const std::shared_ptr<const ov::Node>& op) {
-    return one_of(op->get_type_info(),
+    return any_of(op->get_type_info(),
                   ov::op::v0::RNNCell::get_type_info_static(),
                   ov::op::v3::GRUCell::get_type_info_static(),
                   ov::op::internal::AUGRUCell::get_type_info_static(),
@@ -483,13 +483,13 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    is_augru = one_of(op->get_type_info(),
+    is_augru = any_of(op->get_type_info(),
                       ov::op::internal::AUGRUCell::get_type_info_static(),
                       ov::op::internal::AUGRUSequence::get_type_info_static());
 
     is_cell = isCell(op);
 
-    if (one_of(op->get_type_info(),
+    if (any_of(op->get_type_info(),
                ov::op::v0::RNNCell::get_type_info_static(),
                ov::op::v3::GRUCell::get_type_info_static())) {
         wIdx = 2;
@@ -501,7 +501,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         rIdx = 3;
         bIdx = 4;
         aIdx = 5;
-    } else if (one_of(op->get_type_info(),
+    } else if (any_of(op->get_type_info(),
                       ov::op::v0::LSTMCell::get_type_info_static(),
                       ov::op::v4::LSTMCell::get_type_info_static())) {
         wIdx = 3;
@@ -509,7 +509,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         bIdx = 5;
         yIdx = hoIdx = 0;
         coIdx = 1;
-    } else if (one_of(op->get_type_info(),
+    } else if (any_of(op->get_type_info(),
                       ov::op::v5::RNNSequence::get_type_info_static(),
                       ov::op::v5::GRUSequence::get_type_info_static())) {
         sIdx = 2;
@@ -526,7 +526,7 @@ RNN::RNN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         aIdx = 6;
         yIdx = 0;
         hoIdx = 1;
-    } else if (one_of(op->get_type_info(), ov::op::v5::LSTMSequence::get_type_info_static())) {
+    } else if (any_of(op->get_type_info(), ov::op::v5::LSTMSequence::get_type_info_static())) {
         sIdx = 3;
         wIdx = 4;
         rIdx = 5;
@@ -613,12 +613,12 @@ void RNN::configurePortDataTypes() {
         outDataTypes[coIdx] = inDataTypes[cIdx];  // required by oneDNN.
     }
 
-    if (one_of(memory::data_type::bf16, inDataTypes[xIdx], inDataTypes[hIdx])) {
+    if (any_of(memory::data_type::bf16, inDataTypes[xIdx], inDataTypes[hIdx])) {
         inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] =
             memory::data_type::bf16;  // required by oneDNN.
     }
 
-    if (one_of(memory::data_type::f16, inDataTypes[xIdx], inDataTypes[hIdx])) {
+    if (any_of(memory::data_type::f16, inDataTypes[xIdx], inDataTypes[hIdx])) {
         // onednn doesn't have fp16 instance
         inDataTypes[xIdx] = outDataTypes[yIdx] = outDataTypes[hoIdx] = inDataTypes[hIdx] =
             memory::data_type::f32;  // required by oneDNN.
@@ -630,7 +630,7 @@ void RNN::configurePortDataTypes() {
     }
 
     if (outDataTypes[yIdx] == memory::data_type::bf16 &&
-        one_of(inDataTypes[xIdx], memory::data_type::s8, memory::data_type::u8)) {
+        any_of(inDataTypes[xIdx], memory::data_type::s8, memory::data_type::u8)) {
         outDataTypes[yIdx] =
             memory::data_type::f32;  // oneDNN does not support bf16 output precision for quantized rnn primitive yet
     }
@@ -794,10 +794,10 @@ void RNN::initSequence() {
                        outDataShape.toString());
     }
 
-    CPU_NODE_ASSERT(one_of(getOriginalInputsNumber(), 6U, 7U),
+    CPU_NODE_ASSERT(any_of(getOriginalInputsNumber(), 6U, 7U),
                     "has incorrect number of input ports: ",
                     getOriginalInputsNumber());
-    CPU_NODE_ASSERT(one_of(getOriginalOutputsNumber(), 2U, 3U),
+    CPU_NODE_ASSERT(any_of(getOriginalOutputsNumber(), 2U, 3U),
                     "has incorrect number of output ports: ",
                     getOriginalOutputsNumber());
 
@@ -1131,10 +1131,10 @@ void RNN::copyWeightsData() {
     if (cell_type == dnnl::algorithm::vanilla_lstm) {
         m_gate_map = gate_map_lstm;
         CPU_NODE_ASSERT(G <= gate_map_lstm_size, ". G isn't equal to the size of gate_map.");
-    } else if (cell_type == dnnl::algorithm::vanilla_gru || cell_type == dnnl::algorithm::vanilla_augru) {
+    } else if (any_of(cell_type, dnnl::algorithm::vanilla_gru, dnnl::algorithm::vanilla_augru)) {
         m_gate_map = gate_map_gru;
         CPU_NODE_ASSERT(G <= gate_map_gru_size, ". G isn't equal to the size of gate_map");
-    } else if (cell_type == dnnl::algorithm::lbr_gru || cell_type == dnnl::algorithm::lbr_augru) {
+    } else if (any_of(cell_type, dnnl::algorithm::lbr_gru, dnnl::algorithm::lbr_augru)) {
         m_gate_map = gate_map_gru;
         CPU_NODE_ASSERT(G <= gate_map_gru_size, ". G isn't equal to the size of gate_map.");
     } else if (cell_type == dnnl::algorithm::vanilla_rnn) {
@@ -1327,7 +1327,7 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
     auto attr = std::make_shared<dnnl::primitive_attr>(dnnl::primitive_attr());
     attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-    if (one_of(inDataTypes[xIdx], memory::data_type::u8, memory::data_type::s8)) {
+    if (any_of(inDataTypes[xIdx], memory::data_type::u8, memory::data_type::s8)) {
         const int weightsScaleMask = 0 + (1 << 3)  // bit, indicating the unique scales for `g` dim in `ldigo`
                                      + (1 << 4);   // bit, indicating the unique scales for `o` dim in `ldigo`
 

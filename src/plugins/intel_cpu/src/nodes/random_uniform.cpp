@@ -122,22 +122,22 @@ void RandomUniform::getSupportedDescriptors() {
 
 void RandomUniform::initSupportedPrimitiveDescriptors() {
     auto shape_prc = getOriginalInputPrecisionAtPort(SHAPE);
-    if (!one_of(shape_prc, ov::element::i32, ov::element::i64)) {
+    if (none_of(shape_prc, ov::element::i32, ov::element::i64)) {
         shape_prc = ov::element::i32;
     }
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
     if (out_prc.is_real()) {
-        if (one_of(m_algo, PHILOX, MERSENNE_TWISTER) &&
-            !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+        if (any_of(m_algo, PHILOX, MERSENNE_TWISTER) &&
+            none_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             out_prc = ov::element::f32;
         }
 
-        if (one_of(m_algo, STL) && !one_of(out_prc, ov::element::f32)) {
+        if (m_algo == STL && out_prc != ov::element::f32) {
             out_prc = ov::element::f32;
         }
     } else {
-        if (!one_of(out_prc, ov::element::i32, ov::element::i64)) {
+        if (none_of(out_prc, ov::element::i32, ov::element::i64)) {
             out_prc = ov::element::i32;
         }
     }
@@ -398,8 +398,10 @@ void RandomUniform::prepareMersenneTwisterParams() {
         auto approx_start = thread_offset * static_cast<float>(ithr);
         auto approx_end = thread_offset * (static_cast<float>(ithr + 1));
 
-        auto state_start = static_cast<uint64_t>(std::floor(approx_start) * m_uint_storage_capacity_per_thread);
-        auto state_end = static_cast<uint64_t>(std::floor(approx_end) * m_uint_storage_capacity_per_thread);
+        auto state_start =
+            static_cast<uint64_t>(std::floor(approx_start) * static_cast<double>(m_uint_storage_capacity_per_thread));
+        auto state_end =
+            static_cast<uint64_t>(std::floor(approx_end) * static_cast<double>(m_uint_storage_capacity_per_thread));
 
         // Rounding failsafes
         if (ithr == 0) {
@@ -419,7 +421,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
         params.src_start_idx = state_start;
         params.dst_start_idx = destination_start;
-        params.state_accesses_count = state_accesses;
+        params.state_accesses_count = static_cast<uint64_t>(state_accesses);
     });
 }
 
@@ -555,7 +557,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                                                            [[maybe_unused]] size_t output_elements_count,
                                                            const std::pair<uint64_t, uint64_t>& prev_state) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0LU && m_op_seed == 0LU) {
+    if (all_of(0LU, m_global_seed, m_op_seed)) {
         m_global_seed = std::random_device{}();
     }
 
@@ -759,7 +761,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
 
 void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_count) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0LU && m_op_seed == 0LU) {
+    if (all_of(0LU, m_global_seed, m_op_seed)) {
         m_global_seed = std::random_device{}();
     }
 
