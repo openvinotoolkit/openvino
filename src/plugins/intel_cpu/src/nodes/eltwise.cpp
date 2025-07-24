@@ -51,6 +51,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/abs.hpp"
@@ -111,7 +112,6 @@
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
