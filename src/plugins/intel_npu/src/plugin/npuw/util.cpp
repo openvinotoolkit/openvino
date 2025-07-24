@@ -561,11 +561,14 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
 
     switch (t.get_element_type()) {
     case ov::element::i4:
-        ov::npuw::util::XARCH::transpose_i4_avx2(t, tnew, IN_ROWS, IN_COLS);
+        ov::npuw::util::XARCH::transpose_i4(t, tnew, IN_ROWS, IN_COLS);
         break;
-    case ov::element::f32:
-        ov::npuw::util::XARCH::transpose_f32_avx2(t, tnew, IN_ROWS, IN_COLS);
+    case ov::element::f32: {
+        const float* src = static_cast<const float*>(t.data());
+        float* dst = static_cast<float*>(tnew.data());
+        ov::npuw::util::XARCH::transpose_f32(src, dst, IN_ROWS, IN_COLS);
         break;
+    }
     default:
         NPUW_ASSERT(false && "Element type is not supported yet");
     }
@@ -585,14 +588,28 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
         case ov::element::i4:
-            ov::npuw::util::XARCH::permute021_i4_avx2(t, tnew, shape[0], shape[1], shape[2]);
+            ov::npuw::util::XARCH::permute021_i4(t, tnew, shape[0], shape[1], shape[2]);
             break;
-        case ov::element::f32:
-            ov::npuw::util::XARCH::permute021_f32_avx2(t, tnew, shape[0], shape[1], shape[2]);
+        case ov::element::f32: {
+            const float* src = static_cast<const float*>(t.data());
+            float* dst = static_cast<float*>(tnew.data());
+            ov::parallel_for(shape[0], [&](size_t p) {
+                const float* src_ptr = src + p * shape[1] * shape[2];
+                float* dst_ptr = dst + p * shape[1] * shape[2];
+                ov::npuw::util::XARCH::transpose_f32(src_ptr, dst_ptr, shape[1], shape[2]);
+            });
             break;
-        case ov::element::f16:
-            ov::npuw::util::XARCH::permute021_f16_avx2(t, tnew, shape[0], shape[1], shape[2]);
-            break;    
+        }
+        case ov::element::f16: {
+            const uint16_t* src = static_cast<const uint16_t*>(t.data());
+            uint16_t* dst = static_cast<uint16_t*>(tnew.data());
+            ov::parallel_for(shape[0], [&](size_t p) {
+                const uint16_t* src_ptr = src + p * shape[1] * shape[2];
+                uint16_t* dst_ptr = dst + p * shape[1] * shape[2];
+                ov::npuw::util::XARCH::transpose_f16(src_ptr, dst_ptr, shape[1], shape[2]);
+            });
+            break;
+        }
         default:
             NPUW_ASSERT(false && "Element type is not supported yet");
         }
@@ -602,12 +619,37 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         ov::Shape tshape = {shape[1], shape[0], shape[2]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
-        case ov::element::i4:
-            ov::npuw::util::XARCH::permute102_i4_avx2(t, tnew, shape[0], shape[1], shape[2]);
+        case ov::element::i4: {
+            std::cout << "#################permute 102 case i4" << std::endl;
+            const uint8_t* src = static_cast<const uint8_t*>(t.data());
+            uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+            if (shape[2] % 2 == 0) {
+                std::cout << "#################permute 102 case i4 if even copy" << std::endl;
+                for (size_t p = 0; p < shape[0]; ++p) {
+                    for (size_t r = 0; r < shape[1]; ++r) {
+                        std::copy_n(&src[(p * shape[1] * shape[2] + r * shape[2]) / 2],
+                                    shape[2],
+                                    &dst[(r * shape[0] * shape[2] + p * shape[2]) / 2]);
+                    }
+                }
+            } else {
+                ov::npuw::util::XARCH::permute102_i4(t, tnew, shape[0], shape[1], shape[2]);
+            }
             break;
-        case ov::element::f16:
-            ov::npuw::util::XARCH::permute102_f16_avx2(t, tnew, shape[0], shape[1], shape[2]);
+        }
+        case ov::element::f16: {
+            std::cout << "#################permute 102 case f16" << std::endl;
+            const uint16_t* src = static_cast<const uint16_t*>(t.data());
+            uint16_t* dst = static_cast<uint16_t*>(tnew.data());
+            ov::parallel_for(shape[0], [&](size_t p) {
+                ov::parallel_for(shape[1], [&](size_t r) {
+                    std::copy_n(&src[p * shape[1] * shape[2] + r * shape[2]],
+                                shape[2],
+                                &dst[r * shape[0] * shape[2] + p * shape[2]]);
+                });
+            });
             break;
+        }
         default:
             NPUW_ASSERT(false && "Element type is not supported yet");
         }
@@ -616,12 +658,18 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         ov::Shape tshape = {shape[1], shape[2], shape[0]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
-        case ov::element::f32:
-            ov::npuw::util::XARCH::permute120_f32_avx2(t, tnew, shape[0], shape[1] * shape[2]);
+        case ov::element::f32: {
+            const float* src = static_cast<const float*>(t.data());
+            float* dst = static_cast<float*>(tnew.data());
+            ov::npuw::util::XARCH::transpose_f32(src, dst, shape[0], shape[1] * shape[2]);
             break;
-        case ov::element::f16:
-            ov::npuw::util::XARCH::permute120_f16_avx2(t, tnew, shape[0], shape[1] * shape[2]);
+        }
+        case ov::element::f16: {
+            const uint16_t* src = static_cast<const uint16_t*>(t.data());
+            uint16_t* dst = static_cast<uint16_t*>(tnew.data());
+            ov::npuw::util::XARCH::transpose_f16(src, dst, shape[0], shape[1] * shape[2]);
             break;
+        }
         default:
             NPUW_ASSERT(false && "Element type is not supported yet");
         }
@@ -667,7 +715,7 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
             const auto copy_size = lens[t_idx] * shape[1] * shape[2];
             const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
 
-            ov::npuw::util::XARCH::memcpy_avx2(pDst, pSrc, copy_len);
+            ov::npuw::util::XARCH::memcpy(pDst, pSrc, copy_len);
             pDst += copy_len;
         });
         return tnew;
@@ -688,7 +736,7 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
                 const uint8_t* pSrc = static_cast<const uint8_t*>(t_src.data());
                 const uint8_t* pSrcRow = pSrc + r_offset_src;
 
-                ov::npuw::util::XARCH::memcpy_avx2(pDstRow, pSrcRow, copy_len);
+                ov::npuw::util::XARCH::memcpy(pDstRow, pSrcRow, copy_len);
             }
         });
         return tnew;

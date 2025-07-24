@@ -1514,25 +1514,26 @@ void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& fro
 #endif
 }
 
-void ov::npuw::util::XARCH::transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
+void ov::npuw::util::XARCH::transpose_i4(const ov::Tensor& t, ov::Tensor& tnew, size_t ROWS, size_t COLS) {
 #if defined(HAVE_AVX2)
+    std::cout << "####################transpose_i4" << std::endl;
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
 
     constexpr size_t PACK = 64;  // 32 bytes = 256 bits = 64 int4
-    for (size_t r = 0; r < IN_ROWS; ++r) {
+    for (size_t r = 0; r < ROWS; ++r) {
         size_t c = 0;
-        for (; c + PACK - 1 < IN_COLS; c += PACK) {
+        for (; c + PACK - 1 < COLS; c += PACK) {
             // get 32 bytes each time.
-            const uint8_t* src_ptr = src + (r * IN_COLS + c) / 2;
+            const uint8_t* src_ptr = src + (r * COLS + c) / 2;
             __m256i packed = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src_ptr));
             alignas(32) uint8_t unpacked[64];
             // Unpack to get 64 int4
             unpack_64_i4(packed, unpacked);
             // Write transposed block
-            if ((IN_COLS % 2 != 0) && (r % 2 != 0) && (c == 0)) {
+            if ((COLS % 2 != 0) && (r % 2 != 0) && (c == 0)) {
                 for (size_t k = 0; k < PACK - 1; ++k) {
-                    size_t dst_offet = (c + k) * IN_ROWS + r;
+                    size_t dst_offet = (c + k) * ROWS + r;
                     size_t dst_byte = dst_offet / 2;
                     if (dst_offet % 2 == 0) {
                         dst[dst_byte] = (dst[dst_byte] & 0xF0) | (unpacked[k + 1] & 0x0F);
@@ -1543,7 +1544,7 @@ void ov::npuw::util::XARCH::transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& t
                 c--;
             } else {
                 for (size_t k = 0; k < PACK; ++k) {
-                    size_t dst_offet = (c + k) * IN_ROWS + r;
+                    size_t dst_offet = (c + k) * ROWS + r;
                     size_t dst_byte = dst_offet / 2;
                     if (dst_offet % 2 == 0) {
                         dst[dst_byte] = (dst[dst_byte] & 0xF0) | (unpacked[k] & 0x0F);
@@ -1555,15 +1556,15 @@ void ov::npuw::util::XARCH::transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& t
         }
 
         // Handle tail
-        for (; c < IN_COLS; ++c) {
-            // uint8_t val = tread_4b(t, r, c, IN_COLS);
+        for (; c < COLS; ++c) {
+            // uint8_t val = tread_4b(t, r, c, COLS);
             uint8_t low, high;
             // Read a uint8 data and obtain two int4 values.
-            tread_2x4b(t, r, c, IN_COLS, low, high);
-            twrite_4b(tnew, low, c, r, IN_ROWS);
+            tread_2x4b(t, r, c, COLS, low, high);
+            twrite_4b(tnew, low, c, r, ROWS);
             // Handle high value if it's still within the column length.
-            if (c + 1 < IN_COLS) {
-                twrite_4b(tnew, high, c + 1, r, IN_ROWS);
+            if (c + 1 < COLS) {
+                twrite_4b(tnew, high, c + 1, r, ROWS);
                 c++;
             }
         }
@@ -1573,77 +1574,36 @@ void ov::npuw::util::XARCH::transpose_i4_avx2(const ov::Tensor& t, ov::Tensor& t
 #endif
 }
 
-void ov::npuw::util::XARCH::transpose_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
+void ov::npuw::util::XARCH::transpose_f16(const uint16_t* src, uint16_t* dst, size_t ROWS, size_t COLS) {
 #if defined(HAVE_AVX2)
-    const float* src = static_cast<const float*>(t.data());
-    float* dst = static_cast<float*>(tnew.data());
-
-    const size_t blockSize = 8;  // AVX2 can handle 8 floats per register.
-
-    ov::parallel_for(IN_ROWS, [&](size_t r) {
-        size_t c = 0;
-        for (; c + blockSize <= IN_COLS; c += blockSize) {
-            __m256 vec = _mm256_loadu_ps(&src[r * IN_COLS + c]);
-            for (size_t k = 0; k < blockSize; ++k) {
-                dst[(c + k) * IN_ROWS + r] = ((float*)&vec)[k];
-            }
-        }
-        for (; c < IN_COLS; ++c) {
-            dst[c * IN_ROWS + r] = src[r * IN_COLS + c];
-        }
-    });
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
-}
-
-void ov::npuw::util::XARCH::permute120_f32_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
-#if defined(HAVE_AVX2)
-    const uint32_t* src = static_cast<const uint32_t*>(t.data());
-    uint32_t* dst = static_cast<uint32_t*>(tnew.data());
-
-    const size_t blockSize = 8;  // AVX2 can handle 8 floats per register.
-
-    ov::parallel_for(IN_ROWS, [&](size_t r) {
-        size_t c = 0;
-        for (; c + blockSize <= IN_COLS; c += blockSize) {
-            size_t src_offset = r * IN_COLS + c;
-            __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_offset));
-            alignas(32) uint32_t tmp[8];
-            _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
-            for (size_t k = 0; k < blockSize; ++k) {
-                dst[(c + k) * IN_ROWS + r] = tmp[k];
-            }
-        }
-        for (; c < IN_COLS; ++c) {
-            dst[c * IN_ROWS + r] = src[r * IN_COLS + c];
-        }
-    });
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
-}
-
-void ov::npuw::util::XARCH::permute120_f16_avx2(const ov::Tensor& t, ov::Tensor& tnew, size_t IN_ROWS, size_t IN_COLS) {
-#if defined(HAVE_AVX2)
-    const uint16_t* src = static_cast<const uint16_t*>(t.data());
-    uint16_t* dst = static_cast<uint16_t*>(tnew.data());
-
+    std::cout << "####################transpose_f16" << std::endl;
     const size_t blockSize = 16;  // AVX2 can handle 8 floats per register.
+    ov::parallel_for(COLS, [&](size_t c) {
+        size_t r = 0;
+        for (; r + blockSize <= ROWS; r += blockSize) {
+            // Gather 8 elements from column j, rows i..i+7
+            __m256i gathered = _mm256_set_epi16(src[(r + 15) * COLS + c],
+                                                src[(r + 14) * COLS + c],
+                                                src[(r + 13) * COLS + c],
+                                                src[(r + 12) * COLS + c],
+                                                src[(r + 11) * COLS + c],
+                                                src[(r + 10) * COLS + c],
+                                                src[(r + 9) * COLS + c],
+                                                src[(r + 8) * COLS + c],
+                                                src[(r + 7) * COLS + c],
+                                                src[(r + 6) * COLS + c],
+                                                src[(r + 5) * COLS + c],
+                                                src[(r + 4) * COLS + c],
+                                                src[(r + 3) * COLS + c],
+                                                src[(r + 2) * COLS + c],
+                                                src[(r + 1) * COLS + c],
+                                                src[(r + 0) * COLS + c]);
 
-    ov::parallel_for(IN_ROWS, [&](size_t r) {
-        size_t c = 0;
-        for (; c + blockSize <= IN_COLS; c += blockSize) {
-            size_t src_offset = r * IN_COLS + c;
-            __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_offset));
-            alignas(32) uint16_t tmp[16];
-            _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
-            for (size_t k = 0; k < blockSize; ++k) {
-                dst[(c + k) * IN_ROWS + r] = tmp[k];
-            }
+            // Store this column as a row in transposed matrix
+            _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + c * ROWS + r), gathered);
         }
-        for (; c < IN_COLS; ++c) {
-            dst[c * IN_ROWS + r] = src[r * IN_COLS + c];
+        for (; r < ROWS; ++r) {
+            dst[c * ROWS + r] = src[r * COLS + c];
         }
     });
 #else
@@ -1651,29 +1611,58 @@ void ov::npuw::util::XARCH::permute120_f16_avx2(const ov::Tensor& t, ov::Tensor&
 #endif
 }
 
-void ov::npuw::util::XARCH::permute021_i4_avx2(const ov::Tensor& t,
-                                               ov::Tensor& tnew,
-                                               size_t IN_PLAS,
-                                               size_t IN_ROWS,
-                                               size_t IN_COLS) {
+void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t ROWS, size_t COLS) {
 #if defined(HAVE_AVX2)
+    std::cout << "####################transpose_f32" << std::endl;
+    const size_t blockSize = 8;  // AVX2 can handle 8 floats per register.
+    ov::parallel_for(COLS, [&](size_t c) {
+        size_t r = 0;
+        for (; r + blockSize <= ROWS; r += blockSize) {
+            // Gather 8 elements from column j, rows i..i+7
+            __m256 gathered = _mm256_set_ps(src[(r + 7) * COLS + c],
+                                            src[(r + 6) * COLS + c],
+                                            src[(r + 5) * COLS + c],
+                                            src[(r + 4) * COLS + c],
+                                            src[(r + 3) * COLS + c],
+                                            src[(r + 2) * COLS + c],
+                                            src[(r + 1) * COLS + c],
+                                            src[(r + 0) * COLS + c]);
+
+            // Store this column as a row in transposed matrix
+            _mm256_storeu_ps(&dst[c * ROWS + r], gathered);
+        }
+        for (; r < ROWS; ++r) {
+            dst[c * ROWS + r] = src[r * COLS + c];
+        }
+    });
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
+}
+
+void ov::npuw::util::XARCH::permute021_i4(const ov::Tensor& t,
+                                          ov::Tensor& tnew,
+                                          size_t PLAS,
+                                          size_t ROWS,
+                                          size_t COLS) {
+#if defined(HAVE_AVX2)
+    std::cout << "####################permute021_i4" << std::endl;
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
-
-    for (size_t p = 0; p < IN_PLAS; ++p) {
-        for (size_t r = 0; r < IN_ROWS; ++r) {
-            size_t src_base = p * IN_ROWS * IN_COLS + r * IN_COLS;
-            size_t dst_base = p * IN_COLS * IN_ROWS + r;
+    for (size_t p = 0; p < PLAS; ++p) {
+        for (size_t r = 0; r < ROWS; ++r) {
+            size_t src_base = p * ROWS * COLS + r * COLS;
+            size_t dst_base = p * COLS * ROWS + r;
             size_t c = 0;
             constexpr size_t PACK = 64;
-            for (; c + PACK - 1 < IN_COLS; c += PACK) {
+            for (; c + PACK - 1 < COLS; c += PACK) {
                 const uint8_t* src_ptr = src + (src_base + c) / 2;
                 __m256i packed = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src_ptr));
                 alignas(32) uint8_t unpacked[64];
                 unpack_64_i4(packed, unpacked);
-                if ((IN_COLS % 2 != 0) && ((p * IN_ROWS + r) % 2 != 0) && (c == 0)) {
+                if ((COLS % 2 != 0) && ((p * ROWS + r) % 2 != 0) && (c == 0)) {
                     for (size_t k = 0; k < PACK - 1; ++k) {
-                        size_t dst_offset = dst_base + (c + k) * IN_ROWS;
+                        size_t dst_offset = dst_base + (c + k) * ROWS;
                         size_t dst_byte = dst_offset / 2;
                         if (dst_offset % 2 == 0) {
                             dst[dst_byte] = (dst[dst_byte] & 0xF0) | (unpacked[k + 1] & 0x0F);
@@ -1684,7 +1673,7 @@ void ov::npuw::util::XARCH::permute021_i4_avx2(const ov::Tensor& t,
                     c--;
                 } else {
                     for (size_t k = 0; k < PACK; ++k) {
-                        size_t dst_offset = dst_base + (c + k) * IN_ROWS;
+                        size_t dst_offset = dst_base + (c + k) * ROWS;
                         size_t dst_byte = dst_offset / 2;
                         if (dst_offset % 2 == 0) {
                             dst[dst_byte] = (dst[dst_byte] & 0xF0) | (unpacked[k] & 0x0F);
@@ -1695,14 +1684,14 @@ void ov::npuw::util::XARCH::permute021_i4_avx2(const ov::Tensor& t,
                 }
             }
             // Handle tail
-            for (; c < IN_COLS; ++c) {
+            for (; c < COLS; ++c) {
                 uint8_t low, high;
                 // Read a uint8 data and obtain two int4 values.
-                tread_2x4b(t, p * IN_ROWS + r, c, IN_COLS, low, high);
-                twrite_4b(tnew, low, p * IN_ROWS + c, r, IN_COLS);
+                tread_2x4b(t, p * ROWS + r, c, COLS, low, high);
+                twrite_4b(tnew, low, p * ROWS + c, r, COLS);
                 // Handle high value if it's still within the column length.
-                if (c + 1 < IN_COLS) {
-                    twrite_4b(tnew, high, p * IN_ROWS + c + 1, r, IN_COLS);
+                if (c + 1 < COLS) {
+                    twrite_4b(tnew, high, p * ROWS + c + 1, r, COLS);
                     c++;
                 }
             }
@@ -1713,98 +1702,30 @@ void ov::npuw::util::XARCH::permute021_i4_avx2(const ov::Tensor& t,
 #endif
 }
 
-void ov::npuw::util::XARCH::permute021_f32_avx2(const ov::Tensor& t,
-                                                ov::Tensor& tnew,
-                                                size_t IN_PLAS,
-                                                size_t IN_ROWS,
-                                                size_t IN_COLS) {
+void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
+                                          ov::Tensor& tnew,
+                                          size_t PLAS,
+                                          size_t ROWS,
+                                          size_t COLS) {
 #if defined(HAVE_AVX2)
-    const float* src = static_cast<const float*>(t.data());
-    float* dst = static_cast<float*>(tnew.data());
-
-    constexpr size_t blockSize = 8;  // 8*32=256bit
-
-    ov::parallel_for(IN_PLAS, [&](size_t p) {
-        for (size_t r = 0; r < IN_ROWS; ++r) {
-            size_t src_base = p * IN_ROWS * IN_COLS + r * IN_COLS;
-            size_t dst_base = p * IN_COLS * IN_ROWS + r;
-            size_t c = 0;
-            for (; c + blockSize - 1 < IN_COLS; c += blockSize) {
-                __m256 vec = _mm256_loadu_ps(src + src_base + c);
-                for (size_t k = 0; k < blockSize; ++k) {
-                    dst[dst_base + (c + k) * IN_ROWS] = ((float*)&vec)[k];
-                }
-            }
-            for (; c < IN_COLS; ++c) {
-                dst[dst_base + c * IN_ROWS] = src[src_base + c];
-            }
-        }
-    });
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
-}
-
-void ov::npuw::util::XARCH::permute021_f16_avx2(const ov::Tensor& t,
-                                                ov::Tensor& tnew,
-                                                size_t IN_PLAS,
-                                                size_t IN_ROWS,
-                                                size_t IN_COLS) {
-#if defined(HAVE_AVX2)
-    const uint16_t* src = static_cast<const uint16_t*>(t.data());
-    uint16_t* dst = static_cast<uint16_t*>(tnew.data());
-
-    constexpr size_t blockSize = 16;  // 16*16=256bit
-
-    ov::parallel_for(IN_PLAS, [&](size_t p) {
-        for (size_t r = 0; r < IN_ROWS; ++r) {
-            size_t src_base = p * IN_ROWS * IN_COLS + r * IN_COLS;
-            size_t dst_base = p * IN_COLS * IN_ROWS + r;
-            size_t c = 0;
-            for (; c + blockSize - 1 < IN_COLS; c += blockSize) {
-                __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_base + c));
-                alignas(32) uint16_t tmp[16];
-                _mm256_storeu_si256(reinterpret_cast<__m256i*>(tmp), vec);
-                for (size_t k = 0; k < blockSize; ++k) {
-                    dst[dst_base + (c + k) * IN_ROWS] = tmp[k];
-                }
-            }
-            for (; c < IN_COLS; ++c) {
-                dst[dst_base + c * IN_ROWS] = src[src_base + c];
-            }
-        }
-    });
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
-}
-
-void ov::npuw::util::XARCH::permute102_i4_avx2(const ov::Tensor& t,
-                                               ov::Tensor& tnew,
-                                               size_t IN_PLAS,
-                                               size_t IN_ROWS,
-                                               size_t IN_COLS) {
-#if defined(HAVE_AVX2)
-    std::cout << "####################permute102_i4_avx2" << std::endl;
+    std::cout << "####################permute102_i4" << std::endl;
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
-
     constexpr size_t PACK = 64;  // 32 bytes = 256 bits = 64 int4
-
-    for (size_t p = 0; p < IN_PLAS; ++p) {
-        for (size_t r = 0; r < IN_ROWS; ++r) {
+    for (size_t p = 0; p < PLAS; ++p) {
+        for (size_t r = 0; r < ROWS; ++r) {
             size_t c = 0;
-            for (; c + PACK - 1 < IN_COLS; c += PACK) {
+            for (; c + PACK - 1 < COLS; c += PACK) {
                 // src[p, r, c~c+63]
-                size_t src_offset = p * IN_ROWS * IN_COLS + r * IN_COLS + c;
+                size_t src_offset = p * ROWS * COLS + r * COLS + c;
                 const uint8_t* src_ptr = src + src_offset / 2;
                 __m256i packed = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src_ptr));
                 alignas(32) uint8_t unpacked[64];
                 unpack_64_i4(packed, unpacked);
 
                 // dst[r, p, c~c+63]
-                size_t dst_base = r * IN_PLAS * IN_COLS + p * IN_COLS + c;
-                if ((IN_COLS % 2 != 0) && ((p * IN_ROWS + r) % 2 != 0) && (c == 0)) {
+                size_t dst_base = r * PLAS * COLS + p * COLS + c;
+                if ((COLS % 2 != 0) && ((p * ROWS + r) % 2 != 0) && (c == 0)) {
                     for (size_t k = 0; k < PACK - 1; ++k) {
                         size_t dst_offset = dst_base + k;
                         size_t dst_byte = dst_offset / 2;
@@ -1828,12 +1749,12 @@ void ov::npuw::util::XARCH::permute102_i4_avx2(const ov::Tensor& t,
                 }
             }
             // Handle tail.
-            for (; c < IN_COLS; ++c) {
-                size_t src_offset = p * IN_ROWS * IN_COLS + r * IN_COLS + c;
+            for (; c < COLS; ++c) {
+                size_t src_offset = p * ROWS * COLS + r * COLS + c;
                 size_t src_byte = src_offset / 2;
                 uint8_t val = (src_offset % 2 == 0) ? (src[src_byte] & 0x0F) : ((src[src_byte] >> 4) & 0x0F);
 
-                size_t dst_offset = r * IN_PLAS * IN_COLS + p * IN_COLS + c;
+                size_t dst_offset = r * PLAS * COLS + p * COLS + c;
                 size_t dst_byte = dst_offset / 2;
                 if (dst_offset % 2 == 0) {
                     dst[dst_byte] = (dst[dst_byte] & 0xF0) | (val & 0x0F);
@@ -1848,44 +1769,9 @@ void ov::npuw::util::XARCH::permute102_i4_avx2(const ov::Tensor& t,
 #endif
 }
 
-void ov::npuw::util::XARCH::permute102_f16_avx2(const ov::Tensor& t,
-                                                ov::Tensor& tnew,
-                                                size_t IN_PLAS,
-                                                size_t IN_ROWS,
-                                                size_t IN_COLS) {
+void ov::npuw::util::XARCH::memcpy(uint8_t* dst, const uint8_t* src, size_t len) {
 #if defined(HAVE_AVX2)
-    std::cout << "####################permute102_f16_avx2" << std::endl;
-    const uint16_t* src = static_cast<const uint16_t*>(t.data());
-    uint16_t* dst = static_cast<uint16_t*>(tnew.data());
-
-    constexpr size_t blockSize = 16;  // 16*16=256bit=32bytes
-
-    ov::parallel_for(IN_PLAS, [&](size_t p) {
-        for (size_t r = 0; r < IN_ROWS; ++r) {
-            size_t c = 0;
-            for (; c + blockSize - 1 < IN_COLS; c += blockSize) {
-                // src[p, r, c~c+15]
-                size_t src_offset = p * IN_ROWS * IN_COLS + r * IN_COLS + c;
-                __m256i vec = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + src_offset));
-                // dst[r, p, c~c+15]
-                size_t dst_offset = r * IN_PLAS * IN_COLS + p * IN_COLS + c;
-                _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + dst_offset), vec);
-            }
-            // Handle tail.
-            for (; c < IN_COLS; ++c) {
-                size_t src_idx = p * IN_ROWS * IN_COLS + r * IN_COLS + c;
-                size_t dst_idx = r * IN_PLAS * IN_COLS + p * IN_COLS + c;
-                dst[dst_idx] = src[src_idx];
-            }
-        }
-    });
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
-}
-
-void ov::npuw::util::XARCH::memcpy_avx2(uint8_t* dst, const uint8_t* src, size_t len) {
-#if defined(HAVE_AVX2)
+    std::cout << "####################memcpy_avx2" << std::endl;
     size_t i = 0;
     for (; i + 31 < len; i += 32) {
         __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + i));
