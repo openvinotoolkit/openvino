@@ -262,11 +262,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     if (is_dynamic_shape_blob(mainBlob)) {
         // no _compiler::parse call is required. networkmetadata will be obtained in IRGraph constructor
         _logger.debug("blob is not ELF format, create graph for LLVM IR!");
-        return std::make_shared<IRGraph>(_zeroInitStruct,
-                                       std::move(mainBlob),
-                                       blobAllocatedByPlugin,
-                                       config,
-                                       _compiler);
+        return std::make_shared<IRGraph>(_zeroInitStruct, std::move(mainBlob), true, config, _compiler);
     }
 #endif
 

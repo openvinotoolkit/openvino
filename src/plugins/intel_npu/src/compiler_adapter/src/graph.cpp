@@ -218,7 +218,7 @@ void Graph::initialize(const Config& config) {
         //  releasing it here to avoid unnecessary memory usage.
         //_blobIsReleased = release_blob(config);
 
-        _batch_size = get_batch_size(_metadata);
+        _batch_size = get_batch_size(_metadata, {}, {});
 
         if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
             config.get<RUN_INFERENCES_SEQUENTIALLY>()) {

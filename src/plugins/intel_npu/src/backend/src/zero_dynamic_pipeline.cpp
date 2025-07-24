@@ -41,12 +41,14 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                                  const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                  const std::shared_ptr<IGraph>& graph,
                                  const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
-                                 const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors)
+                                 const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
+                                 size_t batch_size)
     : Pipeline(config, init_structs, graph, "DynamicPipeline"),
       _levelZeroInputTensors(input_tensors),
       _levelZeroOutputTensors(output_tensors) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
     _logger.debug("DynamicPipeline - initialize started");
+    (void*)batch_size;  // Unused parameter, but kept for compatibility
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
                         _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
