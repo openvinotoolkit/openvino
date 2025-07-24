@@ -24,7 +24,8 @@
 namespace ov::snippets::lowered::pass {
 
 bool SplitLoops::can_be_split(const UnifiedLoopInfoPtr& loop_to_split, const UnifiedLoopInfoPtr& loop_to_fuse) {
-    OPENVINO_ASSERT(loop_to_split != nullptr && loop_to_fuse != nullptr, "LoopInfo is nullptr!");
+    OPENVINO_ASSERT(loop_to_split != nullptr, "loop_to_split is nullptr!");
+    OPENVINO_ASSERT(loop_to_fuse != nullptr, "loop_to_fuse is nullptr!");
     const auto current_dim_idx = loop_to_split->get_dim_idx();
     const auto parent_dim_idx = loop_to_fuse->get_dim_idx();
     const auto& handlers = loop_to_split->get_handlers();

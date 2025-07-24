@@ -43,8 +43,8 @@ void BroadcastLoad::validate_and_infer_types() {
     // BroadcastLoad has memory access port only on input
     const auto input_ma_ports = get_memory_access_input_ports();
     const auto output_ma_ports = get_memory_access_output_ports();
-    OPENVINO_ASSERT(input_ma_ports.size() == 1 && is_memory_access_input_port(0),
-                    "BroadcastLoad node must have memory access input port");
+    OPENVINO_ASSERT(input_ma_ports.size() == 1, "BroadcastLoad node must have exactly one memory access input port");
+    OPENVINO_ASSERT(is_memory_access_input_port(0), "Port 0 must be a memory access input port");
     OPENVINO_ASSERT(output_ma_ports.empty(), "BroadcastLoad node mustn't have memory access output port");
     auto broadcasted_shape = get_input_partial_shape(0);
     if (broadcasted_shape.size() == 0) {
