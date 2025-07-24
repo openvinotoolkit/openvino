@@ -88,8 +88,9 @@ void validate_buffer(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR&
         const auto buffer_siblings = input->get_consumers();
         for (const auto& buffer_sibling : buffer_siblings) {
             const auto& buffer_sibling_expr = buffer_sibling.get_expr();
-            OPENVINO_ASSERT(buffer_sibling_expr == expr || ov::is_type<op::LoopEnd>(buffer_sibling_expr->get_node()),
-                            "Buffer can have only LoopEnd siblings!");
+            const bool valid_buffer_sibling =
+                buffer_sibling_expr == expr || ov::is_type<op::LoopEnd>(buffer_sibling_expr->get_node());
+            OPENVINO_ASSERT(valid_buffer_sibling, "Buffer can have only LoopEnd siblings!");
         }
     }
 
@@ -173,8 +174,8 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
 #endif  // SNIPPETS_DEBUG_CAPS
             ov::is_type_any_of<op::LoopEnd, ov::op::v0::Result>(node);
 
-        OPENVINO_ASSERT(expr->get_output_count() == node->get_output_size() || bypass_output_size_check,
-                        "Incorrect count of output port descriptors!");
+        const bool valid_output_count = expr->get_output_count() == node->get_output_size() || bypass_output_size_check;
+        OPENVINO_ASSERT(valid_output_count, "Incorrect count of output port descriptors!");
         expr->validate();
         // Loop expr doesn't have shapes and layouts
         if (!ov::is_type<op::LoopBase>(node)) {

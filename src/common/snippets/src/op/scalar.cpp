@@ -11,6 +11,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/constant.hpp"
+#include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::op {
 
@@ -24,8 +25,9 @@ void Scalar::validate_and_infer_types() {
     Constant::validate_and_infer_types();
     auto out_pshape = get_output_partial_shape(0);
     NODE_VALIDATION_CHECK(this, out_pshape.is_static(), "Scalar supports only static input shapes");
+    const bool valid_scalar_shape = utils::any_of(ov::shape_size(out_pshape.get_shape()), 0u, 1u);
     NODE_VALIDATION_CHECK(this,
-                          out_pshape.get_shape().empty() || ov::shape_size(out_pshape.get_shape()) == 1,
+                          valid_scalar_shape,
                           "Scalar supports only one-element constants, got ",
                           out_pshape.get_shape(),
                           " shape");

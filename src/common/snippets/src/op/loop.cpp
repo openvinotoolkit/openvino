@@ -89,7 +89,7 @@ void LoopEnd::validate_and_infer_types() {
 
 #define VALIDATE_VALUES(values, name, default_value)                                                                   \
     NODE_VALIDATION_CHECK(this,                                                                                        \
-                          (values).empty() || (values).size() == io_size,                                              \
+                          utils::any_of((values).size(), 0u, io_size),                                                 \
                           name,                                                                                        \
                           " must be either empty or defined per every input & output of joined Loop. Expected size: ", \
                           io_size,                                                                                     \

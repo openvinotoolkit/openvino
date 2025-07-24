@@ -103,7 +103,8 @@ std::vector<PortConnectorPtr> LinearIR::get_expression_inputs_by_node(const std:
 
 namespace {
 void update_consumers_and_regs(const ExpressionPtr& new_expr, const std::vector<std::set<ExpressionPort>>& consumers) {
-    OPENVINO_ASSERT(consumers.empty() || consumers.size() == new_expr->get_output_count(),
+    const bool valid_consumers = utils::any_of(consumers.size(), 0u, new_expr->get_output_count());
+    OPENVINO_ASSERT(valid_consumers,
                     "Failed to insert node: count of consumer sets must be sero or equal to output port count");
     for (size_t i = 0; i < consumers.size(); ++i) {
         const auto& port_consumers = consumers[i];
@@ -223,8 +224,8 @@ const ExpressionPtr& LinearIR::get_expr_by_node(const std::shared_ptr<Node>& n) 
 
 void LinearIR::register_expression(const ExpressionPtr& expr, bool io_allowed, double exec_num) {
     const auto& node = expr->get_node();
-    OPENVINO_ASSERT(io_allowed || (!is_type_any_of<ov::op::v0::Result, ov::op::v0::Parameter>(node)),
-                    "LinearIR::insert can't be used to add Parameters or Results to IR");
+    const bool valid_io_node = io_allowed || (!is_type_any_of<ov::op::v0::Result, ov::op::v0::Parameter>(node));
+    OPENVINO_ASSERT(valid_io_node, "LinearIR::insert can't be used to add Parameters or Results to IR");
     const auto& res = m_node2expression_map.insert({node, expr});
     OPENVINO_ASSERT(res.second, "Duplicate node is detected in linear IR: ", node);
 
@@ -483,7 +484,8 @@ LinearIR::exprIt LinearIR::replace_with_expr(const std::vector<ExpressionPtr>& o
     for (const auto& old_expr : old_exprs) {
         for (const auto& input : old_expr->get_input_port_connectors()) {
             const auto& source = input->get_source();
-            OPENVINO_ASSERT(is_old_expr(source.get_expr()) || is_input_source(source),
+            const bool valid_input_source = is_old_expr(source.get_expr()) || is_input_source(source);
+            OPENVINO_ASSERT(valid_input_source,
                             "Failed to replace nodes: not all output ports of existing expressions will be connected!");
         }
         for (const auto& port_connector : old_expr->get_output_port_connectors()) {

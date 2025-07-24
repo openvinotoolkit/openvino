@@ -156,7 +156,8 @@ ExpressionPtr Expression::clone_with_new_inputs(const std::shared_ptr<Node>& new
     cloned->m_source_node = new_node;
 
     // Initialize Port Attributes: PortConnectors and PortDescriptors
-    OPENVINO_ASSERT(new_in_descs.empty() || new_inputs.size() == new_in_descs.size(),
+    const bool valid_input_descs = new_in_descs.empty() || new_inputs.size() == new_in_descs.size();
+    OPENVINO_ASSERT(valid_input_descs,
                     "Can't create Expression with new inputs: invalid number of input port connectors passed");
     cloned->m_input_port_descriptors =
         !new_in_descs.empty() ? new_in_descs : clone_ports_descriptors(m_input_port_descriptors);
