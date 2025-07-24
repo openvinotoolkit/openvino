@@ -222,8 +222,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         get_attributes(poolingAttrs.kernel, maxPoolOpBase->get_kernel());
         get_attributes(poolingAttrs.data_pad_begin, maxPoolOpBase->get_pads_begin());
         get_attributes(poolingAttrs.data_pad_end, maxPoolOpBase->get_pads_end());
-        poolingAttrs.auto_pad = (poolingAttrs.pad_type == ov::op::PadType::SAME_LOWER ||
-                                 poolingAttrs.pad_type == ov::op::PadType::SAME_UPPER);
+        poolingAttrs.auto_pad =
+            (any_of(poolingAttrs.pad_type, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER));
     }
 
     if (auto maxPoolOp_v14 = ov::as_type_ptr<const ov::op::v14::MaxPool>(op)) {
@@ -243,8 +243,8 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         get_attributes(poolingAttrs.data_pad_begin, avgPoolOpBase->get_pads_begin());
         get_attributes(poolingAttrs.data_pad_end, avgPoolOpBase->get_pads_end());
         poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
-        poolingAttrs.auto_pad = (avgPoolOpBase->get_auto_pad() == ov::op::PadType::SAME_LOWER ||
-                                 avgPoolOpBase->get_auto_pad() == ov::op::PadType::SAME_UPPER);
+        poolingAttrs.auto_pad =
+            (any_of(avgPoolOpBase->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER));
     }
     poolingAttrs.algorithm = algorithm;
 }
@@ -365,7 +365,7 @@ void Pooling::getSupportedDescriptors() {
 
     // WA: LPT transformation has WA which allows average pooling has I8/U8 output precision instead of FP32,
     // so we explicitly set output precision as FP32
-    if (!one_of(outputPrecision, ov::element::i8, ov::element::bf16, ov::element::f16)) {
+    if (none_of(outputPrecision, ov::element::i8, ov::element::bf16, ov::element::f16)) {
         if (getAlgorithm() == Algorithm::PoolingMax) {
             // oneDNN supports only equal precisions for input and output
             outputPrecision = inputPrecision;
@@ -373,7 +373,7 @@ void Pooling::getSupportedDescriptors() {
             outputPrecision = ov::element::f32;
         }
     }
-    if (one_of(inputPrecision, ov::element::bf16, ov::element::f16)) {
+    if (any_of(inputPrecision, ov::element::bf16, ov::element::f16)) {
         outputPrecision = inputPrecision;
     }
 
@@ -389,9 +389,9 @@ void Pooling::getSupportedDescriptors() {
 
     initEffectiveAttributes(inShape, MemoryDescUtils::makeDummyShape(childShape));
 
-    if (inputPrecision == ov::element::i8 || inputPrecision == ov::element::u8) {
+    if (any_of(inputPrecision, ov::element::i8, ov::element::u8)) {
         //  We have to extend i8i8_pooling_fwd_t from oneDNN to support BF16 output data type
-        if (one_of(outputDataType, memory::data_type::bf16, memory::data_type::f16)) {
+        if (any_of(outputDataType, memory::data_type::bf16, memory::data_type::f16)) {
             outputDataType = memory::data_type::f32;
         }
         // i8 layers supports only ndhwc and nhwc layouts
@@ -417,7 +417,7 @@ void Pooling::getSupportedDescriptors() {
             return std::make_pair(in_candidate, out_candidate);
         }();
         createDescriptor({in_candidate}, {out_candidate});
-    } else if ((inputRank == 3 || inputRank == 4 || inputRank == 5) && parentShape.getDims()[1] == 1) {
+    } else if ((any_of(inputRank, 3U, 4U, 5U)) && parentShape.getDims()[1] == 1) {
         // WA. We should force planar layout since it provides better performance
         auto [in_candidate, out_candidate] = [&]() {
             std::shared_ptr<DnnlBlockedMemoryDesc> in_candidate;
@@ -442,7 +442,7 @@ void Pooling::getSupportedDescriptors() {
         }();
         createDescriptor({in_candidate}, {out_candidate});
     } else {
-        if (!one_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
+        if (none_of(inputDataType, memory::data_type::bf16, memory::data_type::f16)) {
             inputDataType = memory::data_type::f32;
             outputDataType = memory::data_type::f32;
         }

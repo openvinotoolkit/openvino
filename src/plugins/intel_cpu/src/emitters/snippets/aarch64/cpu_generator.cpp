@@ -377,7 +377,7 @@ std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
         // Note: more details on the usage of reserved registers in aarch64/jit_kernel_emitter.cpp
-        if (!one_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
+        if (none_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }

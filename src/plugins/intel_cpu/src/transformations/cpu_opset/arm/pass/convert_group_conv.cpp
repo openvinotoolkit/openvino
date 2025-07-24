@@ -20,6 +20,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "utils/general_utils.h"
 
 ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
     auto gconv = ov::pass::pattern::wrap_type<ov::op::v1::GroupConvolution>();
@@ -41,8 +42,9 @@ ov::intel_cpu::ConvertGroupConvolution::ConvertGroupConvolution() {
             return false;
         }
 
-        if (groups == data_shape[channel_axis].get_length() &&
-            groups == output_shape[channel_axis].get_length()) {  // depthwise case
+        if (all_of(groups,
+                   data_shape[channel_axis].get_length(),
+                   output_shape[channel_axis].get_length())) {  // depthwise case
             return false;
         }
 
