@@ -464,7 +464,7 @@ void BrgemmKernel::executeGemm(bool is_M_tail,
                                void* b,
                                void* c,
                                [[maybe_unused]] void* d,
-                               [[maybe_unused]] float* b_scale,
+                               [[maybe_unused]] float* scale_b,
                                void* wsp,
                                void* scratch_a) {
     execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
