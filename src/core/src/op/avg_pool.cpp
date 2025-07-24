@@ -146,6 +146,14 @@ std::shared_ptr<Node> AvgPool::clone_with_new_inputs(const OutputVector& new_arg
                                      m_auto_pad);
 }
 
+
+bool AvgPool::visit_attributes(AttributeVisitor& visitor) {
+    OV_OP_SCOPE(v16_AvgPool_visit_attributes);
+    util::AvgPoolBase::visit_attributes(visitor);
+    visitor.on_attribute("dilations", m_dilations);
+    return true;
+}
+
 }  // namespace v16
 }  // namespace op
 }  // namespace ov
