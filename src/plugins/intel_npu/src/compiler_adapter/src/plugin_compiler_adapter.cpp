@@ -99,13 +99,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile end");
 
     ov::Tensor tensor = make_tensor_from_vector(networkDesc.compiledNetwork);
-    std::pair<ze_graph_handle_t, bool> graphHandle = {nullptr, false};
+    GraphDescriptor graphDesc;
 
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled
         // network
         try {
-            graphHandle = _zeGraphExt->getGraphHandle(tensor.data(), tensor.get_byte_size());
+            graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
@@ -115,7 +115,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     return std::make_shared<Graph>(
         _zeGraphExt,
         _zeroInitStruct,
-        graphHandle,
+        graphDesc,
         std::move(networkDesc.metadata),
         std::move(tensor),
         config,
@@ -201,37 +201,35 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     _logger.debug("compile end");
 
     ov::Tensor tensorMain = make_tensor_from_vector(mainNetworkDescription->compiledNetwork);
-    std::pair<ze_graph_handle_t, bool> mainGraphHandle = {nullptr, false};
+    GraphDescriptor mainGraphDesc;
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to
         // get the graph handle from the compiled network
         try {
-            mainGraphHandle = _zeGraphExt->getGraphHandle(tensorMain.data(), tensorMain.get_byte_size());
+            mainGraphDesc = _zeGraphExt->getGraphDescriptor(tensorMain.data(), tensorMain.get_byte_size());
         } catch (...) {
             _logger.info("Failed to obtain the level zero graph handle. Inference requests for this model are not "
                          "allowed. Only exports are available");
         }
     }
 
-    std::vector<std::pair<ze_graph_handle_t, bool>> initGraphHandles;
+    std::vector<GraphDescriptor> initGraphDescriptors;
     std::vector<ov::Tensor> tensorsInits;
     std::vector<NetworkMetadata> initNetworkMetadata;
-    initGraphHandles.reserve(initNetworkDescriptions.size());
+    initGraphDescriptors.reserve(initNetworkDescriptions.size());
     tensorsInits.reserve(initNetworkDescriptions.size());
     initNetworkMetadata.reserve(initNetworkDescriptions.size());
     for (auto& networkDesc : initNetworkDescriptions) {
         ov::Tensor tensor = make_tensor_from_vector(networkDesc->compiledNetwork);
-        ze_graph_handle_t graphHandle = nullptr;
-        bool initGraphPersistent = false;
+        GraphDescriptor initGraphDesc;
         if (_zeGraphExt) {
             try {
-                std::tie(graphHandle, initGraphPersistent) =
-                    _zeGraphExt->getGraphHandle(tensor.data(), tensor.get_byte_size());
+                initGraphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             } catch (...) {
             }
         }
 
-        initGraphHandles.push_back({graphHandle, initGraphPersistent});
+        initGraphDescriptors.push_back(initGraphDesc);
         tensorsInits.push_back(std::move(tensor));
         initNetworkMetadata.push_back(std::move(networkDesc->metadata));
     }
@@ -239,10 +237,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
-        mainGraphHandle,
+        mainGraphDesc,
         std::move(mainNetworkDescription->metadata),
         std::move(tensorMain),
-        initGraphHandles,
+        initGraphDescriptors,
         std::move(initNetworkMetadata),
         tensorsInits,
         model,
@@ -266,14 +264,14 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     network.clear();
     network.shrink_to_fit();
 
-    auto graphHandle = _zeGraphExt->getGraphHandle(mainBlob.data(), mainBlob.get_byte_size());
+    auto mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
 
     _logger.debug("main schedule parse end");
 
     if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
-                                       graphHandle,
+                                       mainGraphDesc,
                                        std::move(networkMeta),
                                        std::move(mainBlob),
                                        config,
@@ -285,7 +283,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
     // "Graph" object as wrapper over all L0 handles.
-    std::vector<std::pair<ze_graph_handle_t, bool>> initGraphHandles;
+    std::vector<GraphDescriptor> initGraphDescriptors;
     std::vector<NetworkMetadata> initMetadata;
 
     for (const auto& initBlob : initBlobs.value()) {
@@ -297,10 +295,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
         network.shrink_to_fit();
 
         if (_zeGraphExt) {
-            auto [initGraphHandle, initGraphPersistent] =
-                _zeGraphExt->getGraphHandle(initBlob.data(), initBlob.get_byte_size());
+            auto initGraphDesc = _zeGraphExt->getGraphDescriptor(initBlob.data(), initBlob.get_byte_size());
 
-            initGraphHandles.push_back({initGraphHandle, initGraphPersistent});
+            initGraphDescriptors.push_back(initGraphDesc);
         }
     }
 
@@ -308,10 +305,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     return std::make_shared<WeightlessGraph>(
         _zeGraphExt,
         _zeroInitStruct,
-        graphHandle,
+        mainGraphDesc,
         std::move(networkMeta),
         std::move(mainBlob),
-        initGraphHandles,
+        initGraphDescriptors,
         std::move(initMetadata),
         std::move(initBlobs),
         model.value(),
