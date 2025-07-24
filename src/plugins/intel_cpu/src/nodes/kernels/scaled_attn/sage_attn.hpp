@@ -22,7 +22,7 @@
 #include <cstdint>
 
 namespace ov::Extensions::Cpu::XARCH {
-
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
 inline void sage_attn_transpose_k(const ReorderWorkItem& item,
                                   const size_t hk,
                                   const size_t block_size,
@@ -53,6 +53,7 @@ inline void sage_attn_transpose_k(const ReorderWorkItem& item,
         scales[i] = reinterpret_cast<float*>(key_cache.ptr<int8_t, ov::element::i8>(block_number, hk, i, 0))[0];
     }
 }
+#endif
 
 // src shape [h, q_len, S]
 // dst shape [block_size, S + sizeof(float)]
