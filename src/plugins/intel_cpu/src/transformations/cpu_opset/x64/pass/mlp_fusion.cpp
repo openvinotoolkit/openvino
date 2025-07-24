@@ -24,14 +24,14 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov::pass;
-
-ov::intel_cpu::MLPFusion::MLPFusion() {}
 
 bool ov::intel_cpu::MLPFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(MLPFusion);

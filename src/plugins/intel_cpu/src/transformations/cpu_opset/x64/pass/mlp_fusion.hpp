@@ -18,7 +18,7 @@ public:
 class MLPFusion : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("MLPFusion");
-    MLPFusion();
+    MLPFusion() = default;
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
