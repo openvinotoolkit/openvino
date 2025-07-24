@@ -365,8 +365,6 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         } else {
             NPUW_ASSERT(false);
         }
-    } else {
-        NPUW_ASSERT(false);
     }
 }
 
@@ -399,8 +397,7 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     for (std::size_t r = 0; r < idx_shape[1]; r++) {
         auto srcRowIdx = pIdx[r];
         auto pSrcRow = pSrc + src_shape[1] * srcRowIdx * src_type.size();
-        auto copy_len = src_shape[1] * src_type.size();
-        std::copy_n(pSrcRow, copy_len, pDst);
+        std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
         pDst += dst_shape[2] * dst_type.size();
     }
 }
