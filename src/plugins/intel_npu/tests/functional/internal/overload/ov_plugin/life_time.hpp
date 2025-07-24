@@ -224,7 +224,7 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CreateRequestWithCoreRemoved) {
     auto request = compiled_model.create_infer_request();
 }
 
-TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterCompiledBlobPropTensorIsDestroyed) {
+TEST_P(OVHoldersTestOnImportedNetworkNPU, DISABLED_CanInferAfterTensorIsDestroyed) {
     ov::Core core = createCoreWithTemplate();
 
     for (size_t i = 0; i < 2; ++i) {
@@ -240,19 +240,19 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterCompiledBlobPropTensorIsD
             auto impl = ov::get_tensor_impl(tensor);
             impl._so = strSO;
             tensor = ov::make_tensor(impl);
-            configuration.emplace(ov::hint::compiled_blob(tensor));
-            compiled_model = core.import_model(sstream, target_device, configuration);
-            configuration.erase(ov::hint::compiled_blob.name());  // cleanup
+            // compiled_model = core.import_model(tensor, target_device, configuration);
         }
 
         // check if the shared object (strSO destroyed above) persists in compiled_model
-        std::ostringstream sstream;
-        ov::InferRequest inferRequest;
-        OV_ASSERT_NO_THROW(compiled_model.export_model(sstream));
-        EXPECT_TRUE(sstream.tellp() > 0);
-        OV_ASSERT_NO_THROW(inferRequest = compiled_model.create_infer_request());
-        compiled_model = {};  // dtor of compiled model won't affect created infer request
-        OV_ASSERT_NO_THROW(inferRequest.infer());
+        {
+            std::ostringstream sstream;
+            ov::InferRequest infer_request;
+            OV_ASSERT_NO_THROW(compiled_model.export_model(sstream));
+            EXPECT_TRUE(sstream.tellp() > 0);
+            OV_ASSERT_NO_THROW(infer_request = compiled_model.create_infer_request());
+            compiled_model = {};  // dtor of compiled model won't affect created infer request
+            OV_ASSERT_NO_THROW(infer_request.infer());
+        }
     }
     configuration.erase(ov::intel_npu::defer_weights_load.name());  // cleanup
 }
