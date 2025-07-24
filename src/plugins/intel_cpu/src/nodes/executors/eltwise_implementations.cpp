@@ -160,6 +160,7 @@ static const TypeMapping aclEltwiseTypeMapping {
     {{_any, _f16},                 {use<1>(), use<1>()}},
     {{_any, _any},                 {just<f32>(), just<f32>()}},
 };
+// clang-format on
 
 struct createOptimalConfigDefault {
     std::optional<EltwiseConfig> operator()(const EltwiseConfig& config) const {
@@ -193,8 +194,13 @@ struct createOptimalConfigDefault {
 
             const size_t i = notation.at(argId);
 
-            const bool blocked1C = any_of(layoutConfig[i], LayoutType::nCsp16c, LayoutType::nCsp8c) && desc->getShape().getMinDims()[1] == 1;
-            if (desc->getShape().getRank() < 2 || blocked1C) {
+            if (desc->getShape().getRank() < 2) {
+                return true;
+            }
+
+            const bool blocked1C = any_of(layoutConfig[i], LayoutType::nCsp16c, LayoutType::nCsp8c) &&
+                                   desc->getShape().getMinDims()[1] == 1;
+            if (blocked1C) {
                 return true;
             }
 
@@ -222,8 +228,17 @@ struct createOptimalConfigDefault {
                 continue;  // already optimal
             }
 
-            const bool blocked1C = any_of(layout, LayoutType::nCsp16c, LayoutType::nCsp8c) && desc->getShape().getMinDims()[1] <= 1;
-            if (desc->getShape().getRank() < 2 || blocked1C) { // no reason to use blocked
+            auto alwaysNCSP = [](const MemoryDescPtr& desc, LayoutType layout) {
+                if (desc->getShape().getRank() < 2) {
+                    return true;
+                }
+
+                const size_t channelSize = desc->getShape().getMinDims()[1];
+                const bool blocked1C = any_of(layout, LayoutType::nCsp16c, LayoutType::nCsp8c) && channelSize <= 1;
+                return blocked1C;
+            };
+
+            if (alwaysNCSP(desc, layout)) {
                 descs[argId] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(type, desc->getShape());
                 continue;
             }
@@ -242,9 +257,11 @@ struct createOptimalConfigDefault {
 
     const auto optimalDescriptors = createOptimalDescriptors(config.descs, typeConfig, layoutConfig, notation);
 
-    return std::optional<executor::Config<EltwiseAttrs>>(executor::Config<EltwiseAttrs>{optimalDescriptors, config.attrs});
+    return std::optional<executor::Config<EltwiseAttrs>>(
+        executor::Config<EltwiseAttrs>{optimalDescriptors, config.attrs});
 }
 
+// clang-format off
 template <>
 const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<EltwiseAttrs>> eltwiseImplementations {
@@ -309,26 +326,6 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   {LayoutType::nCsp8c, LayoutType::nCsp8c},
                                                   eltwiseMappingNotation);
             },
-            AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
-            )
-        OV_CPU_INSTANCE_ARM64(
-            "eltwise_jit_arm", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
-            // supports
-            [](const EltwiseConfig& config) -> bool {
-                return EltwiseJitExecutor::supports(config);
-            },
-            HasNoOptimalConfig<EltwiseAttrs>{},
-            AcceptsAnyShape<EltwiseAttrs>{},
-            CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
-            )
-        OV_CPU_INSTANCE_RISCV64(
-            "eltwise_jit_riscv", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
-            // supports
-            [](const EltwiseConfig& config) -> bool {
-                return EltwiseJitExecutor::supports(config);
-            },
-            HasNoOptimalConfig<EltwiseAttrs>{},
             AcceptsAnyShape<EltwiseAttrs>{},
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
@@ -435,5 +432,5 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
 
     return eltwiseImplementations;
 }
-
+// clang-format on
 }  // namespace ov::intel_cpu
