@@ -602,11 +602,11 @@ void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
-    VReg lhs = VReg(in_vec_idxs[0]);
-    VReg rhs = VReg(in_vec_idxs[1]);
-    VReg dst = VReg(out_vec_idxs[0]);
+    auto lhs = VReg(in_vec_idxs[0]);
+    auto rhs = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
 
-    FReg one = FReg(aux_fp_gpr_idxs[0]);
+    auto one = FReg(aux_fp_gpr_idxs[0]);
 
     load_table_val("one", one);
 
@@ -616,7 +616,7 @@ void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 void jit_greater_emitter::register_table_entries() {
-    push_arg_entry_of("one", 0x3f800000, true);
+    push_arg_entry_of("one", 0x3f800000);
 }
 
 size_t jit_greater_emitter::aux_fp_gprs_count() const {
