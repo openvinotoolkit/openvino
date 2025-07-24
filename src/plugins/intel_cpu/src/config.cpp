@@ -447,11 +447,11 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 OPENVINO_THROW("Wrong value for property key ", ov::cache_encryption_callbacks.name());
             }
         } else if (key == ov::internal::caching_with_mmap.name()) {
-        } else if (key == ov::intel_cpu::enable_sage_attn.name()) {
+        } else if (key == ov::intel_cpu::enable_attn_quant.name()) {
             try {
                 enableSageAttn = val.as<bool>();
             } catch (ov::Exception&) {
-                OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_sage_attn.name());
+                OPENVINO_THROW("Wrong value for property key ", ov::intel_cpu::enable_attn_quant.name());
             }
         } else {
             OPENVINO_THROW("NotFound: Unsupported property ", key, " by CPU plugin.");

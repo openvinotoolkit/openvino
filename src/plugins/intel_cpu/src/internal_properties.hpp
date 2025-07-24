@@ -133,6 +133,6 @@ static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"
  * @param true - enable
  * @param false - disable
  */
-static constexpr Property<bool, PropertyMutability::RW> enable_sage_attn{"ENABLE_SAGE_ATTN"};
+static constexpr Property<bool, PropertyMutability::RW> enable_attn_quant{"ENABLE_ATTN_QUANT"};
 
 }  // namespace ov::intel_cpu

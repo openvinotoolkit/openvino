@@ -60,6 +60,8 @@ void run_test(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
                          a_data.data() + m_start * K,
                          b_ptr,
                          c_data.data() + i * M * N + m_start * N,
+                         nullptr,
+                         nullptr,
                          wsp.data() + i * 4 * 1024,
                          a_scratch.data());
     });
@@ -112,6 +114,8 @@ void run_test<int8_t>(ov::element::Type rtPrec, size_t M, size_t N, size_t K) {
                          a_data.data() + 4 + m_start * K,
                          b_ptr,
                          c_data.data() + i * M * N + m_start * N,
+                         nullptr,
+                         nullptr,
                          wsp.data() + i * 4 * 1024,
                          a_scratch.data());
     });
@@ -171,14 +175,14 @@ static void run_test_post_scales(ov::element::Type rtPrec, size_t M, size_t N, s
         auto m_start = m_blk * m_block_size;
         auto m_end = std::min(m_start + m_block_size, M);
         auto m_cnt = m_end - m_start;
-        gemm.executeGemmWithScale(m_cnt < m_block_size,
-                                  a_data.data() + 4 + m_start * K,
-                                  b_ptr,
-                                  c_data.data() + i * M * N + m_start * N,
-                                  d_data.data() + i * M * N + m_start * N,
-                                  b_scale.data(),
-                                  wsp.data() + i * 4 * 1024,
-                                  a_scratch.data());
+        gemm.executeGemm(m_cnt < m_block_size,
+                         a_data.data() + 4 + m_start * K,
+                         b_ptr,
+                         c_data.data() + i * M * N + m_start * N,
+                         d_data.data() + i * M * N + m_start * N,
+                         b_scale.data(),
+                         wsp.data() + i * 4 * 1024,
+                         a_scratch.data());
     });
 
     ov::parallel_for(nthr, [&](size_t i) {

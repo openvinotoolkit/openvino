@@ -858,15 +858,14 @@ struct MHAHelper {
                     int32_t* temp_C = reinterpret_cast<int32_t*>(_output.ptr<float>(ithr, 0, 0, 0));
                     float* scale_b = reinterpret_cast<float*>(qk_scratch_b.ptr<int8_t>(k_blk, hk, _block_size * S));
                     float* dst_f32 = c_ptr + k_blk * _block_size;
-                    _qk_gemm[q_cnt - 1]->executeGemmWithScale(
-                        q_cnt < _block_size,
-                        q_ptr + sizeof(float),
-                        k_ptr,
-                        temp_C,
-                        dst_f32,
-                        scale_b,
-                        _wsp.data() + ithr * _wsp_size_per_thread,
-                        _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
+                    _qk_gemm[q_cnt - 1]->executeGemm(q_cnt < _block_size,
+                                                     q_ptr + sizeof(float),
+                                                     k_ptr,
+                                                     temp_C,
+                                                     dst_f32,
+                                                     scale_b,
+                                                     _wsp.data() + ithr * _wsp_size_per_thread,
+                                                     _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
 #    endif
                 } else {
                     auto* k_ptr = qk_scratch_b.ptr<DATA_TYPE>(k_blk, hk);
@@ -874,6 +873,8 @@ struct MHAHelper {
                                                      q_ptr,
                                                      k_ptr,
                                                      c_ptr + k_blk * _block_size,
+                                                     nullptr,
+                                                     nullptr,
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
                                                      _qk_scratch_a ? _qk_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
                 }
@@ -962,6 +963,8 @@ struct MHAHelper {
                                                      w_ptr + v_blk * _block_size,
                                                      v_ptr,
                                                      fp32_out_ptr,
+                                                     nullptr,
+                                                     nullptr,
                                                      _wsp.data() + ithr * _wsp_size_per_thread,
                                                      _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
                 } else {
@@ -970,6 +973,8 @@ struct MHAHelper {
                         w_ptr + v_blk * _block_size,
                         v_ptr,
                         fp32_out_ptr,
+                        nullptr,
+                        nullptr,
                         _wsp.data() + ithr * _wsp_size_per_thread,
                         _wv_scratch_a ? _wv_scratch_a.ptr<DATA_TYPE>(ithr, 0) : nullptr);
                 }

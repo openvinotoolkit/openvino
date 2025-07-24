@@ -433,7 +433,7 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     bool extendBlockIndices;
     ov::AnyMap additional_config;
     std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
-    bool isSageAttn = additional_config[ov::intel_cpu::enable_sage_attn.name()].as<bool>();
+    bool isSageAttn = additional_config[ov::intel_cpu::enable_attn_quant.name()].as<bool>();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
@@ -442,7 +442,7 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     auto actualOutputs = run_test(function, extendBlockIndices);
     // reference model doesn't support sage attention
     if (isSageAttn) {
-        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+        configuration[ov::intel_cpu::enable_attn_quant.name()] = false;
     }
     auto expectedOutputs = run_ref_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
@@ -451,8 +451,8 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
 }
 
 namespace {
-const std::vector<ov::AnyMap> additional_configs = {{{ov::intel_cpu::enable_sage_attn.name(), true}},
-                                                    {{ov::intel_cpu::enable_sage_attn.name(), false}}};
+const std::vector<ov::AnyMap> additional_configs = {{{ov::intel_cpu::enable_attn_quant.name(), true}},
+                                                    {{ov::intel_cpu::enable_attn_quant.name(), false}}};
 const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
     {
         // L1, B, H, S
@@ -662,7 +662,7 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     bool extendBlockIndices;
     ov::AnyMap additional_config;
     std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
-    bool isSageAttn = additional_config[ov::intel_cpu::enable_sage_attn.name()].as<bool>();
+    bool isSageAttn = additional_config[ov::intel_cpu::enable_attn_quant.name()].as<bool>();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
@@ -671,7 +671,7 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     auto actualOutputs = run_test(function, extendBlockIndices);
     // ref model doesn't support sage disable it
     if (isSageAttn) {
-        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+        configuration[ov::intel_cpu::enable_attn_quant.name()] = false;
     }
     auto expectedOutputs = run_ref_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {

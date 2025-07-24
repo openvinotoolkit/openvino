@@ -172,7 +172,7 @@ void quant_u8(const T* src, uint8_t* dst, size_t n, float& scale, float& zp) {
 }
 
 template <typename T>
-static void quant_i8(const T* src, int8_t* dst, size_t n, float& scale) {
+void quant_i8(const T* src, int8_t* dst, size_t n, float& scale) {
     size_t i = 0;
     float max = -FLT_MAX;
     float min = FLT_MAX;
@@ -222,14 +222,14 @@ static void quant_i8(const T* src, int8_t* dst, size_t n, float& scale) {
 }
 
 template <typename T>
-static void find_params_by_channel(const T* src,
-                                   size_t seq_dim,
-                                   size_t hidden_dims,
-                                   size_t src_stride,
-                                   size_t dst_stride,
-                                   float* scale,
-                                   float* zp,
-                                   size_t bits) {
+void find_params_by_channel(const T* src,
+                            size_t seq_dim,
+                            size_t hidden_dims,
+                            size_t src_stride,
+                            size_t dst_stride,
+                            float* scale,
+                            float* zp,
+                            size_t bits) {
     size_t j = 0;
     float integer_range = static_cast<float>((1 << bits) - 1);
 #if defined(HAVE_AVX512F)
@@ -291,14 +291,14 @@ static void find_params_by_channel(const T* src,
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u8, bool> = true>
-static void quantize_by_channel(const T* src,
-                                uint8_t* dst,
-                                size_t seq_dim,
-                                size_t hidden_dims,
-                                size_t src_stride,
-                                size_t dst_stride,
-                                float* scale,
-                                float* zp) {
+void quantize_by_channel(const T* src,
+                         uint8_t* dst,
+                         size_t seq_dim,
+                         size_t hidden_dims,
+                         size_t src_stride,
+                         size_t dst_stride,
+                         float* scale,
+                         float* zp) {
     find_params_by_channel(src, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp, 8);
     // quantize
     size_t j = 0;
@@ -348,14 +348,14 @@ static void quantize_by_channel(const T* src,
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
-static void quantize_by_channel(const T* src,
-                                uint8_t* dst,
-                                size_t seq_dim,
-                                size_t hidden_dims,
-                                size_t src_stride,
-                                size_t dst_stride,
-                                float* scale,
-                                float* zp) {
+void quantize_by_channel(const T* src,
+                         uint8_t* dst,
+                         size_t seq_dim,
+                         size_t hidden_dims,
+                         size_t src_stride,
+                         size_t dst_stride,
+                         float* scale,
+                         float* zp) {
     find_params_by_channel(src, seq_dim, hidden_dims, src_stride, dst_stride, scale, zp, 4);
     size_t j = 0;
 #if defined(HAVE_AVX512F)
@@ -429,7 +429,7 @@ static void quantize_by_channel(const T* src,
 }
 
 template <typename T>
-static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp) {
+void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp) {
     size_t i = 0;
     float max = -FLT_MAX;
     float min = FLT_MAX;
@@ -492,26 +492,26 @@ static void quant_u4(const T* src, void* dst, size_t n, float& scale, float& zp)
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u8, bool> = true>
-static void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
+void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
     quant_u8(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::i8, bool> = true>
-static void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
+void quantize(const T* src, uint8_t* dst, size_t n, float* scale_zp) {
     quant_i8(src, reinterpret_cast<int8_t*>(dst), n, *scale_zp);
 }
 
 template <typename T, ov::element::Type_t DST_PREC, std::enable_if_t<DST_PREC == ov::element::u4, bool> = true>
-static void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
+void quantize(const T* src, void* dst, size_t n, float* scale_zp) {
     quant_u4(src, dst, n, *scale_zp, *(scale_zp + 1));
 }
 
 template <typename T, ov::element::Type_t DST_PREC>
-static void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
-                               const ov::intel_cpu::PlainTensor& dst,
-                               size_t b,
-                               size_t h,
-                               size_t groupe_size) {
+void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
+                        const ov::intel_cpu::PlainTensor& dst,
+                        size_t b,
+                        size_t h,
+                        size_t groupe_size) {
     // The cache layout is [scale0, zp0]|[group0]|[scale1, zp1]|[group1].....
     // dst_offset is the offset among groups. The addition of 2 * sizeof(float) aims to shift to next group
     // base pointer points to the base address of next group.

@@ -56,24 +56,6 @@ inline void sage_attn_transpose_k(const ReorderWorkItem& item,
     }
 }
 #endif
-template <typename DATA_TYPE, ov::element::Type_t KEY_PREC>
-void sage_attn_quantize_q(const ov::intel_cpu::PlainTensor& q,
-                          ov::intel_cpu::PlainTensor& quantized_q,
-                          const ov::intel_cpu::PlainTensor& past_lens,
-                          const ov::intel_cpu::PlainTensor& subsequence_begins) {
-    size_t H = q.m_dims[1];
-    size_t S = q.m_dims[3];
-    parallel_for2d(past_lens.size(0), H, [&](size_t sub_seq_id, size_t h) {
-        const auto q_len =
-            subsequence_begins.ptr<int32_t>()[sub_seq_id + 1] - subsequence_begins.ptr<int32_t>()[sub_seq_id];
-        const auto batch_in_token = subsequence_begins.ptr<int32_t>()[sub_seq_id];
-        if (q_len > 1) {
-            parallel_for(q_len, [&](int32_t l) {
-                quantize_q_by_dims<DATA_TYPE, KEY_PREC>(q, quantized_q, batch_in_token + l, h, S);
-            });
-        }
-    });
-}
 
 // src shape [h, q_len, S]
 // dst shape [block_size, S + sizeof(float)]
@@ -85,9 +67,9 @@ void sage_attn_quantize_q(const ov::intel_cpu::PlainTensor& src,
                           size_t h) {
     size_t S = src.m_dims[2];
     size_t groupe_size = S;
+    constexpr size_t sub_byte_multiplier = DST_PREC == ov::element::u4 ? 2 : 1;
+    constexpr size_t param_size = sizeof(float) * (DST_PREC == ov::element::i8 ? 1 : 2);
     for (size_t l = 0; l < q_len; l++) {
-        constexpr size_t sub_byte_multiplier = DST_PREC == ov::element::u4 ? 2 : 1;
-        constexpr size_t param_size = sizeof(float) * (DST_PREC == ov::element::i8 ? 1 : 2);
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
              src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + param_size) {
             auto base = dst.ptr<uint8_t, DST_PREC>(l);

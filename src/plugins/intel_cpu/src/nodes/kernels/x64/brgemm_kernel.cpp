@@ -459,7 +459,18 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
     }
 }
 
-void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a) {
+void BrgemmKernel::executeGemm(bool is_M_tail,
+                               void* a,
+                               void* b,
+                               void* c,
+                               [[maybe_unused]] void* d,
+                               [[maybe_unused]] float* b_scale,
+                               void* wsp,
+                               void* scratch_a) {
+    execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
+}
+
+void BrgemmKernel::execute_without_scale(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a) {
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_C = reinterpret_cast<uint8_t*>(c);
     auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
@@ -529,21 +540,6 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
     }
 }
 
-void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
-    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto* ptr_B = reinterpret_cast<uint8_t*>(b);
-    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
-
-    copy_buffer_b(ptr_B, scratch_b);
-
-    for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
-        const bool is_M_tail = (M - mb * M_blk < M_blk);
-        auto* ptr_a = ptr_A + (mb * M_blk * lda) * srcType.size();
-        auto* ptr_c = ptr_C + (mb * M_blk * ldc) * ov::element::f32.size();
-        executeGemm(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
-    }
-}
-
 void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
                               std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
                               const void* pin0,
@@ -571,25 +567,6 @@ void BrgemmKernel::callBrgemm(brgemmCtx& ctx,
     }
 }
 
-void BrgemmKernel::executeGemmWithScale(bool is_M_tail,
-                                        void* a,
-                                        void* b,
-                                        void* c,
-                                        void* d,
-                                        float* scale_b,
-                                        void* wsp,
-                                        void* scratch_a) {
-    OPENVINO_THROW("[Brgemm]cannot call executeGemmWithScale with no quantized kernel args: ",
-                   is_M_tail,
-                   a,
-                   b,
-                   c,
-                   d,
-                   scale_b,
-                   wsp,
-                   scratch_a);
-}
-
 BrgemmKernelQuantized::BrgemmKernelQuantized(size_t M,
                                              size_t N,
                                              size_t K,
@@ -604,14 +581,17 @@ BrgemmKernelQuantized::BrgemmKernelQuantized(size_t M,
                                              bool b_accumulate)
     : BrgemmKernel(M, N, K, lda, ldb, ldc, ldd, b_transposed, inType, DType, bScaleType, b_accumulate) {}
 
-void BrgemmKernelQuantized::executeGemmWithScale(bool is_M_tail,
-                                                 void* a,
-                                                 void* b,
-                                                 void* c,
-                                                 void* d,
-                                                 float* scale_b,
-                                                 void* wsp,
-                                                 void* scratch_a) {
+void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
+                                        void* a,
+                                        void* b,
+                                        void* c,
+                                        void* d,
+                                        float* scale_b,
+                                        void* wsp,
+                                        void* scratch_a) {
+    if (scale_b == nullptr) {
+        execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
+    }
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_C = reinterpret_cast<uint8_t*>(c);
     auto* ptr_D = reinterpret_cast<uint8_t*>(d);

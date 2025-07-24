@@ -35,20 +35,9 @@ public:
 
     virtual ~BrgemmKernel() = default;
 
-    // execute all M
-    void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
     // execute by m_blk
-    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
-
-    // execute by m_blk + scale
-    virtual void executeGemmWithScale(bool is_M_tail,
-                                      void* a,
-                                      void* b,
-                                      void* c,
-                                      void* d,
-                                      float* scale_b,
-                                      void* wsp,
-                                      void* scratch_a);
+    virtual void
+    executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
@@ -121,6 +110,7 @@ protected:
     static size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
+    void execute_without_scale(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
     void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
     // LDA, LDB is used for stride of target memory
     void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
@@ -173,13 +163,7 @@ public:
     ~BrgemmKernelQuantized() override = default;
 
     // execute by m_blk + scale
-    void executeGemmWithScale(bool is_M_tail,
-                              void* a,
-                              void* b,
-                              void* c,
-                              void* d,
-                              float* scale_b,
-                              void* wsp,
-                              void* scratch_a) override;
+    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a)
+        override;
 };
 }  // namespace ov::intel_cpu
