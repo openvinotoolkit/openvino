@@ -148,10 +148,10 @@ TEST_P(ObjectWithTypeTests, construct_and_destroy_in_global_scope) {
 
 INSTANTIATE_TEST_SUITE_P(f32_test_parameter, ObjectWithTypeTests, ::testing::Values(element::f32));
 
-
 // Test whether the serialization results of the dynamic type model and the undefined type model are the same
 class UndefinedTypeDynamicTypeSerializationTests : public ::testing::Test {};
-TEST_P(UndefinedTypeDynamicTypeSerializationTests, CompareDynamicAndUndefinedTypeNetwork) {
+
+TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefined_type_serialization) {
     // Customize a model with a dynamic type
     std::string dynamicTypeModelXmlString = R"V0G0N(<?xml version="1.0"?>
 <net name="custom_model" version="11">
