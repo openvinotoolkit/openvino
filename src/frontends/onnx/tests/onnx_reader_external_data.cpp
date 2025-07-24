@@ -46,15 +46,15 @@ TEST_P(OnnxFeMmapFixture, onnx_external_data_enumerating) {
     Core core;
     core.set_property(enable_mmap(GetParam()));
     const auto model = core.read_model(path);
-    auto& operations = model->get_ordered_ops();
+    const auto& operations = model->get_ordered_ops();
     for (uint32_t idx = 0; idx < operations.size(); ++idx) {
-        auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
         if (const_node == nullptr)
             continue;
         EXPECT_TRUE(const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
                         .is<ov::WeightlessCacheAttribute>());
-        auto& weightless_cache = const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
-                                     .as<ov::WeightlessCacheAttribute>();
+        const auto& weightless_cache = const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()]
+                                           .as<ov::WeightlessCacheAttribute>();
         EXPECT_EQ(weightless_cache.original_size, 0);
         EXPECT_EQ(weightless_cache.bin_offset, idx);
         EXPECT_EQ(weightless_cache.original_dtype, const_node->get_element_type());

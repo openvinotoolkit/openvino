@@ -44,9 +44,9 @@ using ::ONNX_NAMESPACE::Version;
 namespace {
 // !!! Experimental feature, it may be changed or removed in the future !!!
 void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
-    auto& operations = model->get_ordered_ops();
+    const auto& operations = model->get_ordered_ops();
     for (uint32_t idx = 0; idx < operations.size(); ++idx) {
-        auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
         if (const_node == nullptr)
             continue;
         const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
