@@ -397,7 +397,7 @@ jit_has_special_value_base::fn_t jit_has_bf16_overflows_function() {
 
 Input::Input(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, PassThroughShapeInferFactory()) {
-    if (!one_of(op->get_type_info(),
+    if (none_of(op->get_type_info(),
                 op::v0::Parameter::get_type_info_static(),
                 op::v0::Constant::get_type_info_static(),
                 op::v0::Result::get_type_info_static(),
@@ -746,14 +746,14 @@ void Input::createPrimitive() {
 }
 
 bool Input::created() const {
-    return getType() == Type::Input || getType() == Type::Output;
+    return any_of(getType(), Type::Input, Type::Output);
 }
 
 void Input::initSupportedPdDefault() {
     std::vector<PortConfigurator> inPortConfs;
     std::vector<PortConfigurator> outPortConfs;
 
-    if (getType() == Type::Input || getType() == Type::MemoryInput) {
+    if (any_of(getType(), Type::Input, Type::MemoryInput)) {
         auto precision = getOriginalOutputPrecisionAtPort(0);
 
         outPortConfs.emplace_back(LayoutType::ncsp, precision);
@@ -773,7 +773,7 @@ void Input::initSupportedPdFromMemDesc() {
     NodeConfig config;
     PortConfig portConfig(extMemDesc, BlockedMemoryDesc::FULL_MASK, m_isInPlace ? 0 : -1, false);
 
-    if (getType() == Type::Input || getType() == Type::MemoryInput) {
+    if (any_of(getType(), Type::Input, Type::MemoryInput)) {
         config.outConfs.push_back(portConfig);
     } else if (getType() == Type::Output) {
         config.inConfs.push_back(portConfig);
