@@ -4,10 +4,18 @@
 
 #include "gemm_copy_b_buffer_expressions.hpp"
 
+#include <cstddef>
 #include <memory>
 
 #include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
@@ -33,7 +41,7 @@ void RepackedWeightsBufferExpression::validate() const {
     OPENVINO_ASSERT(ov::is_type<ov::intel_cpu::aarch64::GemmCopyB>(parent_out.get_expr()->get_node()) &&
                         parent_out.get_index() == 0,
                     "RepackedWeightsBufferExpression expects GemmCopyB as parent expression");
-    OPENVINO_ASSERT(one_of(get_node()->get_input_element_type(0), ov::element::f32),
+    OPENVINO_ASSERT(any_of(get_node()->get_input_element_type(0), ov::element::f32),
                     "RepackedWeightsBufferExpression after GemmCopyB currently only support f32 data type on arm");
 }
 

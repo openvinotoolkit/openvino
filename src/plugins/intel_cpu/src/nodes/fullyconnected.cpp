@@ -52,6 +52,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "openvino/core/shape.hpp"
 #    include "utils/precision_support.h"
 #endif
 
@@ -181,15 +182,18 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
         if (!hasIntDotProductSupport()) {
             return false;
         }
-        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX)
+        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX) {
             return false;
+        }
 
-        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC)
+        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC) {
             return false;
+        }
 
         if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined)
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
             return false;
+        }
     } catch (...) {
         return false;
     }
@@ -197,11 +201,8 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
 #else
     bool useMatmulPrim = false;
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-    if (useMatmulPrim) {
-        return true;
-    }
+    return useMatmulPrim;
 #endif
-    return false;
 }
 
 void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr& context) {
@@ -254,7 +255,7 @@ bool FullyConnected::canBeExecutedInInt8() const {
     auto srcType = getOriginalInputPrecisionAtPort(0);
     auto weiType = getOriginalInputPrecisionAtPort(1);
 
-    return one_of(srcType, ov::element::u8, ov::element::i8) && weiType == ov::element::i8;
+    return any_of(srcType, ov::element::u8, ov::element::i8) && weiType == ov::element::i8;
 }
 
 void FullyConnected::needPrepareParamsForTensorParallel() {
@@ -527,7 +528,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
     }
 
     const auto weightsType = weiMemory->getPrecision();
-    if (!one_of(inputType, u8, i8) || weightsType != i8) {
+    if (none_of(inputType, u8, i8) || weightsType != i8) {
         return false;
     }
 

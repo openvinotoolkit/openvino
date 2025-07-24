@@ -14,6 +14,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/roi_align.hpp"
@@ -194,6 +195,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
         } else if (ov::is_type<ov::op::v1::Gather>(outOp) ||
                    ov::is_type<ov::op::v7::Gather>(outOp) ||
                    ov::is_type<ov::op::v8::Gather>(outOp) ||
+                   ov::is_type<ov::op::v5::GatherND>(outOp) ||
+                   ov::is_type<ov::op::v8::GatherND>(outOp) ||
                    ov::is_type<ov::op::v1::Split>(outOp) ||
                    ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;

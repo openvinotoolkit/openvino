@@ -4,8 +4,23 @@
 
 #include "acl_interpolate.hpp"
 
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/NEON/functions/NEScale.h>
+
+#include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/interpolate.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,
                                                  const std::vector<MemoryDescPtr>& srcDescs,
@@ -14,7 +29,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs& interpo
     aclInterpolateAttrs = interpolateAttrs;
     InterpolateExecutor::init(aclInterpolateAttrs, srcDescs, dstDescs, attr);
     acl_coord = arm_compute::SamplingPolicy::TOP_LEFT;
-    auto& out_shape = dstDescs[0]->getShape().getDims();
+    const auto& out_shape = dstDescs[0]->getShape().getDims();
 
     static const size_t index_h = 2;
     static const size_t index_w = 3;
@@ -90,7 +105,7 @@ bool ov::intel_cpu::ACLInterpolateExecutor::init(const InterpolateAttrs& interpo
 void ov::intel_cpu::ACLInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
                                                  const std::vector<MemoryPtr>& dst,
                                                  [[maybe_unused]] const void* post_ops_data_) {
-    auto in_ptr_ = padPreprocess(src, dst);
+    const auto* in_ptr_ = padPreprocess(src, dst);
     srcTensor.allocator()->import_memory(const_cast<void*>(reinterpret_cast<const void*>(in_ptr_)));
     dstTensor.allocator()->import_memory(dst[0]->getData());
 
@@ -106,8 +121,8 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     const std::vector<MemoryDescPtr>& dstDescs) {
     OPENVINO_ASSERT(srcDescs[0]->getShape().getDims().size() == 4);
 
-    auto& inp_shape = srcDescs[0]->getShape().getDims();
-    auto& out_shape = dstDescs[0]->getShape().getDims();
+    const auto& inp_shape = srcDescs[0]->getShape().getDims();
+    const auto& out_shape = dstDescs[0]->getShape().getDims();
 
     static const size_t index_h = 2;
     static const size_t index_w = 3;
@@ -187,8 +202,8 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_c
         return false;
     }
 
-    auto& pads_begin = interpolateAttrs.padBegin;
-    auto& pads_end = interpolateAttrs.padEnd;
+    const auto& pads_begin = interpolateAttrs.padBegin;
+    const auto& pads_end = interpolateAttrs.padEnd;
 
     if (!std::all_of(pads_begin.begin(),
                      pads_begin.end(),
@@ -216,10 +231,10 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_c
     }
 
     if (interpolateAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales &&
-        one_of(interpolateAttrs.coordTransMode,
+        any_of(interpolateAttrs.coordTransMode,
                InterpolateCoordTransMode::half_pixel,
                InterpolateCoordTransMode::asymmetric) &&
-        one_of(interpolateAttrs.mode, InterpolateMode::linear, InterpolateMode::linear_onnx)) {
+        any_of(interpolateAttrs.mode, InterpolateMode::linear, InterpolateMode::linear_onnx)) {
         DEBUG_LOG("ACL Interpolate does not support scales mode with linear/linear_onnx and half_pixel/asymmetric");
         return false;
     }

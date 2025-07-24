@@ -128,6 +128,14 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 
 #ifdef SDPA_STAGE_0
 
+#if HAS_SCALE_INPUT
+#if HAS_ATTN_MASK_INPUT
+#define SCALE_TYPE INPUT4_TYPE
+#else
+#define SCALE_TYPE INPUT3_TYPE
+#endif
+#endif
+
 #if TARGET_SEQ_LEN_BLOCK_SIZE == 1
 /* This version is used for 2nd token */
 
@@ -142,7 +150,7 @@ KERNEL(sdpa_opt)(
     const __global INPUT3_TYPE* attn_mask,
 #endif
 #if HAS_SCALE_INPUT
-    const __global INPUT4_TYPE* scale,
+    const __global SCALE_TYPE* scale,
 #endif
     __global OUTPUT_TYPE* output,
 #if IS_KV_COMPRESSED
@@ -725,7 +733,7 @@ KERNEL(sdpa_opt)(
 
 #if HAS_SCALE_INPUT
     #define ATTN_SCALE_BUFFER , scale
-    #define ATTN_SCALE_BUFFER_ARG , const __global INPUT4_TYPE* scale
+    #define ATTN_SCALE_BUFFER_ARG , const __global SCALE_TYPE* scale
 #else
     #define ATTN_SCALE_BUFFER
     #define ATTN_SCALE_BUFFER_ARG
@@ -821,7 +829,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 }
 
 #if IS_PAGED_ATTENTION && HAS_ALIBI
-#if HAS_SCALE_INPUT
+#if HAS_SCALE_INPUT && HAS_ATTN_MASK_INPUT
 #define ALIBI_TYPE INPUT5_TYPE
 #else
 #define ALIBI_TYPE INPUT4_TYPE
@@ -841,7 +849,7 @@ KERNEL(sdpa_opt)(
     const __global INPUT3_TYPE* attn_mask,
 #endif
 #if HAS_SCALE_INPUT
-    const __global INPUT4_TYPE* scale,
+    const __global SCALE_TYPE* scale,
 #endif
 #if IS_PAGED_ATTENTION && HAS_ALIBI
     const __global ALIBI_TYPE* alibi_slopes,

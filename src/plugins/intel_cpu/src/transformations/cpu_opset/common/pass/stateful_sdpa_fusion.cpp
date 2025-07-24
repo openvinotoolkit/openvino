@@ -179,15 +179,12 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             auto children = out.get_target_inputs();
             return std::all_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
                 auto* node = child.get_node();
-                if (!one_of(node->get_type_info(),
-                            ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
-                            ov::op::v0::ShapeOf::get_type_info_static(),
-                            ov::op::v3::ShapeOf::get_type_info_static(),
-                            ov::op::v0::Convert::get_type_info_static(),
-                            ov::op::v8::Gather::get_type_info_static())) {
-                    return false;
-                }
-                return true;
+                return any_of(node->get_type_info(),
+                              ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
+                              ov::op::v0::ShapeOf::get_type_info_static(),
+                              ov::op::v3::ShapeOf::get_type_info_static(),
+                              ov::op::v0::Convert::get_type_info_static(),
+                              ov::op::v8::Gather::get_type_info_static());
             });
         };
 

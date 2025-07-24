@@ -18,6 +18,7 @@
 #include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
+#include "utils/serialize.hpp"
 
 namespace ov::intel_cpu {
 
@@ -37,6 +38,13 @@ public:
 
     void set_property(const ov::AnyMap& properties) override;
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model([[maybe_unused]] const ov::Tensor& model,
+                                                     [[maybe_unused]] const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     [[maybe_unused]] const ov::AnyMap& properties) const override {
+        OPENVINO_THROW_NOT_IMPLEMENTED("import_model with RemoteContext is not supported by CPU plugin!");
+    };
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
     std::shared_ptr<ov::ICompiledModel> import_model([[maybe_unused]] std::istream& model,
                                                      [[maybe_unused]] const ov::SoPtr<ov::IRemoteContext>& context,
@@ -57,6 +65,9 @@ public:
     std::shared_ptr<ov::threading::MessageManager> m_msg_manager;
 
 private:
+    std::shared_ptr<ov::ICompiledModel> deserialize_model(ModelDeserializer& deserializer,
+                                                          const ov::AnyMap& config) const;
+
     ov::Any get_ro_property(const std::string& name, const ov::AnyMap& options) const;
 
     static void get_performance_streams(Config& config, const std::shared_ptr<ov::Model>& model);

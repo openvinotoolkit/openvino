@@ -4,8 +4,39 @@
 
 #include "acl_eltwise.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Dimensions.h>
+#include <arm_compute/core/Rounding.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/core/Types.h>
+#include <arm_compute/runtime/IFunction.h>
+#include <arm_compute/runtime/NEON/functions/NEActivationLayer.h>
+#include <arm_compute/runtime/NEON/functions/NEArithmeticAddition.h>
+#include <arm_compute/runtime/NEON/functions/NEArithmeticSubtraction.h>
+#include <arm_compute/runtime/NEON/functions/NEElementwiseOperations.h>
+#include <arm_compute/runtime/NEON/functions/NEElementwiseUnaryLayer.h>
+#include <arm_compute/runtime/NEON/functions/NEPReluLayer.h>
+#include <arm_compute/runtime/NEON/functions/NEPixelWiseMultiplication.h>
+#include <arm_compute/runtime/Tensor.h>
+
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "acl_utils.hpp"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/executor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -31,8 +62,8 @@ inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
                                  const std::vector<MemoryDescPtr>& dstDescs,
                                  const Algorithm eltwiseAlgorithm) {
     std::string srcPrec;
-    for (size_t i = 0; i < srcDescs.size(); i++) {
-        srcPrec += srcDescs[i]->getPrecision().to_string() + " ";
+    for (const auto& srcDesc : srcDescs) {
+        srcPrec += srcDesc->getPrecision().to_string() + " ";
     }
     DEBUG_LOG(algToString(eltwiseAlgorithm),
               ": provided combination of src precisions: [",
@@ -43,7 +74,7 @@ inline void log_unsupported_prec(const std::vector<MemoryDescPtr>& srcDescs,
 }
 
 bool AclEltwiseExecutor::isEltwiseAlgorithmSupported(Algorithm algorithm) {
-    if (one_of(algorithm,
+    if (any_of(algorithm,
                Algorithm::EltwiseSqrt,
                Algorithm::EltwiseDivide,
                Algorithm::EltwiseRelu,
@@ -241,7 +272,7 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
         } else {
             srcDataLayout[0] = srcDataLayout[1] = dstDataLayout[0] = DataLayout::NCDHW;
         }
-        changeLayoutToNH_C({&(srcVecDims[0]), &(srcVecDims[1]), &(dstVecDims[0])});
+        changeLayoutToNH_C({srcVecDims.data(), &(srcVecDims[1]), dstVecDims.data()});
     }
 
     for (size_t i = 0; i < srcVecDims.size(); i++) {
@@ -259,22 +290,22 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
     switch (aclEltwiseAttrs.algorithm) {
     case Algorithm::EltwiseAdd:
-        if (!NEArithmeticAddition::validate(&srcTensorsInfo[0],
+        if (!NEArithmeticAddition::validate(srcTensorsInfo.data(),
                                             &srcTensorsInfo[1],
-                                            &dstTensorsInfo[0],
+                                            dstTensorsInfo.data(),
                                             ConvertPolicy::SATURATE)) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEArithmeticAddition>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ConvertPolicy::SATURATE);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ConvertPolicy::SATURATE);
             return acl_op;
         };
         break;
     case Algorithm::EltwiseMultiply:
-        if (!NEPixelWiseMultiplication::validate(&srcTensorsInfo[0],
+        if (!NEPixelWiseMultiplication::validate(srcTensorsInfo.data(),
                                                  &srcTensorsInfo[1],
-                                                 &dstTensorsInfo[0],
+                                                 dstTensorsInfo.data(),
                                                  1.0f,
                                                  ConvertPolicy::SATURATE,
                                                  RoundingPolicy::TO_ZERO)) {
@@ -282,9 +313,9 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEPixelWiseMultiplication>();
-            acl_op->configure(&srcTensors[0],
+            acl_op->configure(srcTensors.data(),
                               &srcTensors[1],
-                              &dstTensors[0],
+                              dstTensors.data(),
                               1.0f,
                               ConvertPolicy::SATURATE,
                               RoundingPolicy::TO_ZERO);
@@ -292,163 +323,163 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
         };
         break;
     case Algorithm::EltwiseSubtract:
-        if (!NEArithmeticSubtraction::validate(&srcTensorsInfo[0],
+        if (!NEArithmeticSubtraction::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
-                                               &dstTensorsInfo[0],
+                                               dstTensorsInfo.data(),
                                                ConvertPolicy::SATURATE)) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEArithmeticSubtraction>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ConvertPolicy::SATURATE);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ConvertPolicy::SATURATE);
             return acl_op;
         };
         break;
     case Algorithm::EltwiseDivide:
-        if (!NEElementwiseDivision::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0])) {
+        if (!NEElementwiseDivision::validate(srcTensorsInfo.data(), &srcTensorsInfo[1], dstTensorsInfo.data())) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseDivision>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data());
             return acl_op;
         };
         break;
     case Algorithm::EltwiseMaximum:
-        if (!NEElementwiseMax::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0])) {
+        if (!NEElementwiseMax::validate(srcTensorsInfo.data(), &srcTensorsInfo[1], dstTensorsInfo.data())) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseMax>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data());
             return acl_op;
         };
         break;
     case Algorithm::EltwiseMinimum:
-        if (!NEElementwiseMin::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0])) {
+        if (!NEElementwiseMin::validate(srcTensorsInfo.data(), &srcTensorsInfo[1], dstTensorsInfo.data())) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseMin>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data());
             return acl_op;
         };
         break;
     case Algorithm::EltwiseSquaredDifference:
-        if (!NEElementwiseSquaredDiff::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0])) {
+        if (!NEElementwiseSquaredDiff::validate(srcTensorsInfo.data(), &srcTensorsInfo[1], dstTensorsInfo.data())) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseSquaredDiff>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data());
             return acl_op;
         };
         break;
     case Algorithm::EltwiseEqual:
-        if (!NEElementwiseComparison::validate(&srcTensorsInfo[0],
+        if (!NEElementwiseComparison::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
-                                               &dstTensorsInfo[0],
+                                               dstTensorsInfo.data(),
                                                ComparisonOperation::Equal)) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseComparison>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Equal);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ComparisonOperation::Equal);
             return acl_op;
         };
         break;
     case Algorithm::EltwiseNotEqual:
-        if (!NEElementwiseComparison::validate(&srcTensorsInfo[0],
+        if (!NEElementwiseComparison::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
-                                               &dstTensorsInfo[0],
+                                               dstTensorsInfo.data(),
                                                ComparisonOperation::NotEqual)) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseComparison>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::NotEqual);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ComparisonOperation::NotEqual);
             return acl_op;
         };
         break;
     case Algorithm::EltwiseGreater:
-        if (!NEElementwiseComparison::validate(&srcTensorsInfo[0],
+        if (!NEElementwiseComparison::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
-                                               &dstTensorsInfo[0],
+                                               dstTensorsInfo.data(),
                                                ComparisonOperation::Greater)) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseComparison>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Greater);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ComparisonOperation::Greater);
             return acl_op;
         };
         break;
     case Algorithm::EltwiseGreaterEqual:
-        if (!NEElementwiseComparison::validate(&srcTensorsInfo[0],
+        if (!NEElementwiseComparison::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
-                                               &dstTensorsInfo[0],
+                                               dstTensorsInfo.data(),
                                                ComparisonOperation::GreaterEqual)) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseComparison>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::GreaterEqual);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ComparisonOperation::GreaterEqual);
             return acl_op;
         };
         break;
     case Algorithm::EltwiseLess:
-        if (!NEElementwiseComparison::validate(&srcTensorsInfo[0],
+        if (!NEElementwiseComparison::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
-                                               &dstTensorsInfo[0],
+                                               dstTensorsInfo.data(),
                                                ComparisonOperation::Less)) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseComparison>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::Less);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ComparisonOperation::Less);
             return acl_op;
         };
         break;
     case Algorithm::EltwiseLessEqual:
-        if (!NEElementwiseComparison::validate(&srcTensorsInfo[0],
+        if (!NEElementwiseComparison::validate(srcTensorsInfo.data(),
                                                &srcTensorsInfo[1],
-                                               &dstTensorsInfo[0],
+                                               dstTensorsInfo.data(),
                                                ComparisonOperation::LessEqual)) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEElementwiseComparison>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0], ComparisonOperation::LessEqual);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data(), ComparisonOperation::LessEqual);
             return acl_op;
         };
         break;
     case Algorithm::EltwiseAbs:
-        if (!NEAbsLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0])) {
+        if (!NEAbsLayer::validate(srcTensorsInfo.data(), dstTensorsInfo.data())) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEAbsLayer>();
-            acl_op->configure(&srcTensors[0], &dstTensors[0]);
+            acl_op->configure(srcTensors.data(), dstTensors.data());
             return acl_op;
         };
         break;
     case Algorithm::EltwiseExp:
-        if (!NEExpLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0])) {
+        if (!NEExpLayer::validate(srcTensorsInfo.data(), dstTensorsInfo.data())) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEExpLayer>();
-            acl_op->configure(&srcTensors[0], &dstTensors[0]);
+            acl_op->configure(srcTensors.data(), dstTensors.data());
             return acl_op;
         };
         break;
     case Algorithm::EltwisePrelu:
-        if (!NEPReluLayer::validate(&srcTensorsInfo[0], &srcTensorsInfo[1], &dstTensorsInfo[0])) {
+        if (!NEPReluLayer::validate(srcTensorsInfo.data(), &srcTensorsInfo[1], dstTensorsInfo.data())) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEPReluLayer>();
-            acl_op->configure(&srcTensors[0], &srcTensors[1], &dstTensors[0]);
+            acl_op->configure(srcTensors.data(), &srcTensors[1], dstTensors.data());
             return acl_op;
         };
         break;
@@ -462,8 +493,8 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
     case Algorithm::EltwiseClamp:
     case Algorithm::EltwiseSwish:
     case Algorithm::EltwiseHswish:
-        if (!NEActivationLayer::validate(&srcTensorsInfo[0],
-                                         &dstTensorsInfo[0],
+        if (!NEActivationLayer::validate(srcTensorsInfo.data(),
+                                         dstTensorsInfo.data(),
                                          getActivationLayerInfo(aclEltwiseAttrs.algorithm,
                                                                 aclEltwiseAttrs.alpha,
                                                                 aclEltwiseAttrs.beta,
@@ -472,8 +503,8 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NEActivationLayer>();
-            acl_op->configure(&srcTensors[0],
-                              &dstTensors[0],
+            acl_op->configure(srcTensors.data(),
+                              dstTensors.data(),
                               getActivationLayerInfo(aclEltwiseAttrs.algorithm,
                                                      aclEltwiseAttrs.alpha,
                                                      aclEltwiseAttrs.beta,
@@ -482,12 +513,12 @@ bool AclEltwiseExecutor::init(const EltwiseAttrs& eltwiseAttrs,
         };
         break;
     case Algorithm::EltwiseLog:
-        if (!NELogLayer::validate(&srcTensorsInfo[0], &dstTensorsInfo[0])) {
+        if (!NELogLayer::validate(srcTensorsInfo.data(), dstTensorsInfo.data())) {
             return false;
         }
         exec_func = [this]() -> std::unique_ptr<IFunction> {
             auto acl_op = std::make_unique<NELogLayer>();
-            acl_op->configure(&srcTensors[0], &dstTensors[0]);
+            acl_op->configure(srcTensors.data(), dstTensors.data());
             return acl_op;
         };
         break;

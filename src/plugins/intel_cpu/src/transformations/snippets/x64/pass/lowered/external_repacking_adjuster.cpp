@@ -107,7 +107,6 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
         ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * dnnl_data_type_size(config->get_original_wei_dt());
     const auto LDB =
         brgemm_utils::repacking::compute_K_blocked_stride(N, config->get_wei_N_blk(), config->are_wei_blocked());
-    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     config->update(N, N, K, K, copy_wei_stride, LDB);
     executor->update_by_config(*config);
 }
@@ -178,12 +177,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         }
 
         const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
-        const auto [blocked_dims, blocked_order] =
-            brgemm_utils::repacking::get_wei_blocked_shape(planar_shape,
-                                                           prc,
-                                                           config.get_wei_K_blk(),
-                                                           config.get_wei_N_blk(),
-                                                           config.are_wei_blocked());
         const auto desc = get_desc(planar_shape,
                                    prc,
                                    config.get_wei_K_blk(),
@@ -205,6 +198,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
             auto& offsets = cpu_config->io_data_offsets[i];
             std::fill(offsets.begin(), offsets.end(), 0);
         } else {
+            const auto blocked_dims = desc->getBlockDims();
             const auto inner_blocks_num = blocked_dims.size() - planar_shape.size();
             const auto rank = in_offsets.size() + inner_blocks_num;  // to align with src offsets rank
             OPENVINO_ASSERT(rank >= blocked_dims.size(), "Incorrect target rank for dst offsets");

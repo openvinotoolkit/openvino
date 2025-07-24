@@ -1,3 +1,3 @@
-import addon from './addon';
+import addon from "./addon";
 
 export { addon };

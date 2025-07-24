@@ -45,7 +45,7 @@ using ngNmsSortResultType = ov::op::util::MulticlassNmsBase::SortResultType;
 bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v9::MulticlassNms::get_type_info_static(),
                     ov::op::v8::MulticlassNms::get_type_info_static(),
                     ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
@@ -65,22 +65,20 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_type_info(), ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
+    if (any_of(op->get_type_info(), ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
         m_outStaticShape = true;
     }
 
-    if (getOriginalInputsNumber() != 2 && getOriginalInputsNumber() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getOriginalInputsNumber());
-    }
+    CPU_NODE_ASSERT(any_of(getOriginalInputsNumber(), 2U, 3U),
+                    "has incorrect number of input edges: ",
+                    getOriginalInputsNumber());
 
-    if (getOriginalOutputsNumber() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getOriginalOutputsNumber());
-    }
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == 3,
+                    "has incorrect number of output edges: ",
+                    getOriginalOutputsNumber());
 
     auto nmsBase = ov::as_type_ptr<ov::op::util::MulticlassNmsBase>(op);
-    if (nmsBase == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of MulticlassNmsBase.");
-    }
+    CPU_NODE_ASSERT(nmsBase, "is not an instance of MulticlassNmsBase.");
     const auto& atrri = nmsBase->get_attrs();
     m_sortResultAcrossBatch = atrri.sort_result_across_batch;
     m_nmsTopK = atrri.nms_top_k;
@@ -104,30 +102,29 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
     auto boxes_ps = PartialShape(boxes_dims);
     auto scores_ps = PartialShape(scores_dims);
-    if (boxes_dims.size() != 3) {
-        THROW_CPU_NODE_ERR("has unsupported 'boxes' input rank: ", boxes_dims.size());
-    }
-    if (boxes_dims[2] != 4) {
-        THROW_CPU_NODE_ERR("has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
-    }
+    CPU_NODE_ASSERT(boxes_dims.size() == 3, "has unsupported 'boxes' input rank: ", boxes_dims.size());
+    CPU_NODE_ASSERT(boxes_dims[2] == 4, "has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
     if (scores_dims.size() == 3) {
-        if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[2])) {
-            THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' shape ", boxes_ps, " v.s. ", scores_ps);
-        }
+        CPU_NODE_ASSERT(boxes_ps[0].compatible(scores_ps[0]) && boxes_ps[1].compatible(scores_ps[2]),
+                        "has incompatible 'boxes' and 'scores' shape ",
+                        boxes_ps,
+                        " v.s. ",
+                        scores_ps);
     } else if (scores_dims.size() == 2) {
-        if (op->get_type_info() == ov::op::v8::MulticlassNms::get_type_info_static()) {
-            THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
-        }
-        if (!boxes_ps[0].compatible(scores_ps[0]) || !boxes_ps[1].compatible(scores_ps[1])) {
-            THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' shape ", boxes_ps, " v.s. ", scores_ps);
-        }
-        if (getOriginalInputsNumber() != 3) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges: ",
-                               getOriginalInputsNumber(),
-                               " when input 'scores' is 2D.");
-        }
+        CPU_NODE_ASSERT(op->get_type_info() != ov::op::v8::MulticlassNms::get_type_info_static(),
+                        "has unsupported 'scores' input rank: ",
+                        scores_dims.size());
+        CPU_NODE_ASSERT(boxes_ps[0].compatible(scores_ps[0]) && boxes_ps[1].compatible(scores_ps[1]),
+                        "has incompatible 'boxes' and 'scores' shape ",
+                        boxes_ps,
+                        " v.s. ",
+                        scores_ps);
+        CPU_NODE_ASSERT(getOriginalInputsNumber() == 3,
+                        "has incorrect number of input edges: ",
+                        getOriginalInputsNumber(),
+                        " when input 'scores' is 2D.");
     } else {
-        THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
+        CPU_NODE_THROW("has unsupported 'scores' input rank: ", scores_dims.size());
     }
 }
 
@@ -187,32 +184,29 @@ void MultiClassNms::prepareParams() {
 
     if (shared) {
         if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[2]) {
-            THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' shape ",
-                               PartialShape(boxes_dims),
-                               " v.s. ",
-                               PartialShape(scores_dims));
+            CPU_NODE_THROW("has incompatible 'boxes' and 'scores' shape ",
+                           PartialShape(boxes_dims),
+                           " v.s. ",
+                           PartialShape(scores_dims));
         }
     } else if (scores_dims.size() == 2) {
         if (boxes_dims[0] != scores_dims[0] || boxes_dims[1] != scores_dims[1]) {
-            THROW_CPU_NODE_ERR("has incompatible 'boxes' and 'scores' shape ",
-                               PartialShape(boxes_dims),
-                               " v.s. ",
-                               PartialShape(scores_dims));
+            CPU_NODE_THROW("has incompatible 'boxes' and 'scores' shape ",
+                           PartialShape(boxes_dims),
+                           " v.s. ",
+                           PartialShape(scores_dims));
         }
-        if (!has_roinum) {
-            THROW_CPU_NODE_ERR("has incorrect number of input edges: ",
-                               getOriginalInputsNumber(),
-                               " when input 'scores' is 2D.");
-        }
+        CPU_NODE_ASSERT(has_roinum,
+                        "has incorrect number of input edges: ",
+                        getOriginalInputsNumber(),
+                        " when input 'scores' is 2D.");
     } else {
-        THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
+        CPU_NODE_THROW("has unsupported 'scores' input rank: ", scores_dims.size());
     }
 
     if (has_roinum) {
         const auto& roisnum_dims = getParentEdgeAt(NMS_ROISNUM)->getMemory().getStaticDims();
-        if (roisnum_dims.size() != 1) {
-            THROW_CPU_NODE_ERR("has unsupported 'roisnum' input rank: ", roisnum_dims.size());
-        }
+        CPU_NODE_ASSERT(roisnum_dims.size() == 1, "has unsupported 'roisnum' input rank: ", roisnum_dims.size());
         m_numBatches = shared ? boxes_dims[0] : roisnum_dims[0];
     } else {
         m_numBatches = boxes_dims[0];
@@ -426,7 +420,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             const auto& box_info = m_filtBoxes[original_index];
 
             auto* selected_base = selected_outputs + (output_offset + j) * 6;
-            selected_base[0] = box_info.class_index;
+            selected_base[0] = static_cast<float>(box_info.class_index);
             selected_base[1] = box_info.score;
 
             auto& selected_index = selected_indices[j + output_offset];
@@ -442,7 +436,8 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
                     offset += roisnum[i];
                 }
                 // selected index from (M, C, 4)
-                selected_index = _flattened_index((offset + box_info.box_index), box_info.class_index, m_numClasses);
+                selected_index =
+                    _flattened_index(static_cast<int>(offset + box_info.box_index), box_info.class_index, m_numClasses);
                 int idx = box_info.class_index * boxesStrides[0] + offset * boxesStrides[1];
                 const float* curboxes = boxes + idx;  // a slice of boxes of current class current image
                 selected_base[2] = curboxes[4 * box_info.box_index];
@@ -682,9 +677,13 @@ void MultiClassNms::checkPrecision(const ov::element::Type prec,
                                    const std::vector<ov::element::Type>& precList,
                                    const std::string& name,
                                    const std::string& type) {
-    if (std::find(precList.begin(), precList.end(), prec) == precList.end()) {
-        THROW_CPU_NODE_ERR("has unsupported '", name, "' ", type, " precision: ", prec);
-    }
+    CPU_NODE_ASSERT(std::find(precList.begin(), precList.end(), prec) != precList.end(),
+                    "has unsupported '",
+                    name,
+                    "' ",
+                    type,
+                    " precision: ",
+                    prec);
 }
 
 }  // namespace ov::intel_cpu::node

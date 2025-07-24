@@ -4,10 +4,10 @@
 
 #include "utils.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <utils/general_utils.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
@@ -46,8 +46,7 @@ inline snippets::Reg Xbyak2SnippetsReg(const Xbyak::Reg& xb_reg) {
 }
 
 template <cpu_isa_t isa,
-          std::enable_if_t<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
-                           bool> = true>
+          std::enable_if_t<any_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core), bool> = true>
 struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;
@@ -63,8 +62,8 @@ struct regs_to_spill {
             }
         }
 
-        for (int i = 0; i < cpu_isa_traits<isa>::n_vregs; ++i) {
-            push_if_live(typename cpu_isa_traits<isa>::Vmm(i));
+        for (int i = 0; i < cpu_isa_traits_t<isa>::n_vregs; ++i) {
+            push_if_live(typename cpu_isa_traits_t<isa>::Vmm(i));
         }
 
         const int num_k_mask = isa == cpu_isa_t::avx512_core ? 8 : 0;
@@ -118,7 +117,7 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
     return aux_idx;
 }
 
-EmitABIRegSpills::EmitABIRegSpills(jit_generator* h_arg) : h(h_arg), isa(get_isa()) {}
+EmitABIRegSpills::EmitABIRegSpills(jit_generator_t* h_arg) : h(h_arg), isa(get_isa()) {}
 
 EmitABIRegSpills::~EmitABIRegSpills() {
     OPENVINO_ASSERT(spill_status, "postamble or preamble is missed");
