@@ -115,10 +115,10 @@ void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
-    auto metadataSize = get_medata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
-    auto size = (metadataSize + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
-    auto paddingSize = size - metadataSize;
-    if (paddingSize) {
+    size_t metadataSize = get_medata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
+    size_t size = utils::align_size_to_standarg_page_size(metadataSize);
+    size_t paddingSize = size - metadataSize;
+    if (paddingSize > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
     }
 
@@ -302,15 +302,15 @@ size_t Metadata<METADATA_VERSION_2_0>::get_medata_size() const {
 }
 
 size_t Metadata<METADATA_VERSION_2_1>::get_medata_size() const {
-    auto metdataSize = Metadata<METADATA_VERSION_2_0>::get_medata_size() + sizeof(_numberOfInits);
+    size_t metadataSize = Metadata<METADATA_VERSION_2_0>::get_medata_size() + sizeof(_numberOfInits);
 
     if (_initSizes.has_value()) {
-        for (uint64_t initSize : _initSizes.value()) {
-            metdataSize += sizeof(initSize);
+        for (size_t initSize : _initSizes.value()) {
+            metadataSize += sizeof(initSize);
         }
     }
 
-    return metdataSize;
+    return metadataSize;
 }
 
 }  // namespace intel_npu

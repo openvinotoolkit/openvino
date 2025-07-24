@@ -22,6 +22,11 @@ static inline bool memory_and_size_aligned_to_standard_page_size(void* addr, siz
     // addr is aligned to standard page size
     return (addr_int % STANDARD_PAGE_SIZE == 0) && (size % STANDARD_PAGE_SIZE == 0);
 }
+
+static inline size_t align_size_to_standarg_page_size(size_t size) {
+    return (size + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
+}
+
 }  // namespace utils
 
 }  // namespace intel_npu

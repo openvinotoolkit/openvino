@@ -77,9 +77,9 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         _logger.info(str.str().c_str());
     }
 
-    auto size = (blobSize + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
-    auto paddingSize = size - blobSize;
-    if (paddingSize) {
+    size_t size = utils::align_size_to_standarg_page_size(blobSize);
+    size_t paddingSize = size - blobSize;
+    if (paddingSize > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
 
         if (!stream) {
