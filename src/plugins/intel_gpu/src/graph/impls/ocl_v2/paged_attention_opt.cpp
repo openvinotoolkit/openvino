@@ -1403,15 +1403,26 @@ public:
             }
         }
 
-        bool can_use_micro_sdpa = stage == PagedAttentionStage::PREFILL;
+        bool need_softmax_intermediate_buffer = stage != PagedAttentionStage::PREFILL;
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa &= has_stage(pa_sdpa_micro);
+        bool can_use_micro_sdpa = has_stage(pa_sdpa_micro);
+        need_softmax_intermediate_buffer |= !can_use_micro_sdpa;
+        can_use_micro_sdpa |= stage == PagedAttentionStage::PREFILL;
 #endif
-        if (!can_use_micro_sdpa) {
+#ifdef CM_PA_ENABLE
+        need_softmax_intermediate_buffer = stage != PagedAttentionStage::PREFILL;
+#endif
+        if (need_softmax_intermediate_buffer) {
             // GENERATE/MIXED stages and PREFILL stage without micro_sdpa
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
+            // std::cout << "internal memory: "
+            //           << "softmax exp_sums: " << buf_elements_count * element_size
+            //           << ", softmax max_logits: " << buf_elements_count * element_size
+            //           << ", intermediate output: " << tmp_out_elements_count * element_size
+            //           << std::endl;
         }
 
         const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;

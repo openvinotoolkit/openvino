@@ -155,7 +155,6 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
 
     auto split_size = get_kv_split_size(xe_arch);
     jit.make("KV_STEP", split_size.first);
-
     jit.make("WG_SIZE", WG_SIZE);
     return jit;
 }
