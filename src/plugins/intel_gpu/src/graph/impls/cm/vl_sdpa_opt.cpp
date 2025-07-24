@@ -57,6 +57,10 @@ protected:
         const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(head_size));
 
+        GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order " << PartialShape(desc->input_q_transpose_order) << ", key_shape "
+                               << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order) <<  ", head_size="
+                               << head_size << ", num_q_heads=" << num_q_heads << ", num_kv_heads=" << num_kv_heads << '\n';
+
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             make_jit_constant("CMFLA_NUM_HEADS", num_q_heads),
@@ -143,8 +147,9 @@ protected:
             }
 
             auto& wgs = kd.params.workGroups;
-            wgs.global = {num_q_heads, wg_count * wg_size};
-            wgs.local = {1, wg_size};
+            wgs.global = {num_q_heads, wg_count * wg_size, 1};
+            wgs.local = {1, wg_size, 1};
+            std::cout << "========== num_q_heads=" << num_q_heads << "," << wgs << std::endl;
 
             std::vector<int32_t> scalars{need_wg_mapping};
             kd.params.scalars.clear();
