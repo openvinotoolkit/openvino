@@ -141,6 +141,13 @@ function(ov_add_onednn)
         ov_create_acl_version_file()
     endif()
 
+    # Workaround for ARM compiler flag conflicts: oneDNN sets -mcpu=generic which conflicts
+    # with OpenVINO's -march=armv8.2-a+fp16 flags. Override oneDNN's arch optimization flags
+    # to prevent the conflicting -mcpu=generic flag on ARM architectures.
+    if(AARCH64 OR ARM)
+        set(DNNL_ARCH_OPT_FLAGS "" CACHE STRING "Disable oneDNN's automatic -mcpu=generic to avoid conflicts with OpenVINO ARM flags" FORCE)
+    endif()
+
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
     # install static libraries

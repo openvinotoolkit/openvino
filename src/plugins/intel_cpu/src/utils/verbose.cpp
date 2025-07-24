@@ -33,7 +33,7 @@ bool Verbose::shouldBePrinted() const {
         return false;
     }
 
-    if (lvl < 2 && one_of(node->getType(), Type::Input, Type::Output)) {
+    if (lvl < 2 && any_of(node->getType(), Type::Input, Type::Output)) {
         return false;
     }
 
