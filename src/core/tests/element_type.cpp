@@ -3,15 +3,14 @@
 //
 
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/runtime/tensor.hpp"
-#include "openvino/pass/serialize.hpp"
-#include "openvino/runtime/core.hpp"
 
 #include <map>
 
 #include "gtest/gtest.h"
 #include "openvino/core/except.hpp"
-
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using namespace ov;
 
@@ -346,7 +345,8 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
 </net>
 )V0G0N";
 
-    std::stringstream dynamicTypeModelXmlStream, undefinedTypeModelXmlStream, dynamicTypeModelBinStream, undefinedTypeModelBinStream;
+    std::stringstream dynamicTypeModelXmlStream, undefinedTypeModelXmlStream, dynamicTypeModelBinStream,
+        undefinedTypeModelBinStream;
 
     ov::Core core;
     // Test whether the serialization results of the two models are the same
