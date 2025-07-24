@@ -347,11 +347,11 @@ public:
                                                const ov::SoPtr<ov::IRemoteContext>& context,
                                                const ov::AnyMap& config) const override;
 
-    ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& model,
+    ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                const std::string& device_name = {},
                                                const ov::AnyMap& config = {}) const override;
 
-    ov::SoPtr<ov::ICompiledModel> import_model(ov::Tensor& modelStream,
+    ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& modelStream,
                                                const ov::SoPtr<ov::IRemoteContext>& context,
                                                const ov::AnyMap& config) const override;
 
