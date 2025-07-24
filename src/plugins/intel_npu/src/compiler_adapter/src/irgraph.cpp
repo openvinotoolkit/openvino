@@ -256,6 +256,8 @@ void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob, Ne
     if (error) {
         OPENVINO_THROW("Error invoking main: " + llvm::toString(std::move(error)));
     }
+    std::cout << "num of subgraphs: " << _numOfSubgraphs << " inputs: " << inputs.size()
+              << " outputs: " << outputs.size() << std::endl;
 
     metadata.bindRelatedDescriptors();
 }
