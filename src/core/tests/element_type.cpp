@@ -357,6 +357,6 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
     ov::pass::Serialize(dynamicTypeModelXmlStream, dynamicTypeModelBinStream).run_on_model(dynamicTypeModel);
     ov::pass::Serialize(undefinedTypeModelXmlStream, undefinedTypeModelBinStream).run_on_model(undefinedTypeModel);
 
-    ASSERT_TRUE(dynamicTypeModelXmlStream.str() == undefinedTypeModelXmlStream.str())
+    ASSERT_EQ(dynamicTypeModelXmlStream.str(), undefinedTypeModelXmlStream.str())
         << "Serialized XML files are different: dynamic type vs undefined type";
 }
