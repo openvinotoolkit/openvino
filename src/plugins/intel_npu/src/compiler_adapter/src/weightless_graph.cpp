@@ -591,7 +591,7 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
-    if (_initBlobs == std::nullopt) {
+    if (_persistentBlob || _initBlobs == std::nullopt) {
         return;
     }
 
@@ -627,30 +627,33 @@ void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& co
 
 WeightlessGraph::~WeightlessGraph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
-    size_t initIndex = 0;
-    for (auto& initHandle : _initsHandles) {
-        if (initHandle.first != nullptr) {
-            auto result = _zeGraphExt->destroyGraph(initHandle.first);
+    if (_persistentBlob) {
+        size_t initIndex = 0;
 
-            if (ZE_RESULT_SUCCESS == result) {
-                initHandle.first = nullptr;
+        for (auto& initHandle : _initsHandles) {
+            if (initHandle.first != nullptr) {
+                auto result = _zeGraphExt->destroyGraph(initHandle.first);
+
+                if (ZE_RESULT_SUCCESS == result) {
+                    initHandle.first = nullptr;
+                }
+
+                if (initHandle.second) {
+                    if (_initBlobs->at(initIndex).data() == nullptr) {
+                        _logger.error("Blob was already release, can not Free NPU memory");
+                    }
+                    auto result = zeMemFree(_zeroInitStruct->getContext(), _initBlobs->at(initIndex).data());
+                    if (ZE_RESULT_SUCCESS != result) {
+                        _logger.error("L0 zeMemFree result: %s, code %#X - %s",
+                                      ze_result_to_string(result).c_str(),
+                                      uint64_t(result),
+                                      ze_result_to_description(result).c_str());
+                    }
+                }
             }
 
-            if (initHandle.second) {
-                if (_initBlobs->at(initIndex).data() == nullptr) {
-                    _logger.error("Blob was already release, can not Free NPU memory");
-                }
-                auto result = zeMemFree(_zeroInitStruct->getContext(), _initBlobs->at(initIndex).data());
-                if (ZE_RESULT_SUCCESS != result) {
-                    _logger.error("L0 zeMemFree result: %s, code %#X - %s",
-                                  ze_result_to_string(result).c_str(),
-                                  uint64_t(result),
-                                  ze_result_to_description(result).c_str());
-                }
-            }
+            initIndex++;
         }
-
-        initIndex++;
     }
 }
 
