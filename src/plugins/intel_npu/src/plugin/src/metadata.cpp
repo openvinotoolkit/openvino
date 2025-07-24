@@ -39,6 +39,12 @@ void OpenvinoVersion::read(std::istream& stream) {
     stream.read(reinterpret_cast<char*>(&_patch), sizeof(_patch));
 }
 
+void OpenvinoVersion::read(const ov::Tensor& tensor) {
+    _major = *reinterpret_cast<const decltype(_major)*>(tensor.data<const char>());
+    _minor = *reinterpret_cast<const decltype(_minor)*>(tensor.data<const char>() + sizeof(_major));
+    _patch = *reinterpret_cast<const decltype(_patch)*>(tensor.data<const char>() + sizeof(_major) + sizeof(_minor));
+}
+
 void OpenvinoVersion::write(std::ostream& stream) {
     stream.write(reinterpret_cast<const char*>(&_major), sizeof(_major));
     stream.write(reinterpret_cast<const char*>(&_minor), sizeof(_minor));
@@ -63,6 +69,10 @@ void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
     _ovVersion.read(stream);
 }
 
+void Metadata<METADATA_VERSION_2_0>::read(const ov::Tensor& tensor) {
+    _ovVersion.read(tensor);
+}
+
 void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
     Metadata<METADATA_VERSION_2_0>::read(stream);
 
@@ -73,6 +83,27 @@ void Metadata<METADATA_VERSION_2_1>::read(std::istream& stream) {
         _initSizes = std::vector<uint64_t>(numberOfInits);
         for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
             stream.read(reinterpret_cast<char*>(&_initSizes->at(initIndex)), sizeof(_initSizes->at(initIndex)));
+        }
+    }
+}
+
+void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
+    Metadata<METADATA_VERSION_2_0>::read(tensor);
+    auto roiTensor = ov::Tensor(tensor,
+                                ov::Coordinate{sizeof(decltype(std::declval<OpenvinoVersion>().get_major())) +
+                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
+                                               sizeof(decltype(std::declval<OpenvinoVersion>().get_patch()))},
+                                ov::Coordinate{tensor.get_byte_size()});
+
+    uint64_t numberOfInits;
+    numberOfInits = *reinterpret_cast<const decltype(numberOfInits)*>(roiTensor.data<const char>());
+
+    if (numberOfInits) {
+        _initSizes = std::vector<uint64_t>(numberOfInits);
+        for (uint64_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
+            _initSizes->at(initIndex) =
+                reinterpret_cast<const std::remove_reference_t<decltype(_initSizes->at(initIndex))>*>(
+                    roiTensor.data<const char>() + sizeof(numberOfInits))[initIndex];
         }
     }
 }
@@ -201,6 +232,46 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream) {
     return storedMeta;
 }
 
+std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor) {
+    size_t magicBytesSize = MAGIC_BYTES.size();
+    std::string_view blobMagicBytes(tensor.data<const char>() + tensor.get_byte_size() - magicBytesSize,
+                                    magicBytesSize);
+
+    if (MAGIC_BYTES != blobMagicBytes) {
+        OPENVINO_THROW("Blob is missing NPU metadata!");
+    }
+
+    uint64_t blobDataSize;
+    blobDataSize = *reinterpret_cast<const decltype(blobDataSize)*>(tensor.data<const char>() + tensor.get_byte_size() -
+                                                                    magicBytesSize - sizeof(blobDataSize));
+
+    uint32_t metaVersion;
+    metaVersion = *reinterpret_cast<const decltype(metaVersion)*>(tensor.data<const char>() + blobDataSize);
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    try {
+        auto roiTensor = ov::Tensor(tensor,
+                                    ov::Coordinate{blobDataSize + sizeof(metaVersion)},
+                                    ov::Coordinate{tensor.get_byte_size()});
+        storedMeta = create_metadata(metaVersion, blobDataSize);
+        storedMeta->read(roiTensor);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW(ex.what(),
+                       "Imported blob metadata version: ",
+                       MetadataBase::get_major(metaVersion),
+                       ".",
+                       MetadataBase::get_minor(metaVersion),
+                       " but the current version is: ",
+                       CURRENT_METADATA_MAJOR_VERSION,
+                       ".",
+                       CURRENT_METADATA_MINOR_VERSION);
+    } catch (...) {
+        OPENVINO_THROW("Unexpected exception while reading blob NPU metadata");
+    }
+
+    return storedMeta;
+}
+
 uint64_t MetadataBase::get_blob_size() const {
     return _blobDataSize;
 }
@@ -208,6 +279,7 @@ uint64_t MetadataBase::get_blob_size() const {
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_0>::get_init_sizes() const {
     return std::nullopt;
 }
+
 std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_sizes() const {
     return _initSizes;
 }

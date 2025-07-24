@@ -90,7 +90,7 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const Grap
 
     auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
     attrs.group = shuffleChannels->get_group();
-    attrs.axis = shuffleChannels->get_axis();
+    attrs.axis = static_cast<int>(shuffleChannels->get_axis());
     attrs.dataRank = getInputShapeAtPort(0).getRank();
     if (attrs.axis < 0) {
         attrs.axis += attrs.dataRank;
@@ -179,10 +179,10 @@ void ShuffleChannels::prepareParams() {
 
 ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
     OPENVINO_ASSERT(
-        one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
+        any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
         "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
 
-    const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isBlocked = any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsLast = attrs.layoutType == LayoutType::nspc;
     const auto& srcDims = attrs.srcDims;
     const auto& srcBlockedDims = attrs.srcBlockedDims;
