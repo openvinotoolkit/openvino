@@ -24,7 +24,7 @@
 namespace ov::intel_cpu {
 namespace {
 constexpr bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::element::Type& type) {
-    return type == ov::element::dynamic || tensor_type == type;
+    return any_of(type, ov::element::dynamic, tensor_type);
 }
 }  // namespace
 

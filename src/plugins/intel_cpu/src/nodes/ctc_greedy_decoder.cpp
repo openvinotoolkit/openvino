@@ -72,12 +72,12 @@ void CTCGreedyDecoder::initSupportedPrimitiveDescriptors() {
     }
 
     ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
-    if (!one_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (none_of(inDataPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         CPU_NODE_THROW("has unsupported 'data' input precision: ", inDataPrecision);
     }
 
     ov::element::Type seqLenPrecision = getOriginalInputPrecisionAtPort(SEQUENCE_LENGTH_INDEX);
-    if (!one_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (none_of(seqLenPrecision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         CPU_NODE_THROW("has unsupported 'sequence_length' input precision: ", seqLenPrecision);
     }
 

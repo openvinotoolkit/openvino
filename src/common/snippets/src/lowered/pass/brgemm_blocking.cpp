@@ -41,7 +41,7 @@ lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blocking_loop
 bool BrgemmBlockingBase::blocking_loop_exists(const lowered::LoopManagerPtr& loop_manager,
                                               const ExpressionPtr& brgemm_expr) {
     auto check_port = [&](const LoopPort& p) {
-        return p.get_expr_port()->get_expr() == brgemm_expr && one_of(p.get_dim_idx(), 0ul, 1ul);
+        return p.get_expr_port()->get_expr() == brgemm_expr && any_of(p.get_dim_idx(), 0ul, 1ul);
     };
     const auto& loop_ids = brgemm_expr->get_loop_ids();
     return std::any_of(loop_ids.begin(), loop_ids.end(), [&](const auto& id) {
