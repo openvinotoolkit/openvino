@@ -253,11 +253,13 @@ ov::Tensor create_tensor_random(const benchmark_app::InputInfo& inputInfo,
     auto tensor = ov::Tensor(inputInfo.type, inputInfo.dataShape);
     auto data = tensor.data<T>();
 
-    std::mt19937 gen(0);
+    static int t = 0;
+    std::mt19937 gen(t);
     uniformDistribution<T2> distribution(rand_min, rand_max);
     for (size_t i = 0; i < tensor_size; i++) {
-        data[i] = static_cast<T>(distribution(gen));
+        data[i] = static_cast<T>(distribution(gen)) + t + i;
     }
+    t++;
 
     return tensor;
 }
