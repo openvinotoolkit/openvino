@@ -23,6 +23,7 @@ def xfail_test(reason="Mark the test as expected to fail", strict=True):
     return pytest.mark.xfail(reason=reason, strict=strict)
 
 skip_segfault = pytest.mark.skip(reason="Segmentation fault error")
+skip_issue_166517 = pytest.mark.skip(reason="Unsupported negative indices cause access violation")
 xfail_dynamic_rank = xfail_test(reason="Dynamic rank")
 xfail_accuracy = xfail_test(reason="Accuracy")
 xfail_issue_69444 = xfail_test(reason="ONNX Resize - AssertionError: Mismatched elements.")
