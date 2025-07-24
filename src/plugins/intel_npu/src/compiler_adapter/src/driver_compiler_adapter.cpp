@@ -419,7 +419,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        nullptr,
                                        std::move(metadata),
                                        std::move(mainBlob),
-                                       blobAllocatedByPlugin,
+                                       true,
                                        config);
     }
 
