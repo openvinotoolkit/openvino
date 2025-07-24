@@ -371,14 +371,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
 
             if (!config.get_use_cm()) {
-                OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                util::log_message("You may miss SDPAToVLSDPA optimization for QWenVL model,"
                               "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
                 return false;
             }
 
             if (!check_cm_jit_support(engine, config)) {
-                OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
-                              "as CM environment is unavailable. Enable it by installing proper GPU driver and CM compiler.");
+                util::log_message("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                              "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
                 return false;
             }
 
