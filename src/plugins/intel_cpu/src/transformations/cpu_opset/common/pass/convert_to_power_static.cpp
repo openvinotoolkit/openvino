@@ -67,7 +67,7 @@ bool isConvertableToPowerStatic(const std::shared_ptr<BaseOp>& node) {
     }
     auto const_shape = node->get_input_shape(constPort);
     return ov::shape_size(const_shape) == 1 && input_rank.get_length() >= static_cast<int64_t>(const_shape.size()) &&
-           !ov::intel_cpu::one_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
+           !ov::intel_cpu::any_of(node->get_input_node_shared_ptr(nonConstPort)->get_type_info(),
                                   ov::op::v0::NormalizeL2::get_type_info_static(),
                                   ov::op::v0::Interpolate::get_type_info_static(),
                                   ov::op::v1::Convolution::get_type_info_static(),

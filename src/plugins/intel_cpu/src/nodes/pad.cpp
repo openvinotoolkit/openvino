@@ -48,14 +48,14 @@ namespace ov::intel_cpu::node {
 
 bool Pad::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), op::v1::Pad::get_type_info_static(), op::v12::Pad::get_type_info_static())) {
+        if (none_of(op->get_type_info(), op::v1::Pad::get_type_info_static(), op::v12::Pad::get_type_info_static())) {
             errorMessage = "Only Pad operations from opset1 and opset12 are supported";
             return false;
         }
 
         const auto* pad = ov::as_type<const op::util::PadBase>(op.get());
         const auto pad_mode = pad->get_pad_mode();
-        if (!one_of(pad_mode, op::PadMode::CONSTANT, op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC)) {
+        if (none_of(pad_mode, op::PadMode::CONSTANT, op::PadMode::EDGE, op::PadMode::REFLECT, op::PadMode::SYMMETRIC)) {
             errorMessage = "Has unsupported pad_mode: " + ov::as_string(pad_mode);
             return false;
         }
@@ -71,7 +71,7 @@ Pad::Pad(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    CPU_NODE_ASSERT(inputShapes.size() == 3 || inputShapes.size() == 4, "has incorrect number of input edges");
+    CPU_NODE_ASSERT(any_of(inputShapes.size(), 3U, 4U), "has incorrect number of input edges");
     CPU_NODE_ASSERT(outputShapes.size() == 1, "Incorrect number of output edges");
 
     const size_t srcDimsRank = inputShapes[DATA_ID].getRank();
@@ -163,7 +163,7 @@ void Pad::initSupportedPrimitiveDescriptors() {
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     };
 
-    if (numOfDims == 4 || numOfDims == 5) {
+    if (any_of(numOfDims, 4U, 5U)) {
         pushSupportedPrimitiveDescriptor(LayoutType::nspc);
     }
 
@@ -177,7 +177,7 @@ void Pad::initSupportedPrimitiveDescriptors() {
                 (attrs.padMode != CONSTANT && attrs.padsBegin[1] == 0 && attrs.padsEnd[1] == 0));
     };
 
-    if (numOfDims == 4 || numOfDims == 5) {
+    if (any_of(numOfDims, 4U, 5U)) {
         if (!shapeHasDataDependency) {
             if (canUseBlocked(8)) {
                 pushSupportedPrimitiveDescriptor(LayoutType::nCsp8c);
@@ -385,7 +385,7 @@ void Pad::PadExecutor::workPartition() {
     }
 
     params.srcDimsForReflectOrSymmetric.clear();
-    if (params.attrs.padMode == REFLECT || params.attrs.padMode == SYMMETRIC) {
+    if (any_of(params.attrs.padMode, REFLECT, SYMMETRIC)) {
         int shift = params.attrs.padMode == SYMMETRIC ? 1 : 0;
         for (size_t i = 0; i < params.srcDims.size(); ++i) {
             params.srcDimsForReflectOrSymmetric.push_back(params.srcDims[i] + params.srcODims[i] - 2 + shift);

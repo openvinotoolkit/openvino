@@ -268,7 +268,7 @@ const char* DnnlExtensionUtils::query_pd_info(const_dnnl_primitive_desc_t pd) {
 
 bool DnnlExtensionUtils::isUnarySupportedAsPostOp([[maybe_unused]] Algorithm alg) {
 #if defined(OV_CPU_WITH_ACL)
-    return one_of(alg,
+    return any_of(alg,
                   Algorithm::EltwiseRelu,
                   Algorithm::EltwiseTanh,
                   Algorithm::EltwiseElu,
@@ -278,7 +278,7 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp([[maybe_unused]] Algorithm alg
                   Algorithm::EltwiseSigmoid,
                   Algorithm::EltwiseClamp);
 #elif defined(OPENVINO_ARCH_X86_64)
-    return one_of(alg,
+    return any_of(alg,
                   Algorithm::EltwiseRelu,
                   Algorithm::EltwiseGeluErf,
                   Algorithm::EltwiseGeluTanh,

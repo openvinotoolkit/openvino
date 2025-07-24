@@ -38,7 +38,7 @@ namespace ov::intel_cpu::node {
 
 bool GatherND::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v5::GatherND::get_type_info_static(),
                     ov::op::v8::GatherND::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
@@ -83,7 +83,7 @@ void GatherND::initSupportedPrimitiveDescriptors() {
     }
 
     ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(GATHERND_DATA);
-    if (!one_of(inDataPrecision.size(),
+    if (none_of(inDataPrecision.size(),
                 sizeof(element_type_traits<ov::element::i32>::value_type),
                 sizeof(element_type_traits<ov::element::i16>::value_type),
                 sizeof(element_type_traits<ov::element::i8>::value_type))) {
@@ -92,7 +92,7 @@ void GatherND::initSupportedPrimitiveDescriptors() {
     attrs.dataSize = inDataPrecision.size();
 
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
-    if (!one_of(indicesPrecision,
+    if (none_of(indicesPrecision,
                 ov::element::i32,
                 ov::element::i64,
                 ov::element::i16,

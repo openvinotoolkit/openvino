@@ -36,7 +36,7 @@
 
 namespace {
 bool is_prime_number(size_t value) {
-    if (ov::snippets::utils::one_of(value, 2lu, 3lu)) {
+    if (ov::snippets::utils::any_of(value, 2lu, 3lu)) {
         return true;
     }
     if (value == 1 || value % 2 == 0 || value % 3 == 0) {
@@ -44,7 +44,7 @@ bool is_prime_number(size_t value) {
     }
     const auto root = std::sqrt(value) + 1;
     for (size_t divisor = 5; divisor < root; divisor += 6) {
-        if ((value % divisor == 0) || (value % (divisor + 2) == 0)) {
+        if (ov::snippets::utils::any_of(0U, value % divisor, value % (divisor + 2))) {
             return false;
         }
     }

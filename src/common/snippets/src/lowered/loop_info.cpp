@@ -389,7 +389,7 @@ namespace {
 template <typename T>
 void order(const std::vector<size_t>& new_order, std::vector<T>& values) {
     const auto order_set = std::set<size_t>(new_order.cbegin(), new_order.cend());
-    OPENVINO_ASSERT(new_order.size() == values.size() && order_set.size() == values.size(),
+    OPENVINO_ASSERT(utils::all_of(values.size(), new_order.size(), order_set.size()),
                     "Failed to sort values: `new order` must contain unique indexes");
     OPENVINO_ASSERT(*order_set.begin() == 0 && *order_set.rbegin() == (values.size() - 1),
                     "Failed to sort values: `new_order` must contain new indexes for ALL values");
@@ -689,9 +689,8 @@ void order_subvector(const std::vector<size_t>& indexes,
 
 void ExpandedLoopInfo::sort_ports() {
     const auto count = get_input_count() + get_output_count();
-    OPENVINO_ASSERT(
-        utils::everyone_is(count, m_ptr_increments.size(), m_finalization_offsets.size(), m_data_sizes.size()),
-        "Incompatible data ptr shifts!");
+    OPENVINO_ASSERT(utils::all_of(count, m_ptr_increments.size(), m_finalization_offsets.size(), m_data_sizes.size()),
+                    "Incompatible data ptr shifts!");
 
     auto reorder = [this](std::vector<LoopPort>& ports, size_t count, size_t offset) {
         if (!ports.empty()) {

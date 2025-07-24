@@ -22,6 +22,7 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -31,7 +32,7 @@ void assign_new_ptr_increment(int64_t new_ptr_increment,
     const auto old_ptr_incr = loop_desc.ptr_increment;
     const auto old_final_offset = loop_desc.finalization_offset;
 
-    if (old_ptr_incr != 0 && old_ptr_incr != new_ptr_increment) {
+    if (none_of(old_ptr_incr, 0, new_ptr_increment)) {
         loop_desc.ptr_increment = new_ptr_increment;
         if (!ov::snippets::utils::is_dynamic_value(old_final_offset)) {
             OPENVINO_ASSERT(old_final_offset % old_ptr_incr == 0, "Can't rescale finalization offsets");

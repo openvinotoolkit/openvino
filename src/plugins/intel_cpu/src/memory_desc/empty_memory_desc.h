@@ -37,7 +37,7 @@ public:
     }
 
     bool isCompatible(const MemoryDesc& rhs) const override {
-        return everyone_is(this->getType(), rhs.getType(), Empty);
+        return all_of(this->getType(), rhs.getType(), Empty);
     };
 
     ov::element::Type getPrecision() const override {

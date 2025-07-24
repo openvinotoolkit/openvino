@@ -30,6 +30,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/caseless.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -76,10 +77,8 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(getOriginalInputsNumber() == 3 || getOriginalInputsNumber() == 5,
-                    "has incorrect number of input edges.");
-
-    CPU_NODE_ASSERT(getOriginalOutputsNumber() == 1, "has incorrect number of output edges.");
+    CPU_NODE_ASSERT(any_of(getOriginalInputsNumber(), 3U, 5U), "has incorrect number of input edges.");
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == 1U, "has incorrect number of output edges.");
 
     auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();

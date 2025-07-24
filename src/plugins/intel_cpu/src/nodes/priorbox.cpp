@@ -26,6 +26,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "shape_inference/custom/priorbox.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 namespace {
@@ -99,7 +100,7 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 
     number_of_priors = static_cast<int>(ov::op::v0::PriorBox::number_of_priors(attrs));
 
-    if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
+    if (any_of(attrs.variance.size(), 1U, 4U)) {
         for (float i : attrs.variance) {
             CPU_NODE_ASSERT(i >= 0, "variance must be > 0.");
 

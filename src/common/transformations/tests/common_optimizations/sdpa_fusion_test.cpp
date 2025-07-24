@@ -98,7 +98,7 @@ public:
     }
 
     // Build pattern (MatMul -> scale -> mask -> Softmax -> MatMul)
-    void create_pattern_sdpa(bool transpose_b = false) {
+    void create_pattern_sdpa(bool transpose_b = false, int softmax_axis = -1) {
         m_preprocessing_callback(nodes);
 
         auto attn_scores = make_shared<op::v0::MatMul>(nodes[InputType::Q], nodes[InputType::K], false, transpose_b);
@@ -111,7 +111,7 @@ public:
         if (with_mask) {
             attn_scores_with_mask = make_shared<op::v1::Add>(attn_scores_scaled, m_mask);
         }
-        auto softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, -1);
+        auto softmax = make_shared<op::v8::Softmax>(attn_scores_with_mask, softmax_axis);
         auto output = make_shared<op::v0::MatMul>(softmax, nodes[InputType::V]);
 
         nodes[InputType::SDPA] = output;
@@ -424,6 +424,99 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                                               32,   // Ev (V embedding)
                                                               {},   // mask_shape
                                                               1.0f  // scale
+                                                              ))));
+
+class SDPAFusionSoftmaxAxis : public TransformationTestsF,
+                              public ::testing::WithParamInterface<std::tuple<Type, bool, bool, SDPAFusionParams>> {};
+
+// Test for SDPAFusion with axis = 3 in softmax
+TEST_P(SDPAFusionSoftmaxAxis, SDPAFusionTest_softmax_axis) {
+    // Parametrization
+    const auto& [type, with_mask, with_scale, param] = GetParam();
+
+    // Init.
+    SDPA sdpa(type, param.q_shape, param.k_shape, param.v_shape);
+    SDPA sdpa_ref(type, param.q_shape, param.k_shape, param.v_shape);
+
+    // Attention mask processing.
+    if (with_mask) {
+        sdpa.set_mask(param.mask_shape);
+        sdpa_ref.set_mask(param.mask_shape);
+    }
+
+    // Scale processing.
+    if (with_scale) {
+        sdpa.set_scale(param.scale);
+        sdpa_ref.set_scale(param.scale);
+    }
+
+    // SDPA model.
+    {
+        bool transpose_inside_matmul = true;                   // transpose_b = true for matmul
+        sdpa.create_pattern_sdpa(transpose_inside_matmul, 3);  // axis = (rank size -1) (4d, so axis = 3)
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    // SDPA reference model.
+    {
+        sdpa_ref.create_reference_sdpa();
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusion,
+                         SDPAFusionSoftmaxAxis,
+                         Combine(Values(f32, f16),                  // Types
+                                 Values(true, false),               // Use attention_mask
+                                 Values(true, false),               // Use scale
+                                 Values(explicit_transpose_4d(1,    // B (batch)
+                                                              32,   // H (heads)
+                                                              5,    // S_q (query len)
+                                                              3,    // S_kv (kv len)
+                                                              32,   // E (embedding)
+                                                              32,   // Ev (V embedding)
+                                                              {},   // mask_shape
+                                                              1.0f  // scale
+                                                              ),
+                                        explicit_transpose_4d(1,               // B (batch)
+                                                              32,              // H (heads)
+                                                              128,             // S_q (query len)
+                                                              128,             // S_kv (kv len)
+                                                              64,              // E (embedding)
+                                                              64,              // Ev (V embedding)
+                                                              {32, 128, 128},  // mask_shape
+                                                              0.125f           // scale
+                                                              ),
+                                        explicit_transpose_4d(1,                // B (batch)
+                                                              32,               // H (heads)
+                                                              -1,               // S_q (query len)
+                                                              -1,               // S_kv (kv len)
+                                                              32,               // E (embedding)
+                                                              32,               // Ev (V embedding)
+                                                              {1, 32, -1, -1},  // mask_shape
+                                                              0.125f            // scale
+                                                              ),
+                                        explicit_transpose_4d(1,               // B (batch)
+                                                              32,              // H (heads)
+                                                              10,              // S_q (query len)
+                                                              10,              // S_kv (kv len)
+                                                              32,              // E (embedding)
+                                                              32,              // Ev (V embedding)
+                                                              {1, 1, 10, 10},  // mask_shape
+                                                              0.125f           // scale
+                                                              ),
+                                        explicit_transpose_4d(1,                 // B (batch)
+                                                              10,                // H (heads)
+                                                              1024,              // S_q (query len)
+                                                              1024,              // S_kv (kv len)
+                                                              64,                // E (embedding)
+                                                              64,                // Ev (V embedding)
+                                                              {10, 1024, 1024},  // mask_shape
+                                                              0.125f             // scale
                                                               ))));
 
 class SDPAFusionExplicitTranspose

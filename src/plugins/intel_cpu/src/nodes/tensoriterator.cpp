@@ -430,7 +430,7 @@ void DynamicBuffer::copy(const uint8_t* src,
 bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v0::TensorIterator::get_type_info_static(),
                     ov::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";

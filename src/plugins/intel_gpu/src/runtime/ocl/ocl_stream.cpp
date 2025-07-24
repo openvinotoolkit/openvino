@@ -286,12 +286,7 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
     std::vector<cl::Event> dep_events;
     std::vector<cl::Event>* dep_events_ptr = nullptr;
     if (m_sync_method == SyncMethods::events) {
-        for (auto& dep : deps) {
-            if (auto ocl_base_ev = std::dynamic_pointer_cast<ocl_base_event>(dep)) {
-                if (ocl_base_ev->get().get() != nullptr)
-                    dep_events.push_back(ocl_base_ev->get());
-            }
-        }
+        dep_events = utils::get_cl_events(deps);
         dep_events_ptr = &dep_events;
     } else if (m_sync_method == SyncMethods::barriers) {
         sync_events(deps, is_output);
@@ -333,13 +328,7 @@ event::ptr ocl_stream::enqueue_marker(std::vector<event::ptr> const& deps, bool 
 
     if (m_sync_method == SyncMethods::events) {
         cl::Event ret_ev;
-        std::vector<cl::Event> dep_events;
-        for (auto& dep : deps) {
-            if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(dep.get()))
-                if (ocl_base_ev->get().get() != nullptr)
-                    dep_events.push_back(ocl_base_ev->get());
-        }
-
+        std::vector<cl::Event> dep_events = utils::get_cl_events(deps);
         try {
             if (dep_events.empty()) {
                 return create_user_event(true);

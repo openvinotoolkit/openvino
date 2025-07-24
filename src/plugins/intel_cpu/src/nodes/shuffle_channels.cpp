@@ -179,10 +179,10 @@ void ShuffleChannels::prepareParams() {
 
 ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
     OPENVINO_ASSERT(
-        one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
+        any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
         "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
 
-    const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isBlocked = any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsLast = attrs.layoutType == LayoutType::nspc;
     const auto& srcDims = attrs.srcDims;
     const auto& srcBlockedDims = attrs.srcBlockedDims;

@@ -32,6 +32,7 @@
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
 using namespace dnnl;
@@ -112,8 +113,7 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
         pooledWidth = groupSize;
 
     } else if (defPsroi) {
-        CPU_NODE_ASSERT(defPsroi->get_input_size() == 2 || defPsroi->get_input_size() == 3,
-                        "has incorrect number of input/output edges!");
+        CPU_NODE_ASSERT(any_of(defPsroi->get_input_size(), 2U, 3U), "has incorrect number of input/output edges!");
 
         algorithm = Algorithm::PSROIPoolingBilinearDeformable;
 
@@ -163,7 +163,7 @@ void PSROIPooling::initSupportedPrimitiveDescriptors() {
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(0) == ov::element::bf16 ? ov::element::bf16 : ov::element::f32;
 
-    if (getAlgorithm() == Algorithm::PSROIPoolingAverage || getAlgorithm() == Algorithm::PSROIPoolingBilinear) {
+    if (any_of(getAlgorithm(), Algorithm::PSROIPoolingAverage, Algorithm::PSROIPoolingBilinear)) {
         std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
                                                                   {LayoutType::nspc, LayoutType::nspc},
                                                                   {LayoutType::nCsp16c, LayoutType::nCsp16c},
@@ -655,10 +655,10 @@ void PSROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    CPU_NODE_ASSERT((inputPrec == ov::element::bf16 && outputPrec == ov::element::bf16) ||
-                        (inputPrec == ov::element::f32 && outputPrec == ov::element::f32),
-                    "has different precisions on input: " + inputPrec.get_type_name() +
-                        " and output: " + outputPrec.get_type_name());
+    CPU_NODE_ASSERT(
+        (all_of(ov::element::bf16, inputPrec, outputPrec)) || (all_of(ov::element::f32, inputPrec, outputPrec)),
+        "has different precisions on input: " + inputPrec.get_type_name() +
+            " and output: " + outputPrec.get_type_name());
 
     PSROIPoolingContext ctx = {
         *this,

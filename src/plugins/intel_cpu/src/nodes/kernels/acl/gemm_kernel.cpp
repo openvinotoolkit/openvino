@@ -27,7 +27,7 @@ GemmKernel::GemmKernel(size_t M, size_t N, size_t K, bool b_transposed, ov::elem
       N(N),
       K(K),
       b_transposed(b_transposed) {
-    if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+    if (none_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16)) {
         THROW_ERROR("brgemm kernel only supports bf16, f16 and f32");
     }
 

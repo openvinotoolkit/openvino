@@ -186,9 +186,9 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
                 // If allocation sizes are undefined, we can check if they have the same allocation sizes in runtime:
                 //  - they should calculate allocation size using the common algorithm from
                 //  `BufferExpression::init_allocation_size`.
-                if (!utils::everyone_is(BufferExpression::get_type_info_static(),
-                                        input_buffer_expr->get_type_info(),
-                                        output_buffer_expr->get_type_info())) {
+                if (!utils::all_of(BufferExpression::get_type_info_static(),
+                                   input_buffer_expr->get_type_info(),
+                                   output_buffer_expr->get_type_info())) {
                     continue;
                 }
             }

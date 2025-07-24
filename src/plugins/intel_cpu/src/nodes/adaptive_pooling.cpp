@@ -40,13 +40,13 @@ namespace ov::intel_cpu::node {
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
     try {
-        if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
+        if (any_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
             auto adaPool = ov::as_type_ptr<const ov::op::v8::AdaptiveAvgPool>(op);
             if (!adaPool) {
                 errorMessage = "Only v8 AdaptiveAvgPooling operation is supported";
                 return false;
             }
-        } else if (one_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
+        } else if (any_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
             auto adaPool = ov::as_type_ptr<const ov::op::v8::AdaptiveMaxPool>(op);
             if (!adaPool) {
                 errorMessage = "Only v8 AdaptiveMaxPooling operation is supported";
@@ -68,9 +68,9 @@ AdaptivePooling::AdaptivePooling(const std::shared_ptr<ov::Node>& op, const Grap
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
+    if (any_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingAvg;
-    } else if (one_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
+    } else if (any_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingMax;
     }
     spatialDimsCount = getInputShapeAtPort(0).getRank() - 2;
@@ -84,7 +84,7 @@ void AdaptivePooling::getSupportedDescriptors() {
                     getChildEdges().size());
 
     auto srcRank = getInputShapeAtPort(0).getRank();
-    CPU_NODE_ASSERT(one_of(spatialDimsCount, 1, 2, 3), "doesn't support 0th input with rank: ", srcRank);
+    CPU_NODE_ASSERT(any_of(spatialDimsCount, 1, 2, 3), "doesn't support 0th input with rank: ", srcRank);
 
     CPU_NODE_ASSERT(getInputShapeAtPort(1).getRank() == 1,
                     "doesn't support 1st input with rank: ",
@@ -116,7 +116,7 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
 
     std::vector<LayoutType> dataFormats{LayoutType::ncsp};
     const auto& inDims = getInputShapeAtPort(0).getDims();
-    if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] != 1) {
+    if (none_of(inDims[1], Shape::UNDEFINED_DIM, 1U)) {
         dataFormats.push_back(LayoutType::nspc);
         dataFormats.push_back(LayoutType::nCsp16c);
         dataFormats.push_back(LayoutType::nCsp8c);

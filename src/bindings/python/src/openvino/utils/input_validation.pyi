@@ -1,13 +1,15 @@
 # type: ignore
 from __future__ import annotations
+from collections.abc import Callable
+from collections.abc import Iterable
 from openvino.exceptions import UserInputError
-from typing import Any
+import collections.abc
 import logging as logging
 import numpy as np
 """
 Helper functions for validating user input.
 """
-__all__ = ['Any', 'UserInputError', 'assert_list_of_ints', 'check_valid_attribute', 'check_valid_attributes', 'is_non_negative_value', 'is_positive_value', 'log', 'logging', 'np']
+__all__ = ['Callable', 'Iterable', 'UserInputError', 'assert_list_of_ints', 'check_valid_attribute', 'check_valid_attributes', 'is_non_negative_value', 'is_positive_value', 'log', 'logging', 'np']
 def _check_value(op_name, attr_key, value, val_type, cond = None):
     """
     Check whether provided value satisfies specified criteria.
@@ -23,7 +25,7 @@ def _check_value(op_name, attr_key, value, val_type, cond = None):
         returns:    True if attribute satisfies all criterias. Otherwise False.
         
     """
-def assert_list_of_ints(value_list: typing.Iterable[int], message: str) -> None:
+def assert_list_of_ints(value_list: collections.abc.Iterable[int], message: str) -> None:
     """
     Verify that the provided value is an iterable of integers.
     """
@@ -54,7 +56,7 @@ def check_valid_attributes(op_name, attributes, requirements):
                                 contain following values:
                                 (attr_name: str,
                                 is_required: bool,
-                                value_type: Type,
+                                value_type: type,
                                 value_condition: Callable)
     
         :raises     UserInputError:

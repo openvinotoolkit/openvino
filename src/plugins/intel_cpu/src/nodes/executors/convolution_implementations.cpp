@@ -81,7 +81,7 @@ template <typename PostOpType>
 }
 
 [[maybe_unused]] static inline bool isQuantized(const ConvConfig& config) {
-    return one_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
+    return any_of(config.descs.at(ARG_SRC)->getPrecision(), ov::element::u8, ov::element::i8) &&
            config.descs.at(ARG_WEI)->getPrecision() == ov::element::i8;
 };
 
@@ -153,7 +153,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
 
-                return IC == 1 && groupOC == 1;
+                return all_of(1U, IC, groupOC);
             },
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>{},
@@ -271,7 +271,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
 
-                return !one_of(srcType(config), ov::element::bf16, ov::element::f16) && DnnlConvolutionPrimitive::isNspcAvailable(config);
+                return none_of(srcType(config), ov::element::bf16, ov::element::f16) && DnnlConvolutionPrimitive::isNspcAvailable(config);
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>{},

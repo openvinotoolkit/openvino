@@ -54,7 +54,7 @@ size_t jit_fill_emitter::aux_gprs_count() const {
         return 1;
     }
     // + 1 reg for temp reg for mask in avx512
-    return one_of(host_isa_, dnnl::impl::cpu::x64::avx512_core) ? 2 : 1;
+    return any_of(host_isa_, dnnl::impl::cpu::x64::avx512_core) ? 2 : 1;
 }
 
 void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -107,13 +107,13 @@ void jit_fill_emitter::fill_full(const Vmm& dst_vmm) const {
 
 template <typename Vmm>
 void jit_fill_emitter::fill_tail(const Vmm& src_vmm, const Vmm& dst_vmm) const {
-    if (one_of(host_isa_, dnnl::impl::cpu::x64::avx512_core)) {
+    if (any_of(host_isa_, dnnl::impl::cpu::x64::avx512_core)) {
         uint64_t tail_mask = 1;
         tail_mask = ~((tail_mask << offset) - tail_mask);
         h->mov(Reg64(aux_gpr_idxs[0]), tail_mask);
         h->kmovq(k_mask, Reg64(aux_gpr_idxs[0]));
         h->vblendmps(dst_vmm | k_mask, src_vmm, table_val("value"));
-    } else if (one_of(host_isa_, dnnl::impl::cpu::x64::avx2, dnnl::impl::cpu::x64::sse41)) {
+    } else if (any_of(host_isa_, dnnl::impl::cpu::x64::avx2, dnnl::impl::cpu::x64::sse41)) {
         uint8 imm = 1;
         imm = ~((imm << offset) - imm);  // shift load_num bit
         if (host_isa_ == dnnl::impl::cpu::x64::sse41 && src_vmm.getIdx() != dst_vmm.getIdx()) {

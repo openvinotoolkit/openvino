@@ -207,7 +207,7 @@ void ConvolutionLayerCPUTest::SetUp() {
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     if (!priority.empty()) {
         // Skip tests for brgconv convolution where kernel size = 1x1
-        if (one_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
+        if (any_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
                 bool is_1x1 = true;
                 for (const auto &i : kernel) {
                 if (i != 1) {
