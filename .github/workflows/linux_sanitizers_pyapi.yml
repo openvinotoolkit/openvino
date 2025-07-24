@@ -364,7 +364,7 @@ jobs:
       - name: Intel CPU plugin func tests (parallel)
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         env:
-          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '--gtest_filter=*smoke_Conv_1D_GEMM_FP32*IS=[]*2.12.7*K\(3\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=6*AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm*Fused=Relu*Multiply\(PerChannel\).Add\(PerChannel\)*' }}
+          GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '--gtest_filter=*smoke_Conv_1D_GEMM_FP32*IS=[]*2.12.7*K*3*_S*1*_PB*0*_PE*0*_D=*1*_O=6*AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm*Fused=Relu*Multiply*PerChannel*.Add*PerChannel*' }}
           # *smoke_Conv_1D_GEMM_FP32*IS=[]*2.12.7*K\(3\)_S\(1\)_PB\(0\)_PE\(0\)_D=\(1\)_O=6*AP=explicit_netPRC=f32_inPRC=dynamic_outPRC=dynamic_trgDev=CPU_inFmts=ncw_outFmts=ncw_primitive=jit_gemm*Fused=Relu*Multiply\(PerChannel\).Add\(PerChannel\)*
         run: |
           # # Needed as the Linux CC does not require setupvars to work
