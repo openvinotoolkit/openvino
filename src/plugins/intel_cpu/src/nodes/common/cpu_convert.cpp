@@ -1029,7 +1029,8 @@ void cpu_convert(const void* srcPtr,
     if (size == 0) {
         return;
     }
-    OPENVINO_ASSERT(srcPtr != nullptr && dstPtr != nullptr, "cpu_convert has null data pointer");
+    const bool arePointersValid = srcPtr != nullptr && dstPtr != nullptr;
+    OPENVINO_ASSERT(arePointersValid, "cpu_convert has null data pointer");
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);

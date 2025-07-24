@@ -92,7 +92,8 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (any_of(op->get_input_size(), 4U, 5U) && op->get_output_size() == 1U) {
         compressed = true;
     } else {
-        CPU_NODE_ASSERT(op->get_input_size() == 3 && op->get_output_size() == 1,
+        const bool hasCorrectPortCount = op->get_input_size() == 3 && op->get_output_size() == 1;
+        CPU_NODE_ASSERT(hasCorrectPortCount,
                         "has incorrect number of input/output edges!");
     }
 
@@ -103,7 +104,8 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     const auto& idxShape = getInputShapeAtPort(GATHER_INDICES);
     isIdxShapeStat = idxShape.isStatic();
     const auto indicesRank = idxShape.getRank();
-    CPU_NODE_ASSERT(dataSrcRank != 0LU && indicesRank != 0LU, "has incorrect input parameters ranks.");
+    const bool haveValidInputRanks = dataSrcRank != 0LU && indicesRank != 0LU;
+    CPU_NODE_ASSERT(haveValidInputRanks, "has incorrect input parameters ranks.");
 
     if (ov::is_type<ov::op::v8::Gather>(op)) {
         batchDims = static_cast<int>(ov::as_type_ptr<ov::op::v8::Gather>(op)->get_batch_dims());
@@ -124,7 +126,8 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (batchDims < 0) {
         batchDims += indicesRank;
     }
-    CPU_NODE_ASSERT(batchDims >= 0 && batchDims <= std::min(dataSrcRank, static_cast<int>(indicesRank)),
+    const bool areBatchDimsValid = batchDims >= 0 && batchDims <= std::min(dataSrcRank, static_cast<int>(indicesRank));
+    CPU_NODE_ASSERT(areBatchDimsValid,
                     "has incorrect batch_dims ",
                     batchDims,
                     "!");
@@ -135,7 +138,8 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         if (axis < 0) {
             axis += dataSrcRank;
         }
-        CPU_NODE_ASSERT(axis >= 0 && axis < dataSrcRank && batchDims <= axis,
+        const bool isAxisValid = axis >= 0 && axis < dataSrcRank && batchDims <= axis;
+        CPU_NODE_ASSERT(isAxisValid,
                         "has incorrect input parameter axis value: ",
                         axis);
     }
@@ -408,7 +412,8 @@ void Gather::prepareParams() {
         if (axis < 0) {
             axis += dataSrcRank;
         }
-        CPU_NODE_ASSERT(axis >= 0 && axis < dataSrcRank && batchDims <= axis,
+        const bool isAxisValid = axis >= 0 && axis < dataSrcRank && batchDims <= axis;
+        CPU_NODE_ASSERT(isAxisValid,
                         "has incorrect input parameter axis value: ",
                         axis);
     }

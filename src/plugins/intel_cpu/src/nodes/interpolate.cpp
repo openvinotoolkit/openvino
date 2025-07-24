@@ -1933,7 +1933,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
         if (const auto interp = ov::as_type_ptr<const ov::op::v4::Interpolate>(op)) {
             is_version11 = false;
             const auto numInputs = inputShapes.size();
-            CPU_NODE_ASSERT(numInputs == 3 || numInputs == 4, "has incorrect number of input edges");
+            const bool hasValidInputCount = numInputs == 3 || numInputs == 4;
+            CPU_NODE_ASSERT(hasValidInputCount, "has incorrect number of input edges");
             CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges");
             isAxesSpecified = numInputs != 3;
 
@@ -2037,7 +2038,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
             is_version11 = true;
             const auto numInputs = inputShapes.size();
-            CPU_NODE_ASSERT(numInputs == 2 || numInputs == 3, "has incorrect number of input edges");
+            const bool hasValidInputCount = numInputs == 2 || numInputs == 3;
+            CPU_NODE_ASSERT(hasValidInputCount, "has incorrect number of input edges");
             CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges");
             isAxesSpecified = numInputs != 2;
 
@@ -2112,7 +2114,8 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
 void Interpolate::getSupportedDescriptors() {
     // v4: data, target_shape, scale, axis(optional).
     // v11: data, size_or_scale, axis(optional)
-    CPU_NODE_ASSERT(getParentEdges().size() == 2 || getParentEdges().size() == 3 || getParentEdges().size() == 4,
+    const bool hasValidParentEdgeCount = getParentEdges().size() == 2 || getParentEdges().size() == 3 || getParentEdges().size() == 4;
+    CPU_NODE_ASSERT(hasValidParentEdgeCount,
                     "has incorrect number of input edges");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
 
@@ -2421,22 +2424,27 @@ void Interpolate::prepareParams() {
     CPU_NODE_ASSERT(shapesDefined(), "input/output dims aren't defined");
 
     auto dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory");
+    const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDestinationMemoryValid, "has undefined destination memory");
 
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
-    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory");
+    const bool isInputMemoryValid = srcMemPtr && srcMemPtr->isDefined();
+    CPU_NODE_ASSERT(isInputMemoryValid, "has undefined input memory");
 
     if (interpAttrs.shapeCalcMode == InterpolateShapeCalcMode::sizes) {
         auto tsMemPtr = getSrcMemoryAtPort(TARGET_SHAPE_ID);
-        CPU_NODE_ASSERT(tsMemPtr && tsMemPtr->isDefined(), "has undefined target shape memory");
+        const bool isTargetShapeMemoryValid = tsMemPtr && tsMemPtr->isDefined();
+        CPU_NODE_ASSERT(isTargetShapeMemoryValid, "has undefined target shape memory");
     } else {
         auto scaleMemPtr = getSrcMemoryAtPort(get_scale_id());
-        CPU_NODE_ASSERT(scaleMemPtr && scaleMemPtr->isDefined(), "has undefined scales memory");
+        const bool isScaleMemoryValid = scaleMemPtr && scaleMemPtr->isDefined();
+        CPU_NODE_ASSERT(isScaleMemoryValid, "has undefined scales memory");
     }
 
     if (isAxesSpecified) {
         auto axesMemPtr = getSrcMemoryAtPort(get_axis_id());
-        CPU_NODE_ASSERT(axesMemPtr && axesMemPtr->isDefined(), "has undefined axes memory");
+        const bool isAxesMemoryValid = axesMemPtr && axesMemPtr->isDefined();
+        CPU_NODE_ASSERT(isAxesMemoryValid, "has undefined axes memory");
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
@@ -2695,7 +2703,8 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
                 size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
                 srcPadded.resize(eltsTotal * srcDataSize, 0x0);
                 auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-                CPU_NODE_ASSERT((srcDim5d[0] == srcDimPad5d[0]) && (srcDim5d[1] == srcDimPad5d[1]),
+                const bool areBatchAndChannelDimensionsUnpadded = (srcDim5d[0] == srcDimPad5d[0]) && (srcDim5d[1] == srcDimPad5d[1]);
+                CPU_NODE_ASSERT(areBatchAndChannelDimensionsUnpadded,
                                 "does not support padding on batch and channel dimensions");
                 parallel_for5d(srcDim5d[0],
                                CB,

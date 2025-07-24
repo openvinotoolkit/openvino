@@ -1209,7 +1209,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         auto outputLowAxisSize = ov::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
         auto outputHighAxisSize = ov::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
-        CPU_NODE_ASSERT(axisSize == -1 || dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis]),
+        const bool isAxisSizeValid = axisSize == -1 || dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis]);
+        CPU_NODE_ASSERT(isAxisSizeValid,
                         "has different quantization axis size on 'data' and 'range' inputs");
 
         const auto inputLowNode = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(1));

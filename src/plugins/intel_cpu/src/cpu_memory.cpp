@@ -236,7 +236,8 @@ void* Memory::getData() const {
     bool hasValidData = data != nullptr;
     bool isDynamicShape = m_pMemDesc->getShape().isDynamic();
     bool isEmpty = m_pMemDesc->getShape().getElementsCount() == 0;
-    OPENVINO_ASSERT(hasValidData || isDynamicShape || isEmpty, "Memory has not been allocated");
+    const bool memoryIsValid = hasValidData || isDynamicShape || isEmpty;
+    OPENVINO_ASSERT(memoryIsValid, "Memory has not been allocated");
     return data;
 }
 

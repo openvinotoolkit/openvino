@@ -42,7 +42,6 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/debug_capabilities.h"
-#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -151,7 +150,8 @@ public:
     }
 
     void execute(const dnnl::stream& strm, int iter) override {
-        OPENVINO_ASSERT(iter >= 0 && iter < iter_count);
+        const bool isIterInValidRange = iter >= 0 && iter < iter_count;
+        OPENVINO_ASSERT(isIterInValidRange);
 
         auto& chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t*>(full_mem.get_data_handle()) + chunk_offset_in_byte +
@@ -430,9 +430,9 @@ void DynamicBuffer::copy(const uint8_t* src,
 bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
-                    ov::op::v0::TensorIterator::get_type_info_static(),
-                    ov::op::v5::Loop::get_type_info_static())) {
+        if (!std::none_of(op->get_type_info(),
+                          ov::op::v0::TensorIterator::get_type_info_static(),
+                          ov::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
         }

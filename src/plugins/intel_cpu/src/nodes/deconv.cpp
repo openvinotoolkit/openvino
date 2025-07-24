@@ -293,8 +293,9 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
     }
     if (externOutShape && isDynamicNode()) {
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
-        CPU_NODE_ASSERT(getInputShapeAtPort(2).getStaticDims()[0] == spDimsNum &&
-                            (!isConstOutShape || lastOutputSpatialDims.size() == spDimsNum),
+        const bool hasCorrectShapeElementCount = getInputShapeAtPort(2).getStaticDims()[0] == spDimsNum &&
+                                                  (!isConstOutShape || lastOutputSpatialDims.size() == spDimsNum);
+        CPU_NODE_ASSERT(hasCorrectShapeElementCount,
                         "'output_shape' input has incorrect number of elements. Expected = ",
                         spDimsNum);
     }
@@ -959,9 +960,12 @@ void Deconvolution::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto wghMemPtr = getSrcMemoryAtPort(1);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
-    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "Input memory is undefined.");
-    CPU_NODE_ASSERT(wghMemPtr && wghMemPtr->isDefined(), "Weight memory is undefined.");
+    const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDestinationMemoryValid, "Destination memory is undefined.");
+    const bool isInputMemoryValid = srcMemPtr && srcMemPtr->isDefined();
+    CPU_NODE_ASSERT(isInputMemoryValid, "Input memory is undefined.");
+    const bool isWeightMemoryValid = wghMemPtr && wghMemPtr->isDefined();
+    CPU_NODE_ASSERT(isWeightMemoryValid, "Weight memory is undefined.");
     auto* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
 
@@ -1015,7 +1019,8 @@ void Deconvolution::prepareParams() {
 
     if (withBiases) {
         biasMemPtr = getSrcMemoryAtPort(biasPort);
-        CPU_NODE_ASSERT(biasMemPtr && biasMemPtr->isDefined(), "Bias memory is undefined.");
+        const bool isBiasMemoryValid = biasMemPtr && biasMemPtr->isDefined();
+        CPU_NODE_ASSERT(isBiasMemoryValid, "Bias memory is undefined.");
         biasDesc = biasMemPtr->getDescWithType<DnnlMemoryDesc>();
     }
     bool is1x1PaddingAsymmetric = false;
@@ -1274,7 +1279,8 @@ std::vector<int32_t> Deconvolution::readOutputSpatialDims() const {
                     "Can't get output spatial dims. Inputs number = ",
                     getParentEdges().size());
     const auto& shapeMemPtr = getSrcMemoryAtPort(2);
-    OPENVINO_ASSERT(shapeMemPtr && shapeMemPtr->isDefined(), "'output_shape' input memory is undefined.");
+    const bool isShapeMemoryValid = shapeMemPtr && shapeMemPtr->isDefined();
+    OPENVINO_ASSERT(isShapeMemoryValid, "'output_shape' input memory is undefined.");
     const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
     OPENVINO_ASSERT(shapeMemPtr->getStaticDims()[0] == spDimsNum,
                     "Can't read output spatial dims, beause 'output_shape' input has incorrect number of elements");

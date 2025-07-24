@@ -382,7 +382,8 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
         }
 
         const auto channelAxis = parentNode->getFusingAxis();
-        OPENVINO_ASSERT(channelAxis >= 0 && channelAxis < static_cast<int>(parentOutDims.size()),
+        const bool isChannelAxisValid = channelAxis >= 0 && channelAxis < static_cast<int>(parentOutDims.size());
+        OPENVINO_ASSERT(isChannelAxisValid,
                         "Incorrect channel axis for Conv/Deconv/MatMul node: ",
                         parentNode->getName(),
                         ", output dims size: ",

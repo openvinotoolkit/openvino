@@ -180,8 +180,10 @@ std::shared_ptr<MemoryDesc> Lrn::getSrcMemDesc(const dnnl::primitive_desc& prim_
 void Lrn::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "input memory is undefined");
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "destination memory is undefined");
+    const bool isInputMemoryValid = srcMemPtr && srcMemPtr->isDefined();
+    CPU_NODE_ASSERT(isInputMemoryValid, "input memory is undefined");
+    const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDestinationMemoryValid, "destination memory is undefined");
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
     CPU_NODE_ASSERT(selected_pd, "preferable primitive descriptor did not set");

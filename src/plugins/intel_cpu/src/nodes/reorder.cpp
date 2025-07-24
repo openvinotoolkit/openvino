@@ -209,8 +209,10 @@ void Reorder::prepareParams() {
 
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory object.");
-    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory object.");
+    const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDestinationMemoryValid, "has undefined destination memory object.");
+    const bool isInputMemoryValid = srcMemPtr && srcMemPtr->isDefined();
+    CPU_NODE_ASSERT(isInputMemoryValid, "has undefined input memory object.");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "does not have preferable primitive descriptor.");
 
     auto isSupportedDesc = [](const MemoryDesc& desc) {
@@ -265,8 +267,10 @@ void Reorder::prepareParams() {
         }
     }
     if (!canUseNcsp2Nspc && !canUseNspc2Ncsp) {
-        CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory object.");
-        CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory object.");
+        const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+        CPU_NODE_ASSERT(isDestinationMemoryValid, "has undefined destination memory object.");
+        const bool isInputMemoryValid = srcMemPtr && srcMemPtr->isDefined();
+        CPU_NODE_ASSERT(isInputMemoryValid, "has undefined input memory object.");
         CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "does not have preferable primitive descriptor.");
 
         createReorderPrimitive(srcMemPtr->getDescWithType<DnnlMemoryDesc>(),
@@ -466,7 +470,8 @@ std::string Reorder::getReorderArgs(const MemoryDesc& parentDesc, const MemoryDe
 }
 
 void Reorder::reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache) {
-    OPENVINO_ASSERT(input.getDesc().isDefined() && output.getDesc().isDefined(),
+    const bool areDescriptorsDefined = input.getDesc().isDefined() && output.getDesc().isDefined();
+    OPENVINO_ASSERT(areDescriptorsDefined,
                     "Can't reorder data with dynamic shapes");
 
     if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {

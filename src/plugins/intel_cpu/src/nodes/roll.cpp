@@ -56,7 +56,8 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        CPU_NODE_ASSERT(inputShapes.size() == 3 && outputShapes.size() == 1,
+        const bool hasCorrectPortCount = inputShapes.size() == 3 && outputShapes.size() == 1;
+        CPU_NODE_ASSERT(hasCorrectPortCount,
                         "has incorrect number of input/output edges!");
 
         const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
@@ -114,10 +115,14 @@ void Roll::prepareParams() {
     const auto& axesMemPtr = getSrcMemoryAtPort(AXES_INDEX);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input memory of 'data'");
-    CPU_NODE_ASSERT(shiftMemPtr && shiftMemPtr->isDefined(), "has undefined input memory of 'shift'");
-    CPU_NODE_ASSERT(axesMemPtr && axesMemPtr->isDefined(), "has undefined input memory of 'axes'");
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory");
+    const bool isDataMemoryValid = dataMemPtr && dataMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDataMemoryValid, "has undefined input memory of 'data'");
+    const bool isShiftMemoryValid = shiftMemPtr && shiftMemPtr->isDefined();
+    CPU_NODE_ASSERT(isShiftMemoryValid, "has undefined input memory of 'shift'");
+    const bool isAxesMemoryValid = axesMemPtr && axesMemPtr->isDefined();
+    CPU_NODE_ASSERT(isAxesMemoryValid, "has undefined input memory of 'axes'");
+    const bool isOutputMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isOutputMemoryValid, "has undefined output memory");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();

@@ -67,7 +67,8 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(op->get_input_size() == 2 && op->get_output_size() == 1,
+    const bool hasCorrectPortCount = op->get_input_size() == 2 && op->get_output_size() == 1;
+    CPU_NODE_ASSERT(hasCorrectPortCount,
                     "has incorrect number of input/output ports.");
 
     const auto& dataShape = getInputShapeAtPort(IN_DATA);
@@ -75,7 +76,8 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
 
     const auto& gridShape = getInputShapeAtPort(IN_GRID);
     CPU_NODE_ASSERT(gridShape.getRank() == 4, "has incorrect rank of the Grid input.");
-    CPU_NODE_ASSERT(!gridShape.isStatic() || gridShape.getDims()[3] == 2,
+    const bool hasValidGridShape = !gridShape.isStatic() || gridShape.getDims()[3] == 2;
+    CPU_NODE_ASSERT(hasValidGridShape,
                     "has incorrect shape of the Grid input. The 4th dimension should be equal to 2.");
 
     const auto& attributes = ov::as_type_ptr<ov::op::v9::GridSample>(op)->get_attributes();
@@ -201,11 +203,14 @@ void GridSample::createPrimitive() {
 
 void GridSample::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input data memory.");
+    const bool isDataMemoryValid = dataMemPtr && dataMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDataMemoryValid, "has undefined input data memory.");
     auto gridMemPtr = getSrcMemoryAtPort(IN_GRID);
-    CPU_NODE_ASSERT(gridMemPtr && gridMemPtr->isDefined(), "has undefined input grid memory.");
+    const bool isGridMemoryValid = gridMemPtr && gridMemPtr->isDefined();
+    CPU_NODE_ASSERT(isGridMemoryValid, "has undefined input grid memory.");
     auto dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory.");
+    const bool isOutputMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isOutputMemoryValid, "has undefined output memory.");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has unidentified preferable primitive descriptor.");
 
     const uint64_t dataElPerVec = jitKernel->getDataElPerVec();
