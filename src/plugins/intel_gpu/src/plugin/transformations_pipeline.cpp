@@ -1283,7 +1283,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::ConstantsReduce>();
 
         manager.register_pass<ov::pass::PrintModel>("prior_MultiScaleDeformableAttnFusion.cpp");
-        // std::cout << "wzx debug disable" << std::endl;
         manager.register_pass<ov::pass::MultiScaleDeformableAttnFusion>();
         manager.register_pass<ov::pass::PrintModel>("post_MultiScaleDeformableAttnFusion.cpp");
 
