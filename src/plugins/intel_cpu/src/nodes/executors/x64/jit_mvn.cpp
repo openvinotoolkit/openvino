@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <common/primitive_hashing_utils.hpp>
+#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>

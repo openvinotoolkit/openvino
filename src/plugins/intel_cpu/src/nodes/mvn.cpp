@@ -22,6 +22,7 @@
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
@@ -282,7 +283,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
         nodeConfig.inConfs[0].setMemDesc(config.first);
         nodeConfig.outConfs[0].setMemDesc(config.second);
 
-        supportedPrimitiveDescriptors.emplace_back(nodeConfig, impl_desc_type::undef);
+        supportedPrimitiveDescriptors.emplace_back(nodeConfig, ov::intel_cpu::impl_desc_type::undef);
     }
 }
 
