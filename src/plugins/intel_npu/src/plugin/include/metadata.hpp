@@ -34,15 +34,6 @@ public:
      */
     virtual void write(std::ostream& stream) = 0;
 
-    /**
-     * @brief Adds the size of the binary object and the magic string to the end of the stream.
-     * @details This should be called after the "write" method in order to conclude writing the metadata into the given
-     * stream.
-     * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
-     * method writes at the end. This change allows better extension of class hierarchy.
-     */
-    void append_padding_blob_size_and_magic(std::ostream& stream);
-
     virtual bool is_compatible() = 0;
 
     virtual uint64_t get_blob_size() const;
@@ -56,7 +47,7 @@ public:
 
     static std::streampos getFileSize(std::istream& stream);
 
-    virtual size_t get_medata_size() const = 0;
+    virtual size_t get_metadata_size() const = 0;
 
     /**
      * @brief Returns a uint32_t value which represents two uint16_t values concatenated.
@@ -87,6 +78,15 @@ public:
     }
 
 protected:
+    /**
+     * @brief Adds the size of the binary object and the magic string to the end of the stream.
+     * @details This should be called after the "write" method in order to conclude writing the metadata into the given
+     * stream.
+     * @note This operation was detached from "write" since "write" writes at the beginning of the stream, while this
+     * method writes at the end. This change allows better extension of class hierarchy.
+     */
+    void append_padding_blob_size_and_magic(std::ostream& stream);
+
     uint32_t _version;
     uint64_t _blobDataSize;
 };
@@ -210,7 +210,7 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
-    size_t get_medata_size() const override;
+    size_t get_metadata_size() const override;
 
 protected:
     OpenvinoVersion _ovVersion;
@@ -242,7 +242,7 @@ public:
 
     std::optional<std::vector<uint64_t>> get_init_sizes() const override;
 
-    size_t get_medata_size() const override;
+    size_t get_metadata_size() const override;
 
 private:
     std::optional<std::vector<uint64_t>> _initSizes;

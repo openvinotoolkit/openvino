@@ -115,7 +115,7 @@ void Metadata<METADATA_VERSION_2_1>::read(const ov::Tensor& tensor) {
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
-    size_t metadataSize = get_medata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
+    size_t metadataSize = get_metadata_size() + sizeof(_blobDataSize) + MAGIC_BYTES.size();
     size_t size = utils::align_size_to_standarg_page_size(metadataSize);
     size_t paddingSize = size - metadataSize;
     if (paddingSize > 0) {
@@ -142,6 +142,8 @@ void Metadata<METADATA_VERSION_2_1>::write(std::ostream& stream) {
             stream.write(reinterpret_cast<const char*>(&initSize), sizeof(initSize));
         }
     }
+
+    append_padding_blob_size_and_magic(stream);
 }
 
 std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSize) {
@@ -297,12 +299,12 @@ std::optional<std::vector<uint64_t>> Metadata<METADATA_VERSION_2_1>::get_init_si
     return _initSizes;
 }
 
-size_t Metadata<METADATA_VERSION_2_0>::get_medata_size() const {
+size_t Metadata<METADATA_VERSION_2_0>::get_metadata_size() const {
     return sizeof(_version) + _ovVersion.get_openvino_version_size();
 }
 
-size_t Metadata<METADATA_VERSION_2_1>::get_medata_size() const {
-    size_t metadataSize = Metadata<METADATA_VERSION_2_0>::get_medata_size() + sizeof(_numberOfInits);
+size_t Metadata<METADATA_VERSION_2_1>::get_metadata_size() const {
+    size_t metadataSize = Metadata<METADATA_VERSION_2_0>::get_metadata_size() + sizeof(_numberOfInits);
 
     if (_initSizes.has_value()) {
         for (size_t initSize : _initSizes.value()) {
