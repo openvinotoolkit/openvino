@@ -46,7 +46,7 @@ TEST(F4E2M1Test, f32_gt_zero_round_to_f4_zero) {
 TEST(F4E2M1Test, f32_gt_zero_round_to_f4_lowest_subnormal) {
     const auto f4 = ov::float4_e2m1(0.21875f);
 
-    EXPECT_EQ(f4.to_bits(), 0b0001);
+    EXPECT_EQ(f4.to_bits(), 0b0000);
 }
 
 TEST(F4E2M1Test, f32_normal_fractional_rounding) {
@@ -254,5 +254,84 @@ TEST(F4E2M1Test, f32_sig_nan) {
     EXPECT_EQ(f4.to_bits(), 0b0111);
     EXPECT_EQ(0, std::numeric_limits<ov::float4_e2m1>::signaling_NaN().to_bits());
 }
+
+using rounding_params = std::tuple<float, uint8_t, float>;
+
+class F32ToF4E2M1RoundingTest : public ::testing::TestWithParam<rounding_params> {};
+
+INSTANTIATE_TEST_SUITE_P(boundary_params,
+                         F32ToF4E2M1RoundingTest,
+                         ::testing::Values(rounding_params{0.24f, 0b0000, 0.0f},
+                                           rounding_params{0.25f, 0b0000, 0.0f},
+                                           rounding_params{0.26f, 0b0001, 0.5f},
+
+                                           rounding_params{0.74f, 0b0001, 0.5f},
+                                           rounding_params{0.75f, 0b0010, 1.0f},
+                                           rounding_params{0.76f, 0b0010, 1.0f},
+
+                                           rounding_params{1.24f, 0b0010, 1.0f},
+                                           rounding_params{1.25f, 0b0010, 1.0f},
+                                           rounding_params{1.26f, 0b0011, 1.5f},
+
+                                           rounding_params{1.74f, 0b0011, 1.5f},
+                                           rounding_params{1.75f, 0b0100, 2.0f},
+                                           rounding_params{1.76f, 0b0100, 2.0f},
+
+                                           rounding_params{2.49f, 0b0100, 2.0f},
+                                           rounding_params{2.50f, 0b0100, 2.0f},
+                                           rounding_params{2.51f, 0b0101, 3.0f},
+
+                                           rounding_params{3.49f, 0b0101, 3.0f},
+                                           rounding_params{3.50f, 0b0110, 4.0f},
+                                           rounding_params{3.51f, 0b0110, 4.0f},
+
+                                           rounding_params{4.99f, 0b0110, 4.0f},
+                                           rounding_params{5.00f, 0b0110, 4.0f},
+                                           rounding_params{5.01f, 0b0111, 6.0f}),
+                         ::testing::PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(rounding_params,
+                         F32ToF4E2M1RoundingTest,
+                         ::testing::Values(rounding_params{-0.10f, 0b1000, -0.0f},
+                                           rounding_params{0.00f, 0b0000, 0.0f},
+                                           rounding_params{0.01f, 0b0000, 0.0f},
+
+                                           rounding_params{0.49f, 0b0001, 0.5f},
+                                           rounding_params{0.50f, 0b0001, 0.5f},
+                                           rounding_params{0.51f, 0b0001, 0.5f},
+
+                                           rounding_params{0.99f, 0b0010, 1.0f},
+                                           rounding_params{1.00f, 0b0010, 1.0f},
+                                           rounding_params{1.01f, 0b0010, 1.0f},
+
+                                           rounding_params{1.49f, 0b0011, 1.5f},
+                                           rounding_params{1.50f, 0b0011, 1.5f},
+                                           rounding_params{1.51f, 0b0011, 1.5f},
+
+                                           rounding_params{1.99f, 0b0100, 2.0f},
+                                           rounding_params{2.00f, 0b0100, 2.0f},
+                                           rounding_params{2.01f, 0b0100, 2.0f},
+
+                                           rounding_params{2.99f, 0b0101, 3.0f},
+                                           rounding_params{3.00f, 0b0101, 3.0f},
+                                           rounding_params{3.01f, 0b0101, 3.0f},
+
+                                           rounding_params{3.99f, 0b0110, 4.0f},
+                                           rounding_params{4.00f, 0b0110, 4.0f},
+                                           rounding_params{4.50f, 0b0110, 4.0f},
+
+                                           rounding_params{5.50f, 0b0111, 6.0f},
+                                           rounding_params{6.00f, 0b0111, 6.0f},
+                                           rounding_params{6.01f, 0b0111, 6.0f}),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(F32ToF4E2M1RoundingTest, round_behavior) {
+    const auto& [input, expected_bits, expected_float] = GetParam();
+
+    const auto f4 = ov::float4_e2m1(input);
+    EXPECT_EQ(f4.to_bits(), expected_bits);
+    EXPECT_NEAR(static_cast<float>(f4), expected_float, 0.0001f);
+}
+
 }  // namespace test
 }  // namespace ov
