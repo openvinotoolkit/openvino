@@ -41,11 +41,6 @@ std::vector<layout> msda_inst::calc_output_layouts(const msda_node& /*node*/, co
     auto output_shape = ov::PartialShape({feat_value_ps[0], attn_weight_ps[1],
                                          feat_value_ps[2] * feat_value_ps[3]});
 
-    // std::cout << "----------------- msda_inst::calc_output_layouts() -----------------" << std::endl;
-    // std::cout << "----------------- feat_value layouts: " << feat_value_input_layout <<
-    // "," << "attn_weights layout: " << attn_weights_input_layout <<
-    // "->" << output_shape << std::endl;
-
     format output_format = format::adjust_to_rank(feat_value_input_layout.format, output_shape.size());
     return { layout{output_shape, output_type, output_format} };
 }
