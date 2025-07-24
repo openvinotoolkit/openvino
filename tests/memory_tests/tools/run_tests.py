@@ -7,89 +7,240 @@ import subprocess
 import json
 
 from pathlib import Path
+from dataclasses import dataclass, asdict
+from collections import defaultdict
+
+try:
+    import requests
+except ImportError:
+    requests = None
 
 
+def value_diff(value, reference):
+    difference = value - reference
+    diff_ratio = difference / reference
+    return (value, reference, difference, diff_ratio)
+
+
+@dataclass
 class MemSample:
-    keys = ("vmsize", "vmpeak", "vmrss", "vmhwm", "threads")
+    vmsize: int
+    vmpeak: int
+    vmrss: int
+    vmhwm: int
+    threads: int
 
-    def __init__(self, **kwargs):
-        self._val = tuple((int(kwargs[k]) for k in self.keys))
+    as_dict = asdict
 
-    def get(self, key):
-        try:
-            return self._val[self.keys.index(key)]
-        except ValueError:
-            return None
+    @staticmethod
+    def from_dict(values: dict):
+        class_fields = MemSample.__dataclass_fields__.keys()
+        selected_values = {k: int(values[k]) for k in class_fields}
+        return MemSample(**selected_values)
 
-    def items(self):
-        return zip(self.keys, self._val)
-
-    def as_dict(self):
-        return {
-            key: value
-            for key, value
-            in self.items()
-        }
-
-    def per_value_diff(self, reference):
-        for key in self.keys:
-            val = self.get(key)
-            ref = reference.get(key)
-            diff = val - ref
-            diffp = diff / ref
-            yield (key, val, ref, diff, diffp)
+    def compare(self, reference: "MemSample"):
+        ref_dict = reference.as_dict()
+        for key, value in self.as_dict().items():
+            refval = ref_dict[key]
+            yield (key, *value_diff(value, refval))
 
     def __repr__(self):
-        return "; ".join(f"{k} {v:>10}" for k, v in self.items())
+        return "; ".join(f"{k} {v:>10}" for k, v in self.as_dict().items())
 
 
-datatype_re = re.compile(r"((FP|INT)\d+|(\d+BIT))")
-
-def map_datatype(t: str) -> str:
-    return {"4BIT": "INT4"}.get(t, t)
-
-
-def testname_safestring(s: str) -> str:
-    def translate_char(c:str) -> str:
-        if c.isalnum():
-            return c
-        return '_'
-    return ''.join(map(translate_char, s))
-
-
-def run_extract_test_result(command):
-    run_out = subprocess.check_output(command).decode()
-    if not run_out.startswith("TEST_RESULTS: "):
-        print(f"Test failed or test results format is wrong: {run_out}")
-    results_json = run_out.splitlines()[0].removeprefix("TEST_RESULTS: ")
-    results = json.loads(results_json)
-    results["samples"] = {
-        sname: MemSample(**sample)
-        for sname, sample in results["samples"].items()
+def run_test_executable_extract_result(command):
+    proc = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    run_out = proc.stdout.decode()
+    if run_out.startswith("TEST_RESULTS: "):
+        results_json = run_out.splitlines()[0].removeprefix("TEST_RESULTS: ")
+        results = json.loads(results_json)
+        if "samples" in results:
+            results["samples"] = {
+                sname: MemSample(**sample)
+                for sname, sample in results["samples"].items()
+            }
+        return results
+    return {
+        "error": "Test did not run correctly",
+        "returncode": proc.returncode,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr
     }
-    return results
 
 
-def run_single_test(executable, model_path, device):
-    comand = [executable, model_path, device]
-    result = None
-    try:
-        result = run_extract_test_result(comand)
-    except Exception as ex:
-        print(f"When running test an unexpected error happened: {ex}")
-    if result is not None:
-        return result
-    print("Trying to re-run test once")
-    try:
-        return run_extract_test_result(comand)
-    except Exception as ex:
-        print(f"Test failed to run twice, ignoring this test case.")
+MODELID_RE = re.compile(r"\/([^\/]+)\/(\w+)\/\w+\/((FP|INT)\d+(\/INT\d+)?)\/(\d+)\/(ov(\/optimized)?)\/([^\/\.]+)\.xml")
 
 
-def run_testcase(executable, model_path, device, niter=1):
-    assert niter == 1
-    # TODO: support niter>1
-    return run_single_test(executable, model_path, device)
+def modelid_assume_info(modelid):
+    # ('edsr3-nas', 'onnx', 'FP16', 'FP', None, '1', 'ov', None, 'edsr3-nas')
+    match = MODELID_RE.match(modelid)
+    if not match:
+        return None
+    model, fw, prec, _n1, _n2, bs, _n3, _n4, model2 = match.groups()
+    if model != model2:
+        return None
+    framework = fw
+    precision = prec.replace("/", "-")
+    batchsize = bs
+    return framework, precision, batchsize
+
+
+class TestSession:
+    def __init__(self, executable, ir_cache_dirs, devices, api=None, report_reference=False):
+        self.executable = executable
+        self.test_name = executable.rsplit("/", 1)[-1].removesuffix(".exe").removeprefix("test_")
+        self.report_api = api
+        self.report_metadata = None
+        self.reference_values = {}
+        if self.report_api:
+            self.detect_report_metadata()
+            self.reference_values = self.api_get_reference_values()
+        self.ir_cache_dirs = ir_cache_dirs
+        self.devices = devices
+        self.report_reference = report_reference
+
+    def api(self, method, data=None, **kwargs):
+        extra_args = {"timeout": 5}
+        extra_args.update(kwargs)
+        if self.report_api is None:
+            raise Exception("Report API was not specified")
+        if requests is None:
+            raise Exception("`requests` need to be installed to contact Report API")
+        endpoint = f"{self.report_api}/api/{method}"
+        return requests.post(endpoint, json=data, **extra_args).json()
+
+    def api_get_reference_values(self):
+        api_response = self.api("v1/reports/memory/root-ref-metrics", [], timeout=10)
+        reference_test_values = defaultdict(lambda: defaultdict(dict))
+        for ref_item in api_response:
+            try:
+                test_name, sample = ref_item["test"].split(":")
+                network = ref_item["network"]
+            except ValueError:
+                continue
+            reference_test_values[test_name][network][sample] = MemSample.from_dict(ref_item)
+        return reference_test_values
+
+    def api_push_reference_values(self, modelid, device, result):
+        if "error" in result:
+            print("Failed result is not going to be uploaded as reference.")
+        test_report = []
+        test_name = result.get("test", self.test_name)
+        model_assumptions = modelid_assume_info(modelid)
+        framework, precision, _ = model_assumptions or ("unknown", "unknown", "")
+        for sname, sample in result["samples"].items():
+            sample_report = {
+                "test": f"{test_name}:{sname}",
+                "network": modelid,
+                "device": result.get("device", device),
+                "framework": framework,
+                "precision": precision
+            }
+            sample_report.update(sample.as_dict())
+            test_report.append(sample_report)
+        response = self.api("v1/memory/push-2-db-facade/root-ref-metrics", test_report)
+        print(f"Push reference to API: {response}")
+
+    def api_push_test_result(self, source, modelid, device, result, refsamples=None):
+        if refsamples is None:
+            refsamples = {}
+        if "error" in result:
+            print("Failed result is not going to be uploaded.")
+        if not self.report_metadata:
+            print("No job metadata found, no report will be made.")
+            return
+        model_assumptions = modelid_assume_info(modelid)
+        framework, precision, _ = model_assumptions or ("unknown", "unknown", "")
+        test_report = []
+        for sname, sample in result["samples"].items():
+            sample_report = self.report_metadata.copy()
+            sample_report.update({
+                "test_name": f"{result['test']}:{sname}",
+                "status": "ok",
+                "source": source,
+                "log": result.get("stderr", ""),
+                "model_name": modelid,
+                "model": modelid,
+                "device": result.get("device") or device,
+                "framework": framework,
+                "precision": precision,
+                "metrics": sample.as_dict(),
+                "ref_metrics": (refsamples.get(sname) or sample).as_dict()
+            })
+            test_report.append(sample_report)
+        response = self.api("v1/memory/push-2-db-facade", {"data": test_report})
+        print(f"Push result to API: {response}")
+
+    def detect_report_metadata(self):
+        try:
+            self.report_metadata = {
+                "build_url": os.environ["BUILD_URL"],
+                "os": os.environ.get("os", "unknown"),
+                "commit_date": os.environ.get("commitDate", "2030-12-22T22:22:22.000Z"),
+                "branch": os.environ.get("sourceBranch", "unknown"),
+                "target_branch": os.environ.get("targetBranch", "unknown"),
+                "log_path": os.environ.get("SHARED_LOG_PATH", ""),  # TODO: ADD IT
+                "dldt_version": os.environ["TT_PRODUCT_BUILD_NUMBER"],
+                "ext": {}
+            }
+        except KeyError as err:
+            if self.report_api:
+                print(f"Environment lacks {err} to upload results to API")
+
+    def scan_directory(self, directory: Path):
+        matching_dirs = sorted(
+            glob.glob(str(directory)),
+            key=lambda item: os.lstat(item).st_ctime
+        )
+        if not matching_dirs:
+            raise Exception("{directory} not found")
+        cache_dir = os.path.abspath(os.path.normpath(matching_dirs[-1]))
+        print(f"Scanning requested {directory} -> {cache_dir}")
+
+        found_models = set()
+
+        for modelfullpath in glob.glob(f"{cache_dir}/**/*.xml", recursive=True):
+            modelidpath = modelfullpath.removeprefix(cache_dir)
+            yield modelidpath, modelfullpath
+
+    def generate_test_cases(self):
+        found_models = []
+        for ir_cache_dir in self.ir_cache_dirs:
+            found_models.extend(self.scan_directory(ir_cache_dir))
+        return itertools.product(found_models, self.devices)
+
+    def run_test_case(self, model_path, device):
+        try:
+            return run_test_executable_extract_result([self.executable, model_path, device])
+        except Exception as ex:
+            print(f"  When running test an unexpected error happened: {ex}")
+            return {"error": "unexpected error"}
+
+    def handle_test_result(self, modelid, device, result, refsamples=None):
+        status = "error" if "error" in result else "ok"
+        print(f"TEST {modelid} x {device}: {status}")
+        if status == "error":
+            return
+        for sname, sample in result["samples"].items():
+            refsample = None
+            if refsamples:
+                refsample = refsamples.get(sname)
+            if not refsample:
+                print(f"  {sname:>15}: {sample}")
+                continue
+            print(f"  sample {sname}:")
+            for key, val, ref, diff, diffp in sample.compare(refsample):
+                print(f"    {key:>8}: {val:>10} (ref: {ref:>10}) {diff:>+8} ({diffp:+.2f}%)")
+
+    def run(self):
+        for (modelid, model_path), device in self.generate_test_cases():
+            result = self.run_test_case(model_path, device)
+            test_name = result.get("test", self.test_name)
+            refsamples = self.reference_values[test_name][modelid]
+            self.api_push_test_result("", modelid, device, result, refsamples)
+            if self.report_reference:
+                self.api_push_reference_values(modelid, device, result)
+            self.handle_test_result(modelid, device, result, refsamples)
 
 
 if __name__ == "__main__":
@@ -114,156 +265,10 @@ if __name__ == "__main__":
     if args.upload_reference and args.api is None:
         raise Exception("To upload reference values --api must be specified")
 
-    found_models: dict[str, dict] = {}
-
-    for path in args.ir_cache:
-        matching_dirs = sorted(
-            glob.glob(str(path)),
-            key=lambda item: os.lstat(item).st_ctime
-        )
-        if not matching_dirs:
-            raise Exception("Path {path} not found")
-        cache_dir = os.path.abspath(os.path.normpath(matching_dirs[-1]))
-        print(f"Scanning requested {path} -> {cache_dir}")
-
-        for modelfullpath in glob.glob(f"{cache_dir}/**/*.xml", recursive=True):
-            modelidpath = modelfullpath.removeprefix(cache_dir)
-            if modelidpath in found_models:
-                raise Exception(f"Specified directories have repeating models: {modelidpath}")
-            found_models[modelidpath] = {
-                "precision": tuple([
-                    map_datatype(m[0].upper()) 
-                    for m in datatype_re.findall(modelidpath)
-                ]),
-                "model_path": modelfullpath,
-                "model": modelidpath,
-            }
-    
-    print(f"Found {len(found_models)} models.")
-
-    test_cases = list(itertools.product(found_models, args.devices.split(",")))
-
-    print(f"Generated {len(test_cases)} test cases.")
-
-    try:
-        upload_metadata = {
-            "build_url": os.environ["BUILD_URL"],
-            "os": os.environ.get("os", "unknown"),
-            "commit_date": os.environ.get("commitDate", "2030-12-22T22:22:22.000Z"),
-            "branch": os.environ.get("sourceBranch", ""),
-            "target_branch": os.environ.get("targetBranch", ""),
-            "log_path": os.environ.get("SHARED_LOG_PATH", ""),  # TODO: ADD IT
-            "dldt_version": os.environ["TT_PRODUCT_BUILD_NUMBER"],
-            "ext": {}
-        }
-        print("Upload metadata:")
-        print("\n".join([f"  {k}: {v}" for k, v in upload_metadata.items()]))
-    except KeyError as err:
-        upload_metadata = None
-        if args.api:
-            print(f"Environment lacks {err} to upload results to API")
-            raise err
-
-    reference_values = {}
-    if args.api:
-        # TODO: move to a separate function
-        import requests
-        print(f"Getting reference values from API.")
-        endpoint = f"{args.api}/api/v1/reports/memory/root-ref-metrics"
-        # try:
-        response = requests.post(endpoint, json=[], timeout=10).json()
-        print(f"Fetched {len(response)} reference samples.")
-        for item in response:
-            try:
-                test_name, sample = item["test"].split(":")
-                network = item["network"]
-            except ValueError:
-                continue
-            if test_name not in reference_values:
-                reference_values[test_name] = {}
-            test_references = reference_values[test_name]
-            if network not in test_references:
-                test_references[network] = {}
-            memsample = MemSample(**item)
-            # memsample._from_api = item
-            test_references[network][sample] = memsample
-        # except Exception as ex:
-        #     print(f"Failed to collect reference values: {ex}; {response[0]}")
-
-    test_results = {}
-
-    for model, device in test_cases:
-        model_path = found_models[model]["model_path"]
-        print(f"network: {model}")
-        print(f"path: {model_path}")
-        print(f"device: {device}")
-        result = run_testcase(args.test_executable,
-            model_path, device, niter=1)
-        test_results[(model, device)] = result
-        if result is None:
-            continue
-        test_name = result['test']
-        print(f"test: {test_name}")
-        refs = {}
-        if reference_values:
-            try:
-                refs = reference_values[test_name][model]
-            except KeyError:
-                print("No reference found to compare to")
-
-        for sname, sample in result["samples"].items():
-            ref = refs.get(sname)
-            if not ref:
-                print(f"  {sname:>15}: {sample}")
-                continue
-            print(f"  sample {sname}:")
-            for key, val, ref, diff, diffp in sample.per_value_diff(ref):
-                print(f"    {key:>8}: {val:>10} (ref: {ref:>10}) {diff:>+8} ({diffp:+.2f}%)")
-        if args.api and upload_metadata:
-            import requests
-            endpoint = f"{args.api}/api/v1/memory/push-2-db-facade"
-            test_report = []
-            for sname, sample in result["samples"].items():
-                sample_report = upload_metadata.copy()
-                sample_report.update({
-                    "test_name": f"{result['test']}:{sname}",
-                    "status": "ok",
-                    "source": "",
-                    "log": "",
-                    "model_name": model,
-                    "model": model,
-                    "device": result["device"],
-                    "framework": "unknown",
-                    "precision": "unknown",
-                    "metrics": sample.as_dict(),
-                    "ref_metrics": (refs.get(sname) or sample).as_dict()
-                })
-                test_report.append(sample_report)
-            response = requests.post(endpoint, json={"data": test_report})
-            print(response.json())
-        if args.upload_reference:
-            import requests
-            endpoint = f"{args.api}/api/v1/memory/push-2-db-facade/root-ref-metrics"
-            test_report = []
-            for sname, sample in result["samples"].items():
-                sample_report = {
-                    "test": f"{result['test']}:{sname}",
-                    "network": model,
-                    "device": result["device"],
-                    "framework": "unknown",
-                    "precision": "unknown"
-                }
-                sample_report.update(sample.as_dict())
-                test_report.append(sample_report)
-            response = requests.post(endpoint, json=test_report)
-            print(response.json())
-    
-    total_runs = len(test_results)
-    successful_runs = sum((1 if x else 0 for x in test_results.values()))
-    failed_runs = total_runs - successful_runs
-
-    print(f"Failed {failed_runs} test cases out of {total_runs}:")
-    for test_case, result in test_results.items():
-        if result:
-            continue
-        print(f"  FAILED: {test_case}")
+    TestSession(
+        args.test_executable,
+        args.ir_cache,
+        args.devices.split(","),
+        args.api,
+        args.upload_reference
+    ).run()
