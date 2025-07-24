@@ -534,6 +534,9 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
         m_logits = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::logits));
+        if (m_prefill_out_ports.find("hidden_states") != m_prefill_out_ports.end()) {
+            m_hidden_states = m_prefill_request->get_tensor(m_prefill_out_ports.at(layer_names::hidden_states));
+        }
     }
 
     m_generate_initialized = false;
@@ -601,6 +604,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
 
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
+        if (m_kvcache_out_ports.find("hidden_states") != m_kvcache_out_ports.end()) {
+            m_hidden_states = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::hidden_states));
+        }
     }
 
     LOG_DEBUG("Done");
@@ -630,9 +636,22 @@ void ov::npuw::LLMInferRequest::infer() {
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<const ov::Node>& port) const {
-    // NB: If asked for logits...
-    if (port == get_outputs()[0]) {
+    const auto& port_names = port.get_names();
+
+    if (port_names.count("logits") > 0) {
+        if (!m_logits) {
+            OPENVINO_THROW("Logits tensor is not available. Please run inference first.");
+        }
         return m_logits;
     }
+
+    if (port_names.count("hidden_states") > 0) {
+        if (!m_hidden_states) {
+            OPENVINO_THROW("Hidden states tensor is not available. This model may not support hidden_states output or "
+                           "inference has not been run.");
+        }
+        return m_hidden_states;
+    }
+
     return ov::ISyncInferRequest::get_tensor(port);
 }
