@@ -66,14 +66,32 @@ ZeGraphExtWrappers::~ZeGraphExtWrappers() {
     _logger.debug("Obj destroyed");
 }
 
-_ze_result_t ZeGraphExtWrappers::destroyGraph(ze_graph_handle_t graphHandle) {
-    _logger.debug("destroyGraph - perform pfnDestroy");
-    auto result = _zeroInitStruct->getGraphDdiTable().pfnDestroy(graphHandle);
+_ze_result_t ZeGraphExtWrappers::freeNpuMemory(void* data) {
+    _logger.debug("destroyGraph - perform zeMemFree");
 
+    auto result = zeMemFree(_zeroInitStruct->getContext(), data);
+    if (ZE_RESULT_SUCCESS != result) {
+        _logger.error("failed to free L0 memory result: %s, code %#X - %s",
+                      ze_result_to_string(result).c_str(),
+                      uint64_t(result),
+                      ze_result_to_description(result).c_str());
+    }
+
+    return result;
+}
+
+_ze_result_t ZeGraphExtWrappers::destroyGraph(ze_graph_handle_t graphHandle, void* data) {
+    _logger.debug("destroyGraph - perform pfnDestroy");
+
+    auto result = _zeroInitStruct->getGraphDdiTable().pfnDestroy(graphHandle);
     if (ZE_RESULT_SUCCESS != result) {
         _logger.error("failed to destroy graph handle. L0 pfnDestroy result: %s, code %#X",
                       ze_result_to_string(result).c_str(),
                       uint64_t(result));
+    }
+
+    if (data != nullptr) {
+        freeNpuMemory(data);
     }
 
     return result;

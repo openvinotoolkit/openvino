@@ -604,20 +604,12 @@ void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& co
     }
 
     if (_initsHandles[initIndex].first != nullptr) {
-        auto result = _zeGraphExt->destroyGraph(_initsHandles[initIndex].first);
+        auto result =
+            _zeGraphExt->destroyGraph(_initsHandles[initIndex].first,
+                                      _initsHandles[initIndex].second ? _initBlobs->at(initIndex).data() : nullptr);
 
         if (ZE_RESULT_SUCCESS == result) {
             _initsHandles[initIndex].first = nullptr;
-        }
-
-        if (_initsHandles[initIndex].second) {
-            auto result = zeMemFree(_zeroInitStruct->getContext(), _initBlobs->at(initIndex).data());
-            if (ZE_RESULT_SUCCESS != result) {
-                _logger.error("L0 zeMemFree result: %s, code %#X - %s",
-                              ze_result_to_string(result).c_str(),
-                              uint64_t(result),
-                              ze_result_to_description(result).c_str());
-            }
         }
     }
 
@@ -632,23 +624,11 @@ WeightlessGraph::~WeightlessGraph() {
 
         for (auto& initHandle : _initsHandles) {
             if (initHandle.first != nullptr) {
-                auto result = _zeGraphExt->destroyGraph(initHandle.first);
+                auto result = _zeGraphExt->destroyGraph(initHandle.first,
+                                                        initHandle.second ? _initBlobs->at(initIndex).data() : nullptr);
 
                 if (ZE_RESULT_SUCCESS == result) {
                     initHandle.first = nullptr;
-                }
-
-                if (initHandle.second) {
-                    if (_initBlobs->at(initIndex).data() == nullptr) {
-                        _logger.error("Blob was already release, can not Free NPU memory");
-                    }
-                    auto result = zeMemFree(_zeroInitStruct->getContext(), _initBlobs->at(initIndex).data());
-                    if (ZE_RESULT_SUCCESS != result) {
-                        _logger.error("L0 zeMemFree result: %s, code %#X - %s",
-                                      ze_result_to_string(result).c_str(),
-                                      uint64_t(result),
-                                      ze_result_to_description(result).c_str());
-                    }
                 }
             }
 

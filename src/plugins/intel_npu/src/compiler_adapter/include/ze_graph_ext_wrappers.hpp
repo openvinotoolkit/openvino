@@ -40,7 +40,7 @@ public:
 
     NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
 
-    _ze_result_t destroyGraph(ze_graph_handle_t graphHandle);
+    _ze_result_t destroyGraph(ze_graph_handle_t graphHandle, void* data = nullptr);
 
     std::string getCompilerSupportedOptions() const;
 
@@ -68,6 +68,7 @@ private:
     void initialize_graph_through_command_list(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
 
     void* getNpuMemory(void* data, size_t size, const uint32_t flags = 0) const;
+    _ze_result_t freeNpuMemory(void* data);
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;

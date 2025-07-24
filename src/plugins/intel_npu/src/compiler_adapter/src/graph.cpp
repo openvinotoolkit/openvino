@@ -215,20 +215,10 @@ bool Graph::release_blob(const Config& config) {
 Graph::~Graph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_handle.first != nullptr) {
-        auto result = _zeGraphExt->destroyGraph(_handle.first);
+        auto result = _zeGraphExt->destroyGraph(_handle.first, _handle.second ? _blob->data() : nullptr);
 
         if (ZE_RESULT_SUCCESS == result) {
             _handle.first = nullptr;
-        }
-
-        if (_handle.second) {
-            auto result = zeMemFree(_zeroInitStruct->getContext(), _blob->data());
-            if (ZE_RESULT_SUCCESS != result) {
-                _logger.error("L0 zeMemFree result: %s, code %#X - %s",
-                              ze_result_to_string(result).c_str(),
-                              uint64_t(result),
-                              ze_result_to_description(result).c_str());
-            }
         }
     }
 
