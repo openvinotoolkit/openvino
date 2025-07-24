@@ -153,7 +153,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 size_t M_ = 0;
                 if (m) {
                     M_ = M_tail;
-                } else if (M >= M_blk) {
+                } else if (this->M >= M_blk) {
                     M_ = M_blk;
                 }
                 auto N_ = n ? N_tail : N - N_tail;
@@ -166,7 +166,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 if (k) {
                     brgemmCtx.LDA = K_blk;
                 } else {
-                    brgemmCtx.LDA = is_avx_f16_only ? K : lda;  // f16 use f32 internally
+                    brgemmCtx.LDA = is_avx_f16_only ? K : this->lda;  // f16 use f32 internally
                 }
 
                 if (!is_f32 || b_transposed) {
@@ -174,7 +174,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 } else {
                     brgemmCtx.LDB = ldb;
                 }
-                brgemmCtx.LDC = ldc;
+                brgemmCtx.LDC = this->ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(srcType));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(weiType));
                 brgemmCtx.beta = beta;

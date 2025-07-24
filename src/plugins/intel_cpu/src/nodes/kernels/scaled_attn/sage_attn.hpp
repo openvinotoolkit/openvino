@@ -11,12 +11,11 @@
 #include "softmax_kernel.hpp"
 #include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
-#if defined(HAVE_SSE) || defined(HAVE_AVX2) || defined(HAVE_AVX512F)
-#    include <immintrin.h>
-#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "nodes/kernels/x64/brgemm_kernel.hpp"
+#elif defined(OPENVINO_ARCH_ARM64) && defined(HAVE_SVE)
+#    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #endif
 
 #include <cstddef>
