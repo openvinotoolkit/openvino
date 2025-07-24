@@ -143,17 +143,25 @@ def test_visit_attributes_custom_op(device, prepared_paths, attributes, expectat
 
     param1 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data1")
     param2 = ops.parameter(Shape(input_shape), dtype=np.float32, name="data2")
+    print("1")
     custom = CustomOpWithAttribute(inputs=[param1, param2], attrs=attributes)
+    print("2")
     res = ops.result(custom, name="result")
+    print("3")
     model_with_op_attr = Model(res, [param1, param2], "CustomModel")
-
+    print("4")
     xml_path, bin_path = prepared_paths
 
     with expectation as e:
+        print("5")
         serialize(model_with_op_attr, xml_path, bin_path)
+        print("6")
         ordered_ops = model_with_op_attr.get_ordered_ops()
+        print("7")
         ops_dict = {op.get_type_name(): op for op in ordered_ops}
+        print("8")
         attrs = ops_dict["CustomOpWithAttribute"].get_attributes()
+        print("9")
         for key, value in attrs.items():
             assert key in attributes
             assert attributes[key] == value
@@ -163,11 +171,15 @@ def test_visit_attributes_custom_op(device, prepared_paths, attributes, expectat
 
     input_data = np.ones([2, 1], dtype=np.float32)
     expected_output = np.maximum(0.0, input_data)
-
+    print("10")
     compiled_model = compile_model(model_with_op_attr, device)
+    print("11")
     input_tensor = Tensor(input_data)
+    print("12")
     results = compiled_model({"data1": input_tensor})
+    print("13")
     assert np.allclose(results[list(results)[0]], expected_output, 1e-4, 1e-4)
+    print("14")
 
 
 def test_custom_add_op():
