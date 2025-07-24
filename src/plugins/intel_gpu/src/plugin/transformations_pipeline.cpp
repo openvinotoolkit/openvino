@@ -180,7 +180,6 @@
 #include "transformations/rt_info/fused_names_attribute.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
 #include "transformations/smart_reshape/matmul_sr.hpp"
-#include "transformations/utils/print_model.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/ceiling.hpp"
@@ -1282,9 +1281,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::ConstantsReduce>();
 
-        manager.register_pass<ov::pass::PrintModel>("prior_MultiScaleDeformableAttnFusion.cpp");
         manager.register_pass<ov::pass::MultiScaleDeformableAttnFusion>();
-        manager.register_pass<ov::pass::PrintModel>("post_MultiScaleDeformableAttnFusion.cpp");
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation

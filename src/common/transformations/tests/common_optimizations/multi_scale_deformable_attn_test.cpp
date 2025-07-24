@@ -7,7 +7,6 @@
 #include <memory>
 #include <openvino/pass/serialize.hpp>
 #include <openvino/runtime/core.hpp>
-#include <transformations/utils/print_model.hpp>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
@@ -127,7 +126,6 @@ TEST_F(TransformationTestsF, MultiScaleDeformableAttnFusion) {
         model = build_model_msda();
         ov::pass::Serialize(std::string("build_model_msda.xml"), std::string("build_model_msda.bin")).run_on_model(model);
         manager.register_pass<ov::pass::MultiScaleDeformableAttnFusion>();
-        manager.register_pass<ov::pass::PrintModel>("post_MultiScaleDeformableAttnFusion.cpp");
         { model_ref = build_ref_model_msda(); }
     }
 }
