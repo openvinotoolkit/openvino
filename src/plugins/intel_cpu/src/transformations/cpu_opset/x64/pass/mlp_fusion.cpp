@@ -59,40 +59,40 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     auto input = any_input(rank_equals(3));
 
     auto gate_proj_weight_compressed = wrap_type<Constant>();  // [up_size, down_size]
-    auto gate_proj_weight = wrap_type<Convert>(gate_proj_weight_compressed, type_matches(element::f32));
+    auto gate_proj_weight = wrap_type<Convert>(gate_proj_weight_compressed, {{"destination_type", "f32"}});
 
     auto up_proj_weight_compressed = wrap_type<Constant>();  // [up_size, down_size]
-    auto up_proj_weight = wrap_type<Convert>(up_proj_weight_compressed, type_matches(element::f32));
+    auto up_proj_weight = wrap_type<Convert>(up_proj_weight_compressed, {{"destination_type", "f32"}});
 
     auto down_proj_weight_compressed = wrap_type<Constant>();  // [down_size, up_size]
-    auto down_proj_weight = wrap_type<Convert>(down_proj_weight_compressed, type_matches(element::f32));
+    auto down_proj_weight = wrap_type<Convert>(down_proj_weight_compressed, {{"destination_type", "f32"}});
 
     // symmetrically INT8 quantized version
     // all 3 layers must be quantized at the same time (checked in callback)
     auto gate_proj_weight_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
     auto gate_proj_weight_scales_per_OC = wrap_type<Constant>(type_matches(element::f32) && shape_matches("[?, 1]"));
-    auto gate_proj_weight_f32 = wrap_type<Convert>(gate_proj_weight_i8, type_matches(element::f32));
+    auto gate_proj_weight_f32 = wrap_type<Convert>(gate_proj_weight_i8, {{"destination_type", "f32"}});
     auto gate_proj_weight_deq =
         wrap_type<Multiply>({gate_proj_weight_f32, gate_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
     auto up_proj_weight_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
     auto up_proj_weight_scales_per_OC = wrap_type<Constant>(type_matches(element::f32) && shape_matches("[?, 1]"));
-    auto up_proj_weight_f32 = wrap_type<Convert>(up_proj_weight_i8, type_matches(element::f32));
+    auto up_proj_weight_f32 = wrap_type<Convert>(up_proj_weight_i8, {{"destination_type", "f32"}});
     auto up_proj_weight_deq =
         wrap_type<Multiply>({up_proj_weight_f32, up_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
     auto down_proj_weight_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
     auto down_proj_weight_scales_per_OC = wrap_type<Constant>(type_matches(element::f32) && shape_matches("[?, 1]"));
-    auto down_proj_weight_f32 = wrap_type<Convert>(down_proj_weight_i8, type_matches(element::f32));
+    auto down_proj_weight_f32 = wrap_type<Convert>(down_proj_weight_i8, {{"destination_type", "f32"}});
     auto down_proj_weight_deq =
         wrap_type<Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
     // gate-up weights are combined
     auto gate_up_proj_weight = wrap_type<Constant>(type_matches(element::f16) && rank_equals(2));
-    auto gate_up_proj_weight_f32 = wrap_type<Convert>(gate_up_proj_weight, type_matches(element::f32));
+    auto gate_up_proj_weight_f32 = wrap_type<Convert>(gate_up_proj_weight, {{"destination_type", "f32"}});
 
     auto gate_up_proj_weight_const_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
-    auto gate_up_proj_weight_cvt_f32 = wrap_type<Convert>(gate_up_proj_weight_const_i8, type_matches(element::f32));
+    auto gate_up_proj_weight_cvt_f32 = wrap_type<Convert>(gate_up_proj_weight_const_i8, {{"destination_type", "f32"}});
     auto gate_up_proj_weight_scales_per_OC = wrap_type<Constant>(type_matches(element::f32) && shape_matches("[?, 1]"));
     auto gate_up_proj_weight_deq = wrap_type<Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC},
                                                        {{"auto_broadcast", "numpy"}});
