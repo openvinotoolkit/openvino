@@ -209,6 +209,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
        (activation_type == utils::ActivationTypes::Ceiling) ||
        (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
+       (activation_type == utils::ActivationTypes::IsInf) ||
        (activation_type == utils::ActivationTypes::IsFinite) ||
        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
        (activation_type == utils::ActivationTypes::RoundHalfToEven)) {
