@@ -555,31 +555,28 @@ public:
 
     /**
      * @brief Imports a compiled model from the previously exported one.
-     * @param model_stream std::istream input stream containing a model previously exported using the
-     * ov::CompiledModel::export_model method.
+     * @param model ov::Tensor input blob containing a model previously exported from ov::CompiledModel::export_model.
      * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
      * to compile the original mode, an exception is thrown.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation.
      * @return A compiled model.
      */
-    CompiledModel import_model(ov::Tensor& model,
+    CompiledModel import_model(const ov::Tensor& model,
                                const std::string& device_name,
                                const AnyMap& properties = {});
 
 
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
-     * @param model_stream std::istream input stream containing a model previously exported from
-     * ov::CompiledModel::export_model
+     * @param model ov::Tensor input blob containing a model previously exported from ov::CompiledModel::export_model.
      * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
      * the original mode, an exception is thrown.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
      * operation.
      * @return A compiled model.
      */
-    CompiledModel import_model(ov::Tensor& model, const RemoteContext& context, const AnyMap& properties = {});
-
+    CompiledModel import_model(const ov::Tensor& model, const RemoteContext& context, const AnyMap& properties = {});
 
     template <typename MODEL_TYPE, typename DEVICE_OR_CONTEXT_T, typename... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(MODEL_TYPE& model,

@@ -32,7 +32,7 @@ public:
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 import_model,
-                (ov::Tensor&, const std::string&, const ov::AnyMap&),
+                (const ov::Tensor&, const std::string&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 compile_model,
@@ -66,7 +66,7 @@ public:
                 (const));
     MOCK_METHOD(ov::SoPtr<ov::ICompiledModel>,
                 import_model,
-                (ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
+                (const ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(bool, device_supports_model_caching, (const std::string&), (const));
     MOCK_METHOD(void, set_property, (const std::string& device_name, const ov::AnyMap& properties));

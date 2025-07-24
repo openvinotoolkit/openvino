@@ -82,23 +82,6 @@ std::shared_ptr<ov::ICompiledModel> ov::IPlugin::compile_model(const std::string
     return compile_model(model, local_properties);
 }
 
-// Implementation for backward compatibility for Nvidia plugin
-// TODO: Update Nvidia plugin in contrib repo and make ov::IPlugin::import_model abstract again
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(const ov::Tensor& model,
-                                                              const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
-    std::istream stream{&buffer};
-    return import_model(stream, properties);
-};
-
-std::shared_ptr<ov::ICompiledModel> ov::IPlugin::import_model(const ov::Tensor& model,
-                                                              const ov::SoPtr<ov::IRemoteContext>& context,
-                                                              const ov::AnyMap& properties) const {
-    ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(model.data()), model.get_byte_size()};
-    std::istream stream{&buffer};
-    return import_model(stream, context, properties);
-};
-
 std::unordered_set<std::string> ov::get_supported_nodes(
     const std::shared_ptr<const ov::Model>& model,
     std::function<void(std::shared_ptr<ov::Model>&)> transform,
