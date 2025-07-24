@@ -576,12 +576,12 @@ std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions
 }
 
 ///  Greater ///
-jit_greater_emitter::jit_greater_emitter(jit_generator* host, cpu_isa_t host_isa, const element::Type exec_prc)
+jit_greater_emitter::jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
 
-jit_greater_emitter::jit_greater_emitter(jit_generator* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
+jit_greater_emitter::jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
