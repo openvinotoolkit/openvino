@@ -93,8 +93,6 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.update_dispatch_data_func = get_dispatch_data_func();
     kd.need_args_update = true;
     kd.need_dispatch_data_update = true;
-    // std::cout << "wzx debug kd.code->str:" << kd.code->str << std::endl;
-
     return kd;
 }
 

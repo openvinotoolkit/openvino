@@ -25,21 +25,6 @@ namespace test {
 
 using namespace ov::opset10;
 
-// void MSDAPattern::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-//     inputs.clear();
-//     const auto& funcInputs = function->inputs();
-
-//     for (size_t i = 0; i < funcInputs.size(); ++i) {
-//         const auto& funcInput = funcInputs[i];
-//         const auto& shape = targetInputStaticShapes[i];
-//         ov::Tensor tensor = ov::Tensor(funcInput.get_element_type(), shape);
-
-//         std::fill(tensor.data<float>(), tensor.data<float>() + tensor.get_size(), 1.3f);
-
-//         inputs.insert({funcInput.get_node_shared_ptr(), tensor});
-//     }
-// }
-
 void MSDAPattern::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
@@ -52,21 +37,18 @@ void MSDAPattern::generate_inputs(const std::vector<ov::Shape>& targetInputStati
         ov::Tensor tensor(dtype, shape);
 
         if (i == 0) {
-            // value
             auto* data = tensor.data<float>();
             std::fill(data, data + tensor.get_size(), 1.3f);
 
         } else if (i == 2) {
-            // attention_weights
             auto* data = tensor.data<float>();
             std::fill(data, data + tensor.get_size(), 1.0f);
 
         } else if (i == 1) {
-            // offset / sampling_locations: 用 linspace（递增）
             auto* data = tensor.data<float>();
             const size_t total = tensor.get_size();
             for (size_t j = 0; j < total; ++j) {
-                data[j] = static_cast<float>(j) / static_cast<float>(total - 1);  // 0~1递增
+                data[j] = static_cast<float>(j) / static_cast<float>(total - 1);
             }
         }
         inputs[param.get_node_shared_ptr()] = tensor;
@@ -227,20 +209,7 @@ std::shared_ptr<ov::Model> build_model_msda(ov::PartialShape value_shape,
                                        ParameterVector{input_attn_value, input_attn_offsets, input_attn_weight});
 }
 
-std::string MSDAPattern::getTestCaseName(testing::TestParamInfo<MSDAPatternShapeParams> obj) {
-    MSDAPatternShapeParams shape_params;
-    std::tie(shape_params) = obj.param;
-    std::ostringstream results;
-
-    results << "input=" << shape_params.value_shape << "_";
-    results << "offset=" << shape_params.offset_shape << "_";
-    results << "weights=" << shape_params.weight_shape;
-    return results.str();
-}
-
 void MSDAPattern::SetUp() {
-    // MSDAPatternShapeParams shape_params;
-    // shape_params = GetParam();
     ov::PartialShape value_shape = PartialShape{-1, 22223, 8, 32};
     ov::PartialShape offset_shape = PartialShape{-1, 22223, 8, 4, 4, 2};
     ov::PartialShape weight_shape = PartialShape{-1, 22223, 8, 4, 4};
@@ -250,13 +219,6 @@ void MSDAPattern::SetUp() {
     init_input_shapes({input_value_shape, input_offset_shape, input_weight_shape});
     targetDevice = ov::test::utils::DEVICE_GPU;
     function = build_model_msda(value_shape, offset_shape, weight_shape);
-    ov::serialize(function, "build_model_msda.xml", "build_model_msda.bin");
-    // functionRefs = build_model_msda(shape_params);
-    // function = functionRefs->clone();
-    // ov::pass::Manager manager;
-
-    // manager.register_pass<ov::pass::MultiScaleDeformableAttnFusion>();
-    // manager.run_passes(function);
 }
 
 }  // namespace test

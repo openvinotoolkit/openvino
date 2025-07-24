@@ -71,15 +71,6 @@ void MSDA::validate_and_infer_types() {
     auto attention_weights_ps = get_input_partial_shape(4);
 
     auto output_shape = get_output_partial_shape(0);
-    std::cout << "----------------- MSDA::validate_and_infer_types() -----------------" << std::endl;
-    std::cout << "----------------- value shape: " << value_ps <<
-    "," << "attention_weights shape: " << attention_weights_ps <<
-    "->" << output_shape<< std::endl;
-
-    // output_shape[0] = value_ps[0]; //bs
-    // output_shape[1] = attention_weights_ps[1]; // num_querries
-    // output_shape[2] = value_ps[2] * value_ps[3]; // num_heads * embed_dims
-
     set_output_type(0, get_input_element_type(0), {value_ps[0], attention_weights_ps[1], value_ps[2] * value_ps[3]});
 }
 

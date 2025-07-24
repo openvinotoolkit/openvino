@@ -119,8 +119,6 @@ void set_arguments_impl(ocl_kernel_type& kernel, const arguments_desc& args, con
             status = set_kernel_arg(kernel, i, data.slope);
             break;
         case args_t::SCALAR:
-            // std::cout << "wzx debug " << __FILE__ << __LINE__ <<":" << args[i].index << std::endl;
-            // std::cout << "wzx debug " << __FILE__ << __LINE__ << ":" <<data.scalars->size() << std::endl;
             if (data.scalars && args[i].index < data.scalars->size()) {
                 const auto& scalar = (*data.scalars)[args[i].index];
                 switch (scalar.t) {
