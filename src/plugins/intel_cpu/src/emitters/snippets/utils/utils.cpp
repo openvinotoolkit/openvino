@@ -18,7 +18,7 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
-namespace ov::intel_cpu::emitters::snippets::utils {
+namespace ov::intel_cpu::utils {
 
 size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) {
     auto get_cluster_id = [](const ov::snippets::lowered::ExpressionPort& p) {
@@ -50,4 +50,4 @@ size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) 
     return id;
 }
 
-}  // namespace ov::intel_cpu::emitters::snippets::utils
+}  // namespace ov::intel_cpu::utils

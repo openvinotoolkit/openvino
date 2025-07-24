@@ -47,7 +47,7 @@ Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_
  * @brief Push data pointer on stack adding offset. The offset is taken from runtime params `abi_param1`
  * @param h generator
  * @param stack_offset stack offset
- * @param ptr_reg register contains data pointer
+ * @param ptr_reg register containing data pointer
  * @param aux_reg aux register
  * @param runtime_offset offset in runtime params `abi_param1`
  */
@@ -62,7 +62,7 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t
  * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
  * @param h generator
  * @param stack_offset stack offset
- * @param ptr_reg register contains data pointer
+ * @param ptr_reg register containing data pointer
  * @param ptr_offset offset which will be added to data pointer
  */
 void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t* h,

@@ -58,12 +58,11 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator_t* h,
     m_kernel_executor = kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, config);
 
     m_memory_offsets = {brgemm_repack->get_offset_in(), brgemm_repack->get_offset_out()};
-    m_buffer_ids = {ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_input_port(0)),
-                    ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_output_port(0))};
+    m_buffer_ids = {ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(0))};
     if (m_with_comp) {
         m_memory_offsets.push_back(brgemm_repack->get_offset_compensations());
-        m_buffer_ids.push_back(
-            ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_output_port(1)));
+        m_buffer_ids.push_back(ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(1)));
     }
 }
 

@@ -61,8 +61,8 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     m_memory_offsets = {gemm_repack->get_offset_in(), gemm_repack->get_offset_out()};
 
     // Initialize buffer IDs using the utils function
-    m_buffer_ids = {ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_input_port(0)),
-                    ov::intel_cpu::emitters::snippets::utils::get_buffer_cluster_id(expr->get_output_port(0))};
+    m_buffer_ids = {ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(0))};
 }
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(
@@ -93,28 +93,9 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
-    // Apply memory offsets to input/output pointers
-    const auto sp_size = rnd_up(2 * get_gpr_length(), sp_alignment);
-    h->sub(h->sp, h->sp, sp_size);
-    // Apply offsets and store pointers on stack
-    for (size_t i = 0; i < mem_ptrs.size(); i++) {
-        const auto& ptr_reg = mem_ptrs[i];
-        int32_t stack_offset = i * get_gpr_length();
-        if (ov::snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
-            // Dynamic offset: read from runtime parameters
-            size_t runtime_offset = GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t);
-            utils::push_ptr_with_runtime_offset_on_stack(h, stack_offset, ptr_reg, aux_reg, runtime_offset);
-        } else {
-            // Static offset: add compile-time constant
-            utils::push_ptr_with_static_offset_on_stack(h, stack_offset, ptr_reg, m_memory_offsets[i]);
-        }
-    }
-    // Load back the adjusted pointers for function call
-    h->ldr(x1, Xbyak_aarch64::ptr(h->sp));                    // input pointer
-    h->ldr(x2, Xbyak_aarch64::ptr(h->sp, get_gpr_length()));  // output pointer
-
-    // Restore stack pointer
-    h->add(h->sp, h->sp, sp_size);
+    // Apply memory offsets and load adjusted pointers
+    std::vector<Xbyak_aarch64::XReg> load_regs{x1, x2};
+    utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_reg, load_regs);
 
     // Set up executor pointer as first argument
     const auto& compiled_kernel = get_compiled_kernel_ptr();

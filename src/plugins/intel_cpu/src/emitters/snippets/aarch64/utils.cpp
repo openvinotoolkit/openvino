@@ -13,6 +13,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
@@ -57,7 +58,7 @@ Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_g
     if (!aux_gpr_idxs.empty()) {
         return Xbyak_aarch64::XReg(static_cast<int>(aux_gpr_idxs[0]));
     }
-    const auto aux_reg = ov::intel_cpu::aarch64::utils::get_aux_gpr(used_gpr_reg_idxs);
+    const auto aux_reg = get_aux_gpr(used_gpr_reg_idxs);
     regs_to_spill.emplace(snippets::RegType::gpr, aux_reg.getIdx());
     return aux_reg;
 }
@@ -100,6 +101,43 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generato
 
     // Store the adjusted pointer on stack
     h->str(temp_reg, Xbyak_aarch64::ptr(h->sp, stack_offset));
+}
+
+void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
+                                     const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
+                                     const std::vector<size_t>& memory_offsets,
+                                     const std::vector<size_t>& buffer_ids,
+                                     const Xbyak_aarch64::XReg& aux_reg,
+                                     const std::vector<Xbyak_aarch64::XReg>& load_regs) {
+    const size_t gpr_length = 8;     // 64-bit register length
+    const size_t sp_alignment = 16;  // AArch64 stack alignment requirement
+
+    // Allocate stack space for all pointers
+    const auto sp_size = rnd_up(mem_ptrs.size() * gpr_length, sp_alignment);
+    h->sub(h->sp, h->sp, sp_size);
+
+    // Push all pointers with offsets onto stack
+    for (size_t i = 0; i < mem_ptrs.size(); i++) {
+        const auto& ptr_reg = mem_ptrs[i];
+        int32_t stack_offset = i * gpr_length;
+
+        if (ov::snippets::utils::is_dynamic_value(memory_offsets[i])) {
+            // Dynamic offset: read from runtime parameters
+            size_t runtime_offset = GET_OFF(buffer_offsets) + buffer_ids[i] * sizeof(size_t);
+            push_ptr_with_runtime_offset_on_stack(h, stack_offset, ptr_reg, aux_reg, runtime_offset);
+        } else {
+            // Static offset: add compile-time constant
+            push_ptr_with_static_offset_on_stack(h, stack_offset, ptr_reg, memory_offsets[i]);
+        }
+    }
+
+    // Load back the adjusted pointers to specified registers
+    for (size_t i = 0; i < load_regs.size() && i < mem_ptrs.size(); i++) {
+        h->ldr(load_regs[i], Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(i * gpr_length)));
+    }
+
+    // Restore stack pointer
+    h->add(h->sp, h->sp, sp_size);
 }
 
 }  // namespace ov::intel_cpu::aarch64::utils

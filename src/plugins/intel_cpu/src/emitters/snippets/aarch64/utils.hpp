@@ -34,9 +34,9 @@ inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std:
 Xbyak_aarch64::XReg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
 
 /**
- * @brief Returns aux gpr register for dynamic memory access emitters. Returns a register from `aux_gpr_idxs`.
- * If it's empty, then choose a register that is not in `mem_ptr_reg_idxs` and add it to `regs_to_spill`.
- * @param mem_ptr_reg_idxs register indexes reserved to store memory pointers in this emitter
+ * @brief Returns an auxiliary GPR register. Returns a register from `aux_gpr_idxs`.
+ * If it's empty, then choose a register that is not in `used_gpr_reg_idxs` and add it to `regs_to_spill`.
+ * @param used_gpr_reg_idxs register indexes reserved to store memory pointers in this emitter
  * @param aux_gpr_idxs pool of available gp register indexes
  * @param regs_to_spill set of live registers to be spilled before ABI call
  */
@@ -48,7 +48,7 @@ Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_g
  * @brief Push data pointer on stack adding offset. The offset is taken from runtime params `abi_param1`
  * @param h generator
  * @param stack_offset stack offset
- * @param ptr_reg register contains data pointer
+ * @param ptr_reg register containing data pointer
  * @param aux_reg aux register
  * @param runtime_offset offset in runtime params `abi_param1`
  */
@@ -63,12 +63,28 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generat
  * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
  * @param h generator
  * @param stack_offset stack offset
- * @param ptr_reg register contains data pointer
+ * @param ptr_reg register containing data pointer
  * @param ptr_offset offset which will be added to data pointer
  */
 void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
                                           int32_t stack_offset,
                                           const Xbyak_aarch64::XReg& ptr_reg,
                                           size_t ptr_offset);
+
+/**
+ * @brief Push multiple data pointers on stack with offsets and load them back to specified registers
+ * @param h generator
+ * @param mem_ptrs vector of registers containing data pointers
+ * @param memory_offsets vector of memory offsets (can be dynamic or static)
+ * @param buffer_ids vector of buffer IDs for runtime offset calculation
+ * @param aux_reg auxiliary register for calculations
+ * @param load_regs vector of registers to load the adjusted pointers back to
+ */
+void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
+                                     const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
+                                     const std::vector<size_t>& memory_offsets,
+                                     const std::vector<size_t>& buffer_ids,
+                                     const Xbyak_aarch64::XReg& aux_reg,
+                                     const std::vector<Xbyak_aarch64::XReg>& load_regs);
 
 }  // namespace ov::intel_cpu::aarch64::utils
