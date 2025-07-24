@@ -166,7 +166,7 @@ private:
 };
 class jit_floor_mod_emitter : public jit_emitter {
 public:
-    jit_floor_mod_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc = element::f32);
+    jit_floor_mod_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
     jit_floor_mod_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
@@ -204,7 +204,7 @@ private:
 };
 class jit_less_emitter : public jit_emitter {
 public:
-    jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc = element::f32);
+    jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
     jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
@@ -241,7 +241,7 @@ private:
 };
 class jit_logical_or_emitter : public jit_emitter {
 public:
-    jit_logical_or_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc = element::f32);
+    jit_logical_or_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
     jit_logical_or_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;

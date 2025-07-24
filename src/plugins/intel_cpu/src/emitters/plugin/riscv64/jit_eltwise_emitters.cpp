@@ -575,7 +575,7 @@ std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions
     return {{element::f32}};
 }
 /// FLOOR MOD ///
-jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
+jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -637,7 +637,7 @@ void jit_floor_mod_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
 }
 std::set<std::vector<element::Type>> jit_floor_mod_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
@@ -697,7 +697,7 @@ std::set<std::vector<element::Type>> jit_greater_equal_emitter::get_supported_pr
     return {{element::f32, element::f32}};
 }
 // LESS ///
-jit_less_emitter::jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
+jit_less_emitter::jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -728,10 +728,10 @@ template <cpu_isa_t isa>
 void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     OPENVINO_ASSERT(exec_prc_ == element::f32, "JIT Less emitter supports only f32 precision");
 
-    VReg src0 = VReg(in_vec_idxs[0]);
-    VReg src1 = VReg(in_vec_idxs[1]);
-    VReg dst = VReg(out_vec_idxs[0]);
-    FReg one = FReg(aux_fp_gpr_idxs[0]);
+    auto src0 = VReg(in_vec_idxs[0]);
+    auto src1 = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto one = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("one", one);
 
     h->vmflt_vv(mask_vreg(), src0, src1);
@@ -742,12 +742,13 @@ void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
 void jit_less_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
 }
-std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_less_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
 /// LOGICAL OR ///
-jit_logical_or_emitter::jit_logical_or_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
+jit_logical_or_emitter::jit_logical_or_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
 }
@@ -803,7 +804,7 @@ void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 }
 
 std::set<std::vector<element::Type>> jit_logical_or_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
