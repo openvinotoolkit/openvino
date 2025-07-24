@@ -31,7 +31,7 @@ public:
                     std::optional<std::vector<ov::Tensor>> initBlobs,
                     const std::shared_ptr<const ov::Model>& model,
                     const Config& config,
-                    const bool persistentBlob = false,
+                    const bool blobPersistent = false,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
     /**

@@ -19,13 +19,13 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
              const Config& config,
-             const bool persistentBlob,
+             const bool blobPersistent,
              const ov::SoPtr<ICompiler>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
-      _persistentBlob(persistentBlob),
+      _blobPersistent(blobPersistent),
       _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -193,7 +193,7 @@ void Graph::initialize(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
-    if (_inputGraphPersistent || _persistentBlob || _blob == std::nullopt ||
+    if (_handle.second || _blobPersistent || _blob == std::nullopt ||
         _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) || config.get<PERF_COUNT>()) {
         return false;
     }
