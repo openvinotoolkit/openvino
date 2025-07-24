@@ -113,10 +113,14 @@ void GatherTree::prepareParams() {
     const auto& maxSeqLenMemPtr = getSrcMemoryAtPort(GATHER_TREE_MAX_SEQ_LEN);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    CPU_NODE_ASSERT(stepIdxMemPtr && stepIdxMemPtr->isDefined(), "has undefined input memory of 'step_ids'.");
-    CPU_NODE_ASSERT(parentIdxMemPtr && parentIdxMemPtr->isDefined(), "has undefined input memory of 'parent_ids'.");
-    CPU_NODE_ASSERT(maxSeqLenMemPtr && maxSeqLenMemPtr->isDefined(), "has undefined input memory of 'max_seq_len'.");
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory.");
+    CPU_NODE_ASSERT(stepIdxMemPtr, "has null input memory pointer for 'step_ids'.");
+    CPU_NODE_ASSERT(stepIdxMemPtr->isDefined(), "has undefined input memory of 'step_ids'.");
+    CPU_NODE_ASSERT(parentIdxMemPtr, "has null input memory pointer for 'parent_ids'.");
+    CPU_NODE_ASSERT(parentIdxMemPtr->isDefined(), "has undefined input memory of 'parent_ids'.");
+    CPU_NODE_ASSERT(maxSeqLenMemPtr, "has null input memory pointer for 'max_seq_len'.");
+    CPU_NODE_ASSERT(maxSeqLenMemPtr->isDefined(), "has undefined input memory of 'max_seq_len'.");
+    CPU_NODE_ASSERT(dstMemPtr, "has null output memory pointer.");
+    CPU_NODE_ASSERT(dstMemPtr->isDefined(), "has undefined output memory.");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor.");
 
     const VectorDims& stepIdxDims = stepIdxMemPtr->getStaticDims();

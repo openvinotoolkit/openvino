@@ -48,7 +48,8 @@ GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphC
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() == 1, "has invalid number of input/output edges.");
+    CPU_NODE_ASSERT(inputShapes.size() == 2, "has invalid number of input edges.");
+    CPU_NODE_ASSERT(outputShapes.size() == 1, "has invalid number of output edges.");
 
     const auto dataRank = getInputShapeAtPort(dataIndex_).getRank();
     const auto indicesRank = getInputShapeAtPort(indicesIndex_).getRank();
@@ -60,7 +61,8 @@ GatherElements::GatherElements(const std::shared_ptr<ov::Node>& op, const GraphC
     if (axis < 0) {
         axis += dataRank;
     }
-    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(dataRank), "has invalid axis attribute: ", axis);
+    CPU_NODE_ASSERT(axis >= 0, "axis attribute is negative: ", axis);
+    CPU_NODE_ASSERT(axis < static_cast<int>(dataRank), "axis attribute exceeds data rank: ", axis);
     axis_ = axis;
 }
 
@@ -113,7 +115,8 @@ void GatherElements::executeDynamicImpl(const dnnl::stream& strm) {
 namespace helpers {
 static int HandleNegativeIndices(const int* indices, int idx, int axisDimSize) {
     const int index = indices[idx];
-    OPENVINO_ASSERT(index < axisDimSize && index >= -axisDimSize, "indices values of GatherElement exceed data size");
+    OPENVINO_ASSERT(index >= -axisDimSize, "indices value is too negative: ", index);
+    OPENVINO_ASSERT(index < axisDimSize, "indices value exceeds axis dimension size: ", index);
     const int fixedIdx = index < 0 ? axisDimSize + index : index;
     return fixedIdx;
 }

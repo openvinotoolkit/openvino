@@ -976,7 +976,8 @@ void Node::filterSupportedPrimitiveDescriptors() {
         const auto& config = desc.getConfig();
         bool validInputSize = memoryFormatFilter.input.size() <= config.inConfs.size();
         bool validOutputSize = memoryFormatFilter.output.size() <= config.outConfs.size();
-        OPENVINO_ASSERT(validInputSize && validOutputSize, "Incorrect number of input or output memory formats");
+        OPENVINO_ASSERT(validInputSize, "Incorrect number of input memory formats");
+        OPENVINO_ASSERT(validOutputSize, "Incorrect number of output memory formats");
 
         for (size_t i = 0; i < memoryFormatFilter.input.size(); i++) {
             if (!areCompatible(*config.inConfs[i].getMemDesc(), memoryFormatFilter.input[i])) {

@@ -264,8 +264,11 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
     auto scaleDimsCheck = [](const NodePtr& node, const NodePtr& scales) {
         const auto nodeOutDims = node->getOutputShapeAtPort(0).getDims();
         const auto channelAxis = node->getFusingAxis();
-        OPENVINO_ASSERT(channelAxis >= 0 && channelAxis < static_cast<int>(nodeOutDims.size()),
-                        "Incorrect channel axis for Conv/Deconv/MatMul node: ",
+        OPENVINO_ASSERT(channelAxis >= 0,
+                        "Channel axis cannot be negative for Conv/Deconv/MatMul node: ",
+                        node->getName());
+        OPENVINO_ASSERT(channelAxis < static_cast<int>(nodeOutDims.size()),
+                        "Channel axis exceeds dimension size for Conv/Deconv/MatMul node: ",
                         node->getName(),
                         ", channel axis: ",
                         nodeOutDims.size());
