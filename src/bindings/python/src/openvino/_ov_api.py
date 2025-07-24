@@ -93,11 +93,12 @@ class Model(object, metaclass=ModelMeta):
         self,
         output_tensors: Union[list[Tensor], TensorVectorOpaque],
         input_tensors: Union[list[Tensor], TensorVectorOpaque],
-        evaluation_context: Optional[RTMap] = None
+        evaluation_context: Optional[RTMap] = None,
     ) -> bool:
-        if evaluation_context:
-            self.__model.evaluate(TensorVectorOpaque(output_tensors), TensorVectorOpaque(input_tensors), evaluation_context)
-        return self.__model.evaluate(TensorVectorOpaque(output_tensors), TensorVectorOpaque(input_tensors))
+        outputs = output_tensors if isinstance(output_tensors, TensorVectorOpaque) else TensorVectorOpaque(output_tensors)
+        inputs = input_tensors if isinstance(input_tensors, TensorVectorOpaque) else TensorVectorOpaque(input_tensors)
+        context = evaluation_context if evaluation_context is not None else RTMap()
+        return self.__model.evaluate(outputs, inputs, context)
 
 
 class InferRequest(_InferRequestWrapper):
