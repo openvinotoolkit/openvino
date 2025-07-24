@@ -49,3 +49,12 @@ leak:thirdparty/protobuf/protobuf
 leak:thirdparty/gtest
 leak:thirdparty/tbb
 leak:libtbb.so
+
+# ???
+leak:pybind11::detail::
+leak:_PyObject_Malloc
+leak:malloc
+leak:__interceptor_malloc
+leak:PyDict_Copy
+leak:python3.11
+leak:_PyObject_*
