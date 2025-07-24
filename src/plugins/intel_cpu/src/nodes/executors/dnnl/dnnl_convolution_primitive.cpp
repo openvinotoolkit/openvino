@@ -873,7 +873,7 @@ std::shared_ptr<DnnlConvolutionPrimitive> DnnlConvolutionPrimitive::create(
     auto runtimeCache = context->getRuntimeCache();
     const auto result = runtimeCache->getOrCreate(dnnlConvKey, builder);
     const auto& primitive = result.first;
-    OPENVINO_DEBUG_ASSERT(primitive, "failed to create a DnnlConvolutionPrimitive: primitive=", primitive.get());
+    OPENVINO_DEBUG_ASSERT(primitive, "failed to create a DnnlConvolutionPrimitive");
 
     return primitive;
 }
