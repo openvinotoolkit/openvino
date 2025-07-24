@@ -79,15 +79,15 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         return;
     }
 
-    _graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
+    uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _logger.info("PluginCompilerAdapter creating adapter using graphExtVersion");
 
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize PluginCompilerAdapter complete, using graphExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(_graphExtVersion),
-                 ZE_MINOR_VERSION(_graphExtVersion));
+                 ZE_MAJOR_VERSION(graphExtVersion),
+                 ZE_MINOR_VERSION(graphExtVersion));
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
@@ -112,14 +112,15 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         }
     }
 
-    return std::make_shared<Graph>(_zeGraphExt,
-                                   _zeroInitStruct,
-                                   graphHandle,
-                                   std::move(networkDesc.metadata),
-                                   std::move(tensor),
-                                   config,
-                                   true,
-                                   _compiler);
+    return std::make_shared<Graph>(
+        _zeGraphExt,
+        _zeroInitStruct,
+        graphHandle,
+        std::move(networkDesc.metadata),
+        std::move(tensor),
+        config,
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        _compiler);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<ov::Model>& model,
@@ -235,18 +236,19 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         initNetworkMetadata.push_back(std::move(networkDesc->metadata));
     }
 
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             mainGraphHandle,
-                                             std::move(mainNetworkDescription->metadata),
-                                             std::move(tensorMain),
-                                             initGraphHandles,
-                                             std::move(initNetworkMetadata),
-                                             tensorsInits,
-                                             model,
-                                             config,
-                                             true,
-                                             _compiler);
+    return std::make_shared<WeightlessGraph>(
+        _zeGraphExt,
+        _zeroInitStruct,
+        mainGraphHandle,
+        std::move(mainNetworkDescription->metadata),
+        std::move(tensorMain),
+        initGraphHandles,
+        std::move(initNetworkMetadata),
+        tensorsInits,
+        model,
+        config,
+        /* persistentBlob = */ true,  // exporting the blob shall be available in such a scenario
+        _compiler);
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
@@ -275,7 +277,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                        std::move(networkMeta),
                                        std::move(mainBlob),
                                        config,
-                                       config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>() : false,
+                                       config.has<LOADED_FROM_CACHE>()
+                                           ? config.get<LOADED_FROM_CACHE>()
+                                           : false,  // exporting the blob when we get it from cache shall be available
                                        _compiler);
     }
 
@@ -301,18 +305,20 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     }
 
     _logger.debug("init schedules parse end");
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
-                                             graphHandle,
-                                             std::move(networkMeta),
-                                             std::move(mainBlob),
-                                             initGraphHandles,
-                                             std::move(initMetadata),
-                                             std::move(initBlobs),
-                                             model.value(),
-                                             config,
-                                             config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>() : false,
-                                             _compiler);
+    return std::make_shared<WeightlessGraph>(
+        _zeGraphExt,
+        _zeroInitStruct,
+        graphHandle,
+        std::move(networkMeta),
+        std::move(mainBlob),
+        initGraphHandles,
+        std::move(initMetadata),
+        std::move(initBlobs),
+        model.value(),
+        config,
+        config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
+                                        : false,  // exporting the blob when we get it from cache shall be available
+        _compiler);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

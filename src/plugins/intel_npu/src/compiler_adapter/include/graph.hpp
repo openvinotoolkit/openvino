@@ -24,7 +24,7 @@ public:
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
           const Config& config,
-          const bool persistentBlob = false,
+          const bool blobPersistent = false,
           const ov::SoPtr<ICompiler>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
@@ -49,8 +49,7 @@ protected:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _persistentBlob = false;
-    bool _inputGraphPersistent = false;
+    bool _blobPersistent = false;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;

@@ -194,7 +194,7 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
       _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.debug("initialize DriverCompilerAdapter start");
 
-    _graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
+    uint32_t graphExtVersion = _zeroInitStruct->getGraphDdiTable().version();
 
     _compilerProperties = _zeroInitStruct->getCompilerProperties();
 
@@ -203,8 +203,8 @@ DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStruc
     _zeGraphExt = std::make_shared<ZeGraphExtWrappers>(_zeroInitStruct);
 
     _logger.info("initialize DriverCompilerAdapter complete, using graphExtVersion: %d.%d",
-                 ZE_MAJOR_VERSION(_graphExtVersion),
-                 ZE_MINOR_VERSION(_graphExtVersion));
+                 ZE_MAJOR_VERSION(graphExtVersion),
+                 ZE_MINOR_VERSION(graphExtVersion));
 }
 
 std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
@@ -378,7 +378,9 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        std::move(networkMeta),
                                        std::move(mainBlob),
                                        config,
-                                       config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>() : false);
+                                       config.has<LOADED_FROM_CACHE>()
+                                           ? config.get<LOADED_FROM_CACHE>()
+                                           : false);  // exporting the blob when we get it from cache shall be available
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
@@ -394,18 +396,20 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
         initMetadata.push_back(_zeGraphExt->getNetworkMeta(initGraphHandle));
     }
 
-    return std::make_shared<WeightlessGraph>(_zeGraphExt,
-                                             _zeroInitStruct,
+    return std::make_shared<WeightlessGraph>(
+        _zeGraphExt,
+        _zeroInitStruct,
 
-                                             graphHandle,
-                                             std::move(networkMeta),
-                                             std::move(mainBlob),
-                                             initGraphHandles,
-                                             std::move(initMetadata),
-                                             std::move(initBlobs),
-                                             model.value(),
-                                             config,
-                                             config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>() : false);
+        graphHandle,
+        std::move(networkMeta),
+        std::move(mainBlob),
+        initGraphHandles,
+        std::move(initMetadata),
+        std::move(initBlobs),
+        model.value(),
+        config,
+        config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
+                                        : false);  // exporting the blob when we get it from cache shall be available
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,

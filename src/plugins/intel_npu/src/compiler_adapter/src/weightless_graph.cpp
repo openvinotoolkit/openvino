@@ -157,7 +157,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
                                  std::optional<std::vector<ov::Tensor>> initBlobs,
                                  const std::shared_ptr<const ov::Model>& model,
                                  const Config& config,
-                                 const bool persistentBlob,
+                                 const bool blobPersistent,
                                  const ov::SoPtr<ICompiler>& compiler)
     : Graph(zeGraphExt,
             zeroInitStruct,
@@ -165,7 +165,7 @@ WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGr
             std::move(mainMetadata),
             std::move(mainBlob),
             config,
-            persistentBlob,
+            blobPersistent,
             compiler,
             true),
       _initsHandles(initGraphHandles),
@@ -591,7 +591,7 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
-    if (_persistentBlob || _initBlobs == std::nullopt) {
+    if (_blobPersistent || _initBlobs == std::nullopt) {
         return;
     }
 
@@ -627,7 +627,7 @@ void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& co
 
 WeightlessGraph::~WeightlessGraph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
-    if (_persistentBlob) {
+    if (_blobPersistent) {
         size_t initIndex = 0;
 
         for (auto& initHandle : _initsHandles) {
