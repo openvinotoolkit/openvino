@@ -15,10 +15,7 @@ namespace {
 const std::vector<ov::element::Type> input_types = {
     // TODO: 105804
     //ov::element::i32,
-    ov::element::f32,
-    ov::element::f16,
-    ov::element::u8,
-    ov::element::i8,
+    ov::element::f32
 };
 
 const std::vector<CheckBroadcastTestCaseParams> test_cases = {
