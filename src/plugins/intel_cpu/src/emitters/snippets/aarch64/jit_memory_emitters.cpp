@@ -23,8 +23,8 @@
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/store.hpp"
-#include "utils/general_utils.h"
 #include "snippets/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
 
