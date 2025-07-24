@@ -174,6 +174,7 @@ ONNX_OP("QuantizeLinear", {1, 12}, ai_onnx::opset_1::quantize_linear);
 
 namespace opset_13 {
 namespace detail {
+const int64_t BLOCKED_QUANTIZATION_DISABLED_SIZE = 0;
 ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
                                  ov::Output<ov::Node> y_scale,
                                  ov::Output<ov::Node> y_zero_point,
@@ -261,11 +262,7 @@ ov::OutputVector quantize_linear(ov::Output<ov::Node> x,
 
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ov_inputs()};
-
-    FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
-                            "The QuantizeLinear op expects 2 required and one optional "
-                            "input. Got: ",
-                            inputs.size());
+    common::default_op_checks(node, 2, 3);
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
@@ -275,7 +272,12 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     if (ai_onnx::detail::is_per_tensor_quantization(scale, zero_point)) {
         return ai_onnx::opset_1::quantize_linear(node);
     }
-    return detail::quantize_linear(x, scale, zero_point, node.get_attribute_value<int64_t>("axis", 1), 0, node);
+    return detail::quantize_linear(x,
+                                   scale,
+                                   zero_point,
+                                   node.get_attribute_value<int64_t>("axis", 1),
+                                   detail::BLOCKED_QUANTIZATION_DISABLED_SIZE,
+                                   node);
 }
 ONNX_OP("QuantizeLinear", OPSET_RANGE(13, 19), ai_onnx::opset_13::quantize_linear);
 }  // namespace opset_13
@@ -283,11 +285,7 @@ ONNX_OP("QuantizeLinear", OPSET_RANGE(13, 19), ai_onnx::opset_13::quantize_linea
 namespace opset_21 {
 ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector inputs{node.get_ov_inputs()};
-
-    FRONT_END_GENERAL_CHECK(2 <= inputs.size() && inputs.size() <= 3,
-                            "The QuantizeLinear op expects 2 required and one optional "
-                            "input. Got: ",
-                            inputs.size());
+    common::default_op_checks(node, 2, 3);
 
     const auto& x = inputs[0];
     const auto& scale = inputs[1];
@@ -296,12 +294,13 @@ ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node) {
     if (ai_onnx::detail::is_per_tensor_quantization(scale, zero_point)) {
         return ai_onnx::opset_1::quantize_linear(node);
     }
-    return opset_13::detail::quantize_linear(x,
-                                             scale,
-                                             zero_point,
-                                             node.get_attribute_value<int64_t>("axis", 1),
-                                             node.get_attribute_value<int64_t>("block_size", 0),
-                                             node);
+    return opset_13::detail::quantize_linear(
+        x,
+        scale,
+        zero_point,
+        node.get_attribute_value<int64_t>("axis", 1),
+        node.get_attribute_value<int64_t>("block_size", opset_13::detail::BLOCKED_QUANTIZATION_DISABLED_SIZE),
+        node);
 }
 ONNX_OP("QuantizeLinear", OPSET_SINCE(21), ai_onnx::opset_21::quantize_linear);
 }  // namespace opset_21
