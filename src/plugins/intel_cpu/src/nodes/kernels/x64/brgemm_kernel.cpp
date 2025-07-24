@@ -84,7 +84,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
       DType(DType),
       bScaleType(bScaleType),
       b_accumulate(b_accumulate) {
-    if (none_of(inType, ov::element::i8,ov::element::bf16, ov::element::f16, ov::element::f32)) {
+    if (none_of(inType, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32)) {
         THROW_ERROR("brgemm kernel only supports f16, bf16, f32");
     }
 
@@ -579,7 +579,10 @@ BrgemmKernelQuantized::BrgemmKernelQuantized(size_t M,
                                              ov::element::Type DType,
                                              BrgemmKernel::ScaleType bScaleType,
                                              bool b_accumulate)
-    : BrgemmKernel(M, N, K, lda, ldb, ldc, ldd, b_transposed, inType, DType, bScaleType, b_accumulate) {}
+    : BrgemmKernel(M, N, K, lda, ldb, ldc, ldd, b_transposed, inType, DType, bScaleType, b_accumulate) {
+    OPENVINO_ASSERT(any_of(bScaleType, BrgemmKernel::ScaleType::NONE, BrgemmKernel::ScaleType::PER_CHANNEL),
+                    "Brgemm kernel only implements per channel scale for B");
+}
 
 void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
                                         void* a,
@@ -589,8 +592,10 @@ void BrgemmKernelQuantized::executeGemm(bool is_M_tail,
                                         float* scale_b,
                                         void* wsp,
                                         void* scratch_a) {
+    // If no scale is provided, run kernel without post-scales
     if (scale_b == nullptr) {
         execute_without_scale(is_M_tail, a, b, c, wsp, scratch_a);
+        return;
     }
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_C = reinterpret_cast<uint8_t*>(c);
