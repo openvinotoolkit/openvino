@@ -1345,9 +1345,9 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
-    auto qweight = verify_only ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
-    auto qzerop = verify_only ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcoeff = verify_only ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
+    auto qweight =  opp::wrap_type<ov::op::v0::Parameter>();
+    auto qzerop =  opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcoeff =  opp::wrap_type<ov::op::v0::Parameter>();
 
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
     auto qgthrz = opp::wrap_type<ov::op::v8::Gather>({qzerop, cvtids, opp::any_input()});
@@ -1358,6 +1358,7 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
 
     auto qsubz = opp::wrap_type<ov::op::v1::Subtract>({qcvtw, qcvtz});
     auto qmuls = opp::wrap_type<ov::op::v1::Multiply>({qsubz, qgthrs});
+    auto qcvtm = opp::wrap_type<ov::op::v0::Convert>({qmuls});
 
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
@@ -1377,12 +1378,19 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
         auto matched_qweight = node_to_output.at(qweight);
         auto w_type = matched_qweight.get_element_type();
 
-        if (out_len >= 2048 && w_type == ov::element::u8) {
-            if (verify_only) {
-                // No transformations needed, just set dummy QuantizedGather
-                ctx.get().params_to_quant_gather_unpack = Context::QuantizedGather{};
-                return false;  // root hasn't changed
-            }
+        auto sole_reader = [](ov::Output<ov::Node> out) {
+            const auto readers = out.get_target_inputs();
+            NPUW_ASSERT(readers.size() >= 1);
+            return readers.begin()->get_node();
+        };
+
+        if (out_len >= 2048 && (matched_out_mul.get_target_inputs().size() > 1 ||
+                                ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_mul)))) {
+            // if (verify_only) {
+            //     // No transformations needed, just set dummy QuantizedGather
+            //     ctx.get().params_to_quant_gather_unpack = Context::QuantizedGather{};
+            //     return false;  // root hasn't changed
+            // }
 
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
@@ -1394,6 +1402,8 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
+            auto matched_node_cvt = node_to_output.at(qcvtm).get_node_shared_ptr();
+
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with future-unpacked and gathered
             // fp16
             auto new_wi = ctx.get().host_gather_unpack_quant(matched_ids,
@@ -1401,14 +1411,15 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
                                                              matched_qzerop,
                                                              matched_qcoeff,
                                                              ov::element::f16);
-            for (auto&& r : matched_out_mul.get_target_inputs()) {
-                r.replace_source_output(new_wi);
-            }
+            matched_node_cvt->input(0).replace_source_output(new_wi);
+
+            matched_node_cvt->validate_and_infer_types();
+
             return true;  // root has changed
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qmuls, "HostGatherQuantAsymm"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qcvtm, "HostGatherQuantAsymm"), std::move(callback));
 }
 
 // Identify the case* where the FP16/32 vocab tensor is gathered with
@@ -1779,7 +1790,8 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
 
         auto qcoeff_shape = matched_qcoeff->output(0).get_shape();
 
-        if (qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
+        if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
+            !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
