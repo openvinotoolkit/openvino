@@ -14,6 +14,7 @@
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "metadata.hpp"
 #include "metrics.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -52,9 +53,10 @@ public:
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& stream, const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
+                                                     const ov::AnyMap& properties) const override;
 
-    std::shared_ptr<ov::ICompiledModel> import_model(ov::Tensor& stream,
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
 
@@ -75,22 +77,14 @@ private:
      * the model and its weights. If weights separation has been enabled, the size of the weights is reduced, and there
      * will be one or multiple weights initialization schedules found there as well.
      *
-     * @param stream Contains the whole binary object.
      * @param tensorBig Contains the whole binary object.
-     * @param compiler Instance used for parsing the compiled model.
-     * @param tensorFromProperty Indicates whether or not the compiled model has been provided to the plugin as a tensor
-     * object.
-     * @param localConfig Propagated to the compiler. Multiple entries are also extracted by this method.
+     * @param metadata Parsed metadata at the end of the blob. Can be nullptr if compatibility checks were disabled.
      * @param properties Configuration taking the form of an "ov::AnyMap".
-     * @return A wrapper over the L0 handle that can be used for running predictions. The inherited type will depend on
-     * the active flow (e.g. may be a "WeightlessGraph" if "weights separation" has been enabled).
+     * @return A compiled model
      */
-    std::shared_ptr<IGraph> parse(std::istream& stream,
-                                  const ov::Tensor& tensorBig,
-                                  const std::unique_ptr<ICompilerAdapter>& compiler,
-                                  const bool tensorFromProperty,
-                                  const Config& localConfig,
-                                  const ov::AnyMap& properties) const;
+    std::shared_ptr<ov::ICompiledModel> parse(const ov::Tensor& tensorBig,
+                                              std::unique_ptr<MetadataBase> metadata,
+                                              const ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
