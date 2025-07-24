@@ -398,8 +398,10 @@ void RandomUniform::prepareMersenneTwisterParams() {
         auto approx_start = thread_offset * static_cast<float>(ithr);
         auto approx_end = thread_offset * (static_cast<float>(ithr + 1));
 
-        auto state_start = static_cast<uint64_t>(std::floor(approx_start) * m_uint_storage_capacity_per_thread);
-        auto state_end = static_cast<uint64_t>(std::floor(approx_end) * m_uint_storage_capacity_per_thread);
+        auto state_start =
+            static_cast<uint64_t>(std::floor(approx_start) * static_cast<double>(m_uint_storage_capacity_per_thread));
+        auto state_end =
+            static_cast<uint64_t>(std::floor(approx_end) * static_cast<double>(m_uint_storage_capacity_per_thread));
 
         // Rounding failsafes
         if (ithr == 0) {
@@ -419,7 +421,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
         params.src_start_idx = state_start;
         params.dst_start_idx = destination_start;
-        params.state_accesses_count = state_accesses;
+        params.state_accesses_count = static_cast<uint64_t>(state_accesses);
     });
 }
 
