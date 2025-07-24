@@ -37,6 +37,7 @@
 #include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -84,13 +85,13 @@ void DFT::initSupportedPrimitiveDescriptors() {
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
+    if (none_of(axesPrecision, ov::element::i32, ov::element::i64)) {
         CPU_NODE_THROW("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        if (signalSizeTensorPrec != ov::element::i32 && signalSizeTensorPrec != ov::element::i64) {
+        if (none_of(signalSizeTensorPrec, ov::element::i32, ov::element::i64)) {
             CPU_NODE_THROW("has unsupported 'signal_size' input precision: ", signalSizeTensorPrec.get_type_name());
         }
     }

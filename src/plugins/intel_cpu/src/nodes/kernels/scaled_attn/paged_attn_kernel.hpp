@@ -701,7 +701,7 @@ void attn_acc_value_block_quantized(float* out,
 
 template <typename TA,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(!ov::intel_cpu::one_of(SRC_PREC, ov::element::u4, ov::element::u8, ov::element::i8)),
+          std::enable_if_t<(ov::intel_cpu::none_of(SRC_PREC, ov::element::u4, ov::element::u8, ov::element::i8)),
                            bool> = true>
 void dot_product_block(TA* a,
                        void* b,
@@ -1846,7 +1846,7 @@ void dot_product_block_quantized_by_dims(TA* a,
 template <
     typename TA,
     ov::element::Type_t SRC_PREC,
-    std::enable_if_t<(ov::intel_cpu::one_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4)), bool> = true>
+    std::enable_if_t<(ov::intel_cpu::any_of(SRC_PREC, ov::element::i8, ov::element::u8, ov::element::u4)), bool> = true>
 void dot_product_block_quantized(TA* a,
                                  uint8_t* b,
                                  float* c,
@@ -1855,7 +1855,7 @@ void dot_product_block_quantized(TA* a,
                                  const size_t block_size,
                                  const size_t group_size) {
     if (is_bychannel) {
-        if constexpr (ov::intel_cpu::one_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
+        if constexpr (ov::intel_cpu::any_of(SRC_PREC, ov::element::u8, ov::element::u4)) {
             dot_product_block_quantized_by_channel<TA, SRC_PREC>(a, b, c, n, block_size);
         }
     } else {

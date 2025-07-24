@@ -84,7 +84,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
       DType(DType),
       bScaleType(bScaleType),
       b_accumulate(b_accumulate) {
-    if (!one_of(inType, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32)) {
+    if (none_of(inType, ov::element::i8,ov::element::bf16, ov::element::f16, ov::element::f32)) {
         THROW_ERROR("brgemm kernel only supports f16, bf16, f32");
     }
 
@@ -180,7 +180,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 brgemmCtx.beta = beta;
 
                 // don't create brgemm kernels for empty tiles
-                if (M_ != 0 && K_ != 0 && N_ != 0) {
+                if (none_of(0U, M_, K_, N_)) {
                     if (brg0BaseIdx == std::numeric_limits<size_t>::max()) {
                         brg0BaseIdx = getBrgIdx(m, k, n);
                     }
@@ -236,7 +236,7 @@ void BrgemmKernel::init_brgemm(brgemmCtx& ctx,
     brgemm_desc_t brgDesc;
 
     const bool is_int8 =
-        one_of(ctx.dt_in0, data_type::u8, data_type::s8) && one_of(ctx.dt_in1, data_type::u8, data_type::s8);
+        any_of(ctx.dt_in0, data_type::u8, data_type::s8) && any_of(ctx.dt_in1, data_type::u8, data_type::s8);
     cpu_isa_t isa = isa_undef;
     if (use_amx) {
         isa = isa_undef;
@@ -508,7 +508,7 @@ void BrgemmKernel::execute_without_scale(bool is_M_tail, void* a, void* b, void*
         for (size_t k = 0; k < 2; k++) {
             size_t mIdx = is_M_tail ? 1 : 0;
             auto& brgemmCtx = brgCtxs[getBrgIdx(mIdx, k, n)];
-            if (brgemmCtx.K != 0 && brgemmCtx.N != 0 && brgemmCtx.M != 0) {
+            if (none_of(0U, brgemmCtx.K, brgemmCtx.N, brgemmCtx.M)) {
                 void* local_a_ptr = [&]() {
                     if (is_avx_f16_only || k > 0) {
                         return ptr_scartch_a;
