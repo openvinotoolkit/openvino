@@ -41,20 +41,6 @@ using PyRTMap = ov::Node::RTMap;
 PYBIND11_MAKE_OPAQUE(PyRTMap);
 PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
 
-template <typename T>
-void cast_list_to_vector_inplace(const py::list& py_list, std::vector<T>& target_vector) {
-    target_vector.clear();
-    target_vector.reserve(py_list.size());
-    for (auto item : py_list) {
-        try {
-            target_vector.emplace_back(item.cast<T>());
-        } catch (const py::cast_error& e) {
-            throw py::type_error("Cast of list[openvino.Tensor] to std::vector<openvino::Tensor> failed. " +
-                                 std::string(e.what()));
-        }
-    }
-}
-
 void regclass_graph_Node(py::module m) {
     py::class_<ov::Node, std::shared_ptr<ov::Node>, PyNode> node(m, "Node", py::dynamic_attr());
     node.doc() = "openvino.Node wraps ov::Node";
@@ -264,18 +250,18 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the function on inputs, putting results in outputs
 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: list[openvino.Tensor]
+                :type output_tensors: openvino.TensorVectorOpaque
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: list[openvino.Tensor]
+                :type input_tensors: openvino.TensorVectorOpaque
                 :rtype: bool
              )");
     node.def(
         "evaluate",
         [](const ov::Node& self, py::list& output_values, const py::list& input_values) -> bool {
-            ov::TensorVector casted_output_values;
-            ov::TensorVector casted_input_values;
-            cast_list_to_vector_inplace<ov::Tensor>(output_values, casted_output_values);
-            cast_list_to_vector_inplace<ov::Tensor>(input_values, casted_input_values);
+            py::object pyTensorVectorOpaque =
+                py::module_::import("openvino").attr("_pyopenvino").attr("TensorVectorOpaque");
+            auto casted_output_values = pyTensorVectorOpaque(output_values).cast<std::vector<ov::Tensor>>();
+            const auto casted_input_values = pyTensorVectorOpaque(input_values).cast<std::vector<ov::Tensor>>();
 
             return self.evaluate(casted_output_values, casted_input_values);
         },
