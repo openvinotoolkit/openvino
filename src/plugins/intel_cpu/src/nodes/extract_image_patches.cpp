@@ -34,7 +34,7 @@
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
-#    include <cpu/x64/xbyak/xbyak.h>
+#    include <xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
 #endif
@@ -49,15 +49,15 @@ namespace ov::intel_cpu::node {
 #    define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
 template <cpu_isa_t isa>
-struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator {
+struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_extract_image_patches_kernel)
 
     explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp)
         : jit_uni_extract_image_patches_kernel(jpp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
+        jit_generator_t::create_kernel();
         ker_ = (decltype(ker_))jit_ker();
     }
 
@@ -103,7 +103,7 @@ private:
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
     bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_core)) && (jpp.dtype_size == 4);
-    uint32_t vlen = cpu_isa_traits<isa>::vlen;
+    uint32_t vlen = cpu_isa_traits_t<isa>::vlen;
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
     reg64_t reg_oh_count = r10;
@@ -399,19 +399,19 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     auto extImgPatcher = ov::as_type_ptr<const ov::op::v3::ExtractImagePatches>(op);
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input or output edges!",
-                           " Input: ",
-                           inputShapes.size(),
-                           "); Output: ",
-                           outputShapes.size());
+        CPU_NODE_THROW("has incorrect number of input or output edges!",
+                       " Input: ",
+                       inputShapes.size(),
+                       "); Output: ",
+                       outputShapes.size());
     }
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("must have 4D input tensor. Actual: ", getInputShapeAtPort(0).getRank());
+        CPU_NODE_THROW("must have 4D input tensor. Actual: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
+        CPU_NODE_THROW("must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
     }
 
     if (extImgPatcher->get_auto_pad() == ov::op::PadType::VALID) {
@@ -421,7 +421,7 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     } else if (extImgPatcher->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
         _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
     } else {
-        THROW_CPU_NODE_ERR("has unsupported pad type: ", extImgPatcher->get_auto_pad());
+        CPU_NODE_THROW("has unsupported pad type: ", extImgPatcher->get_auto_pad());
     }
 
     _ksizes = extImgPatcher->get_sizes();
@@ -429,7 +429,7 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     _strides = extImgPatcher->get_strides();
     _rates = extImgPatcher->get_rates();
     if (_ksizes.size() != 2 || _strides.size() != 2 || _rates.size() != 2) {
-        THROW_CPU_NODE_ERR("must have the following attributes with shape {2}: sizes, strides, rates.");
+        CPU_NODE_THROW("must have the following attributes with shape {2}: sizes, strides, rates.");
     }
 }
 
@@ -437,13 +437,13 @@ void ExtractImagePatches::prepareParams() {
     const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr0 || !srcMemPtr0->isDefined()) {
-        THROW_CPU_NODE_ERR("Input memory is undefined.");
+        CPU_NODE_THROW("Input memory is undefined.");
     }
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination memory is undefined.");
+        CPU_NODE_THROW("Destination memory is undefined.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+        CPU_NODE_THROW("Preferable primitive descriptor is not set.");
     }
 
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
@@ -481,7 +481,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
     const auto precision = getOriginalInputPrecisionAtPort(0);
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end()) {
-        THROW_CPU_NODE_ERR("has unsupported precision: ", precision.get_type_name());
+        CPU_NODE_THROW("has unsupported precision: ", precision.get_type_name());
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
@@ -495,7 +495,7 @@ void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {
         const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
-        THROW_CPU_NODE_ERR("Primitive wasn't created");
+        CPU_NODE_THROW("Primitive wasn't created");
     }
 }
 
@@ -659,11 +659,11 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
 
     jpp.dtype_size = prcSize;
     if (mayiuse(x64::avx512_core)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::avx512_core>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::avx512_core>::vlen / prcSize;
     } else if (mayiuse(x64::avx2)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::avx2>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::avx2>::vlen / prcSize;
     } else if (mayiuse(x64::sse41)) {
-        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits<x64::sse41>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::sse41>::vlen / prcSize;
     } else {
         jpp.block_size = 1;
     }
@@ -701,9 +701,7 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(void* src,
                                                                void* dst,
                                                                const VectorDims& istrides,
                                                                const VectorDims& ostrides) {
-    if (!pKernel) {
-        OPENVINO_THROW("Can't execute, kernel for extract image patches node is not compiled");
-    }
+    OPENVINO_ASSERT(pKernel, "Can't execute, kernel for extract image patches node is not compiled");
     executeOptimizedGeneric(src, dst, istrides, ostrides);
 }
 

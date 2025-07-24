@@ -35,6 +35,8 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/cpu_test_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/fusing_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_fake_quantize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_requantize.cpp
     ${CPU_SUBSET_TEST_ABS_PATH})
 
 if(NOT (ARM OR AARCH64))

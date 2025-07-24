@@ -26,11 +26,8 @@
 #include "sdpa_base.hpp"
 #include "sdpa_gen_opt.hpp"
 #include "utils/kernel_generator.hpp"
-
 namespace ov::intel_gpu::ocl {
-
 namespace {
-
 enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
@@ -42,8 +39,8 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
     size_t num_of_partitions;
     size_t partition_size;
+    size_t max_context_len;
     size_t paged_attention_aligned_seq_len;
-    size_t sdpa_opt_max_seq_len;
     size_t sdpa_opt_seq_len_partition_size;
 
     size_t paged_attention_snap_kv_tokens;
@@ -117,9 +114,7 @@ inline size_t get_generate_stage_block_size(size_t head_size) {
     return 1;
 }
 
-inline bool can_use_gqa_kernel(const kernel_impl_params& params, const PagedAttentionStage& stage) {
-    // Apply GQA optimization starting from a certain sequence length (4K tokens) value
-    const auto min_gqa_sequence_len = 16 * seq_len_partition_size;
+inline bool can_use_gqa_kernel(const kernel_impl_params& params, const PagedAttentionStage& stage, size_t paged_attention_max_len) {
     // Apply GQA only if there is a single subsequence in the request,
     // as multiple subsequences might have significantly different lengths
     const auto max_subsequences_num = 1;
@@ -128,14 +123,11 @@ inline bool can_use_gqa_kernel(const kernel_impl_params& params, const PagedAtte
     const auto multi_tokens_mode = stage == PagedAttentionStage::MIXED;
     const auto desc = params.typed_desc<paged_attention>();
     const size_t kv_group_size = desc->heads_num / desc->kv_heads_num;
-
     const auto& past_lens = params.input_layouts[PagedAttentionInputIdx::PAST_LENS];
     const auto subsequences_num = past_lens.get_partial_shape()[0].get_length();
-    const auto max_context_len = params.memory_deps.at(PagedAttentionInputIdx::MAX_CONTEXT_LEN);
-    mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *params.strm);
-    const auto paged_attention_max_len = max_context_len_mem_lock[0];
-
-    const auto can_use_gqa_kernel = paged_attention_max_len >= static_cast<int64_t>(min_gqa_sequence_len) && subsequences_num <= max_subsequences_num &&
+    // Apply GQA optimization starting from a certain sequence length (4K tokens) value
+    const auto min_gqa_sequence_len = 16 * seq_len_partition_size;
+    const auto can_use_gqa_kernel = paged_attention_max_len >= static_cast<size_t>(min_gqa_sequence_len) && subsequences_num <= max_subsequences_num &&
                                     kv_group_size > 1 && !multi_tokens_mode && !scores_calc_only;
 
     return can_use_gqa_kernel;
@@ -224,12 +216,15 @@ static int64_t get_aligned_seq_len(const kernel_impl_params& impl_param, const P
     return aligned_seq_len;
 }
 
-std::pair<size_t, size_t> get_partitioning_params(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
+size_t get_max_context_len(const kernel_impl_params& params) {
     const auto& input_mem = params.memory_deps;
     const auto max_context_len = input_mem.at(PagedAttentionInputIdx::MAX_CONTEXT_LEN);
     mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *params.strm);
     const auto paged_attention_max_len = max_context_len_mem_lock[0];
+    return paged_attention_max_len;
+}
 
+size_t get_partitioning_size(const kernel_impl_params& params, size_t head_size, PagedAttentionStage stage) {
     size_t partition_size = 0;
     if (stage == PagedAttentionStage::PREFILL) {
         partition_size = head_size * get_sg_number_scale_factor(params.get_device_info(), head_size, SDPAStage::MULTI_TOKENS);
@@ -237,21 +232,20 @@ std::pair<size_t, size_t> get_partitioning_params(const kernel_impl_params& para
         partition_size = seq_len_partition_size;
     }
 
-    return {ceil_div(paged_attention_max_len, partition_size), partition_size};
+    return partition_size;
 }
 
 PagedAttentionStage get_paged_attention_stage(const kernel_impl_params& impl_param) {
-    const auto& query_shape = impl_param.get_input_layout(0).get_partial_shape();
-    const auto& past_lens_shape = impl_param.get_input_layout(5).get_partial_shape();
+    const auto& query_shape = impl_param.get_input_layout(PagedAttentionInputIdx::QUERY).get_partial_shape();
+    const auto& past_lens_shape = impl_param.get_input_layout(PagedAttentionInputIdx::PAST_LENS).get_partial_shape();
 
     if (query_shape.is_static() && past_lens_shape.is_static()) {
         if (query_shape[0].get_length() == past_lens_shape[0].get_length()) {
             return PagedAttentionStage::GENERATE;
         }
 
-        const auto past_lens_idx = 5;
         const auto& memory_deps = impl_param.memory_deps;
-        const auto past_lens_mem = memory_deps.at(past_lens_idx);
+        const auto past_lens_mem = memory_deps.at(PagedAttentionInputIdx::PAST_LENS);
         mem_lock<int32_t, mem_lock_type::read> past_lens_mem_lock(past_lens_mem, *impl_param.strm);
 
         const auto past_lens_size = past_lens_mem_lock.size();
@@ -574,10 +568,6 @@ public:
             jit.add(make_layout_jit_constants("INPUT" + to_code_string(7), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
-
-        // for (auto& item : jit) {
-        //     std::cout << "jit[" << item.name << "] = " << item.value << std::endl;
-        // }
 
         return jit;
     }
@@ -1051,7 +1041,7 @@ public:
 
             scalars.resize(1);
             scalars[0].t = ScalarDescriptor::Types::UINT32;
-            scalars[0].v.u32 = static_cast<uint32_t>(align_to(rtp->sdpa_opt_max_seq_len, rtp->sdpa_opt_seq_len_partition_size));
+            scalars[0].v.u32 = static_cast<uint32_t>(align_to(rtp->max_context_len, rtp->sdpa_opt_seq_len_partition_size));
         }};
     }
 };
@@ -1159,14 +1149,14 @@ public:
         return wg_tile_q;
     }
 
-    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) {
+    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa && stage == PagedAttentionStage::PREFILL)
             return get_micro_tile_qsize(pa_sdpa_micro->kd);
         return default_block_size;
     }
 #else
-    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) {
+    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         return default_block_size;
     }
@@ -1175,23 +1165,24 @@ public:
     void update_rt_params(const primitive_inst& instance) override {
         update_stages_flags(instance);
         const auto& params = *instance.get_impl_params();
-        const auto& desc = params.typed_desc<paged_attention>();
         if (m_rt_params == nullptr) {
             m_rt_params = std::make_unique<PagedAttentionRuntimeParams>();
         }
-
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
-        rt_params->stage = get_paged_attention_stage(params);
-        std::tie(rt_params->num_of_partitions, rt_params->partition_size) = get_partitioning_params(params, desc->v_head_size, rt_params->stage);
-        rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
+        const auto& desc = params.typed_desc<paged_attention>();
+
+        auto stage = get_paged_attention_stage(params);
+        rt_params->max_context_len = get_max_context_len(params);
+        rt_params->stage = stage;
+        rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
+        rt_params->num_of_partitions = ceil_div(rt_params->max_context_len, rt_params->partition_size);
+
+        if ((rt_params->stage == PagedAttentionStage::PREFILL || rt_params->stage == PagedAttentionStage::MIXED) && !params.is_dynamic())
+            rt_params->paged_attention_aligned_seq_len = static_cast<size_t>(get_aligned_seq_len(params, rt_params->stage));
         rt_params->sdpa_opt_seq_len_partition_size = get_seq_len_partition_size(params.get_device_info(), desc->v_head_size, SDPAStage::MULTI_TOKENS);
 
-        const auto& input_mem = params.memory_deps;
-        const auto max_context_len = input_mem.at(PagedAttentionInputIdx::MAX_CONTEXT_LEN);  // max_context_len input memory
-        mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *params.strm);
-        rt_params->sdpa_opt_max_seq_len = static_cast<int64_t>(max_context_len_mem_lock[0]);
-
         if (desc->has_score_aggregation) {
+            const auto& input_mem = params.memory_deps;
             const auto score_aggregation = input_mem.at(PagedAttentionInputIdx::SCORE_AGGREGATION);
             mem_lock<int32_t, mem_lock_type::read> score_aggregation_mem_lock(score_aggregation, *params.strm);
 
@@ -1218,22 +1209,27 @@ public:
         }
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
-            rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE);
+            rt_params->use_gqa_kernel = can_use_gqa_kernel(params, PagedAttentionStage::GENERATE, rt_params->max_context_len);
         }
+        return;
+    }
+
+    // update rt parameter once shape is changed
+    void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
+        SDPAImplBase::update(inst, impl_params);
+        update_rt_params(inst);
     }
 
     event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
         const auto desc = params.typed_desc<paged_attention>();
-        const auto& head_size = desc->v_head_size;
         const bool has_scores_output = params.output_layouts.size() > 1;
         const bool has_rotated_blocks = desc->has_rotated_blocks;
 
-        update_rt_params(instance);
+        update_stages_flags(instance);
         auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
         assert(rt_params != nullptr);
         prepare_internal_buffers(static_cast<paged_attention_inst&>(instance), rt_params->stage, rt_params->use_micro_sdpa, rt_params->query_block_size);
-
         std::vector<event::ptr> res_event = events;
         if (has_rotated_blocks) {
             const auto& rotated_block_indices_input = params.get_input_layout(PagedAttentionInputIdx::ROTATED_BLOCK_INDICES);
@@ -1260,7 +1256,7 @@ public:
 #endif
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
-            auto num_of_partitions = get_partitioning_params(params, head_size, rt_params->stage).first;
+            auto num_of_partitions = rt_params->num_of_partitions;
             if (rt_params->use_gqa_kernel) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
@@ -1276,6 +1272,15 @@ public:
         }
 
         return res_event[0];
+    }
+
+    bool requires_update(primitive_inst& inst, const kernel_impl_params& impl_params) const override {
+        const auto stage = get_paged_attention_stage(impl_params);
+
+        // In case of MIXED mode execution Paged Attention may require dispatch data update and internal
+        // buffers reallocation even if the input shapes haven't been changed. Therefore, check the current execution
+        // mode and update parameters if needed
+        return stage == PagedAttentionStage::MIXED;
     }
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
@@ -1327,19 +1332,30 @@ public:
 
         std::vector<BufferDescriptor> internal_buffers;
         const auto desc = params.typed_desc<paged_attention>();
-
         const auto indexes_dt = ov::element::u8;
         const auto element_size = 4;  // 4 bytes
         const int64_t target_seq_len_block_size = 16;
-        auto stage = get_paged_attention_stage(params);
+
+        auto stage = PagedAttentionStage::UNKNOWN;
+        size_t partition_size = 256;
+        size_t num_of_partitions = 1;
+        auto rt_params = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
+        if (rt_params != nullptr && rt_params->num_of_partitions != 0) {
+            stage = rt_params->stage;
+            partition_size = rt_params->partition_size;
+            num_of_partitions = rt_params->num_of_partitions;
+        } else {
+            stage = get_paged_attention_stage(params);
+            partition_size = get_partitioning_size(params, desc->v_head_size, stage);
+            const auto max_context_len = get_max_context_len(params);
+            num_of_partitions = ceil_div(max_context_len, partition_size);
+        }
+
+        GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
         if ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
             paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage);
         }
-        auto partition_parm = get_partitioning_params(params, desc->v_head_size, stage);
-        const auto partition_size = partition_parm.second;
-        const auto num_of_partitions = partition_parm.first;
-
         const auto target_seq_len = std::max<int64_t>(paged_attention_aligned_seq_len, 1);
         const auto indexes_buf_size = static_cast<int64_t>(ceil_div(target_seq_len, target_seq_len_block_size)) * element_size;
 
@@ -1375,10 +1391,9 @@ public:
                 return paged_attention_snap_kv_tokens;
             };
 
-            auto rtp = static_cast<PagedAttentionRuntimeParams*>(m_rt_params.get());
             size_t snap_kv_tokens = 0;
-            if (rtp)
-                snap_kv_tokens = rtp->paged_attention_snap_kv_tokens;
+            if (rt_params)
+                snap_kv_tokens = rt_params->paged_attention_snap_kv_tokens;
             else
                 snap_kv_tokens = get_snap_kv_tokens(desc->has_score_aggregation);
             auto tokens_number = desc->has_score_aggregation ? snap_kv_tokens : subsequences_number;
@@ -1438,6 +1453,10 @@ public:
             internal_buffers.emplace_back(indexes_buf_size * 4, indexes_dt, lockable);
         }
 #endif
+        GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: internal_buffers.size = " << internal_buffers.size() << std::endl;
+        for (size_t i = 0; i < internal_buffers.size(); i++) {
+            GPU_DEBUG_TRACE_DETAIL << "\tinternal_buffers[" << i << "] = " << internal_buffers[i].m_layout.to_short_string() << std::endl;
+        }
         return internal_buffers;
     }
 
@@ -1543,7 +1562,7 @@ public:
         }
 
         if (stage == PagedAttentionStage::PREFILL && use_micro_sdpa) {
-            const auto memory_idx = intermediates_memories.size() - 1;
+            const auto memory_idx = 3;  // intermediate_idx for micro kernel
             auto memory = intermediates_memories[memory_idx];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }
