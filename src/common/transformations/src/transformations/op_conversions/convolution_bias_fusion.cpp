@@ -9,6 +9,7 @@
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -55,6 +56,65 @@ ov::pass::ConvolutionBiasFusion::ConvolutionBiasFusion() {
             return false;
         }
 
+        // Check if the bias node is suitable for fusion
+        auto isSuitableChildNode = [&](const std::shared_ptr<ov::Node>& parentNode,
+                                       const std::shared_ptr<ov::Node>& childNode) {
+            if (childNode->get_type_info() != ov::op::v1::Add::get_type_info_static() ||
+                childNode->get_input_size() != 2) {
+                return false;
+            }
+
+            // Determine which input is the bias (should be the one that's not the convolution)
+            auto biasPort = childNode->get_input_node_shared_ptr(0) == parentNode ? 1 : 0;
+            const auto biasNode = childNode->get_input_node_shared_ptr(biasPort);
+
+            // Check if bias node is a constant
+            if (!std::dynamic_pointer_cast<ov::op::v0::Constant>(biasNode) || biasNode->get_output_size() != 1) {
+                return false;
+            }
+
+            const auto parentOutDims = parentNode->get_output_partial_shape(0);
+            if (parentOutDims.rank().is_dynamic()) {
+                return false;
+            }
+
+            const auto biasDims = biasNode->get_output_partial_shape(0);
+            if (biasDims.rank().is_dynamic()) {
+                return false;
+            }
+
+            auto rank = parentOutDims.size();
+            const auto norm_bias = getNormalizedDimsBySize(biasNode->get_output_shape(0), rank);
+
+            if (parentOutDims.size() != norm_bias.size() || norm_bias.size() < 2) {
+                return false;
+            }
+
+            const auto channelAxis = 1;  // Channel axis for convolution output
+            if (channelAxis >= static_cast<int>(parentOutDims.size())) {
+                return false;
+            }
+
+            // Check if bias matches the channel dimension
+            if (!parentOutDims[channelAxis].is_static() ||
+                norm_bias[channelAxis] != static_cast<size_t>(parentOutDims[channelAxis].get_length())) {
+                return false;
+            }
+
+            // Check that all other dimensions are 1 (broadcasting requirement)
+            for (size_t i = 0; i < norm_bias.size(); i++) {
+                if (norm_bias[i] != 1 && static_cast<int>(i) != channelAxis) {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
+        if (!isSuitableChildNode(conv, add)) {
+            return false;
+        }
+
         const ov::PartialShape& output_shape = conv->get_output_partial_shape(0);
         auto rank = output_shape.size();
         if (rank == 0) {
@@ -67,31 +127,6 @@ ov::pass::ConvolutionBiasFusion::ConvolutionBiasFusion() {
 
         if (add_shape.rank().is_dynamic()) {
             return false;
-        }
-
-        size_t fusingAxis = 1;
-        if (!bias->is_dynamic() && !conv->is_dynamic()) {
-            if (bias->get_output_partial_shape(0)[fusingAxis] != conv->get_output_partial_shape(0)[fusingAxis]) {
-                return false;
-            }
-        } else {
-            const auto& bias_partial_shape = bias->get_output_partial_shape(0);
-            const auto& conv_partial_shape = conv->get_output_partial_shape(0);
-            if (!bias_partial_shape.is_dynamic()) {
-                const auto& norm_bias = getNormalizedDimsBySize(bias->get_shape(), rank);
-                for (size_t i = 0; i < rank; i++) {
-                    if (i != fusingAxis && norm_bias[i] != 1) {
-                        return false;
-                    }
-                }
-            }
-            if (!bias_partial_shape.is_dynamic() && !conv_partial_shape.is_dynamic()) {
-                const auto& norm_bias = getNormalizedDimsBySize(bias->get_shape(), rank);
-                const auto& norm_conv = getNormalizedDimsBySize(conv->get_output_shape(0), rank);
-                if (norm_bias[fusingAxis] != norm_conv[fusingAxis]) {
-                    return false;
-                }
-            }
         }
 
         if (add_shape.size() >= 2) {

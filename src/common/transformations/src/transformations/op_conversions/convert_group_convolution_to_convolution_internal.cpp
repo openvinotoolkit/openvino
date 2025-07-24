@@ -24,7 +24,7 @@ ov::pass::ConvertGroupConvolutionToConvolutionInternal::ConvertGroupConvolutionT
 
         int64_t groups = -1;
         auto weights_shape = gconv->get_input_partial_shape(1);
-        if (weights_shape[0].is_dynamic()) {
+        if (weights_shape.rank().is_dynamic() || weights_shape[0].is_dynamic()) {
             return false;
         }
         groups = weights_shape[0].get_length();
