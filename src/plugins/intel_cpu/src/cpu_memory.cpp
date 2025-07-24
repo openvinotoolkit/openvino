@@ -233,9 +233,10 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
 
 void* Memory::getData() const {
     void* data = getDataNoThrow();
-    OPENVINO_ASSERT(
-        data != nullptr || m_pMemDesc->getShape().isDynamic() || m_pMemDesc->getShape().getElementsCount() == 0,
-        "Memory has not been allocated");
+    bool hasValidData = data != nullptr;
+    bool isDynamicShape = m_pMemDesc->getShape().isDynamic();
+    bool isEmpty = m_pMemDesc->getShape().getElementsCount() == 0;
+    OPENVINO_ASSERT(hasValidData || isDynamicShape || isEmpty, "Memory has not been allocated");
     return data;
 }
 
@@ -512,7 +513,8 @@ MemoryBlockPtr StaticMemory::getMemoryBlock() const {
 
 // oneDNN specifics for backward compatibility
 dnnl::memory StaticMemory::getPrimitive() const {
-    OPENVINO_ASSERT(m_prim || getDesc().empty(), "Could not get dnnl::memory object ", dnnlErrorCtx);
+    bool hasPrimOrEmptyDesc = m_prim || getDesc().empty();
+    OPENVINO_ASSERT(hasPrimOrEmptyDesc, "Could not get dnnl::memory object ", dnnlErrorCtx);
     return m_prim;
 }
 

@@ -118,12 +118,14 @@ DnnlBlockedMemoryDesc::DnnlBlockedMemoryDesc(ov::element::Type prc,
     OPENVINO_ASSERT(order.size() == blockedDims.size(),
                     "Can not construct DnnlBlockedMemoryDesc, order and blocked dims must have equals size");
 
-    OPENVINO_ASSERT(offsetPaddingToData.empty() || offsetPaddingToData.size() == order.size(),
+    bool validOffsetPadding = offsetPaddingToData.empty() || offsetPaddingToData.size() == order.size();
+    OPENVINO_ASSERT(validOffsetPadding,
                     "Can not construct DnnlBlockedMemoryDesc, offsetPaddingToData must have equal size with order "
                     "and blocked dims");
 
+    bool validStrides = strides.empty() || strides.size() == order.size();
     OPENVINO_ASSERT(
-        strides.empty() || strides.size() == order.size(),
+        validStrides,
         "Can not construct DnnlBlockedMemoryDesc, strides must have equal size with order and blocked dims");
 
     if (std::any_of(order.begin(), order.end(), [](size_t val) {

@@ -133,7 +133,8 @@ VariableStateDoubleBuffer::VariableStateDoubleBuffer(const std::string& name,
                                                      const MemoryPtr& second_buffer,
                                                      const MemoryDescPtr& external_desc)
     : VariableStateBase(name, external_desc) {
-    OPENVINO_ASSERT(first_buffer && second_buffer);
+    OPENVINO_ASSERT(first_buffer, "First buffer is null");
+    OPENVINO_ASSERT(second_buffer, "Second buffer is null");
     reset_prime_mem(first_buffer);
     reset_second_mem(second_buffer);
     m_internal_desc = prime_mem()->getDescPtr();

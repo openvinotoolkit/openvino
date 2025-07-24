@@ -371,7 +371,8 @@ void Concat::prepareParams() {
     }
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
+    CPU_NODE_ASSERT(dstMemPtr, "Destination memory pointer is null.");
+    CPU_NODE_ASSERT(dstMemPtr->isDefined(), "Destination memory is undefined.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor is not set.");
 

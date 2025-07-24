@@ -30,9 +30,8 @@ EmbeddingBag::EmbeddingBag(const std::shared_ptr<ov::Node>& op,
       DEFAULT_INDEX_IDX(defaultIndexIdx),
       _layerName(op->get_friendly_name()) {
     std::string logPrefix = std::string("Layer EmbeddingBag with name '") + _layerName + "' ";
-    OPENVINO_ASSERT(op->get_input_size() >= requiredInputNum && op->get_output_size() == 1,
-                    logPrefix,
-                    "has incorrect number of input or output edges!");
+    OPENVINO_ASSERT(op->get_input_size() >= requiredInputNum, logPrefix, "has incorrect number of input edges!");
+    OPENVINO_ASSERT(op->get_output_size() == 1, logPrefix, "has incorrect number of output edges!");
     if ((op->get_input_size() > PER_SAMPLE_WEIGHTS_IDX)) {
         _withWeights = true;
     }

@@ -169,7 +169,8 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         };
         const bool valid_input_ports = in_ports.size() > 1 && check_port(in_ports[0]);
         const bool valid_output_ports = out_ports.size() == 1 && check_port(out_ports[0]);
-        OPENVINO_ASSERT(valid_input_ports && valid_output_ports, "Incorrect Loop by Brgemm dimension M");
+        OPENVINO_ASSERT(valid_input_ports, "Incorrect Loop by Brgemm dimension M: invalid input ports");
+        OPENVINO_ASSERT(valid_output_ports, "Incorrect Loop by Brgemm dimension M: invalid output ports");
         M = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(1, M);
         output_pds[0]->set_subtensor_dim(1, M);
@@ -188,7 +189,8 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
         };
         const bool valid_first_input = in_ports.size() >= 2 && !in_ports.front().is_processed();
         const bool valid_ports = check_port(in_ports[1]) && check_port(out_ports.back());
-        OPENVINO_ASSERT(valid_first_input && valid_ports, "Incorrect Loop by Brgemm dimension N");
+        OPENVINO_ASSERT(valid_first_input, "Incorrect Loop by Brgemm dimension N: invalid first input");
+        OPENVINO_ASSERT(valid_ports, "Incorrect Loop by Brgemm dimension N: invalid ports");
         N = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[1]->set_subtensor_dim(0, N);
         output_pds[0]->set_subtensor_dim(0, N);
@@ -211,8 +213,10 @@ std::tuple<int64_t, int64_t, int64_t, float> BrgemmKernelExecutorHelper::get_run
             in_ports.size() >= 2 && in_ports.front().get_dim_idx() == 0 && in_ports.front().is_processed();
         const bool valid_second_input = in_ports[1].get_dim_idx() == 1 && in_ports[1].is_processed();
         const bool valid_output = out_ports.size() == 1 && !out_ports.front().is_processed();
-        OPENVINO_ASSERT(valid_input_count_and_first && valid_second_input && valid_output,
-                        "Incorrect Loop by Brgemm dimension K");
+        OPENVINO_ASSERT(valid_input_count_and_first,
+                        "Incorrect Loop by Brgemm dimension K: invalid input count and first");
+        OPENVINO_ASSERT(valid_second_input, "Incorrect Loop by Brgemm dimension K: invalid second input");
+        OPENVINO_ASSERT(valid_output, "Incorrect Loop by Brgemm dimension K: invalid output");
         K = current_expanded_loop_info->get_work_amount() > 0 ? current_expanded_loop_info->get_increment() : 0;
         input_pds[0]->set_subtensor_dim(0, K);
         input_pds[1]->set_subtensor_dim(1, K);
