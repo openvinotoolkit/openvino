@@ -72,17 +72,20 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     auto gate_proj_weight_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
     auto gate_proj_weight_scales_per_OC = wrap_type<Constant>(type_matches(element::f32) && shape_matches("[?, 1]"));
     auto gate_proj_weight_f32 = wrap_type<Convert>(gate_proj_weight_i8, type_matches(element::f32));
-    auto gate_proj_weight_deq = wrap_type<Multiply>({gate_proj_weight_f32, gate_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto gate_proj_weight_deq =
+        wrap_type<Multiply>({gate_proj_weight_f32, gate_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
     auto up_proj_weight_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
     auto up_proj_weight_scales_per_OC = wrap_type<Constant>(type_matches(element::f32) && shape_matches("[?, 1]"));
     auto up_proj_weight_f32 = wrap_type<Convert>(up_proj_weight_i8, type_matches(element::f32));
-    auto up_proj_weight_deq = wrap_type<Multiply>({up_proj_weight_f32, up_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto up_proj_weight_deq =
+        wrap_type<Multiply>({up_proj_weight_f32, up_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
     auto down_proj_weight_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
     auto down_proj_weight_scales_per_OC = wrap_type<Constant>(type_matches(element::f32) && shape_matches("[?, 1]"));
     auto down_proj_weight_f32 = wrap_type<Convert>(down_proj_weight_i8, type_matches(element::f32));
-    auto down_proj_weight_deq = wrap_type<Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto down_proj_weight_deq =
+        wrap_type<Multiply>({down_proj_weight_f32, down_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
 
     // gate-up weights are combined
     auto gate_up_proj_weight = wrap_type<Constant>(type_matches(element::f16) && rank_equals(2));
@@ -91,20 +94,29 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     auto gate_up_proj_weight_const_i8 = wrap_type<Constant>(type_matches(element::i8) && rank_equals(2));
     auto gate_up_proj_weight_cvt_f32 = wrap_type<Convert>(gate_up_proj_weight_const_i8, type_matches(element::f32));
     auto gate_up_proj_weight_scales_per_OC = wrap_type<Constant>(type_matches(element::f32) && shape_matches("[?, 1]"));
-    auto gate_up_proj_weight_deq = wrap_type<Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC}, {{"auto_broadcast", "numpy"}});
+    auto gate_up_proj_weight_deq = wrap_type<Multiply>({gate_up_proj_weight_cvt_f32, gate_up_proj_weight_scales_per_OC},
+                                                       {{"auto_broadcast", "numpy"}});
 
-    auto gate_up_proj = wrap_type<MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto gate_up_proj = wrap_type<MatMul>({input, gate_up_proj_weight_f32 | gate_up_proj_weight_deq},
+                                          {{"transpose_a", false}, {"transpose_b", true}});
     auto gate_up_split_lengths = wrap_type<Constant>(type_matches(element::i32) && shape_matches("[2]"));
     auto gate_up_proj_split = wrap_type<VariadicSplit>({gate_up_proj, -1, gate_up_split_lengths});
     gate_up_proj_split->set_output_size(2);
 
-    auto mlp_gate_proj = wrap_type<MatMul>({input, gate_proj_weight | gate_proj_weight_compressed | gate_proj_weight_deq}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto mlp_gate_proj =
+        wrap_type<MatMul>({input, gate_proj_weight | gate_proj_weight_compressed | gate_proj_weight_deq},
+                          {{"transpose_a", false}, {"transpose_b", true}});
     auto mlp_silu_gate = wrap_type<Swish>({mlp_gate_proj | gate_up_proj_split->output(0)});
     auto mlp_gelu_gate = wrap_type<Gelu>({mlp_gate_proj | gate_up_proj_split->output(0)});
-    auto mlp_up_proj = wrap_type<MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto mlp_up_proj = wrap_type<MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq},
+                                         {{"transpose_a", false}, {"transpose_b", true}});
 
-    auto mlp_gated_up = wrap_type<Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split->output(1)}, {{"auto_broadcast", "numpy"}});
-    auto down_proj = wrap_type<MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq}, {{"transpose_a", false}, {"transpose_b", true}});
+    auto mlp_gated_up =
+        wrap_type<Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split->output(1)},
+                            {{"auto_broadcast", "numpy"}});
+    auto down_proj =
+        wrap_type<MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
+                          {{"transpose_a", false}, {"transpose_b", true}});
 
     auto result = down_proj;
 
