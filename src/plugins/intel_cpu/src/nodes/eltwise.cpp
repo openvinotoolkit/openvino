@@ -111,6 +111,7 @@
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -1553,6 +1554,15 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         inputPrecisions.push_back(prec);
     }
 
+    if (getAlgorithm() == Algorithm::EltwisePowerStatic && inputPrecisions[0] == ov::element::bf16) {
+        if (gamma < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())) {
+            gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        }
+        if (gamma > static_cast<float>(std::numeric_limits<ov::bfloat16>::max())) {
+            gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        }
+    }
+
     for (auto& fusedNode : fusedWith) {
         if (fusedNode->getType() == Type::Eltwise) {
             for (int i = 0; i < static_cast<int>(fusedNode->getOriginalInputsNumber()); i++) {
@@ -2028,15 +2038,6 @@ void Eltwise::prepareParams() {
             for (size_t i = 0; i < inputNum; i++) {
                 broadcastPolicy[i] = (dims_in[i].back() == 1);
             }
-        }
-    }
-
-    if (getAlgorithm() == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
-        if (gamma < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())) {
-            gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
-        }
-        if (gamma > static_cast<float>(std::numeric_limits<ov::bfloat16>::max())) {
-            gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
         }
     }
 
