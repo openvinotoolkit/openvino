@@ -494,7 +494,6 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
  */
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
 }  // namespace llm
-
 }  // namespace npuw
 }  // namespace intel_npu
 }  // namespace ov
