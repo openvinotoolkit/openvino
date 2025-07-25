@@ -552,7 +552,6 @@ public:
      */
     CompiledModel import_model(std::istream& model_stream, const RemoteContext& context, const AnyMap& properties = {});
 
-
     /**
      * @brief Imports a compiled model from the previously exported one.
      * @param model ov::Tensor input blob containing a model previously exported from ov::CompiledModel::export_model.
@@ -562,10 +561,7 @@ public:
      * operation.
      * @return A compiled model.
      */
-    CompiledModel import_model(const ov::Tensor& model,
-                               const std::string& device_name,
-                               const AnyMap& properties = {});
-
+    CompiledModel import_model(const ov::Tensor& model, const std::string& device_name, const AnyMap& properties = {});
 
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
@@ -578,6 +574,15 @@ public:
      */
     CompiledModel import_model(const ov::Tensor& model, const RemoteContext& context, const AnyMap& properties = {});
 
+    /**
+     * @brief Imports a compiled model from the previously exported one.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param model Model stream (std::istream) or model blob (ov::Tensor).
+     * @param device_or_context Device name (std::string) or RemoteContext (ov::RemoteContext) object.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     * @return A compiled model.
+     */
     template <typename MODEL_TYPE, typename DEVICE_OR_CONTEXT_T, typename... Properties>
     util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(MODEL_TYPE& model,
                                                                           const DEVICE_OR_CONTEXT_T& device_or_context,
