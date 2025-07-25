@@ -24,7 +24,6 @@ struct sparse_fill_empty_rows_impl : typed_primitive_impl_ocl<sparse_fill_empty_
 
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool shape_agnostic = false) {
-        const auto& primitive = impl_param.typed_desc<sparse_fill_empty_rows>();
         auto params = get_default_params<kernel_selector::sparse_fill_empty_rows_params>(impl_param, shape_agnostic);
 
         // Manually add all inputs/outputs except for the first ones
