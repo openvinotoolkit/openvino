@@ -52,12 +52,31 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     auto mem_output_high = output_high.get_attached_memory_ptr();
 
     auto scales_layout = mem_input_low->get_layout();
+
     auto max_size = tensor(0);
     max_size = tensor::max(max_size, mem_input_high->get_layout().get_tensor());
     max_size = tensor::max(max_size, mem_output_low->get_layout().get_tensor());
     max_size = tensor::max(max_size, mem_output_high->get_layout().get_tensor());
 
     scales_layout.set_tensor(max_size);
+
+    if (p.get_engine().get_device_info().supports_immad) {
+        // If scales_layout is 3D, setting the tensor value may change scales_layout to 4D.
+        // To prevent this, if scales_layout is changed to 4D, revert it back to 3D.
+        auto input_max_rank = std::max({
+            mem_input_low->get_layout().get_partial_shape().rank().get_length(),
+            mem_input_high->get_layout().get_partial_shape().rank().get_length(),
+            mem_output_low->get_layout().get_partial_shape().rank().get_length(),
+            mem_output_high->get_layout().get_partial_shape().rank().get_length()
+        });
+
+        if (input_max_rank == 3 && scales_layout.get_partial_shape().rank().get_length() == 4) {
+            // Check if spatial dimensions are all 1, then revert to 3D
+            if (scales_layout.spatial(0) == 1 && scales_layout.spatial(1) == 1) {
+                scales_layout.set_partial_shape({scales_layout.batch(), scales_layout.feature(), 1});
+            }
+        }
+    }
 
     auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false);

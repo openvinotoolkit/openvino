@@ -11546,3 +11546,73 @@ INSTANTIATE_TEST_SUITE_P(smoke, conv_dyn_3d_test,
     { ov::Shape{1, 16, 5, 5, 5}, ov::Shape{2, 16, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{1, 1, 1}, ov::CoordinateDiff{1, 1, 1}, 1, false },
     { ov::Shape{1, 16, 5, 5, 5}, ov::Shape{16, 1, 1, 3, 3, 3}, ov::Strides{1, 1, 1}, ov::Strides{1, 1, 1}, ov::CoordinateDiff{0, 0, 0}, ov::CoordinateDiff{0, 0, 0}, 16, false }
 }));
+
+TEST(convolution_f32_fw_gpu, basic_1d_group_convolution) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    // Input: [batch=1, channels=768, spatial=292]
+    auto input = engine.allocate_memory({{ 1, 768, 292 }, data_types::f16, format::bfyx });
+    // Weights shape for group convolution: [groups, output_channels_per_group, input_channels_per_group, kernel_size]
+    auto weights = engine.allocate_memory({ {16, 48, 48, 19}, data_types::f16, format::bfyx });
+
+    tests::random_generator rg(GET_SUITE_NAME);
+    // Generate random input data
+    auto input_data = rg.generate_random_1d<ov::float16>(input->count(), -1, 1);
+    set_values(input, input_data);
+
+    // Generate random weights data - using smaller range for stability
+    auto weights_data = rg.generate_random_1d<ov::float16>(weights->count(), -1, 1);
+    set_values(weights, weights_data);
+
+    // Create topology with group convolution + bias add subgraph
+    topology topology(input_layout("input", input->get_layout()));
+    topology.add(
+        data("weights", weights),
+        // Group convolution: 16 groups, kernel=19, stride=1, padding=9
+        convolution("group_conv", input_info("input"), "weights", "",
+            16,      // groups
+            { 1 },   // stride
+            { 1 },   // dilation
+            { 9 },   // pad_begin
+            { 9 },   // pad_end
+            true),
+        activation("relu", input_info("group_conv"), activation_func::relu),
+        reorder("output", input_info("relu"), {{ 1, 768, 292 }, data_types::f32, format::bfyx })
+    );
+
+    ov::intel_gpu::ImplementationDesc conv_impl_ref = { format::any, "", impl_types::ocl };
+    ExecutionConfig cfg_ref = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                    ov::intel_gpu::allow_new_shape_infer(true),
+                                    ov::intel_gpu::optimize_data(true),
+                                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "group_conv", conv_impl_ref } })
+                                });
+
+    network net_ref(engine, topology, cfg_ref);
+    net_ref.set_input_data("input", input);
+    auto out_ref = net_ref.execute();
+    auto mem_ref = out_ref.at("output").get_memory();
+
+    ov::intel_gpu::ImplementationDesc conv_impl_opt = { format::any, "", impl_types::onednn };
+    ExecutionConfig cfg_opt = get_test_default_config(engine,
+                                   {ov::intel_gpu::queue_type(QueueTypes::in_order),
+                                    ov::intel_gpu::allow_new_shape_infer(true),
+                                    ov::intel_gpu::optimize_data(true),
+                                    ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "group_conv", conv_impl_opt } })
+                                });
+
+    network net_opt(engine, topology, cfg_opt);
+    net_opt.set_input_data("input", input);
+    auto out_opt = net_opt.execute();
+    auto mem_opt = out_opt.at("output").get_memory();
+
+    cldnn::mem_lock<float> output_ptr_ref(mem_ref, get_test_stream());
+    cldnn::mem_lock<float> output_ptr_opt(mem_opt, get_test_stream());
+
+    ASSERT_EQ(mem_opt->get_layout(), mem_ref->get_layout());
+    for (size_t i = 0; i < output_ptr_opt.size(); i++) {
+        ASSERT_NEAR(output_ptr_opt[i], output_ptr_ref[i], 0.5f);
+    }
+}
