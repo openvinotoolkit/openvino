@@ -32,7 +32,7 @@ OutputVector make_split(const Output<ov::Node>& value, int64_t num_splits, int64
             auto avg_axis = axis_len / num_splits + 1;
             auto last_output_value = axis_len % avg_axis;
             auto total_len = avg_axis * (num_splits - 1) + last_output_value;
-            FRONT_END_GENERAL_CHECK(total_len == axis_len,
+            FRONT_END_GENERAL_CHECK(total_len == axis_len && last_output_value > 0,
                                     "The split parameters are not valid. The axis length ",
                                     axis_len,
                                     " split into",
