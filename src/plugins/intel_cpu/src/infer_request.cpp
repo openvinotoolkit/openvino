@@ -104,6 +104,7 @@ void SyncInferRequest::update_external_tensor_ptrs() {
 
 void SyncInferRequest::infer() {
     using namespace openvino::itt;
+    OV_ITT_SCOPED_REGION(itt::domains::intel_cpu, m_profiling_task);
     OV_ITT_SCOPED_TASK(itt::domains::intel_cpu, m_profiling_task);
     auto graphLock = m_compiled_model.lock();
     auto&& graph = graphLock._graph;
