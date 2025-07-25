@@ -57,6 +57,11 @@ public:
         fill_offset_to_constant_map(model);
     }
 
+    WeightsMemory(std::shared_ptr<const ov::Model> model, 
+                  std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheAttr> cache_attr) : weights_memory(model) {
+        fill_offset_to_constant_map(model, cache_attr);
+    }
+
     WeightsMemory(std::shared_ptr<ov::MappedMemory> mapped_memory) : weights_memory(mapped_memory) {}
 
     constant_memory_ptr get_constant_buf(size_t bin_offset, size_t original_size) {
@@ -86,6 +91,26 @@ private:
                 auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
                 if (weightless_cache_attr != rt_info.end()) {
                     auto& attr = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>();
+                    auto const_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+                    offset_to_constant_map.emplace(attr.bin_offset, const_ptr);
+                }
+            } else if (auto ti = ov::as_type<const ov::op::v0::TensorIterator>(node.get())) {
+                auto ti_body = ti->get_body();
+                fill_offset_to_constant_map(ti_body);
+            }
+        }
+    }
+
+    void fill_offset_to_constant_map(std::shared_ptr<const ov::Model> model, 
+                                     std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheAttr> cache_attr) {
+        const auto& ops = model->get_ops();
+        
+        for (const auto& node : ops) {
+            if (ov::op::util::is_constant(node)) {
+                auto it = cache_attr->find(node->get_instance_id());
+                
+                if (it != cache_attr->end()) {
+                    auto attr = it->second;
                     auto const_ptr = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
                     offset_to_constant_map.emplace(attr.bin_offset, const_ptr);
                 }
