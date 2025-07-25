@@ -694,22 +694,28 @@ void regclass_InferRequest(py::module m) {
             :rtype: list[openvino.ConstOutput]
         )");
 
-    cls.def_property_readonly("input_tensors",
-                              &InferRequestWrapper::get_input_tensors,
-                              R"(
-                                Gets all input tensors of this InferRequest.
+    cls.def_property_readonly(
+        "input_tensors",
+        [](InferRequestWrapper& self) {
+            return py::list(py::cast(self.get_input_tensors()));
+        },
+        R"(
+            Gets all input tensors of this InferRequest.
                                 
-                                :rtype: list[openvino.Tensor]
-                              )");
+            :rtype: list[openvino.Tensor]
+        )");
 
-    cls.def_property_readonly("output_tensors",
-                              &InferRequestWrapper::get_output_tensors,
-                              R"(
+    cls.def_property_readonly(
+        "output_tensors",
+        [](InferRequestWrapper& self) {
+            return py::list(py::cast(self.get_output_tensors()));
+        },
+        R"(
 
-                                Gets all output tensors of this InferRequest.
+            Gets all output tensors of this InferRequest.
                                 
-                                :rtype: list[openvino.Tensor]
-                              )");
+            :rtype: list[openvino.Tensor]
+        )");
 
     cls.def_property_readonly(
         "latency",

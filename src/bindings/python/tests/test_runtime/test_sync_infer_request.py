@@ -24,6 +24,7 @@ from openvino import (
 )
 from openvino import ProfilingInfo
 from openvino.preprocess import PrePostProcessor
+from openvino._pyopenvino import TensorVectorOpaque
 
 from tests.utils.helpers import (
     generate_image,
@@ -816,3 +817,20 @@ def test_output_result_to_input():
     with does_not_raise():
         result_2 = compiled_2(result_1, share_inputs=False)
     assert np.array_equal(result_2[0], [[8]])
+
+def test_infer_request_tensors_prop(device):
+    compiled_model = generate_add_compiled_model(device, input_shape=[2, 2])
+    request = compiled_model.create_infer_request()
+    inputs = request.input_tensors
+    outputs = request.output_tensors
+
+    assert len(inputs) == 2
+    for input_tensor in inputs:
+        assert input_tensor.get_shape() == Shape([2, 2])
+        assert input_tensor.get_element_type() == Type.f32
+    assert inputs[0].shape == Shape([2, 2])
+    assert isinstance(inputs, list)
+    assert isinstance(outputs, list)
+    assert str(inputs) == "[<Tensor: shape[2,2] type: f32>, <Tensor: shape[2,2] type: f32>]"
+    assert str(outputs) == "[<Tensor: shape[2,2] type: f32>]"
+    
