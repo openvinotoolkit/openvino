@@ -2555,7 +2555,8 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
     output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
-    if (ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW) {
+    const bool isReduceNOnly = ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW;
+    if (isReduceNOnly) {
         size_t IA = IC * ID * IH * IW;
         reduce_stride = IA;
         parallel_for(IA / blk_size, [&](size_t iba) {
@@ -2577,7 +2578,8 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
         for (size_t ib = 0; ib < IB; ib++) {
             size_t ob = ReduceN ? 0 : ib;
             GET_PTR_N_PLN;
-            if (!ReduceC && !ReduceD && ReduceW) {
+            const bool isReduceWOnly = !ReduceC && !ReduceD && ReduceW;
+            if (isReduceWOnly) {
                 size_t work_amount = ReduceH ? IH * IW : IW;
                 if (work_amount < blk_size && mayiuse(cpu::x64::avx2)) {
                     size_t outer_size = ReduceH ? IC * ID : IC * ID * IH;
@@ -2855,7 +2857,8 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
     for (size_t ib = 0; ib < IB; ib++) {
         size_t ob = ReduceN ? 0 : ib;
         GET_PTR_N_BLK;
-        if (!ReduceC && !ReduceD && ReduceH && ReduceW) {
+        const bool isReduceHWOnly = !ReduceC && !ReduceD && ReduceH && ReduceW;
+        if (isReduceHWOnly) {
             if (!ReduceN || (ReduceN && ib == IB - 1)) {
                 apply_division = getAlgorithm() == Algorithm::ReduceMean && attr.get()->post_ops_.len() == 0;
                 apply_post_kernel = !apply_division;
@@ -2866,8 +2869,10 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 GET_PTR_NCD_BASE_PTR_N_BLK;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
-        } else if (ReduceC && ReduceD && ReduceH && ReduceW) {
-            if (ReduceAll_opt) {
+        } else {
+            const bool isFullReduce = ReduceC && ReduceD && ReduceH && ReduceW;
+            if (isFullReduce) {
+                if (ReduceAll_opt) {
                 // reduce parallelly
                 // step1: !ReduceC && ReduceD && ReduceH && ReduceW
                 size_t prc_size = ICB * blk_size * dst_data_size;
@@ -2934,6 +2939,7 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 }
             }
         }
+    }
     }
 
     output_info_restore(&out_ptr);

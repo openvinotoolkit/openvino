@@ -687,8 +687,11 @@ void MatMul::prepareParams() {
                     return false;
                 }
             }
-            return (shape_src[src_rank - 1] <= 2) && (shape_src[src_rank - 2] <= 2) && (shape_wei[wei_rank - 1] <= 2) &&
-                   (shape_wei[wei_rank - 2] <= 2);
+            const bool srcLastDimSmall = shape_src[src_rank - 1] <= 2;
+            const bool srcSecondLastDimSmall = shape_src[src_rank - 2] <= 2;
+            const bool weiLastDimSmall = shape_wei[wei_rank - 1] <= 2;
+            const bool weiSecondLastDimSmall = shape_wei[wei_rank - 2] <= 2;
+            return srcLastDimSmall && srcSecondLastDimSmall && weiLastDimSmall && weiSecondLastDimSmall;
         }();
         if (can_optimize) {
             MatMulSmallAttrs matmul_attr;

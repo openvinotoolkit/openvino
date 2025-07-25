@@ -839,12 +839,17 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
     // handling based on internal logic (e.g. fuse conversion with weights reordering)
 
     auto isSuitableTranspose = [](const NodePtr& node) {
-        return node->getType() == Type::Transpose && node->getChildEdges().size() == 1 && node->isConstant();
+        const bool isTransposeNode = node->getType() == Type::Transpose;
+        const bool hasSingleChild = node->getChildEdges().size() == 1;
+        const bool isConstantNode = node->isConstant();
+        return isTransposeNode && hasSingleChild && isConstantNode;
     };
     auto isSuitableConvert = [&](const NodePtr& node) {
-        return node->getType() == Type::Convert && node->isConstant() &&
-               any_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) &&
-               any_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16);
+        const bool isConvertNode = node->getType() == Type::Convert;
+        const bool isConstantNode = node->isConstant();
+        const bool hasValidInputPrecision = any_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16);
+        const bool hasValidOutputPrecision = any_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16);
+        return isConvertNode && isConstantNode && hasValidInputPrecision && hasValidOutputPrecision;
     };
 
     const auto& graphNodes = graph.GetNodes();
@@ -2253,8 +2258,12 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
     for (size_t i = 0; i < nodes.size(); ++i) {  // NOLINT(modernize-loop-convert)
         auto node = nodes[i];
 
-        if (processed.find(node) == processed.end() && node->getType() == Type::Reorder &&
-            node->getChildEdges().size() == 1 && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder) {
+        const bool isNotProcessed = processed.find(node) == processed.end();
+        const bool isReorderNode = node->getType() == Type::Reorder;
+        const bool hasSingleChild = node->getChildEdges().size() == 1;
+        const bool childIsReorder = hasSingleChild && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder;
+        const bool isEligibleReorderChain = isNotProcessed && isReorderNode && hasSingleChild && childIsReorder;
+        if (isEligibleReorderChain) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
             auto* n = dynamic_cast<Reorder*>(node.get());
             OPENVINO_ASSERT(n, "Cannot get reorder layer ", node->getName());
@@ -2749,10 +2758,11 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
             return false;
         };
 
-        return node->getType() == Type::Transpose && node->getChildEdges().size() == 1 &&
-               !node->isDynamicNode()  // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is
-                                       // available (CVS-74863)
-               && !prevNodeIsConvSum(node);
+        const bool isTransposeNode = node->getType() == Type::Transpose;
+        const bool hasSingleChild = node->getChildEdges().size() == 1;
+        const bool isNotDynamicNode = !node->isDynamicNode();  // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
+        const bool isNotConvSum = !prevNodeIsConvSum(node);
+        return isTransposeNode && hasSingleChild && isNotDynamicNode && isNotConvSum;
     };
 
     auto isSuitableReshape = [](const NodePtr& node) {

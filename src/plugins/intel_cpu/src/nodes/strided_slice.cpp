@@ -172,7 +172,11 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         parameter = constNode->cast_vector<int>();
 
         auto size = constNode->get_shape()[0];
-        if (type != attrs.AXES_ID && attrs.ellipsisMaskCounter == 0 && size < nDims) {
+        const bool isNotAxesId = type != attrs.AXES_ID;
+        const bool hasNoEllipsisMask = attrs.ellipsisMaskCounter == 0;
+        const bool needsPadding = size < nDims;
+        const bool shouldAddDefaultValues = isNotAxesId && hasNoEllipsisMask && needsPadding;
+        if (shouldAddDefaultValues) {
             for (size_t i = size; i < nDims; i++) {
                 parameter.push_back(value);
             }
@@ -215,7 +219,11 @@ static void addHiddenDims(StridedSlice::StridedSliceAttributes& attrs,
         attrs.stride = strideTmp;
     }
 
-    if (inputRank > 3 && attrs.equalDims && attrs.ellipsisMaskCounter == 1) {
+    const bool isHighRank = inputRank > 3;
+    const bool hasEqualDims = attrs.equalDims;
+    const bool hasSingleEllipsis = attrs.ellipsisMaskCounter == 1;
+    const bool needsEllipsisHandling = isHighRank && hasEqualDims && hasSingleEllipsis;
+    if (needsEllipsisHandling) {
         // all masks and input parameters are for planar layouts. So if we use blocked or per channel layout and
         // there is ellipsis should to add default values in hidden dimensions to know real order of mask or parameter
         // values
@@ -358,7 +366,11 @@ bool StridedSlice::isExecutable() const {
 }
 
 void StridedSlice::createPrimitive() {
-    if (inputShapesDefined() && isExecutable() && !shapeHasDataDependency) {
+    const bool shapesAreDefined = inputShapesDefined();
+    const bool nodeIsExecutable = isExecutable();
+    const bool shapeIsStatic = !shapeHasDataDependency;
+    const bool canCreatePrimitive = shapesAreDefined && nodeIsExecutable && shapeIsStatic;
+    if (canCreatePrimitive) {
         if (needPrepareParams()) {
             prepareParams();
         }

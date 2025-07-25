@@ -129,7 +129,11 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
 
         data_type = DnnlExtensionUtils::ElementTypeToDataType(jcp_.precision);
         precision_in_reg = isFloatCompatible(data_type) ? ov::element::f32 : ov::element::i32;
-        if (!shape_agnostic_alg && jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost) {
+        const bool isNotShapeAgnostic = !shape_agnostic_alg;
+        const bool isBlockedLayout = jcp_.layout == TopKLayoutType::topk_blocked;
+        const bool isTopkInnermost = jcp_.topk_innermost;
+        const bool canUseBlockStride = isNotShapeAgnostic && isBlockedLayout && isTopkInnermost;
+        if (canUseBlockStride) {
             blk_stride = jcp_.sort_stride * jcp_.blk_size;
         }
 
@@ -336,13 +340,22 @@ private:
                 } else {
                     topk_bubble_BLK_on_channel_verti();
                 }
-            } else if (jcp_.topk_innermost && jcp_.top_k == 1 && !jcp_.stable) {
-                topk_bubble_horiz();
             } else {
-                topk_bubble_vector();
+                const bool isTopkInnermost = jcp_.topk_innermost;
+                const bool isTopKOne = jcp_.top_k == 1;
+                const bool isNotStable = !jcp_.stable;
+                const bool canUseBubbleHoriz = isTopkInnermost && isTopKOne && isNotStable;
+                if (canUseBubbleHoriz) {
+                    topk_bubble_horiz();
+                } else {
+                    topk_bubble_vector();
+                }
             }
         } else if (jcp_.algorithm == TopKAlgorithm::topk_bitonic_sort) {
-            if (jcp_.layout == TopKLayoutType::topk_blocked && jcp_.topk_innermost) {
+            const bool isBlockedLayout = jcp_.layout == TopKLayoutType::topk_blocked;
+            const bool isTopkInnermost = jcp_.topk_innermost;
+            const bool canUseBitonicBLK = isBlockedLayout && isTopkInnermost;
+            if (canUseBitonicBLK) {
                 topk_bitonic_BLK_on_channel();
             } else {
                 topk_bitonic_vector();

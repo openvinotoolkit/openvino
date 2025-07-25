@@ -2094,7 +2094,12 @@ Interpolate::Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext
             if (isAxesSpecified) {
                 axes = ov::as_type_ptr<const ov::op::v0::Constant>(interp->get_input_node_shared_ptr(AXES_ID_V11))
                            ->cast_vector<int>();
-                if (dataRank == 4 && axes.size() == 2 && axes[0] == 1 && axes[1] == 2) {
+                const bool is4DInput = dataRank == 4;
+                const bool hasTwoAxes = axes.size() == 2;
+                const bool isFirstAxisC = axes[0] == 1;
+                const bool isSecondAxisH = axes[1] == 2;
+                const bool canUseNCHWAsNHWC = is4DInput && hasTwoAxes && isFirstAxisC && isSecondAxisH;
+                if (canUseNCHWAsNHWC) {
                     interpAttrs.NCHWAsNHWC = true;
                     axes[0] = 2;
                     axes[1] = 3;
@@ -3389,7 +3394,11 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
     size_t OH = dstDim5d[3];
     size_t OW = dstDim5d[4];
 
-    if (IW != OW || IH != OH || ID != OD) {
+    const bool widthChanged = IW != OW;
+    const bool heightChanged = IH != OH;
+    const bool depthChanged = ID != OD;
+    const bool needsInterpolation = widthChanged || heightChanged || depthChanged;
+    if (needsInterpolation) {
         float ax = antialias ? fx : 1.0F;
         float ay = antialias ? fy : 1.0F;
         float az = antialias ? fz : 1.0F;
@@ -3914,7 +3923,11 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
                                                               int OW,
                                                               int kernel_width,
                                                               bool antialias) {
-    if (IW == OW && IH == OH && ID == OD) {
+    const bool widthUnchanged = IW == OW;
+    const bool heightUnchanged = IH == OH;
+    const bool depthUnchanged = ID == OD;
+    const bool noInterpolationNeeded = widthUnchanged && heightUnchanged && depthUnchanged;
+    if (noInterpolationNeeded) {
         size_t spatialDimSize = IW * IH * ID;
         // TODO: enable when fusing into interp with linear mode will support
         if (/*fusedWith.empty() &&*/ inputPrec == outputPrec) {

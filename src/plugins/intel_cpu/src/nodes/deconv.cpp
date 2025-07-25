@@ -393,7 +393,13 @@ bool Deconvolution::canBeExecutedInInt8() const {
         }
         return 4;
     }();
-    if (withGroups && !isDW && (IC % channelBlock != 0 || OC % channelBlock != 0)) {
+    const bool hasGroups = withGroups;
+    const bool isNotDepthwise = !isDW;
+    const bool inputChannelsNotAligned = IC % channelBlock != 0;
+    const bool outputChannelsNotAligned = OC % channelBlock != 0;
+    const bool channelsNotAligned = inputChannelsNotAligned || outputChannelsNotAligned;
+    const bool shouldRejectGroupedConv = hasGroups && isNotDepthwise && channelsNotAligned;
+    if (shouldRejectGroupedConv) {
         return false;
     }
     if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core) && deconvAttrs.stride.back() > 3) {
@@ -934,9 +940,12 @@ bool Deconvolution::isImplicit1x1PaddingAsymmetric(const VectorDims& inputDims) 
         return i == 0;
     };
     size_t spatialRank = getInputShapeAtPort(0).getRank() - 2;
-    if (is1x1 && std::all_of(deconvAttrs.paddingR.begin(), deconvAttrs.paddingR.end(), isZero) &&
-        std::all_of(deconvAttrs.paddingL.begin(), deconvAttrs.paddingL.end(), isZero) &&
-        std::all_of(deconvAttrs.outputPadding.begin(), deconvAttrs.outputPadding.end(), isZero)) {
+    const bool isOneByOne = is1x1;
+    const bool hasNoPaddingRight = std::all_of(deconvAttrs.paddingR.begin(), deconvAttrs.paddingR.end(), isZero);
+    const bool hasNoPaddingLeft = std::all_of(deconvAttrs.paddingL.begin(), deconvAttrs.paddingL.end(), isZero);
+    const bool hasNoOutputPadding = std::all_of(deconvAttrs.outputPadding.begin(), deconvAttrs.outputPadding.end(), isZero);
+    const bool canUseImplicitPadding = isOneByOne && hasNoPaddingRight && hasNoPaddingLeft && hasNoOutputPadding;
+    if (canUseImplicitPadding) {
         auto calPaddingEnd = [](int64_t i, int64_t o, int64_t s) -> int64_t {
             // Accoriding to https://pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html,
             // output[i] = (input[i] -1) * stride[i] - 2 x padding[i] + dilation[i] x (kernel_size[i] - 1) +
