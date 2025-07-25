@@ -68,8 +68,7 @@ GridSample::GridSample(const std::shared_ptr<ov::Node>& op, const GraphContext::
     }
 
     const bool hasCorrectPortCount = op->get_input_size() == 2 && op->get_output_size() == 1;
-    CPU_NODE_ASSERT(hasCorrectPortCount,
-                    "has incorrect number of input/output ports.");
+    CPU_NODE_ASSERT(hasCorrectPortCount, "has incorrect number of input/output ports.");
 
     const auto& dataShape = getInputShapeAtPort(IN_DATA);
     CPU_NODE_ASSERT(dataShape.getRank() == 4, "has incorrect rank of the Data input.");

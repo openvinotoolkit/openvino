@@ -1527,8 +1527,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     bool canUseOptimizedShapeAgnosticImpl = isDynamicNode() && canUseOptimizedImpl;
 
     const bool canUseFusedOps = canUseOptimizedImpl || fusedWith.empty();
-    CPU_NODE_ASSERT(canUseFusedOps,
-                    "uses reference impl, but unexpectedly fused with other ops");
+    CPU_NODE_ASSERT(canUseFusedOps, "uses reference impl, but unexpectedly fused with other ops");
 
     size_t expectedInputsNum = getOpInputsNum();
     for (auto& postOp : fusedWith) {
@@ -1598,8 +1597,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
         }
 
         const bool isBF16Supported = outputPrecision != ov::element::bf16 && !hasBF16;
-        CPU_NODE_ASSERT(isBF16Supported,
-                        "doesn't support BF16 precision on this target.");
+        CPU_NODE_ASSERT(isBF16Supported, "doesn't support BF16 precision on this target.");
     }
 #endif
 

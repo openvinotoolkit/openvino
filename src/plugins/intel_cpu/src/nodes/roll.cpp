@@ -57,8 +57,7 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
         const bool hasCorrectPortCount = inputShapes.size() == 3 && outputShapes.size() == 1;
-        CPU_NODE_ASSERT(hasCorrectPortCount,
-                        "has incorrect number of input/output edges!");
+        CPU_NODE_ASSERT(hasCorrectPortCount, "has incorrect number of input/output edges!");
 
         const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 

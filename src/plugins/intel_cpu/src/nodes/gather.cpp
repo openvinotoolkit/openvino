@@ -93,8 +93,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         compressed = true;
     } else {
         const bool hasCorrectPortCount = op->get_input_size() == 3 && op->get_output_size() == 1;
-        CPU_NODE_ASSERT(hasCorrectPortCount,
-                        "has incorrect number of input/output edges!");
+        CPU_NODE_ASSERT(hasCorrectPortCount, "has incorrect number of input/output edges!");
     }
 
     const auto& dataShape = getInputShapeAtPort(GATHER_DATA);
@@ -127,10 +126,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         batchDims += indicesRank;
     }
     const bool areBatchDimsValid = batchDims >= 0 && batchDims <= std::min(dataSrcRank, static_cast<int>(indicesRank));
-    CPU_NODE_ASSERT(areBatchDimsValid,
-                    "has incorrect batch_dims ",
-                    batchDims,
-                    "!");
+    CPU_NODE_ASSERT(areBatchDimsValid, "has incorrect batch_dims ", batchDims, "!");
 
     if (ov::is_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_AXIS))) {
         isAxisInputConst = true;
@@ -139,9 +135,7 @@ Gather::Gather(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
             axis += dataSrcRank;
         }
         const bool isAxisValid = axis >= 0 && axis < dataSrcRank && batchDims <= axis;
-        CPU_NODE_ASSERT(isAxisValid,
-                        "has incorrect input parameter axis value: ",
-                        axis);
+        CPU_NODE_ASSERT(isAxisValid, "has incorrect input parameter axis value: ", axis);
     }
 
     if (auto* indices = ov::as_type<ov::op::v0::Constant>(op->get_input_node_ptr(GATHER_INDICES))) {
@@ -413,9 +407,7 @@ void Gather::prepareParams() {
             axis += dataSrcRank;
         }
         const bool isAxisValid = axis >= 0 && axis < dataSrcRank && batchDims <= axis;
-        CPU_NODE_ASSERT(isAxisValid,
-                        "has incorrect input parameter axis value: ",
-                        axis);
+        CPU_NODE_ASSERT(isAxisValid, "has incorrect input parameter axis value: ", axis);
     }
 
     if (!isDataShapeStat || !isAxisInputConst) {

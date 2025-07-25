@@ -244,11 +244,9 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm& v_dst,
                              const Xbyak::Xmm& vReadMask,
                              const bool useMask,
                              const bool zeroFill) {
-    const bool registersAreUnique = v_dst.getIdx() != vSrcShift.getIdx() && 
-                                    v_dst.getIdx() != vReadMask.getIdx() &&
+    const bool registersAreUnique = v_dst.getIdx() != vSrcShift.getIdx() && v_dst.getIdx() != vReadMask.getIdx() &&
                                     vSrcShift.getIdx() != vReadMask.getIdx();
-    OPENVINO_ASSERT(registersAreUnique,
-                    "Any pair of the index, mask, or destination registers cannot be the same.");
+    OPENVINO_ASSERT(registersAreUnique, "Any pair of the index, mask, or destination registers cannot be the same.");
     if (zeroFill) {
         pxor(v_dst, v_dst);  // Don't use vpxor. It zeros the rest of the YMM register.
     }
@@ -287,11 +285,9 @@ void JitKernelBase::gatherdd(const Xbyak::Ymm& v_dst,
                              const Xbyak::Ymm& vReadMask,
                              const bool useMask,
                              const bool zeroFill) {
-    const bool registersAreUnique = v_dst.getIdx() != vSrcShift.getIdx() && 
-                                    v_dst.getIdx() != vReadMask.getIdx() &&
+    const bool registersAreUnique = v_dst.getIdx() != vSrcShift.getIdx() && v_dst.getIdx() != vReadMask.getIdx() &&
                                     vSrcShift.getIdx() != vReadMask.getIdx();
-    OPENVINO_ASSERT(registersAreUnique,
-                    "Any pair of the index, mask, or destination registers cannot be the same.");
+    OPENVINO_ASSERT(registersAreUnique, "Any pair of the index, mask, or destination registers cannot be the same.");
     if (isValidIsa(x64::avx2)) {
         if (!useMask) {
             uni_vpcmpeqd(vReadMask, vReadMask, vReadMask);

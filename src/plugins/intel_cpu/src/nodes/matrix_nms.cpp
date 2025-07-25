@@ -276,8 +276,7 @@ void MatrixNms::prepareParams() {
     const auto& boxes_dims = getParentEdgeAt(NMS_BOXES)->getMemory().getStaticDims();
     const auto& scores_dims = getParentEdgeAt(NMS_SCORES)->getMemory().getStaticDims();
     const bool dimensionsAreCompatible = boxes_dims[0] == scores_dims[0] && boxes_dims[1] == scores_dims[2];
-    CPU_NODE_ASSERT(dimensionsAreCompatible,
-                    "has incompatible 'boxes' and 'scores' input dmensions");
+    CPU_NODE_ASSERT(dimensionsAreCompatible, "has incompatible 'boxes' and 'scores' input dmensions");
 
     m_numBatches = boxes_dims[0];
     m_numBoxes = boxes_dims[1];

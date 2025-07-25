@@ -1210,8 +1210,7 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         auto outputHighAxisSize = ov::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
         const bool isAxisSizeValid = axisSize == -1 || dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis]);
-        CPU_NODE_ASSERT(isAxisSizeValid,
-                        "has different quantization axis size on 'data' and 'range' inputs");
+        CPU_NODE_ASSERT(isAxisSizeValid, "has different quantization axis size on 'data' and 'range' inputs");
 
         const auto inputLowNode = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
@@ -2402,7 +2401,8 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
     const bool hasSingleClampHigh = f.chi.size() == 1;
     const bool hasNoOutputScale = f.osc.empty();
     const bool hasNoOutputShift = f.osh.empty();
-    const bool canSkipRoundClip = isLastPostOp && is256Levels && hasSingleClampLow && hasSingleClampHigh && hasNoOutputScale && hasNoOutputShift;
+    const bool canSkipRoundClip =
+        isLastPostOp && is256Levels && hasSingleClampLow && hasSingleClampHigh && hasNoOutputScale && hasNoOutputShift;
     if (canSkipRoundClip) {
         const bool isU8Output = outDataType == memory::data_type::u8;
         const bool clampLowCoversU8 = f.clo[0] <= 0.0F;

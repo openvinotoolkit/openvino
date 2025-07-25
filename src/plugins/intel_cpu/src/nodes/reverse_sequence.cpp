@@ -66,14 +66,12 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
     seq_axis = revSeq->get_sequence_axis();
 
     const bool isSeqAxisValid = seq_axis >= 0 && seq_axis < static_cast<int>(dataRank);
-    CPU_NODE_ASSERT(isSeqAxisValid,
-                    "has incorrect 'seq_axis' parameters dimensions and axis number!");
+    CPU_NODE_ASSERT(isSeqAxisValid, "has incorrect 'seq_axis' parameters dimensions and axis number!");
 
     batch_axis = revSeq->get_batch_axis();
 
     const bool isBatchAxisValid = batch_axis >= 0 && batch_axis < static_cast<int>(dataRank);
-    CPU_NODE_ASSERT(isBatchAxisValid,
-                    "has incorrect 'batch_axis' parameters dimensions and axis number!");
+    CPU_NODE_ASSERT(isBatchAxisValid, "has incorrect 'batch_axis' parameters dimensions and axis number!");
 }
 
 void ReverseSequence::initSupportedPrimitiveDescriptors() {

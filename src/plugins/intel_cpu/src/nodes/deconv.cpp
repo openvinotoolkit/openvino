@@ -294,7 +294,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
     if (externOutShape && isDynamicNode()) {
         const auto spDimsNum = getInputShapeAtPort(0).getRank() - 2;
         const bool hasCorrectShapeElementCount = getInputShapeAtPort(2).getStaticDims()[0] == spDimsNum &&
-                                                  (!isConstOutShape || lastOutputSpatialDims.size() == spDimsNum);
+                                                 (!isConstOutShape || lastOutputSpatialDims.size() == spDimsNum);
         CPU_NODE_ASSERT(hasCorrectShapeElementCount,
                         "'output_shape' input has incorrect number of elements. Expected = ",
                         spDimsNum);
@@ -943,7 +943,8 @@ bool Deconvolution::isImplicit1x1PaddingAsymmetric(const VectorDims& inputDims) 
     const bool isOneByOne = is1x1;
     const bool hasNoPaddingRight = std::all_of(deconvAttrs.paddingR.begin(), deconvAttrs.paddingR.end(), isZero);
     const bool hasNoPaddingLeft = std::all_of(deconvAttrs.paddingL.begin(), deconvAttrs.paddingL.end(), isZero);
-    const bool hasNoOutputPadding = std::all_of(deconvAttrs.outputPadding.begin(), deconvAttrs.outputPadding.end(), isZero);
+    const bool hasNoOutputPadding =
+        std::all_of(deconvAttrs.outputPadding.begin(), deconvAttrs.outputPadding.end(), isZero);
     const bool canUseImplicitPadding = isOneByOne && hasNoPaddingRight && hasNoPaddingLeft && hasNoOutputPadding;
     if (canUseImplicitPadding) {
         auto calPaddingEnd = [](int64_t i, int64_t o, int64_t s) -> int64_t {

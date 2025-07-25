@@ -847,8 +847,10 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
     auto isSuitableConvert = [&](const NodePtr& node) {
         const bool isConvertNode = node->getType() == Type::Convert;
         const bool isConstantNode = node->isConstant();
-        const bool hasValidInputPrecision = any_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16);
-        const bool hasValidOutputPrecision = any_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16);
+        const bool hasValidInputPrecision =
+            any_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16);
+        const bool hasValidOutputPrecision =
+            any_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16);
         return isConvertNode && isConstantNode && hasValidInputPrecision && hasValidOutputPrecision;
     };
 
@@ -2760,7 +2762,8 @@ void GraphOptimizer::MergeTransposeAndReorder(Graph& graph) {
 
         const bool isTransposeNode = node->getType() == Type::Transpose;
         const bool hasSingleChild = node->getChildEdges().size() == 1;
-        const bool isNotDynamicNode = !node->isDynamicNode();  // TODO [DS]: enable for dynamic shapes when inPlace in the dynamic case is available (CVS-74863)
+        const bool isNotDynamicNode = !node->isDynamicNode();  // TODO [DS]: enable for dynamic shapes when inPlace in
+                                                               // the dynamic case is available (CVS-74863)
         const bool isNotConvSum = !prevNodeIsConvSum(node);
         return isTransposeNode && hasSingleChild && isNotDynamicNode && isNotConvSum;
     };

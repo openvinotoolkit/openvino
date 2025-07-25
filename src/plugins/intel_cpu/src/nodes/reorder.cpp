@@ -471,8 +471,7 @@ std::string Reorder::getReorderArgs(const MemoryDesc& parentDesc, const MemoryDe
 
 void Reorder::reorderData(const IMemory& input, const IMemory& output, const MultiCachePtr& cache) {
     const bool areDescriptorsDefined = input.getDesc().isDefined() && output.getDesc().isDefined();
-    OPENVINO_ASSERT(areDescriptorsDefined,
-                    "Can't reorder data with dynamic shapes");
+    OPENVINO_ASSERT(areDescriptorsDefined, "Can't reorder data with dynamic shapes");
 
     if (input.getShape().hasZeroDims() || output.getShape().hasZeroDims()) {
         return;

@@ -385,8 +385,7 @@ void Pooling::getSupportedDescriptors() {
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outputPrecision);
 
     const bool isSupportedInputRank = (inputRank >= 3) && (inputRank <= 5);
-    CPU_NODE_ASSERT(isSupportedInputRank,
-                    "Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
+    CPU_NODE_ASSERT(isSupportedInputRank, "Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
 
     initEffectiveAttributes(inShape, MemoryDescUtils::makeDummyShape(childShape));
 

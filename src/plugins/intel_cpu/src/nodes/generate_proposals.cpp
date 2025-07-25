@@ -354,8 +354,7 @@ void GenerateProposals::executeDynamicImpl(const dnnl::stream& strm) {
 void GenerateProposals::execute([[maybe_unused]] const dnnl::stream& strm) {
     try {
         const bool correctInputOutputCount = inputShapes.size() == 4 && outputShapes.size() == 3;
-        CPU_NODE_ASSERT(correctInputOutputCount,
-                        "Incorrect number of input or output edges!");
+        CPU_NODE_ASSERT(correctInputOutputCount, "Incorrect number of input or output edges!");
 
         size_t anchor_dims_size = 1;
         const auto& anchorDims = getParentEdgeAt(INPUT_ANCHORS)->getMemory().getStaticDims();

@@ -50,8 +50,7 @@ Range::Range(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
     }
 
     const bool hasCorrectInputOutputCount = getOriginalInputsNumber() == 3 && getOriginalOutputsNumber() == 1;
-    CPU_NODE_ASSERT(hasCorrectInputOutputCount,
-                    "has incorrect number of input/output edges!");
+    CPU_NODE_ASSERT(hasCorrectInputOutputCount, "has incorrect number of input/output edges!");
 
     auto start_dims = op->get_input_shape(RANGE_START);
     CPU_NODE_ASSERT(ov::shape_size(start_dims) == 1, "has start scalar with more than 1 value");

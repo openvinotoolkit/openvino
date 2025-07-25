@@ -4,8 +4,6 @@
 
 #include "reduce.h"
 
-#include "eltwise.h"
-#include "fake_quantize.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -31,6 +29,8 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "eltwise.h"
+#include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"

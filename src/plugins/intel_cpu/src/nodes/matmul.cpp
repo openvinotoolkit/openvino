@@ -594,8 +594,7 @@ void MatMul::prepareParams() {
     const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
     CPU_NODE_ASSERT(isDestinationMemoryValid, "has undefined destination memory");
     const bool areInputMemoriesValid = src0MemPtr && src0MemPtr->isDefined() && src1MemPtr && src1MemPtr->isDefined();
-    CPU_NODE_ASSERT(areInputMemoriesValid,
-                    "has undefined input memory");
+    CPU_NODE_ASSERT(areInputMemoriesValid, "has undefined input memory");
 
     // check for a degenerate case. In this context the degenerate case is a matrix multiplication where the
     // collapsing dimension is zero, e.g., AB=C, where A has the shape [10, 0] and B has the shape [0, 20],
@@ -605,8 +604,7 @@ void MatMul::prepareParams() {
         !dstMemPtr->getDesc().getShape().hasZeroDims()) {
         // todo: obviously we need a special executor that would process fused ops providing a correct result
         const bool canHandleDegenerateCase = !withBiases && fusedWith.empty();
-        CPU_NODE_ASSERT(canHandleDegenerateCase,
-                        "Matmul doesn't support a degenerate case when other ops are fused");
+        CPU_NODE_ASSERT(canHandleDegenerateCase, "Matmul doesn't support a degenerate case when other ops are fused");
         // reset executor
         execPtr.reset();
         return;
