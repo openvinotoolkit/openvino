@@ -17,11 +17,16 @@
 #include <vector>
 
 #include "emitters/snippets/aarch64/kernel_executors/gemm.hpp"
+#include "emitters/snippets/aarch64/utils.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/utils/utils.hpp"
+#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 
 using namespace Xbyak_aarch64;
 
@@ -39,6 +44,17 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     GemmKernelKaiConfig kernel_config;
     m_kernel_executor_kai = kernel_table->register_kernel<GemmKaiKernelExecutor>(expr, kernel_config);
+
+    const auto gemm_node = as_type_ptr<GemmCPU>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(gemm_node, "Expected GemmCPU node");
+
+    // Initialize memory offsets similar to x64 brgemm implementation
+    m_memory_offsets = {gemm_node->get_offset_a(), gemm_node->get_offset_b(), gemm_node->get_offset_c()};
+
+    // Initialize buffer IDs using the utils function
+    m_buffer_ids = {ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(1)),
+                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(0))};
 }
 
 std::set<std::vector<element::Type>> jit_gemm_emitter::get_supported_precisions(
@@ -50,6 +66,8 @@ std::set<std::vector<element::Type>> jit_gemm_emitter::get_supported_precisions(
 void jit_gemm_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 2, "Expects 2 input regs, got", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == 3, "Expected 3 memory offsets for A, B, C");
+    OV_CPU_JIT_EMITTER_ASSERT(m_buffer_ids.size() == 3, "Expected 3 buffer IDs for A, B, C");
 }
 
 void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -62,12 +80,17 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     Xbyak_aarch64::XReg x1(1);
     Xbyak_aarch64::XReg x2(2);
     Xbyak_aarch64::XReg x3(3);
-    h->str(Xbyak_aarch64::XReg(in[0]), pre_ptr(h->sp, -get_vec_length()));
-    h->str(Xbyak_aarch64::XReg(in[1]), pre_ptr(h->sp, -get_vec_length()));
-    h->str(Xbyak_aarch64::XReg(out[0]), pre_ptr(h->sp, -get_vec_length()));
-    h->ldr(x3, post_ptr(h->sp, get_vec_length()));
-    h->ldr(x2, post_ptr(h->sp, get_vec_length()));
-    h->ldr(x1, post_ptr(h->sp, get_vec_length()));
+    Xbyak_aarch64::XReg aux_reg(5);
+
+    // Prepare memory pointers with offsets
+    std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
+    const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
+
+    // Apply memory offsets and load adjusted pointers
+    std::vector<Xbyak_aarch64::XReg> load_regs{x1, x2, x3};
+    utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_reg, load_regs);
+
+    // Set up executor pointer as first argument
     const auto& compiled_kernel = get_compiled_kernel_ptr();
     h->mov(x0, compiled_kernel);
 
