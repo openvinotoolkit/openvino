@@ -100,7 +100,7 @@ private:
      */
     void set_weights_inputs();
 
-    void release_init_blob(const size_t initIndex, const Config& config);
+    void release_init_blob(const size_t initIndex);
     void release_graphs();
 
     std::vector<GraphDescriptor> _initsGraphDesc;
