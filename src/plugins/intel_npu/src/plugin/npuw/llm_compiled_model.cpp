@@ -1189,7 +1189,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
         read(model_stream, bank_name);
 
         if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "", true);
+            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
 
             compiled->m_kvcache_compiled->m_weights_bank = bank;
             compiled->m_prefill_compiled->m_weights_bank = bank;
