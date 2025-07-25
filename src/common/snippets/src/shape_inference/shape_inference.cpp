@@ -24,6 +24,7 @@
 #include "snippets/op/buffer.hpp"
 #include "snippets/op/convert_saturation.hpp"
 #include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/fa.hpp"
 #include "snippets/op/fill.hpp"
 #include "snippets/op/horizon_max.hpp"
 #include "snippets/op/horizon_sum.hpp"
@@ -99,6 +100,7 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
     SHAPE_INFER_PREDEFINED(op::Nop, EmptyShapeInfer),
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(opset1::Select, SelectShapeInfer),
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::Brgemm, BrgemmShapeInfer),
+    SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::FA, FAShapeInfer),
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceMax, ReduceShapeInfer),
     SHAPE_INFER_OP_SPECIFIC_EXTERNAL(op::ReduceSum, ReduceShapeInfer),
     // Note that Result has no output PortConnectors, so the shape must be empty

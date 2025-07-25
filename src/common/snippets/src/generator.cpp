@@ -25,6 +25,7 @@
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/broadcastmove.hpp"
 #include "snippets/op/buffer.hpp"
+#include "snippets/op/fa.hpp"
 #include "snippets/op/fill.hpp"
 #include "snippets/op/horizon_max.hpp"
 #include "snippets/op/horizon_sum.hpp"
@@ -121,7 +122,8 @@ RegType Generator::get_op_out_reg_type(const ov::Output<Node>& out) const {
                        op::RankNormalization,
                        op::Reshape,
                        op::Reorder,
-                       snippets::op::Store>(op)
+                       snippets::op::Store,
+                       snippets::op::FA>(op)
 #ifdef SNIPPETS_DEBUG_CAPS
         || is_type_any_of<op::PerfCountBeginBase, op::PerfCountEndBase>(op)
 #endif
