@@ -928,7 +928,6 @@ void network::allocate_primitive_instance(program_node const& node) {
         inst->set_flag(ExecutionFlags::IMPL_CHANGED);
         inst->set_flag(ExecutionFlags::SHAPE_CHANGED);
         inst->set_flag(ExecutionFlags::MEMORY_CHANGED);
-        inst->set_flag(ExecutionFlags::ARG_UPDATE_REQUIRED);
     }
 
 
