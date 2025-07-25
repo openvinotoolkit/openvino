@@ -284,8 +284,6 @@ void WeightlessGraph::initialize(const Config& config) {
 
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         _logger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
-
-        ze_graph_handle_t initHandle = _initsGraphDesc.at(initIndex)._handle;
         std::vector<ArgumentDescriptor>& initInputDescriptors = _initsInputDescriptors.at(initIndex);
         std::vector<ArgumentDescriptor>& initOutputDescriptors = _initsOutputDescriptors.at(initIndex);
         uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
@@ -294,14 +292,18 @@ void WeightlessGraph::initialize(const Config& config) {
         _logger.debug("performing pfnGetProperties");
         ze_graph_properties_t props{};
         props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(initHandle, &props);
+        auto result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetProperties(_initsGraphDesc.at(initIndex)._handle, &props);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
 
         _logger.debug("performing pfnGetArgumentProperties3");
         for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
             ze_graph_argument_properties_3_t arg3{};
             arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-            auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(initHandle, index, &arg3);
+            auto result =
+                _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(_initsGraphDesc.at(initIndex)._handle,
+                                                                              index,
+                                                                              &arg3);
             THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
             if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
@@ -317,7 +319,7 @@ void WeightlessGraph::initialize(const Config& config) {
         initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                                           ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-        _zeGraphExt->initializeGraph(initHandle, initCommandQueueOrdinal);
+        _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex), initCommandQueueOrdinal);
         _logger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
@@ -360,6 +362,8 @@ void WeightlessGraph::initialize(const Config& config) {
 #else
     run_init_multi_threaded();
 #endif
+
+    release_graphs();
 
     _initsInputDescriptors.clear();
     _initsOutputDescriptors.clear();
@@ -588,7 +592,7 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
-    if (_blobIsPersistent || _initBlobs == std::nullopt) {
+    if (_initsGraphDesc[initIndex]._data || _blobIsPersistent || _initBlobs == std::nullopt) {
         return;
     }
 
@@ -600,21 +604,29 @@ void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& co
         return;
     }
 
-    if (_zeGraphExt != nullptr) {
-        _zeGraphExt->destroyGraph(_initsGraphDesc[initIndex]);
-    }
-
     _initBlobs->at(initIndex) = ov::Tensor();
     _logger.debug("Blob is released");
 }
 
-WeightlessGraph::~WeightlessGraph() {
-    // make sure all the context-dependent components are destroyed before the zero context is destroyed
-    if (_zeGraphExt != nullptr && _blobIsPersistent) {
+void WeightlessGraph::release_graphs() {
+    size_t initIndex = 0;
+    if (_zeGraphExt != nullptr) {
         for (auto& initGraphDesc : _initsGraphDesc) {
             _zeGraphExt->destroyGraph(initGraphDesc);
+
+            if (_initBlobs->at(initIndex)) {
+                _initBlobs->at(initIndex) = ov::Tensor();
+            }
+
+            initIndex++;
         }
     }
+    _logger.debug("Init graphs are destroyed");
+}
+
+WeightlessGraph::~WeightlessGraph() {
+    // make sure all the context-dependent components are destroyed before the zero context is destroyed
+    release_graphs();
 }
 
 }  // namespace intel_npu

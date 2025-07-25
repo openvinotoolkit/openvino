@@ -26,7 +26,7 @@ public:
                     const GraphDescriptor& mainGraphDesc,
                     NetworkMetadata mainMetadata,
                     std::optional<ov::Tensor> mainBlob,
-                    const std::vector<GraphDescriptor>& initGraphHandles,
+                    const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
                     const std::shared_ptr<const ov::Model>& model,
@@ -101,6 +101,7 @@ private:
     void set_weights_inputs();
 
     void release_init_blob(const size_t initIndex, const Config& config);
+    void release_graphs();
 
     std::vector<GraphDescriptor> _initsGraphDesc;
     std::optional<std::vector<ov::Tensor>> _initBlobs;
