@@ -22,11 +22,11 @@
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
-#include "onednn/iml_type_mapper.h"
 #include "nodes/executors/executor_factory.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/mvn_config.hpp"
 #include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
@@ -334,6 +334,48 @@ void MVN::prepareParams() {
 
     // Populate post-ops from fused nodes
     mvnAttrs.postOps = getPostOps(fusedWith);
+
+    // Special handling for Instance Normalization pattern
+    // When MVN is followed by Multiply/Add with [1,C,1,1] shape tensors,
+    // we need to handle them specially to avoid dimension mismatch
+    PostOps adjustedPostOps;
+    for (const auto& postOp : mvnAttrs.postOps) {
+        try {
+            if (postOp.type() == typeid(ScaleShiftPostOp)) {
+                const ScaleShiftPostOp& scaleShiftOp = std::any_cast<const ScaleShiftPostOp&>(postOp);
+
+                std::vector<float> adjustedScales = scaleShiftOp.scales();
+                std::vector<float> adjustedShifts = scaleShiftOp.shifts();
+
+                // Check if scales have broadcasting pattern [1,C,1,1]
+                if (adjustedScales.size() > 1 && adjustedScales.size() != mvnAttrs.actualChannelSize) {
+                    // This is likely a [1,C,1,1] pattern - use scalar broadcast
+                    float firstScale = adjustedScales[0];
+                    adjustedScales.clear();
+                    adjustedScales.push_back(firstScale);
+                }
+
+                // Check if shifts have broadcasting pattern [1,C,1,1]
+                if (adjustedShifts.size() > 1 && adjustedShifts.size() != mvnAttrs.actualChannelSize) {
+                    // This is likely a [1,C,1,1] pattern - use scalar broadcast
+                    float firstShift = adjustedShifts[0];
+                    adjustedShifts.clear();
+                    adjustedShifts.push_back(firstShift);
+                }
+
+                // Create new ScaleShiftPostOp with adjusted values
+                adjustedPostOps.push_back(
+                    std::make_any<ScaleShiftPostOp>(scaleShiftOp.type(), adjustedScales, adjustedShifts));
+            } else {
+                // Keep other post-ops as is
+                adjustedPostOps.push_back(postOp);
+            }
+        } catch (const std::bad_any_cast&) {
+            // Not a ScaleShiftPostOp, keep as is
+            adjustedPostOps.push_back(postOp);
+        }
+    }
+    mvnAttrs.postOps = std::move(adjustedPostOps);
 
     // Use a modern executor factory pattern for all implementations
     MemoryArgs memoryArgs;

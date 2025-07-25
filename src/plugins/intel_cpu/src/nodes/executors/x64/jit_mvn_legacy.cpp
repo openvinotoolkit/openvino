@@ -1,6 +1,7 @@
 
 #include "jit_mvn_legacy.hpp"
 
+#include <oneapi/dnnl/dnnl_types.h>
 #include <xbyak/xbyak.h>
 
 #include <algorithm>
@@ -13,15 +14,14 @@
 #include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_types.h>
 #include <vector>
 
 #include "common/utils.hpp"
-#include "cpu_types.h"
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "nodes/executors/mvn_config.hpp"
 #include "nodes/kernels/x64/mlp_utils.hpp"
