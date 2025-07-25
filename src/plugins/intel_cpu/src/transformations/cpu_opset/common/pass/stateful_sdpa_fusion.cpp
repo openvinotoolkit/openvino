@@ -93,7 +93,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         auto reshape_kv = wrap_type<ov::op::v1::Reshape>({kv, any_input()});
         auto unsqueeze_kv = wrap_type<ov::op::v0::Unsqueeze>({kv, any_input()});
 
-        auto constant_bcst = wrap_type<ov::op::v0::Constant>(value_matches("1") && shape_matches("[1]"));
+        auto constant_bcst = wrap_type<ov::op::v0::Constant>(value_matches("{1}"));
 
         auto computed_bcst =
             wrap_type<ov::op::v1::Broadcast>({constant_bcst, any_input(), any_input()}, {{"mode", "numpy"}});
