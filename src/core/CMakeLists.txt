@@ -138,7 +138,9 @@ target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_
 ov_build_target_faster(openvino_core_obj
     UNITY
     PCH_HEADER "src/precomp.hpp"
-    PCH_EXCLUDE "src/op/util/attr_types.cpp")
+    PCH_EXCLUDE
+        "src/op/util/attr_types.cpp"
+        "src/runtime/tensor.cpp")
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...
