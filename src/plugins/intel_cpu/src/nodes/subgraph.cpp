@@ -57,10 +57,12 @@
 #    include "snippets/lowered/pass/insert_reg_spills.hpp"
 #    include "snippets/lowered/pass/mark_loops.hpp"
 #    include "snippets/pass/propagate_precision.hpp"
-#    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
-#    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
-#    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
-#    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
+#    ifdef OV_CPU_WITH_KLEIDIAI
+#        include "transformations/snippets/kleidiai/aarch64/pass/brgemm_to_gemm_cpu.hpp"
+#        include "transformations/snippets/kleidiai/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
+#        include "transformations/snippets/kleidiai/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
+#        include "transformations/snippets/kleidiai/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
+#    endif
 #endif
 
 #if !defined(OPENVINO_ARCH_RISCV64)
@@ -574,9 +576,11 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                srcMemPtrs);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
+#ifdef OV_CPU_WITH_KLEIDIAI
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
                                           ov::snippets::pass::PropagatePrecision,
                                           ov::intel_cpu::pass::BrgemmToGemmCPU);
+#endif
     SNIPPETS_REGISTER_PASS_ABSOLUTE_COMMON(Place::PipelineEnd, ov::intel_cpu::pass::MulAddToFMA);
 
 #ifdef SNIPPETS_LIBXSMM_TPP
@@ -653,6 +657,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::lowered::pass::InsertBuffers,
                                            ov::intel_cpu::pass::InsertBrgemmCopyBuffers);
+#ifdef OV_CPU_WITH_KLEIDIAI
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::After,
                                           ov::snippets::lowered::pass::MarkLoops,
                                           ov::intel_cpu::pass::GemmCPUBlocking);
@@ -662,6 +667,7 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
                                           ov::snippets::lowered::pass::InsertBuffers,
                                           ov::intel_cpu::pass::aarch64::InsertGemmCopyBuffers);
+#endif
 
 #ifdef SNIPPETS_LIBXSMM_TPP
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,

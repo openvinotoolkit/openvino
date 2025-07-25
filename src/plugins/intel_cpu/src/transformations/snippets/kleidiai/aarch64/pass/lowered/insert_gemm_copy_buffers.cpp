@@ -16,9 +16,9 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/buffer.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
-#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_utils.hpp"
 
 using namespace ov::intel_cpu::aarch64::gemm_utils::repacking;
 using namespace ov::snippets::lowered;

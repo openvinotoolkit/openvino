@@ -15,7 +15,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/runtime_configurator.hpp"
-#include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
+#include "transformations/snippets/kleidiai/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 
 namespace ov::intel_cpu::pass::aarch64 {
 

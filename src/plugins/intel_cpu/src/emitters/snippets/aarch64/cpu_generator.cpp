@@ -21,8 +21,8 @@
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
 #ifdef OV_CPU_WITH_KLEIDIAI
-#    include "emitters/snippets/aarch64/jit_gemm_copy_b_emitter.hpp"
-#    include "emitters/snippets/aarch64/jit_gemm_emitter.hpp"
+#    include "emitters/snippets/kleidiai/aarch64/jit_gemm_copy_b_emitter.hpp"
+#    include "emitters/snippets/kleidiai/aarch64/jit_gemm_emitter.hpp"
 #endif
 #include "emitters/snippets/aarch64/jit_horizon_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
@@ -101,8 +101,10 @@
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#ifdef OV_CPU_WITH_KLEIDIAI
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
+#endif
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "utils/general_utils.h"
 

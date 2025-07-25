@@ -22,8 +22,8 @@
 #include "snippets/op/brgemm.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
 #include "transformations/tpp/common/op/modifiers.hpp"
 
 namespace ov::intel_cpu {

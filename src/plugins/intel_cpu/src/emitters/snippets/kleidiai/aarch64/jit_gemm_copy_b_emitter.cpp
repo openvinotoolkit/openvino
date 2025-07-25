@@ -16,7 +16,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
+#include "emitters/snippets/kleidiai/aarch64/kernel_executors/gemm_copy_b.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
@@ -24,8 +24,8 @@
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_utils.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 

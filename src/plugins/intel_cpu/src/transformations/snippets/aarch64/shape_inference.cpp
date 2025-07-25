@@ -11,10 +11,14 @@
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#ifdef SNIPPETS_LIBXSMM_TPP
 #include "transformations/tpp/common/op/brgemm.hpp"
+#endif
+#ifdef OV_CPU_WITH_KLEIDIAI
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
+#endif
 
 namespace ov::snippets {
 using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
@@ -31,9 +35,13 @@ ShapeInferPtr CPUShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov
 const CPUShapeInferSnippetsFactory::TRegistry CPUShapeInferSnippetsFactory::specific_ops_registry{
     make_predefined<ov::intel_cpu::FusedMulAdd, NumpyBroadcastShapeInfer>(),
     make_predefined<ov::intel_cpu::SwishNode, PassThroughShapeInfer>(),
+#ifdef SNIPPETS_LIBXSMM_TPP
     make_specific_external<ov::intel_cpu::tpp::op::BrgemmTPP, BrgemmShapeInfer>(),
+#endif
+#ifdef OV_CPU_WITH_KLEIDIAI
     make_specific_external<ov::intel_cpu::aarch64::GemmCPU, BrgemmShapeInfer>(),
     make_specific<ov::intel_cpu::aarch64::GemmCopyB>(),
+#endif
 };
 
 }  // namespace ov::snippets

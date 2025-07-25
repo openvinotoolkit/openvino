@@ -11,9 +11,9 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
-#include "transformations/snippets/aarch64/pass/lowered/expressions/gemm_copy_b_buffer_expressions.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/kleidiai/aarch64/pass/lowered/expressions/gemm_copy_b_buffer_expressions.hpp"
 
 using namespace ov::snippets::utils;
 

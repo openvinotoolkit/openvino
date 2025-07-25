@@ -104,8 +104,10 @@
 #    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #    include "transformations/snippets/x64/op/store_convert.hpp"
 #elif defined(OPENVINO_ARCH_ARM64)
-#    include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#    include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#    ifdef OV_CPU_WITH_KLEIDIAI
+#        include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#        include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
+#    endif
 #endif
 
 namespace {

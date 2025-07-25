@@ -11,7 +11,7 @@
 #include "openvino/core/type.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
 
 namespace ov::intel_cpu::pass {
 

@@ -42,7 +42,7 @@
 #    include "nodes/kernels/aarch64/brgemm_kernel.hpp"
 #    include "nodes/kernels/aarch64/sve_utils.hpp"
 #    ifdef OV_CPU_WITH_KLEIDIAI
-#        include "nodes/kernels/kai/kleidi_kernel.hpp"
+#        include "nodes/kernels/kleidiai/kleidi_kernel.hpp"
 #    endif
 #endif
 
