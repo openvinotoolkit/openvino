@@ -34,6 +34,7 @@ inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
 
+/*
 #if defined(HAVE_AVX2)
 inline void unpack_64_i4(__m256i packed, uint8_t* unpacked) {
     for (int i = 0; i < 32; ++i) {
@@ -42,6 +43,7 @@ inline void unpack_64_i4(__m256i packed, uint8_t* unpacked) {
     }
 }
 #endif
+*/
 
 #if defined(HAVE_AVX2)
 // Read a uint8 data and obtain two int4 values.
@@ -1527,9 +1529,19 @@ void ov::npuw::util::XARCH::transpose_i4(const ov::Tensor& t, ov::Tensor& tnew, 
             // get 32 bytes each time.
             const uint8_t* src_ptr = src + (r * COLS + c) / 2;
             __m256i packed = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src_ptr));
+            /*
             alignas(32) uint8_t unpacked[64];
             // Unpack to get 64 int4
             unpack_64_i4(packed, unpacked);
+            */
+            __m256i vout0, vout1;
+            avx2_i4toi8(packed, &vout0, &vout1);
+
+            int8_t unpacked[64];
+            __m256i* tmpv0 = reinterpret_cast<__m256i*>(unpacked);
+            __m256i* tmpv1 = reinterpret_cast<__m256i*>(unpacked + 32);
+            _mm256_storeu_si256(tmpv0, vout0);
+            _mm256_storeu_si256(tmpv1, vout1);
             // Write transposed block
             if ((COLS % 2 != 0) && (r % 2 != 0) && (c == 0)) {
                 for (size_t k = 0; k < PACK - 1; ++k) {
@@ -1658,8 +1670,18 @@ void ov::npuw::util::XARCH::permute021_i4(const ov::Tensor& t,
             for (; c + PACK - 1 < COLS; c += PACK) {
                 const uint8_t* src_ptr = src + (src_base + c) / 2;
                 __m256i packed = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src_ptr));
+                /*
                 alignas(32) uint8_t unpacked[64];
                 unpack_64_i4(packed, unpacked);
+                */
+                __m256i vout0, vout1;
+                avx2_i4toi8(packed, &vout0, &vout1);
+
+                int8_t unpacked[64];
+                __m256i* tmpv0 = reinterpret_cast<__m256i*>(unpacked);
+                __m256i* tmpv1 = reinterpret_cast<__m256i*>(unpacked + 32);
+                _mm256_storeu_si256(tmpv0, vout0);
+                _mm256_storeu_si256(tmpv1, vout1);
                 if ((COLS % 2 != 0) && ((p * ROWS + r) % 2 != 0) && (c == 0)) {
                     for (size_t k = 0; k < PACK - 1; ++k) {
                         size_t dst_offset = dst_base + (c + k) * ROWS;
@@ -1720,9 +1742,16 @@ void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
                 size_t src_offset = p * ROWS * COLS + r * COLS + c;
                 const uint8_t* src_ptr = src + src_offset / 2;
                 __m256i packed = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src_ptr));
-                alignas(32) uint8_t unpacked[64];
-                unpack_64_i4(packed, unpacked);
+                // alignas(32) uint8_t unpacked[64];
+                // unpack_64_i4(packed, unpacked);
+                __m256i vout0, vout1;
+                avx2_i4toi8(packed, &vout0, &vout1);
 
+                int8_t unpacked[64];
+                __m256i* tmpv0 = reinterpret_cast<__m256i*>(unpacked);
+                __m256i* tmpv1 = reinterpret_cast<__m256i*>(unpacked + 32);
+                _mm256_storeu_si256(tmpv0, vout0);
+                _mm256_storeu_si256(tmpv1, vout1);
                 // dst[r, p, c~c+63]
                 size_t dst_base = r * PLAS * COLS + p * COLS + c;
                 if ((COLS % 2 != 0) && ((p * ROWS + r) % 2 != 0) && (c == 0)) {
