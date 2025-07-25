@@ -809,7 +809,7 @@ public:
         std::remove(m_dynamic_type_out_bin_path.c_str());
     }
 
-    bool files_equal(const std::ifstream& file1_path, const std::ifstream& file2_path) {
+    bool files_equal(const std::string& file1_path, const std::string& file2_path) {
         std::ifstream f1(file1_path, std::ios::binary);
         std::ifstream f2(file2_path, std::ios::binary);
 
