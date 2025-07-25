@@ -82,6 +82,7 @@
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
+#    include "transformations/snippets/x64/pass/mha_to_fa.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
 #    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
 #endif
@@ -551,6 +552,10 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                context->getConfig().inferencePrecision);
     }
 
+    // SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
+    //                                        ov::snippets::pass::MatMulToBrgemm,
+    //                                        ov::intel_cpu::pass::MHAToFA);
+
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
@@ -568,12 +573,12 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                                ov::intel_cpu::pass::EliminateBrgemmCopyB,
                                                cpu_config->input_repackers);
-        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
-                                               ov::intel_cpu::pass::EliminateBrgemmCopyB,
-                                               ov::intel_cpu::pass::RepackMatMulWeights,
-                                               context,
-                                               cpu_config->input_repackers,
-                                               srcMemPtrs);
+        // SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+        //                                        ov::intel_cpu::pass::EliminateBrgemmCopyB,
+        //                                        ov::intel_cpu::pass::RepackMatMulWeights,
+        //                                        context,
+        //                                        cpu_config->input_repackers,
+        //                                        srcMemPtrs);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,
@@ -881,7 +886,11 @@ bool Subgraph::created() const {
 
 void Subgraph::execute(const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
+    auto start = std::chrono::steady_clock::now();
     execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
+    auto end = std::chrono::steady_clock::now();
+    auto t = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    std::cout << "time:" << t << std::endl;
 }
 
 void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {

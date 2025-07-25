@@ -357,6 +357,7 @@ VectorDims LinearIR::get_master_shape() const {
     if (m_result_expressions.size() == 1) {
         const auto& out_expr = *m_result_expressions.begin();
         const auto& source = out_expr->get_input_port_connector(0)->get_source();
+        // todo for fa master shape
         if (!m_config.m_enable_domain_optimization &&
             ov::is_type<snippets::op::Brgemm>(source.get_expr()->get_node())) {
             master_shape = utils::get_preordered_vdims(source);

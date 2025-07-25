@@ -23,6 +23,7 @@
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "emitters/snippets/x64/jit_brgemm_copy_b_emitter.hpp"
 #include "emitters/snippets/x64/jit_brgemm_emitter.hpp"
+#include "emitters/snippets/x64/jit_fa_emitter.hpp"
 #include "emitters/snippets/x64/jit_fill_emitter.hpp"
 #include "emitters/snippets/x64/jit_horizon_emitter.hpp"
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
@@ -103,6 +104,7 @@
 #include "snippets/target_machine.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "transformations/snippets/x64/op/fa.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
@@ -336,6 +338,8 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_brgemm_copy_b_emitter,
                                 configurator->get_kernel_executor_table(),
                                 compiled_kernel_cache);
+    jitters[intel_cpu::FACPU::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_fa_emitter, configurator->get_kernel_executor_table());
     jitters[snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
     jitters[snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
     // Service
