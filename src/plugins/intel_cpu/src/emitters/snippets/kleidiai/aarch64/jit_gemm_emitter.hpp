@@ -5,8 +5,8 @@
 #pragma once
 
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
-#include "emitters/snippets/kleidiai/aarch64/kernel_executors/gemm.hpp"
 #include "emitters/snippets/brgemm_generic.hpp"
+#include "emitters/snippets/kleidiai/aarch64/kernel_executors/gemm.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 

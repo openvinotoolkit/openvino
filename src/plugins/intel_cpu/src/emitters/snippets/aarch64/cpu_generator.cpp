@@ -102,8 +102,8 @@
 #include "snippets/target_machine.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #ifdef OV_CPU_WITH_KLEIDIAI
-#include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
+#    include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#    include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
 #endif
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
 #include "utils/general_utils.h"
