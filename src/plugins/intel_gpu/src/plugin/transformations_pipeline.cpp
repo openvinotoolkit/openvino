@@ -482,39 +482,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
         kv_cache_config.inferencePrecision = infer_precision;
         kv_cache_config.keyCacheBlockSize = 16;
-        kv_cache_config.valueCacheBlockSize = 16;
         kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+        kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
+        kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+        kv_cache_config.valueCacheBlockSize = 16;
         kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
         kv_cache_config.valueCacheQuantBychannel = false;
-        kv_cache_config.keyCacheGroupSize = 0;
         kv_cache_config.valueCacheGroupSize = 0;
-        if (kv_cache_config.keyCachePrecision != infer_precision) {
-            for (auto& node : func->get_ops()) {
-                if (node->get_type_info() == ov::op::PagedAttentionExtension::get_type_info_static()) {
-                    auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
-                    auto key_cache_quant_mode = config.get_key_cache_quant_mode();
-                    {
-                        // w/a : cache rotation not supported yet
-                        if (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
-                            // w/a : cache rotation not supported yet
-                            // CVS-170994
-                            bool has_rotated_blocks = paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATION_TRIG_LUT;
-                            if (has_rotated_blocks) {
-                                GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode."
-                                               << std::endl;
-                                key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
-                            }
-                        }
-                        kv_cache_config.keyCacheQuantBychannel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
-                        kv_cache_config.keyCacheGroupSize = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL ? 16 : 0;
-                    }
-                    paged_attn_op->get_rt_info().emplace("KEY_CACHE_BY_CHANNEL", key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
-                }
-            }
-        } else {
-            kv_cache_config.keyCacheQuantBychannel = false;
-            kv_cache_config.keyCacheGroupSize = 0;
-        }
 
         manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
             [&infer_precision](const ov::element::Type& precision,

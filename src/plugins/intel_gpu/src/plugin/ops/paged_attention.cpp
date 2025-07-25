@@ -86,14 +86,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     }
 
     prim.has_rotated_blocks = op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATION_TRIG_LUT;
-
-    bool is_key_by_channel = false;
-    if (op->get_rt_info().find("KEY_CACHE_BY_CHANNEL") != op->get_rt_info().end()) {
-        is_key_by_channel = op->get_rt_info().at("KEY_CACHE_BY_CHANNEL").as<bool>();
-    }
-    OPENVINO_ASSERT(is_key_by_channel == false || prim.has_rotated_blocks == false,
-                  "[GPU] KEY_CACHE_BY_CHANNEL cannot be used when rotated blocks are enabled.");
-    prim.is_key_by_channel = is_key_by_channel;
+    prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {

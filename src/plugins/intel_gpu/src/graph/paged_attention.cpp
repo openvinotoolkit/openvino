@@ -98,6 +98,7 @@ std::string paged_attention_inst::to_string(const paged_attention_node& node) {
     paged_attention_info.add("key_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::KEY_CACHE).data_type);
     paged_attention_info.add("value_cache_dt", node.get_input_layout(cldnn::paged_attention::PagedAttentionInputIdx::VALUE_CACHE).data_type);
     paged_attention_info.add("score_output", desc->has_scores_output());
+    paged_attention_info.add("is_key_by_channel", desc->is_key_by_channel);
     paged_attention_info.add("score_aggregation", desc->has_score_aggregation);
     node_info->add("paged_attention primitive info", paged_attention_info);
     node_info->dump(primitive_description);

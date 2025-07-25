@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "openvino/core/any.hpp"
@@ -204,6 +205,16 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
                 }
             }
         }
+
+        // w/a : key_by_channel quant mode does not support cache rotation yet
+        // CVS-170994
+        if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            bool has_rotated_blocks = paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATION_TRIG_LUT;
+            if (has_rotated_blocks) {
+                GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
+                m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+            }
+        }
     };
 
     for (const auto& op : ops) {
@@ -211,6 +222,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
 
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
         if (is_paged_attention_model || !info.supports_immad) {
             // Enable KV-cache compression by default for:
