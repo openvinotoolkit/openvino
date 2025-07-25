@@ -4,9 +4,12 @@
 
 #include "reduce.h"
 
+#include "eltwise.h"
+#include "fake_quantize.h"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <common/bfloat16.hpp>
 #include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
 #include <common/utils.hpp>
@@ -28,8 +31,6 @@
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "eltwise.h"
-#include "fake_quantize.h"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -57,7 +58,6 @@
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -2869,10 +2869,8 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 GET_PTR_NCD_BASE_PTR_N_BLK;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
-        } else {
-            const bool isFullReduce = ReduceC && ReduceD && ReduceH && ReduceW;
-            if (isFullReduce) {
-                if (ReduceAll_opt) {
+        } else if (ReduceC && ReduceD && ReduceH && ReduceW) {
+            if (ReduceAll_opt) {
                 // reduce parallelly
                 // step1: !ReduceC && ReduceD && ReduceH && ReduceW
                 size_t prc_size = ICB * blk_size * dst_data_size;
@@ -2939,7 +2937,6 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 }
             }
         }
-    }
     }
 
     output_info_restore(&out_ptr);
