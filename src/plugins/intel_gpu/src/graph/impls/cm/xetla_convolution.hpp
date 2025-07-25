@@ -53,7 +53,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
 
         auto desc = ConvDesc::from_node(node);
         auto key = desc.get_shape_key();
-        if (desc.post_ops == -1) {
+        if (desc.post_ops == -1 || desc.post_ops == 7 /*Not yet implemented*/) {
             return false;
         }
         if (ConvMap.find(key) == ConvMap.end()) {
@@ -111,6 +111,8 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                     desc.group_size = desc.k / desc.group_count.value();
                     if (!bias)
                         desc.post_ops = 6;
+                    else
+                        desc.post_ops = 7; // Not yet implemented: bias + gn
                 } else if (fused_ops[0].is_type<eltwise>()) {
                     auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
                     if (eltwise0->mode != eltwise_mode::sum)
