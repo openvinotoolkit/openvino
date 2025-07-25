@@ -338,14 +338,14 @@ bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
         const auto padValue = extImgPatcher->get_auto_pad();
-        if (!one_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
+        if (none_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
             errorMessage = "Does not support pad type: " + ov::as_string(padValue);
             return false;
         }
-        if (!everyone_is(2U,
-                         extImgPatcher->get_sizes().size(),
-                         extImgPatcher->get_strides().size(),
-                         extImgPatcher->get_rates().size())) {
+        if (!all_of(2U,
+                    extImgPatcher->get_sizes().size(),
+                    extImgPatcher->get_strides().size(),
+                    extImgPatcher->get_rates().size())) {
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }
@@ -518,14 +518,27 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
     parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
         const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
         const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
-        const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.F * ih_start / jpp.SH);
-        const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.F * iw_start / jpp.SW);
+        const size_t ih_lpad =
+            ih_start >= 0
+                ? 0
+                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
+        const size_t iw_lpad =
+            iw_start >= 0
+                ? 0
+                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
 
         const size_t ih_hpad =
-            std::ceil((IH - 1.F * ih_start) / jpp.SH) > jpp.OH ? jpp.OH : std::ceil((IH + -1.F * ih_start) / jpp.SH);
-        const size_t iw_hpad = std::ceil((jpp.IW - 1.F * iw_start) / jpp.SW) > jpp.OW
-                                   ? jpp.OW
-                                   : std::ceil((jpp.IW - 1.F * iw_start) / jpp.SW);
+            static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                          static_cast<float>(jpp.SH))) > jpp.OH
+                ? jpp.OH
+                : static_cast<size_t>(std::ceil((static_cast<float>(IH) + -1.F * static_cast<float>(ih_start)) /
+                                                static_cast<float>(jpp.SH)));
+        const size_t iw_hpad =
+            static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                          static_cast<float>(jpp.SW))) > jpp.OW
+                ? jpp.OW
+                : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                                static_cast<float>(jpp.SW)));
 
         char* my_dst_ptr = dst_data + (ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] +
                                        ic * ostrides_partial[3]) *
@@ -578,13 +591,26 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
     parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
         const int64_t ih_start = kh * RH - PT;
         const int64_t iw_start = kw * RW - PL;
-        const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.F * ih_start / jpp.SH);
-        const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.F * iw_start / jpp.SW);
+        const size_t ih_lpad =
+            ih_start >= 0
+                ? 0
+                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
+        const size_t iw_lpad =
+            iw_start >= 0
+                ? 0
+                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
         const size_t ih_hpad =
-            std::ceil((IH - 1.F * ih_start) / jpp.SH) > jpp.OH ? jpp.OH : std::ceil((IH - 1.F * ih_start) / jpp.SH);
-        const size_t iw_hpad = std::ceil((jpp.IW - 1.F * iw_start) / jpp.SW) > jpp.OW
-                                   ? jpp.OW
-                                   : std::ceil((jpp.IW - 1.F * iw_start) / jpp.SW);
+            static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                          static_cast<float>(jpp.SH))) > jpp.OH
+                ? jpp.OH
+                : static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                                static_cast<float>(jpp.SH)));
+        const size_t iw_hpad =
+            static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                          static_cast<float>(jpp.SW))) > jpp.OW
+                ? jpp.OW
+                : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                                static_cast<float>(jpp.SW)));
 
         size_t dst_offset =
             ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3];
@@ -637,8 +663,14 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
         const int64_t ihStep = kSizes[0] + (rates[0] - 1) * (kSizes[0] - 1);
         const int64_t iwStep = kSizes[1] + (rates[1] - 1) * (kSizes[1] - 1);
 
-        int64_t PW = (std::ceil(1.F * jpp.IW / strides[1]) - 1) * strides[1] + iwStep - jpp.IW;
-        int64_t PH = (std::ceil(1.F * IH / strides[0]) - 1) * strides[0] + ihStep - IH;
+        int64_t PW =
+            (static_cast<int64_t>(std::ceil(1.F * static_cast<float>(jpp.IW) / static_cast<float>(strides[1]))) - 1) *
+                strides[1] +
+            iwStep - jpp.IW;
+        int64_t PH =
+            (static_cast<int64_t>(std::ceil(1.F * static_cast<float>(IH) / static_cast<float>(strides[0]))) - 1) *
+                strides[0] +
+            ihStep - IH;
 
         int64_t increment_sign = 0;
         if (padType == ExtImgPatcherPadType::SAME_LOWER) {

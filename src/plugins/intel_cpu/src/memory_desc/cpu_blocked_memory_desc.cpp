@@ -92,11 +92,9 @@ CpuBlockedMemoryDesc::CpuBlockedMemoryDesc(ov::element::Type prc,
         this->strides = strides;
     }
 
-    OPENVINO_ASSERT(everyone_is(this->order.size(),
-                                this->blockedDims.size(),
-                                this->offsetPaddingToData.size(),
-                                this->strides.size()),
-                    "Order, blocked dims, offset padding to data and strides must have equals size");
+    OPENVINO_ASSERT(
+        all_of(this->order.size(), this->blockedDims.size(), this->offsetPaddingToData.size(), this->strides.size()),
+        "Order, blocked dims, offset padding to data and strides must have equals size");
 }
 
 bool CpuBlockedMemoryDesc::isDefinedImp() const {
@@ -169,7 +167,7 @@ size_t CpuBlockedMemoryDesc::getCurrentMemSizeImp() const {
 
     auto byte_size = e_size * prc.bitwidth();
 
-    if (one_of(prc, ov::element::u3, ov::element::u6)) {
+    if (any_of(prc, ov::element::u3, ov::element::u6)) {
         constexpr size_t storage_unit_size = 24;
         byte_size += storage_unit_size - 1;
         byte_size /= storage_unit_size;
@@ -203,7 +201,7 @@ size_t CpuBlockedMemoryDesc::getOffset(const VectorDims& v) const {
     VectorDims off_v = v;
 
     size_t n_blocked_dims = order.size();
-    OPENVINO_ASSERT(blockedDims.size() == n_blocked_dims && strides.size() == n_blocked_dims,
+    OPENVINO_ASSERT(all_of(n_blocked_dims, blockedDims.size(), strides.size()),
                     "Cannot calculate offset. Incorrect primitive descriptor!");
     VectorDims blockedShift(n_blocked_dims);
     for (size_t i = 1; i <= n_blocked_dims; i++) {

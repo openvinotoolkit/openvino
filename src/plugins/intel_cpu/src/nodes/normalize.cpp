@@ -816,7 +816,7 @@ bool NormalizeL2::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
         }
 
         const auto mode = norm->get_eps_mode();
-        if (!one_of(mode, ov::op::EpsMode::ADD, ov::op::EpsMode::MAX)) {
+        if (none_of(mode, ov::op::EpsMode::ADD, ov::op::EpsMode::MAX)) {
             errorMessage = "Doesn't support eps_mode: " + ov::as_string(mode);
             return false;
         }
@@ -866,16 +866,16 @@ void NormalizeL2::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    if (one_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
+    if (any_of(ov::element::f16, inputPrecision, outputPrecision) && mayiuse(cpu::x64::sse41)) {
         inputPrecision = outputPrecision = ov::element::f32;
     }
 
     CPU_NODE_ASSERT(
-        one_of(inputPrecision, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8),
+        any_of(inputPrecision, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::i8, ov::element::u8),
         "has unsupported input precision: ",
         inputPrecision);
 
-    CPU_NODE_ASSERT(one_of(outputPrecision,
+    CPU_NODE_ASSERT(any_of(outputPrecision,
                            ov::element::f32,
                            ov::element::bf16,
                            ov::element::f16,
@@ -1065,7 +1065,7 @@ public:
                            const VectorDims& dims)
         : attrs(attrs_) {
         OPENVINO_ASSERT(
-            one_of(attrs.layout, LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c),
+            any_of(attrs.layout, LayoutType::ncsp, LayoutType::nspc, LayoutType::nCsp8c, LayoutType::nCsp16c),
             "Normalaize2L executor has selected layout which is not supported");
 
         jcp.src_dt = DnnlExtensionUtils::ElementTypeToDataType(attrs.input_prec);
