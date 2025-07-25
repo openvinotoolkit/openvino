@@ -45,7 +45,7 @@ using ngNmsSortResultType = ov::op::util::MulticlassNmsBase::SortResultType;
 bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v9::MulticlassNms::get_type_info_static(),
                     ov::op::v8::MulticlassNms::get_type_info_static(),
                     ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
@@ -65,11 +65,11 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_type_info(), ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
+    if (any_of(op->get_type_info(), ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
         m_outStaticShape = true;
     }
 
-    CPU_NODE_ASSERT(getOriginalInputsNumber() == 2 || getOriginalInputsNumber() == 3,
+    CPU_NODE_ASSERT(any_of(getOriginalInputsNumber(), 2U, 3U),
                     "has incorrect number of input edges: ",
                     getOriginalInputsNumber());
 
@@ -420,7 +420,7 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
             const auto& box_info = m_filtBoxes[original_index];
 
             auto* selected_base = selected_outputs + (output_offset + j) * 6;
-            selected_base[0] = box_info.class_index;
+            selected_base[0] = static_cast<float>(box_info.class_index);
             selected_base[1] = box_info.score;
 
             auto& selected_index = selected_indices[j + output_offset];
@@ -436,7 +436,8 @@ void MultiClassNms::execute([[maybe_unused]] const dnnl::stream& strm) {
                     offset += roisnum[i];
                 }
                 // selected index from (M, C, 4)
-                selected_index = _flattened_index((offset + box_info.box_index), box_info.class_index, m_numClasses);
+                selected_index =
+                    _flattened_index(static_cast<int>(offset + box_info.box_index), box_info.class_index, m_numClasses);
                 int idx = box_info.class_index * boxesStrides[0] + offset * boxesStrides[1];
                 const float* curboxes = boxes + idx;  // a slice of boxes of current class current image
                 selected_base[2] = curboxes[4 * box_info.box_index];

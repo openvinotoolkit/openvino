@@ -25,7 +25,6 @@ public:
 
     std::shared_ptr<IGraph> parse(
         ov::Tensor mainBlob,
-        const bool blobAllocatedByPlugin,
         const Config& config,
         std::optional<std::vector<ov::Tensor>> initBlobs = std::nullopt,
         const std::optional<std::shared_ptr<const ov::Model>>& model = std::nullopt) const override;
