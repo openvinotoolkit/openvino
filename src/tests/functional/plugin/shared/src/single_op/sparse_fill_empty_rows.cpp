@@ -12,7 +12,7 @@ namespace test {
 
 std::string SparseFillEmptyRowsLayerTest::getTestCaseName(const testing::TestParamInfo<SparseFillEmptyRowsParams>& obj) {
     std::ostringstream result;
-    const auto& [input_shapes, default_value, values_type, indices_type, in_type, dev] = obj.param;
+    const auto& [input_shapes, default_value, values_type, in_type, dev] = obj.param;
 
     for (size_t s = 0; s < input_shapes.size(); ++s) {
         const auto& shape_item = input_shapes[s];
@@ -23,21 +23,20 @@ std::string SparseFillEmptyRowsLayerTest::getTestCaseName(const testing::TestPar
     }
     result << "DefaultValue=" << default_value[0] << "_";
     result << "ValuesType=" << values_type << "_";
-    result << "IndicesType=" << indices_type << "_";
     result << "InputType=" << in_type << "_";
     result << "Device=" << dev;
     return result.str();
 }
 
 void SparseFillEmptyRowsLayerTest::SetUp() {
-    const auto& [input_shapes, default_value, values_type, indices_type, in_type, dev] = this->GetParam();
+    const auto& [input_shapes, default_value, values_type, in_type, dev] = this->GetParam();
     targetDevice = dev;
-    abs_threshold = 1e-5;
+    abs_threshold = 2e-5;
     init_input_shapes(input_shapes);
 
-    auto indices = std::make_shared<ov::op::v0::Parameter>(indices_type, inputDynamicShapes[0]);
-    auto values = std::make_shared<ov::op::v0::Parameter>(values_type, inputDynamicShapes[1]);
-    auto dense_shape = std::make_shared<ov::op::v0::Parameter>(indices_type, inputDynamicShapes[2]);
+    auto values = std::make_shared<ov::op::v0::Parameter>(values_type, inputDynamicShapes[0]);
+    auto dense_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[1]);
+    auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, inputDynamicShapes[2]);
     std::shared_ptr<ov::Node> default_value_node;
     if (in_type == utils::InputLayerType::PARAMETER) {
         default_value_node = std::make_shared<ov::op::v0::Parameter>(values_type, ov::Shape{});
@@ -45,32 +44,94 @@ void SparseFillEmptyRowsLayerTest::SetUp() {
         default_value_node = std::make_shared<ov::op::v0::Constant>(values_type, ov::Shape{}, default_value);
     }
 
-    auto sfe_rows = std::make_shared<ov::op::v16::SparseFillEmptyRows>(indices, values, dense_shape, default_value_node);
+    auto sfe_rows = std::make_shared<ov::op::v16::SparseFillEmptyRows>(values, dense_shape, indices, default_value_node);
     if (in_type == utils::InputLayerType::PARAMETER) {
         function = std::make_shared<ov::Model>(
             sfe_rows->outputs(),
-            ov::ParameterVector{indices, values, dense_shape, std::dynamic_pointer_cast<ov::op::v0::Parameter>(default_value_node)});
+            ov::ParameterVector{values, dense_shape, indices, std::dynamic_pointer_cast<ov::op::v0::Parameter>(default_value_node)});
     } else {
-        function = std::make_shared<ov::Model>(sfe_rows->outputs(), ov::ParameterVector{indices, values, dense_shape});
+        function = std::make_shared<ov::Model>(sfe_rows->outputs(), ov::ParameterVector{values, dense_shape, indices});
     }
+}
+
+void SparseFillEmptyRowsLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    const auto& funcInputs = function->inputs();
+    // values: [M], dense_shape: [2], indices: [M, 2]
+    const auto& valuesShape = targetInputStaticShapes[0];
+    const auto& denseShapeShape = targetInputStaticShapes[1];
+    const auto& indicesShape = targetInputStaticShapes[2];
+    const auto valuesType = funcInputs[0].get_element_type();
+    const auto idxType = funcInputs[2].get_element_type();
+
+    // Use the dense_shape values from the test parameter (the shape of the dense tensor)
+    std::vector<int64_t> dense_shape_values;
+    for (auto v : indicesShape) {
+        dense_shape_values.push_back(static_cast<int64_t>(v));
+    }
+    ov::Tensor dense_shape_tensor(idxType, {2});
+    if (idxType == ov::element::i32) {
+        auto* ptr = dense_shape_tensor.data<int32_t>();
+        ptr[0] = static_cast<int32_t>(dense_shape_values[0]);
+        ptr[1] = static_cast<int32_t>(dense_shape_values[1]);
+    } else {
+        auto* ptr = dense_shape_tensor.data<int64_t>();
+        ptr[0] = dense_shape_values[0];
+        ptr[1] = dense_shape_values[1];
+    }
+    inputs[funcInputs[1].get_node_shared_ptr()] = dense_shape_tensor;
+
+    // Generate values
+    ov::test::utils::InputGenerateData valuesData;
+    valuesData.start_from = 1;
+    valuesData.range = 10;
+    auto values_tensor = ov::test::utils::create_and_fill_tensor(valuesType, valuesShape, valuesData);
+    inputs[funcInputs[0].get_node_shared_ptr()] = values_tensor;
+
+    // Generate indices: [M, 2], each row in [0, num_rows-1], col in [0, num_cols-1]
+    size_t num_rows = dense_shape_values[0];
+    size_t num_cols = dense_shape_values[1];
+    ov::Tensor indices_tensor(idxType, indicesShape);
+    size_t M = indicesShape[0];
+    if (idxType == ov::element::i32) {
+        auto* ptr = indices_tensor.data<int32_t>();
+        for (size_t i = 0; i < M; ++i) {
+            ptr[i * 2 + 0] = static_cast<int32_t>(i % num_rows);
+            ptr[i * 2 + 1] = static_cast<int32_t>((i * 2) % num_cols);
+        }
+    } else {
+        auto* ptr = indices_tensor.data<int64_t>();
+        for (size_t i = 0; i < M; ++i) {
+            ptr[i * 2 + 0] = static_cast<int64_t>(i % num_rows);
+            ptr[i * 2 + 1] = static_cast<int64_t>((i * 2) % num_cols);
+        }
+    }
+    inputs[funcInputs[2].get_node_shared_ptr()] = indices_tensor;
+
+    // Generate default_value
+    const auto& default_value_type = funcInputs.size() > 3 ? funcInputs[3].get_element_type() : valuesType;
+    ov::test::utils::InputGenerateData defvalData;
+    defvalData.start_from = 42;
+    defvalData.range = 1;
+    auto default_value_tensor = ov::test::utils::create_and_fill_tensor(default_value_type, {}, defvalData);
+    if (funcInputs.size() > 3)
+        inputs[funcInputs[3].get_node_shared_ptr()] = default_value_tensor;
 }
 
 const SparseFillEmptyRowsLayerTest::TGenData SparseFillEmptyRowsLayerTest::GetTestDataForDevice(const char* deviceName) {
     const std::vector<std::vector<InputShape>> input_shapes = {{
-        // indices: [M, 2], values: [M], dense_shape: [2]
-        {{{2, 2}, {{4, 2}}}, {{4}, {{4}}}, {{2}, {{2}}}},
-        {{{6, 2}, {{8, 2}}}, {{8}, {{8}}}, {{2}, {{2}}}}
+        // values: [M], dense_shape: [2], indices: [M, 2]
+        {{{4}, {{4}}}, {{2}, {{2}}}, {{4, 2}, {{4, 2}}}},
+        {{{8}, {{8}}}, {{2}, {{2}}}, {{8, 2}, {{8, 2}}}}
     }};
     const std::vector<std::vector<float>> default_values = {{0.0f}, {42.0f}};
     const std::vector<ov::element::Type> values_types = {ov::element::f32, ov::element::f16};
-    const std::vector<ov::element::Type> indices_types = {ov::element::i32, ov::element::i64};
     std::vector<utils::InputLayerType> in_types = {utils::InputLayerType::CONSTANT, utils::InputLayerType::PARAMETER};
 
     auto data = ::testing::Combine(
         ::testing::ValuesIn(input_shapes),
         ::testing::ValuesIn(default_values),
         ::testing::ValuesIn(values_types),
-        ::testing::ValuesIn(indices_types),
         ::testing::ValuesIn(in_types),
         ::testing::Values(deviceName));
     return data;

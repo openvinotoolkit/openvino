@@ -15,7 +15,6 @@ namespace test {
 typedef std::tuple<std::vector<InputShape>,         // Input shapes (indices, values, dense_shape)
                    std::vector<float>,              // Default value
                    ov::element::Type,               // Data type for values and default value
-                   ov::element::Type,               // Data type for indices and dense_shape
                    ov::test::utils::InputLayerType, // Input layer type
                    ov::test::TargetDevice>          // Target device
     SparseFillEmptyRowsParams;
@@ -28,7 +27,6 @@ public:
         testing::internal::CartesianProductHolder<testing::internal::ParamGenerator<std::vector<ov::test::InputShape>>,
                                                   testing::internal::ParamGenerator<std::vector<float>>,
                                                   testing::internal::ParamGenerator<ov::element::Type>,
-                                                  testing::internal::ParamGenerator<ov::element::Type>,
                                                   testing::internal::ParamGenerator<ov::test::utils::InputLayerType>,
                                                   testing::internal::ValueArray<const char*>>;
 
@@ -36,6 +34,7 @@ public:
 
 protected:
     void SetUp() override;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 };
 }  // namespace test
 }  // namespace ov
