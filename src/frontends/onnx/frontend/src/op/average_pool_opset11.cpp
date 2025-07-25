@@ -10,13 +10,13 @@ namespace onnx {
 namespace ai_onnx {
 namespace opset_11 {
 
-// This is your translation function
+// translation function
 ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
-    // Make sure PoolingFactory handles only opset11 attributes
+    //PoolingFactory handles only opset11 attributes
     return pooling::PoolingFactory(node).make_avg_pool();
 }
 
-// Register the operator for opset 11
+// Register the operator with the ONNX frontend
 ONNX_OP("AveragePool", OPSET_SINCE(11), ai_onnx::opset_11::average_pool);
 
 }  // namespace opset_11
