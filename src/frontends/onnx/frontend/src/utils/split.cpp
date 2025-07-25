@@ -4,6 +4,7 @@
 
 #include "utils/split.hpp"
 
+#include "openvino/frontend/exception.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -30,6 +31,13 @@ OutputVector make_split(const Output<ov::Node>& value, int64_t num_splits, int64
         if (axis_len % num_splits) {
             auto avg_axis = axis_len / num_splits + 1;
             auto last_output_value = axis_len % avg_axis;
+            auto total_len = avg_axis * (num_splits - 1) + last_output_value;
+            FRONT_END_GENERAL_CHECK(total_len == axis_len,
+                                    "The split parameters are not valid. The axis length ",
+                                    axis_len,
+                                    " split into",
+                                    num_splits,
+                                    ", can not promise the last chunk will be smaller than the others.");
             std::vector<int64_t> split_lengths(num_splits, avg_axis);
             split_lengths.back() = last_output_value;
             return make_split(value, split_lengths, axis);
