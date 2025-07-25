@@ -9,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "../ocl_v2/utils/jitter.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -16,7 +17,6 @@
 #include "openvino/core/type.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
-#include "../ocl_v2/utils/jitter.hpp"
 #include "utils/kernel_generator.hpp"
 
 #define CM_PA_ENABLE

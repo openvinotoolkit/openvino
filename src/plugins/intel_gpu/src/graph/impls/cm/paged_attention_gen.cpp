@@ -16,7 +16,6 @@
 #include "primitive_cm_base.hpp"
 #include "primitive_inst.h"
 
-#define CM_PA_ENABLE
 #ifdef CM_PA_ENABLE
 namespace ov::intel_gpu::cm {
 
@@ -45,8 +44,8 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     PagedAttentionStage stage;
     size_t num_of_partitions;
     size_t partition_size;
+    size_t max_context_len;
     size_t paged_attention_aligned_seq_len;
-    size_t sdpa_opt_max_seq_len;
     size_t sdpa_opt_seq_len_partition_size;
 
     size_t paged_attention_snap_kv_tokens;

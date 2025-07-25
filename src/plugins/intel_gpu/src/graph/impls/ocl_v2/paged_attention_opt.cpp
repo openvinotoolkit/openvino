@@ -8,13 +8,13 @@
 #include "sdpa_gen_micro.hpp"
 // clang-format on
 #include "paged_attention_opt.hpp"
-#include "../cm/paged_attention_gen.hpp"
 
 #include <array>
 #include <cstdint>
 #include <memory>
 #include <utility>
 
+#include "../cm/paged_attention_gen.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -46,6 +46,7 @@ struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
     size_t paged_attention_snap_kv_tokens;
     bool use_micro_sdpa = false;
     bool use_gqa_kernel = false;
+    bool use_cm_kernel = false;
     size_t query_block_size = 16;
 };
 
@@ -1064,22 +1065,13 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
 #endif
-
-#ifdef CM_PA_ENABLE
     Stage::Ptr pa_sdpa_cm = make_stage<cm::PagedAttentionGeneratorMultiToken>();
-#endif
+
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
     explicit PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {
         const auto desc = params.typed_desc<paged_attention>();
         const bool has_scores_output = params.output_layouts.size() > 1;
         const bool has_rotated_blocks = desc->has_rotated_blocks;
-
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        const bool use_micro_sdpa = supports_micro_sdpa(params);
-        if (use_micro_sdpa) {
-            add_stage(pa_sdpa_micro, params);
-        }
-#endif
 
         add_stage(kv_cache_update, params);
         add_stage(pa_multi_token, params);
@@ -1089,9 +1081,19 @@ public:
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_sdpa_opt, params);
 
-#ifdef CM_PA_ENABLE
-        add_stage(pa_sdpa_cm, params);
+        const bool use_cm_sdpa = supports_cm_sdpa(params);
+        if (use_cm_sdpa) {
+            add_stage(pa_sdpa_cm, params);
+        }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        const bool use_micro_sdpa = supports_micro_sdpa(params);
+        // cm sdpa achives better performance than micro sdpa for prefill stage
+        if (use_micro_sdpa && !use_cm_sdpa) {
+            add_stage(pa_sdpa_micro, params);
+        }
 #endif
+
         if (has_rotated_blocks) {
             add_stage(kv_cache_rotate, params);
         }
@@ -1099,6 +1101,22 @@ public:
         if (has_scores_output) {
             add_stage(pa_scores_calc, params);
         }
+    }
+
+    bool supports_cm_sdpa(const kernel_impl_params& params) const {
+        auto& engine = params.get_program().get_engine();
+        // 0 - unknown, 1 - supported, 2 - not supported
+        static char supports_cm = 0;
+
+        if (supports_cm == 0) {
+            auto query_result = cldnn::check_cm_jit_support(engine, params.get_program().get_config());
+            if (params.get_device_info().arch < gpu_arch::xe_hpg || !query_result) {
+                supports_cm = 2;
+            } else {
+                supports_cm = 1;
+            }
+        }
+        return supports_cm == 1;
     }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1156,6 +1174,9 @@ public:
         return default_block_size;
     }
 #else
+    bool supports_micro_sdpa(const kernel_impl_params& params) const {
+        return false;
+    }
     size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         return default_block_size;
@@ -1196,9 +1217,10 @@ public:
         }
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
+            rt_params->use_cm_kernel = supports_cm_sdpa(params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
             // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
-            rt_params->use_micro_sdpa = supports_micro_sdpa(params);
+            rt_params->use_micro_sdpa = supports_micro_sdpa(params) && !rt_params->use_cm_kernel;
 #else
             rt_params->use_micro_sdpa = false;
 #endif
@@ -1206,6 +1228,7 @@ public:
             rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
         } else {
             rt_params->use_micro_sdpa = false;
+            rt_params->use_cm_kernel = false;
         }
 
         if (rt_params->stage == PagedAttentionStage::GENERATE) {
@@ -1240,20 +1263,16 @@ public:
         res_event = {execute_stage(res_event, instance, kv_cache_update)};
 
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
-#ifdef CM_PA_ENABLE
-            res_event = {execute_stage(res_event, instance, pa_sdpa_cm)};
-            std::cout << "[GPU] Using CM PA/SDPA kernel for paged attention prefill stage." << std::endl;
-#else
+            if (rt_params->use_cm_kernel) {
+                res_event = {execute_stage(res_event, instance, pa_sdpa_cm)};
+                std::cout << "[GPU] Using CM PA/SDPA kernel for paged attention prefill stage." << std::endl;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (rt_params->use_micro_sdpa) {
+            } else if (rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
+#endif
             } else {
                 res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
             }
-#else
-            res_event = {execute_stage(res_event, instance, pa_sdpa_opt)};
-#endif
-#endif
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
@@ -1418,18 +1437,15 @@ public:
             }
         }
 
-        bool need_softmax_intermediate_buffer = stage != PagedAttentionStage::PREFILL;
-
+        const auto use_cm_kernel = supports_cm_sdpa(params) && stage == PagedAttentionStage::PREFILL;
+        bool use_micro_sdpa = !use_cm_kernel && stage == PagedAttentionStage::PREFILL;
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        bool can_use_micro_sdpa = has_stage(pa_sdpa_micro);
-        need_softmax_intermediate_buffer |= !can_use_micro_sdpa;
-        can_use_micro_sdpa |= stage == PagedAttentionStage::PREFILL;
+        use_micro_sdpa &= has_stage(pa_sdpa_micro);
 #endif
-#ifdef CM_PA_ENABLE
-        need_softmax_intermediate_buffer = stage != PagedAttentionStage::PREFILL;
-#endif
+        bool need_softmax_intermediate_buffer = !use_cm_kernel && !use_micro_sdpa;
         if (need_softmax_intermediate_buffer) {
-            // GENERATE/MIXED stages and PREFILL stage without micro_sdpa
+            // 1. GENERATE/MIXED stages
+            // 2. PREFILL stage for pa_opt kernel
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 6: softmax max_logits
             internal_buffers.emplace_back(tmp_out_elements_count * element_size, indexes_dt);  // 7: intermediate output
@@ -1446,7 +1462,7 @@ public:
         }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (can_use_micro_sdpa) {
+        if (has_stage(pa_sdpa_micro)) {
             const auto wg_tile_q = get_micro_tile_qsize(pa_sdpa_micro->kd);
             const auto target_seq_len = std::max(paged_attention_aligned_seq_len, static_cast<int64_t>(1));
             const auto indexes_buf_size = ceil_div(target_seq_len, wg_tile_q) * 2;
