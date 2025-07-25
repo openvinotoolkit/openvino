@@ -265,7 +265,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     output = output.permute(actual_internal_order);
     pastkv = pastkv.permute(actual_internal_order);
     // S should be always the last dimension
-    OPENVINO_ASSERT(pastkv.stride(3) == 1 && output.stride(3) == 1);
+    OPENVINO_ASSERT(all_of(1U, pastkv.stride(3), output.stride(3)));
     auto L0 = pastkv.size(0);
     auto B = pastkv.size(1);
     auto H = pastkv.size(2);
