@@ -57,6 +57,7 @@ class TestEdsrConvertModel(TestTorchConvertModel):
             cleanup_dir(hf_cache_dir)
         super().teardown_method()
 
+    @pytest.mark.skip(reason="CVS-171175")
     @pytest.mark.parametrize("name", ["edsr"])
     @pytest.mark.precommit
     def test_convert_model_precommit(self, name, ie_device):

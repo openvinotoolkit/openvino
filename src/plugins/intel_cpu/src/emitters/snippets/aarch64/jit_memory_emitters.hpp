@@ -78,6 +78,8 @@ private:
 
     template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+
+    size_t byte_size;
 };
 
 class jit_store_memory_emitter : public jit_memory_emitter {
