@@ -49,10 +49,6 @@ std::vector<layout> SparseFillEmptyRows_inst::calc_output_layouts(SparseFillEmpt
     ov::op::v16::SparseFillEmptyRows op;
     output_shapes = shape_infer(&op, input_shapes, ta);
 
-    for (size_t i = 0; i < output_shapes.size(); ++i) {
-        std::cout << "Output shape " << i << ": " << output_shapes[i] << std::endl;
-    }
-
     return {
         layout{output_shapes[0], indices_layout.data_type, indices_layout.format},
         layout{output_shapes[1], values_layout.data_type, values_layout.format},

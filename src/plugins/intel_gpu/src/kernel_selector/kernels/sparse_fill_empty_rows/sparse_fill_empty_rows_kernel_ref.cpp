@@ -25,7 +25,6 @@ ParamsKey SparseFillEmptyRowsKernelRef::GetSupportedKey() const {
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
-    //k.EnableDynamicShapesSupport();
     k.EnableDifferentTypes();
     return k;
 }
@@ -33,10 +32,7 @@ ParamsKey SparseFillEmptyRowsKernelRef::GetSupportedKey() const {
 namespace {
 SparseFillEmptyRowsKernelRef::DispatchData SetDefault(const sparse_fill_empty_rows_params& params) {
     SparseFillEmptyRowsKernelRef::DispatchData dispatchData;
-    const auto temp = params.outputs[2];
-    const auto temp_dims = params.outputs[2].GetDims();
     const auto rows_count = params.outputs[2].GetDims()[3].v;  // empty_row_indicator has size [rows]
-    std::cout<< "\n\nSparseFillEmptyRowsKernelRef::SetDefault: rows_count = " << rows_count << "\n\n";
     dispatchData.gws[0] = rows_count;
     dispatchData.gws[1] = 1;
     dispatchData.gws[2] = 1;
@@ -51,10 +47,11 @@ KernelsData SparseFillEmptyRowsKernelRef::GetKernelsData(const Params &params) c
         return {};
     }
     KernelData kernel_data = KernelData::Default<sparse_fill_empty_rows_params>(params);
+    kernel_data.kernels[0].skip_execution = SkipKernelExecution(static_cast<const sparse_fill_empty_rows_params&>(params));
     sparse_fill_empty_rows_params &new_params = dynamic_cast<sparse_fill_empty_rows_params&>(*kernel_data.params.get());
+    auto sparse_fill_empty_rows_specific_jit = GetJitConstants(new_params);
     auto dispatch_data = SetDefault(new_params);
     auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params);
-    auto sparse_fill_empty_rows_specific_jit = GetJitConstants(new_params);
     auto jit = CreateJit(kernelName, sparse_fill_empty_rows_specific_jit, entry_point);
     FillCLKernelData(kernel_data.kernels[0],
         dispatch_data,
@@ -97,4 +94,10 @@ JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_emp
     return jit;
 }
 
+bool SparseFillEmptyRowsKernelRef::SkipKernelExecution(const sparse_fill_empty_rows_params& params, size_t kernel_id) const {
+    if (params.inputs[2].LogicalSize() != params.outputs[0].LogicalSize()) {
+        return false;
+    }
+    return KernelData::SkipKernelExecution(params);
+}
 }  // namespace kernel_selector

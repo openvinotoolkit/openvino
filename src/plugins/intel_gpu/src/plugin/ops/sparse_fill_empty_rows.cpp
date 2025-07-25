@@ -25,7 +25,6 @@ static void CreateSparseFillEmptyRowsOp(ProgramBuilder& p, const std::shared_ptr
     std::vector<float> values = values_constant ? values_constant->cast_vector<float>() : std::vector<float>{};
     std::vector<int64_t> dense_shape = dense_shape_constant ? dense_shape_constant->cast_vector<int64_t>() : std::vector<int64_t>{};
     float default_value = default_value_constant ? default_value_constant->cast_vector<float>()[0] : 0.0f;
-    GPU_DEBUG_LOG << "\n\nExecuting CreateSparseFillEmptyRowsOp\n\n";
 
     std::shared_ptr<cldnn::sparse_fill_empty_rows> prim = nullptr;
 

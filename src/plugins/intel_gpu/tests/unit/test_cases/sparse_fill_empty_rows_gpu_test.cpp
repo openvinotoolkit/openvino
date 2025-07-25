@@ -38,12 +38,6 @@ memory::ptr AllocateTensor(ov::PartialShape shape, const std::vector<TDataType>&
     EXPECT_EQ(lo.get_linear_size(), data.size());
     memory::ptr tensor = get_test_engine().allocate_memory(lo);
     set_values<TDataType>(tensor, data);
-    // Debug: Print out the data being set
-    std::cout << "[AllocateTensor] Data: ";
-    for (const auto& v : data) {
-        std::cout << v << " ";
-    }
-    std::cout << std::endl;
     return tensor;
 }
 
@@ -176,50 +170,11 @@ public:
         network->set_input_data("denseShape", params.denseShape);
         network->set_input_data("indices", params.indices);
         network->set_input_data("default_value", params.defaultValue);
-        // Print input data tensors before execution
-        auto print_tensor = [](const std::string& name, const memory::ptr& tensor, cldnn::stream& stream) {
-            auto layout = tensor->get_layout();
-            auto type = layout.data_type;
-            std::cout << name << " (shape: " << layout.get_shape() << ", type: " << type << "): [";
-            switch (type) {
-            case data_types::f32: {
-                mem_lock<float> ptr(tensor, stream);
-                for (size_t i = 0; i < ptr.size(); ++i)
-                std::cout << ptr[i] << (i + 1 < ptr.size() ? ", " : "");
-                break;
-            }
-            case data_types::i64: {
-                mem_lock<int64_t> ptr(tensor, stream);
-                for (size_t i = 0; i < ptr.size(); ++i)
-                std::cout << ptr[i] << (i + 1 < ptr.size() ? ", " : "");
-                break;
-            }
-            default:
-                std::cout << "Unsupported data type";
-            }
-            std::cout << "]" << std::endl;
-        };
-
-        std::cout << "=== Input Tensors ===" << std::endl;
-        print_tensor("Input Indices", params.indices, get_test_stream());
-        print_tensor("Input Values", params.values, get_test_stream());
-        print_tensor("Input DenseShape", params.denseShape, get_test_stream());
-        print_tensor("Input DefaultValue", params.defaultValue, get_test_stream());
-        std::cout << "=====================" << std::endl;
 
         auto outputs = network->execute();
         auto output_indices = outputs.at("output_indices").get_memory();
         auto output_values = outputs.at("output_values").get_memory();
         auto output_empty_row_indicator = outputs.at("output_empty_row_indicator").get_memory();
-
-        std::cout << "=== Expected vs Actual Tensors ===" << std::endl;
-        print_tensor("Expected Indices", params.expectedIndicesOutput, get_test_stream());
-        print_tensor("Actual Indices", output_indices, get_test_stream());
-        print_tensor("Expected Values", params.expectedValuesOutput, get_test_stream());
-        print_tensor("Actual Values", output_values, get_test_stream());
-        print_tensor("Expected EmptyRowIndicator", params.expectedEmptyRowIndicatorOutput, get_test_stream());
-        print_tensor("Actual EmptyRowIndicator", output_empty_row_indicator, get_test_stream());
-        std::cout << "=================================" << std::endl;
 
         helpers::CompareBuffers(output_indices, params.expectedIndicesOutput, get_test_stream());
         helpers::CompareBuffers(output_values, params.expectedValuesOutput, get_test_stream());

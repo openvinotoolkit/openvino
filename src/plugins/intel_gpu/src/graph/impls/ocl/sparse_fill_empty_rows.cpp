@@ -23,7 +23,7 @@ struct sparse_fill_empty_rows_impl : typed_primitive_impl_ocl<sparse_fill_empty_
     }
 
 public:
-        static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool shape_agnostic = false) {
+    static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<sparse_fill_empty_rows>();
         auto params = get_default_params<kernel_selector::sparse_fill_empty_rows_params>(impl_param, shape_agnostic);
 
@@ -35,6 +35,16 @@ public:
             params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(i)));
         }
         return params;
+    }
+
+    void update_dispatch_data(const kernel_impl_params& impl_param) override {
+        // If model loaded from cache, params are not initialized, so we create a new object and reuse it in the future
+        if (_kernel_data.params == nullptr) {
+            _kernel_data.params = std::make_shared<kernel_params_t>(get_kernel_params(impl_param, true));
+        }
+
+        update_shapes(*_kernel_data.params, impl_param);
+        (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
     }
 };
 
