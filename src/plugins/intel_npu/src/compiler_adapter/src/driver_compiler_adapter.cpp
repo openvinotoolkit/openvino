@@ -385,13 +385,13 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
     // "Graph" object as wrapper over all L0 handles.
-    std::vector<GraphDescriptor> initGraphDescprtors;
+    std::vector<GraphDescriptor> initGraphDescriptors;
     std::vector<NetworkMetadata> initMetadata;
 
     for (const auto& initBlob : initBlobs.value()) {
         auto initGraphDesc = _zeGraphExt->getGraphDescriptor(initBlob.data(), initBlob.get_byte_size());
 
-        initGraphDescprtors.push_back(initGraphDesc);
+        initGraphDescriptors.push_back(initGraphDesc);
         initMetadata.push_back(_zeGraphExt->getNetworkMeta(initGraphDesc));
     }
 
@@ -401,7 +401,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
         mainGraphDesc,
         std::move(networkMeta),
         std::move(mainBlob),
-        initGraphDescprtors,
+        initGraphDescriptors,
         std::move(initMetadata),
         std::move(initBlobs),
         model.value(),
