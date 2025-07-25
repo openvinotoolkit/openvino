@@ -378,11 +378,15 @@ void primitive_inst::update_shape() {
                 break;
             }
         }
+
         if (!subgraph_input_changed) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             unset_flag(ExecutionFlags::SHAPE_CHANGED);
             return;
         }
+
+        // If the input shape of root ShapeOf node has changed, update node's parameters as well.
+        set_flag(ExecutionFlags::SHAPE_CHANGED, subgraph_input_changed);
     }
 
     // Even though the predecessors' shapes are not changed, the output shape might be updated by the mem_dep
