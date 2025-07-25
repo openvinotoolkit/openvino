@@ -812,8 +812,6 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         if (is_weightless) {
             compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "", true);
             compiled->finalize_weights_bank();
-            // Free mmaped weights file memory
-            compiled->m_import_weights_ctx.reset();
         } else {
             compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -1066,7 +1064,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         }
 
         // Keep ownership of mmaped weights file
-        compiled->m_import_weights_ctx = WeightsContext(weights, consts_cache, compiled->m_bf16_consts);
+        auto weights_ctx = WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts);
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;
@@ -1088,7 +1086,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                     plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx);
+            compiled->m_compiled_submodels[i].deserialize(stream, weights_ctx);
         }
 
         compiled->implement_properties();

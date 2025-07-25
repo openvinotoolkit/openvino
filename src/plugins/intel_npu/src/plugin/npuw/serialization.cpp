@@ -25,9 +25,11 @@ ov::npuw::s11n::WeightsContext::WeightsContext(bool _is_weightless,
 
 // NOTE: This construtor can and should only be used when importing blobs
 ov::npuw::s11n::WeightsContext::WeightsContext(const ov::npuw::s11n::Weights& _weights,
+                                               const std::string& _weights_path,
                                                const s11n::WeightsContext::ConstsCache& _consts_cache,
                                                const BF16Cache& _bf16_consts)
     : weights(_weights),
+      weights_path(_weights_path),
       consts_cache(_consts_cache),
       bf16_consts(_bf16_consts) {
     is_weightless = _weights || !_consts_cache.empty();
