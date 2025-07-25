@@ -80,7 +80,7 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
-PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 #ifdef Py_GIL_DISABLED
 PYBIND11_MODULE(_pyopenvino, m, py::mod_gil_not_used()) {
@@ -103,7 +103,7 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     "Please ensure that environment variables (e.g. PATH, PYTHONPATH) are set correctly so that "
                     "OpenVINO Runtime and Python libraries point to same release.");
 
-    py::bind_vector<std::vector<ov::Tensor>>(m, "TensorVectorOpaque");
+    py::bind_vector<ov::TensorVector>(m, "TensorVectorOpaque");
 
     m.def("get_version", &get_version);
     m.def(

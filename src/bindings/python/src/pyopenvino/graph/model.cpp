@@ -30,7 +30,7 @@ namespace py = pybind11;
 using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
-PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 namespace {
 template <class... Args>

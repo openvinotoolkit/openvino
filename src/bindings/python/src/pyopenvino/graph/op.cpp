@@ -16,7 +16,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 void PyOp::validate_and_infer_types() {
     PYBIND11_OVERRIDE(void, ov::op::Op, validate_and_infer_types);

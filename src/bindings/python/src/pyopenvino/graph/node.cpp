@@ -39,7 +39,7 @@ namespace py = pybind11;
 using PyRTMap = ov::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
-PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 void regclass_graph_Node(py::module m) {
     py::class_<ov::Node, std::shared_ptr<ov::Node>, PyNode> node(m, "Node", py::dynamic_attr());
@@ -260,8 +260,8 @@ void regclass_graph_Node(py::module m) {
         [](const ov::Node& self, py::list& output_values, const py::list& input_values) -> bool {
             py::object pyTensorVectorOpaque =
                 py::module_::import("openvino").attr("_pyopenvino").attr("TensorVectorOpaque");
-            auto casted_output_values = pyTensorVectorOpaque(output_values).cast<std::vector<ov::Tensor>>();
-            const auto casted_input_values = pyTensorVectorOpaque(input_values).cast<std::vector<ov::Tensor>>();
+            auto casted_output_values = pyTensorVectorOpaque(output_values).cast<ov::TensorVector>();
+            const auto casted_input_values = pyTensorVectorOpaque(input_values).cast<ov::TensorVector>();
 
             return self.evaluate(casted_output_values, casted_input_values);
         },
