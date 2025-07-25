@@ -30,6 +30,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <iomanip>
@@ -106,7 +107,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     const char* p1 = p0;
     while (*p0 != 0) {
         p1 = p0;
-        while (*p1 != ';' && *p1 != 0) {
+        while (none_of(*p1, ';', 0)) {
             ++p1;
         }
         std::string pattern(p0, p1 - p0);

@@ -15,14 +15,14 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              ze_graph_handle_t graphHandle,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
-             bool blobAllocatedByPlugin,
+             const bool persistentBlob,
              const Config& config,
              const ov::SoPtr<ICompiler>& compiler,
              const bool calledFromWeightlessGraph)
     : IGraph(graphHandle, std::move(metadata), config, std::move(blob)),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
-      _blobAllocatedByPlugin(blobAllocatedByPlugin),
+      _persistentBlob(persistentBlob),
       _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
     if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
@@ -42,8 +42,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
     std::vector<uint8_t> blobVec;  // plugin needs to keep a copy of the blob for older drivers
 
     if (_blobIsReleased) {
-        OPENVINO_THROW("Model was optimized away. Try importing it using `ov::hint::compiled_blob` property to extend "
-                       "its lifetime.");
+        OPENVINO_THROW("Model was imported and released after initialization. Model export is not allowed anymore.");
     }
 
     if (_blob ==
@@ -119,8 +118,11 @@ void Graph::initialize(const Config& config) {
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
             _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            _logger.debug("got pfnGetArgumentProperties3 for input: %s", _input_descriptors.back().to_string().c_str());
         } else {
             _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            _logger.debug("got pfnGetArgumentProperties3 for output: %s",
+                          _output_descriptors.back().to_string().c_str());
         }
     }
 
@@ -162,7 +164,8 @@ void Graph::initialize(const Config& config) {
     //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
-    _batch_size = get_batch_size(_metadata);
+
+    _batch_size = get_batch_size(_metadata, {}, {});
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -173,7 +176,7 @@ void Graph::initialize(const Config& config) {
 }
 
 bool Graph::release_blob(const Config& config) {
-    if (!_blobAllocatedByPlugin) {
+    if (_persistentBlob) {
         return false;
     }
 
