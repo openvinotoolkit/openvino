@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pyopenvino/core/remote_tensor.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
@@ -418,7 +419,7 @@ std::shared_ptr<ov::SharedBuffer<py::array>> get_shared_memory(py::array& array)
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
         std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
-            py::gil_scoped_acquire acquire;
+            ConditionalGILScopedAcquire acquire;
             delete buffer;
         });
         return memory;

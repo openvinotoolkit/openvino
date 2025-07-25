@@ -30,7 +30,7 @@ void regclass_CompiledModel(py::module m) {
             // Create temporary ov::InferRequest and move it to actual wrapper class.
             ov::InferRequest request;
             {
-                py::gil_scoped_release release;
+                ConditionalGILScopedRelease release;
                 request = self.create_infer_request();
             }
             return std::make_shared<InferRequestWrapper>(std::move(request), self.inputs(), self.outputs());
@@ -171,7 +171,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("get_runtime_model",
             &ov::CompiledModel::get_runtime_model,
-            py::call_guard<py::gil_scoped_release>(),
+            CallGuardConditionalGILRelease(),
             R"(
                 Gets runtime model information from a device.
 
@@ -186,7 +186,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("release_memory",
             &ov::CompiledModel::release_memory,
-            py::call_guard<py::gil_scoped_release>(),
+            CallGuardConditionalGILRelease(),
             R"(
                 Release intermediate memory.
 

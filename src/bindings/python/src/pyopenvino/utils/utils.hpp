@@ -7,6 +7,7 @@
 #include <pybind11/pybind11.h>
 
 #include <filesystem>
+#include <variant>
 
 #ifdef _MSC_VER
 // Warning occurred at the junction of pybind11
@@ -31,6 +32,21 @@
 #include "openvino/pass/serialize.hpp"
 
 namespace py = pybind11;
+
+// Conditional GIL management for PEP 703 (free-threaded Python)
+inline constexpr bool PY_GIL_DISABLED {
+#if defined(Py_GIL_DISABLED) && Py_GIL_DISABLED
+    true
+#else
+    false
+#endif
+};
+
+using ConditionalGILScopedRelease = std::conditional_t<PY_GIL_DISABLED, std::monostate, py::gil_scoped_release>;
+using ConditionalGILScopedAcquire = std::conditional_t<PY_GIL_DISABLED, std::monostate, py::gil_scoped_acquire>;
+
+// For free-threaded Python, we don't need call_guard - use empty call_guard
+using CallGuardConditionalGILRelease = std::conditional_t<PY_GIL_DISABLED, py::call_guard<>, py::call_guard<py::gil_scoped_release>>;
 
 namespace Common {
 namespace utils {
