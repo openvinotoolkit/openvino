@@ -275,7 +275,7 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
 
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc>
 get_conv_memory_descs(cldnn::layout input_layout, cldnn::layout weights_layout, cldnn::layout output_layout, dnnl::memory::format_tag target_fmt) {
-    mem_flags flags = (input_layout.format.is_blocked() || output_layout.format.is_blocked()) ?
+    mem_flags flags = (input_layout.format.is_blocked() || output_layout.format.is_blocked() || format::is_grouped(weights_layout.format)) ?
         mem_flags::need_blocked : mem_flags::None;
     dnnl::memory::desc input_desc   = layout_to_memory_desc(input_layout, target_fmt, flags);
     dnnl::memory::desc weights_desc = layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any, flags);
