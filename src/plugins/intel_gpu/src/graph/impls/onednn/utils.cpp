@@ -738,10 +738,13 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
     if (filtered_target_dims == filtered_desc_dims) {
         layout.set_partial_shape(desc_dims);
         if (layout.get_rank() != desc_dims.size()) {
-            if (cldnn::format::is_default_format(layout.format)) {
-                layout.format = cldnn::format::get_default_format(desc_dims.size());
+            auto is_weights = cldnn::format::is_weights_format(layout.format);
+            auto is_grouped = cldnn::format::is_grouped(layout.format);
+            auto expected_format = cldnn::format::get_default_format(cldnn::format::dimension(layout.format), is_weights, is_grouped);
+            if (layout.format == expected_format) {
+                layout.format = cldnn::format::get_default_format(desc_dims.size(), is_weights, is_grouped);
             } else {
-                // TO-DO: Consider that weight format is not default format
+                // The expected format is not default format.
                 return false;
             }
         }
