@@ -49,7 +49,6 @@ from tests import (
     xfail_issue_99968,
     xfail_issue_99969,
     xfail_issue_99970,
-    xfail_issue_99973,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
