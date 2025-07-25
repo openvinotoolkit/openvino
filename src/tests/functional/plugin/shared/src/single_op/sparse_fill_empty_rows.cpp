@@ -9,7 +9,6 @@
 
 namespace ov {
 namespace test {
-
 std::string SparseFillEmptyRowsLayerTest::getTestCaseName(const testing::TestParamInfo<SparseFillEmptyRowsParams>& obj) {
     std::ostringstream result;
     const auto& [input_shapes, default_value, values_type, in_type, dev] = obj.param;
@@ -57,31 +56,22 @@ void SparseFillEmptyRowsLayerTest::SetUp() {
 void SparseFillEmptyRowsLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& funcInputs = function->inputs();
-    // values: [M], dense_shape: [2], indices: [M, 2]
     const auto& valuesShape = targetInputStaticShapes[0];
     const auto& denseShapeShape = targetInputStaticShapes[1];
     const auto& indicesShape = targetInputStaticShapes[2];
     const auto valuesType = funcInputs[0].get_element_type();
     const auto idxType = funcInputs[2].get_element_type();
 
-    // Use the dense_shape values from the test parameter (the shape of the dense tensor)
     std::vector<int64_t> dense_shape_values;
     for (auto v : indicesShape) {
         dense_shape_values.push_back(static_cast<int64_t>(v));
     }
     ov::Tensor dense_shape_tensor(idxType, {2});
-    if (idxType == ov::element::i32) {
-        auto* ptr = dense_shape_tensor.data<int32_t>();
-        ptr[0] = static_cast<int32_t>(dense_shape_values[0]);
-        ptr[1] = static_cast<int32_t>(dense_shape_values[1]);
-    } else {
-        auto* ptr = dense_shape_tensor.data<int64_t>();
-        ptr[0] = dense_shape_values[0];
-        ptr[1] = dense_shape_values[1];
-    }
+    auto* ptr = dense_shape_tensor.data<int64_t>();
+    ptr[0] = dense_shape_values[0];
+    ptr[1] = dense_shape_values[1];
     inputs[funcInputs[1].get_node_shared_ptr()] = dense_shape_tensor;
 
-    // Generate values
     ov::test::utils::InputGenerateData valuesData;
     valuesData.start_from = 1;
     valuesData.range = 10;
@@ -93,22 +83,13 @@ void SparseFillEmptyRowsLayerTest::generate_inputs(const std::vector<ov::Shape>&
     size_t num_cols = dense_shape_values[1];
     ov::Tensor indices_tensor(idxType, indicesShape);
     size_t M = indicesShape[0];
-    if (idxType == ov::element::i32) {
-        auto* ptr = indices_tensor.data<int32_t>();
-        for (size_t i = 0; i < M; ++i) {
-            ptr[i * 2 + 0] = static_cast<int32_t>(i % num_rows);
-            ptr[i * 2 + 1] = static_cast<int32_t>((i * 2) % num_cols);
-        }
-    } else {
-        auto* ptr = indices_tensor.data<int64_t>();
-        for (size_t i = 0; i < M; ++i) {
-            ptr[i * 2 + 0] = static_cast<int64_t>(i % num_rows);
-            ptr[i * 2 + 1] = static_cast<int64_t>((i * 2) % num_cols);
-        }
+    auto* iptr = indices_tensor.data<int64_t>();
+    for (size_t i = 0; i < M; ++i) {
+        iptr[i * 2 + 0] = static_cast<int64_t>(i % num_rows);
+        iptr[i * 2 + 1] = static_cast<int64_t>((i * 2) % num_cols);
     }
     inputs[funcInputs[2].get_node_shared_ptr()] = indices_tensor;
 
-    // Generate default_value
     const auto& default_value_type = funcInputs.size() > 3 ? funcInputs[3].get_element_type() : valuesType;
     ov::test::utils::InputGenerateData defvalData;
     defvalData.start_from = 42;
