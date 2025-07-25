@@ -325,7 +325,7 @@ void WeightlessGraph::initialize(const Config& config) {
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
         //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
         //  releasing it here to avoid unnecessary memory usage.
-        release_init_blob(initIndex, config);
+        release_init_blob(initIndex);
     }
 
     // Create a single command queue for all weights initialization schedules
@@ -591,7 +591,7 @@ void WeightlessGraph::set_weights_inputs() {
     }
 }
 
-void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
+void WeightlessGraph::release_init_blob(const size_t initIndex) {
     if (_initsGraphDesc[initIndex]._data || _blobIsPersistent || _initBlobs == std::nullopt) {
         return;
     }
