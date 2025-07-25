@@ -160,25 +160,25 @@ public:
                                                        const ov::AnyMap& config = {}) const = 0;
     /**
      * @brief Creates a compiled model from a previously exported model
-     * @param model model blob
+     * @param compiled_blob model blob
      * @param device_name Name of device load executable model on
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
                                                        const std::string& device_name,
                                                        const ov::AnyMap& config = {}) const = 0;
 
     /**
      * @brief Creates a compiled model from a previously exported model
-     * @param model model blob
+     * @param compiled_blob model blob
      * @param context Remote context
      * @param config Optional map of pairs: (config parameter name, config parameter value) relevant only for this load
      * operation*
      * @return A pointer to compiled model
      */
-    virtual ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+    virtual ov::SoPtr<ov::ICompiledModel> import_model(const ov::Tensor& compiled_blob,
                                                        const ov::SoPtr<ov::IRemoteContext>& context,
                                                        const ov::AnyMap& config = {}) const = 0;
 

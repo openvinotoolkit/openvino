@@ -980,7 +980,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& model
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OPENVINO_ASSERT(context, "Remote context must not be empty.");
-    auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
+    const auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
     return get_plugin(parsed._deviceName).import_model(model, context, parsed._config);
 }
 
@@ -988,7 +988,7 @@ ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Mo
                                               const std::string& device_name,
                                               const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::query_model");
-    auto parsed = parseDeviceNameIntoConfig(device_name, config);
+    const auto parsed = parseDeviceNameIntoConfig(device_name, config);
     return get_plugin(parsed._deviceName).query_model(model, parsed._config);
 }
 
