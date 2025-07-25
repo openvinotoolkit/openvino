@@ -1947,8 +1947,8 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         vec_idx_seq.clear();
         vec_idx_block.clear();
 
-        CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() >= 2,
-                        "gets incorrect number of input/output edges!");
+        const bool validInputOutputShapes = inputShapes.size() == 2 && outputShapes.size() >= 2;
+        CPU_NODE_ASSERT(validInputOutputShapes, "gets incorrect number of input/output edges!");
 
         CPU_NODE_ASSERT(getInputShapeAtPort(TOPK_DATA).getRank() == getOutputShapeAtPort(TOPK_DATA).getRank(),
                         "gets incorrect number of input/output dimensions!");
@@ -1961,8 +1961,8 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         if (axis < 0) {
             axis += in_dims_size;
         }
-        CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(in_dims_size),
-                        "gets incorrect input parameters dimensions and axis number!");
+        const bool validAxis = axis >= 0 && axis < static_cast<int>(in_dims_size);
+        CPU_NODE_ASSERT(validAxis, "gets incorrect input parameters dimensions and axis number!");
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
@@ -2069,8 +2069,10 @@ void TopK::preset_params() {
 void TopK::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory.");
-    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory.");
+    const bool validDstMemory = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(validDstMemory, "has undefined destination memory.");
+    const bool validSrcMemory = srcMemPtr && srcMemPtr->isDefined();
+    CPU_NODE_ASSERT(validSrcMemory, "has undefined input memory.");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has nullable preferable primitive descriptor");
 
     src_dims = srcMemPtr->getDesc().getShape().getDims();

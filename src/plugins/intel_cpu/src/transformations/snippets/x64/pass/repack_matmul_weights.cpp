@@ -66,7 +66,8 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         const auto consumers = first_child->output(0).get_target_inputs();
 
         const auto brgemm_cpu = ov::as_type_ptr<BrgemmCPU>(consumers.cbegin()->get_node()->shared_from_this());
-        OPENVINO_ASSERT(consumers.size() == 1 && brgemm_cpu != nullptr, "Expected one consumer - BrgemmCPU");
+        const bool validConsumer = consumers.size() == 1 && brgemm_cpu != nullptr;
+        OPENVINO_ASSERT(validConsumer, "Expected one consumer - BrgemmCPU");
 
         const auto& brgemm_config = brgemm_cpu->get_config();
         if (!brgemm_config.are_wei_constant()) {

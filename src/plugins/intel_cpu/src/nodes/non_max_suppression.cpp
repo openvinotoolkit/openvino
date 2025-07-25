@@ -86,9 +86,11 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
         m_out_static_shape = true;
     }
 
-    CPU_NODE_ASSERT(getOriginalInputsNumber() >= 2 && getOriginalInputsNumber() <= NMS_SOFT_NMS_SIGMA + 1,
-                    "has incorrect number of input edges: ",
-                    getOriginalInputsNumber());
+    const auto inputsNumber = getOriginalInputsNumber();
+    const bool hasMinimumInputs = inputsNumber >= 2;
+    const bool hasMaximumInputs = inputsNumber <= NMS_SOFT_NMS_SIGMA + 1;
+    const bool hasValidInputCount = hasMinimumInputs && hasMaximumInputs;
+    CPU_NODE_ASSERT(hasValidInputCount, "has incorrect number of input edges: ", inputsNumber);
     CPU_NODE_ASSERT(getOriginalOutputsNumber() == 3,
                     "has incorrect number of output edges: ",
                     getOriginalOutputsNumber());
@@ -973,11 +975,11 @@ float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float*
 }
 
 void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name, [[maybe_unused]] const size_t port) {
-    CPU_NODE_ASSERT(shape.getRank() == 0 || shape.getRank() == 1,
-                    "has unsupported '",
-                    name,
-                    "' input rank: ",
-                    shape.getRank());
+    const auto rank = shape.getRank();
+    const bool isScalar = rank == 0;
+    const bool isVector = rank == 1;
+    const bool isValidRank = isScalar || isVector;
+    CPU_NODE_ASSERT(isValidRank, "has unsupported '", name, "' input rank: ", shape.getRank());
     if (shape.getRank() == 1) {
         CPU_NODE_ASSERT(shape.getDims()[0] == 1,
                         "has unsupported '",

@@ -67,7 +67,8 @@ ISTFT::ISTFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 
 void ISTFT::getSupportedDescriptors() {
     const auto input_size = getParentEdges().size();
-    CPU_NODE_ASSERT(input_size >= 4 && input_size <= 5, "ISTFT has incorrect number of input edges.");
+    const bool validInputSize = input_size >= 4 && input_size <= 5;
+    CPU_NODE_ASSERT(validInputSize, "ISTFT has incorrect number of input edges.");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "ISTFT has incorrect number of output edges.");
 }
 

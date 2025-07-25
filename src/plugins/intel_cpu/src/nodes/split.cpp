@@ -278,7 +278,9 @@ void Split::createPrimitive() {
 
 void Split::prepareParams() {
     const auto& srcMemPtr = getSrcMemoryAtPort(0);
-    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory");
+    const auto srcMemExists = static_cast<bool>(srcMemPtr);
+    const bool srcMemDefined = srcMemExists && srcMemPtr->isDefined();
+    CPU_NODE_ASSERT(srcMemDefined, "has undefined input memory");
 
     if (!constSplitLengths) {
         const auto& splitLengthsPtr = getSrcMemoryAtPort(2);
@@ -291,7 +293,9 @@ void Split::prepareParams() {
     std::vector<BlockedMemoryDescCPtr> outDescs;
     for (size_t port = 0; port < outputShapes.size(); ++port) {
         const auto& outMemPtr = this->getDstMemoryAtPort(port);
-        CPU_NODE_ASSERT(outMemPtr && outMemPtr->isDefined(), "has undefined destination memory");
+        const auto outMemExists = static_cast<bool>(outMemPtr);
+        const bool outMemDefined = outMemExists && outMemPtr->isDefined();
+        CPU_NODE_ASSERT(outMemDefined, "has undefined destination memory");
 
         if (outMemPtr->getShape().hasZeroDims()) {
             continue;

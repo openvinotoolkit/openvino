@@ -537,9 +537,17 @@ void ROIPooling::prepareParams() {
     const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
     const auto& srcMemPtr1 = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(srcMemPtr0 && srcMemPtr0->isDefined(), "Input memory is undefined.");
-    CPU_NODE_ASSERT(srcMemPtr1 && srcMemPtr1->isDefined(), "Input memory is undefined.");
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination is undefined.");
+    const auto srcMem0Exists = static_cast<bool>(srcMemPtr0);
+    const bool srcMem0Defined = srcMem0Exists && srcMemPtr0->isDefined();
+    CPU_NODE_ASSERT(srcMem0Defined, "Input memory is undefined.");
+
+    const auto srcMem1Exists = static_cast<bool>(srcMemPtr1);
+    const bool srcMem1Defined = srcMem1Exists && srcMemPtr1->isDefined();
+    CPU_NODE_ASSERT(srcMem1Defined, "Input memory is undefined.");
+
+    const auto dstMemExists = static_cast<bool>(dstMemPtr);
+    const bool dstMemDefined = dstMemExists && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(dstMemDefined, "Destination is undefined.");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor is not set.");
 
     const auto& inDims = getParentEdgeAt(0)->getMemory().getStaticDims();

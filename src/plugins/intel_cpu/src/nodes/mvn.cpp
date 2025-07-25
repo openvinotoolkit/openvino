@@ -94,15 +94,14 @@ size_t MVNKey::hash() const {
 }
 
 bool MVNKey::operator==(const MVNKey& rhs) const {
-    bool retVal = true;
-    retVal = retVal && mvnAttrs.initAcrossChannels_ == rhs.mvnAttrs.initAcrossChannels_ &&
-             mvnAttrs.execAcrossChannels_ == rhs.mvnAttrs.execAcrossChannels_ &&
-             mvnAttrs.normalizeVariance_ == rhs.mvnAttrs.normalizeVariance_ &&
-             mvnAttrs.epsValue_ == rhs.mvnAttrs.epsValue_ && mvnAttrs.epsMode_ == rhs.mvnAttrs.epsMode_ &&
-             mvnAttrs.src_prc == rhs.mvnAttrs.src_prc && mvnAttrs.dst_prc == rhs.mvnAttrs.dst_prc &&
-             mvnAttrs.layout == rhs.mvnAttrs.layout;
-    retVal = retVal && *attr.get() == *rhs.attr.get();
-    return retVal;
+    const bool mvnAttrsEqual = mvnAttrs.initAcrossChannels_ == rhs.mvnAttrs.initAcrossChannels_ &&
+                               mvnAttrs.execAcrossChannels_ == rhs.mvnAttrs.execAcrossChannels_ &&
+                               mvnAttrs.normalizeVariance_ == rhs.mvnAttrs.normalizeVariance_ &&
+                               mvnAttrs.epsValue_ == rhs.mvnAttrs.epsValue_ &&
+                               mvnAttrs.epsMode_ == rhs.mvnAttrs.epsMode_ && mvnAttrs.src_prc == rhs.mvnAttrs.src_prc &&
+                               mvnAttrs.dst_prc == rhs.mvnAttrs.dst_prc && mvnAttrs.layout == rhs.mvnAttrs.layout;
+    const bool attrsEqual = *attr.get() == *rhs.attr.get();
+    return mvnAttrsEqual && attrsEqual;
 }
 }  // namespace
 
@@ -2190,8 +2189,11 @@ void MVN::MVNJitExecutor::exec(const uint8_t* src_data,
                                uint8_t* dst_data,
                                const void* post_ops_data_,
                                const VectorDims& shape5d) {
-    OPENVINO_ASSERT(mvn_mean_kernel && (!mvnAttrs.normalizeVariance_ || mvn_variance_kernel) && mvn_kernel,
-                    "MVN layer doesn't create kernel to execute on sse41 above platform.");
+    const auto hasMeanKernel = static_cast<bool>(mvn_mean_kernel);
+    const bool hasVarianceKernelWhenNeeded = !mvnAttrs.normalizeVariance_ || static_cast<bool>(mvn_variance_kernel);
+    const auto hasMainKernel = static_cast<bool>(mvn_kernel);
+    const bool hasAllRequiredKernels = hasMeanKernel && hasVarianceKernelWhenNeeded && hasMainKernel;
+    OPENVINO_ASSERT(hasAllRequiredKernels, "MVN layer doesn't create kernel to execute on sse41 above platform.");
     if (mvnAttrs.layout == MVNLayoutType::mvn_planar) {
         mvn_pln(src_data, dst_data, post_ops_data_, shape5d);
     } else if (mvnAttrs.layout == MVNLayoutType::mvn_by_channel) {

@@ -833,9 +833,16 @@ NormalizeL2::NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() == 1, "has incorrect number of input/output edges");
-    CPU_NODE_ASSERT(getInputShapeAtPort(DATA).getRank() <= 4 && getInputShapeAtPort(DATA).getRank() >= 2,
-                    "has invalid input shape. Normalize supports from 2D to 4D blobs.");
+    const bool hasCorrectInputCount = inputShapes.size() == 2;
+    const bool hasCorrectOutputCount = outputShapes.size() == 1;
+    const bool hasCorrectEdgeCount = hasCorrectInputCount && hasCorrectOutputCount;
+    CPU_NODE_ASSERT(hasCorrectEdgeCount, "has incorrect number of input/output edges");
+
+    const auto dataInputRank = getInputShapeAtPort(DATA).getRank();
+    const bool isRankNotTooHigh = dataInputRank <= 4;
+    const bool isRankNotTooLow = dataInputRank >= 2;
+    const bool isValidInputRank = isRankNotTooHigh && isRankNotTooLow;
+    CPU_NODE_ASSERT(isValidInputRank, "has invalid input shape. Normalize supports from 2D to 4D blobs.");
 
     auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(op);
     attrs.eps = norm->get_eps();

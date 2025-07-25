@@ -251,7 +251,8 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
 
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
         const auto scalar = ov::as_type_ptr<Scalar>(pattern_map.at(m_scalar).get_node_shared_ptr());
-        OPENVINO_ASSERT(brgemm != nullptr && scalar != nullptr, "BrgemmCPU node and scalar are expected");
+        const bool validNodes = brgemm != nullptr && scalar != nullptr;
+        OPENVINO_ASSERT(validNodes, "BrgemmCPU node and scalar are expected");
         const auto scalar_value = scalar->get_value<float>();
 
         auto append_eltwise = [&brgemm](alg_kind_t alg_kind, float alpha, float beta) {

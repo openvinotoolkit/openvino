@@ -654,7 +654,8 @@ void RNN::initCell() {
                        "; Hidden state rank: ",
                        getInputShapeAtPort(1).getRank());
     }
-    CPU_NODE_ASSERT(!is_augru || getInputShapeAtPort(5).getRank() == 2LU,
+    const bool validAttentionRank = !is_augru || getInputShapeAtPort(5).getRank() == 2LU;
+    CPU_NODE_ASSERT(validAttentionRank,
                     "has incorrect input ranks. Attention rank: ",
                     getInputShapeAtPort(2).getRank());
 
@@ -694,7 +695,10 @@ void RNN::initCell() {
 
         if (is_augru) {
             const Shape shapeA{B, 1};
-            CPU_NODE_ASSERT(!(getInputShapeAtPort(5).isStatic() && getInputShapeAtPort(5) != shapeA),
+            const bool isStaticShape = getInputShapeAtPort(5).isStatic();
+            const bool shapeDoesNotMatchA = getInputShapeAtPort(5) != shapeA;
+            const bool hasInvalidAttentionShape = isStaticShape && shapeDoesNotMatchA;
+            CPU_NODE_ASSERT(!hasInvalidAttentionShape,
                             "has incorrect input shapes. Attention shape: ",
                             getInputShapeAtPort(5).toString());
         }
@@ -1350,7 +1354,9 @@ Node::AttrPtr RNN::initPrimitiveAttr() {
 void RNN::prepareParams() {
     for (size_t i = 0; i < wIdx; i++) {
         auto memPtr = getSrcMemoryAtPort(i);
-        CPU_NODE_ASSERT(memPtr && memPtr->isDefined(), "has uninitialized memory at port ", i);
+        const auto memPtrExists = static_cast<bool>(memPtr);
+        const bool memPtrDefined = memPtrExists && memPtr->isDefined();
+        CPU_NODE_ASSERT(memPtrDefined, "has uninitialized memory at port ", i);
     }
     if ((is_cell && DC != getParentEdgeAt(0)->getMemory().getDesc().getShape().getStaticDims()[1]) ||
         (!is_cell && DC != getParentEdgeAt(0)->getMemory().getDesc().getShape().getStaticDims()[2])) {

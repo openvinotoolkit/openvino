@@ -264,7 +264,8 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 bool widthInRange = widthInConv >= 2 && widthInConv <= 3136;
                 bool kInRange = K >= 96 && K <= 4096;
                 bool nInRange = N >= 96 && N <= K * 4;
-                VERIFY(widthInRange && kInRange && nInRange,
+                const bool validRanges = widthInRange && kInRange && nInRange;
+                VERIFY(validRanges,
                        HEURISTICS_MISMATCH);
 
                 return true;

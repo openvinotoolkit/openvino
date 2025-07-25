@@ -90,7 +90,10 @@ PSROIPooling::PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphConte
                     "has first input with incorrect rank: " + std::to_string(op->get_input_shape(0).size()));
     CPU_NODE_ASSERT(op->get_input_shape(1).size() == 2,
                     "has second input with incorrect rank: " + std::to_string(op->get_input_shape(1).size()));
-    CPU_NODE_ASSERT(noTrans || op->get_input_shape(2).size() == 4,
+    const bool isNoTrans = noTrans;
+    const bool hasCorrectThirdInputRank = op->get_input_shape(2).size() == 4;
+    const bool validThirdInput = isNoTrans || hasCorrectThirdInputRank;
+    CPU_NODE_ASSERT(validThirdInput,
                     "has third input with incorrect rank: " + std::to_string(op->get_input_shape(2).size()));
 
     if (psroi) {
@@ -655,10 +658,12 @@ void PSROIPooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
 
-    CPU_NODE_ASSERT(
-        (all_of(ov::element::bf16, inputPrec, outputPrec)) || (all_of(ov::element::f32, inputPrec, outputPrec)),
-        "has different precisions on input: " + inputPrec.get_type_name() +
-            " and output: " + outputPrec.get_type_name());
+    const bool supportsBf16 = all_of(ov::element::bf16, inputPrec, outputPrec);
+    const bool supportsF32 = all_of(ov::element::f32, inputPrec, outputPrec);
+    const bool precisionSupported = supportsBf16 || supportsF32;
+    CPU_NODE_ASSERT(precisionSupported,
+                    "has different precisions on input: " + inputPrec.get_type_name() +
+                        " and output: " + outputPrec.get_type_name());
 
     PSROIPoolingContext ctx = {
         *this,

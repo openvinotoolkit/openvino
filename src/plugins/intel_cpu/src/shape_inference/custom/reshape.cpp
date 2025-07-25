@@ -75,7 +75,10 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     }
     inputProduct = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<>());
     outputProduct = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
-    OPENVINO_ASSERT(minusOneCount <= 1 && inputProduct == outputProduct,
+    const bool hasValidMinusOneCount = minusOneCount <= 1;
+    const bool productsMatch = inputProduct == outputProduct;
+    const bool isValidReshape = hasValidMinusOneCount && productsMatch;
+    OPENVINO_ASSERT(isValidReshape,
                     "[cpu]reshape: the shape of input data ",
                     ov::intel_cpu::vec2str(inputShape),
                     " conflicts with the reshape pattern ",
