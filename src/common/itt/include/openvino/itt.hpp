@@ -46,6 +46,8 @@ handle_t handle(const char* name);
 void taskBegin(domain_t d, handle_t t);
 void taskEnd(domain_t d);
 void threadName(const char* name);
+void regionBegin(domain_t d, handle_t t);
+void regionEnd(domain_t d, handle_t t);
 }  // namespace internal
 /**
  * @endcond
@@ -120,6 +122,34 @@ struct ScopedTask {
 
     ScopedTask(const ScopedTask&) = delete;
     ScopedTask& operator=(const ScopedTask&) = delete;
+};
+
+/**
+ * @class ScopedRegion
+ * @ingroup ov_dev_profiling
+ * @brief Used to annotate region of code which would be named at runtime using RAII
+ * @tparam The @p domain parameter is domain type which shoud be defined with OV_ITT_DOMAIN() macro.
+ */
+template <domain_t (*domain)()>
+struct ScopedRegion {
+    handle_t regionHandle;
+
+    /**
+     * @brief Construct ScopedRegion with defined annotation handle
+     */
+    ScopedRegion(handle_t handle) noexcept : regionHandle(handle) {
+        internal::regionBegin(domain(), regionHandle);
+    }
+
+    /**
+     * @brief The ScopedRegion destructor closes or ends the region scope
+     */
+    ~ScopedRegion() noexcept {
+        internal::regionEnd(domain(), regionHandle);
+    }
+
+    ScopedRegion(const ScopedRegion&) = delete;
+    ScopedRegion& operator=(const ScopedRegion&) = delete;
 };
 
 /**
@@ -270,6 +300,18 @@ public:
 #define OV_ITT_SCOPED_TASK(...) OV_ITT_SCOPE(ALL, __VA_ARGS__)
 
 /**
+ * @def OV_ITT_SCOPED_REGION(group, domain, handleOrTaskName)
+ * @ingroup ov_dev_profiling
+ * @brief Annotate region of code till scope exit to be profiled using known @p handle or @p taskName as section id.
+ * @details In case if handle or taskName absent, the current function name is used.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param domainName [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrTaskName [in] The annotation name or handle for section of code. Parameter is optional.
+ */
+#define OV_ITT_SCOPED_REGION(group, ...) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_SCOPED_REGION_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(__VA_ARGS__))
+
+/**
  * @def OV_ITT_TASK_CHAIN(chainId, domain, prefix, taskName)
  * @ingroup ov_dev_profiling
  * @brief Begins the sequrence of an annotated sections of code using @p prefix and @p taskName as section id.
@@ -390,6 +432,55 @@ public:
  * @param chainId [in] The tasks chain identifier.
  */
 #define OV_ITT_TASK_SKIP(chainId) OV_ITT_SCOPE_SKIP(ALL, chainId);
+
+/**
+ * @def OV_ITT_REGION_BEGIN(group, domain, handleOrTaskName)
+ * @ingroup ov_dev_profiling
+ * @brief Begin a region of code to be profiled using known @p handle or @p taskName as section id.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param domain [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrTaskName [in] The annotation name or handle for section of code.
+ */
+#define OV_ITT_REGION_BEGIN(group, domain, handleOrTaskName) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_REGION_BEGIN_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(domain, handleOrTaskName))
+
+/**
+ * @def OV_ITT_REGION_END(group, domain, handleOrTaskName)
+ * @ingroup ov_dev_profiling
+ * @brief End a region of code to be profiled using known @p handle or @p taskName as section id.
+ * @param group [in] ITT counter group name used for enabling/disabling at compile time.
+ * @param domain [in] Known at compile time name of module or library (the domain name).
+ * @param handleOrTaskName [in] The annotation name or handle for section of code.
+ */
+#define OV_ITT_REGION_END(group, domain, handleOrTaskName) \
+    OV_PP_EXPAND(OV_PP_CAT(OV_ITT_REGION_END_IMPL_, OV_PP_IS_ENABLED(OV_ITT_GROUP(group)))(domain, handleOrTaskName))
+
+/**
+ * @cond
+ */
+
+#define OV_ITT_REGION_BEGIN_IMPL_0(domain, handleOrTaskName)
+#define OV_ITT_REGION_BEGIN_IMPL_1(domain, handleOrTaskName) \
+    openvino::itt::internal::regionBegin(domain(), openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(handleOrTaskName));
+
+#define OV_ITT_REGION_END_IMPL_0(domain, handleOrTaskName)
+#define OV_ITT_REGION_END_IMPL_1(domain, handleOrTaskName) \
+    openvino::itt::internal::regionEnd(domain(), openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(handleOrTaskName));
+
+#define OV_ITT_SCOPED_REGION_IMPL_0(...)
+#define OV_ITT_SCOPED_REGION_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_REGION, __VA_ARGS__)
+
+#define OV_ITT_SCOPED_REGION_1(domain)                                            \
+    openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(ITT_FUNCTION_NAME));
+
+#define OV_ITT_SCOPED_REGION_2(domain, taskOrTaskName)                            \
+    openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
+        openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(taskOrTaskName));
+
+/**
+ * @endcond
+ */
 
 }  // namespace itt
 }  // namespace openvino

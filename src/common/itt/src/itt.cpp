@@ -49,6 +49,19 @@ void threadName(const char* name) {
     __itt_thread_set_name(name);
 }
 
+void regionBegin(domain_t d, handle_t t) {
+    __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), 0);
+    __itt_region_begin(reinterpret_cast<__itt_domain*>(d),
+                       id,
+                       __itt_null,
+                       reinterpret_cast<__itt_string_handle*>(t));
+}
+
+void regionEnd(domain_t d, handle_t t) {
+    __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), 0);
+    __itt_region_end(reinterpret_cast<__itt_domain*>(d), id);
+}
+
 #else
 
 domain_t domain(const char*) {
@@ -64,6 +77,10 @@ void taskBegin(domain_t, handle_t) {}
 void taskEnd(domain_t) {}
 
 void threadName(const char*) {}
+
+void regionBegin(domain_t, handle_t) {}
+
+void regionEnd(domain_t, handle_t) {}
 
 #endif  // ENABLE_PROFILING_ITT
 
