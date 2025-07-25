@@ -48,7 +48,7 @@ namespace ov::intel_cpu::node {
 bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v3::ScatterElementsUpdate::get_type_info_static(),
                     ov::op::v12::ScatterElementsUpdate::get_type_info_static(),
                     ov::op::v3::ScatterUpdate::get_type_info_static(),
@@ -60,7 +60,7 @@ bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
         }
         if (const auto node_element = ov::as_type_ptr<const ov::op::v12::ScatterElementsUpdate>(op)) {
             using Reduction = ov::op::v12::ScatterElementsUpdate::Reduction;
-            if (!one_of(node_element->get_reduction(),
+            if (none_of(node_element->get_reduction(),
                         Reduction::MAX,
                         Reduction::MEAN,
                         Reduction::MIN,
@@ -73,7 +73,7 @@ bool ScatterUpdate::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
             }
         } else if (const auto node_element = ov::as_type_ptr<const ov::op::v15::ScatterNDUpdate>(op)) {
             using Reduction = ov::op::v15::ScatterNDUpdate::Reduction;
-            if (!one_of(node_element->get_reduction(),
+            if (none_of(node_element->get_reduction(),
                         Reduction::MAX,
                         Reduction::MIN,
                         Reduction::NONE,
@@ -187,8 +187,7 @@ ScatterUpdate::ScatterUpdate(const std::shared_ptr<ov::Node>& op, const GraphCon
 }
 
 void ScatterUpdate::getSupportedDescriptors() {
-    CPU_NODE_ASSERT((getParentEdges().size() == 3) || (getParentEdges().size() == 4),
-                    "has incorrect number of input edges");
+    CPU_NODE_ASSERT(any_of(getParentEdges().size(), 3U, 4U), "has incorrect number of input edges");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
 }
 
@@ -258,7 +257,7 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
         break;
     }
     case ScatterUpdateMode::ScatterElementsUpdate: {
-        CPU_NODE_ASSERT(srcRank == indicesRank && srcRank == updateRank,
+        CPU_NODE_ASSERT(all_of(srcRank, indicesRank, updateRank),
                         "do not have the same tensor rank for input, indices and update");
         for (size_t ri = 0; ri < indicesRank; ri++) {
             CPU_NODE_ASSERT(dimsEqualWeak(indicesDim[ri], updateDim[ri]),
@@ -296,8 +295,8 @@ void ScatterUpdate::initSupportedPrimitiveDescriptors() {
     }
 
     dataPrec = getOriginalInputPrecisionAtPort(DATA_ID);
-    if (one_of(scatterUpdateMode, ScatterUpdateMode::ScatterElementsUpdate, ScatterUpdateMode::ScatterNDUpdate) &&
-        !one_of(dataPrec,
+    if (any_of(scatterUpdateMode, ScatterUpdateMode::ScatterElementsUpdate, ScatterUpdateMode::ScatterNDUpdate) &&
+        none_of(dataPrec,
                 ov::element::f32,
                 ov::element::i32,
                 ov::element::bf16,
@@ -769,7 +768,7 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 for (const auto& counter : mean_reduction_counters) {
                     auto dst = &dataPtr[offsets[0] + counter.first * dataBlock_axisplus1];
                     const auto N = counter.second + static_cast<int32_t>(use_init_val);
-                    *dst = static_cast<DataType>(static_cast<double>(*dst) / N);
+                    *dst = static_cast<DataType>(static_cast<double>(*dst) / static_cast<double>(N));
                 }
 
                 // increment
@@ -896,7 +895,7 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             axis = *axisPtr32;
         } else {
             auto* axisPtr64 = reinterpret_cast<int64_t*>(axisPtr);
-            axis = *axisPtr64;
+            axis = static_cast<int>(*axisPtr64);
         }
 
         CPU_NODE_ASSERT(axis < static_cast<int>(srcRank) && axis >= (static_cast<int>(srcRank) * -1),
@@ -1126,8 +1125,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
 }
 
 bool ScatterUpdate::created() const {
-    return getType() == Type::ScatterUpdate || getType() == Type::ScatterElementsUpdate ||
-           getType() == Type::ScatterNDUpdate;
+    return any_of(getType(), Type::ScatterUpdate, Type::ScatterElementsUpdate, Type::ScatterNDUpdate);
 }
 
 }  // namespace ov::intel_cpu::node
