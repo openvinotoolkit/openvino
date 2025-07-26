@@ -662,6 +662,9 @@ void InputModel::InputModelONNXImpl::load_model() {
             auto tensor_place = decode_tensor_place(tensor_decoder->get_tensor_info(), m_input_model);
             tensor_place->set_input_index(tensor_decoder->get_input_idx());
             tensor_place->set_output_index(tensor_decoder->get_output_idx());
+            // Constant with data has been found
+            if (tensor_place->get_data() != nullptr)
+                continue;
             //FRONT_END_GENERAL_CHECK(tensor_place->is_input() || tensor_place->is_output());
             auto name = tensor_place->get_names()[0];
             if (m_tensor_places.count(name) == 0) {

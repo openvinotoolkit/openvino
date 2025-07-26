@@ -125,7 +125,7 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
 ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* tensor_info,
                                                             const ValueInfoProto* value_info,
                                                             const GraphProto* graph_def) {
-    ov::frontend::onnx::TensorMetaInfo tensor_meta_info;
+    ov::frontend::onnx::TensorMetaInfo tensor_meta_info{};
     if (value_info == nullptr && tensor_info->has_name()) {
         for (const auto& val : graph_def->value_info()) {
             if (val.has_name() && val.name() == tensor_info->name()) {
@@ -169,10 +169,6 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             tensor_info->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
             throw std::runtime_error("Unexpected usage of method for externally stored data");
         }
-        if (tensor_info->has_raw_data()) {
-            tensor_meta_info.m_tensor_data =
-                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->raw_data().data()));
-        }
         switch (tensor_info->data_type()) {
         case TensorProto_DataType::TensorProto_DataType_FLOAT:
             tensor_meta_info.m_tensor_data =
@@ -194,6 +190,19 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             tensor_meta_info.m_tensor_data =
                 static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->double_data().data()));
             break;
+        case TensorProto_DataType::TensorProto_DataType_BOOL:
+            tensor_meta_info.m_tensor_data =
+                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->int32_data().data()));
+            break;
+        default:
+            throw std::runtime_error("Unsupported type " +
+                                     ::ONNX_NAMESPACE::TensorProto_DataType_Name(tensor_info->data_type()));
+            break;
+        }
+        // Looks like raw_data has bigger priority. but not 100% sure
+        if (tensor_meta_info.m_tensor_data == nullptr && tensor_info->has_raw_data()) {
+            tensor_meta_info.m_tensor_data =
+                static_cast<const uint8_t*>(static_cast<const void*>(tensor_info->raw_data().data()));
         }
     }
     return tensor_meta_info;
@@ -660,25 +669,54 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, m_graph, 0, -1);
         m_decoders.push_back(tensor);
         if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::runtime_error("Tensor already exists");
+            throw std::runtime_error("Tensor already exists \"" + tensor->get_tensor_info().m_tensor_name + "\"");
         }
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& value : m_graph->output()) {
-        m_decoders.push_back(std::make_shared<DecoderProtoTensor>(&value, m_graph, -1, 0));
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, m_graph, -1, 0);
         m_decoders.push_back(tensor);
         if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::runtime_error("Tensor already exists");
+            throw std::runtime_error("Tensor already exists \"" + tensor->get_tensor_info().m_tensor_name + "\"");
         }
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& initializer : m_graph->initializer()) {
-        auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, m_graph, -1, -1);
-        m_decoders.push_back(tensor);
-        if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::runtime_error("Tensor already exists");
+        const auto& decoder =
+            std::find_if(m_decoders.begin(),
+                         m_decoders.end(),
+                         [&initializer](const std::shared_ptr<ov::frontend::onnx::DecoderBase>& value) {
+                             const auto& tensor = std::dynamic_pointer_cast<DecoderProtoTensor>(value);
+                             if (tensor == nullptr)
+                                 return false;
+                             return initializer.name() == tensor->get_tensor_info().m_tensor_name;
+                         });
+        if (decoder != m_decoders.end()) {
+            *const_cast<ov::frontend::onnx::TensorMetaInfo*>(
+                &std::dynamic_pointer_cast<DecoderProtoTensor>(*decoder)->get_tensor_info()) =
+                extract_tensor_meta_info(&initializer, nullptr, m_graph);
+            continue;
         }
+        const auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, m_graph, -1, -1);
+        /*
+        if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
+            auto decoder_position =
+                std::find_if(m_decoders.begin(),
+                             m_decoders.end(),
+                             [&initializer](const std::shared_ptr<ov::frontend::onnx::DecoderBase>& value) {
+                                 const auto& tensor = std::dynamic_pointer_cast<DecoderProtoTensor>(value);
+                                 if (tensor == nullptr)
+                                     return false;
+                                 return initializer.name() == tensor->get_tensor_info().m_tensor_name;
+                             });
+            if (decoder_position == m_decoders.end()) {
+                throw std::runtime_error("Something went wrong");
+            }
+            *decoder_position = std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBase>(tensor);
+        } else {
+            m_decoders.push_back(tensor);
+        }
+        */
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& node : m_graph->node()) {
@@ -844,7 +882,7 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
     const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "addmul_abc.onnx"})
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "bool_init_and.onnx"})
             .string();
 
     ov::frontend::FrontEnd::Ptr fe;
