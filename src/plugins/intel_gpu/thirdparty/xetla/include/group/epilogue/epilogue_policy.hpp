@@ -26,6 +26,25 @@ namespace gpu::xetla::group {
 /// @addtogroup xetla_epilogue
 /// @{
 
+/// @brief Default epilogue policy for store C.
+/// @tparam arch_tag_ Is the HW architecture.
+template <gpu_arch arch_tag_>
+struct epilogue_policy_default {
+    static constexpr gpu_arch arch_tag = arch_tag_;
+};
+
+/// @brief Default epilogue policy for store C.
+/// @tparam gn_reduce_t_ Is the gropunorm reduction.
+/// @tparam arch_tag_ Is the HW architecture.
+template <typename gn_reduce_t_, gpu_arch arch_tag_>
+struct epilogue_policy_gn_reduce {
+    using gn_reduce_t = gn_reduce_t_;
+    static constexpr gpu_arch arch_tag = arch_tag_;
+};
+
+/// @addtogroup xetla_epilogue
+/// @{
+
 /// @brief Epilogue policy for tile_op + store C fusion.
 /// @tparam tile_op_t_ Is the tile_op functor.
 /// @tparam arch_tag_ Is the HW architecture.
