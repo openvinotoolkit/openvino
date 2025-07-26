@@ -674,7 +674,7 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& initializer : m_graph->initializer()) {
-        auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, m_graph, 0, 0);
+        auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, m_graph, -1, -1);
         m_decoders.push_back(tensor);
         if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
             throw std::runtime_error("Tensor already exists");
@@ -705,7 +705,7 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
                                                            });
                     std::shared_ptr<DecoderProtoTensor> tensor{nullptr};
                     if (initializer != m_graph->initializer().end()) {
-                        tensor = std::make_shared<DecoderProtoTensor>(&*initializer, m_graph, 0, 0);
+                        tensor = std::make_shared<DecoderProtoTensor>(&*initializer, m_graph, -1, -1);
                     } else {
                         const auto& value_info = std::find_if(m_graph->value_info().begin(),
                                                               m_graph->value_info().end(),
@@ -713,11 +713,12 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
                                                                   return value.has_name() && value.name() == name;
                                                               });
                         if (value_info != m_graph->value_info().end())
-                            tensor = std::make_shared<DecoderProtoTensor>(&*value_info, m_graph, 0, 0);
+                            tensor = std::make_shared<DecoderProtoTensor>(&*value_info, m_graph, -1, -1);
                     }
                     if (tensor == nullptr) {
                         throw std::runtime_error("Tensor not found \"" + name + "\"");
                     }
+                    m_decoders.push_back(tensor);
                     tensors[name] = tensor;
                     output_tensors.push_back(&tensor->get_tensor_info());
                 } else {
