@@ -65,6 +65,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
@@ -189,6 +190,9 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
+#include "transformations/utils/print_model.hpp"
+
+#include "openvino/util/log.hpp"
 
 namespace {
 template<typename T>
@@ -345,6 +349,46 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+
+        // SDPA to VLSDPA for QWen2.x-VL
+        // it should be applied before TransposeFusion.
+        auto check_vlsdpa_available = [OV_CAPTURE_CPY_AND_THIS]() -> bool {
+            // check model type
+            if (!func->has_rt_info("model_type_hint")) return false;
+
+            const std::string& model_type = func->get_rt_info<std::string>("model_type_hint");
+            if (model_type != "QWenVL") {
+                return false;
+            }
+
+            // check platform & check compiler
+            auto& engine = m_context->get_engine();
+            const auto& info = engine.get_device_info();
+
+            // CM optimized for Xe1/Xe2 architectures
+            if (!(info.arch >= cldnn::gpu_arch::xe_lp)) {
+                return false;
+            }
+
+            if (!config.get_use_cm()) {
+                util::log_message("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                              "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
+                return false;
+            }
+
+            if (!check_cm_jit_support(engine, config)) {
+                util::log_message("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                              "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
+                return false;
+            }
+
+            return true;
+        };
+        if (check_vlsdpa_available()) {
+            manager.register_pass<ov::pass::PrintModel>("prior_SDPAToVLSDPA.cpp");
+            manager.register_pass<ov::pass::SDPAToVLSDPA>();
+            manager.register_pass<ov::pass::PrintModel>("post_SDPAToVLSDPA.cpp");
+        }
 
         // Temporary solution, global rt info cleanup is needed
         for (auto& node : func->get_ops()) {
@@ -1187,7 +1231,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::intel_gpu::KVCacheFusion>();
         manager.register_pass<ov::intel_gpu::FullyConnectedConvertFusion>();
+        manager.register_pass<ov::pass::PrintModel>("prior_TransposeFusion.cpp");
         manager.register_pass<ov::intel_gpu::TransposeFusion>(device_info.supports_immad);
+        manager.register_pass<ov::pass::PrintModel>("prior_TransposeFusion.cpp");
 
         if (!device_info.supports_immad) {
             manager.register_pass<ov::intel_gpu::UnsqueezeBroadcastReshapeMatmulFusion>();
