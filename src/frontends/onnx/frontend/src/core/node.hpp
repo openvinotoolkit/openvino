@@ -10,6 +10,7 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ONNX_NAMESPACE {
@@ -46,6 +47,7 @@ public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
     Node(const NodeProto& node_proto, Graph* graph);
+    Node(const DecoderBaseOperation& decoder);
 
     Node(Node&&) noexcept;
     Node(const Node&);

@@ -368,7 +368,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
         submodel_translation_functions.push_back(input_to_ov_model(subgraph));
     }
 
-    // const auto& translate_map =
+    const OperatorsBridge translate_map;
     //    no_conversion ? ov::frontend::onnx::TranslatorDictionaryType{} : m_op_translators;
 
     auto all_tensor_values = model_onnx->get_tensor_values();
@@ -416,11 +416,19 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
         const auto& out_size = decoder->get_output_size();
         ov::OutputVector ov_outputs(out_size);
         try {
+            const Operator* translator =
+                translate_map.get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
+            FRONT_END_OP_CONVERSION_CHECK(
+                translator != nullptr,
+                "No translator found for " + decoder->get_domain() + " " + decoder->get_op_type() + " node.");
             // FRONT_END_OP_CONVERSION_CHECK(translate_map.count(decoder->get_op_type()),
             //                               "No translator found for " + decoder->get_op_type() + " node.");
             // auto op_fun = &(translate_map.at(decoder->get_op_type()));
             // ov::frontend::onnx::NodeContext node_context(decoder, inputs, submodel_translation_functions);
-            // ov_outputs = (*op_fun)(node_context);
+            const NodeProto* node_def = nullptr;
+            decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
+            ov::frontend::onnx::Node node_context(*node_def);
+            ov_outputs = (*translator)(node_context);
         } catch (...) {
             if (fail_fast) {
                 /*

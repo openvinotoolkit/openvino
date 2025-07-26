@@ -48,6 +48,24 @@ public:
         }
     }
 
+    Impl(const NodeProto& node_proto)
+        : m_node_proto{&node_proto},
+          m_name{node_proto.has_name() ? node_proto.name() : ""},
+          m_domain{get_node_domain(node_proto)},
+          m_graph{nullptr},
+          m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())} {
+        /*
+        const auto& attributes = node_proto.attribute();
+        m_attributes.reserve(attributes.size());
+        for (const auto& attr_proto : attributes) {
+            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->get_mmap_cache());
+            const auto& attribute = m_attributes.back();
+            if (attribute.is_graph())
+                m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
+        }
+        */
+    }
+
     const std::vector<Attribute>& attributes() const;
     ov::OutputVector get_ov_inputs() const;
 
@@ -293,7 +311,11 @@ Node::Node(const NodeProto& node_proto, Graph* graph)
     : m_pimpl{new Impl{node_proto, graph}, [](Impl* impl) {
                   delete impl;
               }} {}
-
+Node::Node(const DecoderBaseOperation& decoder) {} /*
+    : m_pimpl{new Impl{node_proto}, [](Impl* impl) {
+                  delete impl;
+              }} {}
+              */
 Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)} {}
 
 Node::Node(const Node& other)

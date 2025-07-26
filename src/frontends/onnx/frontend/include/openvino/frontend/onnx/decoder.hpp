@@ -70,6 +70,11 @@ public:
     /// \brief Returns operation's opset version
     virtual uint64_t get_op_set() const = 0;
 
+    /// \brief Returns operation's domain
+    virtual const std::string& get_domain() const = 0;
+
+    virtual void experimental_get_internal_structures(const void** node_def) const = 0;
+
     ~DecoderBaseOperation() override;
 };
 
