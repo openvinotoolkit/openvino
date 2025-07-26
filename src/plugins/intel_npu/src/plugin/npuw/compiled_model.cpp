@@ -1063,7 +1063,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             }
         }
 
-        WeightsContext ctx(weights, consts_cache, compiled->m_bf16_consts);
+        WeightsContext ctx(weights, weights_path, consts_cache, compiled->m_bf16_consts);
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;

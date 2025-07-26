@@ -120,12 +120,14 @@ struct WeightsContext {
 
     // NOTE: This construtor can and should only be used when importing weightless blobs
     explicit WeightsContext(const ov::npuw::s11n::Weights& _weights,
+                            const std::string& _weights_path,
                             const ConstsCache& _consts_cache,
                             const BF16Cache& _bf16_consts);
 
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
     ov::npuw::s11n::Weights weights = nullptr;
+    std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
 };

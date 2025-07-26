@@ -13,6 +13,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "util.hpp"
 
 using ov::npuw::weights::LazyTensor;
@@ -85,13 +87,22 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             auto dst_data = m_read_from_bin.data<dst_type>();
             ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, m_read_from_bin.get_size());
         } else {
-            m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
-            std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
+            // Each LazyTensor will mmap the whole weights file and store it for itself.
+            // It doesn't introduce extra allocation, however it allows to gradually 1 by 1
+            // read mmaped CPU weights and allocate them on device without loading all the weights first.
+            // Thus the memory consumption during import is reduced but at the slight cost of performance.
+            NPUW_ASSERT(!ctx.weights_path.empty());
+            auto mapped_memory = ov::load_mmap_object(ctx.weights_path);
+            m_mmaped_weights =
+                std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                      mapped_memory->size(),
+                                                                                      mapped_memory);
+            m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
         NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-        m_read_from_bin = ov::npuw::util::copy_tensor_from_const(it->second);
+        m_read_from_bin = ov::npuw::util::tensor_from_const(it->second);
         NPUW_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size && m_read_from_bin.get_shape() == m_cached_shape &&
                     m_read_from_bin.get_element_type() == m_cached_type);
     }
@@ -100,6 +111,7 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
 void Const::detach() {
     m_node.reset();
     m_read_from_bin = ov::Tensor();
+    m_mmaped_weights.reset();
 }
 
 void Const::serialize(std::ostream& stream) const {
