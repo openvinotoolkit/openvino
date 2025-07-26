@@ -10,9 +10,9 @@ namespace onnx {
 namespace ai_onnx {
 namespace opset_11 {
 
-//translation function
+// translation function
 ov::OutputVector average_pool(const ov::frontend::onnx::Node& node) {
-    //the PoolingFactory designed for opset 11, which correctly handles the 'ceil_mode' attribute.
+    // the PoolingFactory designed for opset 11, which correctly handles the 'ceil_mode' attribute.
     return pooling::PoolingFactory(node).make_avg_pool();
 }
 
