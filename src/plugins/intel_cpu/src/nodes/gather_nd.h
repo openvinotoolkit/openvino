@@ -44,7 +44,7 @@ private:
     } attrs;
 
     struct GatherNDExecutor {
-        GatherNDExecutor(const GatherNDAttributes& attrs);
+        explicit GatherNDExecutor(const GatherNDAttributes& attrs);
         ~GatherNDExecutor() = default;
         void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
 

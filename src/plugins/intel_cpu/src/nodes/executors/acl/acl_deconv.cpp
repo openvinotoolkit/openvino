@@ -202,7 +202,7 @@ static MemoryPtr prepareWeightMemory(const std::vector<MemoryCPtr>& src, const E
         const std::string string_hash = format + "_" + std::to_string(src[1]->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(src[1]->getData()));
         DEBUG_LOG("ACLDeconvExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("ACLDeconvExecutor: Weights cache is not available");

@@ -26,7 +26,7 @@ class BroadcastMove : public ov::op::Op {
 public:
     OPENVINO_OP("BroadcastMove", "SnippetsOpset");
 
-    BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension);
+    explicit BroadcastMove(const Output<Node>& x, ov::Dimension bcast_dimension);
     BroadcastMove() = default;
 
     bool visit_attributes(AttributeVisitor& visitor) override;

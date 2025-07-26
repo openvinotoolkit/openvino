@@ -3747,7 +3747,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                      sliding_window,
                      scale,
                      max_context_len,
-                     alibi_slopes,
+                     static_cast<bool>(alibi_slopes),
                      init_rotation_coefficient_scratch);
     }
 

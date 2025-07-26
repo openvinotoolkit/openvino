@@ -23,7 +23,7 @@ public:
 
     /// \brief Construct a static dimension.
     /// \param dimension Value of the dimension.
-    StaticDimension(value_type dimension);
+    StaticDimension(value_type dimension);  // NOLINT(google-explicit-constructor)
 
     /// \brief Construct a static dimension.
     /// \param ldimension Value of the dimension (must be equal to udimension)
@@ -33,12 +33,12 @@ public:
     /// \brief Construct a zero dimension
     StaticDimension() = default;
 
-    StaticDimension(const Dimension& /*dim*/) {
-        OPENVINO_THROW("[shape infer] Shoudn't convert from Dimension to StaticDimension.");
-    }
+    StaticDimension(const Dimension& dim);  // NOLINT(google-explicit-constructor)
 
     bool operator==(const StaticDimension& dimension) const;
     bool operator!=(const StaticDimension& dimension) const;
+    bool operator!=(value_type val) const;
+    bool operator!=(int val) const;
 
     explicit operator size_t() const {
         return m_dimension;
@@ -63,6 +63,7 @@ public:
 
     [[nodiscard]] bool same_scheme(const StaticDimension& dim) const;
     [[nodiscard]] bool compatible(const StaticDimension& d) const;
+    [[nodiscard]] bool compatible(value_type d) const;
     static bool merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);
     static bool broadcast_merge(StaticDimension& dst, const StaticDimension& d1, const StaticDimension& d2);
 
@@ -70,9 +71,19 @@ public:
     StaticDimension operator-(const StaticDimension& dim) const;
     StaticDimension operator*(const StaticDimension& dim) const;
     StaticDimension operator&(const StaticDimension& dim) const;
+    StaticDimension operator+(value_type val) const;
+    StaticDimension operator-(value_type val) const;
+    StaticDimension operator*(value_type val) const;
+    StaticDimension operator*(const ov::Dimension& dim) const;
+    bool operator!=(const ov::Dimension& dim) const;
+    bool operator==(value_type val) const;
+    bool operator==(int val) const;
+    bool operator==(const ov::Dimension& dim) const;
     StaticDimension& operator+=(const StaticDimension& dim);
     StaticDimension& operator*=(const StaticDimension& dim);
     StaticDimension& operator&=(const StaticDimension& dim);
+    StaticDimension& operator=(const ov::Dimension& dim);
+    StaticDimension& operator=(value_type val);
     StaticDimension operator/(value_type divisor) const;
     StaticDimension& operator/=(value_type divisor);
 

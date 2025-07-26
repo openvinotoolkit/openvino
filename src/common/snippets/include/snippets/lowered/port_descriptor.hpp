@@ -38,8 +38,14 @@ public:
     explicit PortDescriptor(const ov::Output<const ov::Node>& out,
                             VectorDims subtensor_shape = {},
                             std::vector<size_t> layout = {});
-    PortDescriptor(VectorDims shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
-    PortDescriptor(VectorDimsPtr shape, VectorDims subtensor_shape, std::vector<size_t> layout = {}, Reg reg = {});
+    explicit PortDescriptor(VectorDims shape,
+                            VectorDims subtensor_shape,
+                            std::vector<size_t> layout = {},
+                            Reg reg = {});
+    explicit PortDescriptor(VectorDimsPtr shape,
+                            VectorDims subtensor_shape,
+                            std::vector<size_t> layout = {},
+                            Reg reg = {});
     PortDescriptor();
 
     [[nodiscard]] const VectorDims& get_shape() const;

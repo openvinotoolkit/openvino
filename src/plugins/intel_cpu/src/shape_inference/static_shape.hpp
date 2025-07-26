@@ -41,6 +41,8 @@ constexpr bool is_static_shape_adapter() {
     return std::is_same_v<U, StaticShapeRef> || std::is_same_v<U, StaticShape>;
 }
 
+// NOLINTBEGIN(google-explicit-constructor)
+
 /**
  * @brief The static shape adapter by copy value to VectorDims.
  *
@@ -299,6 +301,8 @@ public:
 private:
     const TDims* m_dims = nullptr;
 };
+
+// NOLINTEND(google-explicit-constructor)
 
 template <class T>
 std::enable_if_t<is_static_shape_adapter<T>(), std::ostream&> operator<<(std::ostream& out, const T& shape) {

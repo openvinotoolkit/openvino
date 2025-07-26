@@ -105,7 +105,7 @@ struct RoPE::RoPEExecutorRotateHalf : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    RoPEExecutorRotateHalf(const op::internal::RoPE::Config& config) : m_config(config) {
+    explicit RoPEExecutorRotateHalf(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -187,7 +187,7 @@ struct RoPE::RoPEExecutorInterleaved : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    RoPEExecutorInterleaved(const op::internal::RoPE::Config& config) : m_config(config) {
+    explicit RoPEExecutorInterleaved(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -237,7 +237,7 @@ struct RoPE::RoPEExecutorChatGLM : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    RoPEExecutorChatGLM(const op::internal::RoPE::Config& config) : m_config(config) {
+    explicit RoPEExecutorChatGLM(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;
@@ -327,7 +327,7 @@ struct RoPE::RoPEExecutorQwen : public RoPE::Executor {
     const op::internal::RoPE::Config& m_config;
     std::shared_ptr<kernel::JitKernelBase> m_rotaryKernel;
 
-    RoPEExecutorQwen(const op::internal::RoPE::Config& config) : m_config(config) {
+    explicit RoPEExecutorQwen(const op::internal::RoPE::Config& config) : m_config(config) {
         jit_rotary_compile_params jcp;
         jcp.src_prc = precision_of<T>::value;
         jcp.dst_prc = precision_of<T>::value;

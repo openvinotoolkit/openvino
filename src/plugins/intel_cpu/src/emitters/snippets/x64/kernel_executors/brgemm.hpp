@@ -110,7 +110,7 @@ protected:
 };
 
 struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
-    brgemm_ref_kernel(BrgemmKernelConfig c);
+    explicit brgemm_ref_kernel(BrgemmKernelConfig c);
     void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const override;
     dnnl_status_t create_kernel() override {
         return dnnl_status_t::dnnl_success;

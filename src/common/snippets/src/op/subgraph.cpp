@@ -623,7 +623,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-    return {std::move(lowering_result)};
+    return Schedule{std::move(lowering_result)};
 }
 
 const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {

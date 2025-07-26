@@ -37,12 +37,12 @@ struct TypeMask {
         _f8e8m0 = 1 << 22,
     };
 
-    TypeMask(const ov::element::Type precision) : value(generateMask(precision)), precision(precision) {}
+    explicit TypeMask(const ov::element::Type precision) : value(generateMask(precision)), precision(precision) {}
 
-    TypeMask(const uint64_t value) : value(value) {}
+    TypeMask(const uint64_t value) : value(value) {}  // NOLINT(google-explicit-constructor)
 
     // can be treated as uint64_t mask
-    operator uint64_t() const {
+    operator uint64_t() const {  // NOLINT(google-explicit-constructor)
         return value;
     }
     // match

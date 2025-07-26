@@ -83,10 +83,10 @@ class PortConfig {
 public:
     PortConfig() = default;
 
-    PortConfig(const MemoryDescPtr& desc,
-               BlockedMemoryDesc::CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK,
-               int inPlacePort = -1,
-               bool isConstant = false)
+    explicit PortConfig(const MemoryDescPtr& desc,
+                        BlockedMemoryDesc::CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK,
+                        int inPlacePort = -1,
+                        bool isConstant = false)
         : _desc(createPortDesc(desc, cmpMask)),
           _inPlacePort(inPlacePort),
           _constant(isConstant) {}

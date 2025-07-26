@@ -30,7 +30,7 @@ class Fill : public ov::op::Op {
 public:
     OPENVINO_OP("Fill", "SnippetsOpset");
 
-    Fill(const Output<Node>& x, size_t offset, uint32_t fill_value = 0x0);
+    explicit Fill(const Output<Node>& x, size_t offset, uint32_t fill_value = 0x0);
     Fill() = default;
 
     size_t get_offset() const {
