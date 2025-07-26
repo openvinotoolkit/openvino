@@ -427,7 +427,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
             // ov::frontend::onnx::NodeContext node_context(decoder, inputs, submodel_translation_functions);
             const NodeProto* node_def = nullptr;
             decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
-            ov::frontend::onnx::Node node_context(*node_def);
+            ov::frontend::onnx::Node node_context(*decoder);
             ov_outputs = (*translator)(node_context);
         } catch (...) {
             if (fail_fast) {

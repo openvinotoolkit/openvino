@@ -107,6 +107,7 @@ private:
     // compilation fails; the compiler is unable to parameterize an allocator's
     // default deleter due to incomple type.
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
+    const DecoderBaseOperation* m_decoder;
 };
 
 template <>
