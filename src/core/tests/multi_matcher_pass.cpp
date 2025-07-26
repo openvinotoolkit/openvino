@@ -28,12 +28,11 @@
 #include "openvino/pass/pattern/multi_matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace ov;
 using namespace ov::pass;
 using namespace ov::pass::pattern;
 using namespace ov::pass::pattern::op;
 
-namespace {
+namespace ov::test {
 
 // Match multiple independent MatMul nodes
 TEST(MultiMatcherTest, matches_multiple_matmuls) {
@@ -226,4 +225,4 @@ TEST(MultiMatcherTest, uses_pattern_value_map_contents) {
     EXPECT_TRUE(callback_triggered);
 }
 
-}  // namespace
+}  // namespace ov::test

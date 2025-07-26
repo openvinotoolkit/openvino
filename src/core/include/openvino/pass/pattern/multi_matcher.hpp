@@ -6,8 +6,7 @@
 #include "openvino/pass/pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
-namespace ov {
-namespace pass {
+namespace ov::pass {
 
 /**
  * @brief MultiMatcher applies multiple independent pattern matchers across the graph.
@@ -78,5 +77,4 @@ private:
     std::unordered_set<Node*> m_all_roots;
 };
 
-}  // namespace pass
-}  // namespace ov
+}  // namespace ov::pass

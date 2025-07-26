@@ -8,9 +8,7 @@ using namespace ov::pass::pattern;
 
 MultiMatcher::MultiMatcher(const std::string& name) : m_name(name) {}
 
-void MultiMatcher::register_patterns(const std::vector<std::shared_ptr<Node>>& patterns,
-                                     Callback callback,
-                                     bool strict) {
+void MultiMatcher::register_patterns(const ov::NodeVector& patterns, Callback callback, bool strict) {
     m_callback = std::move(callback);
     m_patterns.clear();
     m_all_roots.clear();
