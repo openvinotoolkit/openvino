@@ -369,11 +369,13 @@ public:
         // so use MatMul only for weights compression and IP for all other cases.
         if (prim->compressed_weights) {
             bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
-            if (!is_dyn_quan_input)
+            if (is_dyn_quan_input) {
+                OPENVINO_ASSERT(prim->input_size <= 3, "[GPU] Dynamic quantization for 4D matmul is not implemented");
+            } else {
                 attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+            }
 
             auto weights_layout = impl_params.get_input_layout(1);
-            OPENVINO_ASSERT(prim->input_size <= 3, "not implemented for 4d matmul");
             auto shift_size = std::max<size_t>(prim->input_size - 2, 0);
             int per_oc = PER_OC << shift_size;
             int grouped = GROUPED | (1 << (prim->input_size - 1));
@@ -386,7 +388,7 @@ public:
                 auto ngroups = scale_layout.get_dim(1);
                 group_size = ifm / ngroups;
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 32 == 0),
-                    "group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
+                    "[GPU] group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
                 } else if (ngroups == 1) {
