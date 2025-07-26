@@ -2,155 +2,92 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/core/type/element_type.hpp"
+#include <string>
+#include <sstream>
+#include <vector>
 
-#include <map>
-
-#include "gtest/gtest.h"
-#include "openvino/core/except.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/runtime/core.hpp"
-#include "openvino/runtime/tensor.hpp"
+#include "openvino/opsets/opset6.hpp"
+namespace ov {
+namespace test {
+namespace behavior {
 
-using namespace ov;
+using InferRequestElementTypeParams = std::tuple<
+        std::string,                                                       // Device name
+        ov::AnyMap                                                         // Config
+>;
 
-TEST(element_type, from) {
-    EXPECT_EQ(element::from<char>(), element::boolean);
-    EXPECT_EQ(element::from<bool>(), element::boolean);
-    EXPECT_EQ(element::from<float>(), element::f32);
-    EXPECT_EQ(element::from<double>(), element::f64);
-    EXPECT_EQ(element::from<int8_t>(), element::i8);
-    EXPECT_EQ(element::from<int16_t>(), element::i16);
-    EXPECT_EQ(element::from<int32_t>(), element::i32);
-    EXPECT_EQ(element::from<int64_t>(), element::i64);
-    EXPECT_EQ(element::from<uint8_t>(), element::u8);
-    EXPECT_EQ(element::from<uint16_t>(), element::u16);
-    EXPECT_EQ(element::from<uint32_t>(), element::u32);
-    EXPECT_EQ(element::from<uint64_t>(), element::u64);
-    EXPECT_EQ(element::from<std::string>(), element::string);
-}
+class InferRequestElementTypeTests : public testing::WithParamInterface<InferRequestElementTypeParams>,
+                                   public OVInferRequestTestBase  {
 
-TEST(element_type, from_string) {
-    EXPECT_EQ(element::Type("boolean"), element::boolean);
-    EXPECT_EQ(element::Type("BOOL"), element::boolean);
-
-    EXPECT_EQ(element::Type("bf16"), element::bf16);
-    EXPECT_EQ(element::Type("BF16"), element::bf16);
-    EXPECT_EQ(element::Type("f16"), element::f16);
-    EXPECT_EQ(element::Type("FP16"), element::f16);
-    EXPECT_EQ(element::Type("f32"), element::f32);
-    EXPECT_EQ(element::Type("FP32"), element::f32);
-    EXPECT_EQ(element::Type("f64"), element::f64);
-    EXPECT_EQ(element::Type("FP64"), element::f64);
-
-    EXPECT_EQ(element::Type("i4"), element::i4);
-    EXPECT_EQ(element::Type("I4"), element::i4);
-    EXPECT_EQ(element::Type("i8"), element::i8);
-    EXPECT_EQ(element::Type("I8"), element::i8);
-    EXPECT_EQ(element::Type("i16"), element::i16);
-    EXPECT_EQ(element::Type("I16"), element::i16);
-    EXPECT_EQ(element::Type("i32"), element::i32);
-    EXPECT_EQ(element::Type("I32"), element::i32);
-    EXPECT_EQ(element::Type("i64"), element::i64);
-    EXPECT_EQ(element::Type("I64"), element::i64);
-
-    EXPECT_EQ(element::Type("bin"), element::u1);
-    EXPECT_EQ(element::Type("BIN"), element::u1);
-    EXPECT_EQ(element::Type("u1"), element::u1);
-    EXPECT_EQ(element::Type("U1"), element::u1);
-    EXPECT_EQ(element::Type("u4"), element::u4);
-    EXPECT_EQ(element::Type("U4"), element::u4);
-    EXPECT_EQ(element::Type("u8"), element::u8);
-    EXPECT_EQ(element::Type("U8"), element::u8);
-    EXPECT_EQ(element::Type("u16"), element::u16);
-    EXPECT_EQ(element::Type("U16"), element::u16);
-    EXPECT_EQ(element::Type("u32"), element::u32);
-    EXPECT_EQ(element::Type("U32"), element::u32);
-    EXPECT_EQ(element::Type("u64"), element::u64);
-    EXPECT_EQ(element::Type("U64"), element::u64);
-    EXPECT_EQ(element::Type("nf4"), element::nf4);
-    EXPECT_EQ(element::Type("NF4"), element::nf4);
-    EXPECT_EQ(element::Type("f8e4m3"), element::f8e4m3);
-    EXPECT_EQ(element::Type("F8E4M3"), element::f8e4m3);
-    EXPECT_EQ(element::Type("f8e5m2"), element::f8e5m2);
-    EXPECT_EQ(element::Type("F8E5M2"), element::f8e5m2);
-    EXPECT_EQ(element::Type("string"), element::string);
-    EXPECT_EQ(element::Type("STRING"), element::string);
-    EXPECT_EQ(element::Type("f4e2m1"), element::f4e2m1);
-    EXPECT_EQ(element::Type("F4E2M1"), element::f4e2m1);
-    EXPECT_EQ(element::Type("f8e8m0"), element::f8e8m0);
-    EXPECT_EQ(element::Type("F8E8M0"), element::f8e8m0);
-    OPENVINO_SUPPRESS_DEPRECATED_START
-    EXPECT_EQ(element::Type("undefined"), element::undefined);
-    EXPECT_EQ(element::Type("UNSPECIFIED"), element::undefined);
-    OPENVINO_SUPPRESS_DEPRECATED_END
-    EXPECT_EQ(element::Type("dynamic"), element::dynamic);
-
-    EXPECT_THROW(element::Type("some_string"), ov::Exception);
-}
-
-TEST(element_type, mapable) {
-    std::map<element::Type, std::string> test_map;
-
-    test_map.insert({element::f32, "float"});
-}
-
-TEST(element_type, merge_both_dynamic) {
-    element::Type t;
-    ASSERT_TRUE(element::Type::merge(t, element::dynamic, element::dynamic));
-    ASSERT_TRUE(t.is_dynamic());
-}
-
-TEST(element_type, merge_left_dynamic) {
-    element::Type t;
-    ASSERT_TRUE(element::Type::merge(t, element::dynamic, element::u64));
-    ASSERT_TRUE(t.is_static());
-    ASSERT_EQ(t, element::u64);
-}
-
-TEST(element_type, merge_right_dynamic) {
-    element::Type t;
-    ASSERT_TRUE(element::Type::merge(t, element::i16, element::dynamic));
-    ASSERT_TRUE(t.is_static());
-    ASSERT_EQ(t, element::i16);
-}
-
-TEST(element_type, merge_both_static_equal) {
-    element::Type t;
-    ASSERT_TRUE(element::Type::merge(t, element::f64, element::f64));
-    ASSERT_TRUE(t.is_static());
-    ASSERT_EQ(t, element::f64);
-}
-
-TEST(element_type, merge_both_static_unequal) {
-    element::Type t = element::f32;
-    ASSERT_FALSE(element::Type::merge(t, element::i8, element::i16));
-    ASSERT_TRUE(t.is_static());
-    ASSERT_EQ(t, element::f32);
-}
-
-struct ObjectWithType {
-    ObjectWithType(const element::Type& type_) : type{type_} {}
-    ~ObjectWithType() {
-        EXPECT_NO_THROW(type.bitwidth()) << "Could not access type information in global scope";
+public:
+    static std::string getTestCaseName(testing::TestParamInfo<InferRequestElementTypeParams> obj) {
+        std::string target_device;
+        ov::AnyMap configuration;
+        std::tie(target_device, configuration) = obj.param;
+        std::replace(target_device.begin(), target_device.end(), ':', '.');
+        std::ostringstream result;
+        result << "targetDevice=" << target_device << "_";
+        if (!configuration.empty()) {
+            for (auto& configItem : configuration) {
+                result << "configItem=" << configItem.first << "_";
+                configItem.second.print(result);
+                result << "_";
+            }
+        }
+        return result.str();
     }
-    element::Type type;
+
+    void SetUp() {
+        // Skip test according to plugin specific disabledTestPatterns() (if any)
+        SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+        std::tie(target_device, configuration) = this->GetParam();
+        APIBaseTest::SetUp();
+    }
+
+protected:
+    bool compareTensorOutputs(const ov::Tensor& dynamicInferenceOutput, const ov::Tensor& undefinedInferenceOutput);
+
+    std::shared_ptr<ov::Core> ie = utils::PluginCache::get().core();
+    ov::AnyMap configuration;
 };
 
-using ObjectWithTypeParams = std::tuple<ObjectWithType>;
 
-class ObjectWithTypeTests : public testing::WithParamInterface<ObjectWithTypeParams>, public ::testing::Test {};
+bool InferRequestElementTypeTests::compareTensorOutputs(const ov::Tensor& dynamicInferenceOutput, const ov::Tensor& undefinedInferenceOutput) {
+    const auto dynamicShape = dynamicInferenceOutput.get_shape();
+    const auto undefinedShape = undefinedInferenceOutput.get_shape();
 
-TEST_P(ObjectWithTypeTests, construct_and_destroy_in_global_scope) {
-    ASSERT_EQ(element::f32, std::get<0>(GetParam()).type);
+    // compare two models' element types
+    if (dynamicInferenceOutput.get_element_type() != undefinedInferenceOutput.get_element_type()) {
+        return false;
+    }
+
+    // compare two models' shapes
+    if (dynamicShape.size() != undefinedShape.size()) {
+        return false;
+    }
+
+    if (!std::equal(dynamicShape.cbegin(), dynamicShape.cend(), undefinedShape.cbegin())) {
+        return false;
+    }
+    // compare two models' data
+    for (size_t i = 0; i < undefinedInferenceOutput.get_size(); i++) {
+        if (fabs(dynamicInferenceOutput.data<float>()[i] - undefinedInferenceOutput.data<float>()[i]) >
+            std::numeric_limits<float>::epsilon())
+            return false;
+    }
+    return true;
 }
 
-INSTANTIATE_TEST_SUITE_P(f32_test_parameter, ObjectWithTypeTests, ::testing::Values(element::f32));
+// Test whether the serialization and inference results of the dynamic type model and the undefined type model are the same
+TEST_P(InferRequestElementTypeTests, CompareDynamicAndUndefinedTypeNetwork) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-// Test whether the serialization results of the dynamic type model and the undefined type model are the same
-class UndefinedTypeDynamicTypeSerializationTests : public ::testing::Test {};
-
-TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefined_type_serialization) {
     // Customize a model with a dynamic type
     std::string dynamicTypeModelXmlString = R"V0G0N(<?xml version="1.0"?>
 <net name="custom_model" version="11">
@@ -345,18 +282,45 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
 </net>
 )V0G0N";
 
-    std::stringstream dynamicTypeModelXmlStream, undefinedTypeModelXmlStream, dynamicTypeModelBinStream,
-        undefinedTypeModelBinStream;
+    std::stringstream dynamicTypeModelXmlStream, undefinedTypeModelXmlStream, dynamicTypeModelBinStream, undefinedTypeModelBinStream;
 
-    ov::Core core;
     // Test whether the serialization results of the two models are the same
-    auto dynamicTypeModel = core.read_model(dynamicTypeModelXmlString, ov::Tensor());
-    auto undefinedTypeModel = core.read_model(undefinedTypeModelXmlString, ov::Tensor());
+    auto dynamicTypeModel = ie->read_model(dynamicTypeModelXmlString, ov::Tensor());
+    auto undefinedTypeModel = ie->read_model(undefinedTypeModelXmlString, ov::Tensor());
 
     // compile the serialized models
     ov::pass::Serialize(dynamicTypeModelXmlStream, dynamicTypeModelBinStream).run_on_model(dynamicTypeModel);
     ov::pass::Serialize(undefinedTypeModelXmlStream, undefinedTypeModelBinStream).run_on_model(undefinedTypeModel);
 
-    ASSERT_EQ(dynamicTypeModelXmlStream.str(), undefinedTypeModelXmlStream.str())
+    ASSERT_TRUE(dynamicTypeModelXmlStream.str() == undefinedTypeModelXmlStream.str())
         << "Serialized XML files are different: dynamic type vs undefined type";
+
+    // Test whether the inference results of the two models are the same
+    // set input and output names
+    const std::string inputName = "Parameter_1";
+    const std::string outputName = "Output_5";
+
+    // create input tensor match the customized models
+    ov::Shape shape = {1, 1, 128};
+    ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, shape, 100, 0);
+
+    auto execNetDynamic = ie->compile_model(dynamicTypeModel, target_device, configuration);
+    ov::InferRequest reqDynamic;
+    OV_ASSERT_NO_THROW(reqDynamic = execNetDynamic.create_infer_request());
+    OV_ASSERT_NO_THROW(reqDynamic.set_tensor(inputName, inTensor));
+    OV_ASSERT_NO_THROW(reqDynamic.infer());
+
+    auto execNetUndefined = ie->compile_model(undefinedTypeModel, target_device, configuration);
+    ov::InferRequest reqUndefined;
+    OV_ASSERT_NO_THROW(reqUndefined = execNetUndefined.create_infer_request());
+    OV_ASSERT_NO_THROW(reqUndefined.set_tensor(inputName, inTensor));
+    OV_ASSERT_NO_THROW(reqUndefined.infer());
+
+    // compare the reference outputs between dynamic type model and undefined type model
+    ASSERT_TRUE(compareTensorOutputs(reqDynamic.get_tensor(outputName), reqUndefined.get_tensor(outputName)))
+        << "Inference results are different: dynamic type vs undefined type";
 }
+
+}  // namespace behavior
+}  // namespace test
+}  // namespace ov
