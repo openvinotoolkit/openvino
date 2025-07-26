@@ -33,6 +33,7 @@ enum StreamCreateType {
  * @param[out]  core_type core type
  * @param[out]  numa_node_id numa node id
  * @param[out]  max_threads_per_core the max number of threads per cpu core
+ * @param[out]  pin_pecores whether pin threads to P cores or E cores.
  */
 void get_cur_stream_info(const int stream_id,
                          const bool cpu_pinning,
@@ -43,7 +44,8 @@ void get_cur_stream_info(const int stream_id,
                          int& core_type,
                          int& numa_node_id,
                          int& socket_id,
-                         int& max_threads_per_core);
+                         int& max_threads_per_core,
+                         bool& pin_pecores);
 
 /**
  * @brief      Reserve cpu resource by streams info
