@@ -36,8 +36,8 @@ void Load::validate_memory_access_params() const {
     // Load has memory access port only on output
     const auto input_ma_ports = get_memory_access_input_ports();
     const auto output_ma_ports = get_memory_access_output_ports();
-    OPENVINO_ASSERT(input_ma_ports.size() == 1 && is_memory_access_input_port(0),
-                    "Load node must have memory access input port");
+    OPENVINO_ASSERT(input_ma_ports.size() == 1, "Load node must have exactly one memory access input port");
+    OPENVINO_ASSERT(is_memory_access_input_port(0), "Port 0 must be a memory access input port");
     OPENVINO_ASSERT(output_ma_ports.empty(), "Load node mustn't have memory access output port");
 }
 
@@ -62,9 +62,9 @@ LoadReorder::LoadReorder(const Output<ov::Node>& x, const size_t count, const si
     const auto& in_shape = x.get_partial_shape();
     const auto in_shape_size = in_shape.size();
     OPENVINO_ASSERT(m_order.size() == in_shape_size, "LoadReorder got new_order of invalid size");
-    OPENVINO_ASSERT(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1 &&
-                        *std::min_element(m_order.begin(), m_order.end()) == 0,
-                    "LoadReorder detected invalid values in new_order");
+    OPENVINO_ASSERT(*std::max_element(m_order.begin(), m_order.end()) == in_shape_size - 1,
+                    "LoadReorder max element must be shape_size - 1");
+    OPENVINO_ASSERT(*std::min_element(m_order.begin(), m_order.end()) == 0, "LoadReorder min element must be 0");
     const std::set<size_t> unique_dims(m_order.begin(), m_order.end());
     OPENVINO_ASSERT(unique_dims.size() == m_order.size(), "LoadReorder order must not contain repeated elements");
     constructor_validate_and_infer_types();

@@ -91,9 +91,10 @@ RegSpillEnd::RegSpillEnd(const Output<Node>& reg_spill_begin) : RegSpillBase({re
 }
 
 void RegSpillEnd::validate_and_infer_types() {
+    NODE_VALIDATION_CHECK(this, get_input_size() == 1, "RegSpillEnd must have exactly one input");
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 1 && ov::is_type<RegSpillBegin>(get_input_node_shared_ptr(0)),
-                          "RegSpillEnd must have one input of RegSPillBegin type");
+                          ov::is_type<RegSpillBegin>(get_input_node_shared_ptr(0)),
+                          "RegSpillEnd input must be of RegSpillBegin type");
     set_output_type(0, element::f32, ov::PartialShape{});
 }
 

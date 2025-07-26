@@ -187,8 +187,9 @@ ov::PartialShape Brgemm::infer_output_partial_shape(const std::vector<ov::Partia
     auto merged_dimension = DimType();
     auto arg0_col_dim = arg0_shape_tmp[arg0_rank - 1];
     auto arg1_row_dim = arg1_shape_tmp[arg1_rank - 2];
-    OPENVINO_ASSERT(DimType::merge(merged_dimension, arg0_col_dim, arg1_row_dim) || arg0_col_dim.is_dynamic() ||
-                        arg1_row_dim.is_dynamic(),
+    const bool dimensions_compatible = DimType::merge(merged_dimension, arg0_col_dim, arg1_row_dim) ||
+                                       arg0_col_dim.is_dynamic() || arg1_row_dim.is_dynamic();
+    OPENVINO_ASSERT(dimensions_compatible,
                     "Incompatible Brgemm matrix dimension. arg0_col_dim = ",
                     arg0_col_dim,
                     ", arg1_row_dim = ",
@@ -204,9 +205,10 @@ ov::PartialShape Brgemm::infer_output_partial_shape(const std::vector<ov::Partia
     size_t max_rank = arg0_shape_tmp.size();
     std::vector<DimType> output_shape(max_rank);
     for (size_t i = 0; i < max_rank - 2; ++i) {
-        OPENVINO_ASSERT(DimType::broadcast_merge(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
-                            arg0_shape_tmp[i].is_dynamic() || arg1_shape_tmp[i].is_dynamic(),
-                        "Incompatible Brgemm batch dimension");
+        const bool batch_dims_compatible =
+            DimType::broadcast_merge(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i]) ||
+            arg0_shape_tmp[i].is_dynamic() || arg1_shape_tmp[i].is_dynamic();
+        OPENVINO_ASSERT(batch_dims_compatible, "Incompatible Brgemm batch dimension");
     }
     output_shape[output_shape.size() - 2] = arg0_shape_tmp[arg0_shape_tmp.size() - 2];  // M
     output_shape[output_shape.size() - 1] = arg1_shape_tmp[arg1_shape_tmp.size() - 1];  // N

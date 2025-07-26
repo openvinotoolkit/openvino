@@ -78,7 +78,8 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
 }  // namespace
 
 void LinearIRBuilder::clone(const LinearIR* src, LinearIR* dst, ExpressionMap& expression_map) const {
-    OPENVINO_ASSERT(src && dst, "Invalid pointers were provided for LinearIRBuilder::clone");
+    OPENVINO_ASSERT(src, "Invalid src pointer was provided for LinearIRBuilder::clone");
+    OPENVINO_ASSERT(dst, "Invalid dst pointer was provided for LinearIRBuilder::clone");
     dst->m_config = src->m_config;
 
     dst->m_expressions = clone_range(src->m_expressions.cbegin(), src->m_expressions.cend(), expression_map);
@@ -121,10 +122,12 @@ LinearIR::container LinearIRBuilder::clone_range(LinearIR::container::const_iter
         const auto& result_expr = *result_it;
         const auto& original_expr = *original_it;
         // Checking that the cloning was successful: the cloned part of LinearIR is identical to the original one
-        OPENVINO_ASSERT(result_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info() &&
-                            result_expr->get_input_count() == original_expr->get_input_count() &&
-                            result_expr->get_output_count() == original_expr->get_output_count(),
-                        "Expressions after copying aren't matched!");
+        OPENVINO_ASSERT(result_expr->get_node()->get_type_info() == original_expr->get_node()->get_type_info(),
+                        "Expression type info mismatch after copying!");
+        OPENVINO_ASSERT(result_expr->get_input_count() == original_expr->get_input_count(),
+                        "Expression input count mismatch after copying!");
+        OPENVINO_ASSERT(result_expr->get_output_count() == original_expr->get_output_count(),
+                        "Expression output count mismatch after copying!");
         // Copy tensor shapes as shared pointer if needed
         if (!m_config.deep_copy_of_shapes) {
             for (size_t i = 0; i < original_expr->get_input_count(); ++i) {

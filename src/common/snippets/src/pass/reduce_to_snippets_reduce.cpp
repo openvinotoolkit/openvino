@@ -34,7 +34,8 @@ snippets::pass::ReduceToSnippetsReduce::ReduceToSnippetsReduce() {
         const auto& axis_constant = ov::as_type_ptr<ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(1));
         // Note: we do not check the Constant value here. If the Reduce was tokenized, then we assume that it is
         // supported
-        OPENVINO_ASSERT(reduce_base->get_keep_dims() && axis_constant, "Unspported Reduce was tokenized by Snippets");
+        OPENVINO_ASSERT(reduce_base->get_keep_dims(), "Reduce must keep dimensions");
+        OPENVINO_ASSERT(axis_constant, "Reduce axis must be constant");
 
         const auto& data_input = reduce->get_input_source_output(0);
         const auto reduce_rank = reduce->get_input_partial_shape(0).rank();

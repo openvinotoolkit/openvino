@@ -41,7 +41,8 @@ size_t SetBufferRegGroup::get_buffer_idx(const BufferExpressionPtr& target, cons
 bool SetBufferRegGroup::can_be_in_one_reg_group(const UnifiedLoopInfo::LoopPortInfo& lhs_info,
                                                 const UnifiedLoopInfo::LoopPortInfo& rhs_info) {
     const auto equal_element_type_sizes = lhs_info.desc.data_size == rhs_info.desc.data_size;
-    OPENVINO_ASSERT(lhs_info.port.get_expr_port() && rhs_info.port.get_expr_port(), "Expression ports are nullptr!");
+    OPENVINO_ASSERT(lhs_info.port.get_expr_port(), "Expression port (lhs) is nullptr!");
+    OPENVINO_ASSERT(rhs_info.port.get_expr_port(), "Expression port (rhs) is nullptr!");
     const auto equal_invariant_shape_paths =
         MarkInvariantShapePath::getInvariantPortShapePath(*lhs_info.port.get_expr_port()) ==
         MarkInvariantShapePath::getInvariantPortShapePath(*rhs_info.port.get_expr_port());
@@ -72,7 +73,7 @@ bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const Buf
         std::equal(rhs_ids.cbegin(), rhs_ids.cbegin() + count_outer_loops, lhs_ids.cbegin());
     const auto outer_buffer_has_zero_shifts =
         utils::all_of(0, outer_buffer.second.desc.ptr_increment, outer_buffer.second.desc.finalization_offset);
-    return !(are_outer_loops_the_same && outer_buffer_has_zero_shifts);
+    return !are_outer_loops_the_same || !outer_buffer_has_zero_shifts;
 }
 
 void SetBufferRegGroup::update_adj_matrix(const BufferMap::value_type& lhs,

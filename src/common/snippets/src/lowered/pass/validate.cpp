@@ -72,7 +72,8 @@ void validate_result(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR&
     const auto& expr_val = shape_infer_seq.empty() ? expr : shape_infer_seq.back();
     const auto source = expr_val->get_input_port_connector(0)->get_source();
     const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
-    OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()), "Result expects MemoryAccess parent");
+    OPENVINO_ASSERT(ma, "Result expects MemoryAccess parent");
+    OPENVINO_ASSERT(ma->is_memory_access_output_port(source.get_index()), "Result expects MemoryAccess output port");
 }
 
 void validate_buffer(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR& linear_ir) {
@@ -81,13 +82,15 @@ void validate_buffer(const ExpressionPtr& expr, [[maybe_unused]] const LinearIR&
     for (const auto& input : expr->get_input_port_connectors()) {
         const auto& source = input->get_source();
         const auto ma = std::dynamic_pointer_cast<snippets::modifier::MemoryAccess>(source.get_expr()->get_node());
-        OPENVINO_ASSERT(ma && ma->is_memory_access_output_port(source.get_index()),
-                        "Buffer expects MemoryAccess parent");
+        OPENVINO_ASSERT(ma, "Buffer expects MemoryAccess parent");
+        OPENVINO_ASSERT(ma->is_memory_access_output_port(source.get_index()),
+                        "Buffer expects MemoryAccess output port");
         const auto buffer_siblings = input->get_consumers();
         for (const auto& buffer_sibling : buffer_siblings) {
             const auto& buffer_sibling_expr = buffer_sibling.get_expr();
-            OPENVINO_ASSERT(buffer_sibling_expr == expr || ov::is_type<op::LoopEnd>(buffer_sibling_expr->get_node()),
-                            "Buffer can have only LoopEnd siblings!");
+            const bool valid_buffer_sibling =
+                buffer_sibling_expr == expr || ov::is_type<op::LoopEnd>(buffer_sibling_expr->get_node());
+            OPENVINO_ASSERT(valid_buffer_sibling, "Buffer can have only LoopEnd siblings!");
         }
     }
 
@@ -118,15 +121,13 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
 
     const auto& loop_manager = linear_ir.get_loop_manager();
     const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
-    OPENVINO_ASSERT(loop_info->get_work_amount() == loop_end->get_work_amount() &&
-                        loop_info->get_increment() == loop_end->get_increment(),
-                    "Incompatible LoopEnd and the corresponding LoopInfo");
+    OPENVINO_ASSERT(loop_info->get_work_amount() == loop_end->get_work_amount(), "LoopEnd work amount mismatch");
+    OPENVINO_ASSERT(loop_info->get_increment() == loop_end->get_increment(), "LoopEnd increment mismatch");
 
     const auto input_port_infos = loop_info->get_input_ports_info();
     const auto output_port_infos = loop_info->get_output_ports_info();
-    OPENVINO_ASSERT(
-        input_port_infos.size() == loop_end->get_input_num() && output_port_infos.size() == loop_end->get_output_num(),
-        "Incompatible LoopEnd and the corresponding LoopInfo");
+    OPENVINO_ASSERT(input_port_infos.size() == loop_end->get_input_num(), "LoopEnd input port count mismatch");
+    OPENVINO_ASSERT(output_port_infos.size() == loop_end->get_output_num(), "LoopEnd output port count mismatch");
 
     const auto& is_incremented = loop_end->get_is_incremented();
     const auto& ptr_increments = loop_end->get_ptr_increments();
@@ -134,10 +135,12 @@ void validate_loop_end(const ExpressionPtr& expr, const LinearIR& linear_ir) {
     auto validate_loop_ports = [&](const std::vector<UnifiedLoopInfo::LoopPortInfo>& loop_port_infos,
                                    size_t shift = 0) {
         for (size_t i = 0; i < loop_port_infos.size(); ++i) {
-            OPENVINO_ASSERT(is_incremented[i + shift] == loop_port_infos[i].port.is_incremented() &&
-                                ptr_increments[i + shift] == loop_port_infos[i].desc.ptr_increment &&
-                                final_offsets[i + shift] == loop_port_infos[i].desc.finalization_offset,
-                            "Incompatible data ptr shifts in LoopEnd and the corresponding LoopInfo");
+            OPENVINO_ASSERT(is_incremented[i + shift] == loop_port_infos[i].port.is_incremented(),
+                            "LoopEnd is_incremented mismatch");
+            OPENVINO_ASSERT(ptr_increments[i + shift] == loop_port_infos[i].desc.ptr_increment,
+                            "LoopEnd ptr_increment mismatch");
+            OPENVINO_ASSERT(final_offsets[i + shift] == loop_port_infos[i].desc.finalization_offset,
+                            "LoopEnd finalization_offset mismatch");
         }
     };
     validate_loop_ports(input_port_infos);
@@ -171,8 +174,8 @@ bool Validate::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lo
 #endif  // SNIPPETS_DEBUG_CAPS
             ov::is_type_any_of<op::LoopEnd, ov::op::v0::Result>(node);
 
-        OPENVINO_ASSERT(expr->get_output_count() == node->get_output_size() || bypass_output_size_check,
-                        "Incorrect count of output port descriptors!");
+        const bool valid_output_count = expr->get_output_count() == node->get_output_size() || bypass_output_size_check;
+        OPENVINO_ASSERT(valid_output_count, "Incorrect count of output port descriptors!");
         expr->validate();
         // Loop expr doesn't have shapes and layouts
         if (!ov::is_type<op::LoopBase>(node)) {

@@ -130,8 +130,9 @@ void RuntimeConfigurator::init_data_info(const lowered::LinearIRCPtr& linear_ir)
 
     auto update_io_parameters = [&](const PortDescriptorPtr& desc, const ov::element::Type& etype) {
         OPENVINO_ASSERT(desc, "IO Descriptor is missed!");
-        OPENVINO_ASSERT(desc->get_shape().size() == desc->get_layout().size() || desc->get_layout().empty(),
-                        "Incompatible ranks of shape and layout!");
+        const bool valid_layout_size =
+            desc->get_shape().size() == desc->get_layout().size() || desc->get_layout().empty();
+        OPENVINO_ASSERT(valid_layout_size, "Incompatible ranks of shape and layout!");
         m_io_descs.push_back(desc);
         m_io_data_sizes.push_back(etype.size());
     };

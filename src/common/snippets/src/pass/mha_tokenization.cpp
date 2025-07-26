@@ -163,8 +163,12 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
         const auto input = op->input_value(i);
         const auto parent = input.get_node_shared_ptr();
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
-        if (!(constant && (ov::shape_size(input.get_shape()) == 1 || ov::is_type<ov::op::v0::FakeQuantize>(op) ||
-                           ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op)))) {
+        const bool is_non_scalar_shape =
+            input.get_partial_shape().is_static() && ov::shape_size(input.get_shape()) != 1;
+        const bool is_not_fake_quantize = !ov::is_type<ov::op::v0::FakeQuantize>(op);
+        const bool should_not_be_inside_body = !ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op);
+
+        if (!constant || (is_non_scalar_shape && is_not_fake_quantize && should_not_be_inside_body)) {
             count++;
         }
     }

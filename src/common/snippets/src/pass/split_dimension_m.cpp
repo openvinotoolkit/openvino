@@ -263,7 +263,8 @@ void SplitDimensionM::reshape_subgraph(const std::shared_ptr<op::Subgraph>& subg
     auto get_updated_shape = [&](const ov::snippets::VectorDims& shape, size_t m_index, bool split_m_dim) {
         OPENVINO_ASSERT(m_index < shape.size(), "Dimension index must be less than shape rank");
         const auto current_m_dim = shape[m_index];
-        OPENVINO_ASSERT(!split_m_dim || current_m_dim == 1 || current_m_dim == m_dim, "Incorrect shape for splitting!");
+        const bool valid_split_dim = !split_m_dim || current_m_dim == 1 || current_m_dim == m_dim;
+        OPENVINO_ASSERT(valid_split_dim, "Incorrect shape for splitting!");
         const auto new_shape =
             split_m_dim ? reshape_m_dim(shape, m_index, batch_m_dim, new_m_dim) : unsqueeze_m_dim(shape, m_index);
         OPENVINO_ASSERT(ov::shape_size(new_shape) == ov::shape_size(shape), "Incorrect shape splitting!");
