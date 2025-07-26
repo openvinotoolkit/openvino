@@ -416,6 +416,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      q_ptr,
                                      k_ptr,
                                      c_ptr,
+                                     nullptr,
+                                     nullptr,
                                      wsp.data() + tid * wsp_size_per_thread,
                                      qk_scratch_a ? &qk_scratch_a.at<T>({tid, 0}) : nullptr);
             float* alibi_ptr = nullptr;
@@ -476,6 +478,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      w_ptr,
                                      v_ptr,
                                      fp32_out_ptr,
+                                     nullptr,
+                                     nullptr,
                                      wsp.data() + tid * wsp_size_per_thread,
                                      wv_gemm_ptr->get_scratch_a_size() > 0 ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
             if (is_xf16) {
