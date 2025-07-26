@@ -316,10 +316,18 @@ public:
         return (m_node->has_domain() && m_node->domain() != "ai.onnx" ? m_node->domain() : DEFAULT_DOMAIN);
     }
 
+    bool has_attribute(const std::string& name) const {
+        for (const auto& attr : m_node->attribute()) {
+            if (attr.has_name() && attr.name() == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void experimental_get_internal_structures(const void** node_def) const override {
         *node_def = m_node;
     }
-
 
 private:
     // std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;

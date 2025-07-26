@@ -10,6 +10,7 @@
 #include "core/graph.hpp"
 #include "core/null_node.hpp"
 #include "core/tensor.hpp"
+#include "openvino/frontend/onnx/decoder.hpp"
 
 namespace ov {
 namespace frontend {
@@ -294,22 +295,25 @@ Node::Node(const NodeProto& node_proto, Graph* graph)
               [](Impl* impl) {
                   delete impl;
               }},
-      m_decoder(nullptr) {}
-Node::Node(const DecoderBaseOperation& decoder)
+      m_decoder(nullptr),
+      m_known_tensors(nullptr) {}
+Node::Node(const DecoderBaseOperation& decoder, std::map<std::string, Output<ov::Node>>& known_tensors)
     : m_pimpl{nullptr,
               [](Impl* impl) {
 
               }},
-      m_decoder(&decoder) {}
+      m_decoder(&decoder),
+      m_known_tensors(&known_tensors) {}
 
-Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)}, m_decoder(nullptr) {}
+Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)}, m_decoder(nullptr), m_known_tensors(nullptr) {}
 
 Node::Node(const Node& other)
     : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraphs()},
               [](Impl* impl) {
                   delete impl;
               }},
-      m_decoder(nullptr) {}
+      m_decoder(nullptr),
+      m_known_tensors(nullptr) {}
 
 #include <stdexcept>  // For std::runtime_error
 
@@ -317,6 +321,18 @@ ov::OutputVector Node::get_ov_inputs() const {
     if (m_pimpl != nullptr) {
         return m_pimpl->get_ov_inputs();
     } else if (m_decoder != nullptr) {
+        ov::OutputVector result;
+        for (size_t idx = 0; idx < m_decoder->get_input_size(); ++idx) {
+            const std::string& name = m_decoder->get_input_tensor_name(idx);
+            auto it = m_known_tensors->find(name);
+            FRONT_END_GENERAL_CHECK(it != m_known_tensors->end());
+            if (!name.empty()) {
+                result.push_back(it->second);
+            } else {
+                result.push_back(std::make_shared<NullNode>()->output(0));
+            }
+        }
+        return result;
         // Add logic for m_decoder if applicable
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
@@ -415,7 +431,7 @@ bool Node::has_attribute(const std::string& name) const {
     if (m_pimpl != nullptr) {
         return m_pimpl->has_attribute(name);
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return m_decoder->has_attribute(name);
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -800,7 +816,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_decoder_attribute_as_constant(co
 
 template <typename T>
 std::shared_ptr<ov::op::v0::Constant> Node::get_decoder_attribute_as_constant(const std::string& name,
-                                                                            T default_value) const {
+                                                                              T default_value) const {
     const auto value = get_attribute_value<T>(name, default_value);
     const ov::element::Type type = ov::element::from<T>();
     return std::make_shared<ov::op::v0::Constant>(type, ov::Shape{}, value);
