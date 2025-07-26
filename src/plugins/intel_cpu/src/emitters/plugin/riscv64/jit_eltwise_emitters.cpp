@@ -1912,15 +1912,14 @@ size_t jit_sigmoid_emitter::get_inputs_num() const {
 size_t jit_sigmoid_emitter::aux_gprs_count() const {
     OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return jit_exp_emitter_->aux_gprs_count() + 1;
-}
 
 size_t jit_sigmoid_emitter::aux_vecs_count() const {
-    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
+    OV_CPU_JIT_EMITTER_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return jit_exp_emitter_->aux_vecs_count() + 1;
 }
 
 size_t jit_sigmoid_emitter::aux_fp_gprs_count() const {
-    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
+    OV_CPU_JIT_EMITTER_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return std::max(jit_exp_emitter_->aux_fp_gprs_count(), 1lu);
 }
 
@@ -2070,6 +2069,108 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
 std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}, {element::i32, element::i32}};
+}
+
+/// Tanh ///
+jit_tanh_emitter::jit_tanh_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   const std::shared_ptr<ov::Node>& /*node*/,
+                                   ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc),
+      jit_exp_emitter_(std::make_unique<jit_exp_emitter>(host, host_isa, exec_prc)) {
+    prepare_table();
+}
+
+jit_tanh_emitter::jit_tanh_emitter(ov::intel_cpu::riscv64::jit_generator* host,
+                                   ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                                   ov::element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc),
+      jit_exp_emitter_(std::make_unique<jit_exp_emitter>(host, host_isa, exec_prc)) {
+    prepare_table();
+}
+
+size_t jit_tanh_emitter::get_inputs_num() const {
+    return 1;
+}
+
+size_t jit_tanh_emitter::aux_gprs_count() const {
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
+    return jit_exp_emitter_->aux_gprs_count();
+}
+
+size_t jit_tanh_emitter::aux_vecs_count() const {
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
+    // Need extra aux vectors for exp(x) and exp(-x)
+    return jit_exp_emitter_->aux_vecs_count() + 2;
+}
+
+size_t jit_tanh_emitter::aux_fp_gprs_count() const {
+    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
+    return std::max(jit_exp_emitter_->aux_fp_gprs_count(), 1lu);
+}
+
+void jit_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                 const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OPENVINO_THROW("Can't create jit eltwise kernel");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                const std::vector<size_t>& out_vec_idxs) const {
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto exp_pos = VReg(aux_vec_idxs[aux_vecs_count() - 2]);
+    auto exp_neg = VReg(aux_vec_idxs[aux_vecs_count() - 1]);
+
+    // exp(x)
+    {
+        std::vector<size_t> exp_src_idxs = {static_cast<size_t>(src.getIdx())};
+        std::vector<size_t> exp_dst_idxs = {static_cast<size_t>(exp_pos.getIdx())};
+        std::vector<size_t> exp_aux_vec_idxs(aux_vec_idxs.begin(), aux_vec_idxs.begin() + jit_exp_emitter_->aux_vecs_count());
+        jit_exp_emitter_->emit_code(exp_src_idxs, exp_dst_idxs, exp_aux_vec_idxs, aux_gpr_idxs, aux_fp_gpr_idxs);
+    }
+
+    // exp(-x)
+    {
+        // Negate src into exp_neg
+        h->vfneg_vv(exp_neg, src);
+        std::vector<size_t> exp_src_idxs = {static_cast<size_t>(exp_neg.getIdx())};
+        std::vector<size_t> exp_dst_idxs = {static_cast<size_t>(exp_neg.getIdx())};
+        std::vector<size_t> exp_aux_vec_idxs(aux_vec_idxs.begin(), aux_vec_idxs.begin() + jit_exp_emitter_->aux_vecs_count());
+        jit_exp_emitter_->emit_code(exp_src_idxs, exp_dst_idxs, exp_aux_vec_idxs, aux_gpr_idxs, aux_fp_gpr_idxs);
+    }
+
+    // tanh(x) = (exp(x) - exp(-x)) / (exp(x) + exp(-x))
+    h->vfsub_vv(dst, exp_pos, exp_neg); // numerator
+    h->vfadd_vv(exp_neg, exp_pos, exp_neg); // denominator (reuse exp_neg as denominator)
+    h->vfdiv_vv(dst, dst, exp_neg);
+}
+
+void jit_tanh_emitter::emit_data() const {
+    jit_emitter::emit_data();    // Compute tanh(x) using sigmoid(2x)
+    auto src = VReg(in_vec_idxs[0]);
+    auto dst = VReg(out_vec_idxs[0]);
+    auto aux = VReg(aux_vec_idxs[0]); // for 2x
+    
+    // aux = 2 * src
+    h->vfmul_vf(aux, src, 2.0f);
+    
+    // Call sigmoid emitter
+    jit_sigmoid_emitter_->emit_code({aux.getIdx()}, {dst.getIdx()}, ...);
+    
+    // dst = 2 * dst - 1
+    h->vfmul_vf(dst, dst, 2.0f);
+    h->vfsub_vf(dst, dst, 1.0f);
+    jit_exp_emitter_->emit_data();
+}
+
+std::set<std::vector<element::Type>> jit_tanh_emitter::get_supported_precisions(
+    const std::shared_ptr<ov::Node>& /*node*/) {
+    return {{element::f32}};
 }
 
 #undef CONST_1_F
