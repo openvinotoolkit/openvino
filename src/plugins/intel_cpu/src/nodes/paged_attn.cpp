@@ -92,8 +92,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 14 || orgInputNumber == 17,
-                    "The input number of PagedAttention should be 14 or 17.");
+    CPU_NODE_ASSERT(any_of(orgInputNumber, 14U, 17U), "The input number of PagedAttention should be 14 or 17.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -270,13 +269,13 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     try {
         auto vCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_VCACHE);
         auto kCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_KCACHE);
-        if (one_of(vCachePrecision,
+        if (any_of(vCachePrecision,
                    ov::element::u4,
                    ov::element::u8,
                    ov::element::f32,
                    ov::element::f16,
                    ov::element::bf16)) {
-            if (!one_of(kCachePrecision,
+            if (none_of(kCachePrecision,
                         ov::element::u4,
                         ov::element::u8,
                         ov::element::f16,

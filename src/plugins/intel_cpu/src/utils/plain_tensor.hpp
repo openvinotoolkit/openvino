@@ -397,7 +397,7 @@ struct PlainTensor {
     }
 
     [[nodiscard]] size_t sub_byte_data_type_multiplier() const {
-        if (one_of(m_dt, ov::element::i4, ov::element::u4)) {
+        if (any_of(m_dt, ov::element::i4, ov::element::u4)) {
             return 2;
         }
         return 1;
