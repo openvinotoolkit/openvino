@@ -10,7 +10,6 @@
 #include "openvino/core/deprecated.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
-#include "openvino/frontend/onnx/decoder.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ONNX_NAMESPACE {
@@ -39,6 +38,7 @@ class Subgraph;
 class Tensor;
 class SparseTensor;
 class Attribute;
+class DecoderBaseOperation;
 
 using ::ONNX_NAMESPACE::NodeProto;
 
@@ -47,7 +47,7 @@ public:
     Node() = delete;
     // TODO: hide this ctor since it uses protobufs generated structures
     Node(const NodeProto& node_proto, Graph* graph);
-    Node(const DecoderBaseOperation& decoder);
+    Node(const DecoderBaseOperation& decoder, std::map<std::string, Output<ov::Node>>& known_tensors);
 
     Node(Node&&) noexcept;
     Node(const Node&);
@@ -114,6 +114,7 @@ private:
     // default deleter due to incomple type.
     std::unique_ptr<Impl, void (*)(Impl*)> m_pimpl;
     const DecoderBaseOperation* m_decoder;
+    std::map<std::string, Output<ov::Node>>* m_known_tensors;
 };
 
 template <>

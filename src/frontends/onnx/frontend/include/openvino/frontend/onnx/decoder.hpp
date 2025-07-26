@@ -73,6 +73,9 @@ public:
     /// \brief Returns operation's domain
     virtual const std::string& get_domain() const = 0;
 
+    /// \brief Returns true if node has attribute
+    virtual bool has_attribute(const std::string& name) const = 0;
+
     virtual void experimental_get_internal_structures(const void** node_def) const = 0;
 
     ~DecoderBaseOperation() override;

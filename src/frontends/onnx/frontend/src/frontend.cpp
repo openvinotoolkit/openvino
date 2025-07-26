@@ -415,9 +415,9 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
 
         const auto& out_size = decoder->get_output_size();
         ov::OutputVector ov_outputs(out_size);
+        const Operator* translator =
+            translate_map.get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
         try {
-            const Operator* translator =
-                translate_map.get_operator(decoder->get_domain(), decoder->get_op_type(), decoder->get_op_set());
             FRONT_END_OP_CONVERSION_CHECK(
                 translator != nullptr,
                 "No translator found for " + decoder->get_domain() + " " + decoder->get_op_type() + " node.");
@@ -427,21 +427,21 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
             // ov::frontend::onnx::NodeContext node_context(decoder, inputs, submodel_translation_functions);
             const NodeProto* node_def = nullptr;
             decoder->experimental_get_internal_structures(reinterpret_cast<const void**>(&node_def));
-            ov::frontend::onnx::Node node_context(*decoder);
+            ov::frontend::onnx::Node node_context(*decoder, all_tensor_values);
             ov_outputs = (*translator)(node_context);
         } catch (...) {
+            /*
             if (fail_fast) {
-                /*
-                if (m_telemetry && translate_map.count(decoder->get_op_type()) == 0) {
+                if (m_telemetry && translator == nullptr) {
                     m_telemetry->send_event("error_cause", "tflite_" + decoder->get_op_type());
                 }
-                */
                 throw;
             } else {
-                // auto operation = std::make_shared<ov::frontend::onnx::FrameworkNode>(decoder, inputs, out_size);
-                // operation->set_friendly_name(decoder->get_op_name());
-                // ov_outputs = operation->outputs();
+                auto operation = std::make_shared<ov::frontend::onnx::FrameworkNode>(decoder, inputs, out_size);
+                operation->set_friendly_name(decoder->get_op_name());
+                ov_outputs = operation->outputs();
             }
+            */
         }
         for (size_t i = 0; i < out_size; ++i) {
             const auto& name = decoder->get_output_tensor_name(i);
