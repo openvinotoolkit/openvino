@@ -1409,8 +1409,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_low_precision,
                         ),
                         concat_gpu::PrintToStringParamName);
 
+using TestParamType_implicit_concat = ::testing::tuple<size_t,      // 0 - Input Batch size
+    std::vector<size_t>,                                            // 1 - Inputs Features Sizes
+    size_t,                                                         // 2 - Input Y Size
+    size_t,                                                         // 3 - Input X Size
+    bool,                                                           // 4 - Implicit concat
+    bool>;                                                          // 5 - is_caching_test
+struct concat_gpu_implicit : public ::testing::TestWithParam<TestParamType_implicit_concat>
+{
+    tests::random_generator rg;
+
+    void SetUp() override {
+        rg.set_seed(GET_SUITE_NAME);
+    }
+
+    static std::string
+    PrintToStringParamName(testing::TestParamInfo<TestParamType_implicit_concat> param_info)
+    {
+        std::string in;
+        for (size_t i = 0; i < testing::get<1>(param_info.param).size() - 1; i++) {
+            in += std::to_string(testing::get<1>(param_info.param)[i]) + "_";
+        }
+        in += std::to_string(testing::get<1>(param_info.param)[testing::get<1>(param_info.param).size() - 1]);
+
+        return "in" + std::to_string(testing::get<0>(param_info.param))
+               + "x" + in + "x" + std::to_string(testing::get<2>(param_info.param))
+               + 'x' + std::to_string(testing::get<3>(param_info.param))
+               + "_implicit_concat" + std::to_string(testing::get<4>(param_info.param))
+               + "_is_caching_test" + std::to_string(testing::get<5>(param_info.param));
+    }
+};
 template <typename Type>
-struct concat_gpu_4d_implicit : public concat_gpu {
+struct concat_gpu_4d_implicit : public concat_gpu_implicit {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
         auto data_type = ov::element::from<Type>();
@@ -1419,7 +1449,8 @@ public:
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
-        const bool is_caching_test = testing::get<4>(GetParam());
+        const bool is_implicit_concat = testing::get<4>(GetParam());
+        const bool is_caching_test = testing::get<5>(GetParam());
         size_t output_f = 0;
         for (auto& f : in_features)
             output_f += f;
@@ -1488,6 +1519,8 @@ public:
         auto outputs = concat_network->execute();
 
         bool concat_opt_enabled = config.get_optimize_data();
+        if (concat_opt_enabled)
+            concat_opt_enabled = is_implicit_concat;
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network->get_primitive("concat"))->can_be_optimized();
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
@@ -1541,18 +1574,18 @@ TEST_P(concat_implicit_gpu_4d_f16, input_order_opt_b_fs_yx_fsv16) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_implicit_gpu_4d_f16,
                         ::testing::Values(
-                            TestParamType_concat(1, { 16, 16 }, 2, 2, false),
-                            TestParamType_concat(1, { 16, 8 }, 2, 2, false),
-                            TestParamType_concat(1, { 8, 16 }, 2, 2, false)
+                            TestParamType_implicit_concat(1, { 16, 16 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(1, { 16, 8 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(1, { 8, 16 }, 2, 2, true, false)
                         ),
-                        concat_gpu::PrintToStringParamName);
+                        concat_gpu_implicit::PrintToStringParamName);
 
 INSTANTIATE_TEST_SUITE_P(export_import,
                         concat_implicit_gpu_4d_f16,
                         ::testing::Values(
-                            TestParamType_concat(1, { 8, 16 }, 2, 2, true)
+                            TestParamType_implicit_concat(1, { 8, 16 }, 2, 2, true, true)
                         ),
-                        concat_gpu::PrintToStringParamName);
+                        concat_gpu_implicit::PrintToStringParamName);
 
 TEST_P(concat_implicit_gpu_4d_i8, input_order_opt_b_fs_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv32));
@@ -1631,7 +1664,7 @@ TEST(concat_gpu_onednn, basic_input_types) {
 }
 
 template <typename Type>
-struct concat_gpu_4d_implicit_onednn : public concat_gpu {
+struct concat_gpu_4d_implicit_onednn : public concat_gpu_implicit {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
         auto data_type = ov::element::from<Type>();
@@ -1640,6 +1673,8 @@ public:
         const std::vector<size_t> in_features = testing::get<1>(GetParam());
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
+        const bool is_implicit_concat = testing::get<4>(GetParam());
+
         size_t output_f = 0;
         for (auto& f : in_features)
             output_f += f;
@@ -1708,6 +1743,8 @@ public:
         auto outputs = concat_network.execute();
 
         bool concat_opt_enabled = config.get_optimize_data();
+        if (concat_opt_enabled)
+            concat_opt_enabled = is_implicit_concat;
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->get_node().can_be_optimized();
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
@@ -1740,7 +1777,7 @@ public:
         ExecutionConfig config1 = get_test_default_config(engine);
         config1.set_property(ov::intel_gpu::optimize_data(true));
         ov::intel_gpu::ImplementationDesc impl = { fmt, std::string(""), impl_types::onednn };
-        config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl} }));
+        config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl}, {"pool0", impl}, {"pool1", impl} }));
 
         auto out_mem1 = run_concat_network(input, fmt, config1);
         cldnn::mem_lock<Type> out_ptr1(out_mem1, stream);
@@ -1760,7 +1797,6 @@ public:
     }
 };
 
-
 using concat_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_implicit_onednn<ov::float16>;
 using concat_implicit_gpu_onednn_4d_i8 = concat_gpu_4d_implicit_onednn<int8_t>;
 
@@ -1771,11 +1807,13 @@ TEST_P(concat_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_implicit_gpu_onednn_4d_f16,
                         ::testing::Values(
-                            TestParamType_concat(1, { 16, 16 }, 2, 2, false),
-                            TestParamType_concat(1, { 16, 8 }, 2, 2, false),
-                            TestParamType_concat(1, { 8, 16 }, 2, 2, false)
+                            TestParamType_implicit_concat(1, { 16, 16 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(1, { 16, 8 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(1, { 8, 16 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(1, { 16, 16 }, 1, 1, false, false),
+                            TestParamType_implicit_concat(1, { 16, 32 }, 9, 9, false, false)
                         ),
-                        concat_gpu::PrintToStringParamName);
+                        concat_gpu_implicit::PrintToStringParamName);
 
 TEST_P(concat_implicit_gpu_onednn_4d_i8, input_order_opt_b_fs_yx_fsv32) {
     ASSERT_NO_FATAL_FAILURE(test(format::b_fs_yx_fsv32));
@@ -1784,14 +1822,15 @@ TEST_P(concat_implicit_gpu_onednn_4d_i8, input_order_opt_b_fs_yx_fsv32) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_implicit_gpu_onednn_4d_i8,
                         ::testing::Values(
-                            TestParamType_concat(1, { 32, 32 }, 2, 2, false),
-                            TestParamType_concat(1, { 32, 8 }, 2, 2, false),
-                            TestParamType_concat(1, { 8, 32 }, 2, 2, false)
+                            TestParamType_implicit_concat(1, { 32, 32 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(1, { 32, 8 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(1, { 8, 32 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(1, { 32, 32 }, 17, 17, false, false)
                         ),
-                        concat_gpu::PrintToStringParamName);
+                        concat_gpu_implicit::PrintToStringParamName);
 
 template <typename Type>
-struct concat_gpu_4d_explicit : public concat_gpu {
+struct concat_gpu_4d_explicit : public concat_gpu_implicit {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
         auto data_type = ov::element::from<Type>();
@@ -1800,6 +1839,7 @@ public:
         const std::vector<size_t> in_features = testing::get<1>(GetParam()); // only use first element.
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
+        const bool is_implicit_concat = testing::get<4>(GetParam());
         size_t output_f = in_features[0];
 
         topology topology;
@@ -1871,11 +1911,10 @@ public:
         auto outputs = concat_network.execute();
 
         bool concat_opt_enabled = config.get_optimize_data();
+        if (concat_opt_enabled)
+            concat_opt_enabled = is_implicit_concat;
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->get_node().can_be_optimized();
 
-        // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
-        // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
-        if (concat_opt_enabled && batch_num > 1) concat_opt_result = !concat_opt_result;
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
 
         return outputs.at("reorder").get_memory();
@@ -1927,7 +1966,6 @@ public:
     }
 };
 
-
 using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explicit<ov::float16>;
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
@@ -1937,8 +1975,8 @@ TEST_P(concat_no_implicit_gpu_onednn_4d_f16, input_order_opt_b_fs_yx_fsv16) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_no_implicit_gpu_onednn_4d_f16,
                         ::testing::Values(
-                            TestParamType_concat(1, { 16 }, 2, 2, false),
-                            TestParamType_concat(2, { 16 }, 2, 2, false)
+                            TestParamType_implicit_concat(1, { 16 }, 2, 2, true, false),
+                            TestParamType_implicit_concat(2, { 16 }, 2, 2, false, false)
                         ),
-                        concat_gpu::PrintToStringParamName);
+                        concat_gpu_implicit::PrintToStringParamName);
 #endif
