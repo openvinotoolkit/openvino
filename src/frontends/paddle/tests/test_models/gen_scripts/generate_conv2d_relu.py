@@ -5,7 +5,7 @@ import paddle
 import numpy as np
 import sys
 
-from save_model import saveModel 
+from save_model import saveModel
 
 if paddle.__version__ >= '2.6.0':
     import paddle.base as fluid
@@ -24,7 +24,6 @@ else:
     x = fluid.data(name='xxx', shape=[1, 3, 4, 4], dtype='float32')
     test_layer = fluid.layers.conv2d(input=x, num_filters=5, filter_size=(1, 1), stride=(1, 1), padding=(1, 1),
                                  dilation=(1, 1), groups=1, bias_attr=False)
-
 if paddle.__version__ >= '2.0.0':
     relu = paddle.nn.functional.relu(test_layer)
 else:
