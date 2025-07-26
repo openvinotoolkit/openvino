@@ -789,10 +789,10 @@ public:
 </net>
 )V0G0N";
 
-    std::string m_undefined_type_out_xml_path;
-    std::string m_undefined_type_out_bin_path;
     std::string m_dynamic_type_out_xml_path;
     std::string m_dynamic_type_out_bin_path;
+    std::string m_undefined_type_out_xml_path;
+    std::string m_undefined_type_out_bin_path;
 
     void SetUp() override {
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
@@ -809,17 +809,17 @@ public:
         std::remove(m_dynamic_type_out_bin_path.c_str());
     }
 
-    bool files_equal(const std::string& file1_path, const std::string& file2_path) {
-        std::ifstream f1(file1_path, std::ios::binary);
-        std::ifstream f2(file2_path, std::ios::binary);
+    bool files_equal(const std::string& file_path1, const std::string& file_path2) {
+        std::ifstream xml_dynamic(file_path1, std::ios::binary);
+        std::ifstream xml_undefined(file_path2, std::ios::binary);
 
-        if (!f1.good() || !f2.good()) {
+        if (!xml_dynamic.good() || !xml_undefined.good()) {
             return false;
         }
 
-        return std::equal(std::istreambuf_iterator<char>(f1.rdbuf()),
+        return std::equal(std::istreambuf_iterator<char>(xml_dynamic.rdbuf()),
                           std::istreambuf_iterator<char>(),
-                          std::istreambuf_iterator<char>(f2.rdbuf()));
+                          std::istreambuf_iterator<char>(xml_undefined.rdbuf()));
     }
 };
 
@@ -846,9 +846,6 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
     ov::pass::Serialize(m_dynamic_type_out_xml_path, m_dynamic_type_out_bin_path).run_on_model(dynamicTypeModel);
     ov::pass::Serialize(m_undefined_type_out_xml_path, m_undefined_type_out_bin_path).run_on_model(undefinedTypeModel);
 
-    std::ifstream xml_dynamic(m_dynamic_type_out_xml_path, std::ios::in);
-    std::ifstream xml_undefined(m_undefined_type_out_xml_path, std::ios::in);
-
-    ASSERT_TRUE(files_equal(xml_dynamic, xml_undefined))
+    ASSERT_TRUE(files_equal(m_dynamic_type_out_xml_path, m_undefined_type_out_xml_path))
         << "Serialized XML files are different: dynamic type vs undefined type";
 }
