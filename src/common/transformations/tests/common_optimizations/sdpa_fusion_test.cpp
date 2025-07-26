@@ -609,6 +609,15 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                                               32,   // Ev (V embedding)
                                                               {},   // mask_shape
                                                               1.0f  // scale
+                                                              ),
+                                        explicit_transpose_4d(1,                // B (batch)
+                                                              32,               // H (heads)
+                                                              -1,               // S_q (query len)
+                                                              -1,               // S_kv (kv len)
+                                                              32,               // E (embedding)
+                                                              32,               // Ev (V embedding)
+                                                              {1, 32, -1, -1},  // mask_shape
+                                                              1.0f              // scale
                                                               ))));
 
 TEST_F(TransformationTestsF, SDPAFusionTest7) {
