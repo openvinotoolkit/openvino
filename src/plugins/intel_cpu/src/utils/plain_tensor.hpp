@@ -165,7 +165,8 @@ struct PlainTensor {
     void reset(const MemoryPtr& mem) {
         auto mem_desc = mem->getDescWithType<BlockedMemoryDesc>();
         // not support block layout
-        OPENVINO_ASSERT(mem_desc && mem_desc->getOrder().size() == mem->getStaticDims().size());
+        OPENVINO_ASSERT(mem_desc);
+        OPENVINO_ASSERT(mem_desc->getOrder().size() == mem->getStaticDims().size());
         m_mem = mem;
         VectorDims strides(mem_desc->getStrides().size());
         const auto& orders = mem_desc->getOrder();

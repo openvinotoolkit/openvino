@@ -145,11 +145,8 @@ Node::Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const Sh
                 continue;
             }
             customImplPriorities.push_back(parse_impl_name(str));
-            OPENVINO_ASSERT(customImplPriorities.back() != impl_desc_type::unknown || str == "cpu:unknown",
-                            "Unsupported CPU implementation ",
-                            str,
-                            " for node ",
-                            getName());
+            bool validImpl = customImplPriorities.back() != impl_desc_type::unknown || str == "cpu:unknown";
+            OPENVINO_ASSERT(validImpl, "Unsupported CPU implementation ", str, " for node ", getName());
         }
         const auto& defaultImplPriorities = getDefaultImplPriority();
         customImplPriorities.insert(customImplPriorities.end(),
@@ -365,7 +362,7 @@ bool Node::isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov
     bool samePrec = desc1->getPrecision() == desc2->getPrecision();
     bool isOneDimShape1 = isOneDimShape(desc1->getShape().toPartialShape());
     bool isOneDimShape2 = isOneDimShape(desc2->getShape().toPartialShape());
-    return !(isOneDimShape1 && isOneDimShape2 && samePrec);
+    return !isOneDimShape1 || !isOneDimShape2 || !samePrec;
 }
 
 void Node::selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority,
@@ -977,9 +974,10 @@ void Node::filterSupportedPrimitiveDescriptors() {
 
     auto isNotSuitableDesc = [&](const NodeDesc& desc) {
         const auto& config = desc.getConfig();
-        OPENVINO_ASSERT(memoryFormatFilter.input.size() <= config.inConfs.size() &&
-                            memoryFormatFilter.output.size() <= config.outConfs.size(),
-                        "Incorrect number of input or output memory formats");
+        bool validInputSize = memoryFormatFilter.input.size() <= config.inConfs.size();
+        bool validOutputSize = memoryFormatFilter.output.size() <= config.outConfs.size();
+        OPENVINO_ASSERT(validInputSize, "Incorrect number of input memory formats");
+        OPENVINO_ASSERT(validOutputSize, "Incorrect number of output memory formats");
 
         for (size_t i = 0; i < memoryFormatFilter.input.size(); i++) {
             if (!areCompatible(*config.inConfs[i].getMemDesc(), memoryFormatFilter.input[i])) {
@@ -1999,7 +1997,8 @@ void Node::fuseDQScales(const float* scaleData, const size_t scaleSize) {
     if (DQScales.empty()) {
         DQScales.resize(scaleSize, 1.0);
     }
-    OPENVINO_ASSERT(scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize,
+    bool validScaleSize = scaleSize == 1 || DQScales.size() == 1 || DQScales.size() == scaleSize;
+    OPENVINO_ASSERT(validScaleSize,
                     "set invalid scales size , DQScales vector size: ",
                     DQScales.size(),
                     ", scale data size: ",
@@ -2036,8 +2035,9 @@ int Node::inPlaceInputPort(int portIdx) const {
 
     const auto& conf = selected_pd->getConfig();
 
-    OPENVINO_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.inConfs.size()),
-                    "Wrong portIndx: ",
+    OPENVINO_ASSERT(portIdx >= 0, "Port index must be non-negative: ", portIdx);
+    OPENVINO_ASSERT(portIdx < static_cast<int>(conf.inConfs.size()),
+                    "Port index out of bounds: ",
                     portIdx,
                     " acceptable interval: [0, ",
                     conf.inConfs.size(),
@@ -2056,8 +2056,9 @@ int Node::inPlaceOutPort(int portIdx) const {
     OPENVINO_ASSERT(selected_pd, "Cannot find selected primitive descriptor for node: ", getName());
     const auto& conf = selected_pd->getConfig();
 
-    OPENVINO_ASSERT(portIdx >= 0 && portIdx < static_cast<int>(conf.outConfs.size()),
-                    "Wrong portIndx: ",
+    OPENVINO_ASSERT(portIdx >= 0, "Port index must be non-negative: ", portIdx);
+    OPENVINO_ASSERT(portIdx < static_cast<int>(conf.outConfs.size()),
+                    "Port index out of bounds: ",
                     portIdx,
                     " acceptable interval: [0, ",
                     conf.outConfs.size(),

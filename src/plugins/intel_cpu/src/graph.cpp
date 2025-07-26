@@ -1293,7 +1293,8 @@ void Graph::PullOutputData(std::unordered_map<std::size_t, ov::SoPtr<ITensor>>& 
 
         auto srcPrec = intr_blob.getPrecision();
         auto dstPrec = ext_blob->get_element_type();
-        OPENVINO_ASSERT(srcPrec != dstPrec || ext_blob->get_byte_size() == intr_blob.getSize(),
+        bool precisionMismatchOrSizeMatch = srcPrec != dstPrec || ext_blob->get_byte_size() == intr_blob.getSize();
+        OPENVINO_ASSERT(precisionMismatchOrSizeMatch,
                         "Output tensor byte size is not equal model output byte size (",
                         ext_blob->get_byte_size(),
                         "!=",
@@ -1949,14 +1950,8 @@ NodePtr Graph::InsertReorder(const EdgePtr& edge,
 bool Graph::InsertNode(const EdgePtr& edge, const NodePtr& node, bool initNode) {
     auto oIndex = edge->getOutputNum();
     auto iIndex = edge->getInputNum();
-    OPENVINO_ASSERT(iIndex >= 0 && oIndex >= 0,
-                    "Cannot insert node '",
-                    node->getName(),
-                    "' between nodes: ",
-                    edge->getParent()->getName(),
-                    " and ",
-                    edge->getChild()->getName(),
-                    ".");
+    OPENVINO_ASSERT(iIndex >= 0, "Cannot insert node '", node->getName(), "' - invalid input index");
+    OPENVINO_ASSERT(oIndex >= 0, "Cannot insert node '", node->getName(), "' - invalid output index");
     edge->getParent()->removeChildEdge(edge);
     edge->getChild()->removeParentEdge(edge);
 

@@ -72,8 +72,10 @@ void GRN::prepareParams() {
     const auto& dataMemPtr = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input memory");
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory");
+    const bool inputMemoryIsValid = dataMemPtr && dataMemPtr->isDefined();
+    CPU_NODE_ASSERT(inputMemoryIsValid, "has undefined input memory");
+    const bool outputMemoryIsValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(outputMemoryIsValid, "has undefined output memory");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();

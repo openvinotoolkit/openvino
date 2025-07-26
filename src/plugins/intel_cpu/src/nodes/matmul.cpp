@@ -392,7 +392,8 @@ void MatMul::getSupportedDescriptors() {
 }
 
 std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const {
-    CPU_NODE_ASSERT(in0.getRank() >= 2 && in1.getRank() >= 2, "Can't create dummy inputs with rank less 2");
+    const bool haveValidInputRanks = in0.getRank() >= 2 && in1.getRank() >= 2;
+    CPU_NODE_ASSERT(haveValidInputRanks, "Can't create dummy inputs with rank less 2");
     CPU_NODE_ASSERT(all_of(in1.getRank(), in0.getRank(), out.getRank()),
                     "Can't create dummy inputs if argument shapes ranks are not equal");
 
@@ -590,9 +591,10 @@ void MatMul::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto src0MemPtr = getSrcMemoryAtPort(0);
     auto src1MemPtr = getSrcMemoryAtPort(1);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory");
-    CPU_NODE_ASSERT(src0MemPtr && src0MemPtr->isDefined() && src1MemPtr && src1MemPtr->isDefined(),
-                    "has undefined input memory");
+    const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDestinationMemoryValid, "has undefined destination memory");
+    const bool areInputMemoriesValid = src0MemPtr && src0MemPtr->isDefined() && src1MemPtr && src1MemPtr->isDefined();
+    CPU_NODE_ASSERT(areInputMemoriesValid, "has undefined input memory");
 
     // check for a degenerate case. In this context the degenerate case is a matrix multiplication where the
     // collapsing dimension is zero, e.g., AB=C, where A has the shape [10, 0] and B has the shape [0, 20],
@@ -601,8 +603,8 @@ void MatMul::prepareParams() {
     if (src0MemPtr->getDesc().getShape().hasZeroDims() && src0MemPtr->getDesc().getShape().hasZeroDims() &&
         !dstMemPtr->getDesc().getShape().hasZeroDims()) {
         // todo: obviously we need a special executor that would process fused ops providing a correct result
-        CPU_NODE_ASSERT(!withBiases && fusedWith.empty(),
-                        "Matmul doesn't support a degenerate case when other ops are fused");
+        const bool canHandleDegenerateCase = !withBiases && fusedWith.empty();
+        CPU_NODE_ASSERT(canHandleDegenerateCase, "Matmul doesn't support a degenerate case when other ops are fused");
         // reset executor
         execPtr.reset();
         return;
@@ -640,7 +642,8 @@ void MatMul::prepareParams() {
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
         auto biasMemory = getSrcMemoryAtPort(2);
-        CPU_NODE_ASSERT(biasMemory && biasMemory->isDefined(), "has undefined bias memory");
+        const bool isBiasMemoryValid = biasMemory && biasMemory->isDefined();
+        CPU_NODE_ASSERT(isBiasMemoryValid, "has undefined bias memory");
         dnnlBiasMemDesc = biasMemory->getDescWithType<DnnlMemoryDesc>();
     }
 
@@ -682,8 +685,11 @@ void MatMul::prepareParams() {
                     return false;
                 }
             }
-            return (shape_src[src_rank - 1] <= 2) && (shape_src[src_rank - 2] <= 2) && (shape_wei[wei_rank - 1] <= 2) &&
-                   (shape_wei[wei_rank - 2] <= 2);
+            const bool srcLastDimSmall = shape_src[src_rank - 1] <= 2;
+            const bool srcSecondLastDimSmall = shape_src[src_rank - 2] <= 2;
+            const bool weiLastDimSmall = shape_wei[wei_rank - 1] <= 2;
+            const bool weiSecondLastDimSmall = shape_wei[wei_rank - 2] <= 2;
+            return srcLastDimSmall && srcSecondLastDimSmall && weiLastDimSmall && weiSecondLastDimSmall;
         }();
         if (can_optimize) {
             MatMulSmallAttrs matmul_attr;

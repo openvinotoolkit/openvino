@@ -76,11 +76,17 @@ static IEB_HEADER prepare_header(const MemoryDesc& desc) {
 }
 
 static DnnlBlockedMemoryDesc parse_header(IEB_HEADER& header) {
-    OPENVINO_ASSERT(header.magic[0] == IEB_MAGIC[0] && header.magic[1] == IEB_MAGIC[1] &&
-                        header.magic[2] == IEB_MAGIC[2] && header.magic[3] == IEB_MAGIC[3],
-                    "Dumper cannot parse file. Wrong format.");
-    OPENVINO_ASSERT(header.ver[0] == 0 && header.ver[1] == 1,
-                    "Dumper cannot parse file. Unsupported IEB format version.");
+    const bool magic0Match = header.magic[0] == IEB_MAGIC[0];
+    const bool magic1Match = header.magic[1] == IEB_MAGIC[1];
+    const bool magic2Match = header.magic[2] == IEB_MAGIC[2];
+    const bool magic3Match = header.magic[3] == IEB_MAGIC[3];
+    const bool magicMatches = magic0Match && magic1Match && magic2Match && magic3Match;
+    OPENVINO_ASSERT(magicMatches, "Dumper cannot parse file. Wrong format.");
+
+    const bool majorVersionMatch = header.ver[0] == 0;
+    const bool minorVersionMatch = header.ver[1] == 1;
+    const bool versionSupported = majorVersionMatch && minorVersionMatch;
+    OPENVINO_ASSERT(versionSupported, "Dumper cannot parse file. Unsupported IEB format version.");
     const auto prc = static_cast<ov::element::Type_t>(header.precision);
     VectorDims dims(header.ndims);
     for (int i = 0; i < header.ndims; i++) {

@@ -1347,7 +1347,10 @@ void ScaledDotProductAttention::execute(const dnnl::stream& strm) {
     PlainTensor k_scale_zp;
     PlainTensor v_scale_zp;
     if (m_config.config.fuse_concat) {
-        CPU_NODE_ASSERT(m_k_state && m_v_state, "has null input states");
+        const auto hasKState = static_cast<bool>(m_k_state);
+        const auto hasVState = static_cast<bool>(m_v_state);
+        const bool hasAllStates = hasKState && hasVState;
+        CPU_NODE_ASSERT(hasAllStates, "has null input states");
         // initialization will be also completed in this func
         gatherConcatPastkv(inputs[1], inputs[2], getSrcMemoryAtPort(orginSDPInputNumber));
 
@@ -1813,17 +1816,17 @@ void ScaledDotProductAttention::updateBeamTable(const MemoryPtr& mem_beam_idx, s
     bool no_reorder = true;
     for (size_t i = 0; i < B; i++) {
         const auto index = beam_idx.ptr<int32_t>()[i];
-        CPU_NODE_ASSERT(index >= 0 && index < static_cast<int32_t>(B),
-                        "beam_idx ",
-                        index,
-                        " is outside of the allowed interval [0,  ",
-                        B,
-                        ")");
+        const bool indexNotTooLow = index >= 0;
+        const bool indexNotTooHigh = index < static_cast<int32_t>(B);
+        const bool isValidIndex = indexNotTooLow && indexNotTooHigh;
+        CPU_NODE_ASSERT(isValidIndex, "beam_idx ", index, " is outside of the allowed interval [0,  ", B, ")");
         if (index != static_cast<int32_t>(i)) {
             no_reorder = false;
         }
     }
-    OPENVINO_ASSERT(no_reorder || !m_key_quant_param.isByChannel,
+    const bool isNotByChannel = !m_key_quant_param.isByChannel;
+    const bool supportsQuantization = no_reorder || isNotByChannel;
+    OPENVINO_ASSERT(supportsQuantization,
                     this->getName(),
                     " SDPA only support bychannel quantization with greedy search!");
     // reorder

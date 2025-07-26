@@ -70,8 +70,8 @@ CumSum::CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 
     if (getOriginalInputsNumber() == numOfInputs) {
         const auto axis_shape = cumsum->get_input_partial_shape(AXIS);
-        CPU_NODE_ASSERT(!axis_shape.is_dynamic() && ov::is_scalar(axis_shape.to_shape()),
-                        "doesn't support 'axis' input tensor with non scalar rank");
+        CPU_NODE_ASSERT(!axis_shape.is_dynamic(), "doesn't support dynamic 'axis' input tensor");
+        CPU_NODE_ASSERT(ov::is_scalar(axis_shape.to_shape()), "doesn't support non-scalar 'axis' input tensor");
     }
 
     CPU_NODE_ASSERT(dataShape == getOutputShapeAtPort(0), "has different 'data' input and output dimensions");
@@ -275,9 +275,8 @@ size_t CumSum::getAxis(const IMemory& _axis, const IMemory& _data) const {
         CPU_NODE_THROW("doesn't support 'axis' input with precision: ", axisPrecision.get_type_name());
     }
     }
-    CPU_NODE_ASSERT(axisValueFromBlob >= -dataShapeSize && axisValueFromBlob <= dataShapeSize - 1,
-                    "has axis with a value out of range: ",
-                    axisValueFromBlob);
+    CPU_NODE_ASSERT(axisValueFromBlob >= -dataShapeSize, "has axis value too small: ", axisValueFromBlob);
+    CPU_NODE_ASSERT(axisValueFromBlob <= dataShapeSize - 1, "has axis value too large: ", axisValueFromBlob);
     return axisValueFromBlob >= 0 ? axisValueFromBlob : (axisValueFromBlob + dataShapeSize);
 }
 

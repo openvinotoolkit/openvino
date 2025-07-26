@@ -46,7 +46,8 @@ DnnlPostOpsComposerLegacy::DnnlPostOpsComposerLegacy(const dnnl::engine& engine,
       idxOC(indexOfOutputChannelDim),
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel) {
-    OPENVINO_ASSERT(idxOC >= 0 && static_cast<size_t>(idxOC) < outputDims.size());
+    OPENVINO_ASSERT(idxOC >= 0, "idxOC must be non-negative");
+    OPENVINO_ASSERT(static_cast<size_t>(idxOC) < outputDims.size(), "idxOC must be within bounds");
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
     dimsPerOC[idxOC] = OC;

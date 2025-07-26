@@ -720,9 +720,12 @@ void Subgraph::optimizeIR() {
 
     // DataFlow transformations includes AnalyzeBroadcastableInputs pass:
     // we should verify that the received map is aligned with our blocked input shapes
-    CPU_NODE_ASSERT((broadcastable_inputs.size() < in_shapes.size()) ||
-                        (!broadcastable_inputs.empty() && broadcastable_inputs.rbegin()->first < in_shapes.size()),
-                    "Incorrect indexes of broadcastable inputs of Subgraph");
+    const bool broadcastableSizeValid = broadcastable_inputs.size() < in_shapes.size();
+    const bool broadcastableNotEmpty = !broadcastable_inputs.empty();
+    const bool lastBroadcastableIndexValid =
+        broadcastableNotEmpty && broadcastable_inputs.rbegin()->first < in_shapes.size();
+    const bool broadcastableInputsValid = broadcastableSizeValid || lastBroadcastableIndexValid;
+    CPU_NODE_ASSERT(broadcastableInputsValid, "Incorrect indexes of broadcastable inputs of Subgraph");
     for (const auto broadcastable_input : broadcastable_inputs) {
         CPU_NODE_ASSERT(broadcastable_input.second < in_shapes[broadcastable_input.first].size(),
                         "Incorrect processing dimension index of broadcastable index");

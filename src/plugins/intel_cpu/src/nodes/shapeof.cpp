@@ -88,8 +88,11 @@ void ShapeOf::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto outPtr = getDstMemoryAtPort(0);
     auto&& inDims = inPtr->getStaticDims();
     size_t dimsCount = inDims.size();
-    CPU_NODE_ASSERT(outPtr->getStaticDims().size() == 1 && dimsCount == outPtr->getStaticDims()[0],
-                    "has inconsistent input shape and output size");
+    const auto outputDims = outPtr->getStaticDims();
+    const bool isOutputSingleDim = outputDims.size() == 1;
+    const bool dimensionsMatch = dimsCount == outputDims[0];
+    const bool isValidOutputShape = isOutputSingleDim && dimensionsMatch;
+    CPU_NODE_ASSERT(isValidOutputShape, "has inconsistent input shape and output size");
 
     auto* dst = outPtr->getDataAs<int>();
 

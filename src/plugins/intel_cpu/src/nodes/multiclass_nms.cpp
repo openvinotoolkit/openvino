@@ -105,7 +105,8 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
     CPU_NODE_ASSERT(boxes_dims.size() == 3, "has unsupported 'boxes' input rank: ", boxes_dims.size());
     CPU_NODE_ASSERT(boxes_dims[2] == 4, "has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
     if (scores_dims.size() == 3) {
-        CPU_NODE_ASSERT(boxes_ps[0].compatible(scores_ps[0]) && boxes_ps[1].compatible(scores_ps[2]),
+        const bool areShapesCompatible = boxes_ps[0].compatible(scores_ps[0]) && boxes_ps[1].compatible(scores_ps[2]);
+        CPU_NODE_ASSERT(areShapesCompatible,
                         "has incompatible 'boxes' and 'scores' shape ",
                         boxes_ps,
                         " v.s. ",
@@ -114,7 +115,8 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
         CPU_NODE_ASSERT(op->get_type_info() != ov::op::v8::MulticlassNms::get_type_info_static(),
                         "has unsupported 'scores' input rank: ",
                         scores_dims.size());
-        CPU_NODE_ASSERT(boxes_ps[0].compatible(scores_ps[0]) && boxes_ps[1].compatible(scores_ps[1]),
+        const bool areShapesCompatible = boxes_ps[0].compatible(scores_ps[0]) && boxes_ps[1].compatible(scores_ps[1]);
+        CPU_NODE_ASSERT(areShapesCompatible,
                         "has incompatible 'boxes' and 'scores' shape ",
                         boxes_ps,
                         " v.s. ",

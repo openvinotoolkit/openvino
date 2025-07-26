@@ -576,7 +576,9 @@ const uint8_t* ov::intel_cpu::InterpolateExecutor::padPreprocess(const std::vect
             size_t eltsTotal = srcDimPad5d[0] * CB * srcDimPad5d[2] * srcDimPad5d[3] * srcDimPad5d[4] * blkSize;
             srcPadded.resize(eltsTotal * srcDataSize, 0x0);
             auto* src_data_pad = static_cast<uint8_t*>(srcPadded.data());
-            OPENVINO_ASSERT(srcDim5d[0] == srcDimPad5d[0] && srcDim5d[1] == srcDimPad5d[1],
+            const bool areBatchAndChannelDimensionsUnpadded =
+                srcDim5d[0] == srcDimPad5d[0] && srcDim5d[1] == srcDimPad5d[1];
+            OPENVINO_ASSERT(areBatchAndChannelDimensionsUnpadded,
                             "Interpolate executor does not support padding on batch and channel dimensions");
             parallel_for5d(
                 srcDim5d[0],

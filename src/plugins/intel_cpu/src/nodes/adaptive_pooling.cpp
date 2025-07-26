@@ -141,7 +141,8 @@ void AdaptivePooling::executeDynamicImpl(const dnnl::stream& strm) {
 void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
-    CPU_NODE_ASSERT(inputPrec == dnnl_f32 && outputPrec == dnnl_f32, "doesn't support demanded precisions");
+    CPU_NODE_ASSERT(inputPrec == dnnl_f32, "doesn't support input precision");
+    CPU_NODE_ASSERT(outputPrec == dnnl_f32, "doesn't support output precision");
 
     const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
     const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();

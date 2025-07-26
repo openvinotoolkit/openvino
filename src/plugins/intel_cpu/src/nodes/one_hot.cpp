@@ -79,12 +79,14 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (axis < 0) {
         axis += output_dims_size;
     }
-    CPU_NODE_ASSERT(axis >= 0 && axis < output_dims_size, "has unsupported 'axis' attribute: ", oneHot->get_axis());
+    const bool isAxisValid = axis >= 0 && axis < output_dims_size;
+    CPU_NODE_ASSERT(isAxisValid, "has unsupported 'axis' attribute: ", oneHot->get_axis());
 
-    CPU_NODE_ASSERT(
-        ((1 + srcDims.size()) == dstDims.size()) ||
-            (depthNode && srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1),
-        "has incorrect number of input/output dimensions!");
+    bool standardDimensionCheck = (1 + srcDims.size()) == dstDims.size();
+    bool depthNodeSpecialCase =
+        depthNode && srcDims.size() == 1 && dstDims.size() == 1 && dstDims[0] == depth && srcDims[0] == 1;
+    const bool hasSupportedDimensions = standardDimensionCheck || depthNodeSpecialCase;
+    CPU_NODE_ASSERT(hasSupportedDimensions, "has incorrect number of input/output dimensions!");
 }
 
 bool OneHot::needShapeInfer() const {

@@ -48,9 +48,8 @@ CTCGreedyDecoderSeqLen::CTCGreedyDecoderSeqLen(const std::shared_ptr<ov::Node>& 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(getOriginalInputsNumber() >= 2 && getOriginalInputsNumber() <= 3,
-                    "has invalid number of input edges: ",
-                    getOriginalInputsNumber());
+    CPU_NODE_ASSERT(getOriginalInputsNumber() >= 2, "has too few input edges: ", getOriginalInputsNumber());
+    CPU_NODE_ASSERT(getOriginalInputsNumber() <= 3, "has too many input edges: ", getOriginalInputsNumber());
     CPU_NODE_ASSERT(getOriginalOutputsNumber() == 2,
                     "has invalid number of outputs edges: ",
                     getOriginalOutputsNumber());

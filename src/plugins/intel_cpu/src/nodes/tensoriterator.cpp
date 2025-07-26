@@ -42,7 +42,6 @@
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/debug_capabilities.h"
-#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -151,7 +150,8 @@ public:
     }
 
     void execute(const dnnl::stream& strm, int iter) override {
-        OPENVINO_ASSERT(iter >= 0 && iter < iter_count);
+        const bool isIterInValidRange = iter >= 0 && iter < iter_count;
+        OPENVINO_ASSERT(isIterInValidRange);
 
         auto& chunk_mem = sliced_src ? mem_holder_src : mem_holder_dst;
         chunk_mem.set_data_handle(static_cast<uint8_t*>(full_mem.get_data_handle()) + chunk_offset_in_byte +
@@ -430,9 +430,9 @@ void DynamicBuffer::copy(const uint8_t* src,
 bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (none_of(op->get_type_info(),
-                    ov::op::v0::TensorIterator::get_type_info_static(),
-                    ov::op::v5::Loop::get_type_info_static())) {
+        const auto op_type = op->get_type_info();
+        if (op_type != ov::op::v0::TensorIterator::get_type_info_static() &&
+            op_type != ov::op::v5::Loop::get_type_info_static()) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
             return false;
         }
@@ -932,7 +932,8 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
 
     const auto getNumIterations = [this](const PortMap& rule, const std::vector<size_t>& dimensions) -> int {
         const auto axis = rule.axis;
-        CPU_NODE_ASSERT(axis >= 0 && static_cast<std::size_t>(axis) < dimensions.size(),
+        const bool validAxis = axis >= 0 && static_cast<std::size_t>(axis) < dimensions.size();
+        CPU_NODE_ASSERT(validAxis,
                         ": Invalid \"axis\" value in an iteration component: ",
                         rule.axis,
                         ", dimensions number = ",
@@ -952,7 +953,8 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
         const auto src = stride < 0 ? end : start;
         const auto dst = stride < 0 ? start : end;
         const auto length = dst - src;
-        CPU_NODE_ASSERT(src >= 0 && src < dst && dst <= static_cast<int64_t>(space) && length >= step,
+        const bool validIterationParams = src >= 0 && src < dst && dst <= static_cast<int64_t>(space) && length >= step;
+        CPU_NODE_ASSERT(validIterationParams,
                         ": Invalid \"start\",\"stride\",\"end\" values in an iteration component",
                         ": \"start\" = ",
                         rule.start,
@@ -974,7 +976,8 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
     int numIterations = 1;
     bool isDefault = true;
     for (const auto& rule : inputPortMap) {
-        CPU_NODE_ASSERT(rule.from >= 0 && rule.from < static_cast<int64_t>(inputShapes.size()),
+        const bool validFromInput = rule.from >= 0 && rule.from < static_cast<int64_t>(inputShapes.size());
+        CPU_NODE_ASSERT(validFromInput,
                         ": Invalid \"from\" value: \"from\" = ",
                         rule.from,
                         " inputs number = ",
@@ -1009,7 +1012,8 @@ int TensorIterator::getNumIteration(const std::vector<PortMap>& inputPortMap,
             continue;
         }
 
-        CPU_NODE_ASSERT(rule.from >= 0 && rule.from < static_cast<int64_t>(outputShapes.size()),
+        const bool validFromOutput = rule.from >= 0 && rule.from < static_cast<int64_t>(outputShapes.size());
+        CPU_NODE_ASSERT(validFromOutput,
                         ": Invalid \"from\" value: \"from\" = ",
                         rule.from,
                         " inputs number = ",

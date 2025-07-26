@@ -52,7 +52,8 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
     const auto revSeq = ov::as_type_ptr<const ov::op::v0::ReverseSequence>(op);
     CPU_NODE_ASSERT(revSeq, "is not an instance of v0 ReverseSequence.");
 
-    CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() == 1, "has incorrect number of input/output edges!");
+    const bool hasCorrectPortCount = inputShapes.size() == 2 && outputShapes.size() == 1;
+    CPU_NODE_ASSERT(hasCorrectPortCount, "has incorrect number of input/output edges!");
 
     const auto dataRank = getInputShapeAtPort(REVERSESEQUENCE_DATA).getRank();
 
@@ -64,13 +65,13 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
 
     seq_axis = revSeq->get_sequence_axis();
 
-    CPU_NODE_ASSERT(seq_axis >= 0 && seq_axis < static_cast<int>(dataRank),
-                    "has incorrect 'seq_axis' parameters dimensions and axis number!");
+    const bool isSeqAxisValid = seq_axis >= 0 && seq_axis < static_cast<int>(dataRank);
+    CPU_NODE_ASSERT(isSeqAxisValid, "has incorrect 'seq_axis' parameters dimensions and axis number!");
 
     batch_axis = revSeq->get_batch_axis();
 
-    CPU_NODE_ASSERT(batch_axis >= 0 && batch_axis < static_cast<int>(dataRank),
-                    "has incorrect 'batch_axis' parameters dimensions and axis number!");
+    const bool isBatchAxisValid = batch_axis >= 0 && batch_axis < static_cast<int>(dataRank);
+    CPU_NODE_ASSERT(isBatchAxisValid, "has incorrect 'batch_axis' parameters dimensions and axis number!");
 }
 
 void ReverseSequence::initSupportedPrimitiveDescriptors() {
@@ -93,9 +94,12 @@ void ReverseSequence::prepareParams() {
     const auto& seqLengthsMemPtr = getSrcMemoryAtPort(REVERSESEQUENCE_LENGTHS);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input memory of 'data'");
-    CPU_NODE_ASSERT(seqLengthsMemPtr && seqLengthsMemPtr->isDefined(), "has undefined input memory of 'seq_lengths'");
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory");
+    const bool isDataMemoryValid = dataMemPtr && dataMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDataMemoryValid, "has undefined input memory of 'data'");
+    const bool isSeqLengthsMemoryValid = seqLengthsMemPtr && seqLengthsMemPtr->isDefined();
+    CPU_NODE_ASSERT(isSeqLengthsMemoryValid, "has undefined input memory of 'seq_lengths'");
+    const bool isOutputMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isOutputMemoryValid, "has undefined output memory");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();

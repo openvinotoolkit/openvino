@@ -395,14 +395,17 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
                         vec2str(tensor->get_shape()),
                         ") are incompatible");
 
-        OPENVINO_ASSERT(isDynamic || ov::shape_size(shape.to_shape()) == tensor->get_size(),
-                        "Can't set input tensor with index: ",
-                        input_index,
-                        ", because the model input size = ",
-                        ov::shape_size(shape.to_shape()),
-                        " and the tensor size = ",
-                        tensor->get_size(),
-                        " are different.");
+        if (!isDynamic) {
+            bool sizeMatches = ov::shape_size(shape.to_shape()) == tensor->get_size();
+            OPENVINO_ASSERT(sizeMatches,
+                            "Can't set input tensor with index: ",
+                            input_index,
+                            ", because the model input size = ",
+                            ov::shape_size(shape.to_shape()),
+                            " and the tensor size = ",
+                            tensor->get_size(),
+                            " are different.");
+        }
 
         auto&& graph = m_compiled_model.graph();
 
@@ -435,23 +438,28 @@ void SyncInferRequest::set_tensor(const ov::Output<const ov::Node>& in_port, con
         const auto& shape = port.get_partial_shape();
         const bool isDynamic = shape.is_dynamic();
 
-        OPENVINO_ASSERT(shape.compatible(ov::PartialShape(tensor->get_shape())) || tensor->get_size() == 0,
-                        "Can't set the output tensor with index: ",
-                        output_index,
-                        ", because the model output tensor (shape=",
-                        shape,
-                        ") and the current tensor (shape=",
-                        vec2str(tensor->get_shape()),
-                        ") are incompatible");
+        if (!shape.compatible(ov::PartialShape(tensor->get_shape()))) {
+            OPENVINO_ASSERT(tensor->get_size() == 0,
+                            "Can't set the output tensor with index: ",
+                            output_index,
+                            ", because the model output tensor (shape=",
+                            shape,
+                            ") and the current tensor (shape=",
+                            vec2str(tensor->get_shape()),
+                            ") are incompatible");
+        }
 
-        OPENVINO_ASSERT(isDynamic || ov::shape_size(shape.to_shape()) == tensor->get_size(),
-                        "Can't set the output tensor with index: ",
-                        output_index,
-                        ", because the model output size = ",
-                        ov::shape_size(shape.to_shape()),
-                        " and the currernt tensor size = ",
-                        tensor->get_size(),
-                        " are different.");
+        if (!isDynamic) {
+            bool sizeMatches = ov::shape_size(shape.to_shape()) == tensor->get_size();
+            OPENVINO_ASSERT(sizeMatches,
+                            "Can't set the output tensor with index: ",
+                            output_index,
+                            ", because the model output size = ",
+                            ov::shape_size(shape.to_shape()),
+                            " and the currernt tensor size = ",
+                            tensor->get_size(),
+                            " are different.");
+        }
 
         auto&& graph = m_compiled_model.graph();
 
@@ -670,16 +678,19 @@ void SyncInferRequest::check_tensors() const {
                             port.get_element_type());
 
             const bool is_dynamic = port.get_partial_shape().is_dynamic();
-            OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
-                            "The ",
-                            type,
-                            " tensor size is not equal to the model ",
-                            type,
-                            " type: got ",
-                            tensor->get_shape(),
-                            " expecting ",
-                            port.get_shape(),
-                            ".");
+            if (!is_dynamic) {
+                bool shapesMatch = port.get_shape() == tensor->get_shape();
+                OPENVINO_ASSERT(shapesMatch,
+                                "The ",
+                                type,
+                                " tensor size is not equal to the model ",
+                                type,
+                                " type: got ",
+                                tensor->get_shape(),
+                                " expecting ",
+                                port.get_shape(),
+                                ".");
+            }
             // we don't need to perform null check, the plugin graph will do it for us
         };
 

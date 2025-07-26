@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <common/bfloat16.hpp>
 #include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
 #include <common/utils.hpp>
@@ -57,7 +58,6 @@
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -2105,11 +2105,13 @@ void Reduce::getSupportedDescriptors() {
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
-        bool is_emulated_0d_as_1d =
-            getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
-        CPU_NODE_ASSERT(
-            !(getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d),
-            "gets incorrect number of input/output dimensions!");
+        const bool inputIsRank1 = getInputShapeAtPort(REDUCE_DATA).getRank() == 1;
+        const bool outputIsRank1 = getOutputShapeAtPort(0).getRank() == 1;
+        const bool is_emulated_0d_as_1d = inputIsRank1 && outputIsRank1;
+        const bool inputRankGreaterThanOutput =
+            getInputShapeAtPort(REDUCE_DATA).getRank() > getOutputShapeAtPort(0).getRank();
+        const bool isValidRankReduction = inputRankGreaterThanOutput || is_emulated_0d_as_1d;
+        CPU_NODE_ASSERT(isValidRankReduction, "gets incorrect number of input/output dimensions!");
     }
 }
 
@@ -2553,7 +2555,8 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
     output_info_reassign(&out_ptr);
     init_dst_data(out_ptr, dst_size);
 
-    if (ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW) {
+    const bool isReduceNOnly = ReduceN && !ReduceC && !ReduceD && !ReduceH && !ReduceW;
+    if (isReduceNOnly) {
         size_t IA = IC * ID * IH * IW;
         reduce_stride = IA;
         parallel_for(IA / blk_size, [&](size_t iba) {
@@ -2575,7 +2578,8 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
         for (size_t ib = 0; ib < IB; ib++) {
             size_t ob = ReduceN ? 0 : ib;
             GET_PTR_N_PLN;
-            if (!ReduceC && !ReduceD && ReduceW) {
+            const bool isReduceWOnly = !ReduceC && !ReduceD && ReduceW;
+            if (isReduceWOnly) {
                 size_t work_amount = ReduceH ? IH * IW : IW;
                 if (work_amount < blk_size && mayiuse(cpu::x64::avx2)) {
                     size_t outer_size = ReduceH ? IC * ID : IC * ID * IH;
@@ -2853,7 +2857,8 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
     for (size_t ib = 0; ib < IB; ib++) {
         size_t ob = ReduceN ? 0 : ib;
         GET_PTR_N_BLK;
-        if (!ReduceC && !ReduceD && ReduceH && ReduceW) {
+        const bool isReduceHWOnly = !ReduceC && !ReduceD && ReduceH && ReduceW;
+        if (isReduceHWOnly) {
             if (!ReduceN || (ReduceN && ib == IB - 1)) {
                 apply_division = getAlgorithm() == Algorithm::ReduceMean && attr.get()->post_ops_.len() == 0;
                 apply_post_kernel = !apply_division;

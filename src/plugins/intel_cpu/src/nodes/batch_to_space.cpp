@@ -51,12 +51,13 @@ BatchToSpace::BatchToSpace(const std::shared_ptr<ov::Node>& op, const GraphConte
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(inputShapes.size() == 4 && outputShapes.size() == 1,
-                    "has incorrect number of input or output edges!");
+    CPU_NODE_ASSERT(inputShapes.size() == 4, "has incorrect number of input edges!");
+    CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges!");
 
     const auto& inDims = getInputShapeAtPort(0).getDims();
     const auto& outDims = getOutputShapeAtPort(0).getDims();
-    CPU_NODE_ASSERT(inDims.size() >= 4 && inDims.size() <= 5, "has unsupported 'data' input rank: ", inDims.size());
+    CPU_NODE_ASSERT(inDims.size() >= 4, "has unsupported 'data' input rank (too small): ", inDims.size());
+    CPU_NODE_ASSERT(inDims.size() <= 5, "has unsupported 'data' input rank (too large): ", inDims.size());
     CPU_NODE_ASSERT(inDims.size() == outDims.size(), "has incorrect number of input/output dimensions");
 }
 

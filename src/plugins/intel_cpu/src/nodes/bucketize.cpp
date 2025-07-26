@@ -54,8 +54,8 @@ Bucketize::Bucketize(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
     const auto bucketsize = ov::as_type_ptr<const ov::op::v3::Bucketize>(op);
     CPU_NODE_ASSERT(bucketsize, "is not an instance of v3 Bucketize.");
 
-    CPU_NODE_ASSERT(getOriginalInputsNumber() == 2 && getOriginalOutputsNumber() == 1,
-                    "has incorrect number of input/output edges!");
+    CPU_NODE_ASSERT(getOriginalInputsNumber() == 2, "has incorrect number of input edges!");
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == 1, "has incorrect number of output edges!");
 
     // check one attribute
     with_right = bucketsize->get_with_right_bound();
@@ -198,9 +198,12 @@ void Bucketize::prepareParams() {
     auto inputTensorMemPtr = getSrcMemoryAtPort(INPUT_TENSOR_PORT);
     auto inputBinsMemPtr = getSrcMemoryAtPort(INPUT_BINS_PORT);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has destination memory undefined.");
-    CPU_NODE_ASSERT(inputTensorMemPtr && inputTensorMemPtr->isDefined(), "has input tensor undefined.");
-    CPU_NODE_ASSERT(inputBinsMemPtr && inputBinsMemPtr->isDefined(), "has input bins undefined.");
+    CPU_NODE_ASSERT(dstMemPtr, "destination memory pointer is null.");
+    CPU_NODE_ASSERT(dstMemPtr->isDefined(), "destination memory is undefined.");
+    CPU_NODE_ASSERT(inputTensorMemPtr, "input tensor memory pointer is null.");
+    CPU_NODE_ASSERT(inputTensorMemPtr->isDefined(), "input tensor is undefined.");
+    CPU_NODE_ASSERT(inputBinsMemPtr, "input bins memory pointer is null.");
+    CPU_NODE_ASSERT(inputBinsMemPtr->isDefined(), "input bins are undefined.");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has preferable primitive descriptors unset.");
 
     // update with_bins/num_values/num_bin_values

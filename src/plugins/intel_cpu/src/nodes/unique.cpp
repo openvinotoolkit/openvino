@@ -60,8 +60,8 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(any_of(op->get_input_size(), 1U, 2U) && op->get_output_size() == 4,
-                    "has incorrect number of input/output edges.");
+    const bool validInputOutputCount = any_of(op->get_input_size(), 1U, 2U) && op->get_output_size() == 4;
+    CPU_NODE_ASSERT(validInputOutputCount, "has incorrect number of input/output edges.");
 
     for (int i = 0; i < 4; i++) {
         definedOutputs[i] = !op->get_output_target_inputs(i).empty();
@@ -74,7 +74,8 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         if (axis < 0) {
             axis += op->get_input_partial_shape(IN_DATA).rank().get_length();
         }
-        CPU_NODE_ASSERT(axis >= 0 && axis < op->get_input_partial_shape(IN_DATA).rank().get_length(),
+        const bool validAxisValue = axis >= 0 && axis < op->get_input_partial_shape(IN_DATA).rank().get_length();
+        CPU_NODE_ASSERT(validAxisValue,
                         "has invalid axis value: ",
                         ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0]);
     } else {

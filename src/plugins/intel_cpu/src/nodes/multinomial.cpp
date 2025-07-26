@@ -89,7 +89,7 @@ void Multinomial::initSupportedPrimitiveDescriptors() {
 }
 
 bool Multinomial::needShapeInfer() const {
-    return !(m_const_inputs[NUM_SAMPLES_PORT] && m_const_batch);
+    return !m_const_inputs[NUM_SAMPLES_PORT] || !m_const_batch;
 }
 
 bool Multinomial::needPrepareParams() const {

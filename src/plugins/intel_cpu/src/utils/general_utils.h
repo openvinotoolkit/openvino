@@ -56,7 +56,7 @@ constexpr bool all_of(T val, Args... items) {
 }
 
 constexpr bool implication(bool cause, bool cond) {
-    return !cause || !!cond;
+    return !cause || cond;
 }
 
 #ifdef __cpp_lib_make_unique

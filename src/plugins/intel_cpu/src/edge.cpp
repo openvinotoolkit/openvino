@@ -128,8 +128,10 @@ bool Edge::enforceReorder() {
     auto* parentSPD = parentNode->getSelectedPrimitiveDescriptor();
     auto childNode = getChild();
     auto* childSPD = childNode->getSelectedPrimitiveDescriptor();
-    OPENVINO_ASSERT(parentSPD && childSPD,
-                    "Cannot make a decision about reorder. Primitive descriptors weren't selected.");
+    OPENVINO_ASSERT(parentSPD != nullptr,
+                    "Cannot make a decision about reorder. Parent primitive descriptor wasn't selected.");
+    OPENVINO_ASSERT(childSPD != nullptr,
+                    "Cannot make a decision about reorder. Child primitive descriptor wasn't selected.");
 
     bool in_place = inPlace();
 
@@ -480,7 +482,8 @@ void Edge::validate() {
     std::ignore = getParent();
     std::ignore = getChild();
 
-    OPENVINO_ASSERT(status == Status::Allocated && memoryPtr, "Error memory is not allocated for edge: ", *this);
+    OPENVINO_ASSERT(status == Status::Allocated, "Error memory status is not allocated for edge: ", *this);
+    OPENVINO_ASSERT(memoryPtr, "Error memoryPtr is null for edge: ", *this);
     status = Status::Validated;
 }
 
@@ -530,9 +533,9 @@ EdgePtr Edge::getBaseEdge(int look) {
     const int parentInPlacePort = getParent()->inPlaceOutPort(inputNum);
     const int childInPlacePort = getChild()->inPlaceInputPort(outputNum);
 
-    OPENVINO_ASSERT(!(parentInPlacePort >= 0 && childInPlacePort >= 0),
-                    "Unresolved in place memory conflict detected on edge: ",
-                    *this);
+    if (parentInPlacePort >= 0 && childInPlacePort >= 0) {
+        OPENVINO_THROW("Unresolved in place memory conflict detected on edge: ", *this);
+    }
 
     if ((childInPlacePort >= 0) && (look & LOOK_DOWN)) {
         auto ch_edges = getChild()->getChildEdgesAtPort(childInPlacePort);

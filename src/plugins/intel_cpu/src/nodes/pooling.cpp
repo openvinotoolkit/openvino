@@ -384,8 +384,8 @@ void Pooling::getSupportedDescriptors() {
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inputPrecision);
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outputPrecision);
 
-    CPU_NODE_ASSERT((inputRank >= 3) && (inputRank <= 5),
-                    "Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
+    const bool isSupportedInputRank = (inputRank >= 3) && (inputRank <= 5);
+    CPU_NODE_ASSERT(isSupportedInputRank, "Unsupported mode. Only 3D, 4D and 5D blobs are supported as input.");
 
     initEffectiveAttributes(inShape, MemoryDescUtils::makeDummyShape(childShape));
 
@@ -477,8 +477,10 @@ void Pooling::prepareParams() {
     if (useACL) {
         auto dstMemPtr = getDstMemoryAtPort(0);
         auto srcMemPtr = getSrcMemoryAtPort(0);
-        CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
-        CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "Input memory is undefined.");
+        const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+        CPU_NODE_ASSERT(isDestinationMemoryValid, "Destination memory is undefined.");
+        const bool isSourceMemoryValid = srcMemPtr && srcMemPtr->isDefined();
+        CPU_NODE_ASSERT(isSourceMemoryValid, "Input memory is undefined.");
 
         std::vector<MemoryDescPtr> srcMemoryDescs;
         for (size_t i = 0; i < getOriginalInputsNumber(); i++) {

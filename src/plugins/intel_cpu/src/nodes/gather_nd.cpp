@@ -111,9 +111,12 @@ void GatherND::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(GATHERND_DATA);
     auto idxMemPtr = getSrcMemoryAtPort(GATHERND_INDEXES);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory of 'data'.");
-    CPU_NODE_ASSERT(idxMemPtr && idxMemPtr->isDefined(), "has undefined input memory of 'indices'.");
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory.");
+    CPU_NODE_ASSERT(srcMemPtr, "has null input memory pointer for 'data'.");
+    CPU_NODE_ASSERT(srcMemPtr->isDefined(), "has undefined input memory of 'data'.");
+    CPU_NODE_ASSERT(idxMemPtr, "has null input memory pointer for 'indices'.");
+    CPU_NODE_ASSERT(idxMemPtr->isDefined(), "has undefined input memory of 'indices'.");
+    CPU_NODE_ASSERT(dstMemPtr, "has null output memory pointer.");
+    CPU_NODE_ASSERT(dstMemPtr->isDefined(), "has undefined output memory.");
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has unidentified preferable primitive descriptor.");
 
     attrs.srcDims = srcMemPtr->getStaticDims();

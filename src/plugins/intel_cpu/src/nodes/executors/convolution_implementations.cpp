@@ -131,7 +131,8 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 }
 
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config), UNSUPPORTED_POST_OPS);
-                VERIFY(isQuantized(config) || DnnlConvolutionPrimitive::isBrgConvAvailable(config), "is not quantized or brgemm convolution is not available");
+                const bool quantizedOrBrgemmAvailable = isQuantized(config) || DnnlConvolutionPrimitive::isBrgConvAvailable(config);
+                VERIFY(quantizedOrBrgemmAvailable, "is not quantized or brgemm convolution is not available");
 
                 return true;
             },

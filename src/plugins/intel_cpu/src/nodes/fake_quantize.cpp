@@ -1209,8 +1209,8 @@ FakeQuantize::FakeQuantize(const std::shared_ptr<ov::Node>& op, const GraphConte
         auto outputLowAxisSize = ov::is_scalar(olShape) ? 1 : olShape[outputLowAxis];
         auto outputHighAxisSize = ov::is_scalar(ohShape) ? 1 : ohShape[outputHighAxis];
 
-        CPU_NODE_ASSERT(axisSize == -1 || dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis]),
-                        "has different quantization axis size on 'data' and 'range' inputs");
+        const bool isAxisSizeValid = axisSize == -1 || dimsEqualWeak(axisSize, getInputShapeAtPort(0).getDims()[axis]);
+        CPU_NODE_ASSERT(isAxisSizeValid, "has different quantization axis size on 'data' and 'range' inputs");
 
         const auto inputLowNode = ov::as_type_ptr<const ov::op::v0::Constant>(fq->get_input_node_shared_ptr(1));
         auto inputLowData = inputLowNode->cast_vector<float>();
@@ -1877,10 +1877,10 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && any_of(srcDesc.getShape().getRank(), 4U, 5U);
     int blk_size = 1;
-    if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) &&
+    if ((!srcDesc.hasLayoutType(LayoutType::ncsp) || !any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) &&
         mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
-    } else if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U))) {
+    } else if (!srcDesc.hasLayoutType(LayoutType::ncsp) || !any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) {
         blk_size = 8;
     }
 
@@ -2322,7 +2322,12 @@ void FakeQuantize::updateOptimizedFormula(bool do_rounding) {
 
     f.shrinkLength();
 
-    if (f.osc.size() == 1 && f.osc[0] == 1.0F && f.osh.size() == 1 && f.osh[0] == std::trunc(f.osh[0])) {
+    const bool hasSingleOutputScale = f.osc.size() == 1;
+    const bool isOutputScaleOne = hasSingleOutputScale && f.osc[0] == 1.0F;
+    const bool hasSingleOutputShift = f.osh.size() == 1;
+    const bool isOutputShiftInteger = hasSingleOutputShift && f.osh[0] == std::trunc(f.osh[0]);
+    const bool canOptimizeOutputLinear = isOutputScaleOne && isOutputShiftInteger;
+    if (canOptimizeOutputLinear) {
         // if outputScale == 1.0f and outputShift is interger, it can be further optimized
         //   x = clip2(round(x * inputScale + ish),c2lo,c2hi)*osc + osh
         //     = clip2(round(x * inputScale + ish),c2lo,c2hi) + osh
@@ -2391,11 +2396,26 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
     // when FQ is last postOps and output data type is u8/s8
     // round & clip2 can be further optimized since saturation will be performed by oneDNN by default
     bool skipRoundClipOutputLinear = false;
-    if (isLastPostOp && (levels == 256) && f.clo.size() == 1 && f.chi.size() == 1 && f.osc.empty() && f.osh.empty()) {
-        if (outDataType == memory::data_type::u8 && f.clo[0] <= 0.0F && f.chi[0] >= 255.0F) {
+    const bool is256Levels = levels == 256;
+    const bool hasSingleClampLow = f.clo.size() == 1;
+    const bool hasSingleClampHigh = f.chi.size() == 1;
+    const bool hasNoOutputScale = f.osc.empty();
+    const bool hasNoOutputShift = f.osh.empty();
+    const bool canSkipRoundClip =
+        isLastPostOp && is256Levels && hasSingleClampLow && hasSingleClampHigh && hasNoOutputScale && hasNoOutputShift;
+    if (canSkipRoundClip) {
+        const bool isU8Output = outDataType == memory::data_type::u8;
+        const bool clampLowCoversU8 = f.clo[0] <= 0.0F;
+        const bool clampHighCoversU8 = f.chi[0] >= 255.0F;
+        const bool canSkipU8Clamp = isU8Output && clampLowCoversU8 && clampHighCoversU8;
+        if (canSkipU8Clamp) {
             skipRoundClipOutputLinear = true;
         }
-        if (outDataType == memory::data_type::s8 && f.clo[0] <= -128.0F && f.chi[0] >= 127.0F) {
+        const bool isS8Output = outDataType == memory::data_type::s8;
+        const bool clampLowCoversS8 = f.clo[0] <= -128.0F;
+        const bool clampHighCoversS8 = f.chi[0] >= 127.0F;
+        const bool canSkipS8Clamp = isS8Output && clampLowCoversS8 && clampHighCoversS8;
+        if (canSkipS8Clamp) {
             skipRoundClipOutputLinear = true;
         }
     }

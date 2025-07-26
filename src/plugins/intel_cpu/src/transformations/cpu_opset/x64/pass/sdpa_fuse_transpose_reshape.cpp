@@ -116,7 +116,7 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         auto k_reshape = as_type_ptr<op::v1::Reshape>(pattern_map.at(k_reshape_node).get_node_shared_ptr());
         auto v_reshape = as_type_ptr<op::v1::Reshape>(pattern_map.at(v_reshape_node).get_node_shared_ptr());
 
-        if (!(is_expected_reshape(q_reshape) && is_expected_reshape(k_reshape) && is_expected_reshape(v_reshape))) {
+        if (!is_expected_reshape(q_reshape) || !is_expected_reshape(k_reshape) || !is_expected_reshape(v_reshape)) {
             return false;
         }
         // K,V Reshape's order should be same node.
@@ -145,8 +145,8 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         auto out_transpose_order =
             as_type_ptr<op::v0::Constant>(pattern_map.at(out_transpose_order_node).get_node_shared_ptr());
 
-        if (!(is_expected_transpose(qkv_transpose[0]) && is_expected_transpose(qkv_transpose[1]) &&
-              is_expected_transpose(qkv_transpose[2]))) {
+        if (!is_expected_transpose(qkv_transpose[0]) || !is_expected_transpose(qkv_transpose[1]) ||
+            !is_expected_transpose(qkv_transpose[2])) {
             return false;
         }
         if (!is_expected_transpose(out_tranpose)) {

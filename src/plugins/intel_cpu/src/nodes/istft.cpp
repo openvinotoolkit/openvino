@@ -67,7 +67,8 @@ ISTFT::ISTFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 
 void ISTFT::getSupportedDescriptors() {
     const auto input_size = getParentEdges().size();
-    CPU_NODE_ASSERT(input_size >= 4 && input_size <= 5, "ISTFT has incorrect number of input edges.");
+    const bool validInputSize = input_size >= 4 && input_size <= 5;
+    CPU_NODE_ASSERT(validInputSize, "ISTFT has incorrect number of input edges.");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "ISTFT has incorrect number of output edges.");
 }
 
@@ -267,7 +268,7 @@ void ISTFT::executeDynamicImpl(const dnnl::stream& strm) {
 
 bool ISTFT::needShapeInfer() const {
     return (m_has_signal_length_input && !m_is_signal_length_const) ||
-           (!m_has_signal_length_input && !(m_is_frame_size_const && m_is_frame_step_const)) || Node::needShapeInfer();
+           (!m_has_signal_length_input && (!m_is_frame_size_const || !m_is_frame_step_const)) || Node::needShapeInfer();
 }
 
 void ISTFT::createPrimitive() {

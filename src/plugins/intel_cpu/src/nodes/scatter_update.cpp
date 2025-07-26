@@ -570,7 +570,10 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     if (axis < 0) {
         axis += updates_rank;
     }
-    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+    const bool axisNotTooLow = axis >= 0;
+    const bool axisNotTooHigh = axis < static_cast<int>(updates_rank);
+    const bool isValidAxis = axisNotTooLow && axisNotTooHigh;
+    CPU_NODE_ASSERT(isValidAxis, "Invalid axis.");
 
     const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
@@ -699,7 +702,10 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
     if (axis < 0) {
         axis += updates_rank;
     }
-    CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(updates_rank), "Invalid axis.");
+    const bool axisNotTooLow = axis >= 0;
+    const bool axisNotTooHigh = axis < static_cast<int>(updates_rank);
+    const bool isValidAxis = axisNotTooLow && axisNotTooHigh;
+    CPU_NODE_ASSERT(isValidAxis, "Invalid axis.");
 
     const auto data_dim_size = static_cast<int64_t>(data_shape[axis]);
     const auto index_dim_size = indices_shape[axis];
@@ -898,7 +904,8 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             axis = static_cast<int>(*axisPtr64);
         }
 
-        CPU_NODE_ASSERT(axis < static_cast<int>(srcRank) && axis >= (static_cast<int>(srcRank) * -1),
+        const bool validAxisRange = axis < static_cast<int>(srcRank) && axis >= (static_cast<int>(srcRank) * -1);
+        CPU_NODE_ASSERT(validAxisRange,
                         "should have axis value in range [-r, r - 1], where r is the rank of input data");
         axis = axis < 0 ? (axis + srcRank) : axis;
 
@@ -910,8 +917,10 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             splitter(indicesBlockND[0], nthr, ithr, start, end);
             for (size_t i = start; i < end; i++) {
                 int64_t idxValue = getIndicesValue(indicesPtr, i);
-                CPU_NODE_ASSERT(idxValue < static_cast<int64_t>(srcDimAxis) &&
-                                    (idxValue >= 0 || scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate),
+                const bool validIndexValue =
+                    idxValue < static_cast<int64_t>(srcDimAxis) &&
+                    (idxValue >= 0 || scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate);
+                CPU_NODE_ASSERT(validIndexValue,
                                 "have indices value that points to non-existing output tensor element");
             }
         });

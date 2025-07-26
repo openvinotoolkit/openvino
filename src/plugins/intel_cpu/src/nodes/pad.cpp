@@ -252,8 +252,13 @@ void Pad::PadExecutor::paramsInitialization(const PadAttrs& attrs,
     params.attrs = attrs;
     const auto& srcMemPtr = srcMemory[DATA_ID];
     const auto& dstMemPtr = dstMemory[DATA_ID];
-    OPENVINO_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Pad executor has undefined source memory.");
-    OPENVINO_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "Pad executor has undefined destination memory.");
+    const auto dstMemExists = static_cast<bool>(dstMemPtr);
+    const bool dstMemDefined = dstMemExists && dstMemPtr->isDefined();
+    OPENVINO_ASSERT(dstMemDefined, "Pad executor has undefined source memory.");
+
+    const auto srcMemExists = static_cast<bool>(srcMemPtr);
+    const bool srcMemDefined = srcMemExists && srcMemPtr->isDefined();
+    OPENVINO_ASSERT(srcMemDefined, "Pad executor has undefined destination memory.");
     const auto srcBlockMemDesc = srcMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto dstBlockMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     const auto& srcDims = srcBlockMemDesc->getBlockDims();

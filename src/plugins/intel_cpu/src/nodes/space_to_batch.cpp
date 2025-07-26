@@ -49,12 +49,17 @@ SpaceToBatch::SpaceToBatch(const std::shared_ptr<ov::Node>& op, const GraphConte
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(inputShapes.size() == 4 && outputShapes.size() == 1,
-                    "has incorrect number of input or output edges!");
+    const bool hasCorrectInputCount = inputShapes.size() == 4;
+    const bool hasCorrectOutputCount = outputShapes.size() == 1;
+    const bool hasCorrectEdgeCount = hasCorrectInputCount && hasCorrectOutputCount;
+    CPU_NODE_ASSERT(hasCorrectEdgeCount, "has incorrect number of input or output edges!");
 
     const size_t srcRank = getInputShapeAtPort(0).getRank();
     const size_t dstRank = getOutputShapeAtPort(0).getRank();
-    CPU_NODE_ASSERT(srcRank >= 4 && srcRank <= 5, "has unsupported 'data' input rank: ", srcRank);
+    const bool isRankNotTooLow = srcRank >= 4;
+    const bool isRankNotTooHigh = srcRank <= 5;
+    const bool isValidSrcRank = isRankNotTooLow && isRankNotTooHigh;
+    CPU_NODE_ASSERT(isValidSrcRank, "has unsupported 'data' input rank: ", srcRank);
     CPU_NODE_ASSERT(srcRank == dstRank, "has incorrect number of input/output dimensions");
 }
 

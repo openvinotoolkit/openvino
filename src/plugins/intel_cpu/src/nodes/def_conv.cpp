@@ -1245,14 +1245,19 @@ void DeformableConvolution::prepareParams() {
     auto offMemPtr = getSrcMemoryAtPort(OFF_ID);
     auto weiMemPtr = getSrcMemoryAtPort(WEI_ID);
 
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory");
-    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory");
-    CPU_NODE_ASSERT(offMemPtr && offMemPtr->isDefined(), "has undefined offsets shape memory");
-    CPU_NODE_ASSERT(weiMemPtr && weiMemPtr->isDefined(), "has undefined weights memory");
+    const bool isDestinationMemoryValid = dstMemPtr && dstMemPtr->isDefined();
+    CPU_NODE_ASSERT(isDestinationMemoryValid, "has undefined destination memory");
+    const bool isInputMemoryValid = srcMemPtr && srcMemPtr->isDefined();
+    CPU_NODE_ASSERT(isInputMemoryValid, "has undefined input memory");
+    const bool isOffsetsMemoryValid = offMemPtr && offMemPtr->isDefined();
+    CPU_NODE_ASSERT(isOffsetsMemoryValid, "has undefined offsets shape memory");
+    const bool isWeightsMemoryValid = weiMemPtr && weiMemPtr->isDefined();
+    CPU_NODE_ASSERT(isWeightsMemoryValid, "has undefined weights memory");
 
     if (getOriginalInputsNumber() > 3) {
         auto modMemPtr = getSrcMemoryAtPort(MOD_ID);
-        CPU_NODE_ASSERT(modMemPtr && modMemPtr->isDefined(), "has undefined modulations memory");
+        const bool isModulationsMemoryValid = modMemPtr && modMemPtr->isDefined();
+        CPU_NODE_ASSERT(isModulationsMemoryValid, "has undefined modulations memory");
     }
 
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();

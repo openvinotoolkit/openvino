@@ -88,7 +88,8 @@ Concat::Concat(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
     if (axis < 0) {
         axis += inRank;
     }
-    CPU_NODE_ASSERT(axis < static_cast<int64_t>(inRank) && axis >= 0, "has invalid value of axis parameter: ", axis);
+    CPU_NODE_ASSERT(axis >= 0, "axis parameter is negative: ", axis);
+    CPU_NODE_ASSERT(axis < static_cast<int64_t>(inRank), "axis parameter exceeds input rank: ", axis);
     this->axis = axis;
 }
 
@@ -106,7 +107,8 @@ void Concat::getSupportedDescriptors() {
                 break;
             }
         }
-        CPU_NODE_ASSERT(!incorrectDims && !firstParentDims.empty(), "has incorrect input dimensions");
+        CPU_NODE_ASSERT(!incorrectDims, "has incorrect input dimensions");
+        CPU_NODE_ASSERT(!firstParentDims.empty(), "first parent dimensions are empty");
     }
 
     // we need the first dims before axis to be 1 to avoid the reorder in the edge between the first parent and this
@@ -261,8 +263,10 @@ void Concat::selectOptimalPrimitiveDescriptor() {
 
         const auto& parent_config = parent_pdesc->getConfig();
         int outputIndex = parentEdge->getInputNum();
-        CPU_NODE_ASSERT(outputIndex >= 0 && outputIndex < static_cast<int>(parent_config.outConfs.size()),
-                        "Cannot find index of output node");
+        CPU_NODE_ASSERT(outputIndex >= 0, "Output index is negative: ", outputIndex);
+        CPU_NODE_ASSERT(outputIndex < static_cast<int>(parent_config.outConfs.size()),
+                        "Output index exceeds configuration size: ",
+                        outputIndex);
         const auto& port_desc = parent_config.outConfs[outputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -280,8 +284,10 @@ void Concat::selectOptimalPrimitiveDescriptor() {
 
         const auto& config = prim_desc->getConfig();
         int inputIndex = childEdge->getOutputNum();
-        CPU_NODE_ASSERT(inputIndex >= 0 && inputIndex < static_cast<int>(config.inConfs.size()),
-                        "Cannot find index of output node");
+        CPU_NODE_ASSERT(inputIndex >= 0, "Input index is negative: ", inputIndex);
+        CPU_NODE_ASSERT(inputIndex < static_cast<int>(config.inConfs.size()),
+                        "Input index exceeds configuration size: ",
+                        inputIndex);
         const auto& port_desc = config.inConfs[inputIndex].getMemDesc();
         for (auto& item : supportedLayouts) {
             if (port_desc->hasLayoutType(item)) {
@@ -371,7 +377,8 @@ void Concat::prepareParams() {
     }
 
     const auto& dstMemPtr = getDstMemoryAtPort(0);
-    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "Destination memory is undefined.");
+    CPU_NODE_ASSERT(dstMemPtr, "Destination memory pointer is null.");
+    CPU_NODE_ASSERT(dstMemPtr->isDefined(), "Destination memory is undefined.");
     auto dstMemDesc = dstMemPtr->getDescWithType<BlockedMemoryDesc>();
     CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor is not set.");
 
@@ -417,8 +424,9 @@ void Concat::prepareParams() {
     nelemTotal = 0;
     for (size_t i = 0; i < getParentEdges().size(); i++) {
         const auto& srcMemPtr = getSrcMemoryAtPort(i);
-        CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(),
-                        "Source memory from ",
+        CPU_NODE_ASSERT(srcMemPtr, "Source memory pointer is null from port ", i);
+        CPU_NODE_ASSERT(srcMemPtr->isDefined(),
+                        "Source memory is not defined from port ",
                         getParentEdgeAt(i)->getParent()->getName(),
                         " is undefined.");
 
