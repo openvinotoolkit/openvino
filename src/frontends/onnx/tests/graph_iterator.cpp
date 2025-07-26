@@ -706,25 +706,6 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
             continue;
         }
         const auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, m_graph, -1, -1);
-        /*
-        if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
-            auto decoder_position =
-                std::find_if(m_decoders.begin(),
-                             m_decoders.end(),
-                             [&initializer](const std::shared_ptr<ov::frontend::onnx::DecoderBase>& value) {
-                                 const auto& tensor = std::dynamic_pointer_cast<DecoderProtoTensor>(value);
-                                 if (tensor == nullptr)
-                                     return false;
-                                 return initializer.name() == tensor->get_tensor_info().m_tensor_name;
-                             });
-            if (decoder_position == m_decoders.end()) {
-                throw std::runtime_error("Something went wrong");
-            }
-            *decoder_position = std::dynamic_pointer_cast<ov::frontend::onnx::DecoderBase>(tensor);
-        } else {
-            m_decoders.push_back(tensor);
-        }
-        */
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& node : m_graph->node()) {
@@ -811,58 +792,6 @@ std::shared_ptr<ov::frontend::onnx::GraphIterator> GraphIteratorProto::get_subgr
 
 std::shared_ptr<ov::frontend::onnx::DecoderBase> GraphIteratorProto::get_decoder() const {
     return m_decoders[node_index];
-    /*
-    auto tensors = m_graph->tensors();
-
-    if (is_op) {
-        auto node = m_nodes[node_index].as<const tflite::Operator*>();
-        auto buffers = m_model->buffers();
-
-        std::map<size_t, TensorInfo> input_info = {}, output_info = {};
-        size_t i = 0;
-        for (auto input : *node->inputs()) {
-            if (input == -1)
-                continue;
-            auto buffer = (*buffers)[(*tensors)[input]->buffer()];
-            auto tensor = (*tensors)[input];
-            input_info[i++] = TensorInfo{tensor, buffer};
-        }
-        i = 0;
-        for (auto output : *node->outputs()) {
-            auto buffer = (*buffers)[(*tensors)[output]->buffer()];
-            auto tensor = (*tensors)[output];
-            output_info[i++] = TensorInfo{tensor, buffer};
-        }
-        auto op_codes = m_model->operator_codes();
-        auto operator_code = (*op_codes)[node->opcode_index()];
-        std::string type;
-        if (operator_code->deprecated_builtin_code() <
-            tflite::BuiltinOperator::BuiltinOperator_PLACEHOLDER_FOR_GREATER_OP_CODES) {
-            type = tflite::EnumNamesBuiltinOperator()[operator_code->deprecated_builtin_code()];
-        } else {
-            type = tflite::EnumNamesBuiltinOperator()[operator_code->builtin_code()];
-        }
-        if (type == "CUSTOM") {
-            type = operator_code->custom_code()->str();
-        }
-        auto name = std::to_string(node_index - m_graph->inputs()->size() - m_graph->outputs()->size());
-        return std::make_shared<DecoderFlatBuffer>(node, type, name, input_info, output_info);
-    } else {
-        auto tensor_id = m_nodes[node_index].as<int32_t>();
-        auto tensor = (*tensors)[tensor_id];
-        auto info = TensorInfo{tensor, nullptr};
-        auto inputs = m_graph->inputs();
-        auto outputs = m_graph->outputs();
-
-        auto input_it = std::find(inputs->begin(), inputs->end(), tensor_id);
-        auto output_it = std::find(outputs->begin(), outputs->end(), tensor_id);
-        int64_t input_idx =
-            input_it == inputs->end() ? -1 : static_cast<int64_t>(std::distance(inputs->begin(), input_it));
-        int64_t output_idx =
-            output_it == outputs->end() ? -1 : static_cast<int64_t>(std::distance(outputs->begin(), output_it));
-        return std::make_shared<DecoderFlatBufferTensors>(info, input_idx, output_idx);
-    }
-    */
 }
 
 std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) const {
