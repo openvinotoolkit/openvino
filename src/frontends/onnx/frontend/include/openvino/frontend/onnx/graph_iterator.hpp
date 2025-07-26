@@ -51,6 +51,10 @@ public:
     /// idx should be in range 0..get_subgraph_size()-1
     virtual std::shared_ptr<GraphIterator> get_subgraph(size_t idx) const = 0;
 
+    /// \brief Returns opset version of requested domain, stored in a ModelProto
+    /// If there are no domain found returns -1
+    virtual int64_t get_opset_version(const std::string& domain) const = 0;
+
     /// \brief Destructor
     virtual ~GraphIterator();
 };
