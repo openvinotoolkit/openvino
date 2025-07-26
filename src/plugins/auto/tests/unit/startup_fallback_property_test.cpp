@@ -58,7 +58,7 @@ public:
                 std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
                 return devices;
             });
-        ON_CALL(*plugin, select_device(_, _, _)).WillByDefault(Return(metaDevices[1]));
+        ON_CALL(*plugin, select_device(_, _, _, _)).WillByDefault(Return(metaDevices[1]));
     }
 };
 

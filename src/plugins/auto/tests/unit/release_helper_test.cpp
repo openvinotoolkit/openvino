@@ -126,9 +126,9 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
-    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(2)), _, _))
+    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(2)), _, _, _))
         .WillByDefault(Return(metaDevices[1]));
-    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _))
+    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _, _))
         .WillByDefault(Return(metaDevices[0]));
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
@@ -209,9 +209,9 @@ TEST_P(AutoReleaseHelperTest, releaseResource) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
-    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(2)), _, _))
+    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(2)), _, _, _))
         .WillByDefault(Return(metaDevices[1]));
-    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _))
+    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _, _))
         .WillByDefault(Return(metaDevices[0]));
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + ov::test::utils::DEVICE_GPU));
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
