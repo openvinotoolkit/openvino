@@ -71,7 +71,7 @@ struct jit_uni_quantize_kernel {
     void (*ker_)(const jit_quantize_call_args*) = nullptr;
 
     void operator()(const jit_quantize_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

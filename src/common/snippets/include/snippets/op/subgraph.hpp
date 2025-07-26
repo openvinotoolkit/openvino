@@ -131,7 +131,7 @@ public:
     }
 #ifdef SNIPPETS_DEBUG_CAPS
     DebugCapsConfig& get_debug_config() {
-        assert(config.m_debug_config && "Debug config is not initialized");
+        OPENVINO_DEBUG_ASSERT(config.m_debug_config, "Debug config is not initialized");
         return *config.m_debug_config;
     }
 #endif  // SNIPPETS_DEBUG_CAPS

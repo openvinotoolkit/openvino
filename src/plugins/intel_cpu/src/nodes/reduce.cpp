@@ -5,7 +5,6 @@
 #include "reduce.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <common/c_types_map.hpp>
 #include <common/primitive_attr.hpp>
@@ -452,7 +451,9 @@ private:
                 }
                 break;
             default:
-                assert(!"unsupported reduce mode");
+                OPENVINO_DEBUG_ASSERT(false,
+                                      "unsupported reduce mode: jcp_.reduce_mode=",
+                                      static_cast<int>(jcp_.reduce_mode));
             }
             // reduce
             reduce_main_loop();
@@ -688,7 +689,7 @@ private:
             pack_gathered_vector(vmm_src, vmm_idx, offset, jcp_.src_dt);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: jcp_.src_dt=", static_cast<int>(jcp_.src_dt));
         }
         reduce_kernel(vmm_src, vmm_dst);
     }
@@ -717,7 +718,7 @@ private:
                 mov(ptr[rsp + i * sizeof(char)], reg_tmp_64.cvt8());
                 break;
             default:
-                assert(!"unknown src_dt");
+                OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: jcp_.src_dt=", static_cast<int>(jcp_.src_dt));
             }
         }
 
@@ -740,7 +741,7 @@ private:
             uni_vpmovzxbd(vmm_val, ptr[rsp]);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: jcp_.src_dt=", static_cast<int>(jcp_.src_dt));
         }
 
         if (convert_i32_to_f32(src_dt)) {
@@ -916,7 +917,9 @@ private:
             }
             break;
         default:
-            assert(!"unsupported reduce mode");
+            OPENVINO_DEBUG_ASSERT(false,
+                                  "unsupported reduce mode: jcp_.reduce_mode=",
+                                  static_cast<int>(jcp_.reduce_mode));
         }
     }
 
@@ -961,7 +964,9 @@ private:
             }
             break;
         default:
-            assert(!"unsupported reduce mode");
+            OPENVINO_DEBUG_ASSERT(false,
+                                  "unsupported reduce mode: jcp_.reduce_mode=",
+                                  static_cast<int>(jcp_.reduce_mode));
         }
     }
 
@@ -1008,7 +1013,7 @@ private:
             uni_vpmovzxbd(vmm_src, op);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: jcp_.src_dt=", static_cast<int>(jcp_.src_dt));
         }
 
         if (convert_i32_to_f32(src_dt)) {
@@ -1038,7 +1043,7 @@ private:
             uni_vmovq(xmm_src, reg_tmp_64);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: jcp_.src_dt=", static_cast<int>(jcp_.src_dt));
         }
 
         if (convert_i32_to_f32(src_dt)) {
@@ -1109,7 +1114,7 @@ private:
             }
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt: jcp_.dst_dt=", static_cast<int>(jcp_.dst_dt));
         }
     }
 
@@ -1148,7 +1153,7 @@ private:
             mov(op, reg_tmp_8);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt: jcp_.dst_dt=", static_cast<int>(jcp_.dst_dt));
         }
     }
 
@@ -1217,7 +1222,9 @@ private:
             }
             break;
         default:
-            assert(!"unsupported reduce mode");
+            OPENVINO_DEBUG_ASSERT(false,
+                                  "unsupported reduce mode: jcp_.reduce_mode=",
+                                  static_cast<int>(jcp_.reduce_mode));
         }
     }
 
@@ -1762,7 +1769,7 @@ private:
             uni_vpmovzxbd(vmm_src, op);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: jcp_.src_dt=", static_cast<int>(jcp_.src_dt));
         }
 
         if (!isFloatCompatible(src_dt)) {
@@ -1792,7 +1799,7 @@ private:
             uni_vmovq(xmm_src, reg_tmp_64);
             break;
         default:
-            assert(!"unknown src_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown src_dt: jcp_.src_dt=", static_cast<int>(jcp_.src_dt));
         }
 
         if (!isFloatCompatible(src_dt)) {
@@ -1864,7 +1871,7 @@ private:
             }
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt: jcp_.dst_dt=", static_cast<int>(jcp_.dst_dt));
         }
     }
 
@@ -1903,7 +1910,7 @@ private:
             mov(op, reg_tmp_8);
             break;
         default:
-            assert(!"unknown dst_dt");
+            OPENVINO_DEBUG_ASSERT(false, "unknown dst_dt: jcp_.dst_dt=", static_cast<int>(jcp_.dst_dt));
         }
     }
 
@@ -1976,7 +1983,9 @@ private:
             uni_vmulps(xmm, xmm, op);
             break;
         default:
-            assert(!"unsupported reduce mode");
+            OPENVINO_DEBUG_ASSERT(false,
+                                  "unsupported reduce mode: jcp_.reduce_mode=",
+                                  static_cast<int>(jcp_.reduce_mode));
         }
     }
 };

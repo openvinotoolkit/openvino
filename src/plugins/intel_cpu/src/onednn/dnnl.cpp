@@ -13,6 +13,7 @@
 #include <oneapi/dnnl/dnnl.hpp>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/core/except.hpp"
 
 namespace dnnl::utils {
 
@@ -125,7 +126,7 @@ dnnl::memory::format_tag str2fmt(const char* str) {
     CASE(ldgoi);
     CASE(ldgo);
 #undef CASE
-    assert(!"unknown memory format");
+    OPENVINO_DEBUG_ASSERT(false, "unknown memory format: str=", str);
     return dnnl::memory::format_tag::undef;
 }
 

@@ -5,7 +5,6 @@
 #include "scatter_update.h"
 
 #include <array>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -602,7 +601,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                     if (idxValue < 0) {
                         idxValue += data_dim_size;
                     }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    OPENVINO_DEBUG_ASSERT(idxValue < data_dim_size && idxValue >= 0,
+                                          "idxValue must be within bounds: idxValue=",
+                                          idxValue,
+                                          ", data_dim_size=",
+                                          data_dim_size);
                     dataPtr[offsets[0] + idxValue * dataBlock_axisplus1] = value;
                     indices_offset += indicesBlock_axisplus1;
                 }
@@ -624,7 +627,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                     if (idxValue < 0) {
                         idxValue += data_dim_size;
                     }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    OPENVINO_DEBUG_ASSERT(idxValue < data_dim_size && idxValue >= 0,
+                                          "idxValue must be within bounds: idxValue=",
+                                          idxValue,
+                                          ", data_dim_size=",
+                                          data_dim_size);
                     auto dst = &dataPtr[offsets[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel(dst, src);
@@ -647,7 +654,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 if (idxValue < 0) {
                     idxValue += data_dim_size;
                 }
-                assert(idxValue < data_dim_size && idxValue >= 0);
+                OPENVINO_DEBUG_ASSERT(idxValue < data_dim_size && idxValue >= 0,
+                                      "idxValue must be within bounds: idxValue=",
+                                      idxValue,
+                                      ", data_dim_size=",
+                                      data_dim_size);
                 auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                 auto src = &updatePtr[ptr_indices_offset[0]];
                 kernel(dst, src);
@@ -666,7 +677,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                     if (idxValue < 0) {
                         idxValue += data_dim_size;
                     }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    OPENVINO_DEBUG_ASSERT(idxValue < data_dim_size && idxValue >= 0,
+                                          "idxValue must be within bounds: idxValue=",
+                                          idxValue,
+                                          ", data_dim_size=",
+                                          data_dim_size);
                     auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel(dst, src);
@@ -731,7 +746,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                     if (idxValue < 0) {
                         idxValue += data_dim_size;
                     }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    OPENVINO_DEBUG_ASSERT(idxValue < data_dim_size && idxValue >= 0,
+                                          "idxValue must be within bounds: idxValue=",
+                                          idxValue,
+                                          ", data_dim_size=",
+                                          data_dim_size);
                     dataPtr[offsets[0] + idxValue * dataBlock_axisplus1] = value;
                     indices_offset += indicesBlock_axisplus1;
                 }
@@ -755,7 +774,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                     if (idxValue < 0) {
                         idxValue += data_dim_size;
                     }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    OPENVINO_DEBUG_ASSERT(idxValue < data_dim_size && idxValue >= 0,
+                                          "idxValue must be within bounds: idxValue=",
+                                          idxValue,
+                                          ", data_dim_size=",
+                                          data_dim_size);
                     auto dst = &dataPtr[offsets[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel(dst, src);
@@ -790,7 +813,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                 if (idxValue < 0) {
                     idxValue += data_dim_size;
                 }
-                assert(idxValue < data_dim_size && idxValue >= 0);
+                OPENVINO_DEBUG_ASSERT(idxValue < data_dim_size && idxValue >= 0,
+                                      "idxValue must be within bounds: idxValue=",
+                                      idxValue,
+                                      ", data_dim_size=",
+                                      data_dim_size);
                 auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                 auto src = &updatePtr[ptr_indices_offset[0]];
                 kernel(dst, src);
@@ -811,7 +838,11 @@ void ScatterUpdate::scatterElementsUpdate(const MemoryPtr& mem_data,
                     if (idxValue < 0) {
                         idxValue += data_dim_size;
                     }
-                    assert(idxValue < data_dim_size && idxValue >= 0);
+                    OPENVINO_DEBUG_ASSERT(idxValue < data_dim_size && idxValue >= 0,
+                                          "idxValue must be within bounds: idxValue=",
+                                          idxValue,
+                                          ", data_dim_size=",
+                                          data_dim_size);
                     auto dst = &dataPtr[ptr_dst_offset[0] + idxValue * dataBlock_axisplus1];
                     auto src = &updatePtr[indices_offset];
                     kernel(dst, src);

@@ -5,7 +5,6 @@
 #include "jit_eltwise_common.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <map>
 #include <set>
@@ -47,22 +46,25 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         get_supported_precisions(eltwise_data.front().algo);
 
     // for element-wise operations all inputs must to have the same precisions
-    auto has_same_precision = [](const std::vector<element::Type>& precisions) {
+    [[maybe_unused]] auto has_same_precision = [](const std::vector<element::Type>& precisions) {
         return std::all_of(precisions.begin(), precisions.end(), [&precisions](const element::Type precision) {
             return precision == precisions[0];
         });
     };
 
-    assert(std::all_of(supported_precision_intersection.begin(),
-                       supported_precision_intersection.end(),
-                       has_same_precision));
+    OPENVINO_DEBUG_ASSERT(
+        std::all_of(supported_precision_intersection.begin(),
+                    supported_precision_intersection.end(),
+                    has_same_precision),
+        "for element-wise nodes all precisions have to be equal: supported_precision_intersection.size()=",
+        supported_precision_intersection.size());
 
     for (size_t i = 1; i < eltwise_data.size(); ++i) {
         std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
         std::set<std::vector<element::Type>> prcs_intersect = {};
 
-        OPENVINO_ASSERT(std::all_of(prcs.begin(), prcs.end(), has_same_precision),
-                        "for element-wise nodes all precisions have to be equal");
+        OPENVINO_DEBUG_ASSERT(std::all_of(prcs.begin(), prcs.end(), has_same_precision),
+                              "for element-wise nodes all precisions have to be equal");
 
         set_intersection(supported_precision_intersection, prcs, prcs_intersect);
 

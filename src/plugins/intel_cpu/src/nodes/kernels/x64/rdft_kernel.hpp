@@ -10,6 +10,7 @@
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
+#include <openvino/core/except.hpp>
 #include <vector>
 #ifndef OPENVINO_ARCH_ARM64
 #    include "cpu/x64/jit_generator.hpp"
@@ -45,7 +46,7 @@ struct jit_dft_kernel {
     void (*ker_)(const jit_dft_args*) = nullptr;
 
     void operator()(const jit_dft_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

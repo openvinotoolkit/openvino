@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "cpu_types.h"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
@@ -46,7 +47,7 @@ struct jit_uni_permute_kernel {
     void (*ker_)(const jit_args_permute*) = nullptr;
 
     void operator()(const jit_args_permute* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

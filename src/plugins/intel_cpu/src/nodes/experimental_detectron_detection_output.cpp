@@ -5,7 +5,6 @@
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 
 #include <algorithm>
-#include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -42,12 +41,20 @@ struct Indexer {
 
     int operator()(const std::vector<int>& idx) const {
         int flat_idx = 0;
-        assert(idx.size() == dims_.size());
+        OPENVINO_DEBUG_ASSERT(idx.size() == dims_.size(),
+                              "Size of idx must match size of dims_: idx.size()=",
+                              idx.size(),
+                              ", dims_.size()=",
+                              dims_.size());
         for (size_t i = 0; i < dims_.size(); ++i) {
-            assert(0 <= idx[i] && idx[i] < dims_[i]);
+            OPENVINO_DEBUG_ASSERT(0 <= idx[i] && idx[i] < dims_[i],
+                                  "Index out of bounds: idx[i]=",
+                                  idx[i],
+                                  ", dims_[i]=",
+                                  dims_[i]);
             flat_idx = flat_idx * dims_[i] + idx[i];
         }
-        assert(flat_idx < total_);
+        OPENVINO_DEBUG_ASSERT(flat_idx < total_, "Flat index out of bounds: flat_idx=", flat_idx, ", total_=", total_);
         return flat_idx;
     }
 };
@@ -300,8 +307,18 @@ void ExperimentalDetectronDetectionOutput::initSupportedPrimitiveDescriptors() {
 
 void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
     const int rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
-    assert(classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]));
-    assert(4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]));
+    OPENVINO_DEBUG_ASSERT(
+        classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1]),
+        "Number of classes must match the second dimension of scores input, got ",
+        getParentEdgeAt(INPUT_SCORES)->getMemory().getStaticDims()[1],
+        " classes, but got ",
+        classes_num_);
+    OPENVINO_DEBUG_ASSERT(
+        4 * classes_num_ == static_cast<int>(getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]),
+        "Number of deltas must be 4 times the number of classes, got ",
+        4 * classes_num_,
+        " deltas, but got ",
+        getParentEdgeAt(INPUT_DELTAS)->getMemory().getStaticDims()[1]);
 
     const auto* boxes = getSrcDataAtPortAs<const float>(INPUT_ROIS);
     const auto* deltas = getSrcDataAtPortAs<const float>(INPUT_DELTAS);
@@ -366,7 +383,9 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
         indices_offset += n;
     }
 
-    assert(max_detections_per_image_ > 0);
+    OPENVINO_DEBUG_ASSERT(max_detections_per_image_ > 0,
+                          "max_detections_per_image_ must be greater than 0, got ",
+                          max_detections_per_image_);
     if (total_detections_num > max_detections_per_image_) {
         std::partial_sort(conf_index_class_map.begin(),
                           conf_index_class_map.begin() + max_detections_per_image_,

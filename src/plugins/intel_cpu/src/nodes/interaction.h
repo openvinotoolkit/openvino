@@ -39,7 +39,7 @@ struct jit_uni_move_scale_kernel {
     void (*ker_)(const jit_move_scale_call_args*) = nullptr;
 
     void operator()(const jit_move_scale_call_args* call_args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(call_args);
     }
 
