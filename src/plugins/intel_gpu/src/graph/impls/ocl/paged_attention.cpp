@@ -740,6 +740,13 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
 
         if (data_type_traits::is_i8_u8(impl_param.get_input_layout(PagedAttentionInputIdx::KEY_CACHE).data_type)) {
             config.is_kv_compressed = true;
+            config.is_key_by_channel = desc->is_key_by_channel;
+            OPENVINO_ASSERT(
+                config.is_key_by_channel == (impl_param.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL),
+                "[GPU] Paged Attention key cache quantization mode mismatch: prim.key_cache_by_channel : ",
+                desc->is_key_by_channel,
+                " but exec_config : ",
+                impl_param.get_program().get_config().get_key_cache_quant_mode());
             config.use_asymmetric_quantization = true;
         }
 
@@ -788,7 +795,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                                                                              const kernel_selector::MultiDataTensor& input_tensors,
                                                                              bool is_dynamic = false) {
         auto params = get_default_params<kv_cache_update_kernel_params_t>(impl_param, is_dynamic);
-
+        const auto& desc = impl_param.typed_desc<paged_attention>();
         const auto& key_tensor = input_tensors[PagedAttentionInputIdx::KEY];
         const auto& value_tensor = input_tensors[PagedAttentionInputIdx::VALUE];
         const auto& key_cache_tensor = input_tensors[PagedAttentionInputIdx::KEY_CACHE];
@@ -810,7 +817,17 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         params.inputs[5] = subsequence_begins_tensor;
         params.outputs[0] = key_cache_tensor;
         params.outputs[1] = value_cache_tensor;
+        params.is_key_by_channel = desc->is_key_by_channel;
+        OPENVINO_ASSERT(
+            params.is_key_by_channel == (impl_param.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL),
+            "[GPU] Paged Attention key cache quantization mode mismatch: prim.key_cache_by_channel : ",
+            params.is_key_by_channel,
+            " and exec_config : ",
+            impl_param.get_program().get_config().get_key_cache_quant_mode());
 
+        const auto pa_block_size = static_cast<int32_t>(paged_attention::block_size);
+        if (params.is_key_by_channel)
+            params.key_group_size = pa_block_size;
         params.conf = get_sdpa_configuration(impl_param, is_dynamic);
 
         params.is_prefill = stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED;
