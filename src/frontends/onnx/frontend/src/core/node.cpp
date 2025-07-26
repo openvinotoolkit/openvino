@@ -48,24 +48,6 @@ public:
         }
     }
 
-    Impl(const NodeProto& node_proto)
-        : m_node_proto{&node_proto},
-          m_name{node_proto.has_name() ? node_proto.name() : ""},
-          m_domain{get_node_domain(node_proto)},
-          m_graph{nullptr},
-          m_output_names{std::begin(node_proto.output()), std::end(node_proto.output())} {
-        /*
-        const auto& attributes = node_proto.attribute();
-        m_attributes.reserve(attributes.size());
-        for (const auto& attr_proto : attributes) {
-            m_attributes.emplace_back(attr_proto, m_graph->model_dir(), m_graph->get_mmap_cache());
-            const auto& attribute = m_attributes.back();
-            if (attribute.is_graph())
-                m_subgraphs.insert({attribute.get_name(), std::make_shared<Subgraph>(attribute.get_subgraph(m_graph))});
-        }
-        */
-    }
-
     const std::vector<Attribute>& attributes() const;
     ov::OutputVector get_ov_inputs() const;
 
@@ -308,349 +290,683 @@ std::shared_ptr<ov::op::v0::Constant> Node::Impl::get_attribute_as_constant(cons
 }
 
 Node::Node(const NodeProto& node_proto, Graph* graph)
-    : m_pimpl{new Impl{node_proto, graph}, [](Impl* impl) {
+    : m_pimpl{new Impl{node_proto, graph},
+              [](Impl* impl) {
                   delete impl;
-              }} {}
-Node::Node(const DecoderBaseOperation& decoder) {} /*
-    : m_pimpl{new Impl{node_proto}, [](Impl* impl) {
-                  delete impl;
-              }} {}
-              */
-Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)} {}
+              }},
+      m_decoder(nullptr) {}
+Node::Node(const DecoderBaseOperation& decoder)
+    : m_pimpl{nullptr,
+              [](Impl* impl) {
+
+              }},
+      m_decoder(&decoder) {}
+
+Node::Node(Node&& other) noexcept : m_pimpl{std::move(other.m_pimpl)}, m_decoder(nullptr) {}
 
 Node::Node(const Node& other)
-    : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraphs()}, [](Impl* impl) {
+    : m_pimpl{new Impl{other.m_pimpl->node_proto(), other.m_pimpl->graph(), other.get_subgraphs()},
+              [](Impl* impl) {
                   delete impl;
-              }} {}
+              }},
+      m_decoder(nullptr) {}
+
+#include <stdexcept>  // For std::runtime_error
 
 ov::OutputVector Node::get_ov_inputs() const {
-    return m_pimpl->get_ov_inputs();
+    if (m_pimpl != nullptr) {
+        return m_pimpl->get_ov_inputs();
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
+
 const std::string& Node::domain() const {
-    return m_pimpl->domain();
+    static const std::string empty_domain;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->domain();
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_domain();
+    }
+    throw std::runtime_error("Not Implemented");
 }
+
 const std::string& Node::op_type() const {
-    return m_pimpl->op_type();
+    static const std::string empty_op_type;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->op_type();
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_op_type();
+    }
+    throw std::runtime_error("Not Implemented");
 }
+
 const std::string& Node::get_description() const {
-    return m_pimpl->description();
+    static const std::string empty_description;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->description();
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
+
 const std::string& Node::get_name() const {
-    return m_pimpl->name();
+    static const std::string empty_name;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->name();
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_op_name();
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
+
 const std::vector<std::reference_wrapper<const std::string>>& Node::get_output_names() const {
-    return m_pimpl->get_output_names();
+    static const std::vector<std::reference_wrapper<const std::string>> empty_output_names;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->get_output_names();
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 const std::string& Node::input(int index) const {
-    return m_pimpl->input(index);
+    static const std::string empty_input;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->input(index);
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_input_tensor_name(index);
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 std::size_t Node::get_inputs_size() const {
-    return m_pimpl->get_inputs_size();
+    if (m_pimpl != nullptr) {
+        return m_pimpl->get_inputs_size();
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_input_size();
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 const std::string& Node::output(int index) const {
-    return m_pimpl->output(index);
+    static const std::string empty_output;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->output(index);
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_output_tensor_name(index);
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 std::size_t Node::get_outputs_size() const {
-    return m_pimpl->get_outputs_size();
+    if (m_pimpl != nullptr) {
+        return m_pimpl->get_outputs_size();
+    } else if (m_decoder != nullptr) {
+        return m_decoder->get_output_size();
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 bool Node::has_attribute(const std::string& name) const {
-    return m_pimpl->has_attribute(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->has_attribute(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 bool Node::has_subgraphs() const {
-    return m_pimpl->has_subgraphs();
+    if (m_pimpl != nullptr) {
+        return m_pimpl->has_subgraphs();
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::get_subgraphs() const {
-    return m_pimpl->get_subgraphs();
+    static const std::unordered_map<std::string, std::shared_ptr<Subgraph>> empty_subgraphs;
+    if (m_pimpl != nullptr) {
+        return m_pimpl->get_subgraphs();
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 std::vector<std::string> Node::get_attribute_names() const {
-    std::vector<std::string> attr_names;
-    const auto& node_attributes = m_pimpl->attributes();
-    attr_names.reserve(node_attributes.size());
-    std::transform(std::begin(node_attributes),
-                   std::end(node_attributes),
-                   std::back_inserter(attr_names),
-                   [](const Attribute& a) {
-                       return a.get_name();
-                   });
-    return attr_names;
+    if (m_pimpl != nullptr) {
+        std::vector<std::string> attr_names;
+        const auto& node_attributes = m_pimpl->attributes();
+        attr_names.reserve(node_attributes.size());
+        std::transform(std::begin(node_attributes),
+                       std::end(node_attributes),
+                       std::back_inserter(attr_names),
+                       [](const Attribute& a) {
+                           return a.get_name();
+                       });
+        return attr_names;
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 const Attribute& Node::get_attribute(const std::string& name) const {
-    const auto& node_attributes = m_pimpl->attributes();
-    auto found_attr = std::find_if(std::begin(node_attributes), std::end(node_attributes), [&name](const Attribute& a) {
-        return a.get_name() == name;
-    });
-    if (found_attr == std::end(node_attributes)) {
-        throw error::node::UnknownAttribute{this->get_name(), name};
+    if (m_pimpl != nullptr) {
+        const auto& node_attributes = m_pimpl->attributes();
+        auto found_attr =
+            std::find_if(std::begin(node_attributes), std::end(node_attributes), [&name](const Attribute& a) {
+                return a.get_name() == name;
+            });
+        if (found_attr != std::end(node_attributes)) {
+            return *found_attr;
+        }
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
     }
-    return *found_attr;
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 float Node::get_attribute_value(const std::string& name, float default_value) const {
-    return m_pimpl->template get_attribute_value<float>(name, default_value);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<float>(name, default_value);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 double Node::get_attribute_value(const std::string& name, double default_value) const {
-    return m_pimpl->template get_attribute_value<double>(name, default_value);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<double>(name, default_value);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::int64_t Node::get_attribute_value(const std::string& name, std::int64_t default_value) const {
-    return m_pimpl->template get_attribute_value<std::int64_t>(name, default_value);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::int64_t>(name, default_value);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::string Node::get_attribute_value(const std::string& name, std::string default_value) const {
-    return m_pimpl->template get_attribute_value<std::string>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::string>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 Tensor Node::get_attribute_value(const std::string& name, Tensor default_value) const {
-    return m_pimpl->template get_attribute_value<Tensor>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<Tensor>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 SparseTensor Node::get_attribute_value(const std::string& name, SparseTensor default_value) const {
-    return m_pimpl->template get_attribute_value<SparseTensor>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<SparseTensor>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 Graph Node::get_attribute_value(const std::string& name, Graph default_value) const {
-    return m_pimpl->template get_attribute_value<Graph>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<Graph>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<float> Node::get_attribute_value(const std::string& name, std::vector<float> default_value) const {
-    return m_pimpl->template get_attribute_value<std::vector<float>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<float>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<double> Node::get_attribute_value(const std::string& name, std::vector<double> default_value) const {
-    return m_pimpl->template get_attribute_value<std::vector<double>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<double>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<std::int64_t> Node::get_attribute_value(const std::string& name,
                                                     std::vector<std::int64_t> default_value) const {
-    return m_pimpl->template get_attribute_value<std::vector<std::int64_t>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<std::int64_t>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
                                                    std::vector<std::size_t> default_value) const {
-    return m_pimpl->template get_attribute_value<std::vector<std::size_t>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<std::size_t>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<std::string> Node::get_attribute_value(const std::string& name,
                                                    std::vector<std::string> default_value) const {
-    return m_pimpl->template get_attribute_value<std::vector<std::string>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<std::string>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<Tensor> Node::get_attribute_value(const std::string& name, std::vector<Tensor> default_value) const {
-    return m_pimpl->template get_attribute_value<std::vector<Tensor>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<Tensor>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<SparseTensor> Node::get_attribute_value(const std::string& name,
                                                     std::vector<SparseTensor> default_value) const {
-    return m_pimpl->template get_attribute_value<std::vector<SparseTensor>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<SparseTensor>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vector<Graph> default_value) const {
-    return m_pimpl->template get_attribute_value<std::vector<Graph>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<Graph>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 float Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<float>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<float>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 double Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<double>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<double>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::int64_t Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::int64_t>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::int64_t>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::size_t Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::size_t>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::size_t>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::string Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::string>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::string>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 Tensor Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<Tensor>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<Tensor>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 SparseTensor Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<SparseTensor>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<SparseTensor>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 Subgraph Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<Subgraph>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<Subgraph>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<float> Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::vector<float>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<float>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<double> Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::vector<double>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<double>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<std::int64_t> Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::vector<std::int64_t>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<std::int64_t>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<std::size_t> Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::vector<std::size_t>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<std::size_t>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<std::string> Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::vector<std::string>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<std::string>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<Tensor> Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::vector<Tensor>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<Tensor>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<SparseTensor> Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::vector<SparseTensor>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<SparseTensor>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::vector<Graph> Node::get_attribute_value(const std::string& name) const {
-    return m_pimpl->template get_attribute_value<std::vector<Graph>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_value<std::vector<Graph>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
+
+// get_attribute_as_constant specializations
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(const std::string& name) const {
-    return m_pimpl->template get_attribute_as_constant<float>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<float>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       float default_value) const {
-    return m_pimpl->template get_attribute_as_constant<float>(name, default_value);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<float>(name, default_value);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       float default_value,
                                                                       ov::element::Type type) const {
-    return m_pimpl->template get_attribute_as_constant<float>(name, default_value, std::move(type));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<float>(name, default_value, std::move(type));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(const std::string& name,
                                                                              ov::element::Type type) const {
-    return m_pimpl->template get_attribute_as_constant<float>(name, std::move(type));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<float>(name, std::move(type));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(const std::string& name) const {
-    return m_pimpl->template get_attribute_as_constant<double>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<double>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       double default_value) const {
-    return m_pimpl->template get_attribute_as_constant<double>(name, default_value);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<double>(name, default_value);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       double default_value,
                                                                       ov::element::Type type) const {
-    return m_pimpl->template get_attribute_as_constant<double>(name, default_value, std::move(type));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<double>(name, default_value, std::move(type));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(const std::string& name,
                                                                               ov::element::Type type) const {
-    return m_pimpl->template get_attribute_as_constant<double>(name, std::move(type));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<double>(name, std::move(type));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(const std::string& name) const {
-    return m_pimpl->template get_attribute_as_constant<int64_t>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<int64_t>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       int64_t default_value) const {
-    return m_pimpl->template get_attribute_as_constant<int64_t>(name, default_value);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<int64_t>(name, default_value);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       int64_t default_value,
                                                                       ov::element::Type type) const {
-    return m_pimpl->template get_attribute_as_constant<int64_t>(name, default_value, std::move(type));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<int64_t>(name, default_value, std::move(type));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(const std::string& name,
                                                                                ov::element::Type type) const {
-    return m_pimpl->template get_attribute_as_constant<int64_t>(name, std::move(type));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<int64_t>(name, std::move(type));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
     const std::string& name) const {
-    return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name);
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name);
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vector<int64_t>>(
     const std::string& name,
     ov::element::Type type) const {
-    return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(type));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(type));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       std::vector<int64_t> default_value) const {
-    return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(default_value));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(default_value));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std::string& name,
                                                                       std::vector<int64_t> default_value,
                                                                       ov::element::Type type) const {
-    return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name,
-                                                                             std::move(default_value),
-                                                                             std::move(type));
+    if (m_pimpl != nullptr) {
+        return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name,
+                                                                                 std::move(default_value),
+                                                                                 std::move(type));
+    } else if (m_decoder != nullptr) {
+        // Add logic for m_decoder if applicable
+    }
+    throw std::runtime_error("Not Implemented");
 }
 
 }  // namespace onnx
