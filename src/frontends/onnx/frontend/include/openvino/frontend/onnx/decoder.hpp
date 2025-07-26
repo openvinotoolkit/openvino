@@ -56,16 +56,19 @@ public:
     /// returns TensorInfo by input idx index that corresponds to a tensor
     /// (it can correspond to Constant, Parameter or  intermediate tensor connecting a producer and this current node)
     /// If idx is out-of-range, it throws std::exception inherited exception
-    virtual TensorMetaInfo get_input_tensor_info(size_t idx) const = 0;
+    virtual const TensorMetaInfo& get_input_tensor_info(size_t idx) const = 0;
 
     /// \brief Get output tensor info
     /// returns TensorInfo by output idx index that corresponds to a tensor
     /// (it can correspond to intermediate tensor connecting this current node and a consumer)
     /// If idx is out-of-range, it throws std::exception inherited exception
-    virtual TensorMetaInfo get_output_tensor_info(size_t idx) const = 0;
+    virtual const TensorMetaInfo& get_output_tensor_info(size_t idx) const = 0;
 
     /// \brief Get a number of outputs
     virtual size_t get_output_size() const = 0;
+
+    /// \brief Returns operation's opset version
+    virtual uint64_t get_op_set() const = 0;
 
     ~DecoderBaseOperation() override;
 };
@@ -75,7 +78,7 @@ public:
 class ONNX_FRONTEND_API DecoderBaseTensor : public ov::frontend::onnx::DecoderBase {
 public:
     /// \brief Get tensor info
-    virtual TensorMetaInfo get_tensor_info() const = 0;
+    virtual const TensorMetaInfo& get_tensor_info() const = 0;
 
     /// \brief Get input index for tensor
     /// returns index of this input in the list of inputs in the model
