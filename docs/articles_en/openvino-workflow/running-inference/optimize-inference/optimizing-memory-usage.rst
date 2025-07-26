@@ -50,3 +50,10 @@ The most RAM-consuming OpenVINO stage is model compilation. It may cause several
 
     * Try another allocator. One of the allocators that handles memory carefully is ``jemalloc``
 
+* The memory can be not restored by system even if resources are released, it may be caused by the allocator behavior
+  and fragmentation.
+
+  * On Linux, consider set the environment variable to:
+    * ``MALLOC_TRIM_THRESHOLD_=13107200`` - to set to default value but as static threshold, adjust the threshold value
+      to find best compromise between memory restore and performance (compile model time can be impacted)
+    * Try another allocator. One of the allocators that handles memory carefully is ``jemalloc``
