@@ -22,6 +22,7 @@
 #include <numeric>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <oneapi/dnnl/dnnl_threadpool.hpp>
 #include <optional>
 #include <string>
 #include <utility>
@@ -49,6 +50,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
+#include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
 
@@ -151,7 +153,7 @@ std::optional<MemoryPtr> acl_fc_executor::reorderDataFallback(const MemoryPtr& i
         auto convertOutput = *convertOutputOpt;
 
         if (reorderWithoutConvert) {
-            dnnl::stream loc_stream(output->getPrimitive().get_engine(), dnnl::stream::flags::in_order);
+            dnnl::stream loc_stream = make_stream(output->getPrimitive().get_engine(), context->getThreadPool());
             reorderWithoutConvert.execute(
                 loc_stream,
                 {{DNNL_ARG_FROM, convertOutput->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
@@ -198,7 +200,7 @@ MemoryPtr acl_fc_executor::reorderData(const DnnlMemoryDescPtr& srcWeightDesc,
     }
     // if precision conversion does not work then do direct reference reorder
     if (directReorder) {
-        dnnl::stream loc_stream(engine, dnnl::stream::flags::in_order);
+        dnnl::stream loc_stream = make_stream(engine, context->getThreadPool());
         directReorder.execute(loc_stream,
                               {{DNNL_ARG_FROM, input->getPrimitive()}, {DNNL_ARG_TO, output->getPrimitive()}});
     } else {
