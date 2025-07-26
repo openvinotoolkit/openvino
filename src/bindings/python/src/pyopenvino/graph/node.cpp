@@ -39,6 +39,7 @@ namespace py = pybind11;
 using PyRTMap = ov::Node::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
+PYBIND11_MAKE_OPAQUE(std::vector<ov::Tensor>);
 
 void regclass_graph_Node(py::module m) {
     py::class_<ov::Node, std::shared_ptr<ov::Node>, PyNode> node(m, "Node", py::dynamic_attr());
@@ -249,9 +250,30 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the function on inputs, putting results in outputs
 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: list[openvino.Tensor]
+                :type output_tensors: openvino.TensorVectorOpaque
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: list[openvino.Tensor]
+                :type input_tensors: openvino.TensorVectorOpaque
+                :rtype: bool
+             )");
+    node.def(
+        "evaluate",
+        [](const ov::Node& self, py::list& output_values, const py::list& input_values) -> bool {
+            py::object pyTensorVectorOpaque =
+                py::module_::import("openvino").attr("_pyopenvino").attr("TensorVectorOpaque");
+            auto casted_output_values = pyTensorVectorOpaque(output_values).cast<std::vector<ov::Tensor>>();
+            const auto casted_input_values = pyTensorVectorOpaque(input_values).cast<std::vector<ov::Tensor>>();
+
+            return self.evaluate(casted_output_values, casted_input_values);
+        },
+        py::arg("output_values"),
+        py::arg("input_values"),
+        R"(
+                Evaluate the function on inputs, putting results in outputs
+
+                :param output_tensors: Tensors for the outputs to compute. One for each result.
+                :type output_tensors: List[openvino.Tensor]
+                :param input_tensors: Tensors for the inputs. One for each inputs.
+                :type input_tensors: List[openvino.Tensor]
                 :rtype: bool
              )");
     node.def("get_instance_id",

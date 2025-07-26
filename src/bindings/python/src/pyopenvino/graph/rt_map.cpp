@@ -70,6 +70,10 @@ void regclass_graph_PyRTMap(py::module m) {
              })
         .def("__next__", &PyRTMapIterator::next);
 
+    py_map.def(py::init([]() {
+        return PyRTMap();
+    }));
+
     py_map.def("__setitem__", [](PyRTMap& m, const std::string& k, const std::string v) {
         m[k] = v;
     });

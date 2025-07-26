@@ -102,10 +102,10 @@ class Maker:
     def __init__(self):
         self.calls_count = 0
 
-    def __call__(self, tensor: ov.Tensor) -> None:
+    def __call__(self) -> ov.Tensor:
         self.calls_count += 1
         tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)
-        ov.Tensor(tensor_data).copy_to(tensor)
+        return ov.Tensor(tensor_data)
 
     def called_times(self):
         return self.calls_count
