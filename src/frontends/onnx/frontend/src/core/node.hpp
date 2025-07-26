@@ -101,6 +101,12 @@ public:
                                                                     ov::element::Type type) const;
 
 private:
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_decoder_attribute_as_constant(const std::string& name) const;
+
+    template <typename T>
+    std::shared_ptr<ov::op::v0::Constant> get_decoder_attribute_as_constant(const std::string& name,
+                                                                            T default_value) const;
     class Impl;
     // In this case we need custom deleter, because Impl is an incomplete
     // type. Node's are elements of std::vector. Without custom deleter

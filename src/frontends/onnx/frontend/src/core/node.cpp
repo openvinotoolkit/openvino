@@ -791,6 +791,21 @@ std::vector<Graph> Node::get_attribute_value(const std::string& name) const {
 
 // get_attribute_as_constant specializations
 
+template <typename T>
+std::shared_ptr<ov::op::v0::Constant> Node::get_decoder_attribute_as_constant(const std::string& name) const {
+    const auto value = get_attribute_value<T>(name);
+    const ov::element::Type type = ov::element::from<T>();
+    return std::make_shared<ov::op::v0::Constant>(type, ov::Shape{}, value);
+}
+
+template <typename T>
+std::shared_ptr<ov::op::v0::Constant> Node::get_decoder_attribute_as_constant(const std::string& name,
+                                                                            T default_value) const {
+    const auto value = get_attribute_value<T>(name, default_value);
+    const ov::element::Type type = ov::element::from<T>();
+    return std::make_shared<ov::op::v0::Constant>(type, ov::Shape{}, value);
+}
+
 template <>
 std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(const std::string& name) const {
     if (m_pimpl != nullptr) {
