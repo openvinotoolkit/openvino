@@ -228,6 +228,14 @@ public:
           m_output_idx(output_idx) {
         m_tensor_meta_info = extract_tensor_meta_info(nullptr, value_info, graph_def);
     }
+    DecoderProtoTensor(const std::string& name, const int64_t input_idx, const int64_t output_idx)
+        : m_input_idx(input_idx),
+          m_output_idx(output_idx) {
+        m_tensor_meta_info.m_tensor_name = name;
+        m_tensor_meta_info.m_element_type = ov::element::dynamic;
+        m_tensor_meta_info.m_partial_shape = ov::PartialShape::dynamic();
+        m_tensor_meta_info.m_tensor_data = nullptr;
+    }
 
     const ov::frontend::onnx::TensorMetaInfo& get_tensor_info() const override {
         return *const_cast<const ov::frontend::onnx::TensorMetaInfo*>(&m_tensor_meta_info);
@@ -754,7 +762,7 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
                             tensor = std::make_shared<DecoderProtoTensor>(&*value_info, m_graph, -1, -1);
                     }
                     if (tensor == nullptr) {
-                        throw std::runtime_error("Tensor not found \"" + name + "\"");
+                        tensor = std::make_shared<DecoderProtoTensor>(name, -1, -1);
                     }
                     m_decoders.push_back(tensor);
                     tensors[name] = tensor;
@@ -881,9 +889,10 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
 #include <openvino/openvino.hpp>
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
-    const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "bool_init_and.onnx"})
-            .string();
+    const auto path = ov::util::path_join({ov::test::utils::getExecutableDirectory(),
+                                           TEST_ONNX_MODELS_DIRNAME,
+                                           "model_editor/subgraph_extraction_tests.onnx"})
+                          .string();
 
     ov::frontend::FrontEnd::Ptr fe;
 
