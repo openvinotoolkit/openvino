@@ -465,6 +465,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
         const auto& result = std::make_shared<ov::op::v0::Result>(output_value);
         auto input = result->output(0);
         tensor->translate(input, !no_conversion);
+        result->set_friendly_name(name);
         results.push_back(result);
     }
     auto model_name = "onnx_Frontend_IR";
