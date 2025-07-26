@@ -78,7 +78,7 @@ float getThreshold<ov::float16>(dft_type type) {
 }
 
 struct dft_params {
-    std::vector<int32_t> input_shape;
+    std::vector<ov::Dimension::value_type> input_shape;
     std::vector<size_t> output_shape;
     std::vector<int64_t> axes;
     std::vector<int64_t> signal_size;
