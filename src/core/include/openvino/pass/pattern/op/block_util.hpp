@@ -1,8 +1,5 @@
 #pragma once
 
-#include <memory>
-#include <openvino/core/node_vector.hpp>
-
 namespace {
 
 // FOR_EACH macros up to 16 arguments:

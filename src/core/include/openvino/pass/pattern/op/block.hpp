@@ -6,6 +6,13 @@
 #include "openvino/pass/pattern/op/block_util.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 
+namespace {
+
+// _MAKE_ANCHOR is an internal macro for REGISTER_ANCHORS that is not supposed to used separately.
+#define _MAKE_ANCHOR(x) block->register_anchor(#x, x);
+
+}  // namespace
+
 namespace ov::pass::pattern::op {
 
 /**
@@ -13,11 +20,12 @@ namespace ov::pass::pattern::op {
  *
  * This macro simplifies the process of registering multiple anchors in a Block.
  * It expands to a series of calls to `block->register_anchor(...)` for each provided argument.
+ *
  */
-#define MAKE_ANCHOR(x) block->register_anchor(#x, x);
-#define REGISTER_ANCHORS(block, ...)       \
-    do {                                   \
-        FOR_EACH(MAKE_ANCHOR, __VA_ARGS__) \
+
+#define REGISTER_ANCHORS(block, ...)        \
+    do {                                    \
+        FOR_EACH(_MAKE_ANCHOR, __VA_ARGS__) \
     } while (0)
 
 /**
