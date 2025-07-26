@@ -1,8 +1,14 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 #
+if(DEFINED BUILD_SHARED_LIBS AND NOT BUILD_SHARED_LIBS)
+    # 3.17: 'target_link_libraries' does not work correctly when called from
+    # different directory where 'add_library' is called: CMake generates
+    # incorrect OpenVINOConfig.cmake in this case
+    # 3.18: add_library cannot create ALIAS for non-GLOBAL targets
+    cmake_minimum_required(VERSION 3.18)
 
-if(CPACK_GENERATOR STREQUAL "DEB")
+elseif(CPACK_GENERATOR STREQUAL "DEB")
     # we have to use CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS variable
     cmake_minimum_required(VERSION 3.20)
 else()
