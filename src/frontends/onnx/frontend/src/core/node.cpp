@@ -811,7 +811,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(con
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<float>(name);
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<float>(name);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -822,7 +822,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<float>(name, default_value);
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<float>(name, default_value);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -834,7 +834,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<float>(name, default_value, std::move(type));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<float>(name, default_value);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -845,7 +845,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(con
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<float>(name, std::move(type));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<float>(name);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -855,7 +855,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(co
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<double>(name);
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<double>(name);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -866,7 +866,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<double>(name, default_value);
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<double>(name, default_value);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -878,7 +878,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<double>(name, default_value, std::move(type));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<double>(name, default_value);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -889,7 +889,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(co
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<double>(name, std::move(type));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<double>(name);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -899,7 +899,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(c
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<int64_t>(name);
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<int64_t>(name);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -910,7 +910,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<int64_t>(name, default_value);
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<int64_t>(name, default_value);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -922,7 +922,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<int64_t>(name, default_value, std::move(type));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<int64_t>(name, default_value);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -933,7 +933,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(c
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<int64_t>(name, std::move(type));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<int64_t>(name);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -944,7 +944,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vecto
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name);
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<std::vector<int64_t>>(name);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -956,7 +956,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vecto
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(type));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<std::vector<int64_t>>(name);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -967,7 +967,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_as_constant<std::vector<int64_t>>(name, std::move(default_value));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<std::vector<int64_t>>(name, default_value);
     }
     throw std::runtime_error("Not Implemented");
 }
@@ -981,7 +981,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
                                                                                  std::move(default_value),
                                                                                  std::move(type));
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        return get_decoder_attribute_as_constant<std::vector<int64_t>>(name, default_value);
     }
     throw std::runtime_error("Not Implemented");
 }
