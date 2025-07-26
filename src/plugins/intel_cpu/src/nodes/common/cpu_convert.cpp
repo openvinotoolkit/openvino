@@ -827,18 +827,60 @@ struct ConvertFromBinContext {
 template <typename T>
 struct ConvertFromBinPrecision;
 
+[[maybe_unused]] static int8_t get_u1(const uint8_t& val, uint8_t shift) {
+    return (val & (0x1 << shift)) >> shift;
+}
+
 template <typename src_t, typename dst_t>
 struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertFromBinContext& ctx) {
         const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
         auto dst = static_cast<dst_t*>(ctx.dstPtr);
         const size_t nBits = 8;
-        const size_t nBytes = rnd_up(ctx.size, nBits);
+        // const size_t nBytes = rnd_up(ctx.size, nBits);
+        const size_t nBytes = div_up(ctx.size, nBits);
         parallel_for(nBytes, [&](size_t byteIndex) {
             auto currentBitNum = std::min(nBits, ctx.size - byteIndex * nBits);
             for (size_t bitIndex = 0; bitIndex < currentBitNum; ++bitIndex) {
                 dst[byteIndex * nBits + bitIndex] = static_cast<dst_t>((src[byteIndex] & (1 << bitIndex)) >> bitIndex);
             }
+        });
+        ctx.converted = true;
+        // const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
+        // auto dst = static_cast<dst_t*>(ctx.dstPtr);
+        // parallel_for(ctx.size, [&](size_t i) {
+        //     dst[i] = static_cast<dst_t>(get_u1(src[i / 8], i % 8));
+        // });
+        // ctx.converted = true;
+
+    }
+};
+
+#define INTEL_CPU_CVT_FROM_2BIT_LIST                                                                 \
+    INTEL_CPU_CVT(u2, f32), INTEL_CPU_CVT(u2, f16), INTEL_CPU_CVT(u2, bf16), INTEL_CPU_CVT(u2, i32), \
+    INTEL_CPU_CVT(u2, u8), INTEL_CPU_CVT(u2, i8)
+
+struct ConvertFrom2BitContext {
+    const void* srcPtr;
+    void* dstPtr;
+    size_t size;
+    bool converted;
+};
+
+template <typename T>
+struct ConvertFrom2BitPrecision;
+
+[[maybe_unused]] static int8_t get_u2(const uint8_t& val, uint8_t shift) {
+    return (val & (0x3 << shift)) >> shift;
+}
+
+template <typename src_t, typename dst_t>
+struct ConvertFrom2BitPrecision<std::tuple<src_t, dst_t>> {
+    void operator()(ConvertFrom2BitContext& ctx) {
+        const auto* src = static_cast<const uint8_t*>(ctx.srcPtr);
+        auto dst = static_cast<dst_t*>(ctx.dstPtr);
+        parallel_for(ctx.size, [&](size_t i) {
+            dst[i] = static_cast<dst_t>(get_u2(src[i / 4], (i % 4) * 2));
         });
         ctx.converted = true;
     }
@@ -1068,6 +1110,10 @@ void cpu_convert(const void* srcPtr,
                         srcPrc.bitwidth(),
                         "> precision to: ",
                         dstPrc);
+    } else if (srcPrc == ov::element::u2) {
+        ConvertFrom2BitContext ctx{srcPtr, dstPtr, size, false};
+        OV_SWITCH(intel_cpu, ConvertFrom2BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_2BIT_LIST);
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else if (srcPrc.bitwidth() == 4U) {
         ConvertFrom4BitContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
@@ -1114,6 +1160,7 @@ bool is_supported_convert([[maybe_unused]] ov::element::Type srcPrc, [[maybe_unu
     isSupportedContext ctx;
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
+    OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_2BIT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
     OV_SWITCH(intel_cpu, isSupported, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);

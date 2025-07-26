@@ -228,46 +228,57 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
     auto scale_reshape_pattern = pattern::optional<v1::Reshape, v0::Unsqueeze>({scale_convert_pattern, any_input()});
     auto multiply_pattern = wrap_type<v1::Multiply>({subtract_pattern, scale_reshape_pattern});
 
+    // required zero points
+    auto required_subtract_pattern = wrap_type<v1::Subtract>({input_pattern, zp_reshape_pattern});
+    auto required_convert_pattern = wrap_type<v0::Convert>({required_subtract_pattern}, consumers_count(1));
+    auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{multiply_pattern, required_convert_pattern});
+
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
         const auto& pt_map = m.get_pattern_value_map();
-        auto convert = pt_map.at(convert_pattern);
         auto input = pt_map.at(input_pattern);
-        const auto multiply = m.get_match_root();
+        const auto node = m.get_match_root();
 
-        if (transformation_callback(multiply)) {
+        if (transformation_callback(node)) {
             return false;
         }
 
-        // Multiply and Subtract have to be marked as dq
-        set_rt_info(pt_map, mark_as_dequantization_node, {subtract_pattern, multiply_pattern}, {/* not applicable */});
-
-        // Convert might be presented on scales, zp and data_input.
-        // Depending on the transformation arguments they have to be marked/unmarked with disable_cf rt_info.
-        NodeVector converts_to_mark = {convert_pattern};
-        NodeVector converts_to_unmark = {};
-
-        if (fold_subtract_const) {
-            converts_to_unmark.push_back(zp_convert_pattern);
+        bool has_required_convert = pt_map.count(required_convert_pattern);
+        if (has_required_convert) {
+            set_rt_info(pt_map, mark_as_dequantization_node, {required_subtract_pattern}, {});
+            set_rt_info(pt_map, mark_as_decompression, {required_convert_pattern}, precisions);
+            return false;
         } else {
-            converts_to_mark.push_back(zp_convert_pattern);
+            // Multiply and Subtract have to be marked as dq
+            set_rt_info(pt_map, mark_as_dequantization_node, {subtract_pattern, multiply_pattern}, {/* not applicable */});
+
+            // Convert might be presented on scales, zp and data_input.
+            // Depending on the transformation arguments they have to be marked/unmarked with disable_cf rt_info.
+            NodeVector converts_to_mark = {convert_pattern};
+            NodeVector converts_to_unmark = {};
+
+            if (fold_subtract_const) {
+                converts_to_unmark.push_back(zp_convert_pattern);
+            } else {
+                converts_to_mark.push_back(zp_convert_pattern);
+            }
+
+            if (fold_multiply_const) {
+                converts_to_unmark.push_back(scale_convert_pattern);
+            } else {
+                converts_to_mark.push_back(scale_convert_pattern);
+            }
+
+            set_rt_info(pt_map, disable_constant_folding, converts_to_mark, precisions);
+            set_rt_info(pt_map, enable_constant_folding, converts_to_unmark, precisions);
+
+            // Move Reshape/Unsqueeze ops up to fold them in ConstantFolding.
+            auto changed = swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
+            changed = swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern) || changed;
+            return changed;
         }
-
-        if (fold_multiply_const) {
-            converts_to_unmark.push_back(scale_convert_pattern);
-        } else {
-            converts_to_mark.push_back(scale_convert_pattern);
-        }
-
-        set_rt_info(pt_map, disable_constant_folding, converts_to_mark, precisions);
-        set_rt_info(pt_map, enable_constant_folding, converts_to_unmark, precisions);
-
-        // Move Reshape/Unsqueeze ops up to fold them in ConstantFolding.
-        auto changed = swap_nodes(pt_map, zp_convert_pattern, zp_reshape_pattern);
-        changed = swap_nodes(pt_map, scale_convert_pattern, scale_reshape_pattern) || changed;
-        return changed;
     };
 
-    auto m = std::make_shared<Matcher>(multiply_pattern, "MarkDequantization");
+    auto m = std::make_shared<Matcher>(pattern, "MarkDequantization");
     this->register_matcher(m, callback);
 }
 

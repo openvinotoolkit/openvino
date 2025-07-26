@@ -323,6 +323,26 @@ bool Transformations::is_decompression_multiply(const_node_ptr& node) {
     return are_converts_from_decompression(consumers);
 }
 
+bool Transformations::is_decompression_convert(const_node_ptr& node) {
+    auto all_has_type = [](const std::set<ov::Input<ov::Node>>& consumers, const ov::DiscreteTypeInfo& type) {
+        return std::all_of(consumers.begin(), consumers.end(), [&type](const ov::Input<ov::Node>& input) {
+            return input.get_node()->get_type_info() == type;
+        });
+    };
+
+    // const auto consumers = node->get_output_target_inputs(0);
+    // if (!all_has_type(consumers, ov::op::v0::Convert::get_type_info_static())) {
+    //     return false;
+    // }
+    // return std::all_of(consumers.begin(), consumers.end(), [&all_has_type](const ov::Input<ov::Node>& consumer) {
+    //     const auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
+    //     return all_has_type(child_consumers, ov::op::v0::MatMul::get_type_info_static());
+    // });
+
+    const auto consumers = node->get_output_target_inputs(0);
+    return all_has_type(consumers, ov::op::v0::MatMul::get_type_info_static());
+}
+
 bool Transformations::fuse_type_to_fq(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions) {
     auto fq = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node);
     if (!fq) {
@@ -462,7 +482,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_SET_CALLBACK_COMMON(
         decompression_handling_manager,
         [&](const_node_ptr& node) -> bool {
-            return !is_decompression_multiply(node);
+            return !is_decompression_multiply(node) && !is_decompression_convert(node);
         },
         ov::pass::MarkDequantization);
 

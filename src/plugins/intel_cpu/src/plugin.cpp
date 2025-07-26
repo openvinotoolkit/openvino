@@ -133,6 +133,10 @@ void Plugin::get_performance_streams(Config& config, const std::shared_ptr<ov::M
     }
 }
 
+static int8_t get_u2(const uint8_t& val, uint8_t shift) {
+    return (val & (0x3 << shift)) >> shift;
+}
+
 void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& model, bool imported) {
     const auto model_prefer_name = std::string("MODEL_PREFER_THREADS");
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
@@ -189,7 +193,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             ov::element::Type_t::bf16,   ov::element::Type_t::f16,     ov::element::Type_t::f32,
             ov::element::Type_t::f64,    ov::element::Type_t::boolean, ov::element::Type_t::string,
             ov::element::Type_t::nf4,    ov::element::Type_t::f4e2m1,  ov::element::Type_t::f8e8m0,
-            ov::element::Type_t::dynamic};
+            // ov::element::Type_t::u2,     ov::element::Type_t::u1,     ov::element::Type_t::dynamic};
+            ov::element::Type_t::u2,     ov::element::Type_t::dynamic};
 
         if (supported_precisions.find(input_precision) == supported_precisions.end()) {
             OPENVINO_THROW_NOT_IMPLEMENTED("CPU plugin: Input image format ",
