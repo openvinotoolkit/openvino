@@ -380,11 +380,16 @@ const std::string& Node::get_name() const {
 }
 
 const std::vector<std::reference_wrapper<const std::string>>& Node::get_output_names() const {
-    static const std::vector<std::reference_wrapper<const std::string>> empty_output_names;
     if (m_pimpl != nullptr) {
         return m_pimpl->get_output_names();
     } else if (m_decoder != nullptr) {
-        // Add logic for m_decoder if applicable
+        std::vector<std::reference_wrapper<const std::string>> names{};
+        names.reserve(m_decoder->get_output_size());
+        for (size_t idx = 0; idx < m_decoder->get_output_size(); ++idx) {
+            const auto& name = m_decoder->get_output_tensor_name(idx);
+            names.push_back(name);
+        }
+        return names;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -570,7 +575,6 @@ Graph Node::get_attribute_value(const std::string& name, Graph default_value) co
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
-
 
 template <>
 std::vector<float> Node::get_attribute_value(const std::string& name, std::vector<float> default_value) const {
