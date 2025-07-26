@@ -13,6 +13,26 @@ from tests.runtime import get_runtime
 from tests.tests_python.utils.onnx_helpers import import_onnx_model
 
 
+def test_average_pool_opset11():
+    core = Core()
+    model = core.read_model("src/frontends/onnx/tests/tests_python/models/average_pool_opset11.onnx")
+
+    assert model is not None
+
+    input_tensor = np.array([[[[1, 2, 3, 4],
+                               [5, 6, 7, 8],
+                               [9, 10, 11, 12],
+                               [13, 14, 15, 16]]]], dtype=np.float32)
+    compiled = core.compile_model(model, "CPU")
+    infer_request = compiled.create_infer_request()
+    result = infer_request.infer({"input": input_tensor})
+
+    expected = np.array([[[[3.5, 5.5],
+                           [11.5, 13.5]]]], dtype=np.float32)
+
+    np.testing.assert_allclose(result["output"], expected, rtol=1e-4)
+
+
 def test_import_onnx_function():
     model_path = os.path.join(os.path.dirname(__file__), "models/add_abc.onnx")
     core = Core()
