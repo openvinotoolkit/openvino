@@ -51,6 +51,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/abs.hpp"
@@ -1552,6 +1553,15 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     std::vector<ov::element::Type> inputPrecisions;
     for (const auto& prec : getOriginalInputPrecisions()) {
         inputPrecisions.push_back(prec);
+    }
+
+    if (getAlgorithm() == Algorithm::EltwisePowerStatic && inputPrecisions[0] == ov::element::bf16) {
+        if (gamma < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())) {
+            gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        }
+        if (gamma > static_cast<float>(std::numeric_limits<ov::bfloat16>::max())) {
+            gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        }
     }
 
     for (auto& fusedNode : fusedWith) {
