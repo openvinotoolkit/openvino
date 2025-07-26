@@ -331,7 +331,7 @@ bool DCOFFPassBase::matcher_callback(ov::pass::pattern::Matcher& m) {
             // Disconnect Multiply and Convert from their outputs
             auto matched_mulply = uat::_(node_to_output).at_or_at(transposeopt, mulply).get_node_shared_ptr();
             auto matched_convrt = node_to_output.at(toFP32).get_node_shared_ptr();
-            auto drop_outputs = [](std::shared_ptr<ov::Node> node) {
+            auto drop_outputs = [](const std::shared_ptr<ov::Node>& node) {
                 for (auto&& node_outputs : node->outputs()) {
                     for (auto&& node_reader_port : node_outputs.get_target_inputs()) {
                         node_outputs.remove_target_input(node_reader_port);
