@@ -191,6 +191,7 @@ private:
 
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
     ov::npuw::s11n::BF16Cache m_bf16_consts;
+    ov::npuw::s11n::WeightsContext m_import_weights_ctx;
 };
 }  // namespace npuw
 }  // namespace ov

@@ -28,7 +28,8 @@ public:
     // Public API
     std::shared_ptr<Bank> getBank(const std::string& bank_name,
                                   const std::shared_ptr<const ov::ICore>& core,
-                                  const std::string& alloc_device);
+                                  const std::string& alloc_device,
+                                  bool weightless_import = false);
 
 private:
     // Data
@@ -110,7 +111,16 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
-        device_bank.storage.at(uid).tensor = lt.eval();
+        auto t = lt.eval();
+        if (m_weightless_import) {
+            // Weightless import case. Need to get ownership of the weights, before mmaped object is freed
+            ov::Tensor own(t.get_element_type(), t.get_shape());
+            t.copy_to(own);
+            device_bank.storage.at(uid).tensor = own;
+        } else {
+            // Default case, owning the memory
+            device_bank.storage.at(uid).tensor = t;
+        }
         const_cast<LazyTensor&>(lt).detach();
     });
 }
@@ -295,12 +305,13 @@ std::string Bank::get_name() const {
 
 std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
                                            const std::shared_ptr<const ov::ICore>& core,
-                                           const std::string& alloc_device) {
+                                           const std::string& alloc_device,
+                                           bool weightless_import) {
     std::unique_lock guard(m_mutex);
 
     auto iter = m_bank_map.find(bank_name);
     if (iter == m_bank_map.end() || iter->second.expired()) {
-        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name);
+        auto bank = std::make_shared<Bank>(core, alloc_device, bank_name, weightless_import);
         m_bank_map[bank_name] = bank;
         return bank;
     }
@@ -309,12 +320,13 @@ std::shared_ptr<Bank> BankManager::getBank(const std::string& bank_name,
 
 std::shared_ptr<Bank> ov::npuw::weights::bank(const std::string& bank_name,
                                               const std::shared_ptr<const ov::ICore>& core,
-                                              const std::string& alloc_device) {
+                                              const std::string& alloc_device,
+                                              bool weightless_import) {
     if (bank_name.empty()) {
         // Don't share this bank in manager
-        return std::make_shared<Bank>(core, alloc_device, bank_name);
+        return std::make_shared<Bank>(core, alloc_device, bank_name, weightless_import);
     }
 
     auto& instance = BankManager::getInstance();
-    return instance.getBank(bank_name, core, alloc_device);
+    return instance.getBank(bank_name, core, alloc_device, weightless_import);
 }

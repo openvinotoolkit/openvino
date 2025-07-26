@@ -114,6 +114,8 @@ struct WeightsContext {
         }
     };
     using ConstsCache = std::unordered_map<std::pair<std::size_t, std::size_t>, std::shared_ptr<ov::Node>, CtxHash>;
+    WeightsContext() = default;
+    WeightsContext& operator=(const WeightsContext& other) = default;
 
     // NOTE: This construtor should only be used when exporting blobs
     explicit WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
@@ -122,6 +124,10 @@ struct WeightsContext {
     explicit WeightsContext(const ov::npuw::s11n::Weights& _weights,
                             const ConstsCache& _consts_cache,
                             const BF16Cache& _bf16_consts);
+
+    void reset() {
+        weights = nullptr;
+    }
 
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
