@@ -28,6 +28,7 @@ public:
     OperatorsBridge& operator=(OperatorsBridge&&) = default;
 
     OperatorSet get_operator_set(const std::string& domain, std::int64_t version = -1) const;
+    const Operator* get_operator(const std::string& domain, const std::string& name, const int64_t version) const;
 
     template <typename Container = std::set<std::string>>
     Container get_supported_operators(int64_t version, std::string domain) const {

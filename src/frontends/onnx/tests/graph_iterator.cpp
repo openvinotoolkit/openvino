@@ -260,6 +260,8 @@ private:
     int64_t m_input_idx, m_output_idx;
 };
 
+static const std::string DEFAULT_DOMAIN = "";
+
 class DecoderProto : public ov::frontend::onnx::DecoderBaseOperation {
 public:
     explicit DecoderProto(const NodeProto* node_def,
@@ -306,9 +308,18 @@ public:
 
     const std::string& get_op_name() const override;
 
-    uint64_t get_op_set() const {
+    uint64_t get_op_set() const override {
         return m_opset;
     }
+
+    const std::string& get_domain() const override {
+        return (m_node->has_domain() && m_node->domain() != "ai.onnx" ? m_node->domain() : DEFAULT_DOMAIN);
+    }
+
+    void experimental_get_internal_structures(const void** node_def) const override {
+        *node_def = m_node;
+    }
+
 
 private:
     // std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
@@ -491,15 +502,11 @@ void DecoderProto::get_input_node(size_t input_port_idx,
 }
 
 const std::string& DecoderProto::get_op_type() const {
-    if (m_node) {
-        return m_node->op_type();
-    }
+    return m_node->op_type();
 }
 
 const std::string& DecoderProto::get_op_name() const {
-    if (m_node) {
-        return m_node->name();
-    }
+    return m_node->name();
 }
 /*
 std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const std::string& name) const {
@@ -675,13 +682,15 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
                 output_tensors.push_back(&tensors[name]->get_tensor_info());
             }
         }
-        std::string domain = node.has_domain() && node.domain() != "ai.onnx" ? node.domain() : "";
+        const std::string& domain = node.has_domain() && node.domain() != "ai.onnx" ? node.domain() : DEFAULT_DOMAIN;
         int64_t opset = get_opset_version(domain);
         if (opset == -1) {
             throw std::exception("Operation version isn't found");
         }
         auto decoder_node =
             std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), m_graph, input_tensors, output_tensors);
+        const auto& asd = decoder_node->get_domain();
+        std::cout << asd << std::endl;
         m_decoders.push_back(decoder_node);
     }
     /*
