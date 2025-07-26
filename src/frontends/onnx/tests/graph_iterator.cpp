@@ -119,7 +119,7 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
-    throw std::exception("Unsupported type");
+    throw std::runtime_error("Unsupported type");
 }
 
 ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* tensor_info,
@@ -136,7 +136,7 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
     }
     if (value_info != nullptr && value_info->has_type()) {
         if (!value_info->type().has_tensor_type()) {
-            throw std::exception("Unsupported value_info type");
+            throw std::runtime_error("Unsupported value_info type");
         }
         tensor_meta_info.m_tensor_name = value_info->has_name() ? value_info->name() : "";
         const auto& value_type = value_info->type().tensor_type();
@@ -167,7 +167,7 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             tensor_info->has_data_type() ? get_ov_element_type(tensor_info->data_type()) : ov::element::dynamic;
         if (tensor_info->has_data_location() &&
             tensor_info->data_location() == TensorProto_DataLocation::TensorProto_DataLocation_EXTERNAL) {
-            throw std::exception("Unexpected usage of method for externally stored data");
+            throw std::runtime_error("Unexpected usage of method for externally stored data");
         }
         if (tensor_info->has_raw_data()) {
             tensor_meta_info.m_tensor_data =
@@ -660,7 +660,7 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, m_graph, 0, -1);
         m_decoders.push_back(tensor);
         if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::exception("Tensor already exists");
+            throw std::runtime_error("Tensor already exists");
         }
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
@@ -669,7 +669,7 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, m_graph, -1, 0);
         m_decoders.push_back(tensor);
         if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::exception("Tensor already exists");
+            throw std::runtime_error("Tensor already exists");
         }
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
@@ -677,7 +677,7 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, m_graph, 0, 0);
         m_decoders.push_back(tensor);
         if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
-            throw std::exception("Tensor already exists");
+            throw std::runtime_error("Tensor already exists");
         }
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
@@ -688,24 +688,47 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
         output_tensors.reserve(node.output_size());
         for (const auto& name : node.input()) {
             if (tensors.count(name) == 0) {
-                throw std::exception("Input tensor isn't found for node");
+                throw std::runtime_error("Input tensor isn't found for node \"" + name + "\"");
             }
             if (name != "") {
                 input_tensors.push_back(&tensors[name]->get_tensor_info());
             }
         }
         for (const auto& name : node.output()) {
-            if (tensors.count(name) == 0) {
-                throw std::exception("Input tensor isn't found for node");
-            }
             if (name != "") {
-                output_tensors.push_back(&tensors[name]->get_tensor_info());
+                const auto& found_tensor = tensors.find(name);
+                if (found_tensor == tensors.end()) {
+                    const auto& initializer = std::find_if(m_graph->initializer().begin(),
+                                                           m_graph->initializer().end(),
+                                                           [&name](const TensorProto& value) {
+                                                               return value.has_name() && value.name() == name;
+                                                           });
+                    std::shared_ptr<DecoderProtoTensor> tensor{nullptr};
+                    if (initializer != m_graph->initializer().end()) {
+                        tensor = std::make_shared<DecoderProtoTensor>(&*initializer, m_graph, 0, 0);
+                    } else {
+                        const auto& value_info = std::find_if(m_graph->value_info().begin(),
+                                                              m_graph->value_info().end(),
+                                                              [&name](const ValueInfoProto& value) {
+                                                                  return value.has_name() && value.name() == name;
+                                                              });
+                        if (value_info != m_graph->value_info().end())
+                            tensor = std::make_shared<DecoderProtoTensor>(&*value_info, m_graph, 0, 0);
+                    }
+                    if (tensor == nullptr) {
+                        throw std::runtime_error("Tensor not found \"" + name + "\"");
+                    }
+                    tensors[name] = tensor;
+                    output_tensors.push_back(&tensor->get_tensor_info());
+                } else {
+                    output_tensors.push_back(&found_tensor->second->get_tensor_info());
+                }
             }
         }
         const std::string& domain = node.has_domain() && node.domain() != "ai.onnx" ? node.domain() : DEFAULT_DOMAIN;
         int64_t opset = get_opset_version(domain);
         if (opset == -1) {
-            throw std::exception("Operation version isn't found");
+            throw std::runtime_error("Operation version isn't found");
         }
         auto decoder_node =
             std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), m_graph, input_tensors, output_tensors);
@@ -713,12 +736,6 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
         std::cout << asd << std::endl;
         m_decoders.push_back(decoder_node);
     }
-    /*
-    m_nodes.insert(m_nodes.begin(), m_graph->initializer().begin(), m_graph->initializer().end());
-    m_nodes.insert(m_nodes.begin(), m_graph->input().begin(), m_graph->input().end());
-    m_nodes.insert(m_nodes.begin(), m_graph->output().begin(), m_graph->output().end());
-    m_nodes.insert(m_nodes.begin(), m_graph->node().begin(), m_graph->node().end());
-    */
 }
 
 size_t GraphIteratorProto::get_subgraph_size() const {
@@ -826,7 +843,8 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
     const auto path =
-        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"}).string();
+        ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "addmul_abc.onnx"})
+            .string();
 
     ov::frontend::FrontEnd::Ptr fe;
 
