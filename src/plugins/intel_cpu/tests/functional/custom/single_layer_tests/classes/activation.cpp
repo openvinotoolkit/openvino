@@ -222,6 +222,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
        (activation_type == utils::ActivationTypes::Ceiling) ||
        (activation_type == utils::ActivationTypes::Negative) ||
        (activation_type == utils::ActivationTypes::IsNaN) ||
+       (activation_type == utils::ActivationTypes::IsInf) ||
        (activation_type == utils::ActivationTypes::IsFinite) ||
        (activation_type == utils::ActivationTypes::RoundHalfAwayFromZero) ||
        (activation_type == utils::ActivationTypes::RoundHalfToEven)) {
@@ -240,6 +241,9 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::HSigmoid) ||
             (activation_type == utils::ActivationTypes::HSwish) ||
             (activation_type == utils::ActivationTypes::Mish) ||
+            (activation_type == utils::ActivationTypes::IsFinite) ||
+            (activation_type == utils::ActivationTypes::IsInf) ||
+            (activation_type == utils::ActivationTypes::IsNaN) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
@@ -301,6 +305,7 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {SoftSign,    {{}}},
         {SoftPlus,    {{}}},
         {IsFinite,    {{}}},
+        {IsInf,       {{false, false}, {false, true}, {true, false}, {true, true}}},
         {IsNaN,       {{}}},
     };
 
