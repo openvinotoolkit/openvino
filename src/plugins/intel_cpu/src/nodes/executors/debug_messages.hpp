@@ -17,8 +17,9 @@
 #define UNSUPPORTED_WEI_RANK                 " unsupported wei rank"
 #define UNSUPPORTED_DST_RANK                 " unsupported dst rank"
 #define UNSUPPORTED_DST_STRIDES              " unsupported dst strides"
-#define HEURISTICS_MISMATCH                  " heuristics mismatch"
 #define UNSUPPORTED_PER_CHANNEL_QUANTIZATION " unsupported per-channel quantization"
+#define HEURISTICS_MISMATCH                  " heuristics mismatch"
+#define MEMORY_FORMAT_MISMATCH               " memory format mismatch"
 
 // @todo implement VERIFY_OR version to support multiple conditions and error messages
 #define VERIFY(condition, ...)      \
