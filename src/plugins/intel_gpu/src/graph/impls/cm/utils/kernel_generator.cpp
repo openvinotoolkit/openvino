@@ -6,10 +6,53 @@
 
 #include <cctype>
 
+#include "common_utils/kernel_generator_base.hpp"
+#include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
+#include "../../ocl_v2/utils/jitter.hpp"
 #include "kernels_db.hpp"
 
 namespace ov::intel_gpu::cm {
+
+using namespace ov::intel_gpu::ocl;
+
+JitConstants KernelGenerator::make_tensors_jit_constants(const RuntimeParams& params) {
+    JitConstants jit_constants;
+
+    const auto& in_offsets_map = params.in_port_to_shape_info_offset;
+    const auto& out_offsets_map = params.out_port_to_shape_info_offset;
+
+    for (size_t i = 0; i < params.input_layouts.size(); i++) {
+        jit_constants.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[i], in_offsets_map.at(i)));
+    }
+
+    jit_constants.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+    for (size_t i = 1; i < params.output_layouts.size(); i++) {
+        jit_constants.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], out_offsets_map.at(i)));
+    }
+
+    return jit_constants;
+}
+
+JitConstants KernelGenerator::make_base_jit_constants(const RuntimeParams& params) const {
+    JitConstants jit_constants;
+
+    auto entry_point = get_entry_point(params);
+    jit_constants.add(make_jit_constant("KERNEL(name)", "__kernel void " + entry_point));
+    jit_constants.add(make_jit_constant("KERNEL_ID", entry_point));
+
+    if (params.is_dynamic()) {
+        jit_constants.add(make_jit_constant("IS_DYNAMIC", 1));
+        jit_constants.add(make_jit_constant("OPTIONAL_SHAPE_INFO_ARG", "__global const int* shape_info,"));
+        jit_constants.add(make_jit_constant("OPTIONAL_SHAPE_INFO_TENSOR", "shape_info,"));
+    } else {
+        jit_constants.add(make_jit_constant("OPTIONAL_SHAPE_INFO_ARG", ""));
+        jit_constants.add(make_jit_constant("OPTIONAL_SHAPE_INFO_TENSOR", ""));
+    }
+
+    return jit_constants;
+}
 
 std::string KernelGenerator::build_code(std::string_view template_name, const JitConstants& jit_constants, const std::string& entry_point) {
     CodeBuilder code;
