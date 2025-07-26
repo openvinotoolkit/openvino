@@ -13,7 +13,7 @@
 
 namespace intel_npu {
 
-struct Pipeline final {
+struct Pipeline {
 public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -22,16 +22,63 @@ public:
              const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
              size_t batch_size = 1);
 
+    Pipeline(const Config& config,
+             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+             const std::shared_ptr<IGraph>& graph,
+             std::string logName);
+
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
     ~Pipeline() = default;
 
-    void push();
-    void pull();
-    void reset() const;
+    virtual void push();
 
-    void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
+    void pull(size_t num_command_lists);
+
+    virtual void pull();
+
+    template<typename command_lists_t>
+    void reset(command_lists_t& command_lists) const {
+        _logger.debug("Pipeline - rest() started");
+
+        for (size_t i = 0; i < command_lists.size(); ++i) {
+            if (_sync_output_with_fences) {
+                _fences.at(i)->reset();
+            } else {
+                _events.at(i)->reset();
+            }
+        }
+
+        _logger.debug("Pipeline - rest() completed");
+    }
+
+    virtual void reset() const;
+
+    template<typename command_lists_t>
+    void update_graph_arguments( uint32_t arg_index, const void* arg_data, size_t byte_size, command_lists_t& command_lists ) {
+        const size_t number_of_command_lists = command_lists.size();
+
+        for (size_t i = 0; i < number_of_command_lists; i++) {
+            command_lists.at(i)->updateMutableCommandList(
+                arg_index,
+                static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists);
+        }
+    }
+
+    virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
+
+    template<typename command_lists_t>
+    void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index, command_lists_t& command_lists) {
+        const size_t number_of_command_lists = command_lists.size();
+
+        OPENVINO_ASSERT(command_list_index < number_of_command_lists,
+                        "Command list index is higher than the number of Command lists ",
+                        command_list_index);
+
+        command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data);
+    };
+
+    virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
@@ -55,12 +102,14 @@ protected:
     size_t _number_of_command_lists;
 
     std::shared_ptr<CommandQueue> _command_queue;
-    std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
     bool _sync_output_with_fences = true;
     Logger _logger;
+
+private:
+    std::vector<std::unique_ptr<CommandList>> _command_lists;
 };
 
 }  // namespace intel_npu

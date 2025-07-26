@@ -19,6 +19,7 @@ target_compile_definitions(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../compiler_adapter/include>
 )
 
 target_link_libraries(${TARGET_NAME}
@@ -26,6 +27,40 @@ target_link_libraries(${TARGET_NAME}
         openvino::npu_al
         openvino::npu_common
 )
+
+if(ENABLE_LLVM_BACKEND)
+    target_link_libraries(${TARGET_NAME}
+        PRIVATE
+            MLIRAnalysis
+            MLIRBuiltinToLLVMIRTranslation
+            MLIRExecutionEngine
+            MLIRIR
+            MLIRJitRunner
+            MLIRLLVMDialect
+            MLIRLLVMToLLVMIRTranslation
+            MLIRToLLVMIRTranslationRegistration
+            MLIRParser
+            MLIRTargetLLVMIRExport
+            MLIRSupport
+            LLVMSupport
+            LLVMCore
+            LLVMX86CodeGen
+            LLVMX86AsmParser
+    )
+
+    set(TEST_SOURCE_DIR ${NPU_PLUGIN_SOURCE_DIR}/thirdparty/jit-tools)
+    set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
+    if(WIN32)
+        set(TEST_DEST_DIR ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/${config})
+    endif()
+
+    message(STATUS "dest dir:${TEST_DEST_DIR}     config:${config}")
+    add_custom_command(TARGET ${TARGET_NAME}
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${TEST_SOURCE_DIR} ${TEST_DEST_DIR}
+        COMMENT "Copying jit files to ${TEST_DEST_DIR} directory"
+    )
+endif()
 
 #
 # targets install
