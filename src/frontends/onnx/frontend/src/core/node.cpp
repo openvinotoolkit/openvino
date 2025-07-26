@@ -494,7 +494,10 @@ float Node::get_attribute_value(const std::string& name, float default_value) co
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<float>(name, default_value);
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<float>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<float>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -504,7 +507,10 @@ double Node::get_attribute_value(const std::string& name, double default_value) 
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<double>(name, default_value);
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<double>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<double>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -514,7 +520,10 @@ std::int64_t Node::get_attribute_value(const std::string& name, std::int64_t def
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::int64_t>(name, default_value);
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<std::int64_t>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<std::int64_t>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -524,7 +533,10 @@ std::string Node::get_attribute_value(const std::string& name, std::string defau
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::string>(name, std::move(default_value));
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<std::string>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<std::string>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -559,12 +571,16 @@ Graph Node::get_attribute_value(const std::string& name, Graph default_value) co
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
+
 template <>
 std::vector<float> Node::get_attribute_value(const std::string& name, std::vector<float> default_value) const {
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::vector<float>>(name, std::move(default_value));
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<std::vector<float>>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<std::vector<float>>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -574,7 +590,10 @@ std::vector<double> Node::get_attribute_value(const std::string& name, std::vect
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::vector<double>>(name, std::move(default_value));
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<std::vector<double>>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<std::vector<double>>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -585,7 +604,10 @@ std::vector<std::int64_t> Node::get_attribute_value(const std::string& name,
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::vector<std::int64_t>>(name, std::move(default_value));
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<std::vector<std::int64_t>>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<std::vector<std::int64_t>>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -596,7 +618,10 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::vector<std::size_t>>(name, std::move(default_value));
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<std::vector<std::size_t>>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<std::vector<std::size_t>>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
@@ -607,7 +632,10 @@ std::vector<std::string> Node::get_attribute_value(const std::string& name,
     if (m_pimpl != nullptr) {
         return m_pimpl->template get_attribute_value<std::vector<std::string>>(name, std::move(default_value));
     } else if (m_decoder != nullptr) {
-        return m_decoder->get_attribute(name).as<std::vector<std::string>>();
+        if (m_decoder->has_attribute(name))
+            return m_decoder->get_attribute(name).as<std::vector<std::string>>();
+        else
+            return default_value;
     }
     FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
