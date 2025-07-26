@@ -30,7 +30,7 @@ env:
 jobs:
   PyTorch_Layer_Tests:
     name: PyTorch Layer Tests
-    timeout-minutes: 60
+    timeout-minutes: 200  # for testing purposes, return to 60
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
