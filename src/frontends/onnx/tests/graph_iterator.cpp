@@ -66,6 +66,7 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
     ASSERT_EQ(model->get_ordered_ops().size(), 0);
 }
 
+using ::ONNX_NAMESPACE::AttributeProto_AttributeType;
 using ::ONNX_NAMESPACE::GraphProto;
 using ::ONNX_NAMESPACE::NodeProto;
 using ::ONNX_NAMESPACE::OperatorSetIdProto;
@@ -364,117 +365,43 @@ private:
 };
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
-    return "";
-    /*
-    auto attrs = decode_attribute_helper(name);
-    if (attrs.empty()) {
-        return {};
-    }
-
-    switch (attrs[0].value_case()) {
-    case ::tensorflow::AttrValue::ValueCase::kB:
-        return attrs[0].b();
-    case ::tensorflow::AttrValue::ValueCase::kF:
-        return attrs[0].f();
-    case ::tensorflow::AttrValue::ValueCase::kS:
-        return attrs[0].s();
-    case ::tensorflow::AttrValue::ValueCase::kI:
-        return attrs[0].i();
-    case ::tensorflow::AttrValue::ValueCase::kShape: {
-        const auto& tf_shape = attrs[0].shape();
-        if (tf_shape.unknown_rank()) {
-            return ov::PartialShape::dynamic();
+    for (const auto& attr : m_node->attribute()) {
+        if (attr.has_name() && attr.name() != name)
+            continue;
+        if (!attr.has_type()) {
+            throw std::runtime_error("Attribute \"" + name + "\" doesn't have a type");
         }
-        auto shape_rank = tf_shape.dim_size();
-        std::vector<ov::Dimension> dims(shape_rank);
-        for (int i = 0; i < shape_rank; ++i) {
-            dims[i] = static_cast<ov::Dimension::value_type>(tf_shape.dim(i).size());
-        }
-        return ov::PartialShape(dims);
-    }
-
-    case ::tensorflow::AttrValue::ValueCase::kType: {
-        auto atype = attrs[0].type();
-
-        if (atype == ::tensorflow::DT_COMPLEX64) {
-            return ov::Any("DT_COMPLEX64");
-        } else if (atype == ::tensorflow::DT_COMPLEX128) {
-            return ov::Any("DT_COMPLEX128");
-        } else {
-            return get_ov_type(atype);
+        switch (attr.type()) {
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
+            if (attr.has_f())
+                return attr.f();
+            else
+                throw std::runtime_error("Attribute doesn't have value");
+            break;
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
+            return std::vector<float>{attr.floats().begin(), attr.floats().end()};
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
+            if (attr.has_i())
+                return attr.i();
+            else
+                throw std::runtime_error("Attribute doesn't have value");
+            break;
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
+            return std::vector<int64_t>{attr.ints().begin(), attr.ints().end()};
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_STRING:
+            if (attr.has_s())
+                return attr.s();
+            else
+                throw std::runtime_error("Attribute doesn't have value");
+            break;
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS:
+            return std::vector<std::string>{attr.strings().begin(), attr.strings().end()};
+        default:
+            throw std::runtime_error("Unsupported attribute type " +
+                                     ::ONNX_NAMESPACE::AttributeProto_AttributeType_Name(attr.type()));
         }
     }
-
-    case ::tensorflow::AttrValue::ValueCase::kList: {
-        const auto& list = attrs[0].list();
-        if (list.i_size())
-            return std::vector<int64_t>(list.i().begin(), list.i().end());
-
-        if (list.f_size())
-            return std::vector<float>(list.f().begin(), list.f().end());
-
-        if (list.s_size())
-            return std::vector<std::string>(list.s().begin(), list.s().end());
-
-        if (list.b_size())
-            return std::vector<bool>(list.b().begin(), list.b().end());
-
-        if (list.shape_size()) {
-            auto shapes_size = list.shape_size();
-            std::vector<ov::PartialShape> res(shapes_size);
-            for (int shape_ind = 0; shape_ind < shapes_size; ++shape_ind) {
-                auto shape = list.shape(shape_ind);
-                if (shape.unknown_rank()) {
-                    res[shape_ind] = ov::PartialShape::dynamic();
-                } else {
-                    auto shape_rank = shape.dim_size();
-                    std::vector<ov::Dimension> dims(shape_rank);
-                    for (int dim_ind = 0; dim_ind < shape_rank; ++dim_ind) {
-                        dims[dim_ind] = static_cast<ov::Dimension::value_type>(shape.dim(dim_ind).size());
-                    }
-                    res[shape_ind] = dims;
-                }
-            }
-            return res;
-        }
-
-        if (list.type_size()) {
-            std::vector<ov::element::Type> res;
-            for (int idx = 0; idx < list.type_size(); ++idx) {
-                res.emplace_back(get_ov_type(list.type(idx)));
-            }
-            return res;
-        }
-
-        if (list.tensor_size() || list.func_size())
-            FRONT_END_GENERAL_CHECK(
-                false,
-                "Conversion from Tensorflow to OpenVINO data type failed: List of tensors/functions type for '",
-                name,
-                "' attribute is not supported.");
-
-        // If we got to this point it must mean we have empty list attribute
-        return EmptyList();
-    }
-
-    case ::tensorflow::AttrValue::ValueCase::kTensor: {
-        return unpack_tensor_proto(attrs[0].tensor());
-    }
-    case ::tensorflow::AttrValue::ValueCase::kPlaceholder:
-        FRONT_END_GENERAL_CHECK(false,
-                                "Conversion from Tensorflow to OpenVINO data type failed: Placeholder type for '",
-                                name,
-                                "' attribute is not supported.");
-    case ::tensorflow::AttrValue::ValueCase::kFunc:
-        // attrs[0].func() returns NameAttrList object from which
-        // we retrieve the function name
-        // Further, InputModel object is created for FunctionDef with this name
-        // and is converted to ov::Model object.
-        return attrs[0].func().name();
-    default:
-        FRONT_END_GENERAL_CHECK(false, "Conversion from Tensorflow to OpenVINO data type failed.");
-    }
-    */
+    return nullptr;
 }
 
 size_t DecoderProto::get_input_size() const {
