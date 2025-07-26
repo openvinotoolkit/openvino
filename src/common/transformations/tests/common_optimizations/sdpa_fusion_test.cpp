@@ -954,3 +954,33 @@ TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
+
+TEST_F(TransformationTestsF, SDPAFusionTest_DynamicMaskScores) {
+    // Both the attention scores and the mask have trailing dynamic dimensions
+    const PartialShape query_shape{1, 4, -1, 64};
+    // K has E before S_kv so that MatMul produces [..., -1, -1]
+    const PartialShape key_shape{1, 4, 64, -1};
+    const PartialShape value_shape{1, 4, -1, 64};
+    const PartialShape mask_shape{1, 1, -1, -1};
+
+    SDPA sdpa(f32, query_shape, key_shape, value_shape);
+    SDPA sdpa_ref(f32, query_shape, key_shape, value_shape);
+
+    sdpa.set_mask(mask_shape);
+    sdpa_ref.set_mask(mask_shape);
+
+    {
+        sdpa.create_pattern_sdpa();
+        model = sdpa.build_model();
+        manager.register_pass<ov::pass::SDPAFusion>();
+    }
+
+    {
+        sdpa_ref.transpose_k(get_tranpose_order(query_shape.size()));
+        sdpa_ref.create_reference_sdpa();
+        model_ref = sdpa_ref.build_model();
+    }
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
