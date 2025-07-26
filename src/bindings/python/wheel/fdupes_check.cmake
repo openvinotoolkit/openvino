@@ -66,3 +66,4 @@ file(WRITE "${REPORT_FILE}" "${duplicated_libraries}")
 if(duplicated_libraries)
     message(FATAL_ERROR "${duplicated_libraries}")
 endif()
+
