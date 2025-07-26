@@ -319,7 +319,7 @@ ov::OutputVector Node::get_ov_inputs() const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const std::string& Node::domain() const {
@@ -329,7 +329,7 @@ const std::string& Node::domain() const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_domain();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const std::string& Node::op_type() const {
@@ -339,7 +339,7 @@ const std::string& Node::op_type() const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_op_type();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const std::string& Node::get_description() const {
@@ -349,7 +349,7 @@ const std::string& Node::get_description() const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const std::string& Node::get_name() const {
@@ -360,7 +360,7 @@ const std::string& Node::get_name() const {
         return m_decoder->get_op_name();
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const std::vector<std::reference_wrapper<const std::string>>& Node::get_output_names() const {
@@ -370,7 +370,7 @@ const std::vector<std::reference_wrapper<const std::string>>& Node::get_output_n
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const std::string& Node::input(int index) const {
@@ -380,7 +380,7 @@ const std::string& Node::input(int index) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_input_tensor_name(index);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 std::size_t Node::get_inputs_size() const {
@@ -389,7 +389,7 @@ std::size_t Node::get_inputs_size() const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_input_size();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const std::string& Node::output(int index) const {
@@ -399,7 +399,7 @@ const std::string& Node::output(int index) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_output_tensor_name(index);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 std::size_t Node::get_outputs_size() const {
@@ -408,7 +408,7 @@ std::size_t Node::get_outputs_size() const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_output_size();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 bool Node::has_attribute(const std::string& name) const {
@@ -417,7 +417,7 @@ bool Node::has_attribute(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 bool Node::has_subgraphs() const {
@@ -426,7 +426,7 @@ bool Node::has_subgraphs() const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::get_subgraphs() const {
@@ -436,7 +436,7 @@ const std::unordered_map<std::string, std::shared_ptr<Subgraph>>& Node::get_subg
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 std::vector<std::string> Node::get_attribute_names() const {
@@ -454,7 +454,7 @@ std::vector<std::string> Node::get_attribute_names() const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 const Attribute& Node::get_attribute(const std::string& name) const {
@@ -470,7 +470,7 @@ const Attribute& Node::get_attribute(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Add logic for m_decoder if applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -480,7 +480,7 @@ float Node::get_attribute_value(const std::string& name, float default_value) co
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<float>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -490,7 +490,7 @@ double Node::get_attribute_value(const std::string& name, double default_value) 
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<double>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -500,7 +500,7 @@ std::int64_t Node::get_attribute_value(const std::string& name, std::int64_t def
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::int64_t>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -510,7 +510,7 @@ std::string Node::get_attribute_value(const std::string& name, std::string defau
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::string>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -520,7 +520,7 @@ Tensor Node::get_attribute_value(const std::string& name, Tensor default_value) 
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -530,7 +530,7 @@ SparseTensor Node::get_attribute_value(const std::string& name, SparseTensor def
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -540,7 +540,7 @@ Graph Node::get_attribute_value(const std::string& name, Graph default_value) co
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -550,7 +550,7 @@ std::vector<float> Node::get_attribute_value(const std::string& name, std::vecto
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<float>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -560,7 +560,7 @@ std::vector<double> Node::get_attribute_value(const std::string& name, std::vect
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<double>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -571,7 +571,7 @@ std::vector<std::int64_t> Node::get_attribute_value(const std::string& name,
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<std::int64_t>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -582,7 +582,7 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name,
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<std::size_t>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -593,7 +593,7 @@ std::vector<std::string> Node::get_attribute_value(const std::string& name,
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<std::string>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -603,7 +603,7 @@ std::vector<Tensor> Node::get_attribute_value(const std::string& name, std::vect
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -614,7 +614,7 @@ std::vector<SparseTensor> Node::get_attribute_value(const std::string& name,
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -624,7 +624,7 @@ std::vector<Graph> Node::get_attribute_value(const std::string& name, std::vecto
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 // Repeat the same for the non-default_value overloads:
@@ -636,7 +636,7 @@ float Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<float>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -646,7 +646,7 @@ double Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<double>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -656,7 +656,7 @@ std::int64_t Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::int64_t>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -666,7 +666,7 @@ std::size_t Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::size_t>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -676,7 +676,7 @@ std::string Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::string>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -686,7 +686,7 @@ Tensor Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -696,7 +696,7 @@ SparseTensor Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -706,7 +706,7 @@ Subgraph Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -716,7 +716,7 @@ std::vector<float> Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<float>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -726,7 +726,7 @@ std::vector<double> Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<double>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -736,7 +736,7 @@ std::vector<std::int64_t> Node::get_attribute_value(const std::string& name) con
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<std::int64_t>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -746,7 +746,7 @@ std::vector<std::size_t> Node::get_attribute_value(const std::string& name) cons
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<std::size_t>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -756,7 +756,7 @@ std::vector<std::string> Node::get_attribute_value(const std::string& name) cons
     } else if (m_decoder != nullptr) {
         return m_decoder->get_attribute(name).as<std::vector<std::string>>();
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -766,7 +766,7 @@ std::vector<Tensor> Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -776,7 +776,7 @@ std::vector<SparseTensor> Node::get_attribute_value(const std::string& name) con
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -786,7 +786,7 @@ std::vector<Graph> Node::get_attribute_value(const std::string& name) const {
     } else if (m_decoder != nullptr) {
         // Non-applicable
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 // get_attribute_as_constant specializations
@@ -813,7 +813,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(con
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<float>(name);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -824,7 +824,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<float>(name, default_value);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -836,7 +836,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<float>(name, default_value);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -847,7 +847,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<float>(con
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<float>(name);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -857,7 +857,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(co
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<double>(name);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -868,7 +868,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<double>(name, default_value);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -880,7 +880,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<double>(name, default_value);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -891,7 +891,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<double>(co
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<double>(name);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -901,7 +901,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(c
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<int64_t>(name);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -912,7 +912,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<int64_t>(name, default_value);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -924,7 +924,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<int64_t>(name, default_value);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -935,7 +935,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<int64_t>(c
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<int64_t>(name);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -946,7 +946,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vecto
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<std::vector<int64_t>>(name);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -958,7 +958,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant<std::vecto
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<std::vector<int64_t>>(name);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -969,7 +969,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<std::vector<int64_t>>(name, default_value);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 template <>
@@ -983,7 +983,7 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     } else if (m_decoder != nullptr) {
         return get_decoder_attribute_as_constant<std::vector<int64_t>>(name, default_value);
     }
-    throw std::runtime_error("Not Implemented");
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
 }
 
 }  // namespace onnx
