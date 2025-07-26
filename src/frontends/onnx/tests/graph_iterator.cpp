@@ -260,7 +260,11 @@ private:
     int64_t m_input_idx, m_output_idx;
 };
 
+namespace {
 static const std::string DEFAULT_DOMAIN = "";
+static const std::string EMPTY_NAME = "";
+static const std::string EMPTY_OP_TYPE = "";
+}  // namespace
 
 class DecoderProto : public ov::frontend::onnx::DecoderBaseOperation {
 public:
@@ -510,11 +514,19 @@ void DecoderProto::get_input_node(size_t input_port_idx,
 }
 
 const std::string& DecoderProto::get_op_type() const {
-    return m_node->op_type();
+    if (m_node->has_op_type()) {
+        return m_node->op_type();
+    } else {
+        return EMPTY_OP_TYPE;
+    }
 }
 
 const std::string& DecoderProto::get_op_name() const {
-    return m_node->name();
+    if (m_node->has_name()) {
+        return m_node->name();
+    } else {
+        return EMPTY_NAME;
+    }
 }
 /*
 std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const std::string& name) const {
@@ -714,7 +726,7 @@ size_t GraphIteratorProto::get_subgraph_size() const {
 }
 
 std::shared_ptr<ov::frontend::onnx::GraphIterator> GraphIteratorProto::get_subgraph(size_t idx) const {
-    FRONT_END_NOT_IMPLEMENTED();
+    FRONT_END_NOT_IMPLEMENTED(__FUNCTION__);
     /*
     FRONT_END_GENERAL_CHECK(0 == idx, "There is no subgraph with idx ", idx);
     auto iterator = std::make_shared<GraphIteratorProto>();
@@ -810,6 +822,8 @@ std::int64_t GraphIteratorProto::get_opset_version(const std::string& domain) co
 
 }  // namespace test_iterator
 
+#include <openvino/openvino.hpp>
+
 TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
     const auto path =
         ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, "abs.onnx"}).string();
@@ -818,20 +832,21 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingTestGraphIterator) {
 
     auto iter = std::make_shared<test_iterator::GraphIteratorProto>(path);
 
-    {
-        auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
-        ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"))
-            << "Could not create the ONNX FE using a pointer GraphIterator";
-        ASSERT_NE(m_frontEnd, nullptr);
+    auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
+    ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"))
+        << "Could not create the ONNX FE using a pointer GraphIterator";
+    ASSERT_NE(m_frontEnd, nullptr);
 
-        ASSERT_EQ(m_frontEnd->supported(graph_iter), true);
+    ASSERT_EQ(m_frontEnd->supported(graph_iter), true);
 
-        ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(graph_iter)) << "Could not load the model";
-        ASSERT_NE(m_inputModel, nullptr);
-    }
+    ASSERT_NO_THROW(m_inputModel = m_frontEnd->load(graph_iter)) << "Could not load the model";
+    ASSERT_NE(m_inputModel, nullptr);
+
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
     ASSERT_NE(model, nullptr);
 
-    ASSERT_EQ(model->get_ordered_ops().size(), 0);
+    ov::serialize(model, "e:/test.xml");
+
+    ASSERT_EQ(model->get_ordered_ops().size(), 3);
 }
