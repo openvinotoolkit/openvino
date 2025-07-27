@@ -506,6 +506,12 @@ ov::Any DecoderProto::get_attribute(const std::string& name) const {
             break;
         case AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS:
             return std::vector<std::string>{attr.strings().begin(), attr.strings().end()};
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_GRAPH:
+            if (attr.has_g())
+                return GraphIteratorProto{m_parent, &attr.g()};
+            else
+                throw std::runtime_error("Attribute doesn't have value");
+            break;
         default:
             throw std::runtime_error("Unsupported attribute type " +
                                      ::ONNX_NAMESPACE::AttributeProto_AttributeType_Name(attr.type()));
