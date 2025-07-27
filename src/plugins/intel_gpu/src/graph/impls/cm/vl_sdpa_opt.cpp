@@ -149,7 +149,6 @@ protected:
             auto& wgs = kd.params.workGroups;
             wgs.global = {num_q_heads, wg_count * wg_size, 1};
             wgs.local = {1, wg_size, 1};
-            std::cout << "========== num_q_heads=" << num_q_heads << "," << wgs << std::endl;
 
             std::vector<int32_t> scalars{need_wg_mapping};
             kd.params.scalars.clear();

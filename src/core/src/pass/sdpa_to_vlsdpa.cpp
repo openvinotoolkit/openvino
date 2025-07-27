@@ -28,9 +28,21 @@ static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> nod
 
 bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToVLSDPA);
+
+    // We rely on user (GENAI) to determine "attention_mask" input of model is
+    // able to map to "cu_seqlens".
+    if (!model->has_rt_info("model_type_hint")) return false;
+    const std::string& model_type = model->get_rt_info<std::string>("model_type_hint");
+    if (model_type != "QWenVL") {
+        return false;
+    }
+
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToVLSDPA transformation.");
+    if (transformation_callback(nullptr)) { // verify plugin-specific determinations
+        return false;
+    }
 
     auto get_parameter = [=](const std::shared_ptr<ov::Model>& model,
                              const std::string& name) -> std::shared_ptr<v0::Parameter> {
