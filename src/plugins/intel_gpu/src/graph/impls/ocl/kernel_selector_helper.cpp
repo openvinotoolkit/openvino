@@ -50,6 +50,7 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <chrono>
 
 namespace {
 using namespace cldnn;
@@ -87,9 +88,6 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
     // This program checks if cm sources can be jitted by current IGC version
     const char* kernel_code = R""""(
-        #include <cm/cm.h>
-        #include <cm/cmtl.h>
-
         extern "C" _GENX_MAIN_ void cm_check(half *x [[type("svmptr_t")]]) {
             unsigned int id = cm_linear_global_id();
         }
@@ -99,6 +97,12 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     kernel_string->options = " -cmc ";
     kernel_string->entry_point = "cm_check";
     kernel_string->batch_compilation = true;
+    kernel_string->language = kernel_language::CM;
+
+    // Add timestamp to avoid IGC uses a cached cm_check kernel.
+    auto timestamp = std::chrono::high_resolution_clock::now()
+                .time_since_epoch().count();
+    kernel_string->options += " -DSEED=" + to_string(timestamp);
 
     try {
         cldnn::kernel_impl_params dummy_params;
