@@ -127,6 +127,10 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
                                                             const ValueInfoProto* value_info,
                                                             const GraphProto* graph_def) {
     ov::frontend::onnx::TensorMetaInfo tensor_meta_info{};
+    if ((tensor_info == nullptr && value_info == nullptr) || graph_def == nullptr) {
+        throw std::runtime_error("Wrong usage");
+    }
+
     if (value_info == nullptr && tensor_info->has_name()) {
         for (const auto& val : graph_def->value_info()) {
             if (val.has_name() && val.name() == tensor_info->name()) {
@@ -366,7 +370,7 @@ private:
 
 ov::Any DecoderProto::get_attribute(const std::string& name) const {
     for (const auto& attr : m_node->attribute()) {
-        if (attr.has_name() && attr.name() != name)
+        if (!attr.has_name() || attr.name() != name)
             continue;
         if (!attr.has_type()) {
             throw std::runtime_error("Attribute \"" + name + "\" doesn't have a type");
@@ -412,50 +416,10 @@ size_t DecoderProto::get_output_size() const {
     return m_output_info.size();
 }
 
-void parse_producer_name(const std::string& producer_port_name,
-                         std::string& producer_name,
-                         std::string& producer_output_port_name,
-                         size_t& producer_output_port_index) {
-    return;
-    // Body graph nodes may have two colons `:` input names, for example,
-    // `TopKV2Name:indices:0` means that producer operation name is `TopKV2Name`
-    // the middle name is output port name of the producer `indices` that means
-    // the second output port of TopKV2 is used.
-    // The first output port of TopKV2 is described as `TopKV2Name:values:0`
-    auto first_colon = producer_port_name.find_first_of(":");
-    auto last_colon = producer_port_name.find_last_of(":");
-    if (first_colon != std::string::npos && first_colon < last_colon) {
-        // we have at least two colons producer_name:output_port_name:port_idx
-        producer_name = producer_port_name.substr(0, first_colon);
-        auto port_id = producer_port_name.substr(last_colon + 1);
-        auto port_name = producer_port_name.substr(first_colon + 1, last_colon - first_colon - 1);
-        FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
-                                "Port id is not specified or not a number. Value: ",
-                                port_id);
-        producer_output_port_index = std::stoi(port_id);
-        producer_output_port_name = std::move(port_name);
-        return;
-    } else if (first_colon != std::string::npos) {
-        // just one colon case
-        producer_name = producer_port_name.substr(0, first_colon);
-        auto port_id = producer_port_name.substr(last_colon + 1);
-        FRONT_END_GENERAL_CHECK(!port_id.empty() && std::all_of(port_id.begin(), port_id.end(), ::isdigit),
-                                "Port id is not specified or not a number. Value: ",
-                                port_id);
-        producer_output_port_index = std::stoi(port_id);
-        return;
-    }
-    producer_name = producer_port_name;
-    producer_output_port_index = 0;
-}
-
 void DecoderProto::get_input_node(size_t input_port_idx,
                                   std::string& producer_name,
                                   std::string& producer_output_port_name,
-                                  size_t& producer_output_port_index) const {
-    const std::string producer_port_name = m_node->input(static_cast<int>(input_port_idx));
-    parse_producer_name(producer_port_name, producer_name, producer_output_port_name, producer_output_port_index);
-}
+                                  size_t& producer_output_port_index) const {}
 
 const std::string& DecoderProto::get_op_type() const {
     if (m_node->has_op_type()) {
@@ -486,10 +450,10 @@ std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const
 
 class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     size_t node_index = 0;
-    std::vector<uint8_t> m_data;
     std::vector<std::shared_ptr<ov::frontend::onnx::DecoderBase>> m_decoders{};
     std::shared_ptr<ModelProto> m_model;
     const GraphProto* m_graph{};
+    GraphIteratorProto* m_parent;
 
 public:
     GraphIteratorProto() = default;
@@ -498,6 +462,8 @@ public:
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
     explicit GraphIteratorProto(const std::wstring& path);
 #endif
+
+    explicit GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def);
 
     using Ptr = std::shared_ptr<GraphIteratorProto>;
 
@@ -548,9 +514,7 @@ public:
     }
 
     /// Set iterator to the start position
-    void reset() override {
-        node_index = 0;
-    }
+    void reset() override;
 
     size_t size() const override {
         return m_decoders.size();
@@ -586,19 +550,49 @@ GraphIteratorProto::GraphIteratorProto(const std::wstring& path)
 
 #endif  // OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
-GraphIteratorProto::GraphIteratorProto(const std::string& path) {
-    std::ifstream model_file(path, std::ios::binary | std::ios::in);
-    FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
+GraphIteratorProto::GraphIteratorProto(const std::string& path) : m_parent(nullptr) {
+    // @TODO: This is a really bad thing - resource allocation in a constructor
+    // Need to think about usage init()/reset() as a base for resource allocation
+    try {
+        std::ifstream model_file(path, std::ios::binary | std::ios::in);
+        FRONT_END_GENERAL_CHECK(model_file && model_file.is_open(), "Model file does not exist: ", path);
 
-    m_model = std::make_shared<ModelProto>();
-    m_model->ParseFromIstream(&model_file);
-    model_file.close();
-    if (m_model->has_graph()) {
-        m_graph = &m_model->graph();
-    } else {
+        m_model = std::make_shared<ModelProto>();
+        m_model->ParseFromIstream(&model_file);
+        model_file.close();
+        if (m_model->has_graph()) {
+            m_graph = &m_model->graph();
+        } else {
+            m_graph = nullptr;
+            return;
+        }
+        reset();
+    } catch (...) {
+        m_model.reset();
         m_graph = nullptr;
-        return;
+        node_index = 0;
+        m_decoders.clear();
     }
+}
+
+GraphIteratorProto::GraphIteratorProto(GraphIteratorProto* parent, const GraphProto* graph_def) {
+    m_parent = parent;
+    m_model = parent->m_model;
+    m_graph = graph_def;
+    if (m_graph != nullptr) {
+        try {
+            reset();
+        } catch (...) {
+        }
+    }
+}
+
+void GraphIteratorProto::reset() {
+    node_index = 0;
+    if (m_decoders.size() > 0 || m_model == nullptr || m_graph == nullptr)
+        return;
+    m_decoders.reserve(m_graph->initializer_size() + m_graph->input_size() + m_graph->output_size() +
+                       m_graph->node_size());
     std::map<std::string, std::shared_ptr<DecoderProtoTensor>> tensors{};
     for (const auto& value : m_graph->input()) {
         auto tensor = std::make_shared<DecoderProtoTensor>(&value, m_graph, 0, -1);
@@ -687,8 +681,6 @@ GraphIteratorProto::GraphIteratorProto(const std::string& path) {
         }
         auto decoder_node =
             std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), m_graph, input_tensors, output_tensors);
-        const auto& asd = decoder_node->get_domain();
-        std::cout << asd << std::endl;
         m_decoders.push_back(decoder_node);
     }
 }
