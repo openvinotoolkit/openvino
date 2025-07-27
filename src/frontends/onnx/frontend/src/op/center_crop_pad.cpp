@@ -1,5 +1,6 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "core/attribute.hpp"
 #include "core/operator_set.hpp"
@@ -43,12 +44,15 @@ ov::OutputVector center_crop_pad_impl(const ov::OutputVector inputs,
                                       const std::vector<int64_t>& axes_attr) {
     const auto& data = inputs[0];
     const auto& target = inputs[1];
-    
     const auto target_i64 = std::make_shared<v0::Convert>(target, ov::element::i64);
-    
+
     ov::Output<ov::Node> axes_output;
     if (axes_attr.empty()) {
-        axes_output = get_axes_range(data);
+        const auto target_shape_of = std::make_shared<v3::ShapeOf>(target, ov::element::i64);
+        const auto target_len_scalar = std::make_shared<v0::Squeeze>(target_shape_of);
+        const auto start = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+        const auto step = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
+        axes_output = std::make_shared<v4::Range>(start, target_len_scalar, step, ov::element::i64);
     } else {
         std::vector<int64_t> pos = axes_attr;
         if (data.get_partial_shape().rank().is_static()) {
@@ -69,22 +73,16 @@ ov::OutputVector center_crop_pad_impl(const ov::OutputVector inputs,
     const auto half_crop = std::make_shared<v1::Divide>(diff_crop, two_const);
 
     const auto ends = std::make_shared<v1::Add>(half_crop, desired);
-    
-    // Create 1D step tensor with length equal to input rank - using proper Slice pattern
     const auto one_scalar = v0::Constant::create(ov::element::i64, ov::Shape{}, {1});
     const auto rank_1d = std::make_shared<v3::ShapeOf>(in_shape, ov::element::i64);
     const auto step_tensor = std::make_shared<v3::Broadcast>(one_scalar, rank_1d);
-    
     const auto all_axes = get_axes_range(data);
-    
-    // Using v8::Slice constructor pattern from your reference
     const auto cropped = std::make_shared<v8::Slice>(data, half_crop, ends, step_tensor, all_axes);
 
     const auto diff_pad = std::make_shared<v1::Subtract>(full_target, desired);
     const auto pad_begin = std::make_shared<v1::Divide>(diff_pad, two_const);
     const auto pad_end = std::make_shared<v1::Subtract>(diff_pad, pad_begin);
-    
-    // Using v1::Pad pattern from your reference - scalar pad value with Shape{}
+
     const auto zero_val = v0::Constant::create(data.get_element_type(), ov::Shape{}, {0});
     const auto out = std::make_shared<v1::Pad>(cropped, pad_begin, pad_end, zero_val, PadMode::CONSTANT);
 
@@ -95,9 +93,7 @@ ov::OutputVector center_crop_pad_impl(const ov::OutputVector inputs,
 ov::OutputVector center_crop_pad(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 2);
     const auto inputs = node.get_ov_inputs();
-
     const auto axes_attr = node.get_attribute_value<std::vector<int64_t>>("axes", {});
-
     return detail::center_crop_pad_impl(inputs, axes_attr);
 }
 
