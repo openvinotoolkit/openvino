@@ -130,8 +130,8 @@ protected:
         transpose_v->set_friendly_name("transpose_v");
 
         const auto casual = false;
-        auto sdpa = std::make_shared<opset13::ScaledDotProductAttention>(transpose_q, 
-                                                                         transpose_k, 
+        auto sdpa = std::make_shared<opset13::ScaledDotProductAttention>(transpose_q,
+                                                                         transpose_k,
                                                                          transpose_v,
                                                                          attn_mask, casual);
         sdpa->set_friendly_name("sdpa");
@@ -282,7 +282,8 @@ private:
     ov::TensorVector inputs_ref;
 };
 
-TEST_P(TransposeVLSDPATestOnGPU, CompareWithRefs){
+
+TEST_P(TransposeVLSDPATestOnGPU, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     ElementType inType;
     ov::Dimension::value_type num_head, head_size;

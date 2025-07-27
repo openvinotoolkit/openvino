@@ -57,9 +57,10 @@ protected:
         const size_t num_kv_heads = key_shape[key_shape.size() - 3].get_length();
         const float scale_factor = 1.0 / std::sqrt(static_cast<double>(head_size));
 
-        GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order " << PartialShape(desc->input_q_transpose_order) << ", key_shape "
-                               << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order) <<  ", head_size="
-                               << head_size << ", num_q_heads=" << num_q_heads << ", num_kv_heads=" << num_kv_heads << '\n';
+        GPU_DEBUG_TRACE_DETAIL << "VLSDPA query_shape " << query_shape << ", q_transpose_order "
+                 << PartialShape(desc->input_q_transpose_order) << ", key_shape "
+                 << key_shape << ", k_transpose_order " << PartialShape(desc->input_k_transpose_order) <<  ", head_size="
+                 << head_size << ", num_q_heads=" << num_q_heads << ", num_kv_heads=" << num_kv_heads << '\n';
 
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
