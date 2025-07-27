@@ -338,14 +338,14 @@ bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
         const auto padValue = extImgPatcher->get_auto_pad();
-        if (!one_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
+        if (none_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
             errorMessage = "Does not support pad type: " + ov::as_string(padValue);
             return false;
         }
-        if (!everyone_is(2U,
-                         extImgPatcher->get_sizes().size(),
-                         extImgPatcher->get_strides().size(),
-                         extImgPatcher->get_rates().size())) {
+        if (!all_of(2U,
+                    extImgPatcher->get_sizes().size(),
+                    extImgPatcher->get_strides().size(),
+                    extImgPatcher->get_rates().size())) {
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }

@@ -378,11 +378,15 @@ void primitive_inst::update_shape() {
                 break;
             }
         }
+
         if (!subgraph_input_changed) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             unset_flag(ExecutionFlags::SHAPE_CHANGED);
             return;
         }
+
+        // If the input shape of root ShapeOf node has changed, update node's parameters as well.
+        set_flag(ExecutionFlags::SHAPE_CHANGED, subgraph_input_changed);
     }
 
     // Even though the predecessors' shapes are not changed, the output shape might be updated by the mem_dep
@@ -948,11 +952,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             } else {
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
             }
-            // TODO: check need_reset_output_memory per output
-            if (need_reset_output_memory() && !can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
-                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
-            }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
@@ -968,7 +967,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                           get_network_id(),
                                           get_network().is_internal(),
                                           i,
-                                          need_reset_output_memory(),
+                                          false /* reset */,
                                           is_output_buffer(this, true),
                                           output_memory_ptr(i).get(),
                                           true);
@@ -978,12 +977,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             GPU_DEBUG_CODE(memalloc_info += (((_outputs.size() > 1) ? ("o" + to_string(i) + ":") : "") +
                                   (_outputs[i]->from_memory_pool ? "from_pool" : "new_alloc"));)
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
-
-            if (need_reset_output_memory() && !can_be_optimized() &&
-                _outputs[i]->from_memory_pool && _outputs[i]->get_layout().data_padding) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
-                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
-            }
         }
     }
 
@@ -2022,6 +2015,27 @@ void primitive_inst::prepare_primitive() {
         if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             for (auto& input : _exec_deps) {
                 add_dep_event(input->get_impl_params()->out_event);
+            }
+        }
+    }
+
+    // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
+    // is a convolution that requires zeroed-out data paddings)
+    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+        const auto& users = get_user_insts();
+        const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
+                                 users.front()->_allocation_done_by_other;
+        const auto skip_reset = skip_concat;
+
+        if (!skip_reset) {
+            for (const auto& output : _outputs) {
+                if (output != nullptr) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
+                    // Use marker to ensure proper synchronization for both events and barriers
+                    auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                         : std::vector<event::ptr>{};
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                }
             }
         }
     }
