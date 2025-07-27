@@ -90,7 +90,7 @@ TEST_F(TransformationTestsF, SDPA2VLSDPAAttentionMaskTest) {
     disable_rt_info_check();
     {
         model = build_model("attention_mask");
-        ov::pass::Serialize(std::string("build_model.xml"), std::string("build_model.bin")).run_on_model(model);
+        model->set_rt_info("QWenVL", "model_type_hint");        // request_vl_sdpa_transformations
         manager.register_pass<ov::pass::SDPAToVLSDPA>();
     }
     { model_ref = build_target_model("cu_seq_lens"); }
@@ -104,7 +104,7 @@ TEST_F(TransformationTestsF, SDPA2VLSDPAWindowAttentionMaskTest) {
     disable_rt_info_check();
     {
         model = build_model("window_attention_mask");
-        ov::pass::Serialize(std::string("build_model2.xml"), std::string("build_model2.bin")).run_on_model(model);
+        model->set_rt_info("QWenVL", "model_type_hint");        // request_vl_sdpa_transformations
         manager.register_pass<ov::pass::SDPAToVLSDPA>();
     }
     { model_ref = build_target_model("cu_window_seqlens"); }
