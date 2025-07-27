@@ -214,240 +214,6 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
 }
 }  // namespace
 
-class DecoderProtoTensor : public ov::frontend::onnx::DecoderBaseTensor {
-public:
-    DecoderProtoTensor(const TensorProto* tensor_info,
-                       const GraphProto* graph_def,
-                       const int64_t input_idx,
-                       const int64_t output_idx)
-        // Probably, we may need to force it to 0/0
-        : m_input_idx(input_idx),
-          m_output_idx(output_idx) {
-        m_tensor_meta_info = extract_tensor_meta_info(tensor_info, nullptr, graph_def);
-    }
-    DecoderProtoTensor(const ValueInfoProto* value_info,
-                       const GraphProto* graph_def,
-                       const int64_t input_idx,
-                       const int64_t output_idx)
-        : m_input_idx(input_idx),
-          m_output_idx(output_idx) {
-        m_tensor_meta_info = extract_tensor_meta_info(nullptr, value_info, graph_def);
-    }
-    DecoderProtoTensor(const std::string& name, const int64_t input_idx, const int64_t output_idx)
-        : m_input_idx(input_idx),
-          m_output_idx(output_idx) {
-        m_tensor_meta_info.m_tensor_name = name;
-        m_tensor_meta_info.m_element_type = ov::element::dynamic;
-        m_tensor_meta_info.m_partial_shape = ov::PartialShape::dynamic();
-        m_tensor_meta_info.m_tensor_data = nullptr;
-    }
-
-    const ov::frontend::onnx::TensorMetaInfo& get_tensor_info() const override {
-        return *const_cast<const ov::frontend::onnx::TensorMetaInfo*>(&m_tensor_meta_info);
-    }
-
-    int64_t get_input_idx() const override {
-        return m_input_idx;
-    }
-
-    int64_t get_output_idx() const override {
-        return m_output_idx;
-    }
-
-    ov::Any get_attribute(const std::string& name) const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_attribute");
-    }
-
-    size_t get_input_size() const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_input_size");
-    }
-
-    void get_input_node(size_t input_port_idx,
-                        std::string& producer_name,
-                        std::string& producer_output_port_name,
-                        size_t& producer_output_port_index) const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_input_node");
-    }
-
-    const std::string& get_op_type() const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_op_type");
-    }
-
-    const std::string& get_op_name() const override {
-        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_op_name");
-    }
-
-private:
-    ov::frontend::onnx::TensorMetaInfo m_tensor_meta_info;
-    int64_t m_input_idx, m_output_idx;
-};
-
-namespace {
-static const std::string DEFAULT_DOMAIN = "";
-static const std::string EMPTY_NAME = "";
-static const std::string EMPTY_OP_TYPE = "";
-}  // namespace
-
-class DecoderProto : public ov::frontend::onnx::DecoderBaseOperation {
-public:
-    explicit DecoderProto(const NodeProto* node_def,
-                          const uint64_t opset,
-                          const GraphProto* graph_def,
-                          const std::vector<const ov::frontend::onnx::TensorMetaInfo*>& input_info,
-                          const std::vector<const ov::frontend::onnx::TensorMetaInfo*>& output_info)
-        : m_node(node_def),
-          m_opset(opset),
-          m_graph(graph_def),
-          m_input_info(input_info),
-          m_output_info(output_info) {}
-
-    size_t get_input_size() const override;
-    size_t get_output_size() const override;
-
-    std::string get_input_tensor_name(size_t idx) const override {
-        return m_input_info.at(idx)->m_tensor_name;
-    }
-    ov::element::Type get_input_tensor_type(size_t idx) const override {
-        return m_input_info.at(idx)->m_element_type;
-    }
-    std::string get_output_tensor_name(size_t idx) const override {
-        return m_output_info.at(idx)->m_tensor_name;
-    }
-    ov::element::Type get_output_tensor_type(size_t idx) const override {
-        return m_output_info.at(idx)->m_element_type;
-    }
-    const ov::frontend::onnx::TensorMetaInfo& get_input_tensor_info(size_t idx) const override {
-        return *m_input_info.at(idx);
-    }
-    const ov::frontend::onnx::TensorMetaInfo& get_output_tensor_info(size_t idx) const override {
-        return *m_output_info.at(idx);
-    }
-
-    ov::Any get_attribute(const std::string& name) const override;
-
-    void get_input_node(size_t input_port_idx,
-                        std::string& producer_name,
-                        std::string& producer_output_port_name,
-                        size_t& producer_output_port_index) const override;
-
-    const std::string& get_op_type() const override;
-
-    const std::string& get_op_name() const override;
-
-    uint64_t get_op_set() const override {
-        return m_opset;
-    }
-
-    const std::string& get_domain() const override {
-        return (m_node->has_domain() && m_node->domain() != "ai.onnx" ? m_node->domain() : DEFAULT_DOMAIN);
-    }
-
-    bool has_attribute(const std::string& name) const {
-        for (const auto& attr : m_node->attribute()) {
-            if (attr.has_name() && attr.name() == name) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    void experimental_get_internal_structures(const void** node_def) const override {
-        *node_def = m_node;
-    }
-
-private:
-    // std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
-    const NodeProto* m_node;
-    uint64_t m_opset;
-    // For existence of NodeDef object corresponding to the main graph node,
-    // GraphDef object must live in the memory
-    const GraphProto* m_graph;
-    // For existence of NodeDef object corresponding to the body graph node,
-    // both GraphDef and FunctionDef objects must be alive in the memory
-    // const std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
-    std::vector<const ov::frontend::onnx::TensorMetaInfo*> m_input_info, m_output_info;
-};
-
-ov::Any DecoderProto::get_attribute(const std::string& name) const {
-    for (const auto& attr : m_node->attribute()) {
-        if (!attr.has_name() || attr.name() != name)
-            continue;
-        if (!attr.has_type()) {
-            throw std::runtime_error("Attribute \"" + name + "\" doesn't have a type");
-        }
-        switch (attr.type()) {
-        case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
-            if (attr.has_f())
-                return attr.f();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
-        case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
-            return std::vector<float>{attr.floats().begin(), attr.floats().end()};
-        case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
-            if (attr.has_i())
-                return attr.i();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
-        case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
-            return std::vector<int64_t>{attr.ints().begin(), attr.ints().end()};
-        case AttributeProto_AttributeType::AttributeProto_AttributeType_STRING:
-            if (attr.has_s())
-                return attr.s();
-            else
-                throw std::runtime_error("Attribute doesn't have value");
-            break;
-        case AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS:
-            return std::vector<std::string>{attr.strings().begin(), attr.strings().end()};
-        default:
-            throw std::runtime_error("Unsupported attribute type " +
-                                     ::ONNX_NAMESPACE::AttributeProto_AttributeType_Name(attr.type()));
-        }
-    }
-    return nullptr;
-}
-
-size_t DecoderProto::get_input_size() const {
-    return m_input_info.size();
-}
-
-size_t DecoderProto::get_output_size() const {
-    return m_output_info.size();
-}
-
-void DecoderProto::get_input_node(size_t input_port_idx,
-                                  std::string& producer_name,
-                                  std::string& producer_output_port_name,
-                                  size_t& producer_output_port_index) const {}
-
-const std::string& DecoderProto::get_op_type() const {
-    if (m_node->has_op_type()) {
-        return m_node->op_type();
-    } else {
-        return EMPTY_OP_TYPE;
-    }
-}
-
-const std::string& DecoderProto::get_op_name() const {
-    if (m_node->has_name()) {
-        return m_node->name();
-    } else {
-        return EMPTY_NAME;
-    }
-}
-/*
-std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const std::string& name) const {
-    auto attr_map = m_node_def->attr();
-    if (attr_map.contains(name)) {
-        auto value = m_node_def->attr().at(name);
-        return {std::move(value)};
-    } else {
-        return {};
-    }
-}
-*/
-
 class GraphIteratorProto : public ov::frontend::onnx::GraphIterator {
     size_t node_index = 0;
     std::vector<std::shared_ptr<ov::frontend::onnx::DecoderBase>> m_decoders{};
@@ -540,8 +306,253 @@ public:
     /// idx should be in range 0..get_subgraph_size()-1
     std::shared_ptr<ov::frontend::onnx::GraphIterator> get_subgraph(size_t idx) const override;
 
+    const GraphProto* get_graph() const {
+        return m_graph;
+    }
+
     std::int64_t get_opset_version(const std::string& domain) const override;
 };
+
+class DecoderProtoTensor : public ov::frontend::onnx::DecoderBaseTensor {
+    ov::frontend::onnx::TensorMetaInfo m_tensor_meta_info;
+    int64_t m_input_idx, m_output_idx;
+    GraphIteratorProto* m_parent;
+
+public:
+    DecoderProtoTensor(const TensorProto* tensor_info,
+                       GraphIteratorProto* parent,
+                       const int64_t input_idx,
+                       const int64_t output_idx)
+        // Probably, we may need to force it to 0/0
+        : m_parent(parent),
+          m_input_idx(input_idx),
+          m_output_idx(output_idx) {
+        m_tensor_meta_info = extract_tensor_meta_info(tensor_info, nullptr, parent->get_graph());
+    }
+    DecoderProtoTensor(const ValueInfoProto* value_info,
+                       GraphIteratorProto* parent,
+                       const int64_t input_idx,
+                       const int64_t output_idx)
+        : m_parent(parent),
+          m_input_idx(input_idx),
+          m_output_idx(output_idx) {
+        m_tensor_meta_info = extract_tensor_meta_info(nullptr, value_info, parent->get_graph());
+    }
+    DecoderProtoTensor(const std::string& name,
+                       GraphIteratorProto* parent,
+                       const int64_t input_idx,
+                       const int64_t output_idx)
+        : m_parent(parent),
+          m_input_idx(input_idx),
+          m_output_idx(output_idx) {
+        m_tensor_meta_info.m_tensor_name = name;
+        m_tensor_meta_info.m_element_type = ov::element::dynamic;
+        m_tensor_meta_info.m_partial_shape = ov::PartialShape::dynamic();
+        m_tensor_meta_info.m_tensor_data = nullptr;
+    }
+
+    const ov::frontend::onnx::TensorMetaInfo& get_tensor_info() const override {
+        return *const_cast<const ov::frontend::onnx::TensorMetaInfo*>(&m_tensor_meta_info);
+    }
+
+    int64_t get_input_idx() const override {
+        return m_input_idx;
+    }
+
+    int64_t get_output_idx() const override {
+        return m_output_idx;
+    }
+
+    ov::Any get_attribute(const std::string& name) const override {
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_attribute");
+    }
+
+    size_t get_input_size() const override {
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_input_size");
+    }
+
+    void get_input_node(size_t input_port_idx,
+                        std::string& producer_name,
+                        std::string& producer_output_port_name,
+                        size_t& producer_output_port_index) const override {
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_input_node");
+    }
+
+    const std::string& get_op_type() const override {
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_op_type");
+    }
+
+    const std::string& get_op_name() const override {
+        FRONT_END_NOT_IMPLEMENTED("DecoderFlatBufferTensors::get_op_name");
+    }
+};
+
+namespace {
+static const std::string DEFAULT_DOMAIN = "";
+static const std::string EMPTY_NAME = "";
+static const std::string EMPTY_OP_TYPE = "";
+}  // namespace
+
+class DecoderProto : public ov::frontend::onnx::DecoderBaseOperation {
+    // std::vector<::tensorflow::AttrValue> decode_attribute_helper(const std::string& name) const;
+    const NodeProto* m_node;
+    uint64_t m_opset;
+    GraphIteratorProto* m_parent;
+    // For existence of NodeDef object corresponding to the main graph node,
+    // GraphDef object must live in the memory
+    const GraphProto* m_graph;
+    // For existence of NodeDef object corresponding to the body graph node,
+    // both GraphDef and FunctionDef objects must be alive in the memory
+    // const std::shared_ptr<::tensorflow::FunctionDef> m_func_def;
+    std::vector<const ov::frontend::onnx::TensorMetaInfo*> m_input_info, m_output_info;
+
+public:
+    explicit DecoderProto(const NodeProto* node_def,
+                          const uint64_t opset,
+                          GraphIteratorProto* parent,
+                          const std::vector<const ov::frontend::onnx::TensorMetaInfo*>& input_info,
+                          const std::vector<const ov::frontend::onnx::TensorMetaInfo*>& output_info)
+        : m_node(node_def),
+          m_opset(opset),
+          m_parent(parent),
+          m_graph(parent->get_graph()),
+          m_input_info(input_info),
+          m_output_info(output_info) {}
+
+    size_t get_input_size() const override;
+    size_t get_output_size() const override;
+
+    std::string get_input_tensor_name(size_t idx) const override {
+        return m_input_info.at(idx)->m_tensor_name;
+    }
+    ov::element::Type get_input_tensor_type(size_t idx) const override {
+        return m_input_info.at(idx)->m_element_type;
+    }
+    std::string get_output_tensor_name(size_t idx) const override {
+        return m_output_info.at(idx)->m_tensor_name;
+    }
+    ov::element::Type get_output_tensor_type(size_t idx) const override {
+        return m_output_info.at(idx)->m_element_type;
+    }
+    const ov::frontend::onnx::TensorMetaInfo& get_input_tensor_info(size_t idx) const override {
+        return *m_input_info.at(idx);
+    }
+    const ov::frontend::onnx::TensorMetaInfo& get_output_tensor_info(size_t idx) const override {
+        return *m_output_info.at(idx);
+    }
+
+    ov::Any get_attribute(const std::string& name) const override;
+
+    void get_input_node(size_t input_port_idx,
+                        std::string& producer_name,
+                        std::string& producer_output_port_name,
+                        size_t& producer_output_port_index) const override;
+
+    const std::string& get_op_type() const override;
+
+    const std::string& get_op_name() const override;
+
+    uint64_t get_op_set() const override {
+        return m_opset;
+    }
+
+    const std::string& get_domain() const override {
+        return (m_node->has_domain() && m_node->domain() != "ai.onnx" ? m_node->domain() : DEFAULT_DOMAIN);
+    }
+
+    bool has_attribute(const std::string& name) const {
+        for (const auto& attr : m_node->attribute()) {
+            if (attr.has_name() && attr.name() == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void experimental_get_internal_structures(const void** node_def) const override {
+        *node_def = m_node;
+    }
+};
+
+ov::Any DecoderProto::get_attribute(const std::string& name) const {
+    for (const auto& attr : m_node->attribute()) {
+        if (!attr.has_name() || attr.name() != name)
+            continue;
+        if (!attr.has_type()) {
+            throw std::runtime_error("Attribute \"" + name + "\" doesn't have a type");
+        }
+        switch (attr.type()) {
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT:
+            if (attr.has_f())
+                return attr.f();
+            else
+                throw std::runtime_error("Attribute doesn't have value");
+            break;
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS:
+            return std::vector<float>{attr.floats().begin(), attr.floats().end()};
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_INT:
+            if (attr.has_i())
+                return attr.i();
+            else
+                throw std::runtime_error("Attribute doesn't have value");
+            break;
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_INTS:
+            return std::vector<int64_t>{attr.ints().begin(), attr.ints().end()};
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_STRING:
+            if (attr.has_s())
+                return attr.s();
+            else
+                throw std::runtime_error("Attribute doesn't have value");
+            break;
+        case AttributeProto_AttributeType::AttributeProto_AttributeType_STRINGS:
+            return std::vector<std::string>{attr.strings().begin(), attr.strings().end()};
+        default:
+            throw std::runtime_error("Unsupported attribute type " +
+                                     ::ONNX_NAMESPACE::AttributeProto_AttributeType_Name(attr.type()));
+        }
+    }
+    return nullptr;
+}
+
+size_t DecoderProto::get_input_size() const {
+    return m_input_info.size();
+}
+
+size_t DecoderProto::get_output_size() const {
+    return m_output_info.size();
+}
+
+void DecoderProto::get_input_node(size_t input_port_idx,
+                                  std::string& producer_name,
+                                  std::string& producer_output_port_name,
+                                  size_t& producer_output_port_index) const {}
+
+const std::string& DecoderProto::get_op_type() const {
+    if (m_node->has_op_type()) {
+        return m_node->op_type();
+    } else {
+        return EMPTY_OP_TYPE;
+    }
+}
+
+const std::string& DecoderProto::get_op_name() const {
+    if (m_node->has_name()) {
+        return m_node->name();
+    } else {
+        return EMPTY_NAME;
+    }
+}
+/*
+std::vector<::tensorflow::AttrValue> DecoderProto::decode_attribute_helper(const std::string& name) const {
+    auto attr_map = m_node_def->attr();
+    if (attr_map.contains(name)) {
+        auto value = m_node_def->attr().at(name);
+        return {std::move(value)};
+    } else {
+        return {};
+    }
+}
+*/
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
 
@@ -595,7 +606,7 @@ void GraphIteratorProto::reset() {
                        m_graph->node_size());
     std::map<std::string, std::shared_ptr<DecoderProtoTensor>> tensors{};
     for (const auto& value : m_graph->input()) {
-        auto tensor = std::make_shared<DecoderProtoTensor>(&value, m_graph, 0, -1);
+        auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, 0, -1);
         m_decoders.push_back(tensor);
         if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
             throw std::runtime_error("Tensor already exists \"" + tensor->get_tensor_info().m_tensor_name + "\"");
@@ -603,7 +614,7 @@ void GraphIteratorProto::reset() {
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& value : m_graph->output()) {
-        auto tensor = std::make_shared<DecoderProtoTensor>(&value, m_graph, -1, 0);
+        auto tensor = std::make_shared<DecoderProtoTensor>(&value, this, -1, 0);
         m_decoders.push_back(tensor);
         if (tensors.count(tensor->get_tensor_info().m_tensor_name) > 0) {
             throw std::runtime_error("Tensor already exists \"" + tensor->get_tensor_info().m_tensor_name + "\"");
@@ -626,7 +637,7 @@ void GraphIteratorProto::reset() {
                 extract_tensor_meta_info(&initializer, nullptr, m_graph);
             continue;
         }
-        const auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, m_graph, -1, -1);
+        const auto tensor = std::make_shared<DecoderProtoTensor>(&initializer, this, -1, -1);
         tensors[tensor->get_tensor_info().m_tensor_name] = tensor;
     }
     for (const auto& node : m_graph->node()) {
@@ -653,7 +664,7 @@ void GraphIteratorProto::reset() {
                                                            });
                     std::shared_ptr<DecoderProtoTensor> tensor{nullptr};
                     if (initializer != m_graph->initializer().end()) {
-                        tensor = std::make_shared<DecoderProtoTensor>(&*initializer, m_graph, -1, -1);
+                        tensor = std::make_shared<DecoderProtoTensor>(&*initializer, this, -1, -1);
                     } else {
                         const auto& value_info = std::find_if(m_graph->value_info().begin(),
                                                               m_graph->value_info().end(),
@@ -661,10 +672,10 @@ void GraphIteratorProto::reset() {
                                                                   return value.has_name() && value.name() == name;
                                                               });
                         if (value_info != m_graph->value_info().end())
-                            tensor = std::make_shared<DecoderProtoTensor>(&*value_info, m_graph, -1, -1);
+                            tensor = std::make_shared<DecoderProtoTensor>(&*value_info, this, -1, -1);
                     }
                     if (tensor == nullptr) {
-                        tensor = std::make_shared<DecoderProtoTensor>(name, -1, -1);
+                        tensor = std::make_shared<DecoderProtoTensor>(name, this, -1, -1);
                     }
                     m_decoders.push_back(tensor);
                     tensors[name] = tensor;
@@ -680,7 +691,7 @@ void GraphIteratorProto::reset() {
             throw std::runtime_error("Operation version isn't found");
         }
         auto decoder_node =
-            std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), m_graph, input_tensors, output_tensors);
+            std::make_shared<DecoderProto>(&node, static_cast<uint64_t>(opset), this, input_tensors, output_tensors);
         m_decoders.push_back(decoder_node);
     }
 }
