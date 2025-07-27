@@ -3,14 +3,14 @@
 //
 
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
-#include "ov_ops/vl_sdpa.hpp"
+
+#include <map>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/manager.hpp"
+#include "ov_ops/vl_sdpa.hpp"
 #include "transformations/utils/utils.hpp"
-
-#include <map>
 
 using namespace ov::op;
 using namespace ov::pass;
@@ -31,7 +31,8 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     // We rely on user (GENAI) to determine "attention_mask" input of model is
     // able to map to "cu_seqlens".
-    if (!model->has_rt_info("model_type_hint")) return false;
+    if (!model->has_rt_info("model_type_hint"))
+        return false;
     const std::string& model_type = model->get_rt_info<std::string>("model_type_hint");
     if (model_type != "QWenVL") {
         return false;
@@ -40,7 +41,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     OPENVINO_ASSERT(ov::op::util::has_op_with_type<ov::op::v13::ScaledDotProductAttention>(model),
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToVLSDPA transformation.");
-    if (transformation_callback(nullptr)) { // verify plugin-specific determinations
+    if (transformation_callback(nullptr)) {  // verify plugin-specific determinations
         return false;
     }
 

@@ -86,15 +86,13 @@ void VLSDPA::validate_and_infer_types() {
                           "Value input rank length must be 3.");
 
     NODE_VALIDATION_CHECK(this,
-                          (m_order_q == m_order_k &&
-                           m_order_q == m_order_v &&
-                           m_order_q == m_order_out),
+                          (m_order_q == m_order_k && m_order_q == m_order_v && m_order_q == m_order_out),
                           "Value of m_order* must be equal.");
 
     if (m_order_q.size() > 0) {
         NODE_VALIDATION_CHECK(this,
-                             (m_order_q == std::vector<int64_t>{1, 0, 2}),
-                             "Value of order_q must be {1, 0, 2}.");
+                              (m_order_q == std::vector<int64_t>{1, 0, 2}),
+                              "Value of order_q must be {1, 0, 2}.");
     }
 
     // const auto output_shapes = shape_infer(this, input_shapes);
