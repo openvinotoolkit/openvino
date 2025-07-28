@@ -471,7 +471,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                                           store_original_precision_as_rt_attribute);
 
         manager.register_pass<ov::pass::CommonOptimizations>();
-
+        pass_config->set_callback<ov::pass::BidirectionalLSTMSequenceDecomposition>(
+                [&](const_node_ptr &node) -> bool {
+                    const auto& data = node->input(0);
+                    const auto& data_pshape = data.get_partial_shape();
+                    auto max_seq_len = data_pshape[1];
+                    const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node);
+                    return lstm_seq->get_clip() != 0.0f &&
+                        lstm_seq->get_activations() != std::vector<std::string>{"sigmoid", "tanh", "tanh"} &&
+                        max_seq_len != 1 &&
+                        !ov::op::util::is_seq_len_provided(lstm_seq->get_input_node_shared_ptr(0),
+                                                            lstm_seq->get_input_node_shared_ptr(3));
+                });
         // In the case of "input -> reshape -> convert -> multiply",
         // the "input -> reshape" subgraph is constant-folded in the above "CommonOptimizations"
         // To handle this case, "KeepConstPrecision" is executed again.
