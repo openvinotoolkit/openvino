@@ -372,9 +372,7 @@ struct PlainTensor {
                 ptr = _aligned_malloc(capacity_new, 64);
 #else
                 int rc = ::posix_memalign(&ptr, 64, capacity_new);
-                if (rc) {
-                    OPENVINO_ASSERT(false, "PlainTensor call posix_memalign failed: ", rc);
-                }
+                OPENVINO_ASSERT(rc == 0, "PlainTensor call posix_memalign failed: ", rc);
 #endif
                 m_ptr = std::shared_ptr<uint8_t>(static_cast<uint8_t*>(ptr), [](uint8_t* ptr) {
 #ifdef _WIN32
@@ -399,7 +397,7 @@ struct PlainTensor {
     }
 
     [[nodiscard]] size_t sub_byte_data_type_multiplier() const {
-        if (one_of(m_dt, ov::element::i4, ov::element::u4)) {
+        if (any_of(m_dt, ov::element::i4, ov::element::u4)) {
             return 2;
         }
         return 1;

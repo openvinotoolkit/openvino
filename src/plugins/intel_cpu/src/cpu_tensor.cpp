@@ -24,12 +24,12 @@
 namespace ov::intel_cpu {
 namespace {
 constexpr bool is_pointer_representable(const ov::element::Type& tensor_type, const ov::element::Type& type) {
-    return type == ov::element::dynamic || tensor_type == type;
+    return any_of(type, ov::element::dynamic, tensor_type);
 }
 }  // namespace
 
 Tensor::Tensor(MemoryPtr memptr) : m_memptr{std::move(memptr)} {
-    OPENVINO_ASSERT(m_memptr != nullptr);
+    OPENVINO_ASSERT(m_memptr);
 
     // only support plain data format ncsp.
     auto memdesc = m_memptr->getDescPtr();

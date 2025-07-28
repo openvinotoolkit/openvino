@@ -51,13 +51,13 @@ EmbeddingSegmentsSum::EmbeddingSegmentsSum(const std::shared_ptr<ov::Node>& op, 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     _reduction = Reduction::SUM;
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1UL) {
-        THROW_CPU_NODE_ERR("has indices data with invalid rank: ", getInputShapeAtPort(INDICES_IDX).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(INDICES_IDX).getRank() == 1UL,
+                    "has indices data with invalid rank: ",
+                    getInputShapeAtPort(INDICES_IDX).getRank());
 
-    if (getInputShapeAtPort(SEGMENT_ID_IDX).getRank() != 1UL) {
-        THROW_CPU_NODE_ERR("has invalid segmentID data rank: ", getInputShapeAtPort(SEGMENT_ID_IDX).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(SEGMENT_ID_IDX).getRank() == 1UL,
+                    "has invalid segmentID data rank: ",
+                    getInputShapeAtPort(SEGMENT_ID_IDX).getRank());
 }
 
 void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
@@ -71,21 +71,21 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
                                                                     ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
+    if (any_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
         inDataPrecision = ov::element::f32;
     }
     if (!supportedPrecisions.empty()) {
-        if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
-            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
-        }
+        CPU_NODE_ASSERT(supportedPrecisions.find(inDataPrecision) != supportedPrecisions.end(),
+                        "has unsupported precision: ",
+                        inDataPrecision.get_type_name());
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
                                                                                ov::element::i8,
                                                                                ov::element::u8,
                                                                                ov::element::i32};
-        if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
-            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
-        }
+        CPU_NODE_ASSERT(defaultSupportedPrecisions.find(inDataPrecision) != defaultSupportedPrecisions.end(),
+                        "has unsupported precision: ",
+                        inDataPrecision.get_type_name());
     }
 
     std::vector<PortConfigurator> inDataConfigurators({{LayoutType::ncsp, inDataPrecision},
@@ -123,9 +123,7 @@ void EmbeddingSegmentsSum::getIndices(size_t embIndex,
                                       size_t& size,
                                       int& weightsIdx,
                                       bool& withWeight) {
-    if (embIndex >= static_cast<size_t>(lastNumSegments_)) {
-        THROW_CPU_NODE_ERR("Invalid embedding bag index.");
-    }
+    CPU_NODE_ASSERT(embIndex < static_cast<size_t>(lastNumSegments_), "Invalid embedding bag index.");
 
     indices = nullptr;
     size = 0;

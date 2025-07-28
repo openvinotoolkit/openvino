@@ -30,6 +30,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <iomanip>
@@ -106,7 +107,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     const char* p1 = p0;
     while (*p0 != 0) {
         p1 = p0;
-        while (*p1 != ';' && *p1 != 0) {
+        while (none_of(*p1, ';', 0)) {
             ++p1;
         }
         std::string pattern(p0, p1 - p0);
@@ -720,17 +721,6 @@ std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record)
     os << "Optimal total size: " << record.optimal_total_size << " bytes\n";
     os << "Max region size: " << record.max_region_size << " bytes\n";
     return os;
-}
-
-void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
-    const size_t s = memory.get_desc().get_size() / sizeof(float);
-    std::cout << message << " " << id << " size: " << s << ", values: ";
-    auto* m = reinterpret_cast<float*>(memory.get_data_handle());
-    for (size_t i = 0; i < std::min(s, size); i++) {
-        std::cout << *m << " ";
-        m++;
-    }
-    std::cout << "\n";
 }
 
 }  // namespace ov::intel_cpu

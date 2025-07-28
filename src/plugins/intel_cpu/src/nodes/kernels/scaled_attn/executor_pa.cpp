@@ -2052,7 +2052,7 @@ static void pack_32NxK(TDST* dst,
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
           typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&
-                                      one_of(SRC_PREC, ov::element::u4, ov::element::u8),
+                                      any_of(SRC_PREC, ov::element::u4, ov::element::u8),
                                   bool>::type = true>
 static void pack_32NxK(TDST* dst,
                        void* src,
@@ -2183,7 +2183,7 @@ void rotate_kv_cache(PlainTensor& key_cache,
                                             rotation_trig_lut_data,
                                             block_size,
                                             embedding_size);
-        if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
+        if constexpr (any_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
             auto* cache_block_ptr = key_cache.ptr<uint8_t>(rotated_block_index);
 
             rotate_kv_cache_block(cache_block_ptr,
@@ -2309,13 +2309,13 @@ struct MHAHelper {
         _d_scale = d_scale;
 
 #    if defined(OPENVINO_ARCH_ARM64)
-        AarchF16 = one_of(precision_of<DATA_TYPE>::value, ov::element::f16);
+        AarchF16 = any_of(precision_of<DATA_TYPE>::value, ov::element::f16);
 #    endif
         auto prev_score_stride = _new_score_stride;
         auto want_score_stride = rnd_up(kv_len, _block_size);
         _new_score_stride = std::max(prev_score_stride, want_score_stride);
         // std::max(S, SV) here is to ensure by_channel quantize has enough buffer to use
-        constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
+        constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         if (_quant_key_bychannel || _quant_value_bychannel) {
             _output.resize<float>({_nthr, _block_size, H, std::max(S, SV)});
         } else {
@@ -2382,7 +2382,7 @@ struct MHAHelper {
                     _fastpath_valid_prec = ov::element::f16;
                 }
             }
-            if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16) && !_gemv) {
+            if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16) && !_gemv) {
                 _gemv = std::make_shared<JitMatMulVecAMX>(static_cast<int>(S),
                                                           static_cast<int>(block_size),
                                                           _fastpath_valid_prec);
@@ -2474,7 +2474,7 @@ struct MHAHelper {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
-        constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
+        constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         constexpr bool q_cache_is_same = precision_of<DATA_TYPE>::value == VALUE_PREC;
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         for (size_t h = hq_beg; h < hq_end; h++) {
@@ -2626,7 +2626,7 @@ struct MHAHelper {
         auto q_start = q_blk * _block_size;
         auto q_end = std::min(q_start + _block_size, q_len);
         auto q_cnt = q_end - q_start;
-        constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
+        constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         auto cur_kv_len_blocks = div_up(cur_kv_len, _block_size);
         auto _score_stride = _weight.stride_bytes(2) / 2;
         PlainTensor bias_wv, bias_qk;
@@ -2764,7 +2764,7 @@ struct MHAHelper {
                             const PlainTensor& alibi_slopes,
                             float* score_output) {
 #    if defined(OPENVINO_ARCH_X86_64)
-        if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
+        if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
             _gemv->tile_config();
             for (size_t pk = 0, i = 0; pk < cur_kv_len; pk += _block_size, i++) {
                 auto block_number = block_table[i];
@@ -2846,7 +2846,7 @@ struct MHAHelper {
             auto block_number = block_table[i];
             for (size_t pq = 0; pq < q_len; pq++) {
                 for (size_t h = hq_beg; h < hq_end; h++) {
-                    if constexpr (one_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
+                    if constexpr (any_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
                         attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
                             _output.ptr<float>(ithr, pq, h),
                             _weight.ptr<float>(ithr, h - hq_beg, pq) + pv,
@@ -2944,7 +2944,7 @@ struct MHAHelper {
             if (pk < context_len) {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pk_in_blocks];
 #    if defined(OPENVINO_ARCH_X86_64)
-                if (one_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
+                if (any_of(_fastpath_valid_prec, ov::element::bf16, ov::element::f16)) {
                     _gemv->tile_config();
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
@@ -2959,7 +2959,7 @@ struct MHAHelper {
 #    endif
                     for (size_t pq = 0; pq < q_len; pq++) {
                         for (size_t h = hq_beg; h < hq_end; h++) {
-                            if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
+                            if constexpr (any_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
                                 dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
                                     query.ptr<DATA_TYPE>(b, h, pq),
                                     key_cache.ptr<uint8_t, KEY_PREC>(block_number, hk),
@@ -3053,7 +3053,7 @@ struct MHAHelper {
                 auto block_number = block_indices.ptr<int32_t>()[block_indices_begins.ptr<int32_t>()[b] + pv_in_blocks];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        if constexpr (one_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
+                        if constexpr (any_of(VALUE_PREC, ov::element::u8, ov::element::u4)) {
                             attn_acc_value_block_quantized<uint8_t, VALUE_PREC>(
                                 _output_bhl.ptr<float>(b, pv_in_blocks, h, pq),
                                 _weight_bhl.ptr<float>(b, h, pq) + pv,
@@ -3214,7 +3214,7 @@ struct MHA {
                          const PlainTensor& score_aggregation_window) {
         auto Hk = v_cache.m_dims[1];
 
-        constexpr bool q_is_xf16 = one_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
+        constexpr bool q_is_xf16 = any_of(precision_of<DATA_TYPE>::value, ov::element::bf16, ov::element::f16);
         auto attn_work_count = _workitems.attn_work_size();
         auto reorder_work_count = _workitems.reorder_work_size();
 
@@ -3610,7 +3610,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         auto Hk = k_cache.size(1);
         /* The layout for kv cache:
 
-           by-hidden, quantized by S(hidden dims) group_num = N
+           by-token, quantized by S(token dims) group_num = N
            N * f32(scale + zp)|group_0|group_1|...|group_N
            adjusted_S = S + N * f32(scale + zp) * sub_byte_multiplier
 
@@ -3627,30 +3627,29 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         const size_t key_params_size = sizeof(float) * 2 * key_sub_byte_multiplier;
         // u4 needs scale + zp. s4 needs scale.
         const size_t param_size =
-            one_of(v_cache.get_precision(), ov::element::u4, ov::element::u8) ? sizeof(float) * 2 : sizeof(float);
+            any_of(v_cache.get_precision(), ov::element::u4, ov::element::u8) ? sizeof(float) * 2 : sizeof(float);
         const size_t value_params_size = param_size * value_sub_byte_multiplier;
         size_t key_group_num =
             _helper._key_group_size ? k_cache.size(3) / (_helper._key_group_size + key_params_size) : 1;
         size_t value_group_num =
             _helper._value_group_size ? v_cache.size(3) / (_helper._value_group_size + value_params_size) : 1;
 
-        // check by_hidden_dims parameter of value cache
-        if ((value_group_num == 0U) && v_cache.get_precision().is_integral()) {
-            OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
-                           _helper._value_group_size,
-                           " should be smaller than hidden_dims");
-        }
+        // check by_token_dims parameter of value cache
+        OPENVINO_ASSERT(value_group_num != 0U || !v_cache.get_precision().is_integral(),
+                        "PagedAttn value cache gets wrong group_size, ",
+                        _helper._value_group_size,
+                        " should be smaller than token_dims");
+
         size_t S = 0;
         // check parameter of quantized key cache
         if (k_cache.get_precision().is_integral()) {
             if (_helper._quant_key_bychannel) {
                 S = k_cache.size(3);
             } else {
-                if (!key_group_num) {
-                    OPENVINO_THROW("PagedAttn key cache gets wrong group_size, ",
-                                   _helper._key_group_size,
-                                   " should be smaller than hidden_dims");
-                }
+                OPENVINO_ASSERT(key_group_num,
+                                "PagedAttn key cache gets wrong group_size, ",
+                                _helper._key_group_size,
+                                " should be smaller than token_dims");
                 S = k_cache.size(3) - key_params_size * key_group_num;
                 _helper._key_group_size = _helper._key_group_size ? _helper._key_group_size : S;
             }
@@ -3664,11 +3663,10 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             if (_helper._quant_value_bychannel) {
                 SV = v_cache.size(3);
             } else {
-                if (!value_group_num) {
-                    OPENVINO_THROW("PagedAttn value cache gets wrong group_size, ",
-                                   _helper._value_group_size,
-                                   " should be smaller than hidden_dims");
-                }
+                OPENVINO_ASSERT(value_group_num,
+                                "PagedAttn value cache gets wrong group_size, ",
+                                _helper._value_group_size,
+                                " should be smaller than token_dims");
                 SV = v_cache.size(3) - value_params_size * value_group_num;
                 _helper._value_group_size = _helper._value_group_size ? _helper._value_group_size : SV;
             }
@@ -3779,7 +3777,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             }
         }
 
-        if constexpr (one_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
+        if constexpr (any_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
             // slot_mapping could only be used for per token quantization
             // by_channel needs all data to calculation block info.
             paged_attn_quantkv(k,
