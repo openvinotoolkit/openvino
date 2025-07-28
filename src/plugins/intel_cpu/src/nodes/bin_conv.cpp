@@ -1192,7 +1192,7 @@ void BinaryConvolution::createPrimitive() {
 
     bool args_ok =
         (jcp.l_pad <= jcp.ur_w) && (r_pad_no_tail <= jcp.ur_w) &&
-        IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
+        IMPLICATION(jcp.kw > 7, (all_of(0, jcp.t_pad, jcp.l_pad)) || (all_of(1, jcp.stride_w, jcp.stride_h)));
     CPU_NODE_ASSERT(args_ok, "has unsupported parameters");
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};
@@ -1406,9 +1406,9 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                 const int i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
                 const int kh_padding = KH - div_up(i_top_overflow, (KDH + 1)) - div_up(i_bottom_overflow, (KDH + 1));
 
-                return IC * kh_padding * kw_padding;
+                return static_cast<float>(IC * kh_padding * kw_padding);
             }
-            return IC * KH * KW;
+            return static_cast<float>(IC * KH * KW);
         }();
 
         float a_fp = base_value - static_cast<float>(2 * a);

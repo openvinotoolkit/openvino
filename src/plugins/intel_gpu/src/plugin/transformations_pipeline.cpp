@@ -194,7 +194,7 @@ namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
-        if (op->input(0).get_partial_shape()[0].is_static()) {
+        if (op->input(0).get_partial_shape().is_static()) {
             bool fp16_batch_not_1 = op->get_element_type() == ov::element::f16 && op->input(0).get_partial_shape()[0] != 1;
             return !fp16_batch_not_1;
         }
@@ -1224,6 +1224,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input type is not supported" << std::endl;
                         return true;
                     }
+                }
+
+                const auto& input_shape = root->get_input_partial_shape(0);
+                const size_t input_rank = input_shape.size();
+                if (input_rank > 3) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: input rank is not supported" << std::endl;
+                    return true;
                 }
 
                 auto weight_shape = root->get_input_partial_shape(1);
