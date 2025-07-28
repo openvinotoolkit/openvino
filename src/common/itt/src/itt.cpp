@@ -4,7 +4,9 @@
 
 #include "openvino/itt.hpp"
 
+#include <atomic>
 #include <cstdlib>
+#include <vector>
 
 #ifdef ENABLE_PROFILING_ITT
 #    include <ittnotify.h>
@@ -24,6 +26,14 @@ static size_t callStackDepth() {
 
 static thread_local uint32_t call_stack_depth = 0;
 
+static uint64_t nextRegionId() {
+    static std::atomic<uint64_t> region_id_counter{1};
+    return region_id_counter.fetch_add(1, std::memory_order_relaxed);
+}
+
+// Thread-local stack to track active region IDs for parent-child relationships
+static thread_local std::vector<uint64_t> region_id_stack;
+
 domain_t domain(const char* name) {
     return reinterpret_cast<domain_t>(__itt_domain_create(name));
 }
@@ -33,11 +43,17 @@ handle_t handle(const char* name) {
 }
 
 void taskBegin(domain_t d, handle_t t) {
-    if (!callStackDepth() || call_stack_depth++ < callStackDepth())
+    if (!callStackDepth() || call_stack_depth++ < callStackDepth()) {
+        __itt_id parent_id = __itt_null;
+        if (!region_id_stack.empty()) {
+            // Use the current region ID as parent ID for this task
+            parent_id = __itt_id_make(reinterpret_cast<void*>(t), region_id_stack.back());
+        }
         __itt_task_begin(reinterpret_cast<__itt_domain*>(d),
-                         __itt_null,
+                         parent_id,
                          __itt_null,
                          reinterpret_cast<__itt_string_handle*>(t));
+    }
 }
 
 void taskEnd(domain_t d) {
@@ -50,16 +66,19 @@ void threadName(const char* name) {
 }
 
 void regionBegin(domain_t d, handle_t t) {
-    __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), 0);
-    __itt_region_begin(reinterpret_cast<__itt_domain*>(d),
-                       id,
-                       __itt_null,
-                       reinterpret_cast<__itt_string_handle*>(t));
+    auto region_id = nextRegionId();
+    region_id_stack.push_back(region_id);
+    __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), region_id);
+    __itt_region_begin(reinterpret_cast<__itt_domain*>(d), id, __itt_null, reinterpret_cast<__itt_string_handle*>(t));
 }
 
 void regionEnd(domain_t d, handle_t t) {
-    __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), 0);
-    __itt_region_end(reinterpret_cast<__itt_domain*>(d), id);
+    if (!region_id_stack.empty()) {
+        auto region_id = region_id_stack.back();
+        region_id_stack.pop_back();
+        __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), region_id);
+        __itt_region_end(reinterpret_cast<__itt_domain*>(d), id);
+    }
 }
 
 #else
