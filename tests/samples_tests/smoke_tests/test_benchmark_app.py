@@ -258,7 +258,7 @@ def test_benchmark_app_no_warmup_flag(sample_language, device, cache, tmp_path):
     assert 'First inference took' not in output_no_warmup
 
 
-@pytest.mark.parametrize('sample_language', ['C++'])
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 def test_benchmark_app_no_warmup_help(sample_language):
     """Test that -no_warmup option appears in help output"""
     output = get_cmd_output(get_executable(sample_language), '-h')
