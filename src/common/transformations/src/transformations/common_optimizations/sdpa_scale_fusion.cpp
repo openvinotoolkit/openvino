@@ -6,21 +6,35 @@
 
 #include <memory>
 
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
-#include "transformations/utils/gen_pattern.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 namespace ov {
 namespace pass {
 
-SDPAScaleFusion::SDPAScaleFusion() {
+bool SDPAScaleFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(SDPAScaleFusion);
+
+    SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+
+    symbolic_ctx_manager->register_pass<SDPAScaleFusionPass>();
+
+    return symbolic_optimizations.run_on_model(model);
+}
+
+SDPAScaleFusionPass::SDPAScaleFusionPass() {
     using namespace ov::pass::pattern;
 
     auto q = any_input(rank_equals(4));
@@ -141,7 +155,7 @@ SDPAScaleFusion::SDPAScaleFusion() {
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa, "SDPAScaleFusion");
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sdpa, "SDPAScaleFusionPass");
     this->register_matcher(m, callback);
 }
 
