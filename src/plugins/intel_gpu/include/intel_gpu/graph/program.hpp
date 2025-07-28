@@ -208,7 +208,7 @@ public:
                           bool connect_int_node_with_old_dep = true,
                           bool move_usrs_of_prev_to_node = false);
 
-    void add_connection(program_node& prev, program_node& next, int32_t port_idx = -1);
+    void add_connection(program_node& prev, program_node& next, int32_t port_idx = -1, size_t dependency_idx = -1);
 
     // removes a node from the graph and deletes it afterwards,
     // prereq: node cannot be marked as output and has to have exactly one dependency

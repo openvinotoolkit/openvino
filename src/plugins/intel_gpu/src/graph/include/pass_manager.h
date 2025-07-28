@@ -215,8 +215,37 @@ private:
     void add_gru_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
         cldnn::program_node&, size_t);
     void add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
-                               cldnn::program_node&);
+                               cldnn::program_node&, size_t);
     reorder_factory& _rf;
+
+    struct cache_key_lstm {
+        primitive_id data_source;
+        layout expected_layout;
+
+        friend bool operator==(cache_key_lstm const& lhs, cache_key_lstm const& rhs) {
+            bool ret = lhs.data_source == rhs.data_source && lhs.expected_layout == rhs.expected_layout;
+
+            if (ret && lhs.expected_layout.format == cldnn::format::custom) {
+                ret &= (lhs.expected_layout.format.traits().block_sizes ==
+                        rhs.expected_layout.format.traits().block_sizes);
+            }
+            return ret;
+        }
+
+        friend bool operator!=(cache_key_lstm const& lhs, cache_key_lstm const& rhs) { return !(lhs == rhs); }
+
+        friend bool operator<(cache_key_lstm const& lhs, cache_key_lstm const& rhs) {
+            if (lhs.data_source != rhs.data_source)
+                return (lhs.data_source < rhs.data_source);
+            else if (lhs.expected_layout != rhs.expected_layout)
+                return (lhs.expected_layout < rhs.expected_layout);
+            else
+                return lhs.expected_layout.format.traits().block_sizes < rhs.expected_layout.format.traits().block_sizes;
+        }
+    };
+
+    std::map<cache_key_lstm, program_node*> _cached_lstm_weights_reorder;
+    std::map<cache_key_lstm, program_node*> _cached_lstm_bias_reorder;
 };
 
 class propagate_constants : public base_pass {
