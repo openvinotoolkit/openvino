@@ -249,8 +249,9 @@ static const char load_config_message[] =
     "                                               }\n"
     "                                       }";
 
-static const char no_warmup_message[] = "Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments.\n"
-                                         "Otherwise, not recommended.";
+static const char no_warmup_message[] =
+    "Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments.\n"
+    "Otherwise, not recommended.";
 
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
