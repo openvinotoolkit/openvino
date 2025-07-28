@@ -363,7 +363,10 @@ void WeightlessGraph::initialize(const Config& config) {
     run_init_multi_threaded();
 #endif
 
-    release_graphs();
+    if (_initBlobs != std::nullopt) {  // Do not release the graph when compiling a model on the CiD path, and we don't
+                                       // have a blob. We may need it to export later.
+        release_graphs();
+    }
 
     _initsInputDescriptors.clear();
     _initsOutputDescriptors.clear();
@@ -605,7 +608,7 @@ void WeightlessGraph::release_init_blob(const size_t initIndex) {
     }
 
     _initBlobs->at(initIndex) = ov::Tensor();
-    _logger.debug("Blob is released");
+    _logger.debug("Init blob is released");
 }
 
 void WeightlessGraph::release_graphs() {
@@ -614,7 +617,7 @@ void WeightlessGraph::release_graphs() {
         for (auto& initGraphDesc : _initsGraphDesc) {
             _zeGraphExt->destroyGraph(initGraphDesc);
 
-            if (_initBlobs->at(initIndex)) {
+            if (!_blobIsPersistent && _initBlobs != std::nullopt && _initBlobs->at(initIndex)) {
                 _initBlobs->at(initIndex) = ov::Tensor();
             }
 
