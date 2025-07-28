@@ -258,14 +258,6 @@ class InferRequest(_InferRequestWrapper):
         """
         return CompiledModel(super().get_compiled_model())
 
-    def set_input_tensors(self, *args: Any, **kwargs: Any) -> None:
-        if isinstance(args[0], int):
-            super().set_input_tensors(args[0], TensorVectorOpaque(args[1]))
-        elif isinstance(args[0], list) or isinstance(args[0], TensorVectorOpaque):
-            super().set_input_tensors(TensorVectorOpaque(args[0]))
-        else:
-            super().set_input_tensors(*args, **kwargs)
-
     @property
     def results(self) -> OVDict:
         """Gets all outputs tensors of this InferRequest.

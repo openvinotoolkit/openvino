@@ -227,6 +227,10 @@ def test_batched_tensors(device):
         for idx in range(0, batch):
             assert np.array_equal(actual[idx], _tmp)
 
+    with does_not_raise():
+        req.set_tensors("tensor_input0", tensors)
+        req.set_tensors(req.model_inputs[0], tensors)
+
 
 def test_inputs_outputs_property_and_method(device):
     num_inputs = 10
@@ -818,6 +822,7 @@ def test_output_result_to_input():
         result_2 = compiled_2(result_1, share_inputs=False)
     assert np.array_equal(result_2[0], [[8]])
 
+
 def test_infer_request_tensors_prop(device):
     compiled_model = generate_add_compiled_model(device, input_shape=[2, 2])
     request = compiled_model.create_infer_request()
@@ -833,4 +838,3 @@ def test_infer_request_tensors_prop(device):
     assert isinstance(outputs, list)
     assert str(inputs) == "[<Tensor: shape[2,2] type: f32>, <Tensor: shape[2,2] type: f32>]"
     assert str(outputs) == "[<Tensor: shape[2,2] type: f32>]"
-    
