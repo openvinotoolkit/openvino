@@ -10,7 +10,7 @@ permissions: read-all
 jobs:
   Cleanup_PIP:
     name: Cleanup PIP cache
-    runs-on: aks-linux-medium
+    runs-on: aks-linux-medium-staging
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
@@ -37,7 +37,7 @@ jobs:
 
   Cleanup_HF_Cache:
     name: Cleanup HuggingFace cache
-    runs-on: aks-linux-4-cores-16gb
+    runs-on: aks-linux-4-cores-16gb-staging
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
@@ -64,7 +64,7 @@ jobs:
 
   Cleanup_ccache_lin:
     name: Cleanup Linux ccache
-    runs-on: aks-linux-medium
+    runs-on: aks-linux-medium-staging
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     container:
       image: openvinogithubactions.azurecr.io/dockerhub/ubuntu:24.04
@@ -92,7 +92,7 @@ jobs:
 
   Cleanup_ccache_win:
     name: Cleanup Windows ccache
-    runs-on: 'aks-win-4-cores-8gb'
+    runs-on: 'aks-win-4-cores-8gb-staging'
     env:
       CCACHE_PATH: C:\\mount\\caches\\ccache
 
