@@ -5,7 +5,6 @@
 #include "logical.hpp"
 
 #include "internal_properties.hpp"
-#include "utils/precision_support.h"
 #include "common_test_utils/node_builders/logical.hpp"
 #include "openvino/op/logical_not.hpp"
 
@@ -19,7 +18,7 @@ using namespace ov::test::utils;
 namespace ov {
 namespace test {
 std::string LogicalLayerCPUTest::getTestCaseName(const testing::TestParamInfo<LogicalLayerCPUTestParamSet> &obj) {
-    const auto [shapes, logicalType, secondInType, inferPrc, enforceSnippets] = obj.param;
+    const auto [shapes, logicalType, secondInType, enforceSnippets] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -38,14 +37,13 @@ std::string LogicalLayerCPUTest::getTestCaseName(const testing::TestParamInfo<Lo
     if (ov::test::utils::LogicalTypes::LOGICAL_NOT != logicalType) {
         result << "secondInType=" << secondInType << "_";
     }
-    result << "inferPrc=" << inferPrc.to_string() << "_";
     result << "_enforceSnippets=" << enforceSnippets;
 
     return result.str();
 }
 
 void LogicalLayerCPUTest::SetUp() {
-    const auto [shapes, logicalType, secondInType, inferPrc, enforceSnippets] = this->GetParam();
+    const auto [shapes, logicalType, secondInType, enforceSnippets] = this->GetParam();
     targetDevice = ov::test::utils::DEVICE_CPU;
 
     const auto primitiveType = getPrimitiveType(logicalType);
@@ -58,7 +56,6 @@ void LogicalLayerCPUTest::SetUp() {
     } else {
         configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::DISABLE));
     }
-    configuration.insert(ov::hint::inference_precision(inferPrc));
 
     const auto prc = ov::element::boolean;  // Because ngraph supports only boolean input for logical ops
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(prc, inputDynamicShapes[0])};
@@ -156,14 +153,6 @@ const std::vector<utils::LogicalTypes>& logicalUnaryTypes() {
     return types;
 }
 
-const std::vector<utils::LogicalTypes>& logicalUnaryTypesSnippets() {
-    static const std::vector<utils::LogicalTypes> types {
-        utils::LogicalTypes::LOGICAL_NOT,
-    };
-
-    return types;
-}
-
 const std::vector<utils::LogicalTypes>& logicalBinaryTypes() {
     static const std::vector<utils::LogicalTypes> types {
         utils::LogicalTypes::LOGICAL_AND,
@@ -174,28 +163,12 @@ const std::vector<utils::LogicalTypes>& logicalBinaryTypes() {
     return types;
 }
 
-const std::vector<utils::LogicalTypes>& logicalBinaryTypesSnippets() {
-    static const std::vector<utils::LogicalTypes> types {
-        utils::LogicalTypes::LOGICAL_AND,
-        utils::LogicalTypes::LOGICAL_XOR,
-        utils::LogicalTypes::LOGICAL_OR
+const std::vector<bool>& enforceSnippets() {
+    static const std::vector<bool> enforce = {
+        true, false
     };
 
-    return types;
-}
-
-const std::vector<ov::element::Type> inferPrc() {
-    std::vector<ov::element::Type> prc {
-        ov::element::f32
-    };
-    if (ov::intel_cpu::hasHardwareSupport(ov::element::f16)) {
-        prc.push_back(ov::element::f16);
-    }
-    if (ov::intel_cpu::hasHardwareSupport(ov::element::bf16)) {
-        prc.push_back(ov::element::bf16);
-    }
-
-    return prc;
+    return enforce;
 }
 
 }  // namespace logical

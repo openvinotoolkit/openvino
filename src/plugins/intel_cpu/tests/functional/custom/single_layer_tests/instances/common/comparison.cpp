@@ -10,45 +10,25 @@ namespace ov {
 namespace test {
 namespace comparison {
 
-const auto unaryEltwiseWithParameterCases = ::testing::Combine(
+const auto withParameterCases = ::testing::Combine(
     ::testing::ValuesIn(inShapesWithParameter()),
     ::testing::ValuesIn(comparisonTypes()),
     ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
     ::testing::ValuesIn(modelPrc()),
     ::testing::ValuesIn(inferPrc()),
-    ::testing::Values(false)
+    ::testing::ValuesIn(enforceSnippets())
 );
-INSTANTIATE_TEST_SUITE_P(smoke_Comparison_Eltwise_WithParameter_CPU, ComparisonLayerCPUTest, unaryEltwiseWithParameterCases, ComparisonLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Comparison_WithParameter, ComparisonLayerCPUTest, withParameterCases, ComparisonLayerCPUTest::getTestCaseName);
 
-const auto unaryEltwiseWithConstantCases = ::testing::Combine(
+const auto withConstantCases = ::testing::Combine(
     ::testing::ValuesIn(inShapesWithConstant()),
     ::testing::ValuesIn(comparisonTypes()),
     ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
     ::testing::ValuesIn(modelPrc()),
     ::testing::ValuesIn(inferPrc()),
-    ::testing::Values(false)
+    ::testing::ValuesIn(enforceSnippets())
 );
-INSTANTIATE_TEST_SUITE_P(smoke_Comparison_Eltwise_WithConstant_CPU, ComparisonLayerCPUTest, unaryEltwiseWithConstantCases, ComparisonLayerCPUTest::getTestCaseName);
-
-const auto unarySnippetsWithParameterCases = ::testing::Combine(
-    ::testing::ValuesIn(inShapesWithParameter()),
-    ::testing::ValuesIn(comparisonTypes()),
-    ::testing::Values(ov::test::utils::InputLayerType::PARAMETER),
-    ::testing::ValuesIn(modelPrc()),
-    ::testing::ValuesIn(inferPrc()),
-    ::testing::Values(true)
-);
-INSTANTIATE_TEST_SUITE_P(smoke_Comparison_Snippets_WithParameter_CPU, ComparisonLayerCPUTest, unarySnippetsWithParameterCases, ComparisonLayerCPUTest::getTestCaseName);
-
-const auto unarySnippetsWithConstantCases = ::testing::Combine(
-    ::testing::ValuesIn(inShapesWithConstant()),
-    ::testing::ValuesIn(comparisonTypes()),
-    ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
-    ::testing::ValuesIn(modelPrc()),
-    ::testing::ValuesIn(inferPrc()),
-    ::testing::Values(true)
-);
-INSTANTIATE_TEST_SUITE_P(smoke_Comparison_Snippets_WithConstant_CPU, ComparisonLayerCPUTest, unarySnippetsWithConstantCases, ComparisonLayerCPUTest::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_Comparison_WithConstant, ComparisonLayerCPUTest, withConstantCases, ComparisonLayerCPUTest::getTestCaseName);
 
 }  // namespace comparison
 }  // namespace test

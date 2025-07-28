@@ -43,7 +43,7 @@ const std::vector<std::vector<InputShape>>& inShapesWithParameter();
 const std::vector<std::vector<InputShape>>& inShapesWithConstant();
 
 const std::vector<utils::ComparisonTypes>& comparisonTypes();
-const std::vector<utils::ComparisonTypes>& comparisonTypesSnippets();
+const std::vector<bool>& enforceSnippets();
 
 const std::vector<ov::element::Type>& modelPrc();
 const std::vector<ov::element::Type> inferPrc();

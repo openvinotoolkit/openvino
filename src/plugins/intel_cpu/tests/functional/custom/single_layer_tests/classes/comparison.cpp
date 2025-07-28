@@ -145,17 +145,12 @@ const std::vector<utils::ComparisonTypes>& comparisonTypes() {
     return types;
 }
 
-const std::vector<utils::ComparisonTypes>& comparisonTypesSnippets() {
-    static const std::vector<utils::ComparisonTypes> types {
-        utils::ComparisonTypes::EQUAL,
-        utils::ComparisonTypes::NOT_EQUAL,
-        utils::ComparisonTypes::GREATER,
-        utils::ComparisonTypes::GREATER_EQUAL,
-        utils::ComparisonTypes::LESS,
-        utils::ComparisonTypes::LESS_EQUAL,
+const std::vector<bool>& enforceSnippets() {
+    static const std::vector<bool> enforce = {
+        true, false
     };
 
-    return types;
+    return enforce;
 }
 
 const std::vector<ov::element::Type>& modelPrc() {
