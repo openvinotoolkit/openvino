@@ -88,6 +88,18 @@ void default_op_checks(const Node& node, size_t min_inputs_size) {
                                   inputs.size());
 }
 
+void default_op_checks(const Node& node, size_t min_inputs_size, size_t max_inputs_size) {
+    const auto& inputs = node.get_ov_inputs();
+    FRONT_END_OP_CONVERSION_CHECK(inputs.size() >= min_inputs_size && inputs.size() <= max_inputs_size,
+                                  node.op_type(),
+                                  " expected  ",
+                                  std::to_string(min_inputs_size),
+                                  " to ",
+                                  std::to_string(max_inputs_size),
+                                  " inputs, got: ",
+                                  inputs.size());
+}
+
 std::shared_ptr<ov::Node> get_monotonic_range_along_node_rank(const ov::Output<ov::Node>& value,
                                                               int64_t start_value,
                                                               int64_t step) {
