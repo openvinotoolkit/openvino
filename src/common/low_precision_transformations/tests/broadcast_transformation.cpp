@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <memory>
-
 #include <gtest/gtest.h>
 
+#include <memory>
+#include <string>
+
 #include "common_test_utils/ov_test_utils.hpp"
+#include "layer_transformation.hpp"
 #include "low_precision/broadcast.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "ov_lpt_models/broadcast.hpp"
+#include "ov_lpt_models/common/builders.hpp"
 #include "simple_low_precision_transformer.hpp"
 
 namespace {
@@ -30,7 +31,7 @@ public:
     };
 
     TestTransformationParams params;
-    Shape tagetShape;
+    Shape targetShape;
     Shape axesMapping;
     Pattern actual;
     Pattern expected;
@@ -50,7 +51,7 @@ public:
             inputShape,
             testValues.actual.precisionBeforeDequantization,
             testValues.actual.dequantizationBefore,
-            testValues.tagetShape,
+            testValues.targetShape,
             testValues.axesMapping,
             testValues.actual.dequantizationAfter);
 
@@ -63,7 +64,7 @@ public:
             inputShape,
             testValues.expected.precisionBeforeDequantization,
             testValues.expected.dequantizationBefore,
-            testValues.tagetShape,
+            testValues.targetShape,
             testValues.axesMapping,
             testValues.expected.dequantizationAfter);
     }
@@ -74,7 +75,7 @@ public:
         result <<
             v1 << "_" <<
             inputShape << "_" <<
-            testValues.tagetShape << "_" <<
+            testValues.targetShape << "_" <<
             testValues.axesMapping << "_" <<
             testValues.actual.precisionBeforeDequantization << "_" <<
             testValues.actual.dequantizationBefore << "_" <<
@@ -198,5 +199,20 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::ValuesIn(testValues)),
     BroadcastTransformation::getTestCaseName);
 } // chw_broadcast
+
+// Note: in case of DQ ops on constant path which don't change precision,
+// the transformation should be skipped in order to constant fold the constant subgraph
+TEST_F(TransformationTestsF, smoke_LPT_BroadcastTransformation_DQ_on_constant_input) {
+    const auto data = ov::op::v0::Constant::create(ov::element::f16, {1, 3, 1, 1}, {1.f});
+    const DequantizationOperations dq_before_params{{}, {0.1f}, {0.2f}};
+    const auto dq_before = makeDequantization(data, dq_before_params);
+
+    const auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{4});
+    const auto bcast = std::make_shared<ov::op::v3::Broadcast>(dq_before, target_shape);
+    model = std::make_shared<ov::Model>(ov::OutputVector{bcast}, ov::ParameterVector{target_shape});
+
+    const auto default_params = TestTransformationParams::toParams(LayerTransformation::createParamsU8I8());
+    manager.register_pass<ov::pass::low_precision::BroadcastTransformation>(default_params);
+}
 
 } // namespace
