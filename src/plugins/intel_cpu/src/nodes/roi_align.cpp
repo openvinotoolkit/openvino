@@ -38,6 +38,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -76,7 +77,7 @@ struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public ji
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_cast<decltype(ker_)>(jit_ker());
     };
 
     void generate() override {

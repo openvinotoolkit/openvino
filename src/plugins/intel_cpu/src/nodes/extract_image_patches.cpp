@@ -31,6 +31,7 @@
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -58,7 +59,7 @@ struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_k
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

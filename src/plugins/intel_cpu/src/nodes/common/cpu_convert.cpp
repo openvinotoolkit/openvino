@@ -28,6 +28,7 @@
 #include "openvino/core/type/nf4.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -190,7 +191,7 @@ public:
             static jit_convert_array converter(convert_vec<src_t, dst_t>);
             auto& generator = static_cast<jit_generator_t&>(converter);
             generator.create_kernel();
-            return (fn_t)generator.jit_ker();
+            return jit_cast<fn_t>(generator.jit_ker());
         }
         return nullptr;
     }
@@ -927,7 +928,7 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertTo4BitContext& ctx) {
         auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
             uint8_t shift = high_half ? 4 : 0;
-            return dst | (uint8_t)(val << shift);
+            return dst | static_cast<uint8_t>(val << shift);
         };
 
         auto src = static_cast<const src_t*>(ctx.srcPtr);

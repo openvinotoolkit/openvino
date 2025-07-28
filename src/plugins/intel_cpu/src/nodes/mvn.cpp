@@ -40,6 +40,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/mvn.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 #include "utils/precision_support.h"
 
@@ -141,7 +142,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1003,7 +1004,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

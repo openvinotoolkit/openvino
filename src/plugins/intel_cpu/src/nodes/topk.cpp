@@ -38,6 +38,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "openvino/op/util/topk_base.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -107,7 +108,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

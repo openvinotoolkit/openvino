@@ -38,6 +38,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/binary_convolution.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -82,7 +83,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

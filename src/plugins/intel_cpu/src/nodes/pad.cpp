@@ -594,7 +594,7 @@ void Pad::PadExecutor::padEdge(const MemoryPtr& srcMemPtr, const MemoryPtr& dstM
             for (size_t idx = 0; idx < params.nDimsForWork; ++idx) {
                 size_t shift = [&]() {
                     if (indexes[idx] < params.attrs.padsBegin[idx]) {
-                        return size_t(0);
+                        return static_cast<size_t>(0);
                     }
                     if (static_cast<size_t>(indexes[idx]) >= params.srcODims[idx]) {
                         return params.srcDims[idx] - 1;

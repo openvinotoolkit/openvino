@@ -52,6 +52,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -132,7 +133,7 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = ov::intel_cpu::jit_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -255,7 +256,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = ov::intel_cpu::jit_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
