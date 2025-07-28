@@ -777,7 +777,7 @@ You can also create your custom streamer for more sophisticated processing:
 
          #include <streamer_base.hpp>
 
-         class CustomStreamer: publict StreamerBase {
+         class CustomStreamer: public StreamerBase {
          public:
             bool put(int64_t token) {
                bool stop_flag = false;
