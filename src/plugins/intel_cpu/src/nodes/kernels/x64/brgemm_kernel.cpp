@@ -85,7 +85,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
       bScaleType(bScaleType),
       b_accumulate(b_accumulate) {
     if (none_of(inType, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32)) {
-        THROW_ERROR("brgemm kernel only supports f16, bf16, f32");
+        THROW_ERROR("brgemm kernel only supports i8, f16, bf16, f32");
     }
 
     bool is_f32 = inType == ov::element::f32;

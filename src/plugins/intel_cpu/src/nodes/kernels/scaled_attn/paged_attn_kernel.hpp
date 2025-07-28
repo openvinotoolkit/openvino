@@ -1694,8 +1694,8 @@ void dot_product_block_quantized_by_dims(TA* a,
                 uint8_t data3 = b_data_ptr[i / 2 + 3 * src_stride];
                 float tmp30 = extract_half_byte(data3, static_cast<bool>(i % 2));
                 float tmp31 = extract_half_byte(data3, static_cast<bool>((i + 1) % 2));
-                group_sum3 += a[dst_offset + i] * (tmp30 - b0[1]);
-                group_sum3 += a[dst_offset + i + 1] * (tmp31 - b0[1]);
+                group_sum3 += a[dst_offset + i] * (tmp30 - b3[1]);
+                group_sum3 += a[dst_offset + i + 1] * (tmp31 - b3[1]);
             }
             sum0 += group_sum0 * b0[0];
             sum1 += group_sum1 * b1[0];
@@ -1800,8 +1800,8 @@ void dot_product_block_quantized_by_dims(TA* a,
                 uint8_t data3 = b_data_ptr[i / 2 + 3 * src_stride];
                 float tmp30 = extract_half_byte(data3, static_cast<bool>(i % 2));
                 float tmp31 = extract_half_byte(data3, static_cast<bool>((i + 1) % 2));
-                group_sum3 += a[dst_offset + i] * (tmp30 - b0[1]);
-                group_sum3 += a[dst_offset + i + 1] * (tmp31 - b0[1]);
+                group_sum3 += a[dst_offset + i] * (tmp30 - b3[1]);
+                group_sum3 += a[dst_offset + i + 1] * (tmp31 - b3[1]);
             }
             sum0 += group_sum0 * b0[0];
             sum1 += group_sum1 * b1[0];

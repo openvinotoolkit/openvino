@@ -669,7 +669,7 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
         GTEST_SKIP();
     // compare the logits from paged attn and sdpa
     auto actualOutputs = run_test(function, extendBlockIndices);
-    // reference model doesn't support sage disable it
+    // reference model doesn't support sage attention, disable it
     if (isSageAttn) {
         configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
     }

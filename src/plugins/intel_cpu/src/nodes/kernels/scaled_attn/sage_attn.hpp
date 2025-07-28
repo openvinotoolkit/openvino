@@ -64,17 +64,17 @@ void sage_attn_quantize_q(const ov::intel_cpu::PlainTensor& src,
                           size_t q_len,
                           size_t h) {
     size_t S = src.m_dims[2];
-    size_t groupe_size = S;
+    size_t group_size = S;
     constexpr size_t sub_byte_multiplier = DST_PREC == ov::element::u4 ? 2 : 1;
     constexpr size_t param_size = sizeof(float) * (DST_PREC == ov::element::i8 ? 1 : 2);
     for (size_t l = 0; l < q_len; l++) {
         for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
-             src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + param_size) {
+             src_offset += group_size, dst_offset += group_size / sub_byte_multiplier + param_size) {
             auto base = dst.ptr<uint8_t, DST_PREC>(l);
             base += dst_offset;
             auto p = reinterpret_cast<float*>(base);
             uint8_t* ptr = base + param_size;
-            quantize<DATA_TYPE, DST_PREC>(src.ptr<DATA_TYPE>(h, q_start + l, src_offset), ptr, groupe_size, p);
+            quantize<DATA_TYPE, DST_PREC>(src.ptr<DATA_TYPE>(h, q_start + l, src_offset), ptr, group_size, p);
         }
     }
 }

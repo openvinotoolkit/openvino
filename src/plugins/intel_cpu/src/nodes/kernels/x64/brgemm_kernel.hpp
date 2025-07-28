@@ -36,6 +36,14 @@ public:
     virtual ~BrgemmKernel() = default;
 
     // execute by m_blk
+    // is_M_tail whether to exectue M body or M tail
+    // a pointer to matrix a
+    // b pointer to matrix b
+    // c pointer to matrix c
+    // d pointer to matrix d
+    // scale_b, pointer to scale_b if exists
+    // wsp, pointer to temp buffer used in brgemm kernel
+    // scratch_a, pointer to store temp a
     virtual void
     executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
 

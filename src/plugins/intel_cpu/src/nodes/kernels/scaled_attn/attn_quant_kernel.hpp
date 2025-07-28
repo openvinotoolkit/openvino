@@ -511,7 +511,7 @@ void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
                         const ov::intel_cpu::PlainTensor& dst,
                         size_t b,
                         size_t h,
-                        size_t groupe_size) {
+                        size_t group_size) {
     // The cache layout is [scale0, zp0]|[group0]|[scale1, zp1]|[group1].....
     // dst_offset is the offset among groups. The addition of 2 * sizeof(float) aims to shift to next group
     // base pointer points to the base address of next group.
@@ -521,12 +521,12 @@ void quantize_q_by_dims(const ov::intel_cpu::PlainTensor& src,
     constexpr size_t param_size = sizeof(float) * (DST_PREC == ov::element::i8 ? 1 : 2);
     size_t m = 0;
     for (size_t src_offset = 0, dst_offset = 0; src_offset < S;
-         src_offset += groupe_size, dst_offset += groupe_size / sub_byte_multiplier + param_size) {
+         src_offset += group_size, dst_offset += group_size / sub_byte_multiplier + param_size) {
         auto base = dst.ptr<uint8_t, DST_PREC>(b, h, 0);
         base += dst_offset;
         auto p = reinterpret_cast<float*>(base);
         uint8_t* ptr = base + param_size;
-        quantize<T, DST_PREC>(src.ptr<T>(b, h, m, src_offset), ptr, groupe_size, p);
+        quantize<T, DST_PREC>(src.ptr<T>(b, h, m, src_offset), ptr, group_size, p);
     }
 }
 
