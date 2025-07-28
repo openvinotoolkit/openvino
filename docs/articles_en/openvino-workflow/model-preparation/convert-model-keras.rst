@@ -45,7 +45,7 @@ Alternatively, a model exported to TensorFlow SavedModel format can also be conv
 
    ovc bert_base
 
-Export a Model from Any Backend to OpenVINO IR
+Export Keras 3 Model to OpenVINO IR
 ##############################################
 
 Keras also supports exporting models directly to disk from any backend (TensorFlow, JAX, PyTorch, or OpenVINO) itself directly into the OpenVINO IR format using the ``model.export()`` API.
