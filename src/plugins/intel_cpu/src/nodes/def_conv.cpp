@@ -39,12 +39,12 @@
 #include "openvino/op/util/deformable_convolution_base.hpp"
 #include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;

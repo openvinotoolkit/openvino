@@ -28,7 +28,6 @@
 #include "openvino/core/type/nf4.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -41,6 +40,7 @@
 #    include "cpu/x64/jit_avx512_core_fp8cvt.hpp"
 #    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #    include "nodes/kernels/x64/jit_kernel.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 namespace ov::intel_cpu {

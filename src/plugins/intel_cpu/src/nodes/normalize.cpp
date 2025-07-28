@@ -52,7 +52,6 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "selective_build.h"
 #include "utils/bfloat16.hpp"
-#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
@@ -64,6 +63,7 @@
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;

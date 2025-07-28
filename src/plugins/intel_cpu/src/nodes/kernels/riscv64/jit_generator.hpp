@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/core/except.hpp"
+#include "utils/cpu_utils.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_util.hpp"
 
@@ -60,7 +61,7 @@ public:
     template <typename... kernel_args_t>
     void operator()(kernel_args_t... args) const {
         using jit_kernel_func_t = void (*)(const kernel_args_t... args);
-        auto* fptr = (jit_kernel_func_t)jit_ker_;
+        auto* fptr = jit_cast<jit_kernel_func_t>(jit_ker_);
         (*fptr)(std::forward<kernel_args_t>(args)...);
     }
 
