@@ -240,7 +240,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     // FIXME: "fixes"/workarounds caching import with bf16 weights.
     // Unclear how it's related. Previously fill_tensor()
     // was in copy_kvcache() call. When it was removed, it broke the import accuracy.
-    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
     for (std::size_t i = kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
