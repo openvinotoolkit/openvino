@@ -24,6 +24,8 @@
 #include "openvino/op/cos.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/gather.hpp"
 
 using namespace testing;
 using namespace ov::intel_gpu;
@@ -42,6 +44,7 @@ static bool fuse_type_to_convert(const std::shared_ptr<ov::Node>& node, const pr
 }
 
 static const std::string name_add = "add_1";
+static const std::string name_mul = "mul_1";
 static const std::string name_sin = "sin";
 static const std::string name_cos = "cos";
 
@@ -68,7 +71,11 @@ static std::shared_ptr<ov::Model> create_model_with_periodic_func() {
     sin->set_friendly_name(name_sin);
     auto cos = std::make_shared<ov::op::v0::Cos>(reshape_1);
     cos->set_friendly_name(name_cos);
-    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin, cos}, 2);
+    auto constant_5 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2046 }, { 0 });
+    auto constant_6 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ }, { 0 });
+    auto gather_sin = std::make_shared<ov::op::v8::Gather>(sin, constant_5, constant_6);
+    auto gather_cos = std::make_shared<ov::op::v8::Gather>(cos, constant_5, constant_6);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather_sin, gather_cos}, 2);
 
     return std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
 }
@@ -82,12 +89,30 @@ static std::shared_ptr<ov::Model> create_simple_model_with_periodic_func() {
     auto cos = std::make_shared<ov::op::v0::Cos>(input);
     cos->set_friendly_name(name_cos);
 
-    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin, cos}, 1);
-
-    return std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
+    return std::make_shared<ov::Model>(ov::OutputVector{sin, cos}, ov::ParameterVector{input});
 }
 
-static void run_disable_fp16_compression_for_periodic_func_test(std::shared_ptr<ov::Model> model, const std::unordered_set<std::string>& required_nodes) {
+
+static std::shared_ptr<ov::Model> create_no_available_disabled_fp16_model() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1});
+    auto input2 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 256});
+    auto constant_1 = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 128 }, { 1.f });
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(input, constant_1);
+    matmul->set_friendly_name(name_mul);
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(matmul);
+    sin->set_friendly_name(name_sin);
+
+    auto cos = std::make_shared<ov::op::v0::Cos>(matmul);
+    cos->set_friendly_name(name_cos);
+
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{sin,cos},1);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input, input2});
+}
+
+static void run_disable_fp16_compression_for_periodic_func_test(std::shared_ptr<ov::Model> model,
+        const std::unordered_set<std::string>& required_nodes, bool is_expected_disabled_fp16 = true) {
     ov::pass::Manager manager;
     manager.register_pass<DisableFP16CompressionForPeriodicFuncs>();
 
@@ -132,8 +157,13 @@ static void run_disable_fp16_compression_for_periodic_func_test(std::shared_ptr<
         if (required_nodes.count(op->get_friendly_name())) {
             found_nodes.insert(op->get_friendly_name()); // Add the found node name to the set
 
-            ASSERT_TRUE(ov::fp16_compression_is_disabled(op))
-                << "FP16 compression is not disabled for node: " << op->get_friendly_name();
+            if (is_expected_disabled_fp16) {
+                ASSERT_TRUE(ov::fp16_compression_is_disabled(op))
+                    << "FP16 compression is not disabled for node: " << op->get_friendly_name();
+            } else {
+                ASSERT_FALSE(ov::fp16_compression_is_disabled(op))
+                    << "FP16 compression is unexpectedly disabled for node: " << op->get_friendly_name();
+            }
         }
     }
 
@@ -151,4 +181,10 @@ TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTestSimple) {
     std::unordered_set<std::string> required_nodes = {name_sin, name_cos};
     auto model = create_simple_model_with_periodic_func();
     run_disable_fp16_compression_for_periodic_func_test(model, required_nodes);
+}
+
+TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTestNoAvailableDisabledFP16) {
+    std::unordered_set<std::string> required_nodes = {name_mul, name_sin, name_cos};
+    auto model = create_no_available_disabled_fp16_model();
+    run_disable_fp16_compression_for_periodic_func_test(model, required_nodes, false);
 }

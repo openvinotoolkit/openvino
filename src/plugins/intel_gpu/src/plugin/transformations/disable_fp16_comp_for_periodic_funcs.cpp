@@ -9,45 +9,65 @@
 
 #include "openvino/op/sin.hpp"
 #include "openvino/op/cos.hpp"
+
+// Only include necessary and non-duplicate OpenVINO ops
+#include "openvino/op/sin.hpp"
+#include "openvino/op/cos.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/split.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/tile.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/util/broadcast_base.hpp"
+#include "openvino/op/util/pad_base.hpp"
+#include "openvino/op/util/precision_sensitive_attribute.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/gather_nd_base.hpp"
 #include "openvino/op/util/scatter_base.hpp"
 #include "openvino/op/util/scatter_nd_base.hpp"
 #include "openvino/op/util/scatter_elements_update_base.hpp"
-#include "openvino/op/slice.hpp"
-#include "openvino/op/broadcast.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/split.hpp"
-#include "openvino/op/strided_slice.hpp"
-#include "openvino/op/tile.hpp"
 #include "openvino/op/identity.hpp"
-#include "openvino/op/pad.hpp"
-#include "openvino/op/util/gather_base.hpp"
-#include "openvino/op/util/gather_nd_base.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/reduce_mean.hpp"
 
 #include "transformations/utils/utils.hpp"
 #include "disable_fp16_comp_for_periodic_funcs.hpp"
 
-static bool is_non_value_modifying_node(const std::shared_ptr<ov::Node>& node) {
-    return ov::is_type<ov::op::v1::Reshape>(node) ||
-           ov::is_type<ov::op::v1::Transpose>(node) ||
-           ov::is_type<ov::op::util::ScatterBase>(node) ||
-           ov::is_type<ov::op::util::ScatterNDBase>(node) ||
-           ov::is_type<ov::op::util::ScatterElementsUpdateBase>(node) ||
-           ov::is_type<ov::op::v8::Slice>(node) ||
-           ov::is_type<ov::op::v1::Broadcast>(node) ||
-           ov::is_type<ov::op::v0::Concat>(node) ||
-           ov::is_type<ov::op::v1::Split>(node) ||
+// Modified checking method to check whether the data type of sin/cos is propagated through
+// input/output nodes based on the is_propagate_through_node function from ngraph pass's convert precision.
+static bool is_propagate_through_node(const std::shared_ptr<ov::Node>& node) {
+    return ov::is_type<ov::op::v0::Squeeze>(node) ||
+           ov::is_type<ov::op::v0::Unsqueeze>(node) ||
+           ov::is_type<ov::op::v1::Reshape>(node) ||
+           ov::is_type<ov::op::util::BroadcastBase>(node) ||
+           ov::is_type<ov::op::util::BinaryElementwiseArithmetic>(node) ||
+           ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(node) ||
+           ov::is_type<ov::op::v6::MVN>(node) ||
+           ov::is_type<ov::op::v0::MVN>(node) ||
+           ov::is_type<ov::op::v0::NormalizeL2>(node) ||
+           ov::is_type<ov::op::v0::Sqrt>(node) ||
            ov::is_type<ov::op::v1::StridedSlice>(node) ||
-           ov::is_type<ov::op::v0::Tile>(node) ||
-           ov::is_type<ov::op::v16::Identity>(node) ||
-           ov::is_type<ov::op::v1::Pad>(node) ||
-           ov::is_type<ov::op::util::GatherNDBase>(node) ||
-           ov::is_type<ov::op::util::GatherBase>(node) ||
-           ov::is_type<ov::op::v15::Squeeze>(node) ||
-           ov::is_type<ov::op::v0::Unsqueeze>(node);
+           ov::is_type<ov::op::v1::ReduceSum>(node) ||
+           ov::is_type<ov::op::v1::ReduceMean>(node) ||
+           ov::is_type<ov::op::v8::Slice>(node) ||
+           ov::is_type<ov::op::v1::VariadicSplit>(node) ||
+           ov::is_type<ov::op::v1::Split>(node) ||
+           ov::is_type<ov::op::v0::Concat>(node) ||
+           ov::is_type<ov::op::v0::Convert>(node) ||
+           ov::is_type<ov::op::v0::Constant>(node) ||
+           ov::is_type<ov::op::v0::Tile>(node);
 }
 
 ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionForPeriodicFuncs()
@@ -60,6 +80,23 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
 
     ov::matcher_pass_callback callback = [&](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
+        // Only disable FP16 compression for FP32 data type,
+        // because sin/cos with fp64 should be converted to sin/cos with fp32.
+        if (node->get_output_element_type(0) != ov::element::f32) {
+            return false;
+        }
+
+        // If sin/cos propagates through a user node,
+        // it means that the sin/cos node is directly followed by a convert node from the user.
+        // Therefore, disable_fp16_compression is not set in this case.
+        for (const auto& output : node->outputs()) {
+            for (const auto& input : output.get_target_inputs()) {
+                auto next_node = input.get_node()->shared_from_this();
+                if (is_propagate_through_node(next_node)) {
+                    return false;
+                }
+            }
+        }
 
         // Disable FP16 compression for the current node
         ov::disable_fp16_compression(node);
@@ -92,7 +129,7 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
                 break;
             }
 
-            if (!is_non_value_modifying_node(current_node)) {
+            if (!is_propagate_through_node(current_node)) {
                 ov::disable_fp16_compression(current_node);
                 break;
             }
