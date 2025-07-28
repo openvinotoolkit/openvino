@@ -414,6 +414,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             } else {
                 uintptr_t ptr = static_cast<uintptr_t>(dn.attribute("ptr").as_ullong());
                 int type = dn.attribute("type").as_int();
+                size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
 
                 if (!getStrAttribute(dn, "element_type", el_type_str))
                     return;
@@ -423,17 +424,24 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
 
                 std::shared_ptr<ov::AlignedBuffer> buffer;
                 if (type == 0) {
-                    buffer = *(reinterpret_cast<std::shared_ptr<ov::StringAlignedBuffer>*>(ptr));
+                    buffer = std::make_shared<ov::SharedStringAlignedBuffer>((char*)ptr, size);
+                    // buffer = *(reinterpret_cast<std::shared_ptr<ov::StringAlignedBuffer>*>(ptr));
+
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
                     // std::cout << "using StringAlignedBuffer" << std::endl;
                 } else if (type == 1) {
-                    buffer = *(reinterpret_cast<std::shared_ptr<ov::SharedStringAlignedBuffer>*>(ptr));
+                    // buffer = *(reinterpret_cast<std::shared_ptr<ov::SharedStringAlignedBuffer>*>(ptr));
+                    buffer = std::make_shared<ov::SharedStringAlignedBuffer>((char*)ptr, size);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
                     // std::cout << "using SharedStringAlignedBuffer" << std::endl;
                 } else if (type == 2) {
-                    buffer = *(reinterpret_cast<std::shared_ptr<ov::AlignedBuffer>*>(ptr));
+                    // buffer = *(reinterpret_cast<std::shared_ptr<ov::AlignedBuffer>*>(ptr));
+                    std::shared_ptr<ov::AlignedBuffer> placeholder;
+                    buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>((char*)ptr,
+                                                                                                    size,
+                                                                                                    placeholder);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
                     // std::cout << "using AlignedBuffer" << std::endl;
@@ -486,6 +494,7 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
             } else {
                 uintptr_t ptr = static_cast<uintptr_t>(dn.attribute("ptr").as_ullong());
                 int type = dn.attribute("type").as_int();
+                size_t size = static_cast<size_t>(pugixml::get_uint64_attr(dn, "size"));
                 // std::cout << "key : " << key << ", size: " << size << ", type: " << type << std::endl;
                 if (!getStrAttribute(dn, "element_type", el_type_str))
                     return;
@@ -494,12 +503,14 @@ void ov::XmlDeserializer::on_adapter(const std::string& name, ov::ValueAccessor<
 
                 std::shared_ptr<ov::StringAlignedBuffer> buffer;
                 if (type == 0) {
-                    buffer = *(reinterpret_cast<std::shared_ptr<ov::StringAlignedBuffer>*>(ptr));
+                    // buffer = *(reinterpret_cast<std::shared_ptr<ov::StringAlignedBuffer>*>(ptr));
+                    buffer = std::make_shared<ov::SharedStringAlignedBuffer>((char*)ptr, size);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
                     // std::cout << "using StringAlignedBuffer" << std::endl;
                 } else if (type == 1) {
-                    buffer = *(reinterpret_cast<std::shared_ptr<ov::SharedStringAlignedBuffer>*>(ptr));
+                    // buffer = *(reinterpret_cast<std::shared_ptr<ov::SharedStringAlignedBuffer>*>(ptr));
+                    buffer = std::make_shared<ov::SharedStringAlignedBuffer>((char*)ptr, size);
                     if (!buffer)
                         OPENVINO_THROW("Incorrect weights in map!");
                     // std::cout << "using SharedStringAlignedBuffer" << std::endl;
