@@ -97,7 +97,7 @@ ov::OutputVector center_crop_pad(const ov::frontend::onnx::Node& node) {
     return detail::center_crop_pad_impl(inputs, axes_attr);
 }
 
-ONNX_OP("CenterCropPad", OPSET_SINCE(18), ai_onnx::opset_1::center_crop_pad);
+ONNX_OP("CenterCropPad", OPSET_SINCE(1), ai_onnx::opset_1::center_crop_pad);
 
 }  // namespace opset_1
 }  // namespace ai_onnx
