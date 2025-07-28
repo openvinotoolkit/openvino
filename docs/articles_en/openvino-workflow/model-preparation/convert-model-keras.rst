@@ -85,9 +85,6 @@ Here is an example:
    OpenVINO model input names may include a ``:0`` suffix (for example, ``"token_ids:0"``). 
    Be sure to use the exact input names when running inference.
 
-   To check the input names, use the ``get_any_name()`` method:
-   ``[input.get_any_name() for input in ov_model.inputs]``
-
 Run inference in Keras 3 with the OpenVINO backend
 ##################################################
 
