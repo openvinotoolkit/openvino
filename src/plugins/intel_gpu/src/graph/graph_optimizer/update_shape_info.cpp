@@ -29,8 +29,10 @@ void update_shape_info::run(program& p) {
                     GPU_DEBUG_TRACE_DETAIL << "Add reshape for" << eltwise_node.id() << " for numpy broadcast. small_input "
                                             << input_format.to_string() << " output " << out_layout.format.to_string() << std::endl;
 
-                    if (out_layout.is_static())
-                        ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(large_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
+                    if (out_layout.is_static()) {
+                        ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(large_pshape.size(), 1),
+                                                                ov::op::AutoBroadcastType::NUMPY);
+                    }
 
                     auto small_pshape_layout = layout(small_pshape, out_layout.data_type, out_layout.format);
                     auto new_reshape = std::make_shared<reshape>("reshape:_eltwise_broadcast_" + eltwise_node.id(),
