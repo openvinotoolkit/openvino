@@ -33,6 +33,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/lrn.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 namespace {
@@ -101,7 +102,7 @@ bool Lrn::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::s
 
         const auto axes = axesNode->cast_vector<int64_t>();
         const auto dataRank = dataDims.size();
-        if (axes.size() == 1 && axes[0] == 1) {
+        if (all_of(1U, axes.size(), axes[0])) {
             return true;
         }
         std::vector<bool> norm(dataRank, false);
@@ -133,7 +134,7 @@ Lrn::Lrn(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         auto lrn = ov::as_type_ptr<const ov::op::v0::LRN>(op);
         auto axes =
             ov::as_type_ptr<const ov::op::v0::Constant>(lrn->get_input_node_shared_ptr(1))->cast_vector<int64_t>();
-        bool isAcrossMaps = (axes.size() == 1 && axes[0] == 1);
+        bool isAcrossMaps = (all_of(1U, axes.size(), axes[0]));
         alg = isAcrossMaps ? dnnl::algorithm::lrn_across_channels : dnnl::algorithm::lrn_within_channel;
         alpha = static_cast<float>(lrn->get_alpha());
         beta = static_cast<float>(lrn->get_beta());
@@ -153,7 +154,7 @@ void Lrn::getSupportedDescriptors() {
     CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
 
     ov::element::Type precision = getOriginalOutputPrecisionAtPort(0);
-    if (precision != ov::element::f32 && precision != ov::element::bf16) {
+    if (none_of(precision, ov::element::f32, ov::element::bf16)) {
         precision = ov::element::f32;
     }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
