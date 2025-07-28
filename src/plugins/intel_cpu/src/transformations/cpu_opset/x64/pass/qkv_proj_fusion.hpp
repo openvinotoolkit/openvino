@@ -8,16 +8,23 @@
 
 namespace ov::intel_cpu {
 
-class QKVProjFusion : public ov::pass::MatcherPass {
+class QKVProjFusionPass1 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("QKVProjFusion");
-    QKVProjFusion();
+    OPENVINO_MATCHER_PASS_RTTI("QKVProjFusionPass1");
+    QKVProjFusionPass1();
 };
 
-class QKVProjFusion2 : public ov::pass::MatcherPass {
+class QKVProjFusionPass2 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("QKVProjFusion2");
-    QKVProjFusion2();
+    OPENVINO_MATCHER_PASS_RTTI("QKVProjFusionPass1");
+    QKVProjFusionPass2();
+};
+
+class QKVProjFusion : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("QKVProjFusion");
+    QKVProjFusion() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace ov::intel_cpu

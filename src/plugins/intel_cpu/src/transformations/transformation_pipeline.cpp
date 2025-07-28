@@ -1095,9 +1095,8 @@ void Transformations::PostLpt() {
                                                                  concurrency,
                                                                  fcDynamicQuantizationGroupSize);
             },
-            QKVProjFusion);
+            QKVProjFusionPass1);
 
-        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2);
         CPU_SET_CALLBACK_X64(
             postLPTPassManager,
             [=](const_node_ptr& node) -> bool {
@@ -1107,7 +1106,7 @@ void Transformations::PostLpt() {
                                                                  concurrency,
                                                                  fcDynamicQuantizationGroupSize);
             },
-            QKVProjFusion2);
+            QKVProjFusionPass2);
     }
 #endif  // OPENVINO_ARCH_X86_64
 

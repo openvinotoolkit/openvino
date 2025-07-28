@@ -27,12 +27,13 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov::pass;
 using namespace ov::op;
 
-ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
-    MATCHER_SCOPE(QKVProjFusion);
+ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
+    MATCHER_SCOPE(QKVProjFusionPass1);
 
     auto input = pattern::any_input(pattern::rank_equals(3));
 
@@ -185,8 +186,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
-    MATCHER_SCOPE(QKVProjFusion2);
+ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
+    MATCHER_SCOPE(QKVProjFusionPass2);
 
     auto input = pattern::any_input(pattern::rank_equals(3));
 
@@ -291,4 +292,16 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
+}
+
+bool ov::intel_cpu::QKVProjFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(QKVProjFusion);
+
+    SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+
+    symbolic_ctx_manager->register_pass<QKVProjFusionPass1>();
+    symbolic_ctx_manager->register_pass<QKVProjFusionPass2>();
+
+    return symbolic_optimizations.run_on_model(model);
 }
