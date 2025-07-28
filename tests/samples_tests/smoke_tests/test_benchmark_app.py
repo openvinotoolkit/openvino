@@ -266,7 +266,7 @@ def test_benchmark_app_no_warmup_help(sample_language):
     assert 'Skip warmup inference' in output
 
 
-@pytest.mark.parametrize('sample_language', ['C++'])
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
 @pytest.mark.parametrize('api', ['sync', 'async'])
 def test_benchmark_app_no_warmup_with_api_modes(sample_language, device, api, cache, tmp_path):
