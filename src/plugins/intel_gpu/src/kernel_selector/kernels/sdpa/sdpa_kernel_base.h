@@ -90,6 +90,7 @@ struct sdpa_configuration {
     bool is_causal = false;
     bool has_alibi_input = false;
     bool is_kv_compressed = false;
+    bool is_key_by_channel = false;
     bool use_asymmetric_quantization = false;
     bool combine_scales_and_zp = false;
     bool per_head_quantization = false;

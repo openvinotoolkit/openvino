@@ -84,6 +84,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         } else {
             ob << false;
         }
+        ob << is_key_by_channel;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -107,6 +108,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         } else {
             scale_val = std::optional<float>();
         }
+        ib >> is_key_by_channel;
     }
 
     std::optional<float> scale_val{};
@@ -118,5 +120,6 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_alibi = false;
     bool has_rotated_blocks = false;
     bool has_score_aggregation = false;
+    bool is_key_by_channel = false;
 };
 }  // namespace cldnn
