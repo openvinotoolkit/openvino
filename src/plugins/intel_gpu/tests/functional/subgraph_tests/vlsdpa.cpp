@@ -154,18 +154,11 @@ protected:
             // function: q,k,v,cu_seqlens v.s. functionRef: q,k,v,attn_mask
             if (i < 3) { // q, k, v
                 auto tensor = utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
-                // if (funcInput.get_element_type() == ElementType::f32)
-                //     std::fill_n(tensor.data<float>(), tensor.get_size(), 2.0f);
-                // if (funcInput.get_element_type() == ElementType::f16)
-                //     std::fill_n(tensor.data<ov::float16>(), tensor.get_size(), ov::float16(2.0f));
-
                 inputs.insert({std::const_pointer_cast<Node>(funcInput.get_node_shared_ptr()), tensor});
                 inputs_ref.emplace_back(tensor);
             } else { // cu_seqlens
                 auto attn_mask = get_attention_mask<ov::float16>(m_cu_seqlens, ov::element::f16);
                 auto cu_seqlens = get_cu_seqlens(m_cu_seqlens);
-
-                std::cout << funcInput.get_node_shared_ptr()->get_friendly_name() << funcInput.get_node_shared_ptr()->get_element_type() << std::endl;
                 if (check_vl_sdpa_transformations(compiledModel)) {
                     inputs.insert({std::const_pointer_cast<Node>(funcInput.get_node_shared_ptr()), cu_seqlens});
                 } else {
