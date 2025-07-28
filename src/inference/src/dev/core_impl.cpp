@@ -967,21 +967,21 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(std::istream& modelStre
     return get_plugin(parsed._deviceName).import_model(modelStream, context, parsed._config);
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& model,
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& compiled_blob,
                                                          const std::string& device_name,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     const auto parsed = parseDeviceNameIntoConfig(device_name, config);
-    return get_plugin(parsed._deviceName).import_model(model, parsed._config);
+    return get_plugin(parsed._deviceName).import_model(compiled_blob, parsed._config);
 }
 
-ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& model,
+ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::import_model(const ov::Tensor& compiled_blob,
                                                          const ov::SoPtr<ov::IRemoteContext>& context,
                                                          const ov::AnyMap& config) const {
     OV_ITT_SCOPED_TASK(ov::itt::domains::OV, "Core::import_model");
     OPENVINO_ASSERT(context, "Remote context must not be empty.");
     const auto parsed = parseDeviceNameIntoConfig(context->get_device_name(), config);
-    return get_plugin(parsed._deviceName).import_model(model, context, parsed._config);
+    return get_plugin(parsed._deviceName).import_model(compiled_blob, context, parsed._config);
 }
 
 ov::SupportedOpsMap ov::CoreImpl::query_model(const std::shared_ptr<const ov::Model>& model,

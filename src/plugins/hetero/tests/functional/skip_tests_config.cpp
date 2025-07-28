@@ -20,6 +20,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*OVCompiledModelBaseTest.*compile_from_.*_blob.*targetDevice=(HETERO.NPU).*)",
         R"(.*OVCompiledModelBaseTest.*compile_from_cached_weightless_blob.*targetDevice=(HETERO.NPU).*)",
         R"(.*OVCompiledModelBaseTest.*use_blob_hint_.*targetDevice=CPU.*)",
-    };
+        // model import is not supported
+        R"(.*OVCompiledModelBaseTest.import_from_.*)"};
     return retVector;
 }

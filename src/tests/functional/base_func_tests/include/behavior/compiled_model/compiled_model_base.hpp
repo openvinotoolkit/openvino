@@ -765,11 +765,6 @@ TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
 }
 
 TEST_P(OVCompiledModelBaseTest, import_from_istream) {
-    if (0 != target_device.compare(utils::DEVICE_CPU) &&
-        0 != target_device.compare(utils::DEVICE_GPU) &&
-        0 != target_device.compare(utils::DEVICE_NPU)) {
-        GTEST_SKIP() << "Skipping test for not supporting devices devices";
-    }
     std::stringstream export_stream;
     {
         auto model = make_model_with_weights();
@@ -781,11 +776,6 @@ TEST_P(OVCompiledModelBaseTest, import_from_istream) {
 }
 
 TEST_P(OVCompiledModelBaseTest, import_from_tensor) {
-    if (0 != target_device.compare(utils::DEVICE_CPU) &&
-        0 != target_device.compare(utils::DEVICE_GPU) &&
-        0 != target_device.compare(utils::DEVICE_NPU)) {
-        GTEST_SKIP() << "Skipping test for not supporting devices devices";
-    }
     std::stringstream export_stream;
     {
         auto model = make_model_with_weights();
