@@ -10,6 +10,7 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "primitive_type_base.h"
+#include "eltwise_inst.h"
 #include "reshape_inst.h"
 #include "read_value_inst.h"
 #include "reshape_shape_inference.hpp"
@@ -153,10 +154,29 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto input_layout = impl_param.get_input_layout(0);
 
     auto& memory_deps = impl_param.memory_deps;
-    // On program build stage for the cases with pattern being stored in a runtime tensor
-    // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
-    // as ngraph may refine output shape using interval arithmetic
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {
+        // For the cases with Reshape being updated for user node without given memory_dpes and target pattern
+        // Update reshape tensor for numpy broadcast of user Eltwise
+        if (node.get_users().size() == 1 && node.get_users().front()->is_type<eltwise>() &&
+            prim->output_shape.count() == 0) {
+            auto& eltwise_user = node.get_users().front()->as<eltwise>();
+            if (eltwise_user.get_primitive()->broadcast_spec == ov::op::AutoBroadcastType::NUMPY &&
+                prim->output_partial_shape.rank() != node.get_output_layout().format.dimension()) {
+                ov::PartialShape pshape;
+                if (input_layout.is_dynamic()) {
+                    pshape = prim->output_partial_shape;
+                } else {
+                    pshape = input_layout.get_partial_shape();
+                }
+
+                GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << "update shape for eltwise numpy broadcast " << pshape << std::endl;
+                return { layout{pshape, input_layout.data_type, node.get_output_layout().format} };
+            }
+        }
+
+        // For the cases with pattern being stored in a runtime tensor on program build stage
+        // we return output_partial_shape taken from the original model intead of something like PartialShape::dynamic(rank)
+        // as ngraph may refine output shape using interval arithmetic
         if (prim->output_shape.count() != 0) {
             return { layout{input_layout.data_type, input_layout.format, prim->output_shape} };
         } else {

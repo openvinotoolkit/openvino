@@ -255,6 +255,14 @@ private:
     bool remove_output_reorders;
 };
 
+class update_shape_info : public base_pass {
+public:
+    update_shape_info() : base_pass("update_shape_info") {}
+
+private:
+    void run(program& p) override;
+};
+
 class reorder_inputs : public base_pass {
 public:
     reorder_inputs(reorder_factory& rf_ref);

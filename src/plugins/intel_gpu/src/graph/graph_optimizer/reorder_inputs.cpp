@@ -740,34 +740,6 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
         }
     };
 
-    const auto reorder_eltwise_input_for_np_broadcast = [&p](typed_program_node<eltwise>& eltwise_node) {
-        // Add reorder to align tensor size of eltwise inputs for NUMPY broadcasting
-        // This manual alignment of tensor size is not needed if format is simple or compatible
-        auto& out_layout = eltwise_node.get_output_layout();
-        if (eltwise_node.need_input_tensors_size_align() && !format::is_simple_data_format(out_layout.format)) {
-            // Eltwise input tensor can be smaller than perferred format by NUMPY broad casting.
-            auto& pshape_a = eltwise_node.get_input_pshape(0);
-            auto& pshape_b = eltwise_node.get_input_pshape(1);
-            auto [large_pshape, small_pshape, large_shape_idx, small_shape_idx] = (pshape_a.size() > pshape_b.size()) ?
-                                          std::make_tuple(pshape_a, pshape_b, 0, 1) : std::make_tuple(pshape_b, pshape_a, 1, 0);
-            auto& small_input = eltwise_node.get_dependency(small_shape_idx);
-            auto input_format = small_input.get_output_layout().format;
-            if (input_format != out_layout.format && format::is_default_format(input_format)) {
-                GPU_DEBUG_TRACE_DETAIL << "Add reorder for" << eltwise_node.id() << " align tensor size. small_input "
-                                        << input_format.to_string() << " output " << out_layout.format.to_string()
-                                        << " preferred format " << out_layout.format.get_default_format() << std::endl;
-                ov::PartialShape::broadcast_merge_into(small_pshape, std::vector<ov::Dimension>(large_pshape.size(), 1), ov::op::AutoBroadcastType::NUMPY);
-
-                auto small_pshape_layout = layout(small_pshape, out_layout.data_type,  out_layout.format.get_default_format());
-                auto new_reorder = std::make_shared<reorder>(small_input.id() + "_reorder_eltwise_broadcast", small_input.id(), out_layout);
-                auto& new_reorder_node = p.get_or_create(std::move(new_reorder));
-                p.add_intermediate(new_reorder_node, eltwise_node, small_input);
-                new_reorder_node.set_output_layout(small_pshape_layout);
-                new_reorder_node.can_be_optimized(true);
-            }
-        }
-    };
-
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const auto reorder_input_gemm = [&p, &rf](typed_program_node<gemm>& gemm_node) {
         if (gemm_node.get_preferred_impl_type() != impl_types::onednn || gemm_node.is_dynamic()
@@ -803,14 +775,13 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
 #endif // ENABLE_ONEDNN_FOR_GPU
 
     for (auto& prim : p.get_processing_order()) {
-        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling, eltwise>(
+        program_helpers::do_for_types<detection_output, deconvolution, convolution, fully_connected, pooling>(
             *prim,
             reorder_input_detection_output,
             reorder_input_and_weights_deconvolution,
             reorder_convolution,
             reorder_input_fully_connected,
-            reorder_input_pooling,
-            reorder_eltwise_input_for_np_broadcast);
+            reorder_input_pooling);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
         program_helpers::do_for_types<gemm>(
