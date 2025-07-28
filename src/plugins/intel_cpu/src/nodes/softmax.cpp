@@ -101,17 +101,13 @@ void SoftMax::getSupportedDescriptors() {
     }
 
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
     }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(precision);
 
-    if (getParentEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("Incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("Incorrect number of output edges");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 1, "Incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "Incorrect number of output edges");
 
     const auto& inShape = getInputShapeAtPort(0);
     if (inShape.getRank() == 3) {
@@ -143,9 +139,7 @@ Node::AttrPtr SoftMax::initPrimitiveAttr() {
 
 void SoftMax::initOptimalPrimitiveDescriptor() {
     auto* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
     auto config = selected_pd->getConfig();
     if (isDynamicNode()) {
         auto outMemDesc = config.outConfs[0].getMemDesc();
@@ -155,7 +149,7 @@ void SoftMax::initOptimalPrimitiveDescriptor() {
         if (config.inConfs.size() != 1 || config.outConfs.size() != 1 ||
             (config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined() &&
              !config.outConfs[0].getPortDesc()->isCompatible(*config.inConfs[0].getPortDesc()))) {
-            THROW_CPU_NODE_ERR("has incorrect selected config!");
+            CPU_NODE_THROW("has incorrect selected config!");
         }
 
         config.inConfs[0].setMemDesc(getConsistentInputDesc(config, 0)->getMemDesc());
@@ -190,9 +184,7 @@ void SoftMax::prepareParams() {
     auto inpDesc = getParentEdgeAt(0)->getMemory().getDescWithType<DnnlMemoryDesc>();
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
 
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
-    }
+    CPU_NODE_ASSERT(selected_pd, "Preferable primitive descriptor is not set.");
 
     auto attr = initPrimitiveAttr();
 
@@ -235,9 +227,7 @@ void SoftMax::prepareParams() {
     auto result = cache->getOrCreate(key, builder);
 
     execPtr = result.first;
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
-    }
+    CPU_NODE_ASSERT(execPtr, "Primitive descriptor was not found.");
 
     auto scratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
@@ -254,7 +244,7 @@ void SoftMax::execute(const dnnl::stream& strm) {
     if (execPtr) {
         execPtr->exec(primArgs, strm);
     } else {
-        THROW_CPU_NODE_ERR("doesn't have an initialized executor");
+        CPU_NODE_THROW("doesn't have an initialized executor");
     }
 }
 

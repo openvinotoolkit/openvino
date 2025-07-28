@@ -875,7 +875,7 @@ struct ConvertFrom4BitContext {
 }
 
 [[maybe_unused]] static int8_t get_u4(const uint8_t& val, bool high) {
-    return high ? (val >> 4) : (val & 0xF);
+    return static_cast<int8_t>(high ? (val >> 4) : (val & 0xF));
 }
 
 template <typename T>
@@ -1029,9 +1029,7 @@ void cpu_convert(const void* srcPtr,
     if (size == 0) {
         return;
     }
-    if (srcPtr == nullptr || dstPtr == nullptr) {
-        OPENVINO_THROW("cpu_convert has null data pointer");
-    }
+    OPENVINO_ASSERT(srcPtr != nullptr && dstPtr != nullptr, "cpu_convert has null data pointer");
 
     if (srcPrc == dstPrc && srcPrc == interimPrc) {
         const size_t L2_cache_size = dnnl::utils::get_cache_size(2, true);
@@ -1053,37 +1051,31 @@ void cpu_convert(const void* srcPtr,
             cpu_memcpy(dstPtr, srcPtr, size * dstPrc.size());
         }
     } else if (srcPrc == ov::element::u1) {
-        if (srcPrc.bitwidth() != 1) {
-            OPENVINO_THROW("cpu_convert can't convert from: ",
-                           srcPrc,
-                           " <bitsSize == ",
-                           srcPrc.bitwidth(),
-                           "> precision to: ",
-                           dstPrc,
-                           ". Not implemented.");
-        }
+        OPENVINO_ASSERT(srcPrc.bitwidth() == 1,
+                        "cpu_convert can't convert from: ",
+                        srcPrc,
+                        " <bitsSize == ",
+                        srcPrc.bitwidth(),
+                        "> precision to: ",
+                        dstPrc,
+                        ". Not implemented.");
         ConvertFromBinContext ctx{srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFromBinPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_BIN_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ",
-                           srcPrc,
-                           " <bitsSize == ",
-                           srcPrc.bitwidth(),
-                           "> precision to: ",
-                           dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted,
+                        "cpu_convert can't convert from: ",
+                        srcPrc,
+                        " <bitsSize == ",
+                        srcPrc.bitwidth(),
+                        "> precision to: ",
+                        dstPrc);
     } else if (srcPrc.bitwidth() == 4U) {
         ConvertFrom4BitContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFrom4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FROM_4BIT_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else if (dstPrc.bitwidth() == 4U) {
         ConvertTo4BitContext ctx{dstPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertTo4BitPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_TO_4BIT_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     } else if (srcPrc == ov::element::f8e8m0) {
         ConvertFromByteFPContext ctx{srcPrc, srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu,
@@ -1091,25 +1083,19 @@ void cpu_convert(const void* srcPtr,
                   ctx,
                   std::tie(srcPrc, dstPrc),
                   INTEL_CPU_CVT_FROM_BYTE_FP_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #if defined(OPENVINO_ARCH_X86_64)
     } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) &&
-               (one_of(srcPrc, ov::element::f8e4m3, ov::element::f8e5m2) ||
-                one_of(dstPrc, ov::element::f8e4m3, ov::element::f8e5m2))) {
+               (any_of(srcPrc, ov::element::f8e4m3, ov::element::f8e5m2) ||
+                any_of(dstPrc, ov::element::f8e4m3, ov::element::f8e5m2))) {
         ConvertFP8Context ctx{srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFP8Precision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FP8_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #endif
     } else {
         ConvertContext ctx{srcPtr, dstPtr, size, interimPrc, dstPrc, false};
         OV_SWITCH(intel_cpu, ConvertPrecision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_LIST);
-        if (!ctx.converted) {
-            OPENVINO_THROW("cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
-        }
+        OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
     }
 }
 

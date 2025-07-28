@@ -122,16 +122,15 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
     size_t outDataShapeRank = node->getOutputShapeAtPort(0).getRank();
 
     NodeConfig config;
-    if (repeats.size() != outDataShapeRank && !repeats.empty()) {
-        OPENVINO_THROW(node->getTypeStr(),
-                       " node with name ",
-                       node->getName(),
-                       " has incorrect Repeats vector."
-                       "Repeats rank must be equal to output shape rank. Repeats rank: ",
-                       repeats.size(),
-                       ", output shape rank: ",
-                       outDataShapeRank);
-    }
+    OPENVINO_ASSERT(repeats.size() == outDataShapeRank || repeats.empty(),
+                    node->getTypeStr(),
+                    " node with name ",
+                    node->getName(),
+                    " has incorrect Repeats vector."
+                    "Repeats rank must be equal to output shape rank. Repeats rank: ",
+                    repeats.size(),
+                    ", output shape rank: ",
+                    outDataShapeRank);
 
     config.inConfs.resize(node->getParentEdges().size());
     config.inConfs[0].inPlace(-1);
@@ -161,8 +160,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
         supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref);
     };
 
-    if (!repeats.empty() && inDataShape.getRank() == outDataShapeRank &&
-        (outDataShapeRank == 4 || outDataShapeRank == 5)) {
+    if (!repeats.empty() && inDataShape.getRank() == outDataShapeRank && (any_of(outDataShapeRank, 4U, 5U))) {
         if (canBeExecutedInBlockedLayout(srcDims, repeats, 16)) {
             if (outDataShapeRank == 4) {
                 pushDesc(dnnl::memory::format_tag::nChw16c, dnnl::memory::format_tag::nChw16c);
@@ -188,7 +186,7 @@ std::vector<NodeDesc> TileBroadcastCommon::getSupportedConfigs(const Node* node,
 
     auto inFmt = DnnlExtensionUtils::GetPlainFormatByRank(inDataShape.getRank());
     auto outFmt = DnnlExtensionUtils::GetPlainFormatByRank(outDataShapeRank);
-    if (inFmt == dnnl::memory::format_tag::undef || outFmt == dnnl::memory::format_tag::undef) {
+    if (any_of(dnnl::memory::format_tag::undef, inFmt, outFmt)) {
         config.inConfs[0].setMemDesc(std::make_shared<CpuBlockedMemoryDesc>(precision, node->getInputShapeAtPort(0)));
         for (size_t i = 0; i < config.outConfs.size(); i++) {
             config.outConfs[i].inPlace(-1);
@@ -218,7 +216,7 @@ bool TileBroadcastCommon::prepareOptimizedParams(const Node* node,
     }
     // for NSPC layouts
     if (node->getBaseMemDescAtInputPort(0)->hasLayoutType(LayoutType::nspc) &&
-        one_of(node->getBaseMemDescAtInputPort(0)->getShape().getRank(), 4U, 5U)) {
+        any_of(node->getBaseMemDescAtInputPort(0)->getShape().getRank(), 4U, 5U)) {
         blockedRepeats.push_back(blockedRepeats[1]);
         blockedRepeats.erase(blockedRepeats.begin() + 1);
     }

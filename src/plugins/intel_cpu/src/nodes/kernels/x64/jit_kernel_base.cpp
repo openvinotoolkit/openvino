@@ -227,9 +227,7 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm& v_dst,
                              const Xbyak::Opmask& kReadMask,
                              const bool useMask,
                              const bool zeroFill) {
-    if (kReadMask.getIdx() == 0) {
-        OPENVINO_THROW("The vpgatherdd instruction cannot use the register k0 as mask.");
-    }
+    OPENVINO_ASSERT(kReadMask.getIdx() != 0, "The vpgatherdd instruction cannot use the register k0 as mask.");
     if (!useMask) {
         kxnord(kReadMask, kReadMask, kReadMask);
     }
@@ -246,10 +244,9 @@ void JitKernelBase::gatherdd(const Xbyak::Xmm& v_dst,
                              const Xbyak::Xmm& vReadMask,
                              const bool useMask,
                              const bool zeroFill) {
-    if (v_dst.getIdx() == vSrcShift.getIdx() || v_dst.getIdx() == vReadMask.getIdx() ||
-        vSrcShift.getIdx() == vReadMask.getIdx()) {
-        OPENVINO_THROW("Any pair of the index, mask, or destination registers cannot be the same.");
-    }
+    OPENVINO_ASSERT(v_dst.getIdx() != vSrcShift.getIdx() && v_dst.getIdx() != vReadMask.getIdx() &&
+                        vSrcShift.getIdx() != vReadMask.getIdx(),
+                    "Any pair of the index, mask, or destination registers cannot be the same.");
     if (zeroFill) {
         pxor(v_dst, v_dst);  // Don't use vpxor. It zeros the rest of the YMM register.
     }
@@ -288,10 +285,9 @@ void JitKernelBase::gatherdd(const Xbyak::Ymm& v_dst,
                              const Xbyak::Ymm& vReadMask,
                              const bool useMask,
                              const bool zeroFill) {
-    if (v_dst.getIdx() == vSrcShift.getIdx() || v_dst.getIdx() == vReadMask.getIdx() ||
-        vSrcShift.getIdx() == vReadMask.getIdx()) {
-        OPENVINO_THROW("Any pair of the index, mask, or destination registers cannot be the same.");
-    }
+    OPENVINO_ASSERT(v_dst.getIdx() != vSrcShift.getIdx() && v_dst.getIdx() != vReadMask.getIdx() &&
+                        vSrcShift.getIdx() != vReadMask.getIdx(),
+                    "Any pair of the index, mask, or destination registers cannot be the same.");
     if (isValidIsa(x64::avx2)) {
         if (!useMask) {
             uni_vpcmpeqd(vReadMask, vReadMask, vReadMask);
@@ -419,9 +415,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Opmask& dstMask, const Xbyak::
 void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
                                      const Xbyak::Reg64& rWorkRest,
                                      const uint64_t typeSize) {
-    if (!one_of(typeSize, 1U, 2U, 4U, 8U)) {
-        OPENVINO_THROW("Could not fill data with type size ", typeSize);
-    }
+    OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not fill data with type size ", typeSize);
     Xbyak::Label lEnd;
     auto r32Ones = getReg32();
     Xbyak::Reg64 r64Ones(r32Ones.getIdx());
@@ -448,9 +442,7 @@ void JitKernelBase::fillRestWorkMask(const Xbyak::Xmm& xmmDstMask,
 void JitKernelBase::fillRestWorkMask(const Xbyak::Ymm& ymmDstMask,
                                      const Xbyak::Reg64& rWorkRest,
                                      const uint64_t typeSize) {
-    if (!one_of(typeSize, 1U, 2U, 4U, 8U)) {
-        OPENVINO_THROW("Could not fill data with type size ", typeSize);
-    }
+    OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not fill data with type size ", typeSize);
     Xbyak::Label lEnd;
     auto elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
     auto r32Ones = getReg32();
@@ -488,9 +480,7 @@ void JitKernelBase::load(const Xbyak::Xmm& v_dst,
                          const Xbyak::Reg64& rLoadNum,
                          const size_t typeSize,
                          const bool zeroFilling) {
-    if (!one_of(typeSize, 1U, 2U, 4U, 8U)) {
-        OPENVINO_THROW("Could not load data with type size ", typeSize);
-    }
+    OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not load data with type size ", typeSize);
     const uint8_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
     Xbyak::Label lEnd;
     if (zeroFilling) {
@@ -520,9 +510,7 @@ void JitKernelBase::load(const Xbyak::Ymm& v_dst,
                          const Xbyak::Reg64& rLoadNum,
                          const size_t typeSize,
                          const bool zeroFilling) {
-    if (!one_of(typeSize, 1U, 2U, 4U, 8U)) {
-        OPENVINO_THROW("Could not load data with type size ", typeSize);
-    }
+    OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not load data with type size ", typeSize);
     const size_t elPerXmm = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
     Xbyak::Label lEnd;
     if (zeroFilling) {
@@ -561,9 +549,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
                           const Xbyak::Xmm& v_src,
                           const Xbyak::Reg64& rToStoreNum,
                           const size_t typeSize) {
-    if (!one_of(typeSize, 1U, 2U, 4U, 8U)) {
-        OPENVINO_THROW("Could not store data with type size ", typeSize);
-    }
+    OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not store data with type size ", typeSize);
     Xbyak::Label lEnd;
     const size_t elPerVec = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;
 
@@ -589,9 +575,7 @@ void JitKernelBase::store(const Xbyak::Address& dstAddr,
                           const Xbyak::Ymm& v_src,
                           const Xbyak::Reg64& rToStoreNum,
                           const size_t typeSize) {
-    if (!one_of(typeSize, 1U, 2U, 4U, 8U)) {
-        OPENVINO_THROW("Could not store data with type size ", typeSize);
-    }
+    OPENVINO_ASSERT(any_of(typeSize, 1U, 2U, 4U, 8U), "Could not store data with type size ", typeSize);
     Xbyak::Label lEnd;
     Xbyak::Xmm xmmSrc(v_src.getIdx());
     const size_t elPerXmm = x64::cpu_isa_traits_t<x64::sse41>::vlen / typeSize;

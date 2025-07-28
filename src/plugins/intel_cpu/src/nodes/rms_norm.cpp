@@ -138,7 +138,7 @@ void RMSNorm::initSupportedPrimitiveDescriptors() {
         return;
     }
     auto precision = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+    if (none_of(precision, ov::element::f32, ov::element::bf16, ov::element::f16)) {
         precision = ov::element::f32;
     }
 
@@ -175,9 +175,7 @@ void RMSNorm::createPrimitive() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
-    if (!result.first) {
-        OPENVINO_THROW("RMSNorm Executor creation fails with precision " + precision.to_string());
-    }
+    OPENVINO_ASSERT(result.first, "RMSNorm Executor creation fails with precision " + precision.to_string());
     m_executor = result.first;
 }
 
