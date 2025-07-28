@@ -325,6 +325,42 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnDynamic3D_GPU,
                          dynamic_shape_params_3D,
                          ScaledAttnLayerGPUTest::getTestCaseName);
 
+const std::vector<std::vector<InputShape>> static_shapes_3D{
+    // static shapes
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{16, 128, 80},
+            {ov::Shape{16, 128, 80}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{16, 128, 80},
+            {ov::Shape{16, 128, 80}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{16, 128, 80},
+            {ov::Shape{16, 128, 80}}}
+        },
+        // attn shape: [B, 128, -128, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{128, 128},
+            {ov::Shape{128, 128}}}
+        },
+    },
+};
+
+const auto static_shape_params_3D = testing::Combine(testing::Values(ov::element::f16),
+                                                  testing::ValuesIn(static_shapes_3D),
+                                                  testing::Values(true, false),
+                                                  testing::Values(true, false),
+                                                  testing::Values(true, false),
+                                                  testing::Values(true, false),
+                                                  testing::Values(true, false),
+                                                  testing::ValuesIn({disable_transpose, transpose_all_3D}));
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScaledAttnStatic3D_GPU,
+                         ScaledAttnLayerGPUTest,
+                         static_shape_params_3D,
+                         ScaledAttnLayerGPUTest::getTestCaseName);
+
 const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
     // normal case, shapes of q,k,v are same
     {
@@ -549,6 +585,24 @@ const std::vector<std::vector<InputShape>> dynamic_shapes_4D {
         {ov::test::InputShape{ov::PartialShape{-1, -1},
             {ov::Shape{245, 245}, ov::Shape{1, 1}, ov::Shape{10, 10}}}
         },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{-1, 10, -1, 64},
+            {ov::Shape{1, 10, 77, 64}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{-1, 10, -1, 64},
+            {ov::Shape{1, 10, 77, 64}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{-1, 10, -1, 64},
+            {ov::Shape{1, 10, 77, 64}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{77, 77},
+            {ov::Shape{77, 77}}}
+        },
     }
 };
 
@@ -641,6 +695,24 @@ const std::vector<std::vector<InputShape>> static_shapes{
         // attn shape: [B, 1, -1, L0+L1]
         {ov::test::InputShape{ov::PartialShape{1, 1, 1, 100},
             {ov::Shape{1, 1, 1, 100}}}
+        },
+    },
+    {
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 10, 77, 64},
+            {ov::Shape{1, 10, 77, 64}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 10, 77, 64},
+            {ov::Shape{1, 10, 77, 64}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{1, 10, 77, 64},
+            {ov::Shape{1, 10, 77, 64}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{77, 77},
+            {ov::Shape{77, 77}}}
         },
     },
 };
