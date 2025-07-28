@@ -86,7 +86,7 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     }
 
     prim.has_rotated_blocks = op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATION_TRIG_LUT;
-
+    prim.is_key_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     prim.num_outputs = 1;
 
     if (op->get_output_size() > 1) {
