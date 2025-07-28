@@ -61,7 +61,7 @@ Here is a minimal example:
    import numpy as np
    import openvino as ov
 
-   temp_filepath = "temp_exported_model.xml"
+   ov_model_path = "ov_model.xml"
 
    model = keras_hub.models.BertTextClassifier.from_preset(
       "bert_base_en_uncased",
