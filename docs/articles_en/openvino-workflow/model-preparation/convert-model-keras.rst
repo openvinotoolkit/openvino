@@ -71,9 +71,7 @@ Here is a minimal example:
 
    model.export(temp_filepath, format="openvino")
 
-   core = ov.Core()
-   ov_model = core.read_model(temp_filepath)
-   compiled_model = core.compile_model(ov_model, "CPU")
+   compiled_model = ov.Core().compile_model(ov_model_path, "CPU")
    inputs = {
       "token_ids:0": np.ones((1, 12), dtype="int32"),
       "segment_ids:0": np.zeros((1, 12), dtype="int32"),
