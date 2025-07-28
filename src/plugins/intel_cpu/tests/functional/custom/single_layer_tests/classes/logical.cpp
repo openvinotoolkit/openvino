@@ -47,7 +47,8 @@ void LogicalLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
 
     const auto primitiveType = getPrimitiveType(logicalType);
-    selectedType = primitiveType.empty() ? "" : primitiveType + "_I8";
+    const auto primiticePrcType = primitiveType == "ref" ? ov::element::f32.to_string() : "I8";
+    selectedType = primitiveType.empty() ? "" : primitiveType + "_" + primiticePrcType;
 
     init_input_shapes(shapes);
 
@@ -80,7 +81,7 @@ void LogicalLayerCPUTest::SetUp() {
     function = std::make_shared<ov::Model>(logical_node, params, "Logical");
 }
 
-std::string LogicalLayerCPUTest::getPrimitiveType(const utils::LogicalTypes& log_type) const {
+std::string LogicalLayerCPUTest::getPrimitiveType(const utils::LogicalTypes& type) const {
 #if defined(OPENVINO_ARCH_ARM64)
     return "jit";
 #endif
@@ -89,9 +90,9 @@ std::string LogicalLayerCPUTest::getPrimitiveType(const utils::LogicalTypes& log
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
-        if ((activation_type == utils::LogicalTypes::LogicalAnd) ||
-            (activation_type == utils::LogicalTypes::LogicalXor) ||
-            (activation_type == utils::LogicalTypes::LogicalNot))
+        if ((type == utils::LogicalTypes::LOGICAL_AND) ||
+            (type == utils::LogicalTypes::LOGICAL_XOR) ||
+            (type == utils::LogicalTypes::LOGICAL_NOT))
             return "jit";
     }
 #endif

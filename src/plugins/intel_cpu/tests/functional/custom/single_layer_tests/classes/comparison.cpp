@@ -51,7 +51,8 @@ void ComparisonLayerCPUTest::SetUp() {
     }
 
     const auto primitiveType = getPrimitiveType(comparisonType);
-    selectedType = primitiveType.empty() ? "" : primitiveType + "_" + modelType.to_string();
+    const auto primiticePrcType = primitiveType == "ref" ? ov::element::f32.to_string() : modelType.to_string();
+    selectedType = primitiveType.empty() ? "" : primitiveType + "_" + primiticePrcType;
 
     init_input_shapes(shapes);
 
@@ -79,16 +80,21 @@ void ComparisonLayerCPUTest::SetUp() {
     function = std::make_shared<ov::Model>(comparison_node, params, "Comparison");
 }
 
-std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonTypes& log_type) const {
+std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonTypes& type) const {
 #if defined(OPENVINO_ARCH_ARM64)
     return "jit";
 #endif
+#if defined(OPENVINO_ARCH_ARM)
+    // TODO [171225] : On ARM there is ACL executor support which requires U8 on output.
+    //                 This requirement is not met in Eltwise CPU node - ref impl is used.
+    return "ref";
+#endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
-        if ((activation_type == utils::ComparisonTypes::EQUAL) ||
-            (activation_type == utils::ComparisonTypes::NOT_EQUAL) ||
-            (activation_type == utils::ComparisonTypes::LESS_EQUAL) ||
-            (activation_type == utils::ComparisonTypes::GREATER_EQUAL))
+        if ((type == utils::ComparisonTypes::EQUAL) ||
+            (type == utils::ComparisonTypes::NOT_EQUAL) ||
+            (type == utils::ComparisonTypes::LESS_EQUAL) ||
+            (type == utils::ComparisonTypes::GREATER_EQUAL))
             return "jit";
     }
 #endif
