@@ -69,10 +69,10 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
     relu->output(0).get_tensor().add_names({"relu_0.tmp_0"});
 
     std::shared_ptr<ov::opset1::Result> result;
-    if (std::string(TEST_PADDLE_VERSION) == "3") {
+    if (std::string(TEST_GEN_TAG) == "ge3") {
         result = std::make_shared<ov::opset1::Result>(relu->output(0));
         result->set_friendly_name("save_infer_model/scale_0.tmp_0");
-    } else if (std::string(TEST_PADDLE_VERSION) == "2") {
+    } else if (std::string(TEST_GEN_TAG) == "ge2") {
         const auto bias = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 0.0);
         const auto scale = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 1.0);
         const auto mul = std::make_shared<ov::opset1::Multiply>(relu->output(0), scale);
@@ -83,7 +83,7 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
         result = std::make_shared<ov::opset1::Result>(add->output(0));
         result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
     } else {
-        ASSERT_TRUE(false) << "Unsupported PaddlePaddle version: " << std::string(TEST_PADDLE_VERSION);
+        ASSERT_TRUE(false) << "Unsupported TEST_GEN_TAG: " << std::string(TEST_GEN_TAG);
     }
 
     const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");
@@ -110,10 +110,10 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     relu->set_friendly_name("relu_0.tmp_0");
     relu->output(0).get_tensor().add_names({"relu_0.tmp_0"});
     std::shared_ptr<ov::opset1::Result> result;
-    if (std::string(TEST_PADDLE_VERSION) == "3") {
+    if (std::string(TEST_GEN_TAG) == "ge3") {
         result = std::make_shared<ov::opset1::Result>(relu->output(0));
         result->set_friendly_name("save_infer_model/scale_0.tmp_0");
-    } else if (std::string(TEST_PADDLE_VERSION) == "2") {
+    } else if (std::string(TEST_GEN_TAG) == "ge2") {
         const auto bias = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 0.0);
         const auto scale = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 1.0);
         const auto mul = std::make_shared<ov::opset1::Multiply>(relu->output(0), scale);
@@ -123,7 +123,7 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
         result = std::make_shared<ov::opset1::Result>(add->output(0));
         result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
     } else {
-        ASSERT_TRUE(false) << "Unsupported PaddlePaddle version: " << std::string(TEST_PADDLE_VERSION);
+        ASSERT_TRUE(false) << "Unsupported TEST_GEN_TAG: " << std::string(TEST_GEN_TAG);
     }
 
     const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");

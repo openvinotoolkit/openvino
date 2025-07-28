@@ -17,13 +17,13 @@ static CutModelParam getTestData_2in_2out() {
     res.m_modelName = "2in_2out/2in_2out" + std::string(TEST_PADDLE_MODEL_EXT);
     res.m_oldInputs = {"inputX1", "inputX2"};
     res.m_newInputs = {"add1.tmp_0"};
-    if (std::string(TEST_PADDLE_VERSION) == "3") {
+    if (std::string(TEST_GEN_TAG) == "ge3") {
         res.m_oldOutputs = {"relu3a.tmp_0/Result", "relu3b.tmp_0/Result"};
-    } else if (std::string(TEST_PADDLE_VERSION) == "2") {
+    } else if (std::string(TEST_GEN_TAG) == "ge2") {
         res.m_oldOutputs = {"save_infer_model/scale_0.tmp_0", "save_infer_model/scale_1.tmp_0"};
     } else {
-        // Unexpected TEST_PADDLE_VERSION value. This branch is reached if TEST_PADDLE_VERSION is neither "2" nor "3".
-        throw std::runtime_error("Unsupported TEST_PADDLE_VERSION: " + std::string(TEST_PADDLE_VERSION));
+        // Unexpected TEST_GEN_TAG value. This branch is reached if TEST_GEN_TAG is neither "ge2" nor "ge3".
+        throw std::runtime_error("Unsupported TEST_PADDLE_VERSION: " + std::string(TEST_GEN_TAG));
     }
     res.m_newOutputs = {"add2.tmp_0"};
     res.m_tensorValueName = "conv2dX2.tmp_0";

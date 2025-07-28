@@ -24,7 +24,7 @@ ov_add_test_target(
     NAME ${TARGET_NAME}
         ROOT ${CODE_ROOT_DIR}
         DEPENDENCIES
-            paddle_test_models_${PDVTAG}
+            paddle_test_models_${PD_MODEL_TAG}
             openvino_paddle_frontend
             paddle_fe_standalone_build_test
         LINK_LIBRARIES
@@ -51,43 +51,39 @@ if(paddlepaddle_FOUND)
         set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.8.1/ppdet/modeling/ops.py")
         set(PADDLEDET_OPS_SHA256 "9b3193d91d617a6c9e6ef49896dc8612cbcbb67c146d0a76ce16bf2b64dac86f")
         set(PADDLEDET_DIRNAME ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/PaddleDetection/release281/ppdet/modeling/)
+        set(paddle_gen_tag "ge3")
     elseif(PADDLE_VERSION VERSION_GREATER_EQUAL "2.6.0")
         set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.5/ppdet/modeling/ops.py")
         set(PADDLEDET_OPS_SHA256 "e3da816421698ee97bb272c4410a03c300ab92045b7c87cccb9e52a8c18bc088")
         set(PADDLEDET_DIRNAME ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/PaddleDetection/release25/ppdet/modeling/)
+        set(paddle_gen_tag "ge2")
     else()
         set(PADDLEDET_OPS_URL "https://raw.githubusercontent.com/PaddlePaddle/PaddleDetection/release/2.1/ppdet/modeling/ops.py")
         set(PADDLEDET_OPS_SHA256 "5cc079eda295ed78b58fba8223c51d85a931a7069ecad51c6af5c2fd26b7a8cb")
         set(PADDLEDET_DIRNAME ${CMAKE_CURRENT_BINARY_DIR}/thirdparty/PaddleDetection/release21/ppdet/modeling/)
+        set(paddle_gen_tag "ge2")
     endif()
     
     DownloadAndCheck(${PADDLEDET_OPS_URL} ${PADDLEDET_DIRNAME}/ops.py PADDLEDET_FATAL PADDLEDET_RESULT ${PADDLEDET_OPS_SHA256})
-endif()
-
-
-if(paddlepaddle_FOUND)
-    if(PADDLE_VERSION VERSION_GREATER_EQUAL "3.0.0" OR PADDLE_VERSION VERSION_EQUAL "0.0.0")
-        set(paddle_gen_env_version "3")
-    else()
-        set(paddle_gen_env_version "2")
-    endif()
 else()
-    set(paddle_gen_env_version "unknown")
+    set(paddle_gen_tag "unkown")
 endif()
-set(TEST_PADDLE_MODELS_DIRNAME ${TEST_MODEL_ZOO}/paddle_test_models/${PDVTAG})
+
+
+set(TEST_PADDLE_MODELS_DIRNAME ${TEST_MODEL_ZOO}/paddle_test_models/${PD_MODEL_TAG})
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODELS_DIRNAME=\"${TEST_PADDLE_MODELS_DIRNAME}/\")
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_MODEL_EXT=\"${TEST_PADDLE_MODEL_EXT}\")
 target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_ENABLE_PIR=\"${ENABLE_PIR}\")
-target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_PADDLE_VERSION=\"${paddle_gen_env_version}\")
+target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_GEN_TAG=\"${paddle_gen_tag}\")
 
 # If 'paddlepaddle' is not found, code will still be compiled, but models will not be generated and tests will fail
 # This is done this way for 'code style' and check cases - cmake shall pass, but CI machine doesn't need to have
 # 'paddlepaddle' installed to check code style
 if(PADDLEDET_RESULT)
-    set(TEST_PADDLE_MODELS ${TEST_MODEL_ZOO_OUTPUT_DIR}/paddle_test_models/${PDVTAG}/)
+    set(TEST_PADDLE_MODELS ${TEST_MODEL_ZOO_OUTPUT_DIR}/paddle_test_models/${PD_MODEL_TAG}/)
 
     file(GLOB_RECURSE PADDLE_ALL_SCRIPTS ${CODE_ROOT_DIR}/*.py)
-    set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done_${PDVTAG}.txt)
+    set(OUT_FILE ${TEST_PADDLE_MODELS}/generate_done_${PD_MODEL_TAG}.txt)
     add_custom_command(OUTPUT ${OUT_FILE}
             COMMAND  ${CMAKE_COMMAND} -E env PYTHONPATH=${PADDLEDET_DIRNAME} FLAGS_enable_pir_api=${ENABLE_PIR}
                 ${Python3_EXECUTABLE}
@@ -95,7 +91,7 @@ if(PADDLEDET_RESULT)
                     ${CODE_ROOT_DIR}/test_models/gen_scripts
                     ${TEST_PADDLE_MODELS}
             DEPENDS ${PADDLE_ALL_SCRIPTS})
-    add_custom_target(paddle_test_models_${PDVTAG} DEPENDS ${OUT_FILE})
+    add_custom_target(paddle_test_models_${PD_MODEL_TAG} DEPENDS ${OUT_FILE})
 
     install(DIRECTORY ${TEST_PADDLE_MODELS}
             DESTINATION tests/${TEST_PADDLE_MODELS_DIRNAME}
@@ -108,7 +104,7 @@ else()
             COMMAND ${CMAKE_COMMAND}
             -E cmake_echo_color --red "Warning: Unable to generate PaddlePaddle test models. Running '${TARGET_NAME}' will likely fail"
             )
-    add_custom_target(paddle_test_models_${PDVTAG} DEPENDS unable_build_paddle_models.txt)
+    add_custom_target(paddle_test_models_${PD_MODEL_TAG} DEPENDS unable_build_paddle_models.txt)
 endif()
 
 # Fuzzy tests for PaddlePaddle use IE_CPU engine
