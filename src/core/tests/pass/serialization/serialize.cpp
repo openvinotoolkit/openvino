@@ -789,10 +789,10 @@ public:
 </net>
 )V0G0N";
 
-    std::string m_dynamic_type_out_xml_path;
-    std::string m_dynamic_type_out_bin_path;
-    std::string m_undefined_type_out_xml_path;
-    std::string m_undefined_type_out_bin_path;
+    std::filesystem::path m_dynamic_type_out_xml_path;
+    std::filesystem::path m_dynamic_type_out_bin_path;
+    std::filesystem::path m_undefined_type_out_xml_path;
+    std::filesystem::path m_undefined_type_out_bin_path;
 
     void SetUp() override {
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
@@ -803,15 +803,26 @@ public:
     }
 
     void TearDown() override {
-        std::remove(m_undefined_type_out_xml_path.c_str());
-        std::remove(m_undefined_type_out_bin_path.c_str());
-        std::remove(m_dynamic_type_out_xml_path.c_str());
-        std::remove(m_dynamic_type_out_bin_path.c_str());
+        if (std::filesystem::exists(m_undefined_type_out_xml_path)) {
+            std::filesystem::remove(m_undefined_type_out_xml_path);
+        }
+
+        if (std::filesystem::exists(m_undefined_type_out_bin_path)) {
+            std::filesystem::remove(m_undefined_type_out_bin_path);
+        }
+
+        if (std::filesystem::exists(m_dynamic_type_out_xml_path)) {
+            std::filesystem::remove(m_dynamic_type_out_xml_path);
+        }
+
+        if (std::filesystem::exists(m_dynamic_type_out_bin_path)) {
+            std::filesystem::remove(m_dynamic_type_out_bin_path);
+        }
     }
 
-    bool files_equal(const std::string& file_path1, const std::string& file_path2) {
-        std::ifstream xml_dynamic(file_path1, std::ios::binary);
-        std::ifstream xml_undefined(file_path2, std::ios::binary);
+    bool files_equal(const std::filesystem::path& file_path1, const std::filesystem::path& file_path2) {
+        std::ifstream xml_dynamic(file_path1.string(), std::ios::binary);
+        std::ifstream xml_undefined(file_path2.string(), std::ios::binary);
 
         if (!xml_dynamic.good() || !xml_undefined.good()) {
             return false;
@@ -825,18 +836,17 @@ public:
 
 // check stringstream serialize
 TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefined_type_serialization_stringstream) {
-    std::stringstream dynamicTypeModelXmlStream, undefinedTypeModelXmlStream, dynamicTypeModelBinStream,
-        undefinedTypeModelBinStream;
+    std::stringstream dynamicXmlStream, undefinedXmlStream, dynamicBinStream, undefinedBinStream;
 
     // Test whether the serialization results of the two models are the same
     auto dynamicTypeModel = ov::test::readModel(dynamic_type_ir);
     auto undefinedTypeModel = ov::test::readModel(undefined_type_ir);
 
     // compile the serialized models with stringstream type
-    ov::pass::Serialize(dynamicTypeModelXmlStream, dynamicTypeModelBinStream).run_on_model(dynamicTypeModel);
-    ov::pass::Serialize(undefinedTypeModelXmlStream, undefinedTypeModelBinStream).run_on_model(undefinedTypeModel);
+    ov::pass::Serialize(dynamicXmlStream, dynamicBinStream).run_on_model(dynamicTypeModel);
+    ov::pass::Serialize(undefinedXmlStream, undefinedBinStream).run_on_model(undefinedTypeModel);
 
-    ASSERT_EQ(dynamicTypeModelXmlStream.str(), undefinedTypeModelXmlStream.str())
+    ASSERT_EQ(dynamicXmlStream.str(), undefinedXmlStream.str())
         << "Serialized XML streams are different: dynamic type vs undefined type";
 }
 

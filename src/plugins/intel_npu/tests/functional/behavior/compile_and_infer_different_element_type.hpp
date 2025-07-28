@@ -2,27 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <string>
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include <sstream>
+#include <string>
 #include <vector>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include <common_test_utils/ov_tensor_utils.hpp>
+#include "openvino/opsets/opset6.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/serialize.hpp"
-#include "openvino/opsets/opset6.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 namespace ov {
 namespace test {
 namespace behavior {
 
-using InferRequestElementTypeParams = std::tuple<
-        std::string,                                                       // Device name
-        ov::AnyMap                                                         // Config
->;
+using InferRequestElementTypeParams = std::tuple<std::string,  // Device name
+                                                 ov::AnyMap    // Config
+                                                 >;
 
+// These tests are required by the NPU plugin to verify the compatibility of undefined type and dynamic type during
+// compilation and inference on different NPU drivers, hence they are kept here. Compared to test in serialize it
+// includes an additional comparison of inference results.
 class InferRequestElementTypeTests : public testing::WithParamInterface<InferRequestElementTypeParams>,
-                                   public OVInferRequestTestBase  {
-
+                                     public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestElementTypeParams> obj) {
         std::string target_device;
@@ -56,8 +57,8 @@ protected:
     ov::AnyMap configuration;
 };
 
-
-bool InferRequestElementTypeTests::compareTensorOutputs(const ov::Tensor& dynamicInferenceOutput, const ov::Tensor& undefinedInferenceOutput) {
+bool InferRequestElementTypeTests::compareTensorOutputs(const ov::Tensor& dynamicInferenceOutput,
+                                                        const ov::Tensor& undefinedInferenceOutput) {
     const auto dynamicShape = dynamicInferenceOutput.get_shape();
     const auto undefinedShape = undefinedInferenceOutput.get_shape();
 
@@ -83,7 +84,8 @@ bool InferRequestElementTypeTests::compareTensorOutputs(const ov::Tensor& dynami
     return true;
 }
 
-// Test whether the serialization and inference results of the dynamic type model and the undefined type model are the same
+// Test whether the serialization and inference results of the dynamic type model and the undefined type model are the
+// same
 TEST_P(InferRequestElementTypeTests, CompareDynamicAndUndefinedTypeNetwork) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
@@ -282,7 +284,8 @@ TEST_P(InferRequestElementTypeTests, CompareDynamicAndUndefinedTypeNetwork) {
 </net>
 )V0G0N";
 
-    std::stringstream dynamicTypeModelXmlStream, undefinedTypeModelXmlStream, dynamicTypeModelBinStream, undefinedTypeModelBinStream;
+    std::stringstream dynamicTypeModelXmlStream, undefinedTypeModelXmlStream, dynamicTypeModelBinStream,
+        undefinedTypeModelBinStream;
 
     // Test whether the serialization results of the two models are the same
     auto dynamicTypeModel = ie->read_model(dynamicTypeModelXmlString, ov::Tensor());
