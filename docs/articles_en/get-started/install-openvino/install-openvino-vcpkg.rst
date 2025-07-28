@@ -70,7 +70,7 @@ To uninstall OpenVINO via vcpkg, use the following command:
 
 .. code-block:: sh
 
-   vcpkg uninstall openvino
+   vcpkg remove openvino
 
 
 What's Next?
