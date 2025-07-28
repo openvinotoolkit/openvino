@@ -1295,7 +1295,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input_data.get_fused_primitives().size() > 0 || groupnorm_node.get_fused_primitives().size() > 0)
                 return;
 
-            if (input_data.as<convolution>().bias_term())
+            if (input_data.as<convolution>().bias_term())   // until POST OP 7 is not implemented
                 return;
 
             p.fuse_nodes(input_data, groupnorm_node, &fusing_history);

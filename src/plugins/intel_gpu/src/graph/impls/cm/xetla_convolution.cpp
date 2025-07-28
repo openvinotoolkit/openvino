@@ -59,7 +59,7 @@ protected:
                            make_jit_constant("PREFETCH_DISTANCE", kernel_knobs.prefetch_distance),
                            make_jit_constant("ACCUM_STEP", kernel_knobs.accum_step)});
 
-        if (conv_desc.post_ops == 6)
+        if (conv_desc.post_ops == 6 || conv_desc.post_ops == 7)
             jit_constants.add({make_jit_constant("GROUPNORM_GROUP_SIZE", conv_desc.group_size.value_or(0)),
                                make_jit_constant("GROUPNORM_GROUP_NUM", conv_desc.group_count.value_or(0)),
                                make_jit_constant("STAT_DT", "fp16")});
@@ -283,11 +283,11 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::KernelKn
     {"1x128x128x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
     {"1x256x256x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
     {"1x256x256x256x256x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
-    {"1x512x512x128x128x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
-    {"1x512x512x256x128x1x0x1x1", KernelKnobs{1, 16, 16, 128, 1, 8, 4, 32, 1, 1, 3, 32}},
-    {"1x512x512x128x128x1x1x1x1", KernelKnobs{1, 16, 16, 128, 1, 8, 4, 32, 1, 1, 3, 32}},
-    {"1x512x512x128x3x3x1x1x1", KernelKnobs{1, 16, 16, 3, 1, 8, 4, 3, 1, 1, 3, 32}},
-    {"1x512x512x256x128x3x1x1x1", KernelKnobs{1, 16, 16, 128, 1, 8, 4, 32, 1, 1, 3, 32}}};
+    {"1x512x512x128x128x3x1x1x1", KernelKnobs{1, 64, 16, 128, 1, 8, 8, 64, 1, 1, 3, 32}},
+    {"1x512x512x256x128x1x0x1x1", KernelKnobs{1, 16, 64, 128, 1, 4, 16, 64, 1, 1, 3, 32}},
+    // {"1x512x512x128x128x1x1x1x1", KernelKnobs{1, 16, 16, 128, 1, 8, 4, 32, 1, 1, 3, 32}},
+    {"1x512x512x256x128x3x1x1x1", KernelKnobs{1, 32, 32, 128, 1, 8, 8, 64, 1, 1, 3, 32}}
+};
 
 const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnobs> ConvolutionImplementationManager::NormMap = {
     {"1x14x14x256x512x3x1x1x1", NormKnobs{1, 7 * 2 * 8 * 2, 32 * 4, 1, 7 * 8, 32}},  // C2 (post op variants: [bias+eltwise_add])
@@ -302,16 +302,16 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnob
     // J (post op variants: [bias], [eltwise_add], [bias+eltwise_add+eltwise_mul+eltwise_add])
     {"1x5x9x512x512x3x1x1x1", NormKnobs{1, 1 * 5 * 8 * 2, 32 * 2, 1, 1 * 8, 32}},
     // VAE Decoder
-    {"1x64x64x4x512x3x1x1x1", NormKnobs{1, 16 * 16, 64, 1, 4 * 8, 32}},
-    {"1x64x64x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
-    {"1x128x128x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
-    {"1x256x256x512x512x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
-    {"1x256x256x256x256x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
-    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 32 * 16, 128, 1, 8 * 8, 32}},
-    {"1x512x512x256x128x1x0x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}},
-    {"1x512x512x128x128x1x1x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}},
-    {"1x512x512x128x3x3x1x1x1", NormKnobs{1, 16 * 16, 3, 1, 8 * 4, 3}},
-    {"1x512x512x256x128x3x1x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}}};
+    {"1x64x64x4x512x3x1x1x1", NormKnobs{1, 1024, 256, 1, 128, 64}},
+    {"1x64x64x512x512x3x1x1x1", NormKnobs{1, 1024, 256, 1, 128, 64}},
+    {"1x128x128x512x512x3x1x1x1", NormKnobs{1, 1024, 256, 1, 256, 32}},
+    {"1x256x256x512x512x3x1x1x1", NormKnobs{1, 1024, 128, 1, 256, 32}},
+    {"1x256x256x256x256x3x1x1x1", NormKnobs{1, 1024, 256, 1, 256, 32}},
+    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 64 * 16, 128, 1, 8 * 8, 64}},
+    {"1x512x512x256x128x1x0x1x1", NormKnobs{1, 16 * 64, 128, 1, 4 * 16, 64}},
+    // {"1x512x512x128x128x1x1x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}},
+    {"1x512x512x256x128x3x1x1x1", NormKnobs{1, 32 * 32, 128, 1, 8 * 8, 64}}
+};
 }  // namespace ov::intel_gpu::cm
 
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::cm::ConvolutionImpl)
