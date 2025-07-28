@@ -17,7 +17,7 @@
 #include "cpu_types.h"
 #include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "openvino/core/type/element_type.hpp"
 
