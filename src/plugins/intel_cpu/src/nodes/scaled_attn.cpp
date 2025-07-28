@@ -1246,7 +1246,7 @@ void ScaledDotProductAttention::createPrimitive() {
     m_key_quant_param.isByChannel = false;
     if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL) {
         m_key_quant_param.isByChannel = true;
-    } else if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_HIDDEN) {
+    } else if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_TOKEN) {
         m_key_quant_param.isByChannel = false;
     }
     m_value_quant_param.groupSize = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;

@@ -16,6 +16,7 @@
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
@@ -57,6 +58,7 @@
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
@@ -483,15 +485,51 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         kv_cache_config.valueCacheBlockSize = 16;
         kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
         kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+        kv_cache_config.valueCacheQuantBychannel = false;
+        kv_cache_config.keyCacheGroupSize = config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL ? 16 : 0;
+        kv_cache_config.valueCacheGroupSize = 0;
+        if (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
+            // w/a : cache rotation not supported yet
+            bool has_rotated_blocks = false;
+            for (auto& node : func->get_ops())   {
+                if (node->get_type_info() == ov::op::PagedAttentionExtension::get_type_info_static()) {
+                    auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node);
+                    if (!has_rotated_blocks && paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATION_TRIG_LUT) {
+                        has_rotated_blocks = true;
+                        // CVS-170994
+                        GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
+                        break;
+                    }
+                }
+            }
+            if (has_rotated_blocks) {
+                GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
+                kv_cache_config.keyCacheQuantBychannel = false;
+                kv_cache_config.keyCacheGroupSize = 0;
+            } else {
+                kv_cache_config.keyCacheQuantBychannel = true;
+                kv_cache_config.keyCacheGroupSize = 16;
+            }
+        } else {
+            kv_cache_config.keyCacheQuantBychannel = false;
+            kv_cache_config.keyCacheGroupSize = 0;
+        }
+
         manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
             [&infer_precision](const ov::element::Type& precision,
                const bool bychannel,
                const size_t group_num,
                int64_t& head_size,
                int64_t& block_size) {
-                OPENVINO_ASSERT(!bychannel, "[GPU] Unsupported KV-cache quantization mode");
-                if (precision == ov::element::i8 || precision == ov::element::u8) {
-                    head_size += infer_precision.size() * 2 * group_num;
+                if (bychannel) {
+                    // TODO: need to handle group size != block size case
+                    if (precision == ov::element::i8 || precision == ov::element::u8) {
+                        block_size += infer_precision.size() * 2;
+                    }
+                } else {
+                    if (precision == ov::element::i8 || precision == ov::element::u8) {
+                        head_size += infer_precision.size() * 2 * group_num;
+                    }
                 }
             });
 
