@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "compiled_model.hpp"
+#include "llm_lora_states.hpp"
 
 namespace ov {
 namespace npuw {
@@ -74,6 +75,11 @@ private:
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
+
+    // Support LoRA
+    void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
+    mutable std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
+    uint32_t m_max_lora_rank;
 };
 
 }  // namespace npuw

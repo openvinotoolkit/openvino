@@ -36,12 +36,12 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
     }
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
-    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
 private:
     void prepare_for_new_conversation();
+
+    void apply_lora();
 
     void clear_chunk_prefill_kv_cache();
 
