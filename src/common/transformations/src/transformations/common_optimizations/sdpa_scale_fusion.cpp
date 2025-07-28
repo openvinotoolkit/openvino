@@ -35,7 +35,8 @@ SDPAScaleFusion::SDPAScaleFusion() {
     auto scaled_k = optional<ov::op::v1::Multiply>({k, scale_k});
     auto sdpa_mask_scale = wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask, sdpa_scale},
                                                                              {{"causal", false}});
-    auto sdpa_mask = wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
+    auto sdpa_mask =
+        wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v, mask}, {{"causal", false}});
     auto sdpa_simple = wrap_type<ov::op::v13::ScaledDotProductAttention>({scaled_q, scaled_k, v}, {{"causal", false}});
     auto sdpa = sdpa_simple | sdpa_mask | sdpa_mask_scale;
 
