@@ -71,21 +71,6 @@ std::vector<int32_t> compute_level_start_index(const std::vector<int32_t>& spati
     return level_start_index;
 }
 
-ov::pass::pattern::op::Predicate check_input(std::shared_ptr<Node> expected_input) {
-    return ov::pass::pattern::op::Predicate(
-        [=](const Output<Node>& output) -> bool {
-            auto graph_node = output.get_node_shared_ptr();
-            auto pattern_node = expected_input.get();
-            for (size_t i = 0; i < graph_node->get_input_size(); i++) {
-                auto input_node = graph_node->input_value(i).get_node();
-                if (pattern_node == input_node) return true;
-            }
-            
-            return false;
-        },
-        "check_input");
-}
-
 std::shared_ptr<ov::Node> grid_sample_block(const std::shared_ptr<ov::Node>& input_attn_value, const std::shared_ptr<ov::Node>& input_attn_offsets) {
     auto attn_Slice = wrap_type<StridedSlice>({input_attn_value, any_input(), any_input(), any_input()});
     auto attn_Reshape_4 = wrap_type<Reshape>({attn_Slice, any_input()});
