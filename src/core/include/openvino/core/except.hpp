@@ -145,7 +145,7 @@ protected:
 //
 #define OPENVINO_ASSERT_HELPER2(exc_class, ctx, check, ...)                      \
     do {                                                                         \
-        if (!(check)) {                                                          \
+        if (!static_cast<bool>(check)) {                                         \
             ::std::ostringstream ss___;                                          \
             ::ov::write_all_to_stream(ss___, __VA_ARGS__);                       \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), ss___.str()); \
@@ -154,7 +154,7 @@ protected:
 
 #define OPENVINO_ASSERT_HELPER1(exc_class, ctx, check)                                      \
     do {                                                                                    \
-        if (!(check)) {                                                                     \
+        if (!static_cast<bool>(check)) {                                                    \
             exc_class::create(__FILE__, __LINE__, (#check), (ctx), exc_class::default_msg); \
         }                                                                                   \
     } while (0)
