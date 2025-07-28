@@ -60,9 +60,11 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
 
     scales_layout.set_tensor(max_size);
 
+    // cldnn::layout::set_tensor() internally uses cldnn::format::dimension()
+    // to determine the tensor rank according to the format set.
+    // Because cldnn::format requires at least 4 dimensions, scales_layout is treated as a 4D tensor.
+    // If scales_layout was promoted from 3D to 4D due to format constraints, revert it back to its original 3D shape.
     if (p.get_engine().get_device_info().supports_immad) {
-        // If scales_layout is 3D, setting the tensor value may change scales_layout to 4D.
-        // To prevent this, if scales_layout is changed to 4D, revert it back to 3D.
         auto input_max_rank = std::max({
             mem_input_low->get_layout().get_partial_shape().rank().get_length(),
             mem_input_high->get_layout().get_partial_shape().rank().get_length(),
@@ -71,10 +73,8 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
         });
 
         if (input_max_rank == 3 && scales_layout.get_partial_shape().rank().get_length() == 4) {
-            // Check if spatial dimensions are all 1, then revert to 3D
-            if (scales_layout.spatial(0) == 1 && scales_layout.spatial(1) == 1) {
-                scales_layout.set_partial_shape({scales_layout.batch(), scales_layout.feature(), 1});
-            }
+            scales_layout.set_partial_shape({scales_layout.batch(), scales_layout.feature(),
+                std::max(scales_layout.spatial(0), scales_layout.spatial(1))});
         }
     }
 

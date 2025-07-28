@@ -11575,7 +11575,7 @@ TEST(group_convolution_f16_fw_gpu, basic_1d_group_convolution) {
             16,      // groups
             { 1 },   // stride
             { 1 },   // dilation
-            { 3 },   // pad_begin (kernel=7이므로 (7-1)/2=3)
+            { 3 },   // pad_begin
             { 3 },   // pad_end
             true),
         activation("relu", input_info("group_conv"), activation_func::relu),
@@ -11613,7 +11613,6 @@ TEST(group_convolution_f16_fw_gpu, basic_1d_group_convolution) {
 
     ASSERT_EQ(mem_opt->get_layout(), mem_ref->get_layout());
     for (size_t i = 0; i < output_ptr_opt.size(); i++) {
-        // ASSERT_NEAR(output_ptr_opt[i], output_ptr_ref[i], 0.5f);
         ASSERT_FLOAT_EQ(output_ptr_opt[i], output_ptr_ref[i]);
     }
 }
