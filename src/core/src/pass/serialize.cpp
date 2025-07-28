@@ -603,12 +603,16 @@ public:
                         // std::cout << "Save one StringAlignedBuffer" << std::endl;
                         // Save std::shared_ptr<ov::StringAlignedBuffer>*
                         m_xml_node.append_attribute("ptr").set_value(
-                            reinterpret_cast<unsigned long long>(&(a1->get())));
+                            reinterpret_cast<unsigned long long>(a1->get()->get_ptr()));
+                        m_xml_node.append_attribute("size").set_value(
+                            static_cast<unsigned long long>(a1->get()->size()));
                         m_xml_node.append_attribute("type").set_value(0);
                     } else {
                         // std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
                         m_xml_node.append_attribute("ptr").set_value(
-                            reinterpret_cast<unsigned long long>(&(a2->get())));
+                            reinterpret_cast<unsigned long long>(a2->get()->get_ptr()));
+                        m_xml_node.append_attribute("size").set_value(
+                            static_cast<unsigned long long>(a2->get()->size()));
                         m_xml_node.append_attribute("type").set_value(1);
                     }
                 }
@@ -628,7 +632,9 @@ public:
                     m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                     m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
                 } else {
-                    m_xml_node.append_attribute("ptr").set_value(reinterpret_cast<unsigned long long>(&(a->get())));
+                    m_xml_node.append_attribute("ptr").set_value(
+                        reinterpret_cast<unsigned long long>(a->get()->get_ptr()));
+                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(a->get()->size()));
                     m_xml_node.append_attribute("type").set_value(2);
                 }
             }
