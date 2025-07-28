@@ -22,6 +22,7 @@
 
 #include "cpu_types.h"
 #include "memory_control.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/node_config.h"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"
@@ -373,10 +374,10 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
            << ", Gamma=" << eltwise_node->getGamma() << ", BroadcastingPolicy=";
 
         switch (eltwise_node->getBroadcastingPolicy()) {
-        case intel_cpu::node::Eltwise::BroadcastingPolicy::PerChannel:
+        case intel_cpu::EltwiseBroadcastingPolicy::PerChannel:
             os << "PerChannel";
             break;
-        case intel_cpu::node::Eltwise::BroadcastingPolicy::PerTensor:
+        case intel_cpu::EltwiseBroadcastingPolicy::PerTensor:
             os << "PerTensor";
             break;
         default:

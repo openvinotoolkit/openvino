@@ -15,7 +15,7 @@
 #include "cpu_types.h"
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
@@ -623,12 +623,12 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseElu, jit_elu_emitter),
               OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
-              OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
-              OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
               OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
+              OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
               OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
+              OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
               OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
               OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
               OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),
