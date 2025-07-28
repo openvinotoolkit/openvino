@@ -67,12 +67,8 @@ ISTFT::ISTFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 
 void ISTFT::getSupportedDescriptors() {
     const auto input_size = getParentEdges().size();
-    if (input_size < 4 || input_size > 5) {
-        THROW_CPU_NODE_ERR("ISTFT has incorrect number of input edges.");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("ISTFT has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(input_size >= 4 && input_size <= 5, "ISTFT has incorrect number of input edges.");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "ISTFT has incorrect number of output edges.");
 }
 
 void ISTFT::initSupportedPrimitiveDescriptors() {
@@ -81,7 +77,7 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
     }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!one_of(dataPrecision, ov::element::f32)) {
+    if (none_of(dataPrecision, ov::element::f32)) {
         dataPrecision = ov::element::f32;
     }
 

@@ -32,8 +32,8 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
-    event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
-    event::ptr fill(stream& stream, bool blocking = true) override;
+    event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
+    event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     shared_mem_params get_internal_params() const override;
     const cl::Buffer& get_buffer() const {
         assert(0 == _lock_count);
@@ -61,8 +61,8 @@ struct gpu_image2d : public lockable_gpu_mem, public memory {
 
     void* lock(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
-    event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
-    event::ptr fill(stream& stream, bool blocking = true) override;
+    event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
+    event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     shared_mem_params get_internal_params() const override;
     const cl::Image2D& get_buffer() const {
         assert(0 == _lock_count);
@@ -115,8 +115,8 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     cl::UsmMemory& get_buffer() { return _buffer; }
     void* buffer_ptr() const override { return _buffer.get(); }
 
-    event::ptr fill(stream& stream, unsigned char pattern, bool blocking = true) override;
-    event::ptr fill(stream& stream, bool blocking = true) override;
+    event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
+    event::ptr fill(stream& stream, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     shared_mem_params get_internal_params() const override;
 
     event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;

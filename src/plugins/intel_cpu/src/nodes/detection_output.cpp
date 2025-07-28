@@ -30,6 +30,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/caseless.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -76,13 +77,8 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-    }
-
-    if (getOriginalOutputsNumber() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(any_of(getOriginalInputsNumber(), 3U, 5U), "has incorrect number of input edges.");
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == 1U, "has incorrect number of output edges.");
 
     auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
@@ -121,21 +117,18 @@ void DetectionOutput::prepareParams() {
     locNumForClasses = isShareLoc ? 1 : classesNum;
 
     const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().getShape().getStaticDims();
-    if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1])) {
-        THROW_CPU_NODE_ERR("has incorrect number of priors, which must match number of location predictions (",
-                           priorsNum * locNumForClasses * 4,
-                           " vs ",
-                           idLocDims[1],
-                           ")");
-    }
+    CPU_NODE_ASSERT(priorsNum * locNumForClasses * 4 == static_cast<int>(idLocDims[1]),
+                    "has incorrect number of priors, which must match number of location predictions (",
+                    priorsNum * locNumForClasses * 4,
+                    " vs ",
+                    idLocDims[1],
+                    ")");
 
-    if (priorsNum * classesNum != static_cast<int>(idConfDims.back())) {
-        THROW_CPU_NODE_ERR("has incorrect number of priors, which must match number of confidence predictions.");
-    }
+    CPU_NODE_ASSERT(priorsNum * classesNum == static_cast<int>(idConfDims.back()),
+                    "has incorrect number of priors, which must match number of confidence predictions.");
 
-    if (decreaseClassId && backgroundClassId != 0) {
-        THROW_CPU_NODE_ERR("cannot use decrease_label_id and background_label_id parameter simultaneously.");
-    }
+    CPU_NODE_ASSERT(!decreaseClassId || backgroundClassId == 0,
+                    "cannot use decrease_label_id and background_label_id parameter simultaneously.");
 
     imgNum = static_cast<int>(idConfDims[0]);
 
@@ -784,10 +777,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
         float locYMax = locData[4 * p * locNumForClasses + 3];
 
         if (!normalized) {
-            priorXMin /= imgWidth;
-            priorYMin /= imgHeight;
-            priorXMax /= imgWidth;
-            priorYMax /= imgHeight;
+            priorXMin /= static_cast<float>(imgWidth);
+            priorYMin /= static_cast<float>(imgHeight);
+            priorXMax /= static_cast<float>(imgWidth);
+            priorYMax /= static_cast<float>(imgHeight);
         }
 
         if (codeType == CodeType::CORNER) {
@@ -958,9 +951,7 @@ inline void DetectionOutput::generateOutput(const float* reorderedConfData,
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
-    if (DETECTION_SIZE != 7) {
-        THROW_CPU_NODE_ERR("has unsupported output layout.");
-    }
+    CPU_NODE_ASSERT(DETECTION_SIZE == 7, "has unsupported output layout.");
 
     int dstDataSize = 0;
     if (keepTopK > 0) {
@@ -971,9 +962,8 @@ inline void DetectionOutput::generateOutput(const float* reorderedConfData,
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
     }
 
-    if (static_cast<size_t>(dstDataSize) > getChildEdgeAt(0)->getMemory().getSize()) {
-        THROW_CPU_NODE_ERR("has insufficient output buffer size.");
-    }
+    CPU_NODE_ASSERT(static_cast<size_t>(dstDataSize) <= getChildEdgeAt(0)->getMemory().getSize(),
+                    "has insufficient output buffer size.");
     memset(dstData, 0, dstDataSize);
 
     // set final detection result to output blob

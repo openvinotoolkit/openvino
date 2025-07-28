@@ -4,7 +4,7 @@
 
 #include "jit_brgemm_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -42,7 +42,7 @@ using namespace ov::intel_cpu::x64;
 
 namespace ov::intel_cpu {
 
-jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
+jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ov::snippets::lowered::ExpressionPtr& expr,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
@@ -112,12 +112,12 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     }
     if (config.with_wei_repacking()) {
         std::set<std::vector<element::Type>> supported_types = {form_precisions({element::f32, element::f32})};
-        if (snippets::utils::one_of(config.isa(),
+        if (snippets::utils::any_of(config.isa(),
                                     dnnl::impl::cpu::x64::avx512_core_bf16,
                                     dnnl::impl::cpu::x64::avx2_vnni_2)) {
             supported_types.insert(form_precisions({element::bf16, element::bf16}));
         }
-        if (snippets::utils::one_of(config.isa(),
+        if (snippets::utils::any_of(config.isa(),
                                     dnnl::impl::cpu::x64::avx512_core_vnni,
                                     dnnl::impl::cpu::x64::avx2_vnni)) {
             supported_types.insert(form_precisions({element::u8, element::i8}));
