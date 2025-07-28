@@ -46,7 +46,7 @@ public:
 
     bool _is_ready() {
         // Check if any request has finished already
-        py::gil_scoped_release release;
+        ConditionalGILScopedRelease release;
         // acquire the mutex to access m_errors and m_idle_handles
         std::lock_guard<std::mutex> lock(m_mutex);
         if (m_errors.size() > 0)
@@ -57,7 +57,7 @@ public:
     size_t get_idle_request_id() {
         // Wait for any request to complete and return its id
         // release GIL to avoid deadlock on python callback
-        py::gil_scoped_release release;
+        ConditionalGILScopedRelease release;
         // acquire the mutex to access m_errors and m_idle_handles
         std::unique_lock<std::mutex> lock(m_mutex);
         m_cv.wait(lock, [this] {
@@ -74,7 +74,7 @@ public:
     void wait_all() {
         // Wait for all request to complete
         // release GIL to avoid deadlock on python callback
-        py::gil_scoped_release release;
+        ConditionalGILScopedRelease release;
         for (auto&& request : m_requests) {
             request.m_request->wait();
         }
@@ -119,7 +119,7 @@ public:
                 *m_requests[handle].m_end_time = Time::now();
                 if (exception_ptr == nullptr) {
                     // Acquire GIL, execute Python function
-                    py::gil_scoped_acquire acquire;
+                    ConditionalGILScopedAcquire acquire;
                     try {
                         (*callback_sp)(m_requests[handle], m_user_ids[handle]);
                     } catch (const py::error_already_set& py_error) {
@@ -200,7 +200,7 @@ void regclass_AsyncInferQueue(py::module m) {
             self.m_requests[handle].m_request->set_input_tensor(inputs);
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
-                py::gil_scoped_release release;
+                ConditionalGILScopedRelease release;
                 *self.m_requests[handle].m_start_time = Time::now();
                 // Start InferRequest in asynchronus mode
                 self.m_requests[handle].m_request->start_async();
@@ -246,7 +246,7 @@ void regclass_AsyncInferQueue(py::module m) {
             Common::set_request_tensors(*self.m_requests[handle].m_request, inputs);
             // Now GIL can be released - we are NOT working with Python objects in this block
             {
-                py::gil_scoped_release release;
+                ConditionalGILScopedRelease release;
                 *self.m_requests[handle].m_start_time = Time::now();
                 // Start InferRequest in asynchronus mode
                 self.m_requests[handle].m_request->start_async();
@@ -328,7 +328,7 @@ void regclass_AsyncInferQueue(py::module m) {
         },
         R"(
         Number of InferRequests in the pool.
-        
+
         :rtype: int
     )");
 

@@ -86,6 +86,7 @@ std::map<std::vector<ov::Shape>, std::vector<ov::Shape>> big_ranks = {
 std::map<std::vector<ov::Shape>, std::vector<ov::Shape>> preluBasic = {
         {{{1, 10, 20}}, {{10}, {20}, {10, 20}}},
         {{{1, 128}}, {{1}, {128}}},
+        {{{24}}, {{1}}},
 };
 
 auto static_shapes_param_transform = [](const std::vector<std::pair<std::vector<ov::Shape>, ov::Shape>>& original_shapes) {

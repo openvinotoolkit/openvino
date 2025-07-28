@@ -1084,49 +1084,56 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
 ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
     MATCHER_SCOPE(RoPEShareCosSin);
 
-    std::vector<std::shared_ptr<Node>> inputs = {makePattern(), makePattern()};
-    auto const_inv_freq = makePattern<opset1::Constant>({}, {});
+    std::vector<std::shared_ptr<Node>> inputs = {pattern::any_input(), pattern::any_input()};
 
-    auto Constant_58774 = makeConst(element::u8, ov::Shape({}), {0});
-    auto Broadcast_58775 = makePattern<opset1::Broadcast>({{1.000000f}, inputs[0], Constant_58774},
-                                                          {{"mode", "numpy"}});  //  tensor_array<f32[?,?,?]>
-    auto expand_Broadcast =
-        makePattern<opset1::Multiply>({const_inv_freq, Broadcast_58775},
-                                      {{"auto_broadcast", "numpy"}});  //  tensor_array<f32[?,128,?]>
-    auto matmul_MatMul =
-        makePattern<opset1::MatMul>({expand_Broadcast, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
-    auto transpose_Transpose = makePattern<opset1::Transpose>({matmul_MatMul, {0, 2, 1}});
-    auto cat_Concat = makePattern<opset1::Concat>({transpose_Transpose, transpose_Transpose}, {{"axis", -1}});
-    auto cos_Cos = makePattern<opset1::Cos>({cat_Concat});
-    auto sin_Sin = makePattern<opset1::Sin>({cat_Concat});
-    auto result = makePattern<opset1::Unsqueeze>({cos_Cos | sin_Sin, 1});
+    // Broadcast pattern
+    auto const_broadcast_axes =
+        pattern::wrap_type<op::v0::Constant>(pattern::type_matches(element::u8) && pattern::value_matches("{0}"));
+    auto broadcast =
+        pattern::wrap_type<op::v1::Broadcast>({"{1.000000f}", inputs[0], const_broadcast_axes}, {{"mode", "numpy"}});
 
-    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+    // Multiply pattern (expand broadcast)
+    auto const_inv_freq = pattern::wrap_type<op::v0::Constant>();  // Pattern for the constant inverse frequency
+    auto multiply = pattern::wrap_type<op::v1::Multiply>({const_inv_freq, broadcast}, {{"auto_broadcast", "numpy"}});
+
+    // MatMul pattern
+    auto matmul =
+        pattern::wrap_type<op::v0::MatMul>({multiply, inputs[1]}, {{"transpose_a", false}, {"transpose_b", false}});
+
+    // Transpose pattern
+    auto transpose = pattern::wrap_type<op::v1::Transpose>({matmul, {0, 2, 1}});
+
+    // Concat pattern
+    auto concat = pattern::wrap_type<op::v0::Concat>({transpose, transpose}, {{"axis", -1}});
+
+    // Cosine and Sine patterns
+    auto cos = pattern::wrap_type<op::v0::Cos>({concat});
+    auto sin = pattern::wrap_type<op::v0::Sin>({concat});
+
+    // Unsqueeze result pattern (cos or sin)
+    auto result = pattern::wrap_type<op::v0::Unsqueeze>({cos | sin, {1}});
+
+    matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pass::pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
-        PatternValidator validator(m);
-        if (!validator) {
-            return false;
-        }
 
+        // Find the current inverse frequency constant
         auto it = pattern_map.find(const_inv_freq);
         if (it == pattern_map.end()) {
             return false;
         }
-        auto cur_inv_freq = ov::as_type_ptr<opset1::Constant>(it->second.get_node_shared_ptr());
+        auto cur_inv_freq = as_type_ptr<op::v0::Constant>(it->second.get_node_shared_ptr());
         if (!cur_inv_freq) {
             return false;
         }
 
-        // the first match is the one to be shared, collect all inputs
-        // and constants into the state capture by lambda
+        // On first match, store the shared inputs and constant
         if (!m_inv_freq) {
             for (size_t i = 0; i < m_shared_inputs.size(); i++) {
                 auto it = pattern_map.find(inputs[i]);
                 if (it == pattern_map.end())
                     return false;
-                auto input_node = it->second.get_node_shared_ptr();
-                m_shared_inputs[i] = input_node;
+                m_shared_inputs[i] = it->second.get_node_shared_ptr();
             }
             m_inv_freq = cur_inv_freq;
         }
@@ -1136,7 +1143,7 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
             return false;
         if (cur_inv_freq->get_shape() != m_inv_freq->get_shape())
             return false;
-        auto global_inv_freq = ov::as_type_ptr<opset1::Constant>(m_inv_freq);
+        auto global_inv_freq = ov::as_type_ptr<op::v0::Constant>(m_inv_freq);
 
         auto cmp_error =
             memcmp(cur_inv_freq->get_data_ptr(), global_inv_freq->get_data_ptr(), global_inv_freq->get_byte_size());
@@ -1147,14 +1154,12 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
             auto it = pattern_map.find(inputs[i]);
             if (it == pattern_map.end())
                 return false;
-            auto input_node = it->second.get_node_shared_ptr();
-            if (m_shared_inputs[i] != input_node)
+            if (m_shared_inputs[i] != it->second.get_node_shared_ptr())
                 return false;
         }
 
-        // now the match share the same topology & inputs(consts) upto the sin/cos node
-        // we can intialize the unsqueezed sin/cos to be shared
-        bool is_sin_matched = pattern_map.find(sin_Sin) != pattern_map.end();
+        // Store the first matched sin/cos node for sharing
+        bool is_sin_matched = pattern_map.find(sin) != pattern_map.end();
         if (is_sin_matched && !m_shared_sin0) {
             m_shared_sin0 = root;
             return false;
@@ -1164,17 +1169,14 @@ ov::pass::RoPEShareCosSin::RoPEShareCosSin() {
             return false;
         }
 
-        // all inputs & consts are same, we can safely shared the subgraph
+        // all inputs & consts are same, we can safely share the subgraph
         // Just for record, the pattern uses cos | sin as root node. This means that we could match both cases.
         // There we use find to decides whether cons or sin is used
-        auto replacement = m_shared_cos0;
-        if (pattern_map.find(sin_Sin) != pattern_map.end()) {
-            replacement = m_shared_sin0;
-        }
-        ov::replace_node(root, replacement);
+        auto replacement = is_sin_matched ? m_shared_sin0 : m_shared_cos0;
+        replace_node(root, replacement);
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
+    auto m = std::make_shared<pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
