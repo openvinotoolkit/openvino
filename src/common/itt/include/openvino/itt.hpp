@@ -461,20 +461,22 @@ public:
 
 #define OV_ITT_REGION_BEGIN_IMPL_0(domain, handleOrTaskName)
 #define OV_ITT_REGION_BEGIN_IMPL_1(domain, handleOrTaskName) \
-    openvino::itt::internal::regionBegin(domain(), openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(handleOrTaskName));
+    openvino::itt::internal::regionBegin(domain(),           \
+                                         openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(handleOrTaskName));
 
 #define OV_ITT_REGION_END_IMPL_0(domain, handleOrTaskName)
 #define OV_ITT_REGION_END_IMPL_1(domain, handleOrTaskName) \
-    openvino::itt::internal::regionEnd(domain(), openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(handleOrTaskName));
+    openvino::itt::internal::regionEnd(domain(),           \
+                                       openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(handleOrTaskName));
 
 #define OV_ITT_SCOPED_REGION_IMPL_0(...)
 #define OV_ITT_SCOPED_REGION_IMPL_1(...) OV_PP_OVERLOAD(OV_ITT_SCOPED_REGION, __VA_ARGS__)
 
-#define OV_ITT_SCOPED_REGION_1(domain)                                            \
+#define OV_ITT_SCOPED_REGION_1(domain)                                        \
     openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
         openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(ITT_FUNCTION_NAME));
 
-#define OV_ITT_SCOPED_REGION_2(domain, taskOrTaskName)                            \
+#define OV_ITT_SCOPED_REGION_2(domain, taskOrTaskName)                        \
     openvino::itt::ScopedRegion<domain> OV_PP_CAT(ittScopedRegion, __LINE__)( \
         openvino::itt::handle<struct OV_PP_CAT(Region, __LINE__)>(taskOrTaskName));
 
