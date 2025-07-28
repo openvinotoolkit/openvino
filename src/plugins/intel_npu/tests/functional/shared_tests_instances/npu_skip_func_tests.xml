@@ -5,9 +5,9 @@ Example:
         <enable_rules>
             <backend>LEVEL0</backend>
             <backend>IMD</backend>
-            <backend></backend> (empty brackets denote no backend)
+            <backend></backend> (special case for no backend)
             <device>3720</device>
-            <device>4000</device>
+            <device>!4000</device> (using "!" to negate rule)
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -199,23 +199,7 @@ Example:
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=boolean.*</filter>
             <filter>.*InferRequestCheckTensorPrecision.*type=f64.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1.*</filter>
-            <filter>.*InferRequestCheckTensorPrecision.*type=i64.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#70764 -->
-    <skip_config>
-        <message>Tests enabled only for L0 NPU3720</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>!3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*</filter>
-            <filter>.*DriverCompilerAdapterDowngradeInterpolate11TestNPU.*</filter>
-            <filter>.*DriverCompilerAdapterInputsOutputsTestNPU.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
         </filters>
     </skip_config>
 
@@ -250,10 +234,10 @@ Example:
         <filters>
             <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow.*</filter>
             <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow.*</filter>
-            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_.*</filter>
-            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
-            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_.*</filter>
-            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=NPU3720_configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
+            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_|NPU4000_).*</filter>
+            <filter>.*OVInferRequestIOTensorTestNPU.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_|NPU4000_)configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
+            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_|NPU4000_).*</filter>
+            <filter>.*OVInferRequestIOTensorTest.InferStaticNetworkSetChangedInputTensorThrow/targetDevice=(NPU3720_|NPU4000_)configItem=MULTI_DEVICE_PRIORITIES_NPU_.*</filter>
         </filters>
     </skip_config>
 
@@ -416,16 +400,6 @@ Example:
         </filters>
     </skip_config>
 
-    <skip_config>
-        <message>OpenVINO issues when using caching mechanism</message>
-        <filters>
-            <!-- C#119359 -->
-            <filter>.*smoke_Auto_BehaviorTests_CachingSupportCase_NPU/CompileModelLoadFromFileTestBase.*</filter>
-            <!-- C#120240 -->
-            <filter>.*smoke_BehaviorTests_CachingSupportCase_NPU/CompileModelLoadFromFileTestBase.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#103391 -->
     <skip_config>
         <message>IfTest segfaults npuFuncTest on Ubuntu</message>
@@ -529,10 +503,11 @@ Example:
 
     <!-- E#99817 -->
     <skip_config>
-        <message>Disabled tests for NPU3720</message>
+        <message>Disabled tests for NPU3720 and NPU4000</message>
         <enable_rules>
             <backend>LEVEL0</backend>
             <device>3720</device>
+            <device>4000</device>
         </enable_rules>
         <filters>
             <filter>.*InferRequestVariableStateTest.inferreq_smoke_VariableState_2infers.*</filter>
@@ -728,6 +703,7 @@ Example:
         <enable_rules>
             <backend>LEVEL0</backend>
             <device>3720</device>
+            <device>4000</device>
         </enable_rules>
         <filters>
             <filter>.*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*</filter>
@@ -896,9 +872,34 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- C#165445 -->
+    <skip_config>
+        <message>OVBlobCompatibilityNPU tests designed for NPU3720</message>
+        <enable_rules>
+            <device>!3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*OVBlobCompatibilityNPU.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- E#170977 -->
     <skip_config>
-        <message>Tests currently skipped until u2 precision fully supported (need NPU compiler alignment/driver update)</message>
+        <message>Skip tests with u2 precision not supported on NPU3720.</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- E#176909 -->
+    <skip_config>
+        <message>Tests currently skipped for NPU4000 until u2 precision fully supported (need driver update)</message>
+        <enable_rules>
+            <device>4000</device>
+        </enable_rules>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
         </filters>
