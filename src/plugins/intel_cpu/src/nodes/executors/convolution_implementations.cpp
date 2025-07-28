@@ -84,7 +84,7 @@ template <>
 const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<ConvAttrs>> convolutionImplementations {
         OV_CPU_INSTANCE_DNNL_X64(
-            "convolution_dnnl_nspc_nspc", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_nspc_nspc", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
@@ -99,11 +99,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL_X64(
-            "convolution_dnnl_ncsp_ncsp", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_ncsp_ncsp", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp},
@@ -117,11 +117,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return all_of(1U, IC, groupOC);
             },
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL_X64(
-            "convolution_dnnl_ncsp_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_ncsp_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
@@ -137,11 +137,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return IC < 4 && groupOC != 1;
             },
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL_X64(
-            "convolution_dnnl_ncsp_nCsp8c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_ncsp_nCsp8c", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c},
@@ -154,11 +154,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return IC < 4 && groupOC != 1;
             },
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL_X64(
-            "convolution_dnnl_nCsp16c_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_nCsp16c_nCsp16c", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c},
@@ -174,11 +174,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return IC > 4;
             },
             CreateOptimalConfigDefault{{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL_X64(
-            "convolution_dnnl_nCsp8c_nCsp8c", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_nCsp8c_nCsp8c", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nCsp8c, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c},
@@ -190,11 +190,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return IC > 4;
             },
             CreateOptimalConfigDefault{{LayoutType::nCsp8c, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL_X64(
-            "convolution_dnnl_ncsp_ncsp_unconditional", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_ncsp_ncsp_unconditional", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp},
@@ -207,11 +207,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return true;
             },
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL_X64(
-            "convolution_dnnl_nspc_nspc_backup", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_nspc_nspc_backup", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
@@ -222,11 +222,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return none_of(srcType(config), ov::element::bf16, ov::element::f16) && DnnlConvolutionPrimitive::isNspcAvailable(config);
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
-            "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,  ShapeTolerance::Agnostic,
+            "convolution_dnnl_nspc_nspc_unconditional_acl", ExecutorType::Dnnl, OperationType::Convolution,
             // supports
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
@@ -235,7 +235,7 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
-            AcceptsAnyShape<ConvAttrs>{},
+            AcceptsAnyShape<ConvAttrs>,
             CreateDnnlDefault<DnnlConvolutionPrimitive, ConvAttrs>{}
             )
     };
