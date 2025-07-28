@@ -68,11 +68,10 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto convert_past_k = wrap_type<ov::op::v0::Convert>({past_k});
     auto convert_past_v = wrap_type<ov::op::v0::Convert>({past_v});
 
-    auto axis_beam = wrap_type<ov::op::v0::Constant>();
     auto gather_input_k =
-        wrap_type<ov::op::v8::Gather>({past_k | convert_past_k, beam_idx, axis_beam}, {{"batch_dims", 0}});
+        wrap_type<ov::op::v8::Gather>({past_k | convert_past_k, beam_idx, "axis_beam"}, {{"batch_dims", 0}});
     auto gather_input_v =
-        wrap_type<ov::op::v8::Gather>({past_v | convert_past_v, beam_idx, axis_beam}, {{"batch_dims", 0}});
+        wrap_type<ov::op::v8::Gather>({past_v | convert_past_v, beam_idx, "axis_beam"}, {{"batch_dims", 0}});
 
     auto concat_k = wrap_type<ov::op::v0::Concat>({gather_input_k, cur_k});
     auto concat_v = wrap_type<ov::op::v0::Concat>({gather_input_v, cur_v});
@@ -332,7 +331,7 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::SimplifyGatherShapeOf);
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::transpose_sinking::TSShapeOfForward);
-    ctx_manager.register_pass<StatefulSDPAFusion>();
+    CPU_REGISTER_PASS_COMMON(ctx_manager, StatefulSDPAFusion);
     CPU_REGISTER_PASS_X64(ctx_manager, ov::intel_cpu::SDPAFuseTransposeReshape);
 
     return symbolic_optimizations.run_on_model(f);
