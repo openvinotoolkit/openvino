@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from openvino._pyopenvino import OpConversionFailure
 from openvino._pyopenvino import PartialShape
 from openvino._pyopenvino import TelemetryExtension
-from openvino._pyopenvino import get_version as get_rt_version
+from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import get_version as get_rt_version
 from openvino.frontend.frontend import FrontEndManager
 from openvino.frontend.tensorflow.utils import create_tf_graph_iterator
 from openvino.frontend.tensorflow.utils import extract_model_graph

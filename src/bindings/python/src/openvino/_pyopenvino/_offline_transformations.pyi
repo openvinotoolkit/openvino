@@ -1,5 +1,6 @@
 # type: ignore
 from __future__ import annotations
+import collections.abc
 import openvino._pyopenvino.op
 import typing
 """
@@ -11,12 +12,12 @@ def apply_fused_names_cleanup(model: typing.Any) -> None:
 def apply_low_latency_transformation(model: typing.Any, use_const_initializer: bool = True) -> None:
     ...
 @typing.overload
-def apply_make_stateful_transformation(model: typing.Any, param_res_names: dict[str, str]) -> None:
+def apply_make_stateful_transformation(model: typing.Any, param_res_names: collections.abc.Mapping[str, str]) -> None:
     ...
 @typing.overload
-def apply_make_stateful_transformation(model: typing.Any, pairs_to_replace: list[tuple[openvino._pyopenvino.op.Parameter, openvino._pyopenvino.op.Result]]) -> None:
+def apply_make_stateful_transformation(model: typing.Any, pairs_to_replace: collections.abc.Sequence[tuple[openvino._pyopenvino.op.Parameter, openvino._pyopenvino.op.Result]]) -> None:
     ...
-def apply_moc_legacy_transformations(model: typing.Any, params_with_custom_types: list[str]) -> None:
+def apply_moc_legacy_transformations(model: typing.Any, params_with_custom_types: collections.abc.Sequence[str]) -> None:
     ...
 def apply_moc_transformations(model: typing.Any, cf: bool, smart_reshape: bool = False) -> None:
     ...
