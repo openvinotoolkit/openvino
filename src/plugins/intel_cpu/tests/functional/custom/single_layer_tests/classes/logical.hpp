@@ -19,7 +19,6 @@ using LogicalLayerCPUTestParamSet =
     std::tuple<std::vector<ov::test::InputShape>,  // Input shapes
                utils::LogicalTypes,                // Logical type
                ov::test::utils::InputLayerType,    // Second input type
-               ov::element::Type,                  // Infer precision
                bool>;                              // Enforce Snippets
 
 class LogicalLayerCPUTest : public testing::WithParamInterface<LogicalLayerCPUTestParamSet>,
@@ -43,12 +42,9 @@ const std::vector<std::vector<InputShape>>& inBinaryShapes();
 const std::vector<ov::test::utils::InputLayerType>& secondInTypes();
 
 const std::vector<utils::LogicalTypes>& logicalUnaryTypes();
-const std::vector<utils::LogicalTypes>& logicalUnaryTypesSnippets();
-
 const std::vector<utils::LogicalTypes>& logicalBinaryTypes();
-const std::vector<utils::LogicalTypes>& logicalBinaryTypesSnippets();
 
-const std::vector<ov::element::Type> inferPrc();
+const std::vector<bool>& enforceSnippets();
 
 }  // namespace logical
 }  // namespace test
