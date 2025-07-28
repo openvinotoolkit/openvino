@@ -44,7 +44,7 @@ struct Config {
     enum CacheQuantMode : uint8_t {
         AUTO,
         BY_CHANNEL,
-        BY_HIDDEN,
+        BY_TOKEN,
     };
 
     enum class ModelType : uint8_t { CNN, LLM, Unknown };
