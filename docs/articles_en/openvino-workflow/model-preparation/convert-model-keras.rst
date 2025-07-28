@@ -50,7 +50,7 @@ Export Keras 3 Model to OpenVINO IR
 
 Keras also supports exporting models directly to disk from any backend (TensorFlow, JAX, PyTorch, or OpenVINO) itself directly into the OpenVINO IR format using the ``model.export()`` API.
 
-Here is a minimal example:
+Here is an example:
 
 .. code-block:: python
    :force:
