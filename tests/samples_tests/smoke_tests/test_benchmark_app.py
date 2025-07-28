@@ -224,7 +224,7 @@ def test_input_output_tensor_name_collision(sample_language, device, in_node_nam
         )
     verify(sample_language, device, iop=iop, model=model, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
 
-@pytest.mark.parametrize('sample_language', ['C++'])
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('device', get_devices())
 def test_benchmark_app_no_warmup_flag(sample_language, device, cache, tmp_path):
     """Test that -no_warmup flag skips warmup inference and produces correct output"""
