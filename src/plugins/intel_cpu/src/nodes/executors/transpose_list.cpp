@@ -30,7 +30,7 @@ const std::vector<TransposeExecutorDesc>& getTransposeExecutorsList() {
         OV_CPU_INSTANCE_COMMON(ExecutorType::Common, std::make_shared<RefOptimizedTransposeExecutorBuilder>())
             OV_CPU_INSTANCE_ACL(ExecutorType::Acl, std::make_shared<ACLTransposeExecutorBuilder>())
                 OV_CPU_INSTANCE_MLAS_ARM64(ExecutorType::Mlas, std::make_shared<MlasTransposeExecutorBuilder>())
-                    OV_CPU_INSTANCE_X64(ExecutorType::jit_x64, std::make_shared<JitTransposeExecutorBuilder>())
+                    OV_CPU_INSTANCE_X64(ExecutorType::Jit, std::make_shared<JitTransposeExecutorBuilder>())
                         OV_CPU_INSTANCE_COMMON(ExecutorType::Common, std::make_shared<RefTransposeExecutorBuilder>())};
 
     return descs;
