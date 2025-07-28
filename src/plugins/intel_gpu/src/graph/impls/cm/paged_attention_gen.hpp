@@ -42,9 +42,9 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
 };
 
-class PagedAttentionGeneratorMultiToken : public PagedAttentionGeneratorBase {
+class PagedAttentionSDPAGeneratorMultiToken : public PagedAttentionGeneratorBase {
 public:
-    PagedAttentionGeneratorMultiToken() : PagedAttentionGeneratorBase("pa_sdpa_prefill_prefetch") {}
+    PagedAttentionSDPAGeneratorMultiToken() : PagedAttentionGeneratorBase("pa_sdpa_prefill_prefetch") {}
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;

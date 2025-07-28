@@ -6,11 +6,11 @@
 
 #include <cctype>
 
+#include "../../ocl_v2/utils/jitter.hpp"
 #include "common_utils/kernel_generator_base.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
-#include "../../ocl_v2/utils/jitter.hpp"
 #include "kernels_db.hpp"
 
 namespace ov::intel_gpu::cm {

@@ -20,6 +20,7 @@
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"
+#include "paged_attention_common.hpp"
 #include "paged_attention_inst.h"
 #include "primitive_inst.h"
 #include "primitive_ocl_base.hpp"
@@ -28,27 +29,11 @@
 #include "utils/kernel_generator.hpp"
 namespace ov::intel_gpu::ocl {
 namespace {
-enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
 
 constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
 constexpr size_t paged_attention_block_size = 16;
 constexpr size_t seq_len_partition_size = 256;
 constexpr size_t subgroup_size = 16;
-
-struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
-    PagedAttentionStage stage;
-    size_t num_of_partitions;
-    size_t partition_size;
-    size_t max_context_len;
-    size_t paged_attention_aligned_seq_len;
-    size_t sdpa_opt_seq_len_partition_size;
-
-    size_t paged_attention_snap_kv_tokens;
-    bool use_micro_sdpa = false;
-    bool use_gqa_kernel = false;
-    bool use_cm_kernel = false;
-    size_t query_block_size = 16;
-};
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
@@ -1065,7 +1050,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
 #endif
-    Stage::Ptr pa_sdpa_cm = make_stage<cm::PagedAttentionGeneratorMultiToken>();
+    Stage::Ptr pa_sdpa_cm = make_stage<cm::PagedAttentionSDPAGeneratorMultiToken>();
 
     PagedAttentionOptImpl() : SDPAImplBase(PagedAttentionOpt::get_type_info_static()) {}
     explicit PagedAttentionOptImpl(const kernel_impl_params& params) : PagedAttentionOptImpl() {

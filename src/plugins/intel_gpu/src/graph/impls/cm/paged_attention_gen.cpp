@@ -9,6 +9,7 @@
 #include <memory>
 #include <utility>
 
+#include "../ocl_v2/paged_attention_common.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "openvino/core/partial_shape.hpp"
@@ -24,35 +25,16 @@ using namespace ov::intel_gpu::ocl;
 using namespace cldnn;
 namespace {
 
-// TODO: support MIXED mode
-enum class PagedAttentionStage : uint8_t { GENERATE = 0, PREFILL = 1, MIXED = 2, UNKNOWN = 3 };
-
-constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
-constexpr size_t paged_attention_block_size = 16;
-constexpr size_t seq_len_partition_size = 256;
-constexpr size_t subgroup_size = 16;
+// constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
+// constexpr size_t paged_attention_block_size = 16;
+// constexpr size_t seq_len_partition_size = 256;
+// constexpr size_t subgroup_size = 16;
 constexpr size_t WG_SIZE = 16;
 constexpr size_t kv_split_data_size = 16;
-
 constexpr size_t split_output_idx = 3;
-constexpr size_t lse_idx = 4;
+// constexpr size_t lse_idx = 4;
 
 }  // namespace
-
-// TODO: keep aligned with ov::intel_gpu::ocl::<unnamed>::PagedAttentionRuntimeParams
-struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
-    PagedAttentionStage stage;
-    size_t num_of_partitions;
-    size_t partition_size;
-    size_t max_context_len;
-    size_t paged_attention_aligned_seq_len;
-    size_t sdpa_opt_seq_len_partition_size;
-
-    size_t paged_attention_snap_kv_tokens;
-    bool use_micro_sdpa = false;
-    bool use_gqa_kernel = false;
-    size_t query_block_size = 16;
-};
 
 // struct PagedAttentionRuntimeParams : public ImplRuntimeParams {
 //     PagedAttentionStage stage;
@@ -158,10 +140,8 @@ JitConstants PagedAttentionGeneratorBase::get_jit_constants(const kernel_impl_pa
     return jit;
 }
 
-Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_impl_params& params) const {
+Arguments PagedAttentionSDPAGeneratorMultiToken::get_arguments_desc(const kernel_impl_params& params) const {
     const auto desc = params.typed_desc<paged_attention>();
-
-    OPENVINO_ASSERT(!desc->has_scores_output(), "[GPU][CM] PagedAttentionGeneratorMultiToken with scores output is not supported yet");
 
     Arguments args;
     args.push_back({ArgumentDescriptor::Types::INPUT, 0});  // query
@@ -177,7 +157,7 @@ Arguments PagedAttentionGeneratorMultiToken::get_arguments_desc(const kernel_imp
     return args;
 }
 
-JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
+JitConstants PagedAttentionSDPAGeneratorMultiToken::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
     const auto desc = params.typed_desc<paged_attention>();
 
@@ -195,7 +175,7 @@ JitConstants PagedAttentionGeneratorMultiToken::get_jit_constants(const kernel_i
     return jit;
 }
 
-DispatchDataFunc PagedAttentionGeneratorMultiToken::get_dispatch_data_func() const {
+DispatchDataFunc PagedAttentionSDPAGeneratorMultiToken::get_dispatch_data_func() const {
     return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
