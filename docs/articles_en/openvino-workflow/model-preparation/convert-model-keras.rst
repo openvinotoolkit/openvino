@@ -69,7 +69,7 @@ Here is a minimal example:
       preprocessor=None,
    )
 
-   model.export(temp_filepath, format="openvino")
+   model.export(ov_model_path, format="openvino")
 
    compiled_model = ov.Core().compile_model(ov_model_path, "CPU")
    inputs = {
