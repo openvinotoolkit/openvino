@@ -1179,7 +1179,6 @@ int main(int argc, char* argv[]) {
 
         // conditional warmup based on FLAGS_no_warmup
         if (!FLAGS_no_warmup) {
-            
             // warming up - out of scope
             inferRequest = inferRequestsQueue.get_idle_request();
             if (!inferRequest) {
