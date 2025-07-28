@@ -68,7 +68,7 @@ private:
     ov::npuw::s11n::BF16Cache m_bf16_consts;
 
     KVCacheDesc m_kvcache_desc;
-    uint64_t m_prefill_chunk_size;
+    uint64_t m_prefill_chunk_size = 0;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
     // This model is optional, so can be null.
