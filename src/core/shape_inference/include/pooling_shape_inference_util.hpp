@@ -32,7 +32,8 @@ void padding(const TOp* op, const TContainer& pads_begin, const TContainer& pads
 
 template <class TOp>
 constexpr bool has_torch_ceil_mode() {
-    return std::is_same<TOp, v14::AvgPool>::value || std::is_same<TOp, v14::MaxPool>::value;
+    return std::is_same<TOp, v14::AvgPool>::value || std::is_same<TOp, v16::AvgPool>::value ||
+           std::is_same<TOp, v14::MaxPool>::value;
 }
 
 template <class TOp, class TShape>
