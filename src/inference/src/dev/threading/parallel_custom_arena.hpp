@@ -27,11 +27,6 @@
 // On Ubuntu22.04, system tbb is 2021.5 oneTBB and tbbbind dynamic library doesn't exist.
 // In this case, tbbbind static library is needed.
 #    define USE_TBBBIND_2_5 TBBBIND_2_5_AVAILABLE
-#    if USE_TBBBIND_2_5
-#        pragma message("USE_TBBBIND_2_5 is enabled")
-#    else
-#        pragma message("USE_TBBBIND_2_5 is disabled")
-#    endif
 
 namespace custom {
 
