@@ -173,7 +173,7 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
     // for non-x86 platform, by-channel quantization is disabled
     // By default, by-channel should only be enabled when precision is integral
     bool byChannel = precision.is_integral() && isKey;
-    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_HIDDEN) {
+    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_TOKEN) {
         byChannel = false;
     }
 #if defined(OPENVINO_ARCH_ARM64)

@@ -1223,7 +1223,6 @@ int main(int argc, char* argv[]) {
             slog::info << "Skipping warmup inference due to -no_warmup flag" << slog::endl;
         }
 
-        // main benchmark loop continues here and will get its own inferRequest
         size_t processedFramesN = 0;
         auto startTime = Time::now();
         auto execTime = std::chrono::duration_cast<ns>(Time::now() - startTime).count();
