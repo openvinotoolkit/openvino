@@ -126,6 +126,8 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(extra_cxx_flags "${extra_cxx_flags} -fPIC")
     endif()
 
+    set(ARM_COMPUTE_BUILD_DIR "${intel_cpu_thirdparty_BINARY_DIR}/acl_build")
+    
     set(ARM_COMPUTE_OPTIONS
         neon=1
         opencl=0
@@ -351,7 +353,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
     else()
         set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a)
     endif()
-    set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
+    set(arm_compute_full_path "${ARM_COMPUTE_BUILD_DIR}/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a")
 
     list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
 
@@ -361,6 +363,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
         COMMAND ${CMAKE_COMMAND} -E env ${cmake_build_env}
             ${SCONS} ${ARM_COMPUTE_OPTIONS}
                 ${arm_compute}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${ARM_COMPUTE_BUILD_DIR}/${OV_CPU_ARM_TARGET_ARCH}
+        COMMAND ${CMAKE_COMMAND} -E copy ${ARM_COMPUTE_SOURCE_DIR}/${arm_compute} ${arm_compute_full_path}
+        COMMAND ${CMAKE_COMMAND} -E remove_directory ${ARM_COMPUTE_SOURCE_DIR}/build
         WORKING_DIRECTORY ${ARM_COMPUTE_SOURCE_DIR}
         COMMENT "Build Arm Compute Library"
         DEPENDS ${SOURCES}

@@ -23,6 +23,7 @@ function(ov_create_acl_version_file)
     set(ACL_VERSION "${CMAKE_MATCH_1}")
 
     set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
+    file(MAKE_DIRECTORY "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core")
     file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
 endfunction()
 
