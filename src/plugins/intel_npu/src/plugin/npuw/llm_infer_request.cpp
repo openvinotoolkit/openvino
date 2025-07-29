@@ -380,41 +380,29 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                 m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), state_tensor);
                 m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), state_tensor);
             } else {
-                // Fill prefill LoRA input
+                // Fill LoRA into a new tensor
                 auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-                fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
+                auto new_tensor_for_infer = ov::get_tensor_impl(ov::Tensor(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape()));
+
+                fill_tensor<float>(new_tensor_for_infer, 0.0f);
                 if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
                     // alpha [1, r]
-                    fill_lora_alpha(state_tensor, prefill_lora_in_tensor, target_lora_rank, state_tensor_rank);
+                    fill_lora_alpha(state_tensor, new_tensor_for_infer, target_lora_rank, state_tensor_rank);
                 } else {
-                    auto prefill_lora_in_slice = make_tensor_slice(prefill_lora_in_tensor,
+                    auto new_tensor_slice = make_tensor_slice(new_tensor_for_infer,
                               rank_dim,
                               0u,
                               state_tensor_rank);
                     if (rank_dim == 1) {
-                        copy_columns_by_row_chunks_2d(state_tensor, prefill_lora_in_slice);
+                        copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                     } else {
-                        state_tensor->copy_to(prefill_lora_in_slice._ptr);
+                        state_tensor->copy_to(new_tensor_slice._ptr);
                     }
                 }
 
-                // Fill kvcache LoRA input
-                auto kvcache_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
-                fill_tensor<float>(kvcache_lora_in_tensor, 0.0f);
-                if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
-                    // alpha [1, r]
-                    fill_lora_alpha(state_tensor, kvcache_lora_in_tensor, target_lora_rank, state_tensor_rank);
-                } else {
-                    auto kvcache_lora_in_slice = make_tensor_slice(kvcache_lora_in_tensor,
-                                rank_dim,
-                                0u,
-                                state_tensor_rank);
-                    if (rank_dim == 1) {
-                        copy_columns_by_row_chunks_2d(state_tensor, kvcache_lora_in_slice);
-                    } else {
-                        state_tensor->copy_to(kvcache_lora_in_slice._ptr);
-                    }
-                }
+                // Set new tensor for inference
+                m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), new_tensor_for_infer);
+                m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), new_tensor_for_infer);
             }
         }
         variableState->clear_state_updated();
