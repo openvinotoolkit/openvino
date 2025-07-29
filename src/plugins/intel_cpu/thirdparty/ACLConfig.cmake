@@ -126,7 +126,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(extra_cxx_flags "${extra_cxx_flags} -fPIC")
     endif()
 
-    set(ARM_COMPUTE_BUILD_DIR "${intel_cpu_thirdparty_BINARY_DIR}/acl_build")
+    set(ARM_COMPUTE_BUILD_DIR "${intel_cpu_thirdparty_BINARY_DIR}/acl_build" CACHE PATH)
     
     set(ARM_COMPUTE_OPTIONS
         neon=1
