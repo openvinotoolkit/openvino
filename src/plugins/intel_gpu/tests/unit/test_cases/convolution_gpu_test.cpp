@@ -7531,8 +7531,8 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
     ov::CoordinateDiff pad = { 0, 0 };
     ov::Strides dilation = { 1, 1 };
     auto output_size = tensor{ 1, num_groups, 1, 2 };
-    auto input_lower_sizes = { 0, 16, 0, 0 };
-    auto input_upper_sizes = { 0, 64, 0, 0 };
+    std::vector<ov::Dimension::value_type> input_lower_sizes = { 0, 16, 0, 0 };
+    std::vector<ov::Dimension::value_type> input_upper_sizes = { 0, 64, 0, 0 };
 
     auto& engine = get_test_engine();
 
@@ -9489,9 +9489,9 @@ public:
         auto output_features = weights_size.batch[0];
 
         return cldnn::tensor(input_size.batch[0],
-                             static_cast<cldnn::tensor::value_type>(output_features),
-                             static_cast<cldnn::tensor::value_type>(output_size_x),
-                             static_cast<cldnn::tensor::value_type>(output_size_y));
+                             static_cast<ov::Dimension::value_type>(output_features),
+                             static_cast<ov::Dimension::value_type>(output_size_x),
+                             static_cast<ov::Dimension::value_type>(output_size_y));
     }
 
     void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs) override {
