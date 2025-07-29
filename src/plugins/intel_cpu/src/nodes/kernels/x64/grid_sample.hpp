@@ -74,7 +74,7 @@ class GridSampleKernelBase : public JitKernelBase {
 public:
     void (*ker_)(const GridSamplesKernelExecArgs*) = nullptr;
     void operator()(const GridSamplesKernelExecArgs* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
     explicit GridSampleKernelBase(const char* name,

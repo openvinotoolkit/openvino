@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "cpu_shape.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
@@ -28,7 +29,7 @@ namespace ov::intel_cpu {
 
 template <typename T, typename U>
 inline T div_up(const T a, const U b) {
-    assert(b);
+    OPENVINO_DEBUG_ASSERT(b > 0, "Divisor must be greater than zero, got b=", b);
     return (a + b - 1) / b;
 }
 

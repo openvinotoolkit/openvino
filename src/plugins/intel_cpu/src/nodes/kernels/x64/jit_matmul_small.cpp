@@ -6,7 +6,6 @@
 
 #include <xbyak/xbyak.h>
 
-#include <cassert>
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -15,6 +14,7 @@
 #include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
 using namespace dnnl::impl;
@@ -56,7 +56,13 @@ void jit_uni_matmul_small_kernel_f32<isa>::generate() {
     mov(reg_out, ptr[reg_params + GET_OFF(output)]);
     mov(reg_work_amount, ptr[reg_params + GET_OFF(B)]);
     if (jcp_.M > 2 || jcp_.N > 2 || jcp_.K > 2) {
-        assert("matmul_small_kernel only support M/N/K smaller than 3.");
+        OPENVINO_DEBUG_ASSERT(false,
+                              "matmul_small_kernel only support M/N/K smaller than 3. Got M=",
+                              jcp_.M,
+                              ", N=",
+                              jcp_.N,
+                              ", K=",
+                              jcp_.K);
     }
 
     if (attr_.post_ops_.len() != 0) {

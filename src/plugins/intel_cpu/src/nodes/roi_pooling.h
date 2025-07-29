@@ -60,7 +60,7 @@ struct jit_uni_roi_pooling_kernel {
     void (*ker_)(const jit_roi_pooling_call_args*) = nullptr;
 
     void operator()(const jit_roi_pooling_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

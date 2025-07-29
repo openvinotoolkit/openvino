@@ -68,7 +68,7 @@ public:
 
     [[nodiscard]] MultiCachePtr getRuntimeCache() const {
         auto runtimeCachePtr = runtimeCache.lock();
-        assert(runtimeCachePtr);
+        OPENVINO_DEBUG_ASSERT(runtimeCachePtr, "Runtime cache pointer is null");
         return runtimeCachePtr;
     }
 

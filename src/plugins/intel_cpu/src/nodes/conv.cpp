@@ -7,7 +7,6 @@
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -687,7 +686,7 @@ void Convolution::prepareParams() {
     // In case of fallback dst memory is a subgraph input
     m_memory[ARG_DST] = withSumBroadcast ? subgraph->getInput(0)->getDstMemoryAtPort(0) : getDstMemoryAtPort(0);
     const auto& executor = withSumBroadcast ? createFallbackExecutor() : m_executor;
-    assert(executor);
+    OPENVINO_DEBUG_ASSERT(executor, "Executor is null");
     executor->update(m_memory);
 }
 
@@ -719,7 +718,7 @@ void Convolution::redefineOutputMemory(const std::vector<VectorDims>& newOutputS
 
 void Convolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto& executor = withSumBroadcast ? fallbackExecutor : m_executor;
-    assert(executor);
+    OPENVINO_DEBUG_ASSERT(executor, "Executor is null");
     executor->execute(m_memory);
 }
 

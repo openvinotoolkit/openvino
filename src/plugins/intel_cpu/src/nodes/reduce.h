@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <cassert>
 #include <common/primitive_attr.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -19,6 +18,7 @@
 #include "cpu_types.h"
 #include "graph_context.h"
 #include "node.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -72,7 +72,7 @@ struct jit_uni_reduce_kernel {
     void (*ker_)(const jit_reduce_call_args*) = nullptr;
 
     void operator()(const jit_reduce_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 
@@ -88,7 +88,7 @@ struct jit_uni_reduce_post_kernel {
     void (*ker_)(const jit_reduce_post_call_args*) = nullptr;
 
     void operator()(const jit_reduce_post_call_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
 

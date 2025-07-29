@@ -166,7 +166,7 @@ private:
         // assumption: all table entries sharing the same key also
         // share their broadcast property
         const auto it = entry_map_.find(key);  // search an entry for a key
-        assert(it != entry_map_.end());
+        OPENVINO_DEBUG_ASSERT(it != entry_map_.end(), "Table entry for key '" + key + "' is not found");
         const auto& te = (*it).second;
         const auto scale = te.bcast ? get_vec_length() : sizeof(table_entry_val_t);
         return te.off + key_off_val_shift * scale;

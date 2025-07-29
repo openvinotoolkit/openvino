@@ -92,7 +92,7 @@ public:
         : UnaryEltwiseTppEmitter(h, isa, expr),
           executor(std::move(executor)) {}
     static void execute_unary_eltw_kernel(ReferenceUnaryEltwiseTppEmitter* ref_emitter, void* in0, void* out0) {
-        assert(ref_emitter);
+        OPENVINO_DEBUG_ASSERT(ref_emitter, "ReferenceUnaryEltwiseTppEmitter is expected!");
         // Note: we can instantiate template with different precision combinations here, if we need to
         ref_emitter->evaluate_reference_impl(reinterpret_cast<float*>(in0), reinterpret_cast<float*>(out0));
     }

@@ -42,7 +42,7 @@ struct jit_extract_image_patches_args {
 struct jit_uni_extract_image_patches_kernel {
     void (*ker_)(const jit_extract_image_patches_args*) = nullptr;
     void operator()(const jit_extract_image_patches_args* args) const {
-        assert(ker_);
+        OPENVINO_DEBUG_ASSERT(ker_, "Kernel is null");
         ker_(args);
     }
     jit_extract_image_patches_params jpp;

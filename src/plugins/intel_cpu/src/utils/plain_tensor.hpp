@@ -124,11 +124,19 @@ struct PlainTensor {
         if (i < 0) {
             i += m_rank;
         }
-        assert(static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
+        OPENVINO_DEBUG_ASSERT(static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank,
+                              "Index out of bounds: i=",
+                              i,
+                              ", m_rank=",
+                              m_rank);
         return m_dims[i];
     }
     [[nodiscard]] size_t stride(int i) const {
-        assert(i >= 0 && static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank);
+        OPENVINO_DEBUG_ASSERT(i >= 0 && static_cast<std::make_unsigned_t<decltype(i)>>(i) < m_rank,
+                              "i must be in range [0, rank), got i=",
+                              i,
+                              ", m_rank=",
+                              m_rank);
         return m_strides[i];
     }
 
@@ -207,7 +215,7 @@ struct PlainTensor {
             if (start < 0) {
                 start += size;
             }
-            assert(start >= 0 && start < size);
+            OPENVINO_DEBUG_ASSERT(start >= 0 && start < size, "Invalid start index: start=", start, ", size=", size);
             if (end != INT_MIN) {
                 if (end < 0) {
                     end += size;
@@ -215,7 +223,7 @@ struct PlainTensor {
                 if (end > size) {
                     end = size;
                 }
-                assert(end >= 0 && end <= size);
+                OPENVINO_DEBUG_ASSERT(end >= 0 && end <= size, "Invalid end index: end=", end, ", size=", size);
                 count = (end - start + step - 1) / step;
             } else {
                 count = 1;
@@ -225,7 +233,11 @@ struct PlainTensor {
 
     PlainTensor index(const std::initializer_list<tensor_index>& indices) {
         PlainTensor sub_tensor;
-        assert(indices.size() <= m_rank);
+        OPENVINO_DEBUG_ASSERT(indices.size() <= m_rank,
+                              "Too many indices: indices.size()=",
+                              indices.size(),
+                              ", m_rank=",
+                              m_rank);
         int i_src = 0;
         int i_dst = 0;
         sub_tensor.m_capacity = 0;
@@ -257,7 +269,11 @@ struct PlainTensor {
     // slice: return a sub-view (w/o ownership/refcount to original data)
     [[nodiscard]] PlainTensor slice(int axis, int start, int end, int step = 1) const {
         PlainTensor sub_tensor;
-        assert(axis >= 0 && static_cast<std::make_unsigned_t<decltype(axis)>>(axis) < m_rank);
+        OPENVINO_DEBUG_ASSERT(axis >= 0 && static_cast<std::make_unsigned_t<decltype(axis)>>(axis) < m_rank,
+                              "Invalid axis: axis=",
+                              axis,
+                              ", m_rank=",
+                              m_rank);
 
         sub_tensor.m_capacity = 0;
         if (end > start) {
@@ -321,7 +337,7 @@ struct PlainTensor {
     [[nodiscard]] PlainTensor reshape(const std::vector<size_t>& target_shape) const {
         // only valid for dense memory
         PlainTensor new_tensor_view;
-        assert(is_dense());
+        OPENVINO_DEBUG_ASSERT(is_dense(), "Tensor must be dense for reshape operation, is_dense()=", is_dense());
         new_tensor_view.resize(target_shape,
                                m_element_size,
                                m_dt,
@@ -331,7 +347,11 @@ struct PlainTensor {
 
     [[nodiscard]] PlainTensor permute(const std::vector<size_t>& order) const {
         PlainTensor new_tensor_view;
-        assert(order.size() == m_rank);
+        OPENVINO_DEBUG_ASSERT(order.size() == m_rank,
+                              "Order size mismatch: order.size()=",
+                              order.size(),
+                              ", m_rank=",
+                              m_rank);
         new_tensor_view.m_capacity = 0;
         // not hold memory reference
         new_tensor_view.m_ptr = m_ptr;
@@ -344,7 +364,7 @@ struct PlainTensor {
         // also should check order has no repeat element
         for (size_t i = 0; i < m_rank; i++) {
             auto j = *it_order++;
-            assert(j >= 0 && j < m_rank);
+            OPENVINO_DEBUG_ASSERT(j >= 0 && j < m_rank, "Invalid permutation index: j=", j, ", m_rank=", m_rank);
             new_tensor_view.m_dims[i] = m_dims[j];
             new_tensor_view.m_strides[i] = m_strides[j];
         }
@@ -361,7 +381,11 @@ struct PlainTensor {
         m_sub_byte_multiplier = sub_byte_data_type_multiplier();
         // initialize strides for compact/dense tensor
         m_rank = new_dims.size();
-        assert(m_rank <= PLAINTENSOR_RANK_MAX);
+        OPENVINO_DEBUG_ASSERT(m_rank <= PLAINTENSOR_RANK_MAX,
+                              "Rank exceeds maximum: m_rank=",
+                              m_rank,
+                              ", PLAINTENSOR_RANK_MAX=",
+                              PLAINTENSOR_RANK_MAX);
         size_t stride = 1;
         for (int i = m_rank - 1; i >= 0; i--) {
             m_dims[i] = new_dims[i];
@@ -457,7 +481,13 @@ struct PlainTensor {
                 // allow_broadcast only works when the dimension is really 1
                 coordinate = 0;
             } else {
-                assert(coordinate < m_dims[i]);
+                OPENVINO_DEBUG_ASSERT(coordinate < m_dims[i],
+                                      "Coordinate out of bounds: coordinate=",
+                                      coordinate,
+                                      ", m_dims[",
+                                      i,
+                                      "]=",
+                                      m_dims[i]);
             }
             off += m_strides[i] * coordinate;
         }

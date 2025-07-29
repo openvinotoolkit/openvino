@@ -6,7 +6,6 @@
 
 #include <xbyak/xbyak.h>
 
-#include <cassert>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
@@ -29,11 +28,19 @@ void JitKernelBase::uni_vfmsub132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v
     if (isValidIsa(x64::avx2)) {
         vfmsub132ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
-        assert(v_dst.getIdx() != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(),
+                              "Indexes must be different: v_dst.getIdx()=",
+                              v_dst.getIdx(),
+                              ", v_src.getIdx()=",
+                              v_src.getIdx());
         vmulps(v_dst, v_dst, op);
         vsubps(v_dst, v_dst, v_src);
     } else {
-        assert(v_dst.getIdx() != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(),
+                              "Indexes must be different: v_dst.getIdx()=",
+                              v_dst.getIdx(),
+                              ", v_src.getIdx()=",
+                              v_src.getIdx());
         mulps(v_dst, op);
         subps(v_dst, v_src);
     }
@@ -43,11 +50,19 @@ void JitKernelBase::uni_vfnmadd132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& 
     if (isValidIsa(x64::avx2)) {
         vfnmadd132ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
-        assert(v_dst.getIdx() != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(),
+                              "Indexes must be different: v_dst.getIdx()=",
+                              v_dst.getIdx(),
+                              ", v_src.getIdx()=",
+                              v_src.getIdx());
         vmulps(v_dst, v_dst, op);
         vsubps(v_dst, v_src, v_dst);
     } else {
-        assert(v_dst.getIdx() != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(),
+                              "Indexes must be different: v_dst.getIdx()=",
+                              v_dst.getIdx(),
+                              ", v_src.getIdx()=",
+                              v_src.getIdx());
         mulps(v_dst, op);
         subps(v_src, v_dst);
         movups(v_dst, v_src);
@@ -58,11 +73,11 @@ void JitKernelBase::uni_vfmsub231ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v
     if (isValidIsa(x64::avx2)) {
         vfmsub231ps(v_dst, v_src, op);
     } else if (isValidIsa(x64::avx)) {
-        assert(!v_dst.isEqualIfNotInherited(op));
+        OPENVINO_DEBUG_ASSERT(false, "isValidIsa(x64::avx) is not supported for uni_vfmsub231ps");
         vmulps(v_src, v_src, op);
         vsubps(v_dst, v_src, v_dst);
     } else {
-        assert(!v_dst.isEqualIfNotInherited(op));
+        OPENVINO_DEBUG_ASSERT(false, "isValidIsa(x64::sse41) is not supported for uni_vfmsub231ps");
         mulps(v_src, op);
         subps(v_src, v_dst);
         movups(v_dst, v_src);
@@ -94,7 +109,11 @@ void JitKernelBase::uni_vpaddd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src,
             OPENVINO_THROW("Not supported operand type.");
         }
     } else if (isValidIsa(x64::sse41)) {
-        assert(v_dst.getIdx() != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(),
+                              "Indexes must be different: v_dst.getIdx()=",
+                              v_dst.getIdx(),
+                              ", v_src.getIdx()=",
+                              v_src.getIdx());
         paddd(v_dst, op);
     } else {
         OPENVINO_THROW("Not defined behavior for instruction 'vpaddd' in current instructions set.");
@@ -137,7 +156,11 @@ void JitKernelBase::uni_vpsubd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src,
             OPENVINO_THROW("Not supported operand type.");
         }
     } else if (isValidIsa(x64::sse41)) {
-        assert(v_dst.getIdx() != v_src.getIdx());
+        OPENVINO_DEBUG_ASSERT(v_dst.getIdx() != v_src.getIdx(),
+                              "Indexes must be different: v_dst.getIdx()=",
+                              v_dst.getIdx(),
+                              ", v_src.getIdx()=",
+                              v_src.getIdx());
         psubd(v_dst, op);
     } else {
         OPENVINO_THROW("Not defined behavior for instruction 'vpsubd' in current instructions set.");
