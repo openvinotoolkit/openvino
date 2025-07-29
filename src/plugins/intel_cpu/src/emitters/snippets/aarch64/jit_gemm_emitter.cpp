@@ -88,7 +88,24 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
     // Apply memory offsets and load adjusted pointers
     std::vector<Xbyak_aarch64::XReg> load_regs{x1, x2, x3};
-    utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_reg, load_regs);
+
+    // Dynamically choose safe auxiliary registers that don't conflict with mem_ptrs or load_regs
+    std::vector<size_t> used_indices;
+    for (const auto& reg : mem_ptrs)
+        used_indices.push_back(reg.getIdx());
+    for (const auto& reg : load_regs)
+        used_indices.push_back(reg.getIdx());
+    used_indices.push_back(0);  // X0
+    used_indices.push_back(9);  // X9 - func_reg
+
+    std::vector<Xbyak_aarch64::XReg> aux_regs;
+    for (size_t i = 2; i <= 30 && aux_regs.size() < 3; ++i) {
+        if (std::find(used_indices.begin(), used_indices.end(), i) == used_indices.end()) {
+            aux_regs.emplace_back(static_cast<int>(i));
+        }
+    }
+
+    utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_regs, load_regs);
 
     // Set up executor pointer as first argument
     const auto& compiled_kernel = get_compiled_kernel_ptr();

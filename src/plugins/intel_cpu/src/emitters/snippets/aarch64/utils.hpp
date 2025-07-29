@@ -49,13 +49,14 @@ Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_g
  * @param h generator
  * @param stack_offset stack offset
  * @param ptr_reg register containing data pointer
- * @param aux_reg aux register
+ * @param aux_regs vector of available auxiliary registers (must contain >= 3 registers, ptr_reg must not be in this
+ * vector)
  * @param runtime_offset offset in runtime params `abi_param1`
  */
 void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
                                            int32_t stack_offset,
                                            const Xbyak_aarch64::XReg& ptr_reg,
-                                           const Xbyak_aarch64::XReg& aux_reg,
+                                           const std::vector<Xbyak_aarch64::XReg>& aux_regs,
                                            size_t runtime_offset);
 
 /**
@@ -64,11 +65,14 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generat
  * @param h generator
  * @param stack_offset stack offset
  * @param ptr_reg register containing data pointer
+ * @param aux_regs vector of available auxiliary registers (must contain >= 2 registers, ptr_reg must not be in this
+ * vector)
  * @param ptr_offset offset which will be added to data pointer
  */
 void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
                                           int32_t stack_offset,
                                           const Xbyak_aarch64::XReg& ptr_reg,
+                                          const std::vector<Xbyak_aarch64::XReg>& aux_regs,
                                           size_t ptr_offset);
 
 /**
@@ -77,14 +81,14 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generato
  * @param mem_ptrs vector of registers containing data pointers
  * @param memory_offsets vector of memory offsets (can be dynamic or static)
  * @param buffer_ids vector of buffer IDs for runtime offset calculation
- * @param aux_reg auxiliary register for calculations
+ * @param aux_regs vector of available auxiliary registers (must contain >= 3 registers, no overlap with mem_ptrs)
  * @param load_regs vector of registers to load the adjusted pointers back to
  */
 void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
                                      const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
                                      const std::vector<size_t>& memory_offsets,
                                      const std::vector<size_t>& buffer_ids,
-                                     const Xbyak_aarch64::XReg& aux_reg,
+                                     const std::vector<Xbyak_aarch64::XReg>& aux_regs,
                                      const std::vector<Xbyak_aarch64::XReg>& load_regs);
 
 }  // namespace ov::intel_cpu::aarch64::utils

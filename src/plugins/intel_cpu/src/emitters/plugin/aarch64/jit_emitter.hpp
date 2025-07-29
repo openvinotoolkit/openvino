@@ -157,8 +157,8 @@ protected:
         }
     }
 
-    int32_t get_gpr_length() const {
-        return h->x0.getBit() / 8;
+    static int32_t get_gpr_length() {
+        return 8;
     }
 
 private:
