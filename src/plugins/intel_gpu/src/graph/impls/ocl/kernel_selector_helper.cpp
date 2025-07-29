@@ -71,10 +71,8 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 namespace cldnn {
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
-    // Skip check for Windows as CM frontend is a component of Intel GPU driver
-#ifdef WIN32
-    return true;
-#else
+    // Even though CM frontend is a component of Intel GPU driver on Windows, the version
+    // may still be incompatible to existing CM kernels.
     auto device = e.get_device().get();
 
     static std::mutex m;
@@ -88,6 +86,10 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
     // This program checks if cm sources can be jitted by current IGC version
     const char* kernel_code = R""""(
+        static_assert(__cplusplus >= 201703L);
+        CM_INLINE uint64_t dummy() {
+            return;
+        }
         extern "C" _GENX_MAIN_ void cm_check(half *x [[type("svmptr_t")]]) {
             unsigned int id = cm_linear_global_id();
         }
@@ -115,7 +117,6 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     }
 
     return cache.at(device);
-#endif
 }
 
 bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
