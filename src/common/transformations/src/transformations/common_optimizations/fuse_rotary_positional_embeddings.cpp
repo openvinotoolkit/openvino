@@ -462,7 +462,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto varsplit_view_Reshape = pattern::wrap_type<opset1::VariadicSplit>({view_Reshape, 3, {"ndims", "end"}});
     varsplit_view_Reshape->set_output_size(2);
     // x interleave (-x[:,:,:, 1::2], x[:,:,:, 0::2])
-    auto slice_Slice_1174 = ov::op::util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, INT_MAX, 2, 3);
+    auto slice_Slice_1174 =
+        ov::op::util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 1, INT_MAX, 2, 3);
 
     auto neg_Multiply_1177 =
         pattern::wrap_type<opset1::Multiply>({slice_Slice_1174, -1.0f}, {{"auto_broadcast", "numpy"}});
@@ -470,7 +471,8 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     auto Unsqueeze_28998 = pattern::wrap_type<opset1::Reshape>({neg_Multiply_1177, {"-1", "1", "head_num", "32", "1"}},
                                                                {{"special_zero", false}});
 
-    auto slice_Slice_1168 = ov::op::util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, INT_MAX, 2, 3);
+    auto slice_Slice_1168 =
+        ov::op::util::NewGenSlice(slice_Slice_965 | varsplit_view_Reshape->output(0), 0, INT_MAX, 2, 3);
     auto Unsqueeze_65525 = pattern::wrap_type<opset1::Unsqueeze>({slice_Slice_1168, -1});
     auto Unsqueeze_28999 = pattern::wrap_type<opset1::Reshape>({slice_Slice_1168, {"-1", "1", "head_num", "32", "1"}},
                                                                {{"special_zero", false}});
@@ -637,7 +639,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         auto slice1 = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0}, seq_length, {1}, {1}});
         auto slice2 = pattern::wrap_type<v8::Slice>({cos_sin_cache, {0, 0}, scatter_update0, {1, 1}, {0}});
         auto ss_stop = pattern::wrap_type<v0::Constant>();
-        auto strided_slice0 = ov::op::util::NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | scatter_update0, {1, 1}, 1);
+        auto strided_slice0 =
+            ov::op::util::NewGenStridedSlice(cos_sin_cache, {0, 0}, ss_stop | scatter_update0, {1, 1}, 1);
 
         auto concat1 = pattern::wrap_type<v0::Concat>({{-1}, {1}, seq_length, {"ndims/2"}, {2}}, {{"axis", 0}});
         auto const_target_shape3 =
@@ -872,7 +875,8 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
                                                                           pattern::shape_matches("[?, 1, 1, 128]"),
                                                                           {{"special_zero", false}});
 
-    auto slice_StridedSlice_446 = ov::op::util::NewGenStridedSlice(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
+    auto slice_StridedSlice_446 =
+        ov::op::util::NewGenStridedSlice(rotary_emb_cos, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
     auto mul_Multiply_552 = pattern::wrap_type<v1::Multiply>(
         {slice_Slice_543, slice_StridedSlice_446 | slice_Slice_446 | reshape_cos_to_expected_layout},
         {{"auto_broadcast", "numpy"}});
@@ -919,7 +923,8 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
     auto cat_Concat_593 = pattern::wrap_type<v0::Concat>(
         {ListUnpack_586_Squeeze_0 | ListUnpack_Squeeze_0_1, ListUnpack_586_Squeeze | ListUnpack_Squeeze_1},
         {{"axis", -1}});
-    auto slice_StridedSlice_470 = ov::op::util::NewGenStridedSlice(rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
+    auto slice_StridedSlice_470 =
+        ov::op::util::NewGenStridedSlice(rotary_emb_sin, ScatterUpdate_463814, {0, INT_MAX}, {1, 1}, 1);
     auto slice_Slice_470 = pattern::wrap_type<v8::Slice>({rotary_emb_sin, Gather_377635 | neg_Multiply, INT_MAX, 1, 1});
     auto gather_sin_by_pos_ids = pattern::wrap_type<v8::Gather>({rotary_emb_sin, position_ids, 1}, {{"batch_dims", 0}});
     auto reshape_sin_to_expected_layout = pattern::wrap_type<v1::Reshape>({gather_sin_by_pos_ids, pattern::any_input()},
