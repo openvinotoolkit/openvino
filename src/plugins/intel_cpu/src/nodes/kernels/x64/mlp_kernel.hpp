@@ -20,6 +20,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 // register blocking size for K dimension (1x2 AMX B-tiles)
@@ -67,7 +68,7 @@ public:
     int m_M_hint;
 
     MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator_t("MKernel"), m_tmul_type(tmul_type), m_M_hint(M_hint) {
-        if (m_tmul_type == TMUL_TYPE::FP16 || m_tmul_type == TMUL_TYPE::BF16) {
+        if (any_of(m_tmul_type, TMUL_TYPE::FP16, TMUL_TYPE::BF16)) {
             m_tile_reg_ksize = 32;
         } else {
             m_tile_reg_ksize = 64;

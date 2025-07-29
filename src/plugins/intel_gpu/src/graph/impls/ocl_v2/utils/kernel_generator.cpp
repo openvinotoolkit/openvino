@@ -82,7 +82,7 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.code = std::make_shared<KernelString>();
     kd.code->language = KernelLanguage::OCLC_V2;
     kd.code->entry_point = get_entry_point(params);
-    kd.code->jit = "";  // jit and undefa are a part of the code now
+    kd.code->jit = "";  // jit and undefs are a part of the code now
     kd.code->undefs = "";
     kd.code->options = get_build_options(params);
     kd.code->batch_compilation = true;
@@ -90,6 +90,7 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.code->str = build_code(m_kernel_name, jit, kd.code->entry_point);
 
     kd.params.arguments = get_arguments_desc(params);
+    kd.params.layerID = params.desc->id;
     kd.update_dispatch_data_func = get_dispatch_data_func();
     kd.need_args_update = true;
     kd.need_dispatch_data_update = true;

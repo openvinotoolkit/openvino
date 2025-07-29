@@ -341,7 +341,7 @@ class PreProcessSteps:
                     Input tensor must have ov.Type.f32 data type.
         
                     :param values: Values to subtract.
-                    :type values: List[float]
+                    :type values: list[float]
                     :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
                     :rtype: openvino.preprocess.PreProcessSteps
         """
@@ -403,7 +403,7 @@ class PreProcessSteps:
                     Input tensor must have ov.Type.f32 data type.
         
                     :param values: Values which are used in division.
-                    :type values: List[float]
+                    :type values: list[float]
                     :return: Reference to itself to allow chaining of calls in client's code in a builder-like manner.
                     :rtype: openvino.preprocess.PreProcessSteps
         """

@@ -85,7 +85,6 @@ static size_t get_heads_per_wi(const size_t kv_group_size) {
             }
         }
     }
-
     return 1;
 }
 
@@ -96,7 +95,6 @@ inline size_t get_generate_stage_block_size(size_t head_size) {
             return block_size;
         }
     }
-
     return 1;
 }
 
@@ -268,15 +266,24 @@ public:
         jit.make("XE2_QK_MULTIPLICATION", params.get_device_info().arch == gpu_arch::xe2);
         jit.make("SG_SCALE_FACTOR", get_pa_sg_number_scale_factor(params.get_device_info(), desc->k_head_size, SDPAStage::SINGLE_TOKEN, is_kv_compressed));
 
+        const auto is_key_by_channel = desc->is_key_by_channel;
         if (is_kv_compressed) {
             auto& kv_dt = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;
             auto scales_zp_size = get_element_size(kv_dt) * 2;  // scale + zp
-            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+            // jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+            if (is_key_by_channel) {
+                jit.make("IS_KEY_BY_CHANNEL", 1);
+                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
+            } else {
+                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+            }
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
         } else {
             jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
 
         if (desc->scale_val.has_value()) {
@@ -752,6 +759,14 @@ protected:
         jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.input_layouts[value_cache_id], in_offsets_map.at(value_cache_id)));
 
         const auto desc = params.typed_desc<paged_attention>();
+        const auto is_key_by_channel = desc->is_key_by_channel;
+        OPENVINO_ASSERT(is_key_by_channel == (params.get_program().get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL),
+                        "[GPU] Paged Attention key cache quantization mode mismatch: prim.key_cache_by_channel : ",
+                        is_key_by_channel,
+                        " and exec_config : ",
+                        params.get_program().get_config().get_key_cache_quant_mode());
+
+        // const auto pa_block_size = static_cast<int32_t>(paged_attention::block_size);
         jit.make("K_HEAD_SIZE", desc->k_head_size);
         jit.make("V_HEAD_SIZE", desc->v_head_size);
         jit.make("HEADS_NUM", desc->heads_num);
@@ -766,10 +781,18 @@ protected:
         if (is_kv_compressed) {
             auto data_type = params.input_layouts[PagedAttentionInputIdx::KEY].data_type;  // key tensor data size
             auto scales_zp_size = get_element_size(data_type) * 2;                         // scale + zp
-            jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-            jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+            // jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
+            if (is_key_by_channel) {
+                jit.make("IS_KEY_BY_CHANNEL", 1);
+                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
+            } else {
+                jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+            }
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
         } else {
+            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
             jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
         }
