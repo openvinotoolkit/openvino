@@ -1043,8 +1043,7 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
 
         auto tensor = ov::Tensor(element_type, shape.is_dynamic() ? ov::Shape{0} : shape.to_shape());
         ov::SoPtr<ov::ITensor> soPtr = ov::get_tensor_impl(tensor);
-        m_variableStates.push_back(
-            std::make_shared<VariableState>(variable_name, soPtr));
+        m_variableStates.push_back(std::make_shared<VariableState>(variable_name, soPtr));
 
         auto assign = assigns[i];
         model->remove_sink(assign);
@@ -1166,7 +1165,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                           axes,
                           m_max_lora_rank);
     } else {
-        reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes, m_max_lora_rank);
+        reshape_to_static(prefill_model,
+                          m_kvcache_desc.max_prompt_size,
+                          m_kvcache_desc.max_prompt_size,
+                          axes,
+                          m_max_lora_rank);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
     reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, m_max_lora_rank);

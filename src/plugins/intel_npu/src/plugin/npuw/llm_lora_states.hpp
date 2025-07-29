@@ -40,7 +40,6 @@ public:
 
 private:
     bool m_state_updapted;
-
 };
 
 struct LoRANames {
