@@ -1659,6 +1659,7 @@ void primitive_inst::do_runtime_in_place_concat() {
         }
     }
     GPU_DEBUG_TRACE_DETAIL << "[In place concat] update shape for " << concat_inst->id() << std::endl;
+    auto prev_concat_layout = concat_inst->_impl_params->get_output_layout();
     concat_inst->update_shape();
     concat_inst->_update_shape_done_by_other = true;
     layout concat_layout = concat_inst->_impl_params->get_output_layout();
@@ -1691,6 +1692,12 @@ void primitive_inst::do_runtime_in_place_concat() {
                                << dep.first->_impl_params->output_layouts[0].to_string() << std::endl;
         ++i;
     }
+
+    // If concat primitive's output shape has changed, reset the allocation flag to allow its predecessors
+    // to call realloc_if_needed for concat during their own realloc_if_needed calls
+    if (prev_concat_layout != concat_layout)
+        concat_inst->_allocation_done_by_other = false;
+
     concat_inst->_impl_params->output_layouts[0] = concat_layout; // TODO : Once this primitive_inst::can_be_optimized, consolidate it to impl_params->optimized
 
     concat_inst->set_can_be_optimized(true);
