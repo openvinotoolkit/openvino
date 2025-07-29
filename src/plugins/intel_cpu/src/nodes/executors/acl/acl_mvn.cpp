@@ -36,7 +36,7 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
 
     size_t X = 0, Y = 0;
     if (mvnAttrs.initAcrossChannels_) {
-        if (srcDims.size() >= 2u) {
+        if (srcDims.size() >= 2U) {
             Y = srcDims[0];
             X = srcDims[1];
             for (size_t i = 2; i < srcDims.size(); i++) {
@@ -47,13 +47,13 @@ bool AclMVNExecutor::init(const MVNAttrs& mvnAttrs,
             X = srcDims[0];
         }
     } else {
-        if (srcDims.size() > 2u) {
+        if (srcDims.size() > 2U) {
             Y = srcDims[0] * srcDims[1];
             X = srcDims[2];
             for (size_t i = 3; i < srcDims.size(); i++) {
                 X *= srcDims[i];
             }
-        } else if (srcDims.size() == 2u) {
+        } else if (srcDims.size() == 2U) {
             Y = srcDims[0] * srcDims[1];
             X = 1;
         } else {

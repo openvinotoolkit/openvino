@@ -47,7 +47,7 @@ struct TypeMask {
     }
     // match
     bool operator&(const ov::element::Type precision) const {
-        return (value & TypeMask(precision)) != 0u;
+        return (value & TypeMask(precision)) != 0U;
     }
 
     const uint64_t value;

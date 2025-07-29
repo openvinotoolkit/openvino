@@ -232,7 +232,7 @@ void Reorder::prepareParams() {
     if (all_of(ov::element::f16, parentDesc->getPrecision(), childDesc->getPrecision()) &&
         ((parentDesc->hasLayoutType(LayoutType::ncsp) && childDesc->hasLayoutType(LayoutType::nspc)) ||
          (parentDesc->hasLayoutType(LayoutType::nspc) && childDesc->hasLayoutType(LayoutType::ncsp))) &&
-        any_of(parentDesc->getShape().getRank(), 3u, 4u)) {
+        any_of(parentDesc->getShape().getRank(), 3U, 4U)) {
         prepareReorderAsTranspose(parentDesc, childDesc);
         return;
     }
