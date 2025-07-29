@@ -55,9 +55,6 @@ void jit_uni_matmul_small_kernel_f32<isa>::generate() {
     mov(reg_input2, ptr[reg_params + GET_OFF(input2)]);
     mov(reg_out, ptr[reg_params + GET_OFF(output)]);
     mov(reg_work_amount, ptr[reg_params + GET_OFF(B)]);
-    if (jcp_.M > 2 || jcp_.N > 2 || jcp_.K > 2) {
-        assert("matmul_small_kernel only support M/N/K smaller than 3.");
-    }
 
     if (attr_.post_ops_.len() != 0) {
         mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);
