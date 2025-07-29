@@ -65,6 +65,7 @@
 #include "low_precision/gather.hpp"
 #include "low_precision/group_convolution.hpp"
 #include "low_precision/interpolate.hpp"
+#include "low_precision/kv_cache_concat.hpp"
 #include "low_precision/mat_mul.hpp"
 #include "low_precision/max_pool.hpp"
 #include "low_precision/move_fake_quantize.hpp"
@@ -241,6 +242,7 @@ bool LowPrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
 
     const auto common = manager.register_pass<GraphRewrite>();
     ADD_MATCHER(common, AddTransformation, params)
+    ADD_MATCHER(common, KVCacheConcat, m)
     ADD_MATCHER(common, AssignAndReadValueTransformation, m, params)
     ADD_MATCHER(common, AvgPoolTransformation, params)
     ADD_MATCHER(common, BatchToSpaceTransformation, params)
