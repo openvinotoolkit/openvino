@@ -33,7 +33,7 @@ protected:
     void SetUp() override;
 
 private:
-    std::string getPrimitiveType(const utils::ComparisonTypes& comparison_type) const;
+    std::string getPrimitiveType(const utils::ComparisonTypes& comparison_type, ov::element::Type modelType) const;
 };
 
 

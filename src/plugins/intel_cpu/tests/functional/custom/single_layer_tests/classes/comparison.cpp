@@ -5,6 +5,7 @@
 #include "comparison.hpp"
 
 #include "internal_properties.hpp"
+#include "utils/general_utils.h"
 #include "utils/precision_support.h"
 #include "common_test_utils/node_builders/comparison.hpp"
 
@@ -50,8 +51,9 @@ void ComparisonLayerCPUTest::SetUp() {
         modelType = inferPrc;
     }
 
-    const auto primitiveType = getPrimitiveType(comparisonType);
-    const auto primiticePrcType = primitiveType == "ref" ? ov::element::f32.to_string() : modelType.to_string();
+    const auto primitiveType = getPrimitiveType(comparisonType, modelType);
+    const auto primiticePrcType =
+        ov::intel_cpu::any_of(primitiveType, "ref", "acl") ? ov::element::f32.to_string() : modelType.to_string();
     selectedType = primitiveType.empty() ? "" : primitiveType + "_" + primiticePrcType;
 
     init_input_shapes(shapes);
@@ -80,21 +82,21 @@ void ComparisonLayerCPUTest::SetUp() {
     function = std::make_shared<ov::Model>(comparison_node, params, "Comparison");
 }
 
-std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonTypes& type) const {
+std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonTypes& type, ov::element::Type modelType) const {
 #if defined(OPENVINO_ARCH_ARM64)
     return "jit";
 #endif
-#if defined(OPENVINO_ARCH_ARM)
+#if defined(OPENVINO_ARCH_ARM) && defined(OV_CPU_WITH_ACL)
     // TODO [171225] : On ARM there is ACL executor support which requires U8 on output.
     //                 This requirement is not met in Eltwise CPU node - ref impl is used.
-    return "ref";
+    return modelType == ov::element::i32 ? "acl" : "ref";
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
-        if ((type == utils::ComparisonTypes::EQUAL) ||
-            (type == utils::ComparisonTypes::NOT_EQUAL) ||
-            (type == utils::ComparisonTypes::LESS_EQUAL) ||
-            (type == utils::ComparisonTypes::GREATER_EQUAL))
+        if (ov::intel_cpu::any_of(type, utils::ComparisonTypes::EQUAL,
+                                        utils::ComparisonTypes::NOT_EQUAL,
+                                        utils::ComparisonTypes::LESS_EQUAL,
+                                        utils::ComparisonTypes::GREATER_EQUAL))
             return "jit";
     }
 #endif
@@ -153,7 +155,10 @@ const std::vector<utils::ComparisonTypes>& comparisonTypes() {
 
 const std::vector<bool>& enforceSnippets() {
     static const std::vector<bool> enforce = {
-        true, false
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_X86_64)
+        true,
+#endif
+        false
     };
 
     return enforce;
