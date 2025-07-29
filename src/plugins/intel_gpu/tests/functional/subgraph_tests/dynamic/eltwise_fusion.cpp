@@ -151,7 +151,7 @@ protected:
         auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, input_scalar_indices ? ov::Shape{} : ov::Shape{1}, std::vector<int>{1});
         auto gather = std::make_shared<ov::op::v8::Gather>(input, indices, axis);
 
-        auto bias = std::make_shared<ov::op::v0::Constant>(input_precision, ov::Shape{1, 3}, std::vector<float>{0.01, 0.02, 0.03});
+        auto bias = std::make_shared<ov::op::v0::Constant>(input_precision, ov::Shape{1, 3}, std::vector<float>{1.0, 2.0 , 3.0});
         auto add = std::make_shared<ov::op::v1::Add>(gather, bias);
 
         return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input}, "GatherEltwiseFusion");
