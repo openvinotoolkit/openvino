@@ -317,17 +317,6 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
     }
 }
 
-void printFirst16Elements(const ov::SoPtr<ov::ITensor>& tensor) {
-    // 获取数据指针
-    const float* data = static_cast<const float*>(tensor->data());
-
-    // 打印前16个数
-    for (int i = 0; i < 16; ++i) {
-        std::cout << data[i] << " ";
-    }
-    std::cout << std::endl;
-}
-
 void fill_lora_alpha(ov::SoPtr<ov::ITensor>& alpha_src_tensor, ov::SoPtr<ov::ITensor>& alpha_dst_tensor, uint32_t max_rank, uint32_t real_rank) {
     // alpha [1, r]
     float* lora_alpha_src_data = alpha_src_tensor->data<float>();
@@ -365,7 +354,6 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
             fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
             auto kvcache_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
-            // std::memset(kvcache_lora_in_tensor->data(), 0, kvcache_lora_in_tensor->get_byte_size());
             fill_tensor<float>(kvcache_lora_in_tensor, 0.0f);
         } else {
             // Generate with LoRA
@@ -394,7 +382,6 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             } else {
                 // Fill prefill LoRA input
                 auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-                // std::memset(prefill_lora_in_tensor->data(), 0, prefill_lora_in_tensor->get_byte_size());
                 fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
                 if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
                     // alpha [1, r]
@@ -411,15 +398,8 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                     }
                 }
 
-                std::cout << "[NPUW]state: " << state_name << std::endl;
-                printFirst16Elements(state_tensor);
-
-                std::cout << "[NPUW]prefill_lora_in_tensor: " << state_name << std::endl;
-                printFirst16Elements(m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name)));
-
                 // Fill kvcache LoRA input
                 auto kvcache_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
-                // std::memset(kvcache_lora_in_tensor->data(), 0, kvcache_lora_in_tensor->get_byte_size());
                 fill_tensor<float>(kvcache_lora_in_tensor, 0.0f);
                 if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
                     // alpha [1, r]
