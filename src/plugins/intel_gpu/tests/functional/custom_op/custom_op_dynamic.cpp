@@ -80,11 +80,11 @@ TEST(CustomOpDynamic, CanReadValidCustomOpConfig) {
     core.set_property(ov::test::utils::DEVICE_GPU, {{"CONFIG_FILE", TEST_CUSTOM_OP_DYNAMIC_CONFIG_PATH}});
 }
 
-TEST(CustomOpDynamic, Accuracy) {
+TEST(smoke_CustomOpDynamic, Accuracy) {
     ov::Core core;
     float alpha = 1.0, beta = 0.1;
-    const size_t dim1 = 1, dim2 = 2;
-    auto model = get_simple_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, dim2});
+    const size_t dim1 = 1;
+    auto model = get_simple_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1});
 
     ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", TEST_CUSTOM_OP_DYNAMIC_CONFIG_PATH}};
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
@@ -102,9 +102,9 @@ TEST(CustomOpDynamic, Accuracy) {
     ASSERT_TRUE(found_custom_op);
 
     auto inp_arr_1 = std::vector<float>{0.2, 0.4};
-    auto inp_arr_2 = std::vector<float>{0.2, 0.4, 0.3, 0.5};
-    auto inputs = std::vector<ov::Tensor>{ov::Tensor({ov::element::f32}, ov::Shape{1, dim1, dim2}, inp_arr_1.data()),
-                                          ov::Tensor({ov::element::f32}, ov::Shape{2, dim1, dim2}, inp_arr_2.data())};
+    auto inp_arr_2 = std::vector<float>{0.2, 0.4, 0.3, 0.5, 0.7, 0.9};
+    auto inputs = std::vector<ov::Tensor>{ov::Tensor({ov::element::f32}, ov::Shape{1, dim1, 2}, inp_arr_1.data()),
+                                          ov::Tensor({ov::element::f32}, ov::Shape{2, dim1, 3}, inp_arr_2.data())};
     auto ireq = compiled_model.create_infer_request();
     for (auto input : inputs) {
         ireq.set_input_tensor(0, input);

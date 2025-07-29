@@ -67,6 +67,8 @@ private:
             }
         }
 
+        // Execute the op's shape inference only for dynamic node when input shapes have already been calculated; otherwise, keep the original output layout
+        // unchanged (it will be either static for static model or have dynamic shape in case of dynamic flow)
         if (!is_dynamic_input && output_layout.is_dynamic()) {
             ov::OutputVector new_inputs;
             for (size_t i = 0; i < inp_sz; i++) {
