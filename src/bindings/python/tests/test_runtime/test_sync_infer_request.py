@@ -837,4 +837,4 @@ def test_infer_request_tensors_prop(device):
     assert isinstance(inputs, list)
     assert isinstance(outputs, list)
     assert str(inputs) == "[<Tensor: shape[2,2] type: f32>, <Tensor: shape[2,2] type: f32>]"
-    assert str(outputs) == "[<Tensor: shape[2,2] type: f32>]"
+    assert str(outputs) == "[<Tensor: shape[2,2] type: f32>]" # Check representation
