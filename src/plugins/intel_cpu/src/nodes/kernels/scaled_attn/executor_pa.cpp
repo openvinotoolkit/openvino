@@ -67,12 +67,11 @@ using namespace ov::intel_cpu;
 
 #    endif
 
-template <
-    typename T,
-    ov::element::Type_t SRC_PREC,
-    std::enable_if_t<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16> || std::is_same_v<T, float>) &&
-                         (SRC_PREC != ov::element::u8 || SRC_PREC != ov::element::u4),
-                     bool> = true>
+template <typename T,
+          ov::element::Type_t SRC_PREC,
+          std::enable_if_t<any_of_v<T, ov::bfloat16, ov::float16, float> &&
+                               none_of(SRC_PREC, ov::element::u8, ov::element::u4),
+                           bool> = true>
 static void attn_acc_value_block(float* out,
                                  const float* weight,
                                  T* v,
@@ -739,7 +738,7 @@ static void attn_acc_value_block_by_channel(float* out,
 
 template <typename TA,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(SRC_PREC == ov::element::u8 || SRC_PREC == ov::element::u4), bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::u8, ov::element::u4), bool> = true>
 static void attn_acc_value_block_quantized(float* out,
                                            float* weight,
                                            uint8_t* v,
@@ -756,7 +755,7 @@ static void attn_acc_value_block_quantized(float* out,
 
 template <typename TA,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(SRC_PREC != ov::element::u8 && SRC_PREC != ov::element::u4), bool> = true>
+          std::enable_if_t<none_of(SRC_PREC, ov::element::u8, ov::element::u4), bool> = true>
 static void dot_product_block(TA* a,
                               void* b,
                               float* c,
@@ -1692,7 +1691,7 @@ static void dot_product_block_quantized_by_dims(TA* a,
 
 template <typename TA,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(SRC_PREC == ov::element::u8 || SRC_PREC == ov::element::u4), bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::u8, ov::element::u4), bool> = true>
 static void dot_product_block_quantized(TA* a,
                                         uint8_t* b,
                                         float* c,
@@ -1749,7 +1748,7 @@ static void attn_reduce(T* dst, float* temp, size_t M, size_t S, size_t temp_str
 // N must be multiple of 16
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<(SRC_PREC != ov::element::u8 && SRC_PREC != ov::element::u4), bool> = true>
+          std::enable_if_t<none_of(SRC_PREC, ov::element::u8, ov::element::u4), bool> = true>
 void transpose_16NxK(TDST* dst,
                      void* src,
                      [[maybe_unused]] TDST* tmp,
@@ -1783,7 +1782,7 @@ void transpose_16NxK(TDST* dst,
 #    if defined(HAVE_AVX512F)
 template <typename T,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<(SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16) &&
+          typename std::enable_if<any_of(SRC_PREC, ov::element::bf16, ov::element::f16) &&
                                       (SRC_PREC == precision_of<T>::value),
                                   bool>::type = true>
 static void transpose_16NxK(T* dst,
@@ -1814,7 +1813,7 @@ static void transpose_16NxK(T* dst,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<SRC_PREC == ov::element::u8 || SRC_PREC == ov::element::u4, bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::u8, ov::element::u4), bool> = true>
 void transpose_16NxK(TDST* dst,
                      void* src,
                      TDST* tmp,
@@ -1901,7 +1900,7 @@ static inline void dequant(float* dst,
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          std::enable_if_t<SRC_PREC == ov::element::u4 || SRC_PREC == ov::element::u8, bool> = true>
+          std::enable_if_t<any_of(SRC_PREC, ov::element::u4, ov::element::u8), bool> = true>
 void dequant(TDST* dst,
              void* src,
              const size_t N,
@@ -1945,9 +1944,7 @@ void dequant(TDST* dst,
 }
 
 #    if defined(HAVE_AVX512F)
-template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template <typename T, typename = typename std::enable_if_t<any_of_v<T, ov::bfloat16, ov::float16>, bool>>
 static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -1969,9 +1966,7 @@ static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
     }
 }
 
-template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template <typename T, typename = typename std::enable_if_t<any_of_v<T, ov::bfloat16, ov::float16>, bool>>
 static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -1990,9 +1985,7 @@ static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
     }
 }
 
-template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template <typename T, typename = typename std::enable_if_t<any_of_v<T, ov::bfloat16, ov::float16>, bool>>
 static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride, size_t K) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -2013,9 +2006,9 @@ static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_strid
 
 template <typename TDST,
           ov::element::Type_t SRC_PREC,
-          typename std::enable_if<precision_of<TDST>::value != ov::element::f32 &&
-                                      (SRC_PREC == ov::element::bf16 || SRC_PREC == ov::element::f16),
-                                  bool>::type = true>
+          typename std::enable_if_t<precision_of<TDST>::value != ov::element::f32 &&
+                                        any_of(SRC_PREC, ov::element::bf16, ov::element::f16),
+                                    bool> = true>
 static void pack_32NxK(TDST* dst,
                        void* src,
                        TDST* tmp,
@@ -2784,7 +2777,7 @@ struct MHAHelper {
                 auto block_number = block_table[i];
                 for (size_t pq = 0; pq < q_len; pq++) {
                     for (size_t h = hq_beg; h < hq_end; h++) {
-                        if constexpr (KEY_PREC == ov::element::u8 || KEY_PREC == ov::element::u4) {
+                        if constexpr (any_of(KEY_PREC, ov::element::u8, ov::element::u4)) {
                             dot_product_block_quantized<DATA_TYPE, KEY_PREC>(
                                 query.ptr<DATA_TYPE>(h, pq),
                                 present_key.ptr<uint8_t, KEY_PREC>(block_number, hk),
