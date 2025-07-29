@@ -101,7 +101,8 @@ private:
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
     ov::Tensor m_read_from_bin;
-    ov::npuw::s11n::Weights m_mmaped_weights = nullptr;
+    std::string m_weights_path;
+    mutable ov::npuw::s11n::Weights m_mmaped_weights = nullptr;
 };
 
 class Concat {
