@@ -316,6 +316,11 @@ std::unordered_set<std::string> ZeGraphExtWrappers::queryGraph(std::pair<size_t,
 }
 
 void* ZeGraphExtWrappers::importCpuVa(void* data, size_t size, const uint32_t flags) const {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 13) ||
+        !utils::memory_and_size_aligned_to_standard_page_size(data, size)) {
+        return nullptr;
+    }
+
     ze_device_external_memory_properties_t externalMemorydDesc = {};
     externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
 
@@ -396,16 +401,12 @@ GraphDescriptor ZeGraphExtWrappers::getGraphDescriptor(void* blobData, size_t bl
     }
 
     uint32_t flags = 0;
-    void* npuMemory = nullptr;
 
-    if (_graphExtVersion >= ZE_MAKE_VERSION(1, 13) &&
-        utils::memory_and_size_aligned_to_standard_page_size(blobData, blobSize)) {
-        npuMemory = importCpuVa(blobData, blobSize, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+    void* npuMemory = importCpuVa(blobData, blobSize, ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
 
-        if (npuMemory) {
-            _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT");
-            flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
-        }
+    if (npuMemory) {
+        _logger.debug("getGraphDescriptor - set ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT");
+        flags = ZE_GRAPH_FLAG_INPUT_GRAPH_PERSISTENT;
     }
 
     ze_graph_desc_2_t desc = {ZE_STRUCTURE_TYPE_GRAPH_DESC_PROPERTIES,
