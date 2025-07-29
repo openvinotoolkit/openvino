@@ -353,7 +353,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
     else()
         set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a)
     endif()
-    set(arm_compute_full_path "${ARM_COMPUTE_BUILD_DIR}/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a")
+    set(arm_compute_full_path "${ARM_COMPUTE_BUILD_DIR}/${arm_compute}")
 
     list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
 
