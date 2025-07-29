@@ -290,7 +290,7 @@ void PhiloxGenerator<isa>::process() {
     std::vector<Vmm> v_res{v_dst_0, v_dst_1};
 
     auto step = vlen;
-    if (one_of(m_jcp.out_data_type.size(), 2LU, 4LU)) {
+    if (any_of(m_jcp.out_data_type.size(), 2LU, 4LU)) {
         step = vlen * 2 / sizeof(uint32_t);
     } else if (m_jcp.out_data_type.size() == 8) {
         step = vlen / sizeof(uint32_t);
@@ -308,7 +308,7 @@ void PhiloxGenerator<isa>::process() {
 
         uni_vmovups(ptr[r64_dst], v_dst_0);
         add(r64_dst, vlen);
-        if (one_of(m_jcp.out_data_type.size(), 4LU, 8LU)) {
+        if (any_of(m_jcp.out_data_type.size(), 4LU, 8LU)) {
             uni_vmovups(ptr[r64_dst], v_dst_1);
             add(r64_dst, vlen);
         }

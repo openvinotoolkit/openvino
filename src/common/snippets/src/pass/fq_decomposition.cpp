@@ -412,7 +412,7 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(2)) &&
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(3)) &&
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(4)) &&
-           utils::one_of(fq->get_auto_broadcast(), ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::NONE) &&
+           utils::any_of(fq->get_auto_broadcast(), ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::NONE) &&
            is_valid_range_values(fq);
 }
 

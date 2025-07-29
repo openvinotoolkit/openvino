@@ -184,7 +184,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, TS&&... args)
 #    define DEBUG_LOG_EXT(name, ostream, prefix, ...)                                                              \
         do {                                                                                                       \
             static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name);              \
-            if (DEBUG_ENABLE_NAME) {                                                                               \
+            if (DEBUG_ENABLE_NAME || &ostream == &std::cerr) {                                                     \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
                 ostream << ss___.str() << '\n';                                                                    \

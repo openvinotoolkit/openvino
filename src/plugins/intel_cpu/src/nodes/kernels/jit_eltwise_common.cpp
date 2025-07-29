@@ -11,7 +11,7 @@
 #include <set>
 #include <vector>
 
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -111,4 +111,9 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
     return exec_prc;
 }
 
+void jit_uni_eltwise_kernel::operator()(const jit_eltwise_call_args_ptrs* const_args,
+                                        const jit_eltwise_call_args_indexes* indexes) const {
+    assert(ker_);
+    ker_(const_args, indexes);
+}
 }  // namespace ov::intel_cpu
