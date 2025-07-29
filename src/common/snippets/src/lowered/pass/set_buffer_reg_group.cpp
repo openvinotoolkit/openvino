@@ -72,7 +72,7 @@ bool SetBufferRegGroup::are_adjacent(const BufferMap::value_type& lhs, const Buf
         std::equal(rhs_ids.cbegin(), rhs_ids.cbegin() + count_outer_loops, lhs_ids.cbegin());
     const auto outer_buffer_has_zero_shifts =
         utils::all_of(0, outer_buffer.second.desc.ptr_increment, outer_buffer.second.desc.finalization_offset);
-    return !(are_outer_loops_the_same && outer_buffer_has_zero_shifts);
+    return !are_outer_loops_the_same || !outer_buffer_has_zero_shifts;
 }
 
 void SetBufferRegGroup::update_adj_matrix(const BufferMap::value_type& lhs,

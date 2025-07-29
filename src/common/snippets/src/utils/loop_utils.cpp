@@ -39,7 +39,7 @@ inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, 
     if (is_dynamic_value(shape[dim]) && port_count > 1) {
         return get_dynamic_value<int64_t>();
     }
-    if (!(shape[dim] == 1 && work_amount != 1)) {
+    if (shape[dim] != 1 || work_amount == 1) {
         return get_stride(dim, shape);
     }
     return 0;
