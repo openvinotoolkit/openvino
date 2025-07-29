@@ -52,25 +52,82 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         }
 
         auto desc = ConvDesc::from_node(node);
-        auto key = desc.get_shape_key();
-        if (desc.post_ops == -1 || desc.post_ops == 7 /*Not yet implemented*/) {
+        if (!desc.has_value())
             return false;
-        }
-        if (ConvMap.find(key) == ConvMap.end()) {
+
+        auto key = desc.value().get_shape_key();
+        auto post_op = desc.value().post_op;
+
+        if (ConvMap.find(key) == ConvMap.end())
             return false;
-        }
+        if (desc.value().has_fused_groupnorm())
+            if (NormMap.find(key) == NormMap.end())
+                return false;
 
         return true;
     }
 
+    enum class PostOp : uint32_t{
+        None = 0,
+        Bias,
+        BiasSum,
+        BiasSumMulSum,
+        Sum,
+        SumMulSum,
+        GnReduce,
+        BiasGnReduce,
+    };
+
     struct ConvDesc {
         size_t n, ih, iw, c, k, kernel_size, stride, dilation, padding;
         size_t ow, oh;
-        std::optional<size_t> group_size;
-        std::optional<size_t> group_count;
-        int post_ops;
+        std::optional<size_t> group_count, group_size;
+        PostOp post_op;
 
-        static ConvDesc from_node(const program_node& node) {
+        bool process_fused_ops(const std::vector<cldnn::fused_primitive_desc> &fused_ops, bool bias) {
+            // should check fused ops shapes, dtypes,...
+            if (fused_ops.size() == 0) {
+                if (!bias)
+                    post_op = PostOp::None;
+                else
+                    post_op = PostOp::Bias;
+            } else if (fused_ops.size() == 1) {
+                if (fused_ops[0].is_type<group_normalization>()) {
+                    auto groupnorm0 = std::static_pointer_cast<const group_normalization>(fused_ops[0].desc);
+                    group_count = groupnorm0->num_groups;
+                    group_size = k / group_count.value();
+                    if (!bias)
+                        post_op = PostOp::GnReduce;
+                    else
+                        post_op = PostOp::BiasGnReduce;
+                } else if (fused_ops[0].is_type<eltwise>()) {
+                    auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
+                    if (eltwise0->mode != eltwise_mode::sum)
+                        return false;
+                    if (!bias)
+                        post_op = PostOp::Sum;
+                    else
+                        post_op = PostOp::BiasSum;
+                } else {
+                    return false;
+                }
+            } else if (fused_ops_are_one_of<eltwise>(fused_ops) && fused_ops.size() == 3) {
+                auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
+                auto eltwise1 = std::static_pointer_cast<const eltwise>(fused_ops[1].desc);
+                auto eltwise2 = std::static_pointer_cast<const eltwise>(fused_ops[2].desc);
+                if (eltwise0->mode != eltwise_mode::sum || eltwise1->mode != eltwise_mode::prod || eltwise2->mode != eltwise_mode::sum)
+                    return false;
+                if (!bias)
+                    post_op = PostOp::SumMulSum;
+                else
+                    post_op = PostOp::BiasSumMulSum;
+            } else {
+                return false;
+            }
+            return true;
+        }
+
+        static std::optional<ConvDesc> from_node(const program_node& node) {
             ConvDesc desc;
             const auto& conv_node = node.as<convolution>();
             const auto conv_prim = conv_node.get_primitive();
@@ -93,57 +150,12 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             // should check all paddings
             desc.padding = conv_prim->padding_begin[0];
 
-            desc.post_ops = -1;
-            // should check fused ops shapes,dtypes,...
-            const bool bias = conv_node.bias_term();
-            const auto& fused_ops = conv_node.get_fused_primitives();
-            if (fused_ops.size() == 0) {
-                if (!bias)
-                    desc.post_ops = 0;
-                else
-                    desc.post_ops = 1;
-            }
-
-            if (fused_ops.size() == 1) {
-                if (fused_ops[0].is_type<group_normalization>()) {
-                    auto groupnorm0 = std::static_pointer_cast<const group_normalization>(fused_ops[0].desc);
-                    desc.group_count = groupnorm0->num_groups;
-                    desc.group_size = desc.k / desc.group_count.value();
-                    if (!bias)
-                        desc.post_ops = 6;
-                    else
-                        desc.post_ops = 7; // Not yet implemented: bias + gn
-                } else if (fused_ops[0].is_type<eltwise>()) {
-                    auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
-                    if (eltwise0->mode != eltwise_mode::sum)
-                        return desc;
-                    if (bias) {
-                        desc.post_ops = 2;
-                    }
-                    if (!bias) {
-                        desc.post_ops = 4;
-                    }
-                } else {
-                    return desc;
-                }
-            }
-
-            if (fused_ops_are_one_of<eltwise>(fused_ops) && fused_ops.size() == 3) {
-                auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
-                auto eltwise1 = std::static_pointer_cast<const eltwise>(fused_ops[1].desc);
-                auto eltwise2 = std::static_pointer_cast<const eltwise>(fused_ops[2].desc);
-                if (eltwise0->mode != eltwise_mode::sum || eltwise1->mode != eltwise_mode::prod || eltwise2->mode != eltwise_mode::sum)
-                    return desc;
-                if (bias) {
-                    desc.post_ops = 3;
-                } else {
-                    desc.post_ops = 5;
-                }
-            }
+            if (!desc.process_fused_ops(conv_node.get_fused_primitives(), conv_node.bias_term()))
+                return std::nullopt;
             return desc;
         }
 
-        static ConvDesc from_rt_params(const RuntimeParams& params) {
+        static std::optional<ConvDesc> from_rt_params(const RuntimeParams& params) {
             ConvDesc desc;
 
             const auto conv_prim = reinterpret_cast<const convolution*>(params.desc.get());
@@ -164,6 +176,10 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             desc.dilation = conv_prim->dilation[0];
             // should check all paddings
             desc.padding = conv_prim->padding_begin[0];
+
+            const auto& fused_ops = params.fused_desc;
+            if (!desc.process_fused_ops(params.fused_desc, conv_prim->bias.is_valid()))
+                return std::nullopt;
             return desc;
         }
 
@@ -175,6 +191,10 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                 stream << "x" << e;
             }
             return stream.str();
+        }
+
+        bool has_fused_groupnorm() const {
+            return post_op == PostOp::GnReduce || post_op == PostOp::BiasGnReduce;
         }
     };
 

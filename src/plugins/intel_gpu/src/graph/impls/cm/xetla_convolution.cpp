@@ -9,6 +9,7 @@
 
 namespace ov::intel_gpu::cm {
 namespace {
+    using PostOp = ConvolutionImplementationManager::PostOp;
 
 class XetlaConvolutionGenerator : public KernelGenerator {
 public:
@@ -26,10 +27,8 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit_constants = KernelGenerator::get_jit_constants(params);
-        const auto& x_shape = params.input_layouts[0].get_shape();
-
         jit_constants.add({make_jit_constant("KERNEL_NAME", get_entry_point(params)),
-                           make_jit_constant("POST_OP", conv_desc.post_ops),
+                           make_jit_constant("POST_OP", uint32_t(conv_desc.post_op)),
 
                            make_jit_constant("SIZE_N", conv_desc.n),
                            make_jit_constant("SIZE_H", conv_desc.ih),
@@ -59,7 +58,7 @@ protected:
                            make_jit_constant("PREFETCH_DISTANCE", kernel_knobs.prefetch_distance),
                            make_jit_constant("ACCUM_STEP", kernel_knobs.accum_step)});
 
-        if (conv_desc.post_ops == 6 || conv_desc.post_ops == 7)
+        if (conv_desc.has_fused_groupnorm())
             jit_constants.add({make_jit_constant("GROUPNORM_GROUP_SIZE", conv_desc.group_size.value_or(0)),
                                make_jit_constant("GROUPNORM_GROUP_NUM", conv_desc.group_count.value_or(0)),
                                make_jit_constant("STAT_DT", "fp16")});
@@ -71,7 +70,7 @@ protected:
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});
         args.push_back({ArgumentDescriptor::Types::WEIGHTS, 0});
-        if (conv_desc.post_ops == 6)
+        if (conv_desc.has_fused_groupnorm())
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 3});  // output
         else
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
@@ -79,29 +78,34 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
-        switch (conv_desc.post_ops) {
-        case 1:
+        switch (conv_desc.post_op) {
+        case PostOp::Bias:
             args.push_back({ArgumentDescriptor::Types::BIAS, 0});
             break;
-        case 2:
+        case PostOp::BiasSum:
             args.push_back({ArgumentDescriptor::Types::BIAS, 0});
             args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, 0});
             break;
-        case 3:
+        case PostOp::BiasSumMulSum:
             args.push_back({ArgumentDescriptor::Types::BIAS, 0});
             args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, 0});
             args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, 1});
             args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, 2});
             break;
-        case 4:
+        case PostOp::Sum:
             args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, 0});
             break;
-        case 5:
+        case PostOp::SumMulSum:
             args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, 0});
             args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, 1});
             args.push_back({ArgumentDescriptor::Types::INPUT_OF_FUSED_PRIMITIVE, 2});
             break;
-        case 6:
+        case PostOp::GnReduce:
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
+            args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
+            break;
+        case PostOp::BiasGnReduce:
+            args.push_back({ArgumentDescriptor::Types::BIAS, 0});
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
             break;
@@ -146,17 +150,12 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit_constants = KernelGenerator::get_jit_constants(params);
-        const auto& x_shape = params.input_layouts[0].get_shape();
-
         jit_constants.add({make_jit_constant("KERNEL_NAME", get_entry_point(params)),
-                           make_jit_constant("POST_OP", conv_desc.post_ops),
-
                            make_jit_constant("SIZE_N", conv_desc.n),
                            make_jit_constant("SIZE_W", conv_desc.ow * conv_desc.oh),
                            make_jit_constant("SIZE_C", conv_desc.c),
                            make_jit_constant("GROUP_COUNT", conv_desc.group_count.value_or(0)),
                            make_jit_constant("GROUP_SIZE", conv_desc.group_size.value_or(0)),
-
                            make_jit_constant("SRC_DT", "fp16"),
                            make_jit_constant("WEI_DT", "fp16"),
                            make_jit_constant("OUT_DT", "fp16"),
@@ -194,9 +193,6 @@ protected:
             auto global_range_w = (conv_desc.oh * conv_desc.ow + kernel_knobs.wg_tile_w - 1) / kernel_knobs.wg_tile_w;
             auto global_range_c = (conv_desc.k + kernel_knobs.wg_tile_c - 1) / kernel_knobs.wg_tile_c;
 
-            auto local_range = std::vector<size_t>{local_range_n, local_range_w, local_range_c};
-            auto global_range = std::vector<size_t>{global_range_n * local_range_n, global_range_w * local_range_w, global_range_c * local_range_c};
-
             // multiply local & global slicing
             wgs.global = {global_range_n * local_range_n, global_range_w * local_range_w, global_range_c * local_range_c};
             wgs.local = {local_range_n, local_range_w, local_range_c};
@@ -213,21 +209,18 @@ public:
     ConvolutionImpl() : PrimitiveImplCM(ConvolutionImplementationManager::get_type_info_static()) {}
     ConvolutionImpl(const program_node& node, const RuntimeParams& params) : ConvolutionImpl() {
         // Pass KernelKnobs to generator
-        auto desc = ConvolutionImplementationManager::ConvDesc::from_node(node);
-        auto key = desc.get_shape_key();
+        auto conv_desc = ConvolutionImplementationManager::ConvDesc::from_node(node).value();
+        auto key = conv_desc.get_shape_key();
         auto conv_gen = dynamic_cast<XetlaConvolutionGenerator*>(conv->codegen.get());
         conv_gen->kernel_knobs = ConvolutionImplementationManager::ConvMap.at(key);
-        conv_gen->conv_desc = desc;
-
-        if (desc.post_ops == 6) {
+        conv_gen->conv_desc = conv_desc;
+        add_stage(conv, params);
+        if (conv_desc.has_fused_groupnorm()) {
             auto groupnorm_gen = dynamic_cast<XetlaGroupnormGenerator*>(groupnorm->codegen.get());
             groupnorm_gen->norm_knobs = ConvolutionImplementationManager::NormMap.at(key);
-            groupnorm_gen->conv_desc = desc;
-        }
-
-        add_stage(conv, params);
-        if (desc.post_ops == 6)
+            groupnorm_gen->conv_desc = conv_desc;
             add_stage(groupnorm, params);
+        }
     }
     [[nodiscard]] std::unique_ptr<primitive_impl> clone() const override {
         return make_deep_copy<ConvolutionImpl>(this);
@@ -235,17 +228,23 @@ public:
 
     [[nodiscard]] std::vector<BufferDescriptor> get_internal_buffer_descs(const RuntimeParams& params) const override {
         // This is not correct but rather approximation to integrate fast
-        auto desc = ConvolutionImplementationManager::ConvDesc::from_rt_params(params);
+        auto desc = ConvolutionImplementationManager::ConvDesc::from_rt_params(params).value();
         auto size_scratchpad = desc.n * desc.oh * desc.ow * desc.k;
         auto size_acc = size_scratchpad;
         auto size_cnt = size_scratchpad;
-        auto size_sumx = desc.n * desc.group_count.value_or(1);
-        return {BufferDescriptor{size_scratchpad, ov::element::f32},
-                BufferDescriptor{size_acc, ov::element::f32},
-                BufferDescriptor{size_cnt, ov::element::u32},
-                BufferDescriptor{size_scratchpad, ov::element::f16},
-                BufferDescriptor{size_sumx, ov::element::f32},
-                BufferDescriptor{size_sumx, ov::element::f32}};
+
+        auto buffers = std::vector<BufferDescriptor>{
+            BufferDescriptor{size_scratchpad, ov::element::f32},
+            BufferDescriptor{size_acc, ov::element::f32},
+            BufferDescriptor{size_cnt, ov::element::u32}
+        };
+        if (desc.has_fused_groupnorm()) {
+            auto size_sumx = desc.n * desc.group_count.value();
+            buffers.push_back(BufferDescriptor{size_scratchpad, ov::element::f16});
+            buffers.push_back(BufferDescriptor{size_sumx, ov::element::f32});
+            buffers.push_back(BufferDescriptor{size_sumx, ov::element::f32});
+        }
+        return buffers;
     }
 
     [[nodiscard]] cldnn::kernel_arguments_data get_arguments(const cldnn::primitive_inst& instance) const override {
@@ -283,10 +282,10 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::KernelKn
     {"1x128x128x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
     {"1x256x256x512x512x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
     {"1x256x256x256x256x3x1x1x1", KernelKnobs{1, 32, 16, 128, 1, 8, 8, 32, 1, 1, 3, 32}},
-    {"1x512x512x128x128x3x1x1x1", KernelKnobs{1, 64, 16, 128, 1, 8, 8, 64, 1, 1, 3, 32}},
-    {"1x512x512x256x128x1x0x1x1", KernelKnobs{1, 16, 64, 128, 1, 4, 16, 64, 1, 1, 3, 32}},
+    {"1x512x512x128x128x3x1x1x1", KernelKnobs{1, 64, 16, 64, 1, 8, 8, 32, 1, 1, 3, 32}},
+    {"1x512x512x256x128x1x0x1x1", KernelKnobs{1, 16, 64, 64, 1, 4, 16, 32, 1, 1, 3, 32}},
     // {"1x512x512x128x128x1x1x1x1", KernelKnobs{1, 16, 16, 128, 1, 8, 4, 32, 1, 1, 3, 32}},
-    {"1x512x512x256x128x3x1x1x1", KernelKnobs{1, 32, 32, 128, 1, 8, 8, 64, 1, 1, 3, 32}}
+    {"1x512x512x256x128x3x1x1x1", KernelKnobs{1, 32, 32, 64, 1, 8, 8, 32, 1, 1, 3, 32}}
 };
 
 const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnobs> ConvolutionImplementationManager::NormMap = {
@@ -302,15 +301,15 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnob
     // J (post op variants: [bias], [eltwise_add], [bias+eltwise_add+eltwise_mul+eltwise_add])
     {"1x5x9x512x512x3x1x1x1", NormKnobs{1, 1 * 5 * 8 * 2, 32 * 2, 1, 1 * 8, 32}},
     // VAE Decoder
-    {"1x64x64x4x512x3x1x1x1", NormKnobs{1, 1024, 256, 1, 128, 64}},
-    {"1x64x64x512x512x3x1x1x1", NormKnobs{1, 1024, 256, 1, 128, 64}},
+    {"1x64x64x4x512x3x1x1x1", NormKnobs{1, 1024, 128, 1, 128, 32}},
+    {"1x64x64x512x512x3x1x1x1", NormKnobs{1, 1024, 128, 1, 128, 32}},
     {"1x128x128x512x512x3x1x1x1", NormKnobs{1, 1024, 256, 1, 256, 32}},
     {"1x256x256x512x512x3x1x1x1", NormKnobs{1, 1024, 128, 1, 256, 32}},
     {"1x256x256x256x256x3x1x1x1", NormKnobs{1, 1024, 256, 1, 256, 32}},
-    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 64 * 16, 128, 1, 8 * 8, 64}},
-    {"1x512x512x256x128x1x0x1x1", NormKnobs{1, 16 * 64, 128, 1, 4 * 16, 64}},
+    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 64 * 16, 64, 1, 8 * 8, 32}},
+    {"1x512x512x256x128x1x0x1x1", NormKnobs{1, 16 * 64, 64, 1, 4 * 16, 32}},
     // {"1x512x512x128x128x1x1x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}},
-    {"1x512x512x256x128x3x1x1x1", NormKnobs{1, 32 * 32, 128, 1, 8 * 8, 64}}
+    {"1x512x512x256x128x3x1x1x1", NormKnobs{1, 32 * 32, 64, 1, 8 * 8, 32}}
 };
 }  // namespace ov::intel_gpu::cm
 

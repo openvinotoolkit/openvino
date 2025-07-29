@@ -497,13 +497,13 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
-            if (lo.has_all_enabled_onednn_impls_optimization_attribute() &&
-                lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::onednn) {
+            auto preferred_impl_type = lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/);
+            if (lo.has_all_enabled_onednn_impls_optimization_attribute() && preferred_impl_type == impl_types::onednn) {
                 return true;
             }
 
-            if (lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::cm) {
-                if (node.get_fused_primitives().size() >= 1 &&
+            if (preferred_impl_type == impl_types::cm) {
+                if (node.get_fused_primitives().size() > 0 &&
                     node.get_fused_primitives()[0].is_type<group_normalization>())
                     return false;
                 else
@@ -859,7 +859,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (lo.has_all_enabled_onednn_impls_optimization_attribute() && input.is_type<reorder>()) {
                 return;
             }
-
+            return; //prevent activation fusing for now
             p.fuse_nodes(input, activation_node, &fusing_history);
         };
 
@@ -1295,9 +1295,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (input_data.get_fused_primitives().size() > 0 || groupnorm_node.get_fused_primitives().size() > 0)
                 return;
 
-            if (input_data.as<convolution>().bias_term())   // until POST OP 7 is not implemented
-                return;
-
             p.fuse_nodes(input_data, groupnorm_node, &fusing_history);
         };
 
@@ -1306,12 +1303,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             fuse_quantize_f,
             fuse_eltwise_f,
             fuse_groupnorm_f);
+    }
 
     // Need to update processing order to handle cases when peer node processing number is greater
     // than fused node one
     if (recalc_processing_order)
         p.get_processing_order().calc_processing_order(p);
-    }
 }
 
 void prepare_primitive_fusing::fuse_constant_transposes(program& p) {

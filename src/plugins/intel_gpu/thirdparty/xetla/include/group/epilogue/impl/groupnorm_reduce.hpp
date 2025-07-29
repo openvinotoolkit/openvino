@@ -31,14 +31,15 @@ namespace gpu::xetla::group {
 /// @{
 
 /// @brief Is the epilogue functor specialized for epilogue_policy_gn_reduce and Xe architecture.
-template <typename gn_reduce_t_, typename tile_shape_, typename mem_desc_c_t_,
+template <typename tile_op_t_, typename gn_reduce_t_, typename tile_shape_, typename mem_desc_c_t_,
         gpu_arch arch_tag_>
-class epilogue_t<epilogue_policy_gn_reduce<gn_reduce_t_, arch_tag_>,
+class epilogue_t<epilogue_policy_gn_reduce<tile_op_t_, gn_reduce_t_, arch_tag_>,
         tile_shape_, mem_desc_c_t_,
         std::enable_if_t<((arch_tag_ == gpu_arch::Xe)) && (mem_desc_c_t_::dim == 4)>> {
 public:
+    using epilogue_policy = epilogue_policy_gn_reduce<tile_op_t_, gn_reduce_t_, arch_tag_>;
     using gn_reduce_t = gn_reduce_t_;
-    using epilogue_policy = epilogue_policy_default<arch_tag_>;
+    using tile_op_t = typename epilogue_policy::tile_op_t;
     using tile_shape = tile_shape_;
     using mem_desc_c_t = mem_desc_c_t_;
     static constexpr gpu_arch arch_tag = arch_tag_;
@@ -46,13 +47,15 @@ public:
     static constexpr uint32_t slm_size = gn_reduce_t::slm_size;
     /// @brief Epilogue arguments.
     struct arguments_t {
+        typename tile_op_t::arguments_t tile_op_args;
         typename gn_reduce_t::arguments_t gn_args;
 
         inline arguments_t() = default;
-        inline arguments_t(typename gn_reduce_t::arguments_t gn_args_)
-            : gn_args(gn_args_) {}
+        inline arguments_t(typename tile_op_t::arguments_t tile_op_args_, typename gn_reduce_t::arguments_t gn_args_)
+            : tile_op_args(tile_op_args_), gn_args(gn_args_) {}
 
-        inline void init(typename gn_reduce_t::arguments_t gn_args_) {
+        inline void init(typename tile_op_t::arguments_t tile_op_args_, typename gn_reduce_t::arguments_t gn_args_) {
+            tile_op_args = tile_op_args_;
             gn_args = gn_args_;
         }
     };
@@ -122,6 +125,23 @@ public:
 
         args.gn_args.mem_desc_in = mem_desc_c;
         update_sg_tile_tdesc(g, mem_desc_c);
+
+#pragma unroll
+        for (uint32_t n = 0; n < _sg_tile_n; n++) {
+#pragma unroll
+            for (uint32_t p = 0; p < _sg_tile_p; p++) {
+                tile_op_t tile_op;
+
+                typename mem_desc_c_t::shape_t shape = mem_desc_c.shape;
+                typename mem_desc_c_t::coord_t coord = mem_desc_c.coord;
+                int32_t coord_y = (coord.w + n) * shape.z * shape.y
+                        + (coord.z + p) * shape.y + coord.y;
+                mem_coord_t<2> mem_desc_c_coord(mem_desc_c.coord.x, coord_y);
+
+                tile_op(matAcc[n][p], mem_desc_c_coord, args.tile_op_args,
+                        slm_base, nbarrier_base);
+            }
+        }
 
         gn_reduce_t gn_reduce;
         gn_reduce(g, matAcc, args.gn_args);

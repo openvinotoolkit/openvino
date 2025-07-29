@@ -14,25 +14,6 @@
  * limitations under the License.
  *******************************************************************************/
 
-#define XETLA_CODE_BASE __CM__
-
-// Example defines that should be passed from host
-// #define SIZE_N 1
-// #define SIZE_W 512
-// #define SIZE_C 256
-// #define GROUP_COUNT 256
-// #define GROUP_SIZE 1
-// #define SRC_DT fp16
-// #define WEI_DT fp16
-// #define OUT_DT fp16
-// #define ACC_DT float
-// #define WG_TILE_N 1
-// #define WG_TILE_W 16
-// #define WG_TILE_C 256
-// #define SG_TILE_N 1
-// #define SG_TILE_W 4
-// #define SG_TILE_C 32
-
 #include "include/batch_headers/cm_xetla.h"
 
 namespace KERNEL_NAME{

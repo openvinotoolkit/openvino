@@ -34,10 +34,12 @@ struct epilogue_policy_default {
 };
 
 /// @brief Default epilogue policy for store C.
+/// @tparam tile_op_t_ Is the tile_op functor to apply before groupnorm reduction.
 /// @tparam gn_reduce_t_ Is the gropunorm reduction.
 /// @tparam arch_tag_ Is the HW architecture.
-template <typename gn_reduce_t_, gpu_arch arch_tag_>
+template <typename tile_op_t_, typename gn_reduce_t_, gpu_arch arch_tag_>
 struct epilogue_policy_gn_reduce {
+    using tile_op_t = tile_op_t_;
     using gn_reduce_t = gn_reduce_t_;
     static constexpr gpu_arch arch_tag = arch_tag_;
 };

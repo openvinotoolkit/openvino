@@ -377,7 +377,7 @@ in_out_fmts_t ConvolutionImplementationManager::query_formats(const program_node
 
     const auto& conv_node = node.as<convolution>();
 
-    auto prim_desc = get_convolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::nhwc);
+    auto prim_desc = get_convolution_primitive_descriptor(*node.get_kernel_impl_params(), dnnl::primitive_attr(), dnnl::memory::format_tag::any);
 
     for (size_t idx = 0 ; idx < node.get_dependencies().size() ; idx++) {
         if (node.get_dependency(idx).is_constant())
