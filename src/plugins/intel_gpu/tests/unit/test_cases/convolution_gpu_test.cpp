@@ -7532,8 +7532,8 @@ TEST(convolution_depthwise_gpu_fsv16, depthwise_conv_b_fs_yx_fsv16_in_feature_pa
     ov::CoordinateDiff pad = { 0, 0 };
     ov::Strides dilation = { 1, 1 };
     auto output_size = tensor{ 1, num_groups, 1, 2 };
-    auto input_lower_sizes = { 0, 16, 0, 0 };
-    auto input_upper_sizes = { 0, 64, 0, 0 };
+    std::vector<ov::Dimension::value_type> input_lower_sizes = { 0, 16, 0, 0 };
+    std::vector<ov::Dimension::value_type> input_upper_sizes = { 0, 64, 0, 0 };
 
     auto& engine = get_test_engine();
 
@@ -8535,6 +8535,7 @@ public:
         auto result = net.execute();
         auto out_mem = result.at(output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
+        bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
         cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
@@ -8561,10 +8562,15 @@ public:
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
-
-                        ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
-                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
-                            << description.str();
+                        if (is_output_fp) {
+                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        } else {
+                            ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        }
                     }
     }
 
@@ -8719,6 +8725,18 @@ struct convolution_random_test_all_params {
     bool grouped_weights_shape;
 };
 
+template <typename T>
+void get_rng_params(int& min, int& max, int& k, bool is_conv_input = false) {
+    if constexpr (std::is_same<T, int8_t>::value) {
+        min = -128; max = 127;
+        k = is_conv_input ? 8 : 4;
+    } else if constexpr (std::is_same<T, uint8_t>::value) {
+        min = 0; max = 255; k = 1;
+        k = is_conv_input ? 8 : 1;
+    } else {
+        min = -256; max = 256; k = 8;
+    }
+}
 template <typename InputT, typename WeightsT, typename OutputT>
 class convolution_random_test_base : public convolution_test_base<InputT, WeightsT, OutputT> {
 public:
@@ -8760,20 +8778,25 @@ public:
         rg.set_seed(GET_SUITE_NAME);
         auto wei_in_f = params.input_features / params.groups;
 
+        int input_min, input_max, input_k;
+        get_rng_params<InputT>(input_min, input_max, input_k, true);
         auto input_data = rg.template generate_random_4d<InputT>(
-            params.batch, params.input_features, params.input_xy[1], params.input_xy[0], -256, 256);
+            params.batch, params.input_features, params.input_xy[1], params.input_xy[0], input_min, input_max, input_k);
+
+        int weights_min, weights_max, weights_k;
+        get_rng_params<WeightsT>(weights_min, weights_max, weights_k);
         if (params.grouped_weights_shape) {
             auto weights_data = rg.template generate_random_5d<WeightsT>(
-                params.groups, (params.output_features / params.groups), wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
+                params.groups, (params.output_features / params.groups), wei_in_f, params.filter_xy[1], params.filter_xy[0], weights_min, weights_max, weights_k);
             this->set_grouped_weights(std::move(weights_data));
         } else {
             auto weights_data = rg.template generate_random_4d<WeightsT>(
-                params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], -256, 256);
+                params.output_features, wei_in_f, params.filter_xy[1], params.filter_xy[0], weights_min, weights_max, weights_k);
             this->set_weights(std::move(weights_data));
         }
         auto bias_data = params.with_bias ? rg.template generate_random_1d<OutputT>(params.output_features, -256, 256) : VF<OutputT>();
-        auto weights_zp_data = params.asymmetric_weights ? rg.template generate_random_1d<WeightsT>(params.output_features, -256, 256) : VF<WeightsT>();
-        auto input_zp_data = params.asymmetric_data ? rg.template generate_random_1d<InputT>(params.input_features, -256, 256) : VF<InputT>();
+        auto weights_zp_data = params.asymmetric_weights ? rg.template generate_random_1d<WeightsT>(params.output_features, weights_min, weights_max, weights_k) : VF<WeightsT>();
+        auto input_zp_data = params.asymmetric_data ? rg.template generate_random_1d<InputT>(params.input_features, input_min, input_max, input_k) : VF<InputT>();
 
         this->set_input(params.input_format, std::move(input_data));
         this->set_bias(std::move(bias_data));
@@ -8985,6 +9008,7 @@ public:
         auto result = net.execute();
         auto out_mem = result.at(this->output_primitive_id()).get_memory();
         auto out_lay = out_mem->get_layout();
+        bool is_output_fp = (out_lay.data_type == data_types::f32 || out_lay.data_type == data_types::f16);
         cldnn::mem_lock<OutputT> out_ptr(out_mem, get_test_stream());
 
         std::stringstream description;
@@ -9011,10 +9035,15 @@ public:
                     for (size_t xi = 0; xi < expected[0][0][0].size(); ++xi) {
                         tensor coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
                         size_t offset = out_lay.get_linear_offset(coords);
-
-                        ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
-                            << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
-                            << description.str();
+                        if (is_output_fp) {
+                            ASSERT_NEAR(out_ptr[offset], expected[bi][fi][yi][xi], 1e-5f)
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        } else {
+                            ASSERT_EQ(out_ptr[offset], expected[bi][fi][yi][xi])
+                                << "at b= " << bi << ", f= " << fi << ", y= " << yi << ", x= " << xi << std::endl
+                                << description.str();
+                        }
                     }
     }
 };
@@ -9183,6 +9212,21 @@ struct params_generator : std::vector<convolution_random_test_all_params> {
         return *this;
     }
 
+    params_generator& mmad_test_params(format::type input_format,
+                                        bool asymm_weights = false,
+                                        bool asymm_data = false,
+                                        bool padded_input = false,
+                                        bool bigger_pad = false) {
+        std::vector<size_t> batches = { 1 };
+        for (auto b : batches) {
+            push_back(convolution_random_test_all_params{
+                b, 3, 32, { 224, 224 }, { 3, 3 }, { 2, 2 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+            push_back(convolution_random_test_all_params{
+                b, 32, 64, { 112, 112 }, { 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, true, 1, input_format, asymm_weights, asymm_data, padded_input, bigger_pad, false });
+        }
+        return *this;
+    }
+
     params_generator& all_test_params(format::type input_format,
                                       bool asymm_weights = false,
                                       bool asymm_data = false,
@@ -9283,6 +9327,32 @@ INSTANTIATE_TEST_SUITE_P(
             1, 89, 3, { 1, 1 }, { 3, 3 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv4, false, false, false, false })
         .add(convolution_random_test_all_params{
             1, 16, 32, { 3, 3 }, { 17, 17 }, { 1, 1 }, { 8, 8 }, { 1, 1 }, true, 1, format::b_fs_yx_fsv16, false, false, true, false })
+    ),
+    to_string_convolution_all_params
+);
+
+class convolution_random_mmad_test : public testing::TestWithParam<convolution_random_test_all_params> {};
+using convolution_random_test_mmad_u8u8f32 = convolution_random_test_base<uint8_t, uint8_t, float>;
+using convolution_random_test_mmad_s8u8f32 = convolution_random_test_base<int8_t, uint8_t, float>;
+
+TEST_P(convolution_random_mmad_test, s8u8f32) {
+    convolution_random_test_mmad_s8u8f32 test;
+    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+}
+
+TEST_P(convolution_random_mmad_test, u8u8f32) {
+    convolution_random_test_mmad_u8u8f32 test;
+    ASSERT_NO_FATAL_FAILURE(test.run_random(GetParam()));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    basic,
+    convolution_random_mmad_test,
+    testing::ValuesIn(
+        params_generator()
+        .mmad_test_params(format::b_fs_yx_fsv4)
+        .mmad_test_params(format::b_fs_yx_fsv32, true, false)
+        .mmad_test_params(format::b_fs_yx_fsv32, false, false, true)
     ),
     to_string_convolution_all_params
 );
@@ -9420,9 +9490,9 @@ public:
         auto output_features = weights_size.batch[0];
 
         return cldnn::tensor(input_size.batch[0],
-                             static_cast<cldnn::tensor::value_type>(output_features),
-                             static_cast<cldnn::tensor::value_type>(output_size_x),
-                             static_cast<cldnn::tensor::value_type>(output_size_y));
+                             static_cast<ov::Dimension::value_type>(output_features),
+                             static_cast<ov::Dimension::value_type>(output_size_x),
+                             static_cast<ov::Dimension::value_type>(output_size_y));
     }
 
     void prepare_input_for_test(std::vector<cldnn::memory::ptr>& inputs) override {

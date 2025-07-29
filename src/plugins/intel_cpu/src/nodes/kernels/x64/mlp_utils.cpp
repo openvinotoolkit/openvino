@@ -15,9 +15,9 @@
 #if defined(HAVE_AVX512F)
 #    include <immintrin.h>
 
-#    include "../scaled_attn/common.hpp"
+#    include "nodes/kernels/scaled_attn/common.hpp"
 #endif
-#include "../scaled_attn/transpose_kernel.hpp"
+#include "nodes/kernels/scaled_attn/transpose_kernel.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 

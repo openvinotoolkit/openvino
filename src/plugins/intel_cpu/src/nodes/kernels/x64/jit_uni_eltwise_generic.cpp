@@ -4,8 +4,8 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -22,7 +22,7 @@
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "openvino/cc/selective_build.h"
 #include "openvino/core/except.hpp"
@@ -44,7 +44,7 @@ jit_uni_eltwise_generic<isa>::jit_uni_eltwise_generic(const jit_eltwise_params& 
                                                       const std::vector<ov::intel_cpu::Type>& ops_list,
                                                       const dnnl::post_ops& post_ops)
     : jit_uni_eltwise_kernel(jep),
-      jit_generator(jit_name()),
+      jit_generator_t(jit_name()),
       eltwise_data_(eltwise_data),
       ops_list_(ops_list),
       post_ops_(post_ops) {}
@@ -65,9 +65,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 
     const auto& p = post_ops_.get();
     for (int i = 0; i < post_ops_.len(); ++i) {
-        if (!p->entry_[i].is_quantization()) {
-            OPENVINO_THROW("Eltwise jitter error. Unsupported post op detected");
-        }
+        OPENVINO_ASSERT(p->entry_[i].is_quantization(), "Eltwise jitter error. Unsupported post op detected");
         quantization_injectors.push_back(std::make_shared<jit_uni_quantization_injector_f32<isa>>(this,
                                                                                                   p->entry_[i],
                                                                                                   vmm_d_weights,
@@ -179,14 +177,12 @@ void jit_uni_eltwise_generic<isa>::generate() {
             is_valid_configuration = false;
         }
 
-        if (!is_valid_configuration) {
-            OPENVINO_THROW("Eltwise jitter has invalid configuration for Eltwise node");
-        }
+        OPENVINO_ASSERT(is_valid_configuration, "Eltwise jitter has invalid configuration for Eltwise node");
 
         L(unroll_loop_label);
         {
             size_t loop_step = min_src_size;
-            size_t vec_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
+            size_t vec_step = cpu_isa_traits_t<isa>::vlen / exec_prc.size();
 
             cmp(reg_work_amount, loop_step);
             jl(unroll_loop_end_label, T_NEAR);
@@ -248,7 +244,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
     if (min_src_size == jep.dst_size) {
         L(main_loop_label);
         {
-            size_t loop_step = cpu_isa_traits<isa>::vlen / exec_prc.size();
+            size_t loop_step = cpu_isa_traits_t<isa>::vlen / exec_prc.size();
 
             cmp(reg_work_amount, loop_step);
             jl(main_loop_end_label, T_NEAR);
@@ -334,7 +330,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
 namespace {
 struct EltwiseEmitterContext {
     std::shared_ptr<jit_emitter> emitter;
-    jit_generator* host;
+    jit_generator_t* host;
     cpu_isa_t host_isa;
     const EltwiseData& opData;
     ov::element::Type exec_prc;
@@ -447,9 +443,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
               OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
-    if (!ctx.emitter) {
-        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
-    }
+    OPENVINO_ASSERT(ctx.emitter, "Unsupported operation type for Eltwise emitter");
 
     return ctx.emitter;
 }
@@ -942,9 +936,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
               OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter));
 
-    if (precisions.empty()) {
-        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
-    }
+    OPENVINO_ASSERT(!precisions.empty(), "Unsupported operation type for Eltwise emitter");
 
     return precisions;
 }

@@ -64,9 +64,7 @@ public:
     ChannelBlockedCreator(size_t blockSize) : _blockSize(blockSize) {}
     [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
                                                   const Shape& srcShape) const override {
-        if (srcShape.getRank() < 2) {
-            OPENVINO_THROW("Can't create blocked tensor descriptor!");
-        }
+        OPENVINO_ASSERT(srcShape.getRank() >= 2, "Can't create blocked tensor descriptor!");
 
         VectorDims order(srcShape.getRank());
         std::iota(order.begin(), order.end(), 0);
@@ -123,10 +121,7 @@ std::pair<CreatorsMapFilterConstIterator, CreatorsMapFilterConstIterator> Blocke
         if (!(bitMask & (1 << static_cast<unsigned>(item.first)))) {
             return false;
         }
-        if (item.second->getMinimalRank() > rank) {
-            return false;
-        }
-        return true;
+        return item.second->getMinimalRank() <= rank;
     };
 
     auto first = CreatorsMapFilterConstIterator(std::move(rankTypesFilter), map.begin(), map.end());

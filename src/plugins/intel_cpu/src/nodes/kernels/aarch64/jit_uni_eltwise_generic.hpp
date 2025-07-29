@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "cpu_types.h"
-#include "nodes/executors/eltwise.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 
@@ -110,19 +109,14 @@ private:
     const XReg reg_dst = x16;
 
     XReg get_src_reg(uint32_t idx) {
-        if (idx > MAX_ELTWISE_INPUTS) {
-            OPENVINO_THROW("source vector ptr register " + std::to_string(idx) + " is not supported");
-        }
-
+        OPENVINO_ASSERT(idx <= MAX_ELTWISE_INPUTS,
+                        "source vector ptr register " + std::to_string(idx) + " is not supported");
         static const std::vector<uint32_t> src_gprs = {19, 20, 21, 22, 25, 26, 27};
         return XReg(src_gprs[idx]);
     }
 
     XReg get_aux_gpr(const uint32_t idx) {
-        if (idx > 3) {
-            OPENVINO_THROW("aux gpr register " + std::to_string(idx) + " is not supported");
-        }
-
+        OPENVINO_ASSERT(idx <= 3, "aux gpr register " + std::to_string(idx) + " is not supported");
         if (idx == 0) {
             return XReg(8);
         }
@@ -155,23 +149,19 @@ private:
     TReg vmm_dst{9};
 
     TReg get_vmm_reg(const uint32_t idx) {
-        if (idx > MAX_ELTWISE_INPUTS) {
-            OPENVINO_THROW("source vector register " + std::to_string(idx) + " is not supported");
-        }
+        OPENVINO_ASSERT(idx <= MAX_ELTWISE_INPUTS,
+                        "source vector register " + std::to_string(idx) + " is not supported");
         return TReg(19 + idx);
     }
 
     SReg get_scl_reg(const uint32_t idx) {
-        if (idx > MAX_ELTWISE_INPUTS) {
-            OPENVINO_THROW("source scalar register " + std::to_string(idx) + " is not supported");
-        }
+        OPENVINO_ASSERT(idx <= MAX_ELTWISE_INPUTS,
+                        "source scalar register " + std::to_string(idx) + " is not supported");
         return SReg(19 + idx);
     }
 
     TReg get_aux_vmm(const uint32_t idx) {
-        if (idx > 8) {
-            OPENVINO_THROW("aux vector register " + std::to_string(idx) + " is not supported");
-        }
+        OPENVINO_ASSERT(idx <= 8, "aux vector register " + std::to_string(idx) + " is not supported");
         return TReg(10 + idx);
     }
 
