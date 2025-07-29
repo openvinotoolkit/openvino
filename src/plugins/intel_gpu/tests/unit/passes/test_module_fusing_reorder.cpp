@@ -145,7 +145,7 @@ public:
 
     layout get_input_layout(T& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{pad_} };
     }
 

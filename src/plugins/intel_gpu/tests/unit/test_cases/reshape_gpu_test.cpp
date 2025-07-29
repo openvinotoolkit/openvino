@@ -223,7 +223,7 @@ TEST(reshpape_gpu_f32, basic_2dim_output_padd) {
         tensor(1, 1, 8, 1),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 1, 1}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 1, 1}));
 }
 
 TEST(reshape_gpu_f16, basic_2dim_output_padd) {
@@ -233,7 +233,7 @@ TEST(reshape_gpu_f16, basic_2dim_output_padd) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
 TEST(reshape_gpu_i8, basic_2dim_output_padd) {
@@ -243,7 +243,7 @@ TEST(reshape_gpu_i8, basic_2dim_output_padd) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
 TEST(reshape_gpu_i32, basic_2dim_output_padd) {
@@ -253,7 +253,7 @@ TEST(reshape_gpu_i32, basic_2dim_output_padd) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
 TEST(reshape_gpu_i64, basic_2dim_output_padd) {
@@ -263,7 +263,7 @@ TEST(reshape_gpu_i64, basic_2dim_output_padd) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}));
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}));
 }
 
 TEST(reshape_gpu_f32, basic_2dim_input_padd) {
@@ -1008,7 +1008,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const) {
     ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     ASSERT_EQ(output->get_layout().format, format::bfyx);
     ASSERT_TRUE(output->get_layout().is_static());
-    std::vector<int32_t> ref_dims = {12, 3, 1, 1};
+    std::vector<ov::Dimension::value_type> ref_dims = {12, 3, 1, 1};
     ASSERT_EQ(output->get_layout().get_dims(), ref_dims);
     ov::PartialShape ref_pshape = {12, 3};
     ASSERT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
@@ -1065,7 +1065,7 @@ TEST(reshape_gpu_f32, basic_runtime_dynamic_shape_with_const_optimized_out) {
     ASSERT_EQ(output->get_layout().data_type, input->get_layout().data_type);
     ASSERT_EQ(output->get_layout().format, format::bfyx);
     ASSERT_TRUE(output->get_layout().is_static());
-    std::vector<int32_t> ref_dims = {12, 3, 1, 1};
+    std::vector<ov::Dimension::value_type> ref_dims = {12, 3, 1, 1};
     ASSERT_EQ(output->get_layout().get_dims(), ref_dims);
     ov::PartialShape ref_pshape = {12, 3};
     ASSERT_EQ(output->get_layout().get_partial_shape(), ref_pshape);
@@ -1393,7 +1393,7 @@ TEST(reshpape_gpu_f32, basic_2dim_output_padd_cached) {
         tensor(1, 1, 8, 1),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 1, 1}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 1, 1}),
         true);
 }
 
@@ -1404,7 +1404,7 @@ TEST(reshape_gpu_f16, basic_2dim_output_padd_cached) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
         true);
 }
 
@@ -1415,7 +1415,7 @@ TEST(reshape_gpu_i8, basic_2dim_output_padd_cached) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
         true);
 }
 
@@ -1426,7 +1426,7 @@ TEST(reshape_gpu_i32, basic_2dim_output_padd_cached) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
         true);
 }
 
@@ -1437,7 +1437,7 @@ TEST(reshape_gpu_i64, basic_2dim_output_padd_cached) {
         tensor(1, 1, 2, 6),
         false,
         padding(),
-        padding(std::vector<int>{0, 0, 2, 2}),
+        padding(std::vector<ov::Dimension::value_type>{0, 0, 2, 2}),
         true);
 }
 

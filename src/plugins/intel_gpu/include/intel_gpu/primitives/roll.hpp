@@ -32,8 +32,8 @@ struct roll : primitive_base<roll> {
     /// @param raw_axes raw axes vector
     roll(const primitive_id& id,
          const input_info& input,
-         const std::vector<int32_t>& raw_shift,
-         const std::vector<int32_t>& raw_axes)
+         const std::vector<ov::Dimension::value_type>& raw_shift,
+         const std::vector<ov::Dimension::value_type>& raw_axes)
         : primitive_base(id, {input}),
           raw_shift(raw_shift), raw_axes(raw_axes) {}
 
@@ -41,8 +41,8 @@ struct roll : primitive_base<roll> {
     tensor shift;
 
     /// @brief Raw shift/axes vector to calculate normalized shift when input shape becomes static
-    std::vector<int32_t> raw_shift;
-    std::vector<int32_t> raw_axes;
+    std::vector<ov::Dimension::value_type> raw_shift;
+    std::vector<ov::Dimension::value_type> raw_axes;
 
     size_t hash() const override {
         size_t seed = primitive::hash();

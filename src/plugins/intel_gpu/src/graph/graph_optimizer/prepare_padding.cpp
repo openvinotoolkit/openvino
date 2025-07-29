@@ -34,7 +34,7 @@ void prepare_padding::run(program& p) {
                 auto weight_layout = weight_node.get_output_layout(0);
                 const auto const_shape = weight_layout.get_partial_shape().to_shape();
                 OPENVINO_ASSERT(const_shape.size() > 0, "Data padding for int4 type data with an odd innermost dimension does not support zero dimension.");
-                int32_t inner_most_idx = static_cast<int32_t>(const_shape.size()) - 1;
+                auto inner_most_idx = static_cast<ov::Dimension::value_type>(const_shape.size()) - 1;
                 if (!allow_new_shape_infer) {
                     // Get the innermost index after trimming trailing elements in the canonicalized legacy shape such as [4, 64, 1, 1].
                     while (inner_most_idx > 0 && const_shape[inner_most_idx] == 1) {
@@ -46,7 +46,7 @@ void prepare_padding::run(program& p) {
                 if (const_shape[inner_most_idx] % alignment != 0) {
                     auto weight_in_layout  = weight_layout.convert_to_weights_layout(false);
                     auto weight_out_layout = weight_in_layout;
-                    std::vector<int32_t> new_paddings(const_shape.size(), 0);
+                    std::vector<ov::Dimension::value_type> new_paddings(const_shape.size(), 0);
                     new_paddings[inner_most_idx] = 1;
                     weight_out_layout.data_padding = padding::max(weight_out_layout.data_padding, padding({0}, new_paddings));
                     auto weights_reorder_params = std::make_shared<WeightsReorderParams>(weight_in_layout, weight_out_layout, false, false);
@@ -114,18 +114,18 @@ void prepare_padding::run(program& p) {
                 auto padding_begin = prim->padding_begin;
                 auto padding_end = prim->padding_end;
 
-                tensor::value_type pb_z = std::max<std::ptrdiff_t>(padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0, 0);
-                tensor::value_type pb_y = std::max<std::ptrdiff_t>(padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0, 0);
-                tensor::value_type pb_x = std::max<std::ptrdiff_t>(padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0, 0);
+                ov::Dimension::value_type pb_z = std::max<std::ptrdiff_t>(padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0, 0);
+                ov::Dimension::value_type pb_y = std::max<std::ptrdiff_t>(padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0, 0);
+                ov::Dimension::value_type pb_x = std::max<std::ptrdiff_t>(padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0, 0);
 
-                tensor::value_type pe_z = std::max<std::ptrdiff_t>(padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0, 0);
-                tensor::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
-                tensor::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
+                ov::Dimension::value_type pe_z = std::max<std::ptrdiff_t>(padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0, 0);
+                ov::Dimension::value_type pe_y = std::max<std::ptrdiff_t>(padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0, 0);
+                ov::Dimension::value_type pe_x = std::max<std::ptrdiff_t>(padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0, 0);
 
                 const auto& lower_sizes = in_layout.data_padding._lower_size;
                 const auto& upper_sizes = in_layout.data_padding._upper_size;
 
-                std::vector<int32_t> needed_lpad, needed_upad;
+                std::vector<ov::Dimension::value_type> needed_lpad, needed_upad;
                 needed_lpad.push_back(lower_sizes[0]);
                 needed_lpad.push_back(lower_sizes[1]);
 
@@ -183,7 +183,7 @@ void prepare_padding::run(program& p) {
                 // WA for this format. sliding window needs to be fixed --perf degradation for IncepctionV1 type models
                 tensor size(1);
                 for (size_t i = 0; i < prim->size.size(); i++) {
-                    size.spatial[i] = static_cast<tensor::value_type>(prim->size[prim->size.size() - i - 1]);
+                    size.spatial[i] = static_cast<ov::Dimension::value_type>(prim->size[prim->size.size() - i - 1]);
                 }
 
                 if (node->get_output_layout().format == format::b_fs_yx_fsv16)
@@ -293,25 +293,25 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
     uint32_t dilation_y = dilation.size() >= 2 ? static_cast<uint32_t>(dilation[dilation.size() - 2]) : 1;
     uint32_t dilation_x = dilation.size() >= 1 ? static_cast<uint32_t>(dilation[dilation.size() - 1]) : 1;
 
-    tensor::value_type pad_z = padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0;
-    tensor::value_type pad_y = padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0;
-    tensor::value_type pad_x = padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0;
+    ov::Dimension::value_type pad_z = padding_begin.size() >= 3 ? padding_begin[padding_begin.size() - 3] : 0;
+    ov::Dimension::value_type pad_y = padding_begin.size() >= 2 ? padding_begin[padding_begin.size() - 2] : 0;
+    ov::Dimension::value_type pad_x = padding_begin.size() >= 1 ? padding_begin[padding_begin.size() - 1] : 0;
 
-    tensor::value_type padding_begin_x, padding_begin_y, padding_begin_z;
-    tensor::value_type padding_end_x, padding_end_y, padding_end_z;
+    ov::Dimension::value_type padding_begin_x, padding_begin_y, padding_begin_z;
+    ov::Dimension::value_type padding_end_x, padding_end_y, padding_end_z;
 
     if (node.get_program().is_new_shape_infer() && node.use_explicit_padding()) {
-        padding_begin_x = std::max(pad_x, 0);
-        padding_begin_y = std::max(pad_y, 0);
-        padding_begin_z = std::max(pad_z, 0);
+        padding_begin_x = std::max<ov::Dimension::value_type>(pad_x, 0);
+        padding_begin_y = std::max<ov::Dimension::value_type>(pad_y, 0);
+        padding_begin_z = std::max<ov::Dimension::value_type>(pad_z, 0);
 
         pad_z = padding_end.size() >= 3 ? padding_end[padding_end.size() - 3] : 0;
         pad_y = padding_end.size() >= 2 ? padding_end[padding_end.size() - 2] : 0;
         pad_x = padding_end.size() >= 1 ? padding_end[padding_end.size() - 1] : 0;
 
-        padding_end_x = std::max(pad_x, 0);
-        padding_end_y = std::max(pad_y, 0);
-        padding_end_z = std::max(pad_z, 0);
+        padding_end_x = std::max<ov::Dimension::value_type>(pad_x, 0);
+        padding_end_y = std::max<ov::Dimension::value_type>(pad_y, 0);
+        padding_end_z = std::max<ov::Dimension::value_type>(pad_z, 0);
     } else {
         auto input_limit_x = -pad_x + (conv_layout.spatial(0) - 1) * stride_x +
                             (filter_layout.spatial(0) - 1) * dilation_x + 1;
@@ -320,17 +320,17 @@ cldnn::padding prepare_padding::get_needed_padding_for_convolution(convolution_n
         auto input_limit_z = -pad_z + (conv_layout.spatial(2) - 1) * stride_z +
                             (filter_layout.spatial(2) - 1) * dilation_z + 1;
 
-        padding_begin_x = std::max(pad_x, 0);
-        padding_begin_y = std::max(pad_y, 0);
-        padding_begin_z = std::max(pad_z, 0);
-        padding_end_x = std::max<tensor::value_type>(input_limit_x - prev_prim_output_layout.spatial(0), 0);
-        padding_end_y = std::max<tensor::value_type>(input_limit_y - prev_prim_output_layout.spatial(1), 0);
-        padding_end_z = std::max<tensor::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
+        padding_begin_x = std::max<ov::Dimension::value_type>(pad_x, 0);
+        padding_begin_y = std::max<ov::Dimension::value_type>(pad_y, 0);
+        padding_begin_z = std::max<ov::Dimension::value_type>(pad_z, 0);
+        padding_end_x = std::max<ov::Dimension::value_type>(input_limit_x - prev_prim_output_layout.spatial(0), 0);
+        padding_end_y = std::max<ov::Dimension::value_type>(input_limit_y - prev_prim_output_layout.spatial(1), 0);
+        padding_end_z = std::max<ov::Dimension::value_type>(input_limit_z - prev_prim_output_layout.spatial(2), 0);
     }
 
     // Adjust right padding, so entire buffer size in X dimension is properly aligned.
     // TODO: NOTE: Will be reenabled with next check-in once heuristic for line-aligned algorithm will be added.
-    // auto needed_buffer_size_x = static_cast<cldnn::tensor::value_type>(
+    // auto needed_buffer_size_x = static_cast<cldnn::ov::Dimension::value_type>(
     //    round_up_to(left_padding + prev_prim_output_layout.spatial(0) + right_padding, 16));
     // right_padding = needed_buffer_size_x - left_padding - prev_prim_output_layout.spatial(0);
 

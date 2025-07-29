@@ -61,7 +61,7 @@ dnnl::memory::dims convert_gemm_tensor(cldnn::tensor t, size_t dims, bool batche
     return res;
 }
 
-dnnl::memory::dims convert_gemm_dims(const std::vector<int32_t> &sizes, size_t dims, bool batched_dims_can_be_removed) {
+dnnl::memory::dims convert_gemm_dims(const std::vector<ov::Dimension::value_type> &sizes, size_t dims, bool batched_dims_can_be_removed) {
     dnnl::memory::dims res(sizes.begin(), sizes.end());
     if (dims > 4) {
         for (size_t i = 0; i < dims - 4; i++) {

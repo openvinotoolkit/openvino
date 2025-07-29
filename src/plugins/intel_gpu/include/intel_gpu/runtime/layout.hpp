@@ -141,15 +141,15 @@ struct padding {
     using DynamicDimsMask = std::bitset<SHAPE_RANK_MAX>;
     static constexpr DynamicDimsMask EMPTY_MASK{0x0};
 
-    std::array<int32_t, SHAPE_RANK_MAX> _lower_size = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
-    std::array<int32_t, SHAPE_RANK_MAX> _upper_size = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
+    std::array<ov::Dimension::value_type, SHAPE_RANK_MAX> _lower_size = {0};  ///< Lower padding sizes. For spatials, it means size of left (X) and top (Y) padding.
+    std::array<ov::Dimension::value_type, SHAPE_RANK_MAX> _upper_size = {0};  ///< Upper padding sizes. For spatials, it means size of right (X) and bottom (Y) padding.
     DynamicDimsMask _dynamic_dims_mask = EMPTY_MASK;         ///< A mask saying which dimension has dynamic pad
 
     /// @brief
     /// @param lower_sizes Top-left padding sizes, in the same size and order as shape.
     /// @param upper_sizes Bottom-right padding sizes, in the same size and order as shape.
-    padding(const std::vector<int32_t>& lower_sizes,
-            const std::vector<int32_t>& upper_sizes,
+    padding(const std::vector<ov::Dimension::value_type>& lower_sizes,
+            const std::vector<ov::Dimension::value_type>& upper_sizes,
             const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK) {
             // paddings
             OPENVINO_ASSERT(lower_sizes.size() <= SHAPE_RANK_MAX);
@@ -161,7 +161,7 @@ struct padding {
 
     /// @brief Constrcuts symmetric padding.
     /// @param sizes Top-left and bottom-right padding sizes, in the same size and order as shape.
-    explicit padding(const std::vector<int32_t>& sizes,
+    explicit padding(const std::vector<ov::Dimension::value_type>& sizes,
                      const DynamicDimsMask& dynamic_pad_dims = EMPTY_MASK)
         : padding(sizes, sizes, dynamic_pad_dims) {}
 
@@ -170,8 +170,8 @@ struct padding {
 
     /// @brief Returns true if padding size is not zero.
     explicit operator bool() const {
-        return std::any_of(_lower_size.begin(), _lower_size.end(), [](int32_t i){ return i > 0; }) ||
-               std::any_of(_upper_size.begin(), _upper_size.end(), [](int32_t i){ return i > 0; });
+        return std::any_of(_lower_size.begin(), _lower_size.end(), [](ov::Dimension::value_type i){ return i > 0; }) ||
+               std::any_of(_upper_size.begin(), _upper_size.end(), [](ov::Dimension::value_type i){ return i > 0; });
     }
 
     bool is_dynamic() const {
@@ -215,19 +215,19 @@ struct padding {
     }
 
     void save(BinaryOutputBuffer& ob) const {
-        std::vector<int32_t> sizes;
+        std::vector<ov::Dimension::value_type> sizes;
         sizes.assign(_lower_size.begin(), _lower_size.end());
         ob << sizes;
         sizes.assign(_upper_size.begin(), _upper_size.end());
         ob << sizes;
         OPENVINO_ASSERT(sizes.size() == _dynamic_dims_mask.size(), "invalid size.");
         for (size_t i = 0; i < _dynamic_dims_mask.size(); i++)
-            sizes[i] = static_cast<int32_t>(_dynamic_dims_mask[i]);
+            sizes[i] = static_cast<ov::Dimension::value_type>(_dynamic_dims_mask[i]);
         ob << sizes;
     }
 
     void load(BinaryInputBuffer& ib) {
-        std::vector<int32_t> sizes;
+        std::vector<ov::Dimension::value_type> sizes;
         ib >> sizes;
         std::copy_n(sizes.begin(), sizes.size(), _lower_size.begin());
         ib >> sizes;
@@ -314,7 +314,7 @@ struct layout {
     /// Number of elements to be stored in this layout
     size_t count() const;
 
-    std::vector<tensor::value_type> get_pitches() const;
+    std::vector<ov::Dimension::value_type> get_pitches() const;
 
     // @brief Calculates position within buffer of the data element pointed by the provided tensor.
     // element == { 0,0,0,0 } means first no-padding (i.e. data) element
@@ -351,25 +351,25 @@ struct layout {
 
     size_t get_spatial_rank() const;
 
-    tensor::value_type get_dim(size_t idx) const;
+    ov::Dimension::value_type get_dim(size_t idx) const;
 
-    tensor::value_type batch() const;
+    ov::Dimension::value_type batch() const;
 
-    tensor::value_type feature() const;
+    ov::Dimension::value_type feature() const;
 
-    tensor::value_type spatial(size_t spatial_idx) const;
+    ov::Dimension::value_type spatial(size_t spatial_idx) const;
 
-    tensor::value_type group() const;
+    ov::Dimension::value_type group() const;
 
-    tensor::value_type ofm() const;
+    ov::Dimension::value_type ofm() const;
 
-    tensor::value_type ifm() const;
+    ov::Dimension::value_type ifm() const;
 
-    std::vector<tensor::value_type> get_dims() const;
+    std::vector<ov::Dimension::value_type> get_dims() const;
 
-    std::vector<tensor::value_type> get_padded_dims() const;
+    std::vector<ov::Dimension::value_type> get_padded_dims() const;
 
-    std::vector<tensor::value_type> get_ordered_dims() const;
+    std::vector<ov::Dimension::value_type> get_ordered_dims() const;
 
     std::vector<size_t> get_dims_order() const;
 
@@ -442,10 +442,10 @@ struct layout {
     /// @param _sizes an array that supports operator[] and stores data in the same order as shape.
     /// e.g. it could be std::vector, std::array, or std::bitset, etc.
     template <class TArray>
-    inline static std::vector<int32_t> format_sizes(const TArray _sizes, const cldnn::format &fmt,
-                                                    const int32_t default_val = 1) {
+    inline static std::vector<ov::Dimension::value_type> format_sizes(const TArray _sizes, const cldnn::format &fmt,
+                                                               const ov::Dimension::value_type default_val = 1) {
         const auto& output_order = fmt.order();
-        std::vector<int32_t> sizes(output_order.size(), default_val);
+        std::vector<ov::Dimension::value_type> sizes(output_order.size(), default_val);
 
         auto default_fmt = format::get_default_format(sizes.size(), format::is_weights_format(fmt), format::is_grouped(fmt));
         const auto& default_order = default_fmt.order();
@@ -455,7 +455,7 @@ struct layout {
             auto pos = default_order.find(c);
             OPENVINO_ASSERT(pos != std::string::npos, "[GPU] Unknown coord type: ", c);
 
-            sizes[i] = static_cast<int32_t>(_sizes[pos]);
+            sizes[i] = static_cast<ov::Dimension::value_type>(_sizes[pos]);
         }
 
         return sizes;

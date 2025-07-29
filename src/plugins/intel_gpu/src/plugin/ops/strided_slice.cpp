@@ -225,10 +225,10 @@ static void CreateStridedSliceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
         auto data_output = op->input_value(0);
         auto data_node_shape = data_output.get_shape();
 
-        std::vector<cldnn::tensor::value_type> offset_tensor{ 0, 0, 0, 0 };
+        std::vector<ov::Dimension::value_type> offset_tensor{ 0, 0, 0, 0 };
         for (size_t i = 0; i < axes.size(); i++) {
             OPENVINO_ASSERT(axes[i] < 4, "[GPU] Invalid crop axis: ", axes[i], " in op ", op->get_friendly_name());
-            offset_tensor[axes[i]] = static_cast<cldnn::tensor::value_type>(offset[i]);
+            offset_tensor[axes[i]] = static_cast<ov::Dimension::value_type>(offset[i]);
         }
 
         ov::Shape crop_shape(reshape_pattern);

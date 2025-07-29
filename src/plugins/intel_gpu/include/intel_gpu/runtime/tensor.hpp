@@ -123,7 +123,7 @@ struct tensor {
     friend class details::dim_vec_kind_init<details::dim_vec_kind::spatial>;
     friend class details::dim_vec_kind_init<details::dim_vec_kind::group>;
 
-    typedef int32_t value_type;  ///< Values type stored in tensor.
+    typedef ov::Dimension::value_type value_type;   ///< Values type stored in tensor.
     // TODO find the way to prevent direct change of following fields.
     mutable_array_ref<value_type> raw;      ///< Raw representation of all dimensions.
     mutable_array_ref<value_type> batch;    ///< Batch dimensions.
