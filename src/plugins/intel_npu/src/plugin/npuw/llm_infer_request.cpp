@@ -348,10 +348,25 @@ void ov::npuw::LLMInferRequest::apply_lora() {
     for (auto state : m_npuw_llm_compiled_model->m_variableStates) {
         auto state_name = state->get_name();
         auto state_tensor = state->get_state();
+
+        auto variableState = dynamic_cast<VariableState*>(state.operator->());
+        if (!variableState) {
+            OPENVINO_THROW("Failed to cast ov::IVariableState to VariableState.");
+        }
+
+        bool stateUpdated = variableState->is_state_updated();
+        if (!stateUpdated) {
+            continue;
+        }
+
         if (state_tensor->get_size() == 0) {
             // Generate without LoRA:
             // the size of applied LoRA tensor from GenAI is 0
-            state->reset();
+            auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
+            fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
+            auto kvcache_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
+            // std::memset(kvcache_lora_in_tensor->data(), 0, kvcache_lora_in_tensor->get_byte_size());
+            fill_tensor<float>(kvcache_lora_in_tensor, 0.0f);
         } else {
             // Generate with LoRA
             auto tensor_shape = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name))->get_shape();
@@ -422,6 +437,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                 }
             }
         }
+        variableState->clear_state_updated();
     }
 }
 
