@@ -447,7 +447,7 @@ struct PagedAttentionManager {
 
         if (xattention_threshold.empty()) {
             auto empty_layout = mem->get_layout();
-            empty_layout.set_partial_shape(ov::PartialShape{ -1 });
+            empty_layout.set_partial_shape(ov::PartialShape{ 0 });
             return test_engine.reinterpret_buffer(*mem, empty_layout);
         }
 
