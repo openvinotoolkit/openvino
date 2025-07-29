@@ -271,7 +271,7 @@ jobs:
     if: ${{ github.repository_owner == 'openvinotoolkit' }}
     needs: [Docker, Build]
     timeout-minutes: 180
-    runs-on: aks-linux-8-cores-16gb
+    runs-on: aks-linux-8-cores-64gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
     defaults:
@@ -385,7 +385,7 @@ jobs:
           export LD_PRELOAD=$(gcc -print-file-name=libasan.so)
           ls -la ${REQ_PATH}
           python3 -m pip install -r ${REQ_PATH}/requirements.txt
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }}
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }} --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
         timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 400 }}
 
       - name: Upload Test Results
