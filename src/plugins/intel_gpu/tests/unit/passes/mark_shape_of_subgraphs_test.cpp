@@ -484,7 +484,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
                                          input_info("rotation_trig_lut"),
                                          input_info("xattention_threshold"),
                                          input_info("xattention_block_size"),
-                                         input_info("xattention_stride_layout"),
+                                         input_info("xattention_stride"),
     };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
