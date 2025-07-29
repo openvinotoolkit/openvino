@@ -22,8 +22,6 @@ static_assert(__cplusplus >= 201703L);
 #define kv_step  REG_K
 #define q_step   REG_N
 
-constexpr float scale_factor = CMFLA_SCALE_FACTOR;
-
 static_assert(q_step == 16 || q_step == 8);
 static_assert(kv_step == 16);
 static_assert(CM_HAS_DPAS);
@@ -39,6 +37,10 @@ void show(const matrix<T, M, N> mat) {
         printf("],\n");
     }
     printf("]\n");
+}
+
+inline const float as_float(uint32_t x) {
+    return *reinterpret_cast<float*>(&x);
 }
 
 template <typename T1, typename T2>
@@ -406,6 +408,8 @@ void sdpa_kernel_lsc(
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
 
+    const float scale_factor = CMFLA_SCALE_FACTOR;
+
     cur_max = -3e38f;
     cur_sum = 0;
     constexpr int num_P_tiles = REG_N / REG_M;
@@ -583,6 +587,8 @@ void sdpa_kernel_lsc_prefetch(
 
     vector<float, q_step> cur_max;
     vector<float, q_step> cur_sum;
+
+    const float scale_factor = CMFLA_SCALE_FACTOR;
 
     cur_max = -3e38f;
     cur_sum = 0;
@@ -776,6 +782,8 @@ void sdpa_kernel(
 
     cur_max = -3e38f;
     cur_sum = 0;
+
+    const float scale_factor = CMFLA_SCALE_FACTOR;
 
     matrix<half, head_size/REG_K, REG_K*REG_N> rQ;
     auto q_tokens_left = q_len;
