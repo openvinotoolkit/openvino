@@ -715,7 +715,7 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
             const auto copy_size = lens[t_idx] * shape[1] * shape[2];
             const auto copy_len = is_4bit ? copy_size / 2 : copy_size * type.size();
 
-            ov::npuw::util::XARCH::memcpy(pDst, pSrc, copy_len);
+            std::copy_n(pSrc, copy_len, pDst);
             pDst += copy_len;
         });
         return tnew;
@@ -736,7 +736,7 @@ ov::Tensor ov::npuw::util::concat(const std::vector<ov::Tensor>& tt, std::size_t
                 const uint8_t* pSrc = static_cast<const uint8_t*>(t_src.data());
                 const uint8_t* pSrcRow = pSrc + r_offset_src;
 
-                ov::npuw::util::XARCH::memcpy(pDstRow, pSrcRow, copy_len);
+                std::copy_n(pSrcRow, copy_len, pDstRow);
             }
         });
         return tnew;

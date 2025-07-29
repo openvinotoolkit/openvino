@@ -92,8 +92,6 @@ void permute021_i4(const ov::Tensor& t, ov::Tensor& tnew, size_t PLAS, size_t RO
 
 void permute102_i4(const ov::Tensor& t, ov::Tensor& tnew, size_t PLAS, size_t ROWS, size_t COLS);
 
-void memcpy(uint8_t* dst, const uint8_t* src, size_t len);
-
 }  // namespace XARCH
 }  // namespace util
 }  // namespace npuw

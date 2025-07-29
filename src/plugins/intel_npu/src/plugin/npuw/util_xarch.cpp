@@ -1797,19 +1797,3 @@ void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
     OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
 #endif
 }
-
-void ov::npuw::util::XARCH::memcpy(uint8_t* dst, const uint8_t* src, size_t len) {
-#if defined(HAVE_AVX2)
-    std::cout << "####################memcpy_avx2" << std::endl;
-    size_t i = 0;
-    for (; i + 31 < len; i += 32) {
-        __m256i v = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(src + i));
-        _mm256_storeu_si256(reinterpret_cast<__m256i*>(dst + i), v);
-    }
-    if (i < len) {
-        std::memcpy(dst + i, src + i, len - i);
-    }
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
-}
