@@ -43,7 +43,7 @@ bool ov::intel_cpu::ACLTransposeExecutor::init(const ov::intel_cpu::TransposePar
         auto dstDims = changeLayoutToNhwc(dstDescs[0]->getShape().getStaticDims());
         for (int i = inputOrder.size() - 1; i >= 0; --i) {
             auto it = find(srcDims.rbegin(), srcDims.rend(), dstDims[i]);
-            int index = it - srcDims.rbegin();
+            int index = static_cast<int>(it - srcDims.rbegin());
             vec.push_back(index);
         }
     } else {

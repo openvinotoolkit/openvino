@@ -153,7 +153,8 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     }
 
     if (is_upsample) {
-        bool int_factor = scale_h == static_cast<int>(scale_h) && scale_w == static_cast<int>(scale_w);
+        bool int_factor = scale_h == static_cast<float>(static_cast<int>(scale_h)) &&
+                          scale_w == static_cast<float>(static_cast<int>(scale_w));
         if (int_factor && coord_mode != InterpolateCoordTransMode::asymmetric &&
             (nearest_mode == InterpolateNearestMode::round_prefer_ceil ||
              nearest_mode == InterpolateNearestMode::round_prefer_floor)) {
@@ -164,8 +165,8 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
     } else if (scale_h < 1 && scale_w < 1) {
         float down_scale_h = static_cast<float>(inp_shape[index_h]) / out_shape[index_h];
         float down_scale_w = static_cast<float>(inp_shape[index_w]) / out_shape[index_w];
-        bool int_factor =
-            down_scale_h == static_cast<int>(down_scale_h) && down_scale_w == static_cast<int>(down_scale_w);
+        bool int_factor = down_scale_h == static_cast<float>(static_cast<int>(down_scale_h)) &&
+                          down_scale_w == static_cast<float>(static_cast<int>(down_scale_w));
 
         if (int_factor && coord_mode != InterpolateCoordTransMode::align_corners &&
             nearest_mode == InterpolateNearestMode::simple) {
