@@ -63,26 +63,26 @@ def run_test_executable_extract_result(command):
     return {
         "error": "Test did not run correctly",
         "returncode": proc.returncode,
-        "stdout": proc.stdout,
-        "stderr": proc.stderr
+        "stdout": proc.stdout.decode(),
+        "stderr": proc.stderr.decode()
     }
 
 
-MODELID_RE = re.compile(r"\/([^\/]+)\/(\w+)\/\w+\/((FP|INT)\d+(\/INT\d+)?)\/(\d+)\/(ov(\/optimized)?)\/([^\/\.]+)\.xml")
+MODELID_RE = re.compile(r"\/?([^\/]+)\/(\w+)\/?[^\/]*\/((OV_)?(FP|INT)\d+(\/INT\d+)?[^\/]*)(\/\d+\/ov)?\/(.+).xml")
 
 
 def modelid_assume_info(modelid):
-    # ('edsr3-nas', 'onnx', 'FP16', 'FP', None, '1', 'ov', None, 'edsr3-nas')
     match = MODELID_RE.match(modelid)
     if not match:
         return None
-    model, fw, prec, _n1, _n2, bs, _n3, _n4, model2 = match.groups()
-    if model != model2:
-        return None
+    model, fw, prec, _n1, _n2, _n3, _n4, model2 = match.groups()
+    if model == model2:
+        modelname = model
+    else:
+        modelname = f"{model}/{model2}"
     framework = fw
     precision = prec.replace("/", "-")
-    batchsize = bs
-    return framework, precision, batchsize
+    return modelname, framework, precision
 
 
 class TestSession:
@@ -127,11 +127,11 @@ class TestSession:
         test_report = []
         test_name = result.get("test", self.test_name)
         model_assumptions = modelid_assume_info(modelid)
-        framework, precision, _ = model_assumptions or ("unknown", "unknown", "")
+        modelname, framework, precision = model_assumptions or (modelid, "unknown", "unknown")
         for sname, sample in result["samples"].items():
             sample_report = {
                 "test": f"{test_name}:{sname}",
-                "network": modelid,
+                "network": modelname,
                 "device": result.get("device", device),
                 "framework": framework,
                 "precision": precision
@@ -150,7 +150,7 @@ class TestSession:
             print("No job metadata found, no report will be made.")
             return
         model_assumptions = modelid_assume_info(modelid)
-        framework, precision, _ = model_assumptions or ("unknown", "unknown", "")
+        modelname, framework, precision = model_assumptions or (modelid, "unknown", "unknown")
         test_report = []
         for sname, sample in result["samples"].items():
             sample_report = self.report_metadata.copy()
@@ -159,7 +159,7 @@ class TestSession:
                 "status": "ok",
                 "source": source,
                 "log": result.get("stderr", ""),
-                "model_name": modelid,
+                "model_name": modelname,
                 "model": modelid,
                 "device": result.get("device") or device,
                 "framework": framework,
@@ -173,6 +173,9 @@ class TestSession:
 
     def detect_report_metadata(self):
         try:
+            build_number = os.environ["TT_PRODUCT_BUILD_NUMBER"]
+            if self.report_reference:
+                build_number = f"reference-{build_number}"
             self.report_metadata = {
                 "build_url": os.environ["BUILD_URL"],
                 "os": os.environ.get("os", "unknown"),
@@ -214,12 +217,23 @@ class TestSession:
             return run_test_executable_extract_result([self.executable, model_path, device])
         except Exception as ex:
             print(f"  When running test an unexpected error happened: {ex}")
-            return {"error": "unexpected error"}
+            return {"error": "unexpected error", "exception": ex}
 
     def handle_test_result(self, modelid, device, result, refsamples=None):
         status = "error" if "error" in result else "ok"
         print(f"TEST {modelid} x {device}: {status}")
         if status == "error":
+            error = result.get("error")
+            stdout = result.get("stdout")
+            stderr = result.get("stderr")
+            exception = result.get("exception")
+            print(f"  Error: {error}")
+            if stdout:
+                print(f"  stdout: {stdout.strip()}\n  === END OF STDOUT ===")
+            if stderr:
+                print(f"  stderr: {stderr.strip()}\n  === END OF STDERR ===")
+            if exception:
+                print(f"  {repr(exception)}")
             return
         for sname, sample in result["samples"].items():
             refsample = None
@@ -236,7 +250,7 @@ class TestSession:
         for (modelid, model_path), device in self.generate_test_cases():
             result = self.run_test_case(model_path, device)
             test_name = result.get("test", self.test_name)
-            refsamples = self.reference_values[test_name][modelid]
+            refsamples = self.reference_values.get(test_name, {}).get(modelid)
             self.api_push_test_result("", modelid, device, result, refsamples)
             if self.report_reference:
                 self.api_push_reference_values(modelid, device, result)
