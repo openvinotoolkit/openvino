@@ -69,16 +69,16 @@ bool Multinomial::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 
 void Multinomial::getSupportedDescriptors() {
     if (getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+        CPU_NODE_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        CPU_NODE_THROW("has incorrect number of output edges.");
     }
 }
 
 void Multinomial::initSupportedPrimitiveDescriptors() {
     m_probs_precision = getOriginalInputPrecisionAtPort(PROBS_PORT);
-    if (!one_of(m_probs_precision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+    if (none_of(m_probs_precision, ov::element::f32, ov::element::f16, ov::element::bf16)) {
         m_probs_precision = ov::element::f32;
     }
 
@@ -109,15 +109,13 @@ void Multinomial::prepareParams() {
     const auto& num_samples_shape = getParentEdgeAt(NUM_SAMPLES_PORT)->getMemory().getStaticDims();
 
     if (probs_shape.size() != 2) {
-        THROW_CPU_NODE_ERR("has incompatible 'probs' shape ",
-                           PartialShape(probs_shape),
-                           ". Only 2D tensors are allowed.");
+        CPU_NODE_THROW("has incompatible 'probs' shape ", PartialShape(probs_shape), ". Only 2D tensors are allowed.");
     }
 
     if (num_samples_shape.size() != 1) {
-        THROW_CPU_NODE_ERR("has incompatible 'num_samples' shape ",
-                           PartialShape(num_samples_shape),
-                           ". Only scalar and 1D single element tensors are allowed.");
+        CPU_NODE_THROW("has incompatible 'num_samples' shape ",
+                       PartialShape(num_samples_shape),
+                       ". Only scalar and 1D single element tensors are allowed.");
     }
 
     if (m_num_samples_precision == ov::element::i32) {
@@ -162,7 +160,7 @@ void Multinomial::execute([[maybe_unused]] const dnnl::stream& strm) {
         break;
     }
     default:
-        THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
+        CPU_NODE_THROW("Multinomial CPU implementation does not support probs element type: ", m_probs_precision);
     }
 }
 
@@ -176,7 +174,7 @@ void Multinomial::execute_probs_type() {
     case ov::element::i32:
         return execute_convert_type<P, int32_t>();
     default:
-        THROW_CPU_NODE_ERR("Multinomial CPU implementation does not support output convert type: ", m_output_precision);
+        CPU_NODE_THROW("Multinomial CPU implementation does not support output convert type: ", m_output_precision);
     }
 }
 
@@ -208,7 +206,7 @@ void Multinomial::execute_convert_type() {
 
     // TODO RandomUniform - should use RandomUniform kernel to match other frameworks' seed results
     std::mt19937 gen;
-    if (m_global_seed == 0 && m_op_seed == 0) {
+    if (all_of(0U, m_global_seed, m_op_seed)) {
         gen.seed(std::time(nullptr));
     } else {
         std::seed_seq seed{m_global_seed, m_op_seed};

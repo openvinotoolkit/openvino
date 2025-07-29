@@ -4,7 +4,7 @@
 
 #include "cpu_generator.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -219,13 +219,13 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
          return supported_precisions;                                                                          \
      }}
 
-class jit_snippet : public dnnl::impl::cpu::x64::jit_generator {
+class jit_snippet : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_snippet)
 
     ~jit_snippet() override = default;
 
-    jit_snippet() : jit_generator(jit_name()) {}
+    jit_snippet() : jit_generator_t(jit_name()) {}
 
     void generate() override {}
 };
@@ -400,11 +400,11 @@ std::shared_ptr<snippets::TargetMachine> intel_cpu::CPUTargetMachine::clone() co
 size_t intel_cpu::CPUTargetMachine::get_lanes() const {
     switch (isa) {
     case dnnl::impl::cpu::x64::avx2:
-        return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx2>::vlen / sizeof(float);
+        return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx2>::vlen / sizeof(float);
     case dnnl::impl::cpu::x64::sse41:
-        return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::vlen / sizeof(float);
+        return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::vlen / sizeof(float);
     case dnnl::impl::cpu::x64::avx512_core:
-        return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
+        return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::vlen / sizeof(float);
     default:
         OPENVINO_THROW("unknown isa ", isa);
     }
@@ -423,7 +423,7 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_gp_reg_pool() const 
     const auto num_gp_regs = 16;
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
-        if (!one_of(i, Xbyak::Operand::RSP)) {
+        if (none_of(i, Xbyak::Operand::RSP)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }
@@ -434,11 +434,11 @@ std::vector<snippets::Reg> intel_cpu::CPUTargetMachine::get_vec_reg_pool() const
     const auto num_vec_regs = [this]() {
         switch (isa) {
         case dnnl::impl::cpu::x64::avx2:
-            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx2>::n_vregs;
+            return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx2>::n_vregs;
         case dnnl::impl::cpu::x64::sse41:
-            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::sse41>::n_vregs;
+            return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::sse41>::n_vregs;
         case dnnl::impl::cpu::x64::avx512_core:
-            return dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs;
+            return dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::n_vregs;
         default:
             OPENVINO_THROW("unknown isa ", isa);
         }
@@ -460,17 +460,15 @@ bool intel_cpu::CPUTargetMachine::is_supported() const {
 }
 
 snippets::CompiledSnippetPtr intel_cpu::CPUTargetMachine::get_snippet() {
-    if (h->create_kernel() != dnnl::impl::status::success) {
-        OPENVINO_THROW("Failed to create jit_kernel in get_snippet()");
-    }
+    OPENVINO_ASSERT(h->create_kernel() == dnnl::impl::status::success, "Failed to create jit_kernel in get_snippet()");
     const auto& result =
-        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator>(h.release()));
+        std::make_shared<CompiledSnippetCPU>(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator_t>(h.release()));
     // Note that we reset all the generated code, since it was copied into CompiledSnippetCPU
     h = std::make_unique<jit_snippet>();
     return result;
 }
 
-intel_cpu::CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator> h)
+intel_cpu::CompiledSnippetCPU::CompiledSnippetCPU(std::unique_ptr<dnnl::impl::cpu::x64::jit_generator_t> h)
     : h_compiled(std::move(h)) {
     OPENVINO_ASSERT(h_compiled && h_compiled->jit_ker(), "Got invalid jit generator or kernel was nopt compiled");
 }

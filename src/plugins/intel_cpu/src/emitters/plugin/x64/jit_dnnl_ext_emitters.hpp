@@ -20,13 +20,14 @@
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/round.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
 namespace ov::intel_cpu {
 
 class jit_relu_emitter : public jit_dnnl_emitter {
 public:
-    jit_relu_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_relu_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                      const std::shared_ptr<ov::Node>& n,
                      ov::element::Type exec_prc = ov::element::f32)
@@ -41,7 +42,7 @@ public:
 
 class jit_sigmoid_emitter : public jit_dnnl_emitter {
 public:
-    jit_sigmoid_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_sigmoid_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n,
                         ov::element::Type exec_prc = ov::element::f32)
@@ -56,7 +57,7 @@ public:
 
 class jit_tanh_emitter : public jit_dnnl_emitter {
 public:
-    jit_tanh_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_tanh_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                      const std::shared_ptr<ov::Node>& n,
                      ov::element::Type exec_prc = ov::element::f32)
@@ -71,13 +72,13 @@ public:
 
 class jit_elu_emitter : public jit_dnnl_emitter {
 public:
-    jit_elu_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_elu_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                     const std::shared_ptr<ov::Node>& n,
                     ov::element::Type exec_prc = ov::element::f32)
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         kind = dnnl_eltwise_elu;
-        alpha = ov::as_type_ptr<ov::op::v0::Elu>(n)->get_alpha();
+        alpha = static_cast<float>(ov::as_type_ptr<ov::op::v0::Elu>(n)->get_alpha());
         beta = 0.f;
 
         set_injector();
@@ -86,7 +87,7 @@ public:
 
 class jit_abs_emitter : public jit_dnnl_emitter {
 public:
-    jit_abs_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_abs_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                     dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                     const std::shared_ptr<ov::Node>& n,
                     ov::element::Type exec_prc = ov::element::f32)
@@ -101,15 +102,15 @@ public:
 
 class jit_clamp_emitter : public jit_dnnl_emitter {
 public:
-    jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_clamp_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& n,
                       ov::element::Type exec_prc = ov::element::f32)
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         kind = dnnl_eltwise_clip;
         auto op = ov::as_type_ptr<ov::op::v0::Clamp>(n);
-        alpha = op->get_min();
-        beta = op->get_max();
+        alpha = static_cast<float>(op->get_min());
+        beta = static_cast<float>(op->get_max());
 
         set_injector();
     }
@@ -117,7 +118,7 @@ public:
 
 class jit_swish_emitter : public jit_dnnl_emitter {
 public:
-    jit_swish_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_swish_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& n,
                       ov::element::Type exec_prc = ov::element::f32)
@@ -133,7 +134,7 @@ public:
 
 class jit_hswish_emitter : public jit_dnnl_emitter {
 public:
-    jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_hswish_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                        const std::shared_ptr<ov::Node>& n,
                        ov::element::Type exec_prc = ov::element::f32)
@@ -149,7 +150,7 @@ public:
 
 class jit_gelu_v0_emitter : public jit_dnnl_emitter {
 public:
-    jit_gelu_v0_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_gelu_v0_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n,
                         ov::element::Type exec_prc = ov::element::f32)
@@ -162,7 +163,7 @@ public:
 
 class jit_gelu_v7_emitter : public jit_dnnl_emitter {
 public:
-    jit_gelu_v7_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_gelu_v7_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                         dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                         const std::shared_ptr<ov::Node>& n,
                         ov::element::Type exec_prc = ov::element::f32)
@@ -185,15 +186,16 @@ public:
 
 class jit_round_emitter : public jit_dnnl_emitter {
 public:
-    jit_round_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_round_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       const std::shared_ptr<ov::Node>& n,
                       ov::element::Type exec_prc = ov::element::f32)
         : jit_dnnl_emitter(host, host_isa, n, exec_prc) {
         const auto round = getNgraphOpAs<ov::op::v5::Round>(n);
         const auto mode = round->get_mode();
-        if ((mode != ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) &&
-            (mode != ov::op::v5::Round::RoundMode::HALF_TO_EVEN)) {
+        if (none_of(mode,
+                    ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO,
+                    ov::op::v5::Round::RoundMode::HALF_TO_EVEN)) {
             OPENVINO_THROW_NOT_IMPLEMENTED("Round emitter doesn't support ngraph operation Round with mode: ",
                                            static_cast<int>(mode));
         }

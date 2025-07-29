@@ -5,7 +5,6 @@
 #include "brgemm_cpu_blocking.hpp"
 
 #include <cassert>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <iterator>
 #include <memory>
@@ -117,8 +116,7 @@ std::tuple<size_t, size_t, size_t> BrgemmCPUBlocking::get_blocking_params(
     const auto [m, n, k] = get_brgemm_dimensions(brgemm_expr);
 
     const auto default_m_blk = 32;
-    const auto default_n_blk =
-        dnnl::impl::cpu::x64::is_superset(brgemm_config.isa(), dnnl::impl::cpu::x64::avx512_core) ? 64 : 24;
+    const auto default_n_blk = 64;
     const auto default_k_blk = !ov::snippets::utils::is_dynamic_value(k) && k > 1024 ? 1024 : 512;
 
     size_t m_blk = get_corrected_blk_size_by_dim(m, default_m_blk);

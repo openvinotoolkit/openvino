@@ -4,10 +4,10 @@
 
 #include "jit_loop_emitters.hpp"
 
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <algorithm>
 #include <cpu/aarch64/cpu_isa_traits.hpp>

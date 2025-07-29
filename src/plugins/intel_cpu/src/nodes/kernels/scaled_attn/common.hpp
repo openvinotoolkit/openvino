@@ -9,6 +9,7 @@
 
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include "openvino/core/type/bfloat16.hpp"
@@ -49,7 +50,7 @@ inline size_t vec_len_f16_sve() {
 #endif
 
 constexpr size_t get_sub_byte_multiplier(ov::element::Type type) {
-    return (type == ov::element::i4 || type == ov::element::u4) ? 2 : 1;
+    return ov::intel_cpu::any_of(type, ov::element::i4, ov::element::u4) ? 2 : 1;
 }
 
 uint8_t inline insert_half_byte(uint8_t dst, uint8_t val, bool high_half) {
