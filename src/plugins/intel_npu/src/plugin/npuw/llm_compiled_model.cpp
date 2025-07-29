@@ -592,9 +592,9 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>&
     return ppp.build();
 }
 
-std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
-    const auto kStartOutputKVCacheLayers = 1u;
-    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
+std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model,
+                                                     std::size_t start_idx_in_output) {
+    for (std::size_t i = start_idx_in_output; i < model->outputs().size(); ++i) {
         auto kvout = model->output(i);
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
@@ -1083,7 +1083,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
+    m_kvcache_desc =
+        KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, false, model->outputs().size()};
     LOG_DEBUG("Make prefill model with static shapes");
     if (use_chunk_prefill) {
         reshape_to_static(prefill_model,
@@ -1104,7 +1105,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         reshape_sliced_head_to_static(lm_head_model, axes.batch);
     }
 
-    LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
+    LOG_DEBUG("Decompose GroupQueryAttention OP");
     decompose_GQA(prefill_model, true);
     decompose_GQA(kvcache_model, false);
 
@@ -1127,11 +1128,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     } else {
         LOG_DEBUG("Don't remove input key/values from prefill model.");
         LOG_DEBUG("Ask prefill model to output key/values for prefill chunk size tokens.");
-        prefill_model = redirect_new_kv_to_output(prefill_model);
+        prefill_model = redirect_new_kv_to_output(prefill_model, m_kvcache_desc.start_idx_in_outputs);
     }
 
     LOG_DEBUG("Optimize kvcache model to output key/values for new token.");
-    kvcache_model = redirect_new_kv_to_output(kvcache_model);
+    kvcache_model = redirect_new_kv_to_output(kvcache_model, m_kvcache_desc.start_idx_in_outputs);
     LOG_DEBUG("Converting KV-cache in kvcache model to FP16.");
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
