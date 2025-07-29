@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
-#include "openvino/core/model.hpp
+#include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
