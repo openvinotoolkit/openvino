@@ -60,8 +60,6 @@ void prepare_primitive_fusing::run(program& p) {
     GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
         size_t value = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_post_ops_fusions(), 0);
         switch (value) {
-            case 0:
-                break;
             case 2:
                 fuse_reorders(p); return;
             case 3:
@@ -77,7 +75,7 @@ void prepare_primitive_fusing::run(program& p) {
             case 8:
                 optimize_fused_ops(p); return;
             default:
-                return;
+                fuse_simple_primitives(p); return;
         }
     }
 
@@ -745,6 +743,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 11)
+                    return;
+            }
             auto activation_func = activation_node.get_primitive()->activation_function;
             if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
                 return;
@@ -876,6 +878,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_quantize_f = [&](quantize_node& quantize_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 12)
+                    return;
+            }
             auto& input_data = quantize_node.get_dependency(0);
             if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
                 return;
@@ -986,6 +992,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto fuse_eltwise_f = [&](eltwise_node& node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 13)
+                    return;
+            }
             std::shared_ptr<const cldnn::eltwise> prim = node.get_primitive();
             const std::vector<eltwise_mode> supported_modes = {
                 eltwise_mode::sum,
@@ -1292,6 +1302,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
+        // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise 
         program_helpers::do_for_types<activation, quantize, eltwise>(*node,
                 fuse_activation_f,
                 fuse_quantize_f,

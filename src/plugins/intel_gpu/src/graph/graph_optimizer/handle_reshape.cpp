@@ -204,11 +204,11 @@ void handle_reshape::run(program& p) {
 
             auto input_layout = input_node.get_output_layout();
             auto reshape_layout = node->get_output_layout();
-            auto preferred_output_format = format::get_default_format(reshape_layout.get_rank());
-            auto preferred_output_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, preferred_output_format});
+            auto expected_reshape_format = format::get_default_format(reshape_layout.get_rank());
+            auto expected_reshape_layout = layout({reshape_layout.get_partial_shape(), reshape_layout.data_type, expected_reshape_format});
 
             if (!(node->is_output()) &&
-                 (((reshape_layout.format != preferred_output_format) && !reshape_layout.compatible(preferred_output_layout)) ||
+                 (((reshape_layout.format != expected_reshape_format) && !reshape_layout.compatible(expected_reshape_layout)) ||
                  (reshape_layout.format != input_layout.format))) {
                 // when some primitive does an implicit reorder to some other format then we lose the info about pitches
                 // in reshape stage we assume user provides the input vector in bfyx
@@ -228,7 +228,7 @@ void handle_reshape::run(program& p) {
                 }
 
                 // Check whether output reorder is required for format change
-                if (reshape_layout.format != preferred_output_format) {
+                if (reshape_layout.format != expected_reshape_format) {
                     auto reshape_users = node->get_users();
                     for (const auto& user : reshape_users) {
                         auto reshape_output = std::make_shared<reorder>("reorder:_reshape_output_" + node->id(),

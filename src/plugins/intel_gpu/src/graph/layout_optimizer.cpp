@@ -1260,12 +1260,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                     fmt = format::get_default_format(in_lay_rank);
                 }
 
-                if (node.is_type<reshape>()) {
-                    // Reshape from blocked to simple format is not acceptable
-                    node.set_preferred_input_fmt(i, format::get_default_format(in_lay_rank));
-                } else {
-                    node.set_preferred_input_fmt(i, fmt);
-                }
+                node.set_preferred_input_fmt(i, fmt);
             }
         }
 
@@ -1293,6 +1288,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             expected = node.get_output_layout().format;
         }
     } else if (node.is_type<reshape>()) {
+        // Reshape from blocked to simple format is not acceptable
+        auto dep_size = node.get_dependencies().size();
+        for (size_t i = 0; i < dep_size; i++) {
+            auto in_lay_rank = node.get_input_layout(i).get_rank();
+            node.set_preferred_input_fmt(i, format::get_default_format(in_lay_rank));
+        }
+
         expected = format::get_default_format(node.get_output_layout().get_rank());
     } else if (node.is_type<deconvolution>()) {
         expected = get_expected_format(node.as<deconvolution>());
