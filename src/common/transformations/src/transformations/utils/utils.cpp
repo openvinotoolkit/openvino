@@ -7,8 +7,8 @@
 #include <assert.h>
 
 #include <functional>
-#include <vector>
 #include <memory>
+#include <vector>
 
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
@@ -33,10 +33,10 @@
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
-#include "openvino/util/common_util.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace op {
@@ -601,7 +601,8 @@ std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
     auto slice_step = ParseSymbolVariant({step});
     auto slice_axis = ParseSymbolVariant({static_cast<int64_t>(axis)});
 
-    auto opt1 = ov::pass::pattern::wrap_type<ov::op::v8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
+    auto opt1 =
+        ov::pass::pattern::wrap_type<ov::op::v8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
 
     std::vector<symbol_variant> vbegin(axis + 1, 0);
     std::vector<symbol_variant> vend(axis + 1, 0);
@@ -633,7 +634,6 @@ std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
 
     return opt1 | opt2;
 }
-
 
 }  // namespace util
 }  // namespace op
