@@ -317,7 +317,10 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
     }
 }
 
-void fill_lora_alpha(ov::SoPtr<ov::ITensor>& alpha_src_tensor, ov::SoPtr<ov::ITensor>& alpha_dst_tensor, uint32_t max_rank, uint32_t real_rank) {
+void fill_lora_alpha(ov::SoPtr<ov::ITensor>& alpha_src_tensor,
+                     ov::SoPtr<ov::ITensor>& alpha_dst_tensor,
+                     uint32_t max_rank,
+                     uint32_t real_rank) {
     // alpha [1, r]
     float* lora_alpha_src_data = alpha_src_tensor->data<float>();
     size_t size = alpha_src_tensor->get_size();
@@ -371,7 +374,8 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 
             uint32_t state_tensor_rank = static_cast<uint32_t>(state_tensor->get_shape()[rank_dim]);
             if (state_tensor_rank > max_rank_size) {
-                OPENVINO_THROW("LoRA rank: " + std::to_string(state_tensor_rank) + " is larger than maximum LoRA rank " + std::to_string(max_rank_size));
+                OPENVINO_THROW("LoRA rank: " + std::to_string(state_tensor_rank) +
+                               " is larger than maximum LoRA rank " + std::to_string(max_rank_size));
             }
 
             uint32_t target_lora_rank = static_cast<uint32_t>(tensor_shape[rank_dim]);
@@ -382,17 +386,15 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             } else {
                 // Fill LoRA into a new tensor
                 auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-                auto new_tensor_for_infer = ov::get_tensor_impl(ov::Tensor(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape()));
+                auto new_tensor_for_infer = ov::get_tensor_impl(
+                    ov::Tensor(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape()));
 
                 fill_tensor<float>(new_tensor_for_infer, 0.0f);
                 if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
                     // alpha [1, r]
                     fill_lora_alpha(state_tensor, new_tensor_for_infer, target_lora_rank, state_tensor_rank);
                 } else {
-                    auto new_tensor_slice = make_tensor_slice(new_tensor_for_infer,
-                              rank_dim,
-                              0u,
-                              state_tensor_rank);
+                    auto new_tensor_slice = make_tensor_slice(new_tensor_for_infer, rank_dim, 0u, state_tensor_rank);
                     if (rank_dim == 1) {
                         copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                     } else {
