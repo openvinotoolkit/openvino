@@ -246,7 +246,7 @@ void regclass_graph_Node(py::module m) {
            py::list& output_values,
            const py::list& input_values,
            const ov::EvaluationContext& evaluationContext) -> bool {
-            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
             auto casted_output_values = pyTensorVector(output_values).cast<ov::TensorVector>();
             const auto casted_input_values = pyTensorVector(input_values).cast<ov::TensorVector>();
 

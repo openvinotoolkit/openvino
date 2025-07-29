@@ -75,7 +75,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const std::string& tensor_name, const py::list& tensors) {
-            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
             self.m_request->set_tensors(tensor_name, pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("tensor_name"),
@@ -122,7 +122,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const py::list& tensors) {
-            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
             self.m_request->set_tensors(port, pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("port"),
@@ -198,7 +198,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, const py::list& tensors) {
-            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
             self.m_request->set_input_tensors(pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("tensors"),
@@ -236,7 +236,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, size_t idx, const py::list& tensors) {
-            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            py::object pyTensorVector = py::module_::import("openvino").attr("TensorVector");
             self.m_request->set_input_tensors(idx, pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("idx"),

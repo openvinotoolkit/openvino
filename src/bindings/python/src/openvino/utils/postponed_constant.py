@@ -5,8 +5,7 @@
 
 from typing import Optional
 from collections.abc import Callable
-from openvino import Op, Type, Shape, Tensor, PartialShape
-from openvino._pyopenvino import TensorVector
+from openvino import Op, Type, Shape, Tensor, PartialShape, TensorVector
 
 
 class PostponedConstant(Op):
