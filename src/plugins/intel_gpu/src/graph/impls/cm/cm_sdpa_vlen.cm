@@ -124,7 +124,7 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 reinterpret_cast<svmptr_t>(value + kv_offset),
                                 reinterpret_cast<svmptr_t>(output + qo_offset));
 #else
-    sdpa_kernel<false, num_heads, num_kv_heads, head_size>(
+    sdpa_kernel<false, num_heads, num_kv_heads, head_size, 0>(
                                 slm_K,
                                 slm_V,
                                 wg_local_id,
@@ -138,7 +138,10 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 value,
                                 output,
                                 qo_offset * sizeof(half),
-                                kv_offset * sizeof(half));
+                                kv_offset * sizeof(half),
+                                kv_offset * sizeof(half),
+                                qo_offset * sizeof(half)
+                                );
 #endif
 }
 
