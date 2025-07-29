@@ -1166,8 +1166,10 @@ std::shared_ptr<const ov::Model> ov::CoreImpl::apply_auto_batching(const std::sh
                            .get_property(ov::supported_properties.name(), parsed._config)
                            .as<std::vector<ov::PropertyName>>();
         auto it = std::find(metrics.begin(), metrics.end(), ov::optimal_batch_size.name());
-        if (metrics.end() == it)
+        // not apply auto batch for CPU plugin
+        if (metrics.end() == it || parsed._deviceName == "CPU") {
             return model;
+        }
 
         // if applicable, the Auto-Batching is implicitly enabled via the performance hints
         bool bTputInPlg = get_plugin(parsed._deviceName)
