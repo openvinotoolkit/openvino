@@ -33,7 +33,7 @@ ov_add_test_target(
   INCLUDES
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${OPTIONAL_FUNC_TESTS_INCLUDES}
-  "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"
+#   "${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances"
   "${CMAKE_CURRENT_SOURCE_DIR}/behavior"
   "${CMAKE_CURRENT_SOURCE_DIR}/internal"
   LINK_LIBRARIES

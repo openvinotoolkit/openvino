@@ -1,22 +1,3 @@
-nGraph ONNX Importer:Á
-&
-data_a
-data_b
-data_cresult"Meantest_mean_example*,Bdata_cj
-locationdata/tensor.datapZ
-data_a
-
-
-Z
-data_b
-
-
-Z
-data_c
-
-
-b
-result
-
-
-B
+version https://git-lfs.github.com/spec/v1
+oid sha256:3db0e185c72f41ed2cedab54303f1b706db0d7d9ed957efec9c59e7a80d0e125
+size 224

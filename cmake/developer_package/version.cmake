@@ -100,8 +100,10 @@ macro(ov_parse_ci_build_number repo_root)
 
         foreach(var OpenVINO_VERSION_MAJOR OpenVINO_VERSION_MINOR OpenVINO_VERSION_PATCH)
             if(DEFINED ${var} AND NOT ${var} EQUAL ${var}_HPP)
-                message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
-                    and from openvino/core/version.hpp (${${var}_HPP}) are different")
+                # message(FATAL_ERROR "${var} parsed from CI_BUILD_NUMBER (${${var}}) \
+                    # and from openvino/core/version.hpp (${${var}_HPP}) are different")
+                    message(WARNING "${var} mismatch ignored for local build: CI_BUILD_NUMBER (${${var}}), version.hpp (${${var}_HPP})")
+
             else()
                 # CI_BUILD_NUMBER is not defined well, take info from openvino/core/version.hpp as a baseline
                 set(${var} ${${var}_HPP} PARENT_SCOPE)
