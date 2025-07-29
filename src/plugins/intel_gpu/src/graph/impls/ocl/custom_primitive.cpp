@@ -295,7 +295,6 @@ static std::unique_ptr<primitive_impl> create(const custom_gpu_primitive_node& a
 namespace detail {
 
 attach_custom_gpu_primitive_impl::attach_custom_gpu_primitive_impl() {
-    // implementation_map<custom_gpu_primitive>::add(impl_types::ocl, shape_types::dynamic_shape, create, {});
     implementation_map<custom_gpu_primitive>::add(cldnn::impl_types::ocl, create, {});
 }
 

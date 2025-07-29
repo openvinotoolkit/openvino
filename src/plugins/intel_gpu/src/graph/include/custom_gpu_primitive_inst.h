@@ -11,6 +11,16 @@
 
 namespace cldnn {
 
+template <>
+struct typed_program_node<custom_gpu_primitive> : public typed_program_node_base<custom_gpu_primitive> {
+    using parent = typed_program_node_base<custom_gpu_primitive>;
+
+public:
+    typed_program_node(std::shared_ptr<primitive> prim, program& prog) : parent(prim, prog) {}
+    program_node& input() const { return get_dependency(0); }
+
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+};
 using custom_gpu_primitive_node = typed_program_node<custom_gpu_primitive>;
 
 template <>
