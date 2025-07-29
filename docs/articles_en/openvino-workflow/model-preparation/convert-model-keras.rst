@@ -80,11 +80,6 @@ Here is an example:
    ov_output = compiled_model(inputs)[0]
    print(ov_output)
 
-.. note::
-
-   OpenVINO model input names may include a ``:0`` suffix (for example, ``"token_ids:0"``). 
-   Be sure to use the exact input names when running inference.
-
 Run inference in Keras 3 with the OpenVINO backend
 ##################################################
 
