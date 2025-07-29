@@ -16,10 +16,12 @@ class VariableState final : public ov::IVariableState {
 public:
     explicit VariableState(const std::string& name, const ov::SoPtr<ov::ITensor>& tensor) : ov::IVariableState(name) {
         m_state = tensor;
+        clear_state_updated();
     }
 
     virtual void set_state(const ov::SoPtr<ov::ITensor>& newState) override {
         m_state = newState;
+        m_state_updapted = true;
     }
 
     virtual void reset() override {
@@ -27,6 +29,18 @@ public:
     }
 
     ~VariableState() override = default;
+
+    bool is_state_updated() const {
+        return m_state_updapted;
+    }
+
+    void clear_state_updated() {
+        m_state_updapted = false;
+    }
+
+private:
+    bool m_state_updapted;
+
 };
 
 struct LoRANames {
