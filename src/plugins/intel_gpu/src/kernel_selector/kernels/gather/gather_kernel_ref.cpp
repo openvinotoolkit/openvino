@@ -213,17 +213,9 @@ static std::string GetIndicesIdxOrder(const gather_params& params, size_t axis, 
 }
 
 static bool OutputBiasPositionCompatible(const gather_params& params) {
-    // Default should be compatible.
-    auto rank = params.outputs[0].Dimentions();
-    if (rank == 4) {
-        std::vector<size_t> bias_bfyx = {params.fused_ops[0].output_tensor.Batch().v,
-                                         params.fused_ops[0].output_tensor.Feature().v,
-                                         params.fused_ops[0].output_tensor.Y().v,
-                                         params.fused_ops[0].output_tensor.X().v};
-        std::vector<size_t> output_bfyx = {params.outputs[0].Batch().v, params.outputs[0].Feature().v, params.outputs[0].Y().v, params.outputs[0].X().v};
-        return ov::PartialShape(output_bfyx).compatible(ov::PartialShape(bias_bfyx));
-    }
-    return true;
+    auto out = params.outputs[0];
+    auto bias = params.fused_ops[0].output_tensor;
+    return out.SameDims(bias);
 }
 
 CommonDispatchData GatherKernelRef::SetDefault(const gather_params& params) const {
