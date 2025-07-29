@@ -180,7 +180,7 @@ TEST(update_shape_test, max_context_len_shapeof_subgraph) {
                                          input_info("rotation_trig_lut"),
                                          input_info("xattention_threshold"),
                                          input_info("xattention_block_size"),
-                                         input_info("xattention_stride_layout")};
+                                         input_info("xattention_stride")};
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
     pa_prim.k_head_size = 64;
