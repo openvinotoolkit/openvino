@@ -190,8 +190,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
-                return MlasGemmExecutor::supports(config);
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>,
@@ -307,7 +308,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                return ACLFullyConnectedExecutor::supports(config);
+                VERIFY(ACLFullyConnectedExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -327,7 +330,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                return ACLLowpFullyConnectedExecutor::supports(config);
+                VERIFY(ACLLowpFullyConnectedExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -360,7 +365,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
                 }
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
-                return MatMulKleidiAIExecutor::supports(config);
+                VERIFY(MatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>,
@@ -376,8 +383,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(ShlFCExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
-                return ShlFCExecutor::supports(config);
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
             AcceptsAnyShape<FCAttrs>,
