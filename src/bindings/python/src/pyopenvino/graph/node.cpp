@@ -231,9 +231,9 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the node on inputs, putting results in outputs
                 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: openvino.TensorVectorOpaque
+                :type output_tensors: openvino.TensorVector
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: openvino.TensorVectorOpaque
+                :type input_tensors: openvino.TensorVector
                 :param evaluation_context: Storage of additional settings and attributes that can be used
                 when evaluating the function. This additional information can be shared across nodes.
                 :type evaluation_context: openvino.RTMap
@@ -246,10 +246,9 @@ void regclass_graph_Node(py::module m) {
            py::list& output_values,
            const py::list& input_values,
            const ov::EvaluationContext& evaluationContext) -> bool {
-            py::object pyTensorVectorOpaque =
-                py::module_::import("openvino").attr("_pyopenvino").attr("TensorVectorOpaque");
-            auto casted_output_values = pyTensorVectorOpaque(output_values).cast<ov::TensorVector>();
-            const auto casted_input_values = pyTensorVectorOpaque(input_values).cast<ov::TensorVector>();
+            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            auto casted_output_values = pyTensorVector(output_values).cast<ov::TensorVector>();
+            const auto casted_input_values = pyTensorVector(input_values).cast<ov::TensorVector>();
 
             return self.evaluate(casted_output_values, casted_input_values, evaluationContext);
         },
@@ -260,9 +259,9 @@ void regclass_graph_Node(py::module m) {
                 Evaluate the node on inputs, putting results in outputs
                 
                 :param output_tensors: Tensors for the outputs to compute. One for each result.
-                :type output_tensors: openvino.TensorVectorOpaque
+                :type output_tensors: openvino.TensorVector
                 :param input_tensors: Tensors for the inputs. One for each inputs.
-                :type input_tensors: openvino.TensorVectorOpaque
+                :type input_tensors: openvino.TensorVector
                 :param evaluation_context: Storage of additional settings and attributes that can be used
                 when evaluating the function. This additional information can be shared across nodes.
                 :type evaluation_context: openvino.RTMap

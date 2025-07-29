@@ -14,7 +14,7 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Node, Tensor, Type, RTMap, TensorVectorOpaque
+from openvino._pyopenvino import Node, Tensor, Type, RTMap, TensorVector
 
 from openvino.utils.data_helpers import (
     OVDict,
@@ -91,12 +91,12 @@ class Model(object, metaclass=ModelMeta):
 
     def evaluate(
         self,
-        output_tensors: Union[list[Tensor], TensorVectorOpaque],
-        input_tensors: Union[list[Tensor], TensorVectorOpaque],
+        output_tensors: Union[list[Tensor], TensorVector],
+        input_tensors: Union[list[Tensor], TensorVector],
         evaluation_context: Optional[RTMap] = None,
     ) -> bool:
-        outputs = output_tensors if isinstance(output_tensors, TensorVectorOpaque) else TensorVectorOpaque(output_tensors)
-        inputs = input_tensors if isinstance(input_tensors, TensorVectorOpaque) else TensorVectorOpaque(input_tensors)
+        outputs = output_tensors if isinstance(output_tensors, TensorVector) else TensorVector(output_tensors)
+        inputs = input_tensors if isinstance(input_tensors, TensorVector) else TensorVector(input_tensors)
         context = evaluation_context if evaluation_context is not None else RTMap()
         return self.__model.evaluate(outputs, inputs, context)
 

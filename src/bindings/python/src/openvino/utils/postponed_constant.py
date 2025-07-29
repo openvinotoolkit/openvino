@@ -6,7 +6,7 @@
 from typing import Optional
 from collections.abc import Callable
 from openvino import Op, Type, Shape, Tensor, PartialShape
-from openvino._pyopenvino import TensorVectorOpaque
+from openvino._pyopenvino import TensorVector
 
 
 class PostponedConstant(Op):
@@ -21,7 +21,7 @@ class PostponedConstant(Op):
             self.friendly_name = name
         self.constructor_validate_and_infer_types()
 
-    def evaluate(self, outputs: TensorVectorOpaque, _: list[Tensor]) -> bool:  # type: ignore
+    def evaluate(self, outputs: TensorVector, _: list[Tensor]) -> bool:  # type: ignore
         outputs[0] = self.m_maker()
         return True
 

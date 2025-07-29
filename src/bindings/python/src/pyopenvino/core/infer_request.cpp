@@ -70,14 +70,13 @@ void regclass_InferRequest(py::module m) {
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
                             Total size of tensors needs to match with input's size.
-            :type tensors: openvino.TensorVectorOpaque
+            :type tensors: openvino.TensorVector
         )");
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const std::string& tensor_name, const py::list& tensors) {
-            py::object pyTensorVectorOpaque =
-                py::module_::import("openvino").attr("_pyopenvino").attr("TensorVectorOpaque");
-            self.m_request->set_tensors(tensor_name, pyTensorVectorOpaque(tensors).cast<ov::TensorVector>());
+            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            self.m_request->set_tensors(tensor_name, pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("tensor_name"),
         py::arg("tensors"),
@@ -116,16 +115,15 @@ void regclass_InferRequest(py::module m) {
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
                             Total size of tensors needs to match with input's size.
-            :type tensors: openvino.TensorVectorOpaque
+            :type tensors: openvino.TensorVector
             :rtype: None
         )");
 
     cls.def(
         "set_tensors",
         [](InferRequestWrapper& self, const ov::Output<const ov::Node>& port, const py::list& tensors) {
-            py::object pyTensorVectorOpaque =
-                py::module_::import("openvino").attr("_pyopenvino").attr("TensorVectorOpaque");
-            self.m_request->set_tensors(port, pyTensorVectorOpaque(tensors).cast<ov::TensorVector>());
+            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            self.m_request->set_tensors(port, pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("port"),
         py::arg("tensors"),
@@ -194,15 +192,14 @@ void regclass_InferRequest(py::module m) {
             :param tensors:  Input tensors for batched infer request. The type of each tensor
                              must match the model input element type and shape (except batch dimension).
                              Total size of tensors needs to match with input's size.
-            :type tensors: openvino.TensorVectorOpaque
+            :type tensors: openvino.TensorVector
         )");
 
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, const py::list& tensors) {
-            py::object pyTensorVectorOpaque =
-                py::module_::import("openvino").attr("_pyopenvino").attr("TensorVectorOpaque");
-            self.m_request->set_input_tensors(pyTensorVectorOpaque(tensors).cast<ov::TensorVector>());
+            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            self.m_request->set_input_tensors(pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("tensors"),
         R"(
@@ -233,15 +230,14 @@ void regclass_InferRequest(py::module m) {
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
                             Total size of tensors needs to match with input's size.
-            :type tensors: openvino.TensorVectorOpaque
+            :type tensors: openvino.TensorVector
         )");
 
     cls.def(
         "set_input_tensors",
         [](InferRequestWrapper& self, size_t idx, const py::list& tensors) {
-            py::object pyTensorVectorOpaque =
-                py::module_::import("openvino").attr("_pyopenvino").attr("TensorVectorOpaque");
-            self.m_request->set_input_tensors(idx, pyTensorVectorOpaque(tensors).cast<ov::TensorVector>());
+            py::object pyTensorVector = py::module_::import("openvino").attr("_pyopenvino").attr("TensorVector");
+            self.m_request->set_input_tensors(idx, pyTensorVector(tensors).cast<ov::TensorVector>());
         },
         py::arg("idx"),
         py::arg("tensors"),
