@@ -7,10 +7,10 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/runtime/core.hpp"
 #include "ov_ops/vl_sdpa.hpp"
 
 using namespace std;
