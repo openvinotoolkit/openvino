@@ -291,7 +291,7 @@ public:
 
     void save(cldnn::BinaryOutputBuffer& ob) const;
     void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr = nullptr,
-              std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheAttr> cache_attr = nullptr);
+              std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr);
     
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 

@@ -115,8 +115,8 @@ inline std::istream& operator>>(std::istream& is, DumpTensors& val) {
     return is;
 }
 
-using GpuWeightlessCacheAttr = std::map<size_t, ov::WeightlessCacheAttribute>;
-static constexpr Property<std::shared_ptr<GpuWeightlessCacheAttr>, PropertyMutability::RW> weightless_attr{"GPU_WEIGHTLESS_ATTR"};
+using GpuWeightlessCacheMap = std::unordered_map<size_t, ov::WeightlessCacheAttribute>;
+static constexpr Property<std::shared_ptr<GpuWeightlessCacheMap>, PropertyMutability::RW> weightless_attr{"GPU_WEIGHTLESS_ATTR"};
 
 /**
  * @brief Defines queue type that must be used for model execution

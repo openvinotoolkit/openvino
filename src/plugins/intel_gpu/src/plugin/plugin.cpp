@@ -120,16 +120,16 @@ void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Mod
 void Plugin::create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const {
     uint32_t offset = 0;
     
-    std::shared_ptr<GpuWeightlessCacheAttr>cache_attributes = std::make_shared<GpuWeightlessCacheAttr>();
+    std::shared_ptr<GpuWeightlessCacheMap>cache_attr_map = std::make_shared<GpuWeightlessCacheMap>();
 
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node)) {            
             // Offset behaves as a unique key for each constant. Size = 1 is used as dummy.
-            cache_attributes->emplace(node->get_instance_id(), ov::WeightlessCacheAttribute(1, offset++, node->get_element_type()));
+            cache_attr_map->emplace(node->get_instance_id(), ov::WeightlessCacheAttribute(1, offset++, node->get_element_type()));
         }
     }
 
-    config.set_property(ov::intel_gpu::weightless_attr(cache_attributes));
+    config.set_property(ov::intel_gpu::weightless_attr(cache_attr_map));
 }
 
 void Plugin::transform_model(std::shared_ptr<ov::Model>& model, const ExecutionConfig& config, const std::shared_ptr<RemoteContextImpl>& context) const {

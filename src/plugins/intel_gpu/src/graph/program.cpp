@@ -1862,15 +1862,15 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
 
 void program::load(cldnn::BinaryInputBuffer& ib,
                    std::shared_ptr<const ov::Model> model_ptr,
-                   std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheAttr> cache_attr) {
+                   std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
     init_program();
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
     if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
         if (model_ptr) {
-            if (cache_attr) {
-                weights_memory = std::make_shared<WeightsMemory>(model_ptr, cache_attr);
+            if (cache_attr_map) {
+                weights_memory = std::make_shared<WeightsMemory>(model_ptr, cache_attr_map);
             } else {
                 weights_memory = std::make_shared<WeightsMemory>(model_ptr);
             }
