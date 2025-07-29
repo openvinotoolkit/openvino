@@ -169,7 +169,7 @@ struct MHAKernel {
         auto Hk = present_key.size(1);
         size_t h_each_group_len = H / Hk;
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / static_cast<float>(sqrt(head_size));
         }
 
         auto k_stride_s = present_key.stride(3);
@@ -392,7 +392,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
         size_t h_each_group_len = H / Hk;
         const size_t m_block_size = qk_gemm_ptr->get_mblk_size();
         auto m_blocks = (q_len + m_block_size - 1) / m_block_size;
-        bool is_xf16 = precision_of<T>::value == ov::element::bf16 || precision_of<T>::value == ov::element::f16;
+        bool is_xf16 = any_of(precision_of<T>::value, ov::element::bf16, ov::element::f16);
         // packed k, v
         parallel_for2d(B, Hk, [&](size_t b, size_t h) {
             T* k_ptr = &present_key.at<T>({b, h, 0, 0});
@@ -532,7 +532,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                     float d_scale = 0.0F) {
         auto head_size = query.size(3);
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / static_cast<float>(sqrt(head_size));
         }
 
         prepare_brgemm_prim(strm, query, present_key, present_value, has_out_transpose);
@@ -748,7 +748,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_MLAS, float> {
         size_t h_each_group_len = H / h_group_num;
 
         if (d_scale == 0.0F) {
-            d_scale = 1.0F / sqrt(head_size);
+            d_scale = 1.0F / static_cast<float>(sqrt(head_size));
         }
         auto k_stride_s = present_key.stride(3);
 
@@ -1136,7 +1136,7 @@ ScaledDotProductAttention::ScaledDotProductAttention(const std::shared_ptr<ov::N
     const auto keyS = *(keyDims.end() - 1);
     const auto valueS = *(valueDims.end() - 1);
     CPU_NODE_ASSERT(valueCachePrecision == keyCachePrecision, "supports same key/value cache precision");
-    CPU_NODE_ASSERT(one_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
+    CPU_NODE_ASSERT(any_of(keyCachePrecision, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8),
                     "supports key/value cache precision f32, f16, bf16, u8 but gets ",
                     keyCachePrecision);
     m_key_quant_param.groupSize = (cpuConfig.keyCacheGroupSize == 0 || keyS % cpuConfig.keyCacheGroupSize != 0)
@@ -1246,7 +1246,7 @@ void ScaledDotProductAttention::createPrimitive() {
     m_key_quant_param.isByChannel = false;
     if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL) {
         m_key_quant_param.isByChannel = true;
-    } else if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_HIDDEN) {
+    } else if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_TOKEN) {
         m_key_quant_param.isByChannel = false;
     }
     m_value_quant_param.groupSize = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;
@@ -2104,10 +2104,9 @@ ov::element::Type ScaledDotProductAttention::getKVCachePrecision() {
     auto valueCachePrecisionHint = context->getConfig().valueCachePrecision;
     bool enableKVCacheFP16 = m_config.config.fuse_concat && mayiuse(cpu_isa_t::avx2) &&
                              rtPrecision != ov::element::bf16 &&
-                             (keyCachePrecisionHint == ov::element::f16 && valueCachePrecisionHint == ov::element::f16);
+                             (all_of(ov::element::f16, keyCachePrecisionHint, valueCachePrecisionHint));
     kvcache_precision = enableKVCacheFP16 ? ov::element::f16 : rtPrecision;
-    bool use_int8_kv_cache_precision =
-        (keyCachePrecisionHint == ov::element::u8 && valueCachePrecisionHint == ov::element::u8);
+    bool use_int8_kv_cache_precision = (all_of(ov::element::u8, keyCachePrecisionHint, valueCachePrecisionHint));
     if (use_int8_kv_cache_precision) {
         kvcache_precision = ov::element::u8;
     } else {
