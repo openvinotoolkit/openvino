@@ -109,7 +109,19 @@ void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITenso
 
 void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim) {
     if (kv_dim == 3u) {
-        copy_columns_by_row_chunks(src_tensor, dst_tensor);
+        // Asserting that we work with last dimenston here:
+        const auto& src_shape = src_tensor->get_shape();
+        OPENVINO_ASSERT(src_shape.size() == 4);
+        // If last dimenstion of src_tensor is equal to 1, then we can squeeze
+        // src_shape from [1, heads, d_v, seq_len=1] to [heads, d_v].
+        // We can then treat src_tensor as a continuous tensor of row value vectors
+        // for multiple heads, while dst_tensor will still have [1, heads, d_v, seq_len!=1],
+        // shape, awaiting updates at column dimension, as value vectors are columns now.
+        if (src_shape[kv_dim] == 1 && src_tensor->is_continuous()) {
+            ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor);
+        } else {
+            copy_columns_by_row_chunks(src_tensor, dst_tensor);
+        }
     } else if (kv_dim == 2u) {
         copy_by_planes(src_tensor, dst_tensor);
     } else {
