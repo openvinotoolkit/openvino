@@ -86,13 +86,19 @@ static void rearrange_cache(cldnn::memory::ptr kv_in_mem, cldnn::memory::ptr bt_
         for (size_t f = 0; f < kv_shape[1]; f++) {
             for (size_t y = 0; y < kv_shape[2]; y++) {
                 for (size_t x = 0; x < kv_shape[3]; x++) {
-                    auto out_idx = std::vector<int>{static_cast<int>(b), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
+                    auto out_idx = std::vector<ov::Dimension::value_type>{static_cast<ov::Dimension::value_type>(b),
+                                                                          static_cast<ov::Dimension::value_type>(f),
+                                                                          static_cast<ov::Dimension::value_type>(y),
+                                                                          static_cast<ov::Dimension::value_type>(x)};
 
                     size_t b_kv = bt_in_ptr[b * kv_shape[concat_axis] + out_idx[concat_axis]]; // bt_idx = b * total_seq_len + seq_len_idx
-                    auto in_idx = std::vector<int>{static_cast<int>(b_kv), static_cast<int>(f), static_cast<int>(y), static_cast<int>(x)};
+                    auto in_idx = std::vector<ov::Dimension::value_type>{static_cast<ov::Dimension::value_type>(b_kv),
+                                                                         static_cast<ov::Dimension::value_type>(f),
+                                                                         static_cast<ov::Dimension::value_type>(y),
+                                                                         static_cast<ov::Dimension::value_type>(x)};
 
-                    cldnn::tensor in(cldnn::format::bfyx, in_idx, 0);
-                    cldnn::tensor out(cldnn::format::bfyx, out_idx, 0);
+                    cldnn::tensor in(cldnn::format::bfyx, in_idx, static_cast<ov::Dimension::value_type>(0));
+                    cldnn::tensor out(cldnn::format::bfyx, out_idx, static_cast<ov::Dimension::value_type>(0));
 
                     size_t out_offset = kv_out_mem->get_layout().get_linear_offset(out);
                     size_t in_offset = kv_layout.get_linear_offset(in);
