@@ -168,8 +168,8 @@ protected:
         // Transform weights_layout according to input layout
         {
             ov::PartialShape new_weights_pshape;
-            std::vector<int32_t> lower_sizes;
-            std::vector<int32_t> upper_sizes;
+            std::vector<ov::Dimension::value_type> lower_sizes;
+            std::vector<ov::Dimension::value_type> upper_sizes;
 
             for (size_t i = 0; i < (prim_input_size - prim_weights_rank); i++) {
                 new_weights_pshape.push_back(1);
