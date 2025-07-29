@@ -58,9 +58,8 @@ ov::Tensor Const::eval() const {
     // Weightless import case. Mmmap CPU weight on demand to avoid allocating all weights at once.
     if (!m_weights_path.empty()) {
         auto mapped_memory = ov::load_mmap_object(m_weights_path);
-        m_mmaped_weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                                 mapped_memory->size(),
-                                                                                                 mapped_memory);
+        m_mmaped_weights =
+            std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
         return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
     }
 

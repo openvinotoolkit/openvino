@@ -89,7 +89,8 @@ public:
 };
 
 using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
-using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
+using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
+using WeightsPtr = std::shared_ptr<Weights>;
 
 struct CompiledContext {
     CompiledContext(bool _encrypted,
@@ -121,7 +122,7 @@ struct WeightsContext {
     WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
     // NOTE: This construtor can and should only be used when importing weightless blobs
-    WeightsContext(const ov::npuw::s11n::Weights& _weights,
+    WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
                    const std::string& _weights_path,
                    const ConstsCache& _consts_cache,
                    const BF16Cache& _bf16_consts);
@@ -135,7 +136,7 @@ struct WeightsContext {
 
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
-    ov::npuw::s11n::Weights weights = nullptr;
+    ov::npuw::s11n::WeightsPtr weights = nullptr;
     std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
