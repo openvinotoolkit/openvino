@@ -38,14 +38,20 @@ inline T rnd_up(const T a, const U b) {
 }
 
 template <typename T, typename... Args>
-constexpr bool one_of(T val, Args... items) {
-    static_assert(sizeof...(Args) > 0, "'one_of' requires at least one item to compare against.");
+constexpr bool any_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'any_of' requires at least one item to compare against.");
     return ((val == items) || ...);
 }
 
 template <typename T, typename... Args>
-constexpr bool everyone_is(T val, Args... items) {
-    static_assert(sizeof...(Args) > 0, "'everyone_is' requires at least one item to compare against.");
+constexpr bool none_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'none_of' requires at least one item to compare against.");
+    return !any_of(val, items...);
+}
+
+template <typename T, typename... Args>
+constexpr bool all_of(T val, Args... items) {
+    static_assert(sizeof...(Args) > 0, "'all_of' requires at least one item to compare against.");
     return ((val == items) && ...);
 }
 
@@ -193,6 +199,13 @@ inline bool any_of_values(const Container& container, const T& value) {
 template <typename Container, typename T>
 inline bool all_of_values(const Container& container, const T& value) {
     return std::all_of(container.begin(), container.end(), [&](const auto& elem) {
+        return elem == value;
+    });
+}
+
+template <typename T>
+inline bool contains(const std::vector<T>& v, const T& value) {
+    return std::any_of(v.begin(), v.end(), [&](const auto& elem) {
         return elem == value;
     });
 }

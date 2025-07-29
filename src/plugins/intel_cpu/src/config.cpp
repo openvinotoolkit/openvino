@@ -246,7 +246,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                     if (hasHardwareSupport(ov::element::f16)) {
                         inferencePrecision = ov::element::f16;
                     }
-                } else if (one_of(prec, element::f32, element::dynamic)) {
+                } else if (any_of(prec, element::f32, element::dynamic)) {
                     inferencePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -318,7 +318,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 kvCachePrecisionSetExplicitly = true;
                 const auto prec = val.as<ov::element::Type>();
-                if (one_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
+                if (any_of(prec, ov::element::f32, ov::element::f16, ov::element::bf16, ov::element::u8)) {
                     kvCachePrecision = prec;
                 } else {
                     OPENVINO_THROW("invalid value");
@@ -334,7 +334,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 keyCachePrecisionSetExplicitly = true;
                 const auto prec = val.as<ov::element::Type>();
-                if (one_of(prec,
+                if (any_of(prec,
                            ov::element::f32,
                            ov::element::f16,
                            ov::element::bf16,
@@ -355,7 +355,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 valueCachePrecisionSetExplicitly = true;
                 const auto prec = val.as<ov::element::Type>();
-                if (one_of(prec,
+                if (any_of(prec,
                            ov::element::f32,
                            ov::element::f16,
                            ov::element::bf16,
@@ -389,15 +389,15 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                key,
                                ". Expected only unsigned integer numbers");
             }
-        } else if (key == ov::intel_cpu::key_cache_quant_mode.name()) {
+        } else if (key == ov::internal::key_cache_quant_mode.name()) {
             try {
-                const auto mode = val.as<ov::intel_cpu::CacheQuantMode>();
-                if (mode == ov::intel_cpu::CacheQuantMode::AUTO) {
+                const auto mode = val.as<ov::internal::CacheQuantMode>();
+                if (mode == ov::internal::CacheQuantMode::AUTO) {
                     keyCacheQuantMode = CacheQuantMode::AUTO;
-                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_CHANNEL) {
+                } else if (mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                     keyCacheQuantMode = CacheQuantMode::BY_CHANNEL;
-                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_HIDDEN) {
-                    keyCacheQuantMode = CacheQuantMode::BY_HIDDEN;
+                } else if (mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+                    keyCacheQuantMode = CacheQuantMode::BY_TOKEN;
                 } else {
                     OPENVINO_THROW("invalid value");
                 }
@@ -405,18 +405,18 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
-                               ov::intel_cpu::key_cache_quant_mode.name(),
-                               ". Expected AUTO/BY_CHANNEL/BY_HIDDEN");
+                               ov::internal::key_cache_quant_mode.name(),
+                               ". Expected AUTO/BY_CHANNEL/BY_TOKEN");
             }
-        } else if (key == ov::intel_cpu::value_cache_quant_mode.name()) {
+        } else if (key == ov::internal::value_cache_quant_mode.name()) {
             try {
-                const auto mode = val.as<ov::intel_cpu::CacheQuantMode>();
-                if (mode == ov::intel_cpu::CacheQuantMode::AUTO) {
+                const auto mode = val.as<ov::internal::CacheQuantMode>();
+                if (mode == ov::internal::CacheQuantMode::AUTO) {
                     valueCacheQuantMode = CacheQuantMode::AUTO;
-                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_CHANNEL) {
+                } else if (mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
                     valueCacheQuantMode = CacheQuantMode::BY_CHANNEL;
-                } else if (mode == ov::intel_cpu::CacheQuantMode::BY_HIDDEN) {
-                    valueCacheQuantMode = CacheQuantMode::BY_HIDDEN;
+                } else if (mode == ov::internal::CacheQuantMode::BY_TOKEN) {
+                    valueCacheQuantMode = CacheQuantMode::BY_TOKEN;
                 } else {
                     OPENVINO_THROW("invalid value");
                 }
@@ -424,8 +424,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),
                                " for property key ",
-                               ov::intel_cpu::value_cache_quant_mode.name(),
-                               ". Expected AUTO/BY_CHANNEL/BY_HIDDEN");
+                               ov::internal::value_cache_quant_mode.name(),
+                               ". Expected AUTO/BY_CHANNEL/BY_TOKEN");
             }
         } else if (key == ov::intel_cpu::enable_tensor_parallel.name()) {
             try {
