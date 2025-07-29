@@ -5,6 +5,7 @@
 #include "logical.hpp"
 
 #include "internal_properties.hpp"
+#include "utils/general_utils.h"
 #include "common_test_utils/node_builders/logical.hpp"
 #include "openvino/op/logical_not.hpp"
 
@@ -90,9 +91,9 @@ std::string LogicalLayerCPUTest::getPrimitiveType(const utils::LogicalTypes& typ
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
-        if ((type == utils::LogicalTypes::LOGICAL_AND) ||
-            (type == utils::LogicalTypes::LOGICAL_XOR) ||
-            (type == utils::LogicalTypes::LOGICAL_NOT))
+        if (ov::intel_cpu::any_of(type, utils::LogicalTypes::LOGICAL_AND,
+                                        utils::LogicalTypes::LOGICAL_XOR,
+                                        utils::LogicalTypes::LOGICAL_NOT))
             return "jit";
     }
 #endif
@@ -166,7 +167,10 @@ const std::vector<utils::LogicalTypes>& logicalBinaryTypes() {
 
 const std::vector<bool>& enforceSnippets() {
     static const std::vector<bool> enforce = {
-        true, false
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_X86_64)
+        true,
+#endif
+        false
     };
 
     return enforce;
