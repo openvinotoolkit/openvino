@@ -31,10 +31,8 @@ public:
                  bool b_transposed = false,
                  ov::element::Type inType = ov::element::f32,
                  bool b_accumulate = false);
-    // execute all M
-    void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
     // execute by m_blk
-    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
+    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a

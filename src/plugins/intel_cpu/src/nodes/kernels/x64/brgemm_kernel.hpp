@@ -3,20 +3,22 @@
 //
 #pragma once
 
-#include <oneapi/dnnl/dnnl_common_types.h>
-
-#include <cpu/x64/brgemm/brgemm_types.hpp>
+#include <cpu/x64/amx_tile_configure.hpp>
+#include <cpu/x64/brgemm/brgemm.hpp>
 #include <cpu/x64/matmul/brgemm_matmul_copy_utils.hpp>
+#include <cpu/x64/matmul/brgemm_matmul_utils.hpp>
 #include <cstddef>
-#include <memory>
 #include <openvino/core/type/element_type.hpp>
 
 namespace ov::intel_cpu {
 
 class BrgemmKernel {
 public:
+    enum ScaleType : uint8_t { NONE, PER_CHANNEL, PER_TENSOR };
     // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
     // BF16 * BF16 -> FP32
+    // S8 * S8 -> S32
+    // S8 * S8 -> S32
     // lda is the leading dimension for A matrix
     // ldb is the leading dimension for B matrix
     // ldc is the leading dimension for C matrix
@@ -30,10 +32,20 @@ public:
                  bool b_transposed = false,
                  ov::element::Type inType = ov::element::bf16,
                  bool b_accumulate = false);
-    // execute all M
-    void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
+
+    virtual ~BrgemmKernel() = default;
+
     // execute by m_blk
-    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
+    // is_M_tail whether to exectue M body or M tail
+    // a pointer to matrix a
+    // b pointer to matrix b
+    // c pointer to matrix c
+    // d pointer to matrix d
+    // scale_b, pointer to scale_b if exists
+    // wsp, pointer to temp buffer used in brgemm kernel
+    // scratch_a, pointer to store temp a
+    virtual void
+    executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
@@ -50,17 +62,40 @@ public:
         return 4 * 1024;
     }
 
-private:
+protected:
+    // Advanced features are protected for derived class not for public usage
+    // Construct brgemm kernel for matmul (M, K) * (K, N)/(N, K)^T
+    // BF16 * BF16 -> FP32
+    // S8 * S8 -> S32
+    // lda is the leading dimension for A matrix
+    // ldb is the leading dimension for B matrix
+    // ldc is the leading dimension for C matrix
+    // b_transpose indicates wheter B matrix is transposed.
+    // post_scales
+    BrgemmKernel(size_t M,
+                 size_t N,
+                 size_t K,
+                 size_t lda,
+                 size_t ldb,
+                 size_t ldc,
+                 size_t ldd,
+                 bool b_transposed,
+                 ov::element::Type inType,
+                 ov::element::Type DType,
+                 ScaleType bScaleType,
+                 bool b_accumulate);
     size_t M = 0, M_blk = 0, M_tail = 0;
     size_t K = 0, K_blk = 0, K_tail = 0, N = 0, N_blk = 0, N_tail = 0;
-    size_t lda = 0, ldb = 0, ldc = 0;
+    size_t lda = 0, ldb = 0, ldc = 0, ldd = 0;
     bool b_transposed = false;
     size_t brgVnniFactor = 0;
     size_t packedBSize = 0;
     size_t packedASize = 0;
     ov::element::Type inType;
+    ov::element::Type DType;
     ov::element::Type weiType;
     ov::element::Type srcType;
+    ScaleType bScaleType = ScaleType::NONE;
     bool is_avx_f16_only = false;
     bool b_accumulate = false;
     static constexpr size_t MHA_BRGEMM_KERNELS_NUM = 8;
@@ -71,7 +106,7 @@ private:
         dnnl_data_type_t dt_in1 = dnnl_data_type_undef;
         char palette[64] = {};
         bool is_with_amx = false;
-        bool is_with_comp = false;
+        bool has_post_ops = false;
         bool transpose_a = false;
         bool transpose_b = false;
         float beta = 0.0f;
@@ -83,9 +118,8 @@ private:
     static size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
-    void init_brgemm(brgemmCtx& ctx,
-                     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
-                     bool use_amx) const;
+    void execute_without_scale(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
+    void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel, bool use_amx);
     // LDA, LDB is used for stride of target memory
     void init_brgemm_copy_a(std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_a_t>& brgCopyKernel,
                             size_t K,
@@ -112,7 +146,32 @@ private:
                            std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t>& brgKernel,
                            const void* pin0,
                            const void* pin1,
-                           void* pout,
-                           void* wsp);
+                           void* Cout,
+                           void* Dout,
+                           const float* bScale,
+                           void* wsp,
+                           bool doPostops);
+};
+
+class BrgemmKernelQuantized : public BrgemmKernel {
+public:
+    BrgemmKernelQuantized(size_t M,
+                          size_t N,
+                          size_t K,
+                          size_t lda,
+                          size_t ldb,
+                          size_t ldc,
+                          size_t ldd,
+                          bool b_transposed,
+                          ov::element::Type inType,
+                          ov::element::Type DType,
+                          ScaleType bScaleType,
+                          bool b_accumulate);
+
+    ~BrgemmKernelQuantized() override = default;
+
+    // execute by m_blk + scale
+    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a)
+        override;
 };
 }  // namespace ov::intel_cpu

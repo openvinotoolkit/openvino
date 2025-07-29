@@ -82,7 +82,7 @@ BrgemmKernel::BrgemmKernel(size_t M,
                         if (m) {
                             return M_tail;
                         }
-                        return M < M_blk ? 0 : M_blk;
+                        return this->M < M_blk ? 0 : M_blk;
                     }();
 
                     size_t N_ = [&]() {
@@ -106,9 +106,9 @@ BrgemmKernel::BrgemmKernel(size_t M,
                 brgemmCtx.M = M_;
                 brgemmCtx.N = N_;
                 brgemmCtx.K = K_;
-                brgemmCtx.LDA = k ? K_blk : lda;
+                brgemmCtx.LDA = k ? K_blk : this->lda;
                 brgemmCtx.LDB = b_transposed ? rnd_up(N, N_blk) : ldb;  // b_transposed needs copy
-                brgemmCtx.LDC = ldc;
+                brgemmCtx.LDC = this->ldc;
                 brgemmCtx.dt_in0 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
                 brgemmCtx.dt_in1 = static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(inType));
                 brgemmCtx.beta = beta;
@@ -305,7 +305,14 @@ void BrgemmKernel::copy_buffer_b(void* b, void* scratch_b) {
     }
 }
 
-void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a) {
+void BrgemmKernel::executeGemm(bool is_M_tail,
+                               void* a,
+                               void* b,
+                               void* c,
+                               [[maybe_unused]] void* d,
+                               [[maybe_unused]] float* scale_b,
+                               void* wsp,
+                               void* scratch_a) {
     auto* ptr_A = reinterpret_cast<uint8_t*>(a);
     auto* ptr_C = reinterpret_cast<uint8_t*>(c);
     auto* ptr_scartch_a = reinterpret_cast<uint8_t*>(scratch_a);
@@ -363,20 +370,6 @@ void BrgemmKernel::executeGemm(bool is_M_tail, void* a, void* b, void* c, void* 
     }
 }
 
-void BrgemmKernel::executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b) {
-    auto* ptr_A = reinterpret_cast<uint8_t*>(a);
-    auto* ptr_B = reinterpret_cast<uint8_t*>(b);
-    auto* ptr_C = reinterpret_cast<uint8_t*>(c);
-
-    copy_buffer_b(ptr_B, scratch_b);
-
-    for (size_t mb = 0; mb < div_up(M, M_blk); mb++) {
-        const bool is_M_tail = (M - mb * M_blk < M_blk);
-        auto* ptr_a = ptr_A + (mb * M_blk * lda) * inType.size();
-        auto* ptr_c = ptr_C + (mb * M_blk * ldc) * ov::element::f32.size();
-        executeGemm(is_M_tail, ptr_a, scratch_b, wsp, ptr_c, scratch_a);
-    }
-}
 void BrgemmKernel::callBrgemm([[maybe_unused]] brgemmCtx& ctx,
                               std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel,
                               const void* pin0,

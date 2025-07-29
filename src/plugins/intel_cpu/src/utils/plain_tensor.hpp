@@ -89,6 +89,11 @@ struct precision_of<uint8_t> {
 };
 
 template <>
+struct precision_of<int8_t> {
+    static constexpr ov::element::Type_t value = ov::element::Type_t::i8;
+};
+
+template <>
 struct precision_of<float16> {
     static constexpr ov::element::Type_t value = ov::element::Type_t::f16;
 };
