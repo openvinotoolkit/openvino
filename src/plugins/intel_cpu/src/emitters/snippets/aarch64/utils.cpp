@@ -52,6 +52,20 @@ Xbyak_aarch64::XReg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
     OV_CPU_JIT_EMITTER_THROW("Failed to allocate aux GPR");
 }
 
+std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count) {
+    std::vector<Xbyak_aarch64::XReg> aux_regs;
+    aux_regs.reserve(count);
+    std::vector<size_t> temp_used_indices = used_gpr_idxs;
+
+    for (size_t i = 0; i < count; i++) {
+        auto aux_reg = get_aux_gpr(temp_used_indices);
+        aux_regs.push_back(aux_reg);
+        temp_used_indices.push_back(aux_reg.getIdx());
+    }
+
+    return aux_regs;
+}
+
 Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
                                                const std::vector<size_t>& aux_gpr_idxs,
                                                std::set<snippets::Reg>& regs_to_spill) {
@@ -133,15 +147,6 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
                                      const std::vector<size_t>& buffer_ids,
                                      const std::vector<Xbyak_aarch64::XReg>& aux_regs,
                                      const std::vector<Xbyak_aarch64::XReg>& load_regs) {
-    // Safety assertions as suggested
-    OV_CPU_JIT_EMITTER_ASSERT(aux_regs.size() >= 3, "aux_regs must contain at least 3 registers");
-
-    // Assert that mem_ptrs do not overlap with aux_regs
-    for (const auto& ptr : mem_ptrs) {
-        for (const auto& aux_reg : aux_regs) {
-            OV_CPU_JIT_EMITTER_ASSERT(ptr.getIdx() != aux_reg.getIdx(), "mem_ptrs must not overlap with aux_regs");
-        }
-    }
     const size_t gpr_length = 8;     // 64-bit register length
     const size_t sp_alignment = 16;  // AArch64 stack alignment requirement
 

@@ -34,6 +34,14 @@ inline static std::vector<Xbyak_aarch64::XReg> transform_idxs_to_regs(const std:
 Xbyak_aarch64::XReg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs);
 
 /**
+ * @brief Find multiple available registers from the pool excepting: abi_param1, abi_param2, SP and `used_gpr_idxs`
+ * @param used_gpr_idxs current used gpr register indexes
+ * @param count number of auxiliary registers needed (default: 3)
+ * @return vector of registers
+ */
+std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count = 3);
+
+/**
  * @brief Returns an auxiliary GPR register. Returns a register from `aux_gpr_idxs`.
  * If it's empty, then choose a register that is not in `used_gpr_reg_idxs` and add it to `regs_to_spill`.
  * @param used_gpr_reg_idxs register indexes reserved to store memory pointers in this emitter
