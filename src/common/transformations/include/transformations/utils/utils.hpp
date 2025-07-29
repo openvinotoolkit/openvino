@@ -9,8 +9,8 @@
 #include <functional>
 #include <limits>
 #include <memory>
-#include <vector>
 #include <variant>
+#include <vector>
 
 #include "openvino/core/descriptor_tensor.hpp"
 #include "openvino/core/rt_info.hpp"
