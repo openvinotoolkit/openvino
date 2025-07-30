@@ -127,9 +127,9 @@ elseif(NOT TARGET arm_compute::arm_compute)
     endif()
 
     if(DEFINED intel_cpu_thirdparty_BINARY_DIR)
-        set(ARM_COMPUTE_BUILD_DIR "${intel_cpu_thirdparty_BINARY_DIR}/acl_build" CACHE PATH)
+        set(ARM_COMPUTE_BUILD_DIR "${intel_cpu_thirdparty_BINARY_DIR}/acl_build" CACHE PATH "Path to ARM Compute Library build directory")
     else()
-        set(ARM_COMPUTE_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/acl_build" CACHE PATH)
+        set(ARM_COMPUTE_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/acl_build" CACHE PATH "Path to ARM Compute Library build directory")
     endif()
     
     set(ARM_COMPUTE_OPTIONS
