@@ -25,7 +25,7 @@ public:
     }
 
     virtual void reset() override {
-        std::memset(m_state->data(), 0, m_state->get_byte_size());
+        OPENVINO_THROW("VariableState::reset() is not implemented");
     }
 
     ~VariableState() override = default;

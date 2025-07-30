@@ -213,6 +213,18 @@ constexpr std::size_t kStartOutputKVCacheLayers = 1;
 
 }  // anonymous namespace
 
+void ov::npuw::LLMInferRequest::init_lora_states() {
+    for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
+        auto input_name = input_port.get_any_name();
+        if (ov::npuw::matchLoRAMatMulAString(input_name) || ov::npuw::matchLoRAMatMulBString(input_name) ||
+            ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
+            auto input_tensor = m_prefill_request->get_tensor(input_port);
+            m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
+        }
+    }
+    std::cout << "Created " << m_variableStates.size() << " VariableStates for LoRA adapter" << std::endl;
+}
+
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
       m_npuw_llm_compiled_model(compiled_model) {
@@ -248,6 +260,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     for (const auto& output_port : m_kvcache_request->get_compiled_model()->outputs()) {
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
+
+    init_lora_states();
 
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
@@ -317,6 +331,27 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
     }
 }
 
+// Function to adjust the alpha values for LoRA (Low-Rank Adaptation) weights
+// This function modifies the alpha values to ensure that the LoRA result remains consistent
+// even when using dynamic rank with padding in the weights.
+//
+// Parameters:
+// - alpha_src_tensor: Source tensor containing the original alpha values.
+// - alpha_dst_tensor: Destination tensor where adjusted alpha values will be stored.
+// - max_rank: The maximum rank used for padding in LoRA weights.
+// - real_rank: The actual rank of the LoRA weights.
+//
+// LoRA Calculation Process:
+// - result_a = MatMul(X, Wa): Compute the matrix multiplication of input X and weights Wa to get result_a.
+// - val_1 = Divide(alpha, rank): Divide alpha by rank to obtain the scaling factor val_1.
+// - val_2 = Multiply(result_a, val_1): Multiply result_a by val_1 to get the scaled result val_2.
+// - result = MatMul(val_2, Wb): Compute the matrix multiplication of val_2 and weights Wb to get the final result.
+//
+// Dynamic Rank Adjustment:
+// - To support adapters with dynamic rank, LoRA weights use rank_max as the maximum rank with zero padding.
+// - Since val_1' = Divide(alpha, rank_max) is not equal to val_1, we adjust alpha to get identical results.
+// - Use adjusted alpha' = alpha * rank_max / rank, so val_1' = Divide(alpha', rank_max) equals val_1.
+// - This ensures the final LoRA result is consistent with the original calculation.
 void fill_lora_alpha(ov::SoPtr<ov::ITensor>& alpha_src_tensor,
                      ov::SoPtr<ov::ITensor>& alpha_dst_tensor,
                      uint32_t max_rank,
@@ -337,7 +372,7 @@ void fill_lora_alpha(ov::SoPtr<ov::ITensor>& alpha_src_tensor,
 void ov::npuw::LLMInferRequest::apply_lora() {
     uint32_t max_rank_size = m_npuw_llm_compiled_model->m_max_lora_rank;
 
-    for (auto state : m_npuw_llm_compiled_model->m_variableStates) {
+    for (auto state : m_variableStates) {
         auto state_name = state->get_name();
         auto state_tensor = state->get_state();
 
@@ -789,5 +824,5 @@ ov::SoPtr<ov::ITensor> ov::npuw::LLMInferRequest::get_tensor(const ov::Output<co
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::LLMInferRequest::query_state() const {
-    return m_npuw_llm_compiled_model->m_variableStates;
+    return m_variableStates;
 }
