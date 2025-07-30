@@ -102,7 +102,6 @@ Checks: >
   -readability-isolate-declaration,
   -readability-magic-numbers,
   -readability-suspicious-call-argument,
-  -readability-uppercase-literal-suffix,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
