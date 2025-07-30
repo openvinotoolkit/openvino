@@ -220,7 +220,7 @@ public:
                         ". ",
                         "Xbyak error code: ",
                         Xbyak::ConvertErrorToString(Xbyak::GetError()));
-        m_func = jit_cast<decltype(m_func)>(jit_ker());
+        m_func = jit_kernel_cast<decltype(m_func)>(jit_ker());
         return code;
     }
 

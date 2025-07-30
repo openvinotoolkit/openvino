@@ -53,7 +53,7 @@ struct jit_uni_permute_kernel_f32 : public jit_uni_permute_kernel, public jit_ge
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = jit_cast<decltype(ker_)>(jit_ker());
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

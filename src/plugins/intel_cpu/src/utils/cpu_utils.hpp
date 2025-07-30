@@ -21,8 +21,11 @@
 namespace ov::intel_cpu {
 
 // Helper function to safely cast JIT kernel bytecode to function pointers
+// Note: const_cast is unavoidable here because JIT compilers typically return const void*
+// to compiled bytecode, but function pointers cannot be const-qualified. This is a common
+// pattern in JIT compilation where the bytecode is immutable but needs to be executed.
 template <typename FuncPtr>
-FuncPtr jit_cast(const void* ptr) {
+FuncPtr jit_kernel_cast(const void* ptr) {
     return reinterpret_cast<FuncPtr>(const_cast<void*>(ptr));  // NOLINT(bugprone-casting-through-void)
 }
 

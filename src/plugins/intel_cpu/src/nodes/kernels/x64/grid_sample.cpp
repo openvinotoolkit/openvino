@@ -42,7 +42,7 @@ void GridSampleKernel<isa>::create_ker() {
     OPENVINO_ASSERT(code == dnnl::impl::status::success,
                     "Could not create GridSample kernel. Error code: ",
                     std::to_string(code));
-    ker_ = jit_cast<decltype(ker_)>(jit_ker());
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <x64::cpu_isa_t isa>

@@ -133,7 +133,7 @@ struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_ker
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = ov::intel_cpu::jit_cast<decltype(ker_)>(jit_ker());
+        ker_ = ov::intel_cpu::jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -256,7 +256,7 @@ struct jit_uni_normalize_kernel_f32 : public jit_uni_normalize_kernel, public ji
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = ov::intel_cpu::jit_cast<decltype(ker_)>(jit_ker());
+        ker_ = ov::intel_cpu::jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

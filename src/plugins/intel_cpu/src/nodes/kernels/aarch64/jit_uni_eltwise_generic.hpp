@@ -51,7 +51,7 @@ public:
 
     void create_ker() override {
         jit_generator::create_kernel();
-        ker_ = jit_cast<decltype(ker_)>(jit_ker());
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override;

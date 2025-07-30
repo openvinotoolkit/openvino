@@ -187,7 +187,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = jit_cast<decltype(ker_)>(jit_ker());
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1270,7 +1270,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = jit_cast<decltype(ker_)>(jit_ker());
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

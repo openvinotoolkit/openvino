@@ -191,7 +191,7 @@ public:
             static jit_convert_array converter(convert_vec<src_t, dst_t>);
             auto& generator = static_cast<jit_generator_t&>(converter);
             generator.create_kernel();
-            return jit_cast<fn_t>(generator.jit_ker());
+            return jit_kernel_cast<fn_t>(generator.jit_ker());
         }
         return nullptr;
     }

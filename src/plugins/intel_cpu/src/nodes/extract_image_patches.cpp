@@ -59,7 +59,7 @@ struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_k
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = jit_cast<decltype(ker_)>(jit_ker());
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

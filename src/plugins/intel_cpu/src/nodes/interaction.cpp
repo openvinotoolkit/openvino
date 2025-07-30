@@ -69,7 +69,7 @@ struct jit_move_scale_kernel : public jit_uni_move_scale_kernel, public jit_gene
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = jit_cast<decltype(ker_)>(jit_ker());
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
 private:

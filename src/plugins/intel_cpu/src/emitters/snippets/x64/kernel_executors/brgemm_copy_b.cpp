@@ -232,7 +232,7 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
 status_t BrgemmCopyBKernel::create_kernel() {
     const auto code = jit_generator_t::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
-    ker_ = jit_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
+    ker_ = jit_kernel_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;
 }
 
