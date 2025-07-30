@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(ExternalProject)
+
 if(ARM_COMPUTE_INCLUDE_DIR OR ARM_COMPUTE_LIB_DIR)
     set(ARM_COMPUTE_INCLUDE_DIR "" CACHE PATH "Path to ARM Compute Library headers" FORCE)
 
@@ -110,12 +112,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
     if(NOT SCONS)
         message(FATAL_ERROR "Scons tool is not found!")
     endif()
-
-    file(GLOB_RECURSE SOURCES
-        ${ARM_COMPUTE_SOURCE_DIR}/*.cpp
-        ${ARM_COMPUTE_SOURCE_DIR}/*.hpp
-        ${ARM_COMPUTE_SOURCE_DIR}/*.h
-    )
 
     set(extra_cxx_flags "${CMAKE_CXX_FLAGS} -Wno-undef")
     if(MSVC64)
@@ -230,15 +226,15 @@ elseif(NOT TARGET arm_compute::arm_compute)
         endif()
 
         if(ANDROID_NDK_REVISION LESS "23.0")
-            list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix="${ANDROID_TOOLCHAIN_PREFIX}")
+            list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix=${ANDROID_TOOLCHAIN_PREFIX})
         else()
             string(REGEX REPLACE "/bin/[^/]+-" "/bin/llvm-" ANDROID_TOOLCHAIN_PREFIX_FIXED "${ANDROID_TOOLCHAIN_PREFIX}")
             message(STATUS "SCONS: using ANDROID_TOOLCHAIN_PREFIX=${ANDROID_TOOLCHAIN_PREFIX_FIXED}")
-            list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix="${ANDROID_TOOLCHAIN_PREFIX_FIXED}")
+            list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix=${ANDROID_TOOLCHAIN_PREFIX_FIXED})
         endif()
 
         list(APPEND ARM_COMPUTE_OPTIONS
-            compiler_prefix="${ANDROID_TOOLCHAIN_ROOT}/bin/")
+            compiler_prefix=${ANDROID_TOOLCHAIN_ROOT}/bin/)
 
         set(extra_cc_flags "--target=${ANDROID_LLVM_TRIPLE}")
         set(extra_flags "${extra_flags} --gcc-toolchain=${ANDROID_TOOLCHAIN_ROOT}")
@@ -256,7 +252,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
         set(cmake_build_env
             CC=${c_compiler}
             CXX=${cxx_compiler})
-        list(APPEND ARM_COMPUTE_OPTIONS compiler_prefix="${compiler_prefix}/")
+        list(APPEND ARM_COMPUTE_OPTIONS compiler_prefix=${compiler_prefix}/)
     elseif(EMSCRIPTEN)
         set(cmake_build_env
             CC=emcc
@@ -275,7 +271,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
             -Wno-unused-but-set-variable")
 
         get_filename_component(toolchain_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
-        list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix="${toolchain_prefix}/")
+        list(APPEND ARM_COMPUTE_OPTIONS toolchain_prefix=${toolchain_prefix}/)
     elseif(APPLE)
         # we need to bypass this information in case of custom compiler is passed
         # to cmake call. Such compiler and compiler prefix need to be passed to scons
@@ -302,7 +298,7 @@ elseif(NOT TARGET arm_compute::arm_compute)
             set(extra_cxx_flags "${extra_cxx_flags} -Wno-error=return-stack-address")
         endif()
         get_filename_component(compiler_prefix "${CMAKE_CXX_COMPILER}" DIRECTORY)
-        list(APPEND ARM_COMPUTE_OPTIONS compiler_prefix="${compiler_prefix}/")
+        list(APPEND ARM_COMPUTE_OPTIONS compiler_prefix=${compiler_prefix}/)
 
         if(CMAKE_OSX_ARCHITECTURES)
             foreach(arch IN LISTS CMAKE_OSX_ARCHITECTURES)
@@ -357,41 +353,39 @@ elseif(NOT TARGET arm_compute::arm_compute)
     else()
         set(arm_compute build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a)
     endif()
-    set(arm_compute_full_path "${ARM_COMPUTE_BUILD_DIR}/${arm_compute}")
 
     list(APPEND ARM_COMPUTE_OPTIONS fixed_format_kernels=True)
 
-    add_custom_command(
-        OUTPUT
-            ${arm_compute_full_path}
-        COMMAND ${CMAKE_COMMAND} -E env ${cmake_build_env}
-            ${SCONS} ${ARM_COMPUTE_OPTIONS}
-                ${arm_compute}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${ARM_COMPUTE_BUILD_DIR}/${OV_CPU_ARM_TARGET_ARCH}
-        COMMAND ${CMAKE_COMMAND} -E copy ${ARM_COMPUTE_SOURCE_DIR}/${arm_compute} ${arm_compute_full_path}
-        COMMAND ${CMAKE_COMMAND} -E remove_directory ${ARM_COMPUTE_SOURCE_DIR}/build
-        WORKING_DIRECTORY ${ARM_COMPUTE_SOURCE_DIR}
-        COMMENT "Build Arm Compute Library"
-        DEPENDS ${SOURCES}
-                ${CMAKE_CURRENT_LIST_FILE}
-                ${ARM_COMPUTE_SOURCE_DIR}/SConscript
-                ${ARM_COMPUTE_SOURCE_DIR}/SConstruct)
-
-    # Compute Library uses cppthreads=1
-    # if one day will rely on TBB only, we can omit this dependency
+    # Find Threads - required by ACL
     find_package(Threads REQUIRED)
 
+    # Convert list to space-separated string for ExternalProject
+    string(REPLACE ";" " " ARM_COMPUTE_OPTIONS_STR "${ARM_COMPUTE_OPTIONS}")
+
+    # Use ExternalProject to build ACL
+    ExternalProject_Add(arm_compute_build
+        PREFIX ${ARM_COMPUTE_BUILD_DIR}
+        SOURCE_DIR ${ARM_COMPUTE_SOURCE_DIR}
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND ${CMAKE_COMMAND} -E env ${cmake_build_env}
+            ${SCONS} ${ARM_COMPUTE_OPTIONS}
+                ${arm_compute}
+        BUILD_IN_SOURCE 1
+        INSTALL_COMMAND ""
+        LOG_BUILD ON
+    )
+
+    # Get the full path to the built library
+    set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
+
     # Import targets
-
-    add_custom_target(arm_compute_static_libs DEPENDS ${arm_compute_full_path})
-
     add_library(arm_compute::arm_compute STATIC IMPORTED GLOBAL)
     set_target_properties(arm_compute::arm_compute PROPERTIES
         IMPORTED_LOCATION ${arm_compute_full_path}
         INTERFACE_INCLUDE_DIRECTORIES ${ARM_COMPUTE_SOURCE_DIR}
         INTERFACE_LINK_LIBRARIES Threads::Threads
         OSX_ARCHITECTURES arm64)
-    add_dependencies(arm_compute::arm_compute arm_compute_static_libs)
+    add_dependencies(arm_compute::arm_compute arm_compute_build)
 
     add_library(arm_compute::half INTERFACE IMPORTED GLOBAL)
     set_target_properties(arm_compute::half PROPERTIES

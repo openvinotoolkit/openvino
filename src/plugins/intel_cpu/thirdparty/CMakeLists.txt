@@ -29,20 +29,10 @@ function(ov_create_acl_version_file)
         set(ACL_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/acl_build")
     endif()
 
-    set(ACL_VERSION_FILE_PATH "${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
-    file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
-    # Create symlink in source directory where oneDNN expects it
+    # Create version file in ACL source build directory where oneDNN expects it
+    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
     file(MAKE_DIRECTORY "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core")
-    execute_process(
-            COMMAND ${CMAKE_COMMAND} -E create_symlink
-            "${ACL_BUILD_DIR}/${ACL_VERSION_FILE_PATH}"
-            "${ACL_ROOT_DIR}/build/${ACL_VERSION_FILE_PATH}"
-        RESULT_VARIABLE result
-    )
-    if(result)
-        # Fallback to copying if symlink fails (e.g., on Windows without admin rights)
-        file(COPY_FILE "${ACL_VERSION_FILE_PATH}" "${ACL_ROOT_DIR}/build/${ACL_VERSION_FILE_PATH}")
-    endif()
+    file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
 endfunction()
 
 function(ov_build_kleidiai_static)
