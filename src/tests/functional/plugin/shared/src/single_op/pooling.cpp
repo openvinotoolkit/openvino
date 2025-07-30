@@ -147,10 +147,6 @@ void MaxPoolingV8LayerTest::SetUp() {
 }
 
 std::string AvgPoolingV16LayerTest::getTestCaseName(const testing::TestParamInfo<avgPoolV16LayerTestParamsSet>& obj) {
-    avgPoolV16LayerTestParams basicParamsSet;
-    std::string targetDevice;
-    std::vector<InputShape> inputShapes;
-    ov::element::Type inPrc;
     const auto& [basicParamsSet, inPrc, inputShapes, targetDevice] = obj.param;
 
     const auto& [kernel, stride, dilations, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
@@ -173,6 +169,7 @@ std::string AvgPoolingV16LayerTest::getTestCaseName(const testing::TestParamInfo
     results << "AvgPoolV16_ExcludePad=" << excludePad << "_";
     results << "K" << ov::test::utils::vec2str(kernel) << "_";
     results << "S" << ov::test::utils::vec2str(stride) << "_";
+    results << "D" << ov::test::utils::vec2str(dilation) << "_";
     results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
     results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     results << "Rounding=" << roundingType << "_";
