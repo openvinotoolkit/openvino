@@ -944,7 +944,7 @@ TEST(type_prop, avg_pool_16_dilations_auto_padding_ceil_torch) {
 
     EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 9, 9}));
     EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1, 1}));
-    EXPECT_EQ(mp->get_pads_end(), (ov::Shape{0, 0}));
+    EXPECT_EQ(mp->get_pads_end(), (ov::Shape{1, 1}));
 }
 
 TEST(type_prop, avg_pool_16_dilations_explicit_padding_ceil_torch) {
@@ -996,7 +996,7 @@ TEST(type_prop, avg_pool_16_dilations_explicit_padding_ceil_torch_no_strides) {
                                                 rounding_mode,
                                                 auto_pad);
 
-    EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 10, 10}));
+    EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 9, 9}));
     EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1, 1}));
     EXPECT_EQ(mp->get_pads_end(), (ov::Shape{1, 1}));
 }
@@ -1016,7 +1016,7 @@ TEST(type_prop, avg_pool_16_dilations_2d_deduce_strided_2) {
                                                             ov::op::RoundingType::CEIL_TORCH);
 
     EXPECT_EQ(avg_pool->get_output_element_type(0), ov::element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (ov::Shape{64, 3, 46, 45}));
+    EXPECT_EQ(avg_pool->get_output_shape(0), (ov::Shape{64, 3, 42, 38}));
 
     EXPECT_EQ(avg_pool->get_strides(), (ov::Strides{2, 3}));
     EXPECT_EQ(avg_pool->get_kernel(), (ov::Shape{10, 20}));
@@ -1025,7 +1025,7 @@ TEST(type_prop, avg_pool_16_dilations_2d_deduce_strided_2) {
 }
 
 TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_mode_1) {
-    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
+    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 8}};
     const ov::Strides strides{2, 2};
     const ov::Strides dilations{2, 2};
     const ov::Shape pads_begin{1, 1};
@@ -1044,7 +1044,7 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_mode_1) {
                                                 exclude_pad,
                                                 rounding_mode);
     const auto expected_output_shape =
-        ov::PartialShape{ov::Dimension::dynamic(), 3, {4, ov::util::dim::inf_bound}, {4, 5}};
+        ov::PartialShape{ov::Dimension::dynamic(), 3, {3, ov::util::dim::inf_bound}, {4, 5}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
@@ -1073,7 +1073,7 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_torch_mode_1) {
 }
 
 TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_mode_2) {
-    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
+    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 18}};
     const ov::Strides strides{3, 3};
     const ov::Strides dilations{3, 3};
     const ov::Shape pads_begin{1, 1};
@@ -1092,12 +1092,12 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_mode_2) {
                                                 exclude_pad,
                                                 rounding_mode);
     const auto expected_output_shape =
-        ov::PartialShape{ov::Dimension::dynamic(), 3, {6, ov::util::dim::inf_bound}, {6, 7}};
+        ov::PartialShape{ov::Dimension::dynamic(), 3, {4, ov::util::dim::inf_bound}, {5, 6}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
 TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_torch_mode_2) {
-    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
+    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 18}};
     const ov::Strides strides{3, 3};
     const ov::Strides dilations{3, 3};
     const ov::Shape pads_begin{1, 1};
@@ -1116,7 +1116,7 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_torch_mode_2) {
                                                 exclude_pad,
                                                 rounding_mode);
     const auto expected_output_shape =
-        ov::PartialShape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 6}};
+        ov::PartialShape{ov::Dimension::dynamic(), 3, {4, ov::util::dim::inf_bound}, {5, 6}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
