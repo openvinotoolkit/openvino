@@ -44,7 +44,7 @@ function(ov_create_acl_version_file)
     )
     if(NOT result EQUAL 0)
         # Fallback to copying if symlink fails (e.g., on Windows without admin rights)
-        file(COPY_FILE "${ACL_VERSION_FILE_PATH}" "${ACL_VERSION_FILE_PATH_SRC}")
+        file(COPY_FILE "${ACL_VERSION_FILE_PATH}" "${ACL_ROOT_DIR}/build/${ACL_VERSION_FILE_PATH}")
     endif()
 endfunction()
 
