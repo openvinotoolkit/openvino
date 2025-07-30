@@ -55,7 +55,7 @@ public:
         VectorDims axesDims;
 
         bool equalDims = false;
-        size_t dataSize = 1lu;
+        size_t dataSize = 1LU;
         int ellipsisMaskCounter = 0;
         bool isStridedSliceOp = true;
         bool isSliceScatterOp = false;
@@ -101,7 +101,7 @@ private:
             VectorDims dstBlockedDims;
             VectorDims srcStrides;
             VectorDims dstStrides;
-            size_t nDimsForWork = 0lu;
+            size_t nDimsForWork = 0LU;
             bool isOptimized = false;
         };
 
@@ -117,11 +117,11 @@ private:
         StridedSliceParams params;
         VectorDims srcIndices;
         VectorDims dstIndices;
-        size_t nThreads = 0lu;
-        size_t workAmount = 0lu;
-        size_t lastDstDim = 0lu;
-        size_t srcShift = 0lu;
-        size_t m_threads_num = 0lu;
+        size_t nThreads = 0LU;
+        size_t workAmount = 0LU;
+        size_t lastDstDim = 0LU;
+        size_t srcShift = 0LU;
+        size_t m_threads_num = 0LU;
     };
     using executorPtr = std::shared_ptr<StridedSliceExecutor>;
     executorPtr execPtr = nullptr;

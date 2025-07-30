@@ -98,7 +98,7 @@ inline size_t getSpatialDimsNum(const Dim rank) {
 // w/hw/ncw/nchw/ncdhw to ncdhw
 inline VectorDims to5Dim(VectorDims casesDim) {
     size_t caseSize = casesDim.size();
-    VectorDims dim5(5, 1lu);
+    VectorDims dim5(5, 1LU);
     dim5[4] = casesDim[caseSize - 1];
     if (caseSize > 1) {
         dim5[3] = casesDim[caseSize - 2];
@@ -114,13 +114,13 @@ inline VectorDims to5Dim(VectorDims casesDim) {
     }
     if (caseSize == 3) {  // nhw -> ncw
         dim5[1] = dim5[3];
-        dim5[3] = 1lu;
+        dim5[3] = 1LU;
     }
     return dim5;
 }
 
 static inline float triangleCoeff(float x) {
-    return (std::max)(0.0f, 1 - std::abs(x));
+    return (std::max)(0.0F, 1 - std::abs(x));
 }
 
 class InterpolateExecutor {

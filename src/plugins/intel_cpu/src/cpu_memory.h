@@ -88,7 +88,7 @@ public:
 
 private:
     bool m_useExternalStorage = false;
-    size_t m_memUpperBound = 0ul;
+    size_t m_memUpperBound = 0UL;
     std::unique_ptr<void, void (*)(void*)> m_data;
     int numa_node;
 
@@ -378,7 +378,7 @@ public:
 
     private:
         bool m_use_external_storage = false;
-        size_t m_str_upper_bound = 0lu;
+        size_t m_str_upper_bound = 0LU;
         std::unique_ptr<OvString, void (*)(OvString*)> m_data;
 
         static void release(OvString* ptr) {}

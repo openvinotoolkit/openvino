@@ -52,7 +52,7 @@ public:
     void validate_and_infer_types() override;
 
 protected:
-    size_t m_offset = 0lu;
+    size_t m_offset = 0LU;
     uint32_t m_fill_value = 0x0;
 };
 

@@ -115,7 +115,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             0,
             std::vector<ExpressionPort>{(*fill.first)->get_input_port(0), (*accumulation.first)->get_input_port(1)},
             std::vector<ExpressionPort>{(*accumulation.first)->get_output_port(0)});
-        const auto tail_size = utils::is_dynamic_value(work_amount) ? 1lu : work_amount % increment;
+        const auto tail_size = utils::is_dynamic_value(work_amount) ? 1LU : work_amount % increment;
         if (tail_size != 0) {
             const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(reduce_loop_id);
             loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SetFillOffset>(tail_size);

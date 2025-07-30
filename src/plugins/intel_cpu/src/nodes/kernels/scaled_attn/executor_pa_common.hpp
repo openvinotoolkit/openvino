@@ -92,7 +92,7 @@ public:
             if (q_len == 1) {
                 attn_items.emplace_back(AttnWorkItem{0,     // batch_in_reorder
                                                      i,     // batch_in_seq
-                                                     1ull,  // q_len
+                                                     1ULL,  // q_len
                                                      // kv_len in blocks, used in the sort function
                                                      kv_len_in_block - 1});
             } else {

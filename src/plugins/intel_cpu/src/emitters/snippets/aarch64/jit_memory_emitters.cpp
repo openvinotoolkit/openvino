@@ -177,7 +177,7 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
                               src_prc.get_type_name(),
                               " and ",
                               dst_prc.get_type_name());
-    OV_CPU_JIT_EMITTER_ASSERT(any_of(src_prc.size(), 1u, 2u, 4u), "Unsupported element type: ", src_prc);
+    OV_CPU_JIT_EMITTER_ASSERT(any_of(src_prc.size(), 1U, 2U, 4U), "Unsupported element type: ", src_prc);
 
     byte_size = src_prc.size();
 

@@ -1098,7 +1098,9 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                     }
                 }
 
-                return !(hasSubsequentSum && hasSubsequentFQ);
+                const bool no_subsequent_sum = !hasSubsequentSum;
+                const bool no_subsequent_fq = !hasSubsequentFQ;
+                return no_subsequent_sum || no_subsequent_fq;
             };
 
             auto round = i == 0 ? doRounding() : true;

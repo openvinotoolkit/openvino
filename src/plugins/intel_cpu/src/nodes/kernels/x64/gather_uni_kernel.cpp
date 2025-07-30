@@ -1190,7 +1190,8 @@ bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
         // There are no enough registers for these cases.
         const bool isSmallDataType = (jcp.dataTypeSize == 1 || jcp.dataTypeSize == 2);
         const bool isAvx2WithBlockedAfterAxis = (afterAxisSize > 1 && isa == x64::avx2);
-        return !(isAvx2WithBlockedAfterAxis && isSmallDataType);
+        const bool incompatible_config = isAvx2WithBlockedAfterAxis && isSmallDataType;
+        return !incompatible_config;
     }
     return static_cast<bool>(jcp.dynamicShapes && afterAxisSize == 1);
 }
