@@ -22,51 +22,7 @@
 namespace ov::reference {
 namespace paged_attention_utils {
 
-//---------------------------------------------------------------------------
-// Context: Holds all parameters and computed dimensions in one place.
-//---------------------------------------------------------------------------
-struct PagedAttentionContext {
-    // Attention with cache inputs ptrs
-    const void* query;
-    const void* key;
-    const void* value;
-    void* key_cache;
-    void* value_cache;
-
-    // Sequencing related input ptrs
-    const int32_t* past_lens;
-    const int32_t* subsequence_begins;
-    int32_t* block_indices;
-    int32_t* block_indices_begins;
-    const void* alibi_slopes;
-
-    // Per-sequence block counter
-    std::vector<int32_t> sequence_block_count;
-
-    // Rotation parameters
-    const int32_t* rotated_block_indices;
-    const int32_t* rotation_deltas;
-    const void* rotation_trig_lut;
-
-    // Dimensions info
-    size_t batch_tokens;
-    size_t batch_sequence_count;
-    size_t num_heads;
-    size_t block_size;
-    size_t num_blocks;
-    size_t query_head_size;
-    size_t key_head_size;
-    size_t value_head_size;
-    size_t query_feature_size;
-    size_t key_feature_size;
-    size_t value_feature_size;
-    int32_t max_context_length;
-    int32_t sliding_window;
-    size_t num_rotated_blocks;
-    size_t rotation_lut_rows;
-    size_t rotation_deltas_dim;
-};
-
+// TODO Delete when redundant
 //---------------------------------------------------------------------------
 // Debug-print utilities
 //---------------------------------------------------------------------------
@@ -149,6 +105,51 @@ inline void debug_print_int_scalar(const int32_t& value, const std::string& name
 inline void debug_print_size_t_scalar(const size_t& value, const std::string& name) {
     std::cout << name << ": " << value << "\n\n";
 }
+
+//---------------------------------------------------------------------------
+// Context: Holds all parameters and computed dimensions in one place.
+//---------------------------------------------------------------------------
+struct PagedAttentionContext {
+    // Attention with cache inputs ptrs
+    const void* query;
+    const void* key;
+    const void* value;
+    void* key_cache;
+    void* value_cache;
+
+    // Sequencing related input ptrs
+    const int32_t* past_lens;
+    const int32_t* subsequence_begins;
+    int32_t* block_indices;
+    int32_t* block_indices_begins;
+    const void* alibi_slopes;
+
+    // Per-sequence block counter
+    std::vector<int32_t> sequence_block_count;
+
+    // Rotation parameters
+    const int32_t* rotated_block_indices;
+    const int32_t* rotation_deltas;
+    const void* rotation_trig_lut;
+
+    // Dimensions info
+    size_t batch_tokens;
+    size_t batch_sequence_count;
+    size_t num_heads;
+    size_t block_size;
+    size_t num_blocks;
+    size_t query_head_size;
+    size_t key_head_size;
+    size_t value_head_size;
+    size_t query_feature_size;
+    size_t key_feature_size;
+    size_t value_feature_size;
+    int32_t max_context_length;
+    int32_t sliding_window;
+    size_t num_rotated_blocks;
+    size_t rotation_lut_rows;
+    size_t rotation_deltas_dim;
+};
 
 //---------------------------------------------------------------------------
 // Basic vector math
