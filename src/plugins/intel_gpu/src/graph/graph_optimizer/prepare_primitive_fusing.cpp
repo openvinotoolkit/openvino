@@ -1302,7 +1302,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
-        // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise 
+        // Debug config DISABLE_POST_OPS_FUSION=11 to 13 specify enabling only one of fusions activation, quantize and eltwise
         program_helpers::do_for_types<activation, quantize, eltwise>(*node,
                 fuse_activation_f,
                 fuse_quantize_f,
