@@ -267,7 +267,7 @@ def prepare_example_inputs_and_model(inputs, input_params, model):
             inputs, input_params, model)
         return examples, ordered, wrapped, input_is_list
     if isinstance(inputs, list) and len(inputs) == 1 and isinstance(inputs[0], torch.Tensor):
-        if "typing.List" in str(input_params[input_signature[0]].annotation):
+        if "list" in str(input_params[input_signature[0]].annotation):
             inputs = inputs[0].unsqueeze(0)
             input_is_list = True
 
@@ -318,7 +318,7 @@ def process_individual_input(arg, arg_name):
         arg_name: The name of the input.
 
     Returns:
-        Tuple: (signature, param string, example entry, wrap flag).
+        tuple: (signature, param string, example entry, wrap flag).
     """
     sign = None
     param = None

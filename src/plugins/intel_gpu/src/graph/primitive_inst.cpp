@@ -378,11 +378,15 @@ void primitive_inst::update_shape() {
                 break;
             }
         }
+
         if (!subgraph_input_changed) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             unset_flag(ExecutionFlags::SHAPE_CHANGED);
             return;
         }
+
+        // If the input shape of root ShapeOf node has changed, update node's parameters as well.
+        set_flag(ExecutionFlags::SHAPE_CHANGED, subgraph_input_changed);
     }
 
     // Even though the predecessors' shapes are not changed, the output shape might be updated by the mem_dep
@@ -463,41 +467,6 @@ void primitive_inst::update_shape() {
 
     auto new_layouts = get_node().type()->calc_output_layouts(*_node, *_impl_params);
 
-    // WA: Skip dynamic quantization for the case where OneDNN has accuracy issue with post-op fusion
-    // This is a temporal workaround that should be removed in next release
-    if (get_node().is_type<dynamic_quantize>()) {
-        // if user instance is fully_connected, print user's input layouts
-        auto user = get_node().get_users().front();
-        if (user->is_type<fully_connected>()) {
-            auto fc_inst = _users[0];
-            auto fc_impl_params = fc_inst->get_impl_params();
-            for (auto& fd : fc_impl_params->fused_desc) {
-                if (!fd.has_outer_dep())
-                    continue;
-                const auto &layout_post_op = fc_inst->get_input_layout(fd.outer_dep_start_idx);
-                const auto &shape_post_op = layout_post_op.get_partial_shape();;
-                const auto &layout_input = _impl_params->get_input_layout(0);
-                const auto &shape_input = layout_input.get_partial_shape();
-
-                // If binary post-op is fused and its f-axis is broadcasted, skip dynamic quantization
-                if (shape_post_op.rank().is_static() && shape_post_op.rank().get_length() >= 3 &&
-                    shape_post_op[1].is_static() && shape_post_op[1].get_length() == 1 &&
-                    shape_input.rank().get_length() >= 3 &&
-                    shape_input[1].is_static() && shape_input[1].get_length() > 1 &&
-                    shape_input[0].is_static() && shape_input[0].get_length() > 1) {
-                    GPU_DEBUG_TRACE_DETAIL << fc_inst->id() << ": skip dynamic quantization because of unsupported broadcast - "
-                                    << layout_input.to_short_string() << ", " << layout_post_op.to_short_string() << std::endl;
-                    new_layouts[0] = _impl_params->get_input_layout(0);
-                    for (size_t i = 1; i < new_layouts.size(); i++) {
-                        auto output_shape = new_layouts[i].get_partial_shape();
-                        *output_shape.begin() = 0;
-                        new_layouts[i].set_partial_shape(output_shape);
-                    }
-                    break;
-                }
-            }
-        }
-    }
     for (size_t idx = 0; idx != new_layouts.size(); ++idx) {
         auto& new_layout = new_layouts[idx];
         if (!get_node().is_type<reshape>() || (!get_node().get_input_layout(0).data_padding.is_dynamic() && !get_node().can_be_optimized())) {
@@ -983,11 +952,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
             } else {
                 _outputs[i] = get_network().get_engine().reinterpret_buffer(*_outputs[i], actual_layouts[i]);
             }
-            // TODO: check need_reset_output_memory per output
-            if (need_reset_output_memory() && !can_be_optimized()) {
-                GPU_DEBUG_TRACE_DETAIL << id() << " : Need reset output memory considering user" << std::endl;
-                add_dep_event(_outputs[i]->fill(get_network().get_stream()));
-            }
             GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_buffer");
         } else {
             GPU_DEBUG_TRACE_DETAIL << id() << ": realloc output memory. " << std::endl;
@@ -1003,7 +967,7 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
                                           get_network_id(),
                                           get_network().is_internal(),
                                           i,
-                                          need_reset_output_memory(),
+                                          false /* reset */,
                                           is_output_buffer(this, true),
                                           output_memory_ptr(i).get(),
                                           true);
@@ -1183,7 +1147,12 @@ bool primitive_inst::use_async_compilation() {
         compile_gemm_impls |= _impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
     }
 
-    return (get_node().is_type<convolution>() || compile_fc_impls || compile_gemm_impls ||
+    bool compile_conv_impls = get_node().is_type<convolution>();
+    if (compile_conv_impls) {
+        compile_conv_impls = !_impls_factory->has(impl_types::onednn) && get_node().get_selected_impl() && !get_node().get_selected_impl()->is_onednn();
+    }
+
+    return (compile_conv_impls || compile_fc_impls || compile_gemm_impls ||
             (get_node().is_type<softmax>() && get_node().get_selected_impl() &&
              get_node().get_selected_impl()->get_kernel_name().find("softmax_gpu_ref") != std::string::npos));
 }
@@ -2046,6 +2015,27 @@ void primitive_inst::prepare_primitive() {
         if (out_of_order_queue || (_impl->is_cpu() && !can_be_optimized()) || (can_be_optimized() && needs_completion_event() && !is_output())) {
             for (auto& input : _exec_deps) {
                 add_dep_event(input->get_impl_params()->out_event);
+            }
+        }
+    }
+
+    // After all dependencies are configured, check if the current primitive instance requires its output memory to be reset (e.g., when its user
+    // is a convolution that requires zeroed-out data paddings)
+    if (is_dynamic() && need_reset_output_memory() && !can_be_optimized() && !get_node().is_type<input_layout>()) {
+        const auto& users = get_user_insts();
+        const auto skip_concat = users.size() == 1 && users.front()->get_node().is_type<concatenation>() && users.front()->get_node().is_runtime_skippable() &&
+                                 users.front()->_allocation_done_by_other;
+        const auto skip_reset = skip_concat;
+
+        if (!skip_reset) {
+            for (const auto& output : _outputs) {
+                if (output != nullptr) {
+                    GPU_DEBUG_TRACE_DETAIL << id() << " : Resetting output memory (" << output->buffer_ptr() << ")" << std::endl;
+                    // Use marker to ensure proper synchronization for both events and barriers
+                    auto dep_events = out_of_order_queue ? std::vector<event::ptr>{get_network().get_stream().enqueue_marker(_impl_params->dep_events)}
+                                                         : std::vector<event::ptr>{};
+                    add_dep_event(output->fill(get_network().get_stream(), dep_events));
+                }
             }
         }
     }

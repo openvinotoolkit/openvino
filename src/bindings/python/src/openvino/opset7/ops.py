@@ -4,7 +4,7 @@
 
 """Factory functions for all openvino ops."""
 from functools import partial
-from typing import Callable, Iterable, List, Optional, Set, Union
+from typing import Optional, Union
 
 import numpy as np
 from openvino import Node, Shape
@@ -39,7 +39,7 @@ _get_node_factory_opset7 = partial(_get_node_factory, "opset7")
 
 @nameable_op
 def einsum(
-    inputs: List[Node],
+    inputs: list[Node],
     equation: str,
     name: Optional[str] = None,
 ) -> Node:

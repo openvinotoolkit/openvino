@@ -261,7 +261,7 @@ Convolution::Convolution(const std::shared_ptr<ov::Node>& op, const GraphContext
     // Only apply this heuristic logic on FP32 IR. IC=1 ,OC=1 would disable brgconv on avx2.
     const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
                             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !context->isGraphQuantized();
-    useJitPlanar = ((IC == 1 && groupOC * groupNum == 1) && isAvx2FP32);
+    useJitPlanar = ((all_of(1U, IC, groupOC * groupNum)) && isAvx2FP32);
 }
 
 bool Convolution::canBeExecutedInInt8() const {
@@ -276,7 +276,7 @@ bool Convolution::canBeExecutedInInt8() const {
         weightsDataType = memory::data_type::s8;
     }
 
-    return one_of(inputDataType, memory::data_type::u8, memory::data_type::s8) &&
+    return any_of(inputDataType, memory::data_type::u8, memory::data_type::s8) &&
            weightsDataType == memory::data_type::s8;
 }
 
@@ -457,7 +457,7 @@ std::tuple<ov::element::Type, ov::element::Type> Convolution::getDstAndSumPrecis
                 return {ov::element::f32, ov::element::f32};
             }
 
-            if (one_of(dstType, ov::element::f32, ov::element::bf16, ov::element::f16)) {
+            if (any_of(dstType, ov::element::f32, ov::element::bf16, ov::element::f16)) {
                 return {dstType, dstType};
             }
 
@@ -565,8 +565,9 @@ static MemoryPtr memoryViewToVector(const std::vector<T>& vec, const dnnl::engin
 
 bool Convolution::canFuse(const NodePtr& node) const {
 #if defined(OV_CPU_WITH_ACL)
-    if (!fusedWith.empty())
+    if (!fusedWith.empty()) {
         return false;
+    }
 #endif
     return canFuseSimpleOperation(node);
 }

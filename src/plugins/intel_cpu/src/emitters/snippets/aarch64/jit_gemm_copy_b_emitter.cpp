@@ -4,6 +4,25 @@
 
 #include "jit_gemm_copy_b_emitter.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <unordered_set>
+#include <vector>
+
+#include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_utils.hpp"
@@ -24,9 +43,8 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(gemm_repack, "expects GemmCopyB node");
     const auto& child_gemms = ov::intel_cpu::aarch64::gemm_utils::repacking::get_gemm_exprs(expr);
     size_t n_blk_size = 0;
-    for (size_t i = 0; i < child_gemms.size(); i++) {
-        const auto& gemm_in1_subtensor =
-            ov::snippets::utils::get_projected_subtensor(child_gemms[i]->get_input_port(1));
+    for (const auto& child_gemm : child_gemms) {
+        const auto& gemm_in1_subtensor = ov::snippets::utils::get_projected_subtensor(child_gemm->get_input_port(1));
         const auto& current_block = *gemm_in1_subtensor.rbegin();
         if (current_block != snippets::utils::get_dynamic_value<size_t>() && current_block > n_blk_size) {
             n_blk_size = current_block;
@@ -38,7 +56,7 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
 }
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     // Note: Brgemm currently supports only fp32 on arm
     return {{element::f32}};
 }
@@ -75,7 +93,7 @@ const uintptr_t jit_gemm_copy_b_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor.get());
 }
 
-const uintptr_t jit_gemm_copy_b_emitter::get_execute_function_ptr() const {
+const uintptr_t jit_gemm_copy_b_emitter::get_execute_function_ptr() {
     return reinterpret_cast<const uintptr_t>(GemmCopyBKaiKernelExecutor::execute);
 }
 }  // namespace ov::intel_cpu::aarch64

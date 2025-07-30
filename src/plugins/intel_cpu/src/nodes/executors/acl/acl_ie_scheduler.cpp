@@ -4,9 +4,15 @@
 
 #include "acl_ie_scheduler.hpp"
 
+#include <arm_compute/core/CPP/CPPTypes.h>
+#include <arm_compute/core/ITensorPack.h>
+#include <arm_compute/runtime/IScheduler.h>
+
+#include <algorithm>
+#include <functional>
+#include <vector>
+
 #include "arm_compute/core/CPP/ICPPKernel.h"
-#include "arm_compute/core/Error.h"
-#include "arm_compute/core/Helpers.h"
 #include "openvino/core/parallel.hpp"
 #include "src/runtime/SchedulerUtils.h"
 
@@ -98,7 +104,7 @@ void ACLScheduler::schedule_op(ICPPKernel* kernel, const Hints& hints, const Win
 
 void ACLScheduler::run_workloads(std::vector<arm_compute::IScheduler::Workload>& workloads) {
     ov::parallel_for(workloads.size(), [&](int wid) {
-        workloads[wid]({wid, static_cast<int>(parallel_get_num_threads()), &cpu_info()});
+        workloads[wid]({wid, parallel_get_num_threads(), &cpu_info()});
     });
 }
 

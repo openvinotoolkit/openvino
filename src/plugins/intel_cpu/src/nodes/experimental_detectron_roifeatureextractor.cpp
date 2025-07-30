@@ -63,10 +63,12 @@ void pre_calc_for_bilinear_interpolate(const int height,
         for (int pw = 0; pw < pooled_width; pw++) {
             for (int iy = 0; iy < iy_upper; iy++) {
                 const T yy = roi_start_h + ph * bin_size_h +
-                             static_cast<T>(iy + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                             static_cast<T>(static_cast<T>(iy) + static_cast<T>(.5f)) * bin_size_h /
+                                 static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
                 for (int ix = 0; ix < ix_upper; ix++) {
                     const T xx = roi_start_w + pw * bin_size_w +
-                                 static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                                 static_cast<T>(static_cast<T>(ix) + static_cast<T>(.5f)) * bin_size_w /
+                                     static_cast<T>(roi_bin_grid_w);
 
                     T x = xx;
                     T y = yy;
@@ -302,9 +304,9 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
 
     const auto roiFeatureExtractor = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto& attr = roiFeatureExtractor->get_attrs();
-    output_dim_ = attr.output_size;
+    output_dim_ = static_cast<int>(attr.output_size);
     pyramid_scales_ = attr.pyramid_scales;
-    sampling_ratio_ = attr.sampling_ratio;
+    sampling_ratio_ = static_cast<int>(attr.sampling_ratio);
     aligned_ = attr.aligned;
     pooled_height_ = output_dim_;
     pooled_width_ = output_dim_;

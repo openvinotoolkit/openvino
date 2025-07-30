@@ -12,7 +12,7 @@ namespace ov::intel_cpu {
 
 class AclPoolingExecutor : public PoolingExecutor {
 public:
-    AclPoolingExecutor(const ExecutorContext::CPtr context);
+    AclPoolingExecutor(ExecutorContext::CPtr context);
 
     bool init(const PoolingAttrs& poolingAttrs,
               const std::vector<MemoryDescPtr>& srcDescs,
@@ -78,7 +78,7 @@ public:
             return false;
         }
 
-        if (dstDescs.size() == 2u && !one_of(dstDescs[1]->getPrecision(), ov::element::u32, ov::element::i32)) {
+        if (dstDescs.size() == 2u && none_of(dstDescs[1]->getPrecision(), ov::element::u32, ov::element::i32)) {
             DEBUG_LOG("AclPoolingExecutor supports U32 as indices precisions only. ",
                       "Passed indices precision: ",
                       dstDescs[1]->getPrecision());

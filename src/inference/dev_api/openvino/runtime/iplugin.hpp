@@ -165,7 +165,7 @@ public:
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
      *        and removes OpenVINO Runtime magic and plugin name
-     * @param model Reference to model output stream
+     * @param model Reference to model input stream
      * @param properties A ov::AnyMap of properties
      * @return An Compiled model
      */
@@ -175,7 +175,7 @@ public:
     /**
      * @brief Creates an compiled model from an previously exported model using plugin implementation
      *        and removes OpenVINO Runtime magic and plugin name
-     * @param model Reference to model output stream
+     * @param model Reference to model input stream
      * @param context A pointer to plugin context derived from RemoteContext class used to
      *        execute the network
      * @param properties A ov::AnyMap of properties
@@ -184,6 +184,28 @@ public:
     virtual std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const = 0;
+
+    /**
+     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     *        and removes OpenVINO Runtime magic and plugin name
+     * @param model Reference to ov::Tensor with exported model
+     * @param properties A ov::AnyMap of properties
+     * @return An Compiled model
+     */
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model, const ov::AnyMap& properties) const;
+
+    /**
+     * @brief Creates an compiled model from an previously exported model using plugin implementation
+     *        and removes OpenVINO Runtime magic and plugin name
+     * @param model Reference to ov::Tensor with exported model
+     * @param context A pointer to plugin context derived from RemoteContext class used to
+     *        execute the network
+     * @param properties A ov::AnyMap of properties
+     * @return An Compiled model
+     */
+    virtual std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties) const;
 
     /**
      * @brief Queries a plugin about supported layers in model

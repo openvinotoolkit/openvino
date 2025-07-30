@@ -4,10 +4,10 @@
 
 #include "brgemm_copy_b.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <common/utils.hpp>
@@ -61,11 +61,11 @@ BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const brgemm_utils::BrgemmConfi
       m_hash(compute_hash()) {}
 
 bool BrgemmCopyBKernelConfig::is_completed() const {
-    return !utils::one_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
+    return none_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
 }
 
 bool BrgemmCopyBKernelConfig::is_empty() const {
-    return everyone_is(0, m_N, m_N_blk, m_K, m_K_blk, m_copy_B_wei_stride, m_LDB);
+    return all_of(0, m_N, m_N_blk, m_K, m_K_blk, m_copy_B_wei_stride, m_LDB);
 }
 
 bool BrgemmCopyBKernelConfig::operator==(const BrgemmCopyBKernelConfig& rhs) const {
@@ -83,7 +83,7 @@ void BrgemmCopyBKernelConfig::update(dnnl_dim_t N,
                                      dnnl_dim_t LDB) {
     // If one of the dims is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (utils::one_of(0, N, K)) {
+    if (any_of(0, N, K)) {
         m_N = 0;
         m_N_blk = 0;
         m_K = 0;
@@ -203,10 +203,10 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
 #    undef PRINT
 #endif
 
-BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator(jit_name()), ker_(nullptr) {}
+BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator_t(jit_name()), ker_(nullptr) {}
 
 BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
-    : jit_generator(jit_name()),
+    : jit_generator_t(jit_name()),
       is_with_comp(conf.is_with_comp()),
       is_transpose(conf.is_transposed_B()),
       K(conf.get_K()),
@@ -229,7 +229,7 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
 }
 
 status_t BrgemmCopyBKernel::create_kernel() {
-    const auto code = jit_generator::create_kernel();
+    const auto code = jit_generator_t::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
     ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;
@@ -458,7 +458,6 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
 
     const auto LDB =
         brgemm_utils::repacking::compute_K_blocked_stride(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
-    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         dnnl_data_type_size(config.get_original_wei_dt());

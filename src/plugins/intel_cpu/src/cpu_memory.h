@@ -368,7 +368,7 @@ public:
 
     class StringMemoryBlock {
     public:
-        StringMemoryBlock() : m_data(nullptr, release){};
+        StringMemoryBlock() : m_data(nullptr, release) {};
         [[nodiscard]] OvString* getStringPtr() const noexcept;
         void setExtBuff(OvString* ptr, size_t size);
         [[nodiscard]] size_t getStrLen() const noexcept;

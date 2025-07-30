@@ -232,10 +232,11 @@ ov::SoPtr<ov::ICompiledModel> import_compiled_model(const ov::Plugin& plugin,
     if (auto blob_hint = config.find(ov::hint::compiled_blob.name()); blob_hint != config.end()) {
         try {
             auto compiled_blob = blob_hint->second.as<ov::Tensor>();
-            ov::SharedStreamBuffer buffer{reinterpret_cast<char*>(compiled_blob.data()), compiled_blob.get_byte_size()};
-            std::istream stream{&buffer};
-            compiled_model =
-                context ? plugin.import_model(stream, context, config) : plugin.import_model(stream, config);
+            auto _config = config;
+            _config.erase(ov::hint::compiled_blob.name());
+
+            compiled_model = context ? plugin.import_model(compiled_blob, context, _config)
+                                     : plugin.import_model(compiled_blob, _config);
         } catch (...) {
         }
     }
@@ -1516,13 +1517,16 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
             cacheContent.blobId,
             cacheContent.mmap_enabled && ov::util::contains(plugin.get_property(ov::internal::supported_properties),
                                                             ov::internal::caching_with_mmap),
-            [&](std::istream& networkStream, ov::Tensor& compiled_blob) {
+            [&](ov::Tensor& compiled_blob) {
                 OV_ITT_SCOPE(FIRST_INFERENCE,
                              ov::itt::domains::LoadTime,
                              "Core::load_model_from_cache::ReadStreamAndImport");
                 ov::CompiledBlobHeader header;
+                size_t compiled_blob_offset = 0;
                 try {
-                    networkStream >> header;
+                    header.read_from_buffer(static_cast<const char*>(compiled_blob.data()),
+                                            compiled_blob.get_byte_size(),
+                                            compiled_blob_offset);
                     if (header.get_file_info() != ov::ModelCache::calculate_file_info(cacheContent.modelPath)) {
                         // Original file is changed, don't use cache
                         OPENVINO_THROW("Original model file is changed");
@@ -1576,11 +1580,12 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                     }
                 }
 
-                if (compiled_blob) {
-                    update_config[ov::hint::compiled_blob.name()] = compiled_blob;
-                }
-                compiled_model = context ? plugin.import_model(networkStream, context, update_config)
-                                         : plugin.import_model(networkStream, update_config);
+                ov::Tensor compiled_blob_without_header{compiled_blob,
+                                                        {compiled_blob_offset},
+                                                        {compiled_blob.get_size()}};
+
+                compiled_model = context ? plugin.import_model(compiled_blob_without_header, context, update_config)
+                                         : plugin.import_model(compiled_blob_without_header, update_config);
             });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work

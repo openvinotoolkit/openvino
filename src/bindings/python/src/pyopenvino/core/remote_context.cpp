@@ -51,7 +51,7 @@ void regclass_RemoteContext(py::module m) {
            const ov::Shape& shape,
            const std::map<std::string, py::object>& properties) {
             auto _properties = Common::utils::properties_to_any_map(properties);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             return RemoteTensorWrapper(self.context.create_tensor(type, shape, _properties));
         },
         py::arg("type"),
@@ -79,7 +79,7 @@ void regclass_RemoteContext(py::module m) {
         [](RemoteContextWrapper& self, const ov::element::Type& type, const ov::Shape& shape) {
             return self.context.create_host_tensor(type, shape);
         },
-        py::call_guard<py::gil_scoped_release>(),
+        CallGuardConditionalGILRelease(),
         py::arg("type"),
         py::arg("shape"),
         R"(
@@ -132,7 +132,7 @@ void regclass_VAContext(py::module m) {
         [](VAContextWrapper& self, const size_t height, const size_t width, const uint32_t nv12_surface) {
             ov::RemoteTensor y_tensor, uv_tensor;
             {
-                py::gil_scoped_release release;
+                ConditionalGILScopedRelease release;
                 ov::AnyMap tensor_params = {
                     {ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::VA_SURFACE},
                     {ov::intel_gpu::dev_object_handle.name(), nv12_surface},
@@ -159,7 +159,7 @@ void regclass_VAContext(py::module m) {
             :param nv12_surface: NV12 `VASurfaceID` to create NV12 from.
             :type nv12_surface: int
             :return: A pair of remote tensors for each plane.
-            :rtype: Tuple[openvino.VASurfaceTensor, openvino.VASurfaceTensor]
+            :rtype: tuple[openvino.VASurfaceTensor, openvino.VASurfaceTensor]
         )");
 
     cls.def(
@@ -174,7 +174,7 @@ void regclass_VAContext(py::module m) {
                                  {ov::intel_gpu::va_plane.name(), plane}};
             return VASurfaceTensorWrapper(self.context.create_tensor(type, shape, params));
         },
-        py::call_guard<py::gil_scoped_release>(),
+        CallGuardConditionalGILRelease(),
         py::arg("type"),
         py::arg("shape"),
         py::arg("surface"),

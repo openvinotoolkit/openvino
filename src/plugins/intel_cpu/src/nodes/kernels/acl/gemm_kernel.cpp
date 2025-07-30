@@ -2,6 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "gemm_kernel.hpp"
+
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/Strides.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/core/utils/DataTypeUtils.h>
+#include <arm_compute/runtime/NEON/functions/NEGEMM.h>
+#include <arm_compute/runtime/Tensor.h>
+
+#include <cstddef>
+#include <memory>
+
+#include "nodes/executors/acl/acl_utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 #define THROW_ERROR(...) OPENVINO_THROW("ACL gemm executor Init Failure '", __VA_ARGS__)
 
 namespace ov::intel_cpu {
@@ -10,7 +27,7 @@ GemmKernel::GemmKernel(size_t M, size_t N, size_t K, bool b_transposed, ov::elem
       N(N),
       K(K),
       b_transposed(b_transposed) {
-    if (!one_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+    if (none_of(inType, ov::element::f32, ov::element::f16, ov::element::bf16)) {
         THROW_ERROR("brgemm kernel only supports bf16, f16 and f32");
     }
 
@@ -40,7 +57,7 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
                format,
                aStrides,
                size_t(0),
-               (size_t)(M * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
+               (M * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
 
     arm_compute::TensorShape bShape;
     if (b_transposed) {
@@ -53,7 +70,7 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
                format,
                bStrides,
                size_t(0),
-               (size_t)(K * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
+               (K * N * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
 
     aTensor.allocator()->init(aInfo);
     bTensor.allocator()->init(bInfo);
@@ -63,21 +80,21 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
         cTensor.allocator()->init(cInfo);
     }
 
-    if (outStrides != nullptr)
-        dstInfo.init(
-            shapeCast({M, K}),
-            format,
-            *outStrides,
-            size_t(0),
-            (size_t)(M * K * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
-    else
+    if (outStrides != nullptr) {
+        dstInfo.init(shapeCast({M, K}),
+                     format,
+                     *outStrides,
+                     size_t(0),
+                     (M * K * arm_compute::element_size_from_data_type(arm_compute::data_type_from_format(format))));
+    } else {
         dstInfo.init(shapeCast({M, K}), format);
+    }
 
     dstTensor.allocator()->init(dstInfo);
 
-    aTensor.allocator()->import_memory(reinterpret_cast<void*>(a));
-    bTensor.allocator()->import_memory(reinterpret_cast<void*>(b));
-    cTensor.allocator()->import_memory(reinterpret_cast<void*>(c));
+    aTensor.allocator()->import_memory(a);
+    bTensor.allocator()->import_memory(b);
+    cTensor.allocator()->import_memory(c);
 
     if (out == nullptr) {
         dstTensor.allocator()->allocate();
@@ -85,15 +102,17 @@ arm_compute::Status GemmKernel::executeGemm(void* a,
         dstTensor.allocator()->import_memory(out);
     }
 
-    if (b_transposed)
+    if (b_transposed) {
         aclGemmInfo.set_pretranspose_B(true);
+    }
 
     auto status = aclGemmKernel->validate(&aInfo, &bInfo, &cInfo, &dstInfo, 1.0, 0.0, aclGemmInfo);
 
-    if (c == nullptr)
+    if (c == nullptr) {
         aclGemmKernel->configure(&aTensor, &bTensor, nullptr, &dstTensor, alpha, beta, aclGemmInfo);
-    else
+    } else {
         aclGemmKernel->configure(&aTensor, &bTensor, &cTensor, &dstTensor, alpha, beta, aclGemmInfo);
+    }
     aclGemmKernel->run();
 
     return status;

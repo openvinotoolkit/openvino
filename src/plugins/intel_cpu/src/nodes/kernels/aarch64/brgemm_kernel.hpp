@@ -31,17 +31,15 @@ public:
                  bool b_transposed = false,
                  ov::element::Type inType = ov::element::f32,
                  bool b_accumulate = false);
-    // execute all M
-    void executeGemm(void* a, void* b, void* c, void* wsp, void* scratch_a, void* scratch_b);
     // execute by m_blk
-    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* wsp, void* scratch_a);
+    void executeGemm(bool is_M_tail, void* a, void* b, void* c, void* d, float* scale_b, void* wsp, void* scratch_a);
 
     void copy_buffer_b(void* b, void* scratch_b);
     // bytes needed to place scratch buffer a
     [[nodiscard]] size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
     [[nodiscard]] size_t get_scratch_b_size() const;
-    [[nodiscard]] const size_t get_wsp_size() const {
+    [[nodiscard]] static const size_t get_wsp_size() {
         return 4 * 1024;
     }
 
@@ -68,7 +66,7 @@ private:
     std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t> brgKernels[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_a_t> brgCopyAKernel;
     std::unique_ptr<dnnl::impl::cpu::aarch64::matmul::jit_brgemm_matmul_copy_b_t> brgCopyBKernel;
-    size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
+    static size_t getBrgIdx(size_t mIdx, size_t kIdx, size_t nIdx) {
         return mIdx * 4 + kIdx * 2 + nIdx;
     }
     static void init_brgemm(brgemmCtx& ctx, std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t>& brgKernel);
