@@ -492,7 +492,7 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const ov::PartialShape& partial_shape, const py::dict& variables_shapes) {
             const auto new_variable_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(partial_shape, new_variable_shapes);
         },
         py::arg("partial_shape"),
@@ -534,7 +534,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape);
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
@@ -576,7 +576,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::tuple& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape.cast<py::list>());
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
@@ -617,7 +617,7 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const std::string& partial_shape, const py::dict& variables_shapes) {
             const auto new_variables_shape = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(ov::PartialShape(partial_shape), new_variables_shape);
         },
         py::arg("partial_shape"),
@@ -665,7 +665,7 @@ void regclass_graph_Model(py::module m) {
                                         partial_shape_from_handle(item.second));
             }
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shapes, new_variables_shapes);
         },
         py::arg("partial_shapes"),
@@ -1121,7 +1121,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::remove_parameter,
               py::arg("parameter"),
               R"(
-            Delete Parameter node from the list of parameters. Method will not delete node from graph. 
+            Delete Parameter node from the list of parameters. Method will not delete node from graph.
             You need to replace Parameter with other operation manually.
 
             Attention: Indexing of parameters can be changed.
@@ -1190,7 +1190,7 @@ void regclass_graph_Model(py::module m) {
               py::arg("results"),
               R"(
                     Add new Result nodes to the list.
-                    
+
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param results: new Result nodes.
@@ -1212,7 +1212,7 @@ void regclass_graph_Model(py::module m) {
         py::arg("sinks"),
         R"(
             Add new sink nodes to the list.
-            
+
             Method doesn't validate graph, it should be done manually after all changes.
 
             :param sinks: new sink nodes.
@@ -1223,8 +1223,8 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::add_variables,
               py::arg("variables"),
               R"(
-                    Add new variables to the list. 
-                    
+                    Add new variables to the list.
+
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param variables: new variables to add.
@@ -1253,7 +1253,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_variable_by_id,
               R"(
                     Return a variable by specified variable_id.
-                    
+
                     :param variable_id: a variable id to get variable node.
                     :type variable_id: str
                     :return: a variable node.
@@ -1448,7 +1448,7 @@ void regclass_graph_Model(py::module m) {
         },
         R"(
         Returns a raw address of the Model object from C++.
-        
+
         Use this function in order to compare underlying C++ addresses instead of using `__eq__` in Python.
 
         :return: a raw address of the Model object.

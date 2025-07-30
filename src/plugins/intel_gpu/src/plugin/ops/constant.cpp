@@ -32,7 +32,7 @@
 namespace ov::intel_gpu {
 
 static cldnn::tensor getConstTensor(const ov::Shape constDims) {
-    std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
+    std::vector<ov::Dimension::value_type> shuffled_dims(constDims.size());
 
     // cldnn tensor c-tor expects constants be in a reversed order (x, y, z, w, u, v)
     for (size_t i = 0; i < constDims.size(); i++) {
@@ -77,7 +77,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
 
     if (props.needsBatchInterpretation) {
-        constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
+        constTensor.batch[0] = static_cast<ov::Dimension::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
 
@@ -213,7 +213,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             //       [N, M, 1] --> [1, N, M, 1]
             auto input_shape = outOp->get_input_partial_shape(0);
             if ((constDims.size() != 1 && constDims.size() < input_shape.size()) ||
-                (constDims.size() == 1 && input_shape.is_static() && static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
+                (constDims.size() == 1 && input_shape.is_static() && input_shape.size() > 1 &&
+                static_cast<int64_t>(constDims[0]) != input_shape[1].get_length())) {
                 // Reshape 'constDims' according to the numpy broadcasting rule.
                 ov::Shape slope_shape(input_shape.size(), 1);
                 for (size_t j = 1; j <= constDims.size(); j++)

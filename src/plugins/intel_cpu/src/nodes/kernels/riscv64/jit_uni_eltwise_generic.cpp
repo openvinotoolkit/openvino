@@ -15,7 +15,7 @@
 #include "cpu_types.h"
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
@@ -349,8 +349,8 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
                 vnclipu_wi(dst, src, 0);
             }
         };
-        vnclip(aux_vec(), dst_vec(), 0.5f, 2);
-        vnclip(dst_vec(), aux_vec(), 0.25f, 1);
+        vnclip(aux_vec(), dst_vec(), 0.5F, 2);
+        vnclip(dst_vec(), aux_vec(), 0.25F, 1);
 
         vse8_v(dst_vec(), dst_gpr());
         add(dst_gpr(), dst_gpr(), reg_bvlen);
@@ -389,7 +389,7 @@ Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::get_max_lmul(const ov::element::
 
     // aux vec is needed for intermediate conversion in load/store
     if (jep_.src_prc[input_count - 1].size() < exec_prc.size() || jep_.dst_prc.size() < exec_prc.size()) {
-        max_aux_vec_count = std::max(max_aux_vec_count, 1lu);
+        max_aux_vec_count = std::max(max_aux_vec_count, 1LU);
     }
 
     const auto needed_vec_count = input_count + output_count + max_aux_vec_count + 1;  // 1 - mask vec register
@@ -623,12 +623,12 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseElu, jit_elu_emitter),
               OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
-              OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
-              OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
               OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
+              OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
               OV_CASE(Algorithm::EltwiseLessEqual, jit_less_equal_emitter),
+              OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
               OV_CASE(Algorithm::EltwiseLogicalAnd, jit_logical_and_emitter),
               OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
               OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),

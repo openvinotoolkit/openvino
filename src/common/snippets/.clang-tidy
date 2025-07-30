@@ -27,7 +27,6 @@
 # -misc-const-correctness. No big reason to enforce
 # -misc-no-recursion. No big reason to enforce
 # -readability-identifier-length. A lot of code use short names for readability, i.e. 'B' for batch
-# -readability-uppercase-literal-suffix. 
 #
 ### Checks that are turned off but better be enabled later:
 # -bugprone-easily-swappable-parameters
@@ -102,7 +101,6 @@ Checks: >
   -readability-isolate-declaration,
   -readability-magic-numbers,
   -readability-suspicious-call-argument,
-  -readability-uppercase-literal-suffix,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
@@ -159,7 +157,7 @@ CheckOptions:
   - key: readability-simplify-boolean-expr.ChainedConditionalAssignment
     value: true
   - key: readability-simplify-boolean-expr.SimplifyDeMorgan
-    value: false
+    value: true
   - key: readability-simplify-boolean-expr.SimplifyDeMorganRelaxed
-    value: false
+    value: true
 ---
