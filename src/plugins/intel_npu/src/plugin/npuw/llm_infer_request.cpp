@@ -242,8 +242,9 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     // Unclear how it's related. Previously fill_tensor()
     // was in copy_kvcache() call. When it was removed, it broke the import accuracy.
     bool enable_cpu_wa = false;
-    for (const auto& kv_sub : m_npuw_llm_compiled_model->m_kvcache_compiled->m_compiled_submodels) {
-        if (*kv_sub.device_it == "CPU") {
+    const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
+    for (std::size_t idx = 0; idx < kvcache_compiled->m_compiled_submodels.size(); ++idx) {
+        if (kvcache_compiled->submodel_device(idx) == "CPU") {
             enable_cpu_wa = true;
             break;
         }
