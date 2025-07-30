@@ -115,7 +115,7 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
             0,
             std::vector<ExpressionPort>{(*fill.first)->get_input_port(0), (*accumulation.first)->get_input_port(1)},
             std::vector<ExpressionPort>{(*accumulation.first)->get_output_port(0)});
-        const auto tail_size = utils::is_dynamic_value(work_amount) ? 1lu : work_amount % increment;
+        const auto tail_size = utils::is_dynamic_value(work_amount) ? 1LU : work_amount % increment;
         if (tail_size != 0) {
             const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(reduce_loop_id);
             loop_info->register_pass_to_handler<SpecificLoopIterType::LAST_ITER, SetFillOffset>(tail_size);
@@ -124,11 +124,10 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
 
         // Transfer original ExpressionPorts
         replace_input_port_connectors({fill.first->get()->get_input_port(0)}, reduce_expr->get_input_port_connector(0));
-        replace_input_port_connectors(reduce_expr->get_output_port_connector(0)->get_consumers(),
-                                      horizon.first->get()->get_output_port_connector(0));
+        const auto reduce_consumers = reduce_expr->get_output_port_connector(0)->get_consumers();
+        replace_input_port_connectors(reduce_consumers, horizon.first->get()->get_output_port_connector(0));
 
         // Update input shapes of consumers
-        const auto reduce_consumers = horizon.first->get()->get_output_port_connector(0)->get_consumers();
         for (const auto& consumer : reduce_consumers) {
             consumer.get_expr()->updateShapes();
         }

@@ -63,7 +63,7 @@ public:
             return false;
         }
 
-        if (srcDescs.size() == 2u &&
+        if (srcDescs.size() == 2U &&
             (srcDescs[1]->getPrecision() != ov::element::f32 && srcDescs[0]->getPrecision() != ov::element::f32 &&
              dstDescs[0]->getPrecision() != ov::element::f32) &&
             (srcDescs[1]->getPrecision() != ov::element::f16 && srcDescs[0]->getPrecision() != ov::element::f16 &&
@@ -78,7 +78,7 @@ public:
             return false;
         }
 
-        if (dstDescs.size() == 2u && !one_of(dstDescs[1]->getPrecision(), ov::element::u32, ov::element::i32)) {
+        if (dstDescs.size() == 2U && none_of(dstDescs[1]->getPrecision(), ov::element::u32, ov::element::i32)) {
             DEBUG_LOG("AclPoolingExecutor supports U32 as indices precisions only. ",
                       "Passed indices precision: ",
                       dstDescs[1]->getPrecision());
@@ -95,7 +95,7 @@ public:
                           dstDescs[0]->serializeFormat());
                 return false;
             }
-            if (srcDescs.size() == 2u &&
+            if (srcDescs.size() == 2U &&
                 !(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
                   dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
                 !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && srcDescs[1]->hasLayoutType(LayoutType::nspc) &&

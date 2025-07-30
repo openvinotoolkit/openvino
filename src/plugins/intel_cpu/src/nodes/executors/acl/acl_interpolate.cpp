@@ -197,7 +197,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
 bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_cpu::InterpolateAttrs& interpolateAttrs,
                                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                                const std::vector<MemoryDescPtr>& dstDescs) const {
-    if (srcDescs[0]->getShape().getDims().size() != 4u) {
+    if (srcDescs[0]->getShape().getDims().size() != 4U) {
         DEBUG_LOG("ACL Interpolate does not support src shape rank: ", srcDescs[0]->getShape().getDims().size());
         return false;
     }
@@ -231,10 +231,10 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_c
     }
 
     if (interpolateAttrs.shapeCalcMode == InterpolateShapeCalcMode::scales &&
-        one_of(interpolateAttrs.coordTransMode,
+        any_of(interpolateAttrs.coordTransMode,
                InterpolateCoordTransMode::half_pixel,
                InterpolateCoordTransMode::asymmetric) &&
-        one_of(interpolateAttrs.mode, InterpolateMode::linear, InterpolateMode::linear_onnx)) {
+        any_of(interpolateAttrs.mode, InterpolateMode::linear, InterpolateMode::linear_onnx)) {
         DEBUG_LOG("ACL Interpolate does not support scales mode with linear/linear_onnx and half_pixel/asymmetric");
         return false;
     }

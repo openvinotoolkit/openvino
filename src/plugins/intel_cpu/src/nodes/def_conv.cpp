@@ -726,7 +726,7 @@ private:
 bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                  std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v1::DeformableConvolution::get_type_info_static(),
                     ov::op::v8::DeformableConvolution::get_type_info_static())) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
@@ -806,7 +806,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
     CPU_NODE_ASSERT(defConvNodeBase, "is not an instance of DeformableConvolutionBase.");
 
     defConvAttr.group = defConvNodeBase->get_group();
-    defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
+    defConvAttr.deformable_group = static_cast<int>(defConvNodeBase->get_deformable_group());
     const auto& strides = defConvNodeBase->get_strides();
     for (uint64_t stride : strides) {
         defConvAttr.stride.push_back(stride);
@@ -819,7 +819,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 
     defConvAttr.padL = defConvNodeBase->get_pads_begin();
 
-    autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
+    autoPadding = any_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
     if (op->get_type_info() == ov::op::v8::DeformableConvolution::get_type_info_static()) {
         auto defConvNode = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op);
@@ -831,8 +831,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 }
 
 void DeformableConvolution::getSupportedDescriptors() {
-    CPU_NODE_ASSERT(getParentEdges().size() == 3 || getParentEdges().size() == 4,
-                    "has incorrect number of input edges");
+    CPU_NODE_ASSERT(any_of(getParentEdges().size(), 3U, 4U), "has incorrect number of input edges");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
     CPU_NODE_ASSERT(getInputShapeAtPort(DATA_ID).getRank() == 4,
                     "has unsupported mode. Only 4D blobs are supported as input.");
@@ -873,7 +872,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     impl_desc_type impl_type = impl_desc_type::ref;
 
     const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
-    const bool hasUndefinedDims = weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM;
+    const bool hasUndefinedDims = any_of(Shape::UNDEFINED_DIM, weiDims[1], weiDims[0]);
     const bool isMultiGroup = defConvAttr.group != 1;
     enforceRef = hasUndefinedDims || isMultiGroup;
 
@@ -977,14 +976,15 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                                                    oh * offStrides[2] + ow * offStrides[3];
                 const float offset_h = data_offset_ptr[data_offset_h_index];
                 const float offset_w = data_offset_ptr[data_offset_w_index];
-                float map_h = h_in + kh * (KDH + 1) + offset_h;
-                float map_w = w_in + kw * (KDW + 1) + offset_w;
+                auto map_h = static_cast<float>(h_in + kh * (KDH + 1)) + offset_h;
+                auto map_w = static_cast<float>(w_in + kw * (KDW + 1)) + offset_w;
                 bool skip_compute = false;
                 if (with_bi_pad) {
                     skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
                                    static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;
                 } else {
-                    skip_compute = map_w < 0 || map_w >= IW || map_h < 0 || map_h >= IH;
+                    skip_compute = map_w < 0.0F || map_w >= static_cast<float>(IW) || map_h < 0.0F ||
+                                   map_h >= static_cast<float>(IH);
                 }
                 if (!skip_compute) {
                     // modulations precomp.
@@ -1005,8 +1005,8 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
                     int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
 
-                    float lh = map_h - h_low;
-                    float lw = map_w - w_low;
+                    float lh = map_h - static_cast<float>(h_low);
+                    float lw = map_w - static_cast<float>(w_low);
                     float hh = 1 - lh;
                     float hw = 1 - lw;
 
@@ -1051,14 +1051,14 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
     };
 
     parallel_nd(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
-        precompKer(mb, dg, oh, ow);
+        precompKer(static_cast<int>(mb), static_cast<int>(dg), static_cast<int>(oh), static_cast<int>(ow));
     });
 }
 
 DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const DefConvAttr& defConvAttr,
     const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector) {
-    OPENVINO_ASSERT(one_of(descVector.size(), 4U, 5U),
+    OPENVINO_ASSERT(any_of(descVector.size(), 4U, 5U),
                     "Deformable Convolution executor got incorrect desc's count (",
                     descVector.size(),
                     ")");
@@ -1231,7 +1231,11 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
 
     parallel_nd(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
         dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
-            compKer(g, mb, oc, oh, ow);
+            compKer(static_cast<int>(g),
+                    static_cast<int>(mb),
+                    static_cast<int>(oc),
+                    static_cast<int>(oh),
+                    static_cast<int>(ow));
     });
 }
 
