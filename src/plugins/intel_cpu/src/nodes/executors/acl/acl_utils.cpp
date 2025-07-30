@@ -37,7 +37,7 @@ arm_compute::ActivationLayerInfo getActivationLayerInfo(Algorithm algorithm,
     case Algorithm::EltwiseElu:
         return {arm_compute::ActivationLayerInfo::ActivationFunction::ELU, alpha};
     case Algorithm::EltwiseTanh:
-        return {arm_compute::ActivationLayerInfo::ActivationFunction::TANH, 1.f, 1.f};
+        return {arm_compute::ActivationLayerInfo::ActivationFunction::TANH, 1.F, 1.F};
     case Algorithm::EltwiseSigmoid:
         return arm_compute::ActivationLayerInfo::ActivationFunction::LOGISTIC;
     case Algorithm::EltwiseSqrt:

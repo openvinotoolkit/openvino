@@ -102,8 +102,8 @@ private:
      *       In MatMul scenario it might lead to perf degradation.
      */
     bool m_are_wei_blocked = false;
-    size_t m_wei_n_blk = 0lu;
-    size_t m_wei_k_blk = 0lu;
+    size_t m_wei_n_blk = 0LU;
+    size_t m_wei_k_blk = 0LU;
 };
 
 /// \brief Computes VNNI factor used by OneDNN implementation. Depends on tensor precision

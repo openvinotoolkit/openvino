@@ -24,7 +24,7 @@ bool ov::snippets::pass::ExtractConstants::run_on_subgraph(const std::shared_ptr
 
     for (auto& op : body->get_ops()) {
         auto constant = ov::as_type_ptr<ov::op::v0::Constant>(op);
-        if (!constant || ov::shape_size(constant->get_shape()) == 1ul) {
+        if (!constant || ov::shape_size(constant->get_shape()) == 1UL) {
             continue;
         }
 

@@ -163,7 +163,7 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
         }
 
         auto append_eltwise = [&brgemm](alg_kind_t alg_kind) {
-            brgemm->add_scalar_eltwise_postop(alg_kind, 0.f, 0.f);
+            brgemm->add_scalar_eltwise_postop(alg_kind, 0.F, 0.F);
         };
 
         if (pattern_map.count(m_round)) {
@@ -259,11 +259,11 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         };
 
         if (pattern_map.count(m_mul)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.f);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.F);
         } else if (pattern_map.count(m_add)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, scalar_value);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.F, scalar_value);
         } else if (pattern_map.count(m_sub)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, -scalar_value);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.F, -scalar_value);
         } else if (pattern_map.count(m_max)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_clip, scalar_value, std::numeric_limits<float>::max());
         } else if (pattern_map.count(m_min)) {

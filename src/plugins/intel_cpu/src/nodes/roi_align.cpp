@@ -1051,7 +1051,7 @@ void ROIAlign::executeSpecified() {
                     for (int xSampleInd = 0; xSampleInd < samplingRatioX; xSampleInd++) {
                         float sampleX = x1 + static_cast<float>(xBinInd) * binWidth +
                                         sampleDistanceX * (0.5F + static_cast<float>(xSampleInd));
-                        if (sampleX < -1.0f || sampleX > static_cast<float>(W) || sampleY < -1.0f ||
+                        if (sampleX < -1.0F || sampleX > static_cast<float>(W) || sampleY < -1.0F ||
                             sampleY > static_cast<float>(H)) {
                             // For this sample we save 4 index of (0,0) and 4 weight of 0
                             if (!isPlainFmt) {
@@ -1147,7 +1147,7 @@ void ROIAlign::executeSpecified() {
                 arg.weights = static_cast<const float*>(&weightsTbl[n][binOffset]);
                 arg.work_amount = C;
                 arg.num_samples = numSamplesROI;
-                float numSamplesInBinInvert = 1.0f / static_cast<float>(numSamplesROI);
+                float numSamplesInBinInvert = 1.0F / static_cast<float>(numSamplesROI);
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
                 auto* threadBuf = static_cast<float*>(
                     &workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
@@ -1178,7 +1178,7 @@ void ROIAlign::executeSpecified() {
                 // buffer with absolute index
                 arg.buffer = static_cast<void*>(&srcIndexTbl[n][paramOffset]);
                 arg.weights = static_cast<const float*>(&weightsTbl[n][paramOffset]);
-                float numSamplesInBinInvert = 1.0f / static_cast<float>(numSamplesROI);
+                float numSamplesInBinInvert = 1.0F / static_cast<float>(numSamplesROI);
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
                 arg.num_samples = numSamplesROI;
                 (*roi_align_kernel)(&arg);
@@ -1193,7 +1193,7 @@ void ROIAlign::executeSpecified() {
             size_t binOffset = yBinInd * pooledW + xBinInd;
             size_t binDstOffset = n * batchOutputStride + cIdx * binCount + binOffset;
             int paramOffset = binOffset * BLIParamsNum * numSamplesROI;
-            float numSamplesInBinInvert = 1.0f / static_cast<float>(numSamplesROI);
+            float numSamplesInBinInvert = 1.0F / static_cast<float>(numSamplesROI);
 
             float pooledValue = 0;
             for (auto binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {

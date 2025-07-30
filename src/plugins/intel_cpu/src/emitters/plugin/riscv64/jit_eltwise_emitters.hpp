@@ -75,8 +75,8 @@ private:
 
     void register_table_entries() override;
 
-    float min{0.f};
-    float max{0.f};
+    float min{0.F};
+    float max{0.F};
 };
 
 class jit_divide_emitter : public jit_emitter {
@@ -591,18 +591,18 @@ private:
     void register_table_entries() override;
 
     bool is_sqrt() const {
-        return power == 0.5f || power == -0.5f;
+        return power == 0.5F || power == -0.5F;
     }
     bool is_int_pow() const {
         return std::floor(power) == power && power != 0;
     }
     bool is_scale_shift() const {
-        return scale != 1.f || shift != 0.f;
+        return scale != 1.F || shift != 0.F;
     }
 
-    float power{1.f};
-    float scale{1.f};
-    float shift{0.f};
+    float power{1.F};
+    float scale{1.F};
+    float shift{0.F};
 };
 
 class jit_prelu_emitter : public jit_emitter {
@@ -651,7 +651,7 @@ private:
 
     void register_table_entries() override;
 
-    float alpha{0.f};
+    float alpha{0.F};
 };
 
 class jit_sigmoid_emitter : public jit_emitter {

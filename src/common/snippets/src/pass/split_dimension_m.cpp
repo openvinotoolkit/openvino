@@ -36,7 +36,7 @@
 
 namespace {
 bool is_prime_number(size_t value) {
-    if (ov::snippets::utils::any_of(value, 2lu, 3lu)) {
+    if (ov::snippets::utils::any_of(value, 2LU, 3LU)) {
         return true;
     }
     if (value == 1 || value % 2 == 0 || value % 3 == 0) {

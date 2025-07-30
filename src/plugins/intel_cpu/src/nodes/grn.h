@@ -29,7 +29,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    float bias = 1.0f;
+    float bias = 1.0F;
     int N = 1;
     int C = 1;
     int H = 1;

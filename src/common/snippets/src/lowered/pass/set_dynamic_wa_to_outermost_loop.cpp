@@ -57,7 +57,7 @@ bool SetDynamicWAToOuterMostLoop::run(LinearIR& linear_ir) {
     size_t i = 0;
     std::unordered_set<lowered::ExpressionPtr> visited;
     for (const auto& param : linear_ir_ptr->get_parameters()) {
-        if (unsqueezed_params.count(i++) != 0u) {
+        if (unsqueezed_params.count(i++) != 0U) {
             continue;
         }
         utils::visit_path(param, visited, add_affected_loop, false);

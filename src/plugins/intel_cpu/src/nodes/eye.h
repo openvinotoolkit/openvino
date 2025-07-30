@@ -20,10 +20,10 @@ namespace ov::intel_cpu::node {
 
 class Eye : public Node {
 public:
-    static constexpr size_t ROWS_NUM = 0lu;
-    static constexpr size_t COLS_NUM = 1lu;
-    static constexpr size_t DIAGONAL_INDEX = 2lu;
-    static constexpr size_t BATCH_SHAPE = 3lu;
+    static constexpr size_t ROWS_NUM = 0LU;
+    static constexpr size_t COLS_NUM = 1LU;
+    static constexpr size_t DIAGONAL_INDEX = 2LU;
+    static constexpr size_t BATCH_SHAPE = 3LU;
 
     Eye(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 

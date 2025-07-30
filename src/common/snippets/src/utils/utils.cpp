@@ -94,15 +94,15 @@ auto get_non_scalar_constant_count_for_fq(const std::shared_ptr<ov::op::v0::Fake
                                                  std::all_of(osc.cbegin(),
                                                              osc.cend(),
                                                              [](float val) {
-                                                                 return val == 1.f;
+                                                                 return val == 1.F;
                                                              }) &&
                                                  std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-                                                     return val == 0.f;
+                                                     return val == 0.F;
                                                  }));
-    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1lu;
-    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1lu;
-    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1lu;
-    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1lu;
+    const bool il = ov::shape_size(fq->input(1).get_shape()) != 1LU;
+    const bool ih = ov::shape_size(fq->input(2).get_shape()) != 1LU;
+    const bool ol = !only_quantized && ov::shape_size(fq->input(3).get_shape()) != 1LU;
+    const bool oh = !only_quantized && ov::shape_size(fq->input(4).get_shape()) != 1LU;
 
     // FakeQuantize decompoisition has the folowwing formula:
     //      round(x * (levels-1) / (ih - il) - il * (levels-1) / (ih - il)) * (oh - ol) / (levels-1) + ol

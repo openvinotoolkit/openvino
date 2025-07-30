@@ -1089,7 +1089,7 @@ struct MHAHelper {
                 } else {
                     // alibi may available when _sliding_window is false
                     float* alibi_lookup = nullptr;
-                    float alibi_slope = 0.f;
+                    float alibi_slope = 0.F;
                     if (alibi_slopes) {
                         alibi_slope = alibi_slopes.ptr<float>()[h];
                         alibi_lookup = _alibi_lookup.ptr<float>() + _alibi_lookup.m_dims[0] - ncausal;

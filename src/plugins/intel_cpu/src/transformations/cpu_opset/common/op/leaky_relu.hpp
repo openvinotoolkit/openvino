@@ -38,7 +38,7 @@ public:
     }
 
 private:
-    float m_negative_slope = 0.f;
+    float m_negative_slope = 0.F;
     ov::element::Type m_output_type;
 };
 

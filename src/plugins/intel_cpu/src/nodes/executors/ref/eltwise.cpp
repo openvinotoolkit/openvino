@@ -262,7 +262,7 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
             static_cast<dnnl_alg_kind_t>(this->m_opData.onednnAlgorithm),
             this->m_opData.alpha,
             this->m_opData.beta,
-            1.0f);
+            1.0F);
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {

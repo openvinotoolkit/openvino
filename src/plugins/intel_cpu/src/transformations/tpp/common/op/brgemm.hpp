@@ -60,7 +60,7 @@ public:
     }
 
 private:
-    float m_beta = 0.f;
+    float m_beta = 0.F;
 };
 
 }  // namespace ov::intel_cpu::tpp::op

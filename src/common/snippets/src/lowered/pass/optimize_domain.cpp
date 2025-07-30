@@ -29,7 +29,7 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
                                 const size_t min_parallel_work_amount,
                                 const size_t min_jit_work_amount) {
     if (master_shape.size() <= 2) {
-        return 0u;
+        return 0U;
     }
 
     auto CollapseLastDim = [](VectorDims& dims) {

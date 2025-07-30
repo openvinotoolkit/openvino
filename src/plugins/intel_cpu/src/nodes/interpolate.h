@@ -77,8 +77,8 @@ public:
     static constexpr size_t SIZE_OR_SCALE_ID_V11 = 1;
     static constexpr size_t AXES_ID_V11 = 2;
     static constexpr int CUBIC_GRID_LEN = 4;
-    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0f;
-    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0f;
+    static constexpr float PILLOW_BILINEAR_WINDOW_SCALE = 1.0F;
+    static constexpr float PILLOW_BICUBIC_WINDOW_SCALE = 2.0F;
 
     Interpolate(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
@@ -172,7 +172,7 @@ private:
         int spatialDimSize;
         std::vector<int> auxTable;
         std::vector<uint8_t> pillow_working_buf;
-        size_t m_threads_num = 0lu;
+        size_t m_threads_num = 0LU;
     };
     std::shared_ptr<InterpolateExecutorBase> execPtr = nullptr;
 

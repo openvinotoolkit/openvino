@@ -37,11 +37,11 @@ public:
         PortDescriptor(size_t count, size_t offset) : count(count), offset(offset) {}
         PortDescriptor() = default;
         // TODO: should we deprecate count in favor of subtensors, ticket: 130004
-        size_t count = 0lu;
-        size_t offset = 0lu;
+        size_t count = 0LU;
+        size_t offset = 0LU;
         // Note: stride is interpreted as leading dimension for 2D subtensor ops
-        size_t stride = 0lu;
-        size_t index = 0lu;
+        size_t stride = 0LU;
+        size_t index = 0LU;
 
     private:
         PortDescriptor(size_t count, size_t offset, size_t stride, size_t index)

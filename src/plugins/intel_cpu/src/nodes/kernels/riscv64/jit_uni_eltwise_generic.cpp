@@ -349,8 +349,8 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak_riscv::Reg& gpr_work
                 vnclipu_wi(dst, src, 0);
             }
         };
-        vnclip(aux_vec(), dst_vec(), 0.5f, 2);
-        vnclip(dst_vec(), aux_vec(), 0.25f, 1);
+        vnclip(aux_vec(), dst_vec(), 0.5F, 2);
+        vnclip(dst_vec(), aux_vec(), 0.25F, 1);
 
         vse8_v(dst_vec(), dst_gpr());
         add(dst_gpr(), dst_gpr(), reg_bvlen);
@@ -389,7 +389,7 @@ Xbyak_riscv::LMUL jit_uni_eltwise_generic<isa>::get_max_lmul(const ov::element::
 
     // aux vec is needed for intermediate conversion in load/store
     if (jep_.src_prc[input_count - 1].size() < exec_prc.size() || jep_.dst_prc.size() < exec_prc.size()) {
-        max_aux_vec_count = std::max(max_aux_vec_count, 1lu);
+        max_aux_vec_count = std::max(max_aux_vec_count, 1LU);
     }
 
     const auto needed_vec_count = input_count + output_count + max_aux_vec_count + 1;  // 1 - mask vec register

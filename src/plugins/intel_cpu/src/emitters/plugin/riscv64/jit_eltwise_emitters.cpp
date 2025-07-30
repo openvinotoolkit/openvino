@@ -34,7 +34,7 @@ namespace ov::intel_cpu::riscv64 {
 
 using namespace Xbyak_riscv;
 
-#define CONST_1_F 0x3f800000  // 1.f
+#define CONST_1_F 0x3f800000  // 1.F
 
 /// ABS ///
 jit_abs_emitter::jit_abs_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
@@ -1658,7 +1658,7 @@ jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator_t* host
     if (const auto leaky_relu = ov::as_type_ptr<LeakyReluNode>(node)) {
         alpha = leaky_relu->get_slope();
     } else if (ov::is_type<ov::op::v0::Relu>(node)) {
-        alpha = 0.f;
+        alpha = 0.F;
     } else {
         OPENVINO_THROW("Incompatible node!");
     }
@@ -1875,11 +1875,11 @@ std::set<std::vector<element::Type>> jit_power_static_emitter::get_supported_pre
 }
 
 void jit_power_static_emitter::register_table_entries() {
-    if (scale != 1.f || shift != 0.f) {
+    if (scale != 1.F || shift != 0.F) {
         push_arg_entry_of("scale", dnnl::impl::float2int(scale));
         push_arg_entry_of("shift", dnnl::impl::float2int(shift));
     }
-    if (power != 1.f) {
+    if (power != 1.F) {
         push_arg_entry_of("power", dnnl::impl::float2int(power));
     }
     if (power < 0) {
@@ -1921,7 +1921,7 @@ size_t jit_sigmoid_emitter::aux_vecs_count() const {
 
 size_t jit_sigmoid_emitter::aux_fp_gprs_count() const {
     OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
-    return std::max(jit_exp_emitter_->aux_fp_gprs_count(), 1lu);
+    return std::max(jit_exp_emitter_->aux_fp_gprs_count(), 1LU);
 }
 
 void jit_sigmoid_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,

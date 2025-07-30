@@ -40,8 +40,8 @@ private:
     void getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
     [[nodiscard]] int32_t getNumSegments() const;
 
-    static constexpr size_t SEGMENT_ID_IDX = 2lu;
-    static constexpr size_t NUM_SEGMENTS_IDX = 3lu;
+    static constexpr size_t SEGMENT_ID_IDX = 2LU;
+    static constexpr size_t NUM_SEGMENTS_IDX = 3LU;
 
     int32_t lastNumSegments_ = 0;
 
