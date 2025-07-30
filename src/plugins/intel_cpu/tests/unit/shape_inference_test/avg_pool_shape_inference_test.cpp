@@ -136,7 +136,7 @@ REGISTER_TYPED_TEST_SUITE_P(AvgPoolCommonStaticShapeInferenceTest,
                             auto_padding_same_upper_round_floor_exclude_pad,
                             auto_padding_same_upper_round_floor);
 
-using AvgPoolOpTypes = Types<ov::op::v1::AvgPool, ov::op::v14::AvgPool>;
+using AvgPoolOpTypes = Types<ov::op::v1::AvgPool, ov::op::v14::AvgPool, ov::op::v16::AvgPool>;
 INSTANTIATE_TYPED_TEST_SUITE_P(StaticShapeInferenceTest, AvgPoolCommonStaticShapeInferenceTest, AvgPoolOpTypes);
 
 class AvgPoolV14StaticShapeInferenceTest : public OpStaticShapeInferenceTest<ov::op::v14::AvgPool> {};

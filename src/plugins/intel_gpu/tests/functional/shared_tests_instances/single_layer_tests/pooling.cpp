@@ -9,6 +9,7 @@
 namespace {
 using ov::test::PoolingLayerTest;
 using ov::test::MaxPoolingV8LayerTest;
+using ov::test::AvgPoolingV16LayerTest;
 
 const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32,
@@ -124,6 +125,47 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTe
                                 ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeSmall)),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         PoolingLayerTest::getTestCaseName);
+
+////* ========== Avg Pooling V16 ========== */
+/* +========== Explicit Pad Ceil Rounding ========== */
+const auto avgPoolV16ExplicitPadCeilRoundingParams = ::testing::Combine(
+        ::testing::ValuesIn(kernels),
+        // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at axis 3" thrown in the test body.
+        ::testing::Values(std::vector<size_t>({1, 1})),
+        ::testing::ValuesIn(dilations),
+        ::testing::ValuesIn(padBegins),
+        ::testing::ValuesIn(padEnds),
+        ::testing::Values(ov::op::RoundingType::CEIL),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
+        ::testing::Values(true, false)
+);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV16_ExplicitPad_CeilRounding, AvgPoolingV16LayerTest,
+                       ::testing::Combine(avgPoolV16ExplicitPadCeilRoundingParams,
+                               ::testing::ValuesIn(netPrecisions),
+                               ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeSmall)),
+                               ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                       AvgPoolingV16LayerTest::getTestCaseName);
+
+/* +========== Explicit Pad Floor Rounding ========== */
+const auto avgPoolV16ExplicitPadFloorRoundingParams = ::testing::Combine(
+        ::testing::ValuesIn(kernels),
+        ::testing::ValuesIn(strides),
+        ::testing::ValuesIn(dilations),
+        ::testing::ValuesIn(padBegins),
+        ::testing::ValuesIn(padEnds),
+        ::testing::Values(ov::op::RoundingType::FLOOR),
+        ::testing::Values(ov::op::PadType::EXPLICIT),
+        ::testing::Values(true, false)
+);
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool16_ExplicitPad_FloorRounding, AvgPoolingV16LayerTest,
+                        ::testing::Combine(avgPoolV16ExplicitPadFloorRoundingParams,
+                                ::testing::ValuesIn(netPrecisions),
+                                ::testing::Values(ov::test::static_shapes_to_test_representation(inputShapeSmall)),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        AvgPoolingV16LayerTest::getTestCaseName);
 
 ////* ========== Avg and Max Pooling Cases ========== */
 /*    ========== Valid Pad Rounding Not Applicable ========== */

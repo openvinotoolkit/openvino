@@ -4,11 +4,11 @@
 
 #include "shared_test_classes/single_op/pooling.hpp"
 
-#include "openvino/op/parameter.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/result.hpp"
 #include "openvino/op/avg_pool.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 
 namespace ov {
 namespace test {
@@ -33,13 +33,13 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
         result << "}_";
     }
     switch (pool_type) {
-        case PoolingTypes::MAX:
-            result << "MaxPool_";
-            break;
-        case PoolingTypes::AVG:
-            result << "AvgPool_";
-            result << "ExcludePad=" << excludePad << "_";
-            break;
+    case PoolingTypes::MAX:
+        result << "MaxPool_";
+        break;
+    case PoolingTypes::AVG:
+        result << "AvgPool_";
+        result << "ExcludePad=" << excludePad << "_";
+        break;
     }
     result << "K" << ov::test::utils::vec2str(kernel) << "_";
     result << "S" << ov::test::utils::vec2str(stride) << "_";
@@ -63,15 +63,22 @@ void PoolingLayerTest::SetUp() {
 
     std::shared_ptr<ov::Node> pooling;
     if (ov::test::utils::PoolingTypes::MAX == pool_type) {
-        pooling = std::make_shared<ov::op::v1::MaxPool>(param, stride, pad_begin, pad_end, kernel, rounding_type, pad_type);
+        pooling =
+            std::make_shared<ov::op::v1::MaxPool>(param, stride, pad_begin, pad_end, kernel, rounding_type, pad_type);
     } else {
-        pooling = std::make_shared<ov::op::v1::AvgPool>(param, stride, pad_begin, pad_end, kernel, excludePad, rounding_type, pad_type);
+        pooling = std::make_shared<ov::op::v1::AvgPool>(param,
+                                                        stride,
+                                                        pad_begin,
+                                                        pad_end,
+                                                        kernel,
+                                                        excludePad,
+                                                        rounding_type,
+                                                        pad_type);
     }
 
     auto result = std::make_shared<ov::op::v0::Result>(pooling);
     function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "pooling");
 }
-
 
 std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerTestParamsSet>& obj) {
     const auto& [pool_params, model_type, shapes, target_device] = obj.param;
@@ -116,9 +123,16 @@ void MaxPoolingV8LayerTest::SetUp() {
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 
-    auto max_pool = std::make_shared<ov::op::v8::MaxPool>(param, stride, dilation, pad_begin, pad_end,
-                                                          kernel, rounding_type, pad_type,
-                                                          index_element_type, axis);
+    auto max_pool = std::make_shared<ov::op::v8::MaxPool>(param,
+                                                          stride,
+                                                          dilation,
+                                                          pad_begin,
+                                                          pad_end,
+                                                          kernel,
+                                                          rounding_type,
+                                                          pad_type,
+                                                          index_element_type,
+                                                          axis);
 
     const auto max_pool_v8_second_output_is_supported = targetDevice == ov::test::utils::DEVICE_GPU;
 
@@ -127,9 +141,68 @@ void MaxPoolingV8LayerTest::SetUp() {
         results = {std::make_shared<ov::op::v0::Result>(max_pool->output(0)),
                    std::make_shared<ov::op::v0::Result>(max_pool->output(1))};
     } else {
-        results = { std::make_shared<ov::op::v0::Result>(max_pool->output(0)) };
+        results = {std::make_shared<ov::op::v0::Result>(max_pool->output(0))};
     }
     function = std::make_shared<ov::Model>(max_pool->outputs(), ov::ParameterVector{param}, "MaxPoolV8");
+}
+
+std::string AvgPoolingV16LayerTest::getTestCaseName(const testing::TestParamInfo<avgPoolV16LayerTestParamsSet>& obj) {
+    avgPoolV16LayerTestParams basicParamsSet;
+    std::string targetDevice;
+    std::vector<InputShape> inputShapes;
+    ov::element::Type inPrc;
+    const auto& [basicParamsSet, inPrc, inputShapes, targetDevice] = obj.param;
+
+    const auto& [kernel, stride, dilations, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
+
+    std::ostringstream results;
+    results << "IS=(";
+
+    for (size_t i = 0lu; i < inputShapes.size(); i++) {
+        results << ov::test::utils::partialShape2str({inputShapes[i].first})
+                << (i < inputShapes.size() - 1lu ? "_" : "");
+    }
+    results << ")_TS=";
+    for (size_t i = 0lu; i < inputShapes.front().second.size(); i++) {
+        results << "{";
+        for (size_t j = 0lu; j < inputShapes.size(); j++) {
+            results << ov::test::utils::vec2str(inputShapes[j].second[i]) << (j < inputShapes.size() - 1lu ? "_" : "");
+        }
+        results << "}_";
+    }
+    results << "AvgPoolV16_ExcludePad=" << excludePad << "_";
+    results << "K" << ov::test::utils::vec2str(kernel) << "_";
+    results << "S" << ov::test::utils::vec2str(stride) << "_";
+    results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
+    results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
+    results << "Rounding=" << roundingType << "_";
+    results << "AutoPad=" << padType << "_";
+    results << "modelType=" << inPrc.get_type_name() << "_";
+    results << "trgDev=" << targetDevice;
+    return results.str();
+}
+
+void AvgPoolingV16LayerTest::SetUp() {
+    const auto& [basicParamsSet, inPrc, inputShapes, targetDevice] = this->GetParam();
+
+    const auto& [kernel, stride, dilation, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
+
+    init_input_shapes({inputShapes});
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(inPrc, inputDynamicShapes.front());
+
+    auto pooling = std::make_shared<ov::op::v16::AvgPool>(param,
+                                                          stride,
+                                                          dilation,
+                                                          padBegin,
+                                                          padEnd,
+                                                          kernel,
+                                                          excludePad,
+                                                          roundingType,
+                                                          padType);
+
+    auto result = std::make_shared<ov::op::v0::Result>(pooling);
+    function = std::make_shared<ov::Model>(result, ov::ParameterVector{param}, "AvgPoolingV16");
 }
 
 }  // namespace test

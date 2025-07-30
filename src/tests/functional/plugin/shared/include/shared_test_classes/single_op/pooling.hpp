@@ -4,51 +4,69 @@
 
 #pragma once
 
-#include <tuple>
 #include <string>
+#include <tuple>
 #include <vector>
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "common_test_utils/test_enums.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
-typedef std::tuple<
-        ov::test::utils::PoolingTypes,  // Pooling type, max or avg
-        std::vector<size_t>,            // Kernel size
-        std::vector<size_t>,            // Stride
-        std::vector<size_t>,            // Pad begin
-        std::vector<size_t>,            // Pad end
-        ov::op::RoundingType,           // Rounding type
-        ov::op::PadType,                // Pad type
-        bool                            // Exclude pad
-> poolSpecificParams;
+typedef std::tuple<ov::test::utils::PoolingTypes,  // Pooling type, max or avg
+                   std::vector<size_t>,            // Kernel size
+                   std::vector<size_t>,            // Stride
+                   std::vector<size_t>,            // Pad begin
+                   std::vector<size_t>,            // Pad end
+                   ov::op::RoundingType,           // Rounding type
+                   ov::op::PadType,                // Pad type
+                   bool                            // Exclude pad
+                   >
+    poolSpecificParams;
 
-typedef std::tuple<
-        poolSpecificParams,
-        ov::element::Type,              // Model type
-        std::vector<InputShape>,        // Input shape
-        std::string                     // Device name
-> poolLayerTestParamsSet;
+typedef std::tuple<poolSpecificParams,
+                   ov::element::Type,        // Model type
+                   std::vector<InputShape>,  // Input shape
+                   std::string               // Device name
+                   >
+    poolLayerTestParamsSet;
 
-typedef std::tuple<
-        std::vector<size_t>,            // Kernel size
-        std::vector<size_t>,            // Stride
-        std::vector<size_t>,            // Dilation
-        std::vector<size_t>,            // Pad begin
-        std::vector<size_t>,            // Pad end
-        ov::element::Type,              // Index element type
-        int64_t,                        // Axis
-        ov::op::RoundingType,           // Rounding type
-        ov::op::PadType                 // Pad type
-> maxPoolV8SpecificParams;
+typedef std::tuple<std::vector<size_t>,   // Kernel size
+                   std::vector<size_t>,   // Stride
+                   std::vector<size_t>,   // Dilation
+                   std::vector<size_t>,   // Pad begin
+                   std::vector<size_t>,   // Pad end
+                   ov::element::Type,     // Index element type
+                   int64_t,               // Axis
+                   ov::op::RoundingType,  // Rounding type
+                   ov::op::PadType        // Pad type
+                   >
+    maxPoolV8SpecificParams;
 
-typedef std::tuple<
-        maxPoolV8SpecificParams,
-        ov::element::Type,              // Model type
-        std::vector<InputShape>,        // Input shape
-        std::string                     // Device name
-> maxPoolV8LayerTestParamsSet;
+typedef std::tuple<maxPoolV8SpecificParams,
+                   ov::element::Type,        // Model type
+                   std::vector<InputShape>,  // Input shape
+                   std::string               // Device name
+                   >
+    maxPoolV8LayerTestParamsSet;
+
+typedef std::tuple<std::vector<size_t>,   // Kernel size
+                   std::vector<size_t>,   // Stride
+                   std::vector<size_t>,   // Dilation
+                   std::vector<size_t>,   // Pad begin
+                   std::vector<size_t>,   // Pad end
+                   ov::op::RoundingType,  // Rounding type
+                   ov::op::PadType,       // Pad type
+                   bool                   // Exclude pad
+                   >
+    avgPoolV16LayerTestParams;
+
+typedef std::tuple<avgPoolV16LayerTestParams,
+                   ov::element::Type,        // Model type
+                   std::vector<InputShape>,  // Input shape
+                   std::string               // Device name
+                   >
+    avgPoolV16LayerTestParamsSet;
 
 class PoolingLayerTest : public testing::WithParamInterface<poolLayerTestParamsSet>,
                          virtual public ov::test::SubgraphBaseTest {
@@ -63,6 +81,15 @@ class MaxPoolingV8LayerTest : public testing::WithParamInterface<maxPoolV8LayerT
                               virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerTestParamsSet>& obj);
+
+protected:
+    void SetUp() override;
+};
+
+class AvgPoolingV16LayerTest : public testing::WithParamInterface<avgPoolV16LayerTestParamsSet>,
+                               virtual public ov::test::SubgraphBaseTest {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<avgPoolV16LayerTestParamsSet>& obj);
 
 protected:
     void SetUp() override;
