@@ -10,17 +10,17 @@
 
 #include "sdpa_opt.hpp"
 
+#include "../primitive_ocl_base.hpp"
+#include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "kv_cache_inst.h"
 #include "openvino/core/partial_shape.hpp"
 #include "primitive_inst.h"
-#include "primitive_ocl_base.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "sdpa_base.hpp"
 #include "sdpa_gen_opt.hpp"
-#include "utils/kernel_generator.hpp"
 
 using namespace cldnn;
 

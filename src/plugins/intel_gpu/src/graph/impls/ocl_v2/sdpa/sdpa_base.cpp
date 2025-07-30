@@ -3,12 +3,12 @@
 //
 #include "sdpa_base.hpp"
 
+#include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "sdpa_utils.hpp"
-#include "utils/kernel_generator.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {

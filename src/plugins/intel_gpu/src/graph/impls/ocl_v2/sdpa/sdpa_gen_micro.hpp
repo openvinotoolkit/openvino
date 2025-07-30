@@ -6,6 +6,7 @@
 
 #include <mutex>
 
+#include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
@@ -14,7 +15,6 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "sdpa_base.hpp"
-#include "utils/kernel_generator.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {

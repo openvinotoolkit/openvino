@@ -13,7 +13,7 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "sdpa_base.hpp"
-#include "utils/kernel_generator.hpp"
+#include "../utils/kernel_generator.hpp"
 // clang-format on
 namespace ov::intel_gpu::ocl {
 namespace {

@@ -4,12 +4,12 @@
 
 #include "sdpa_gen_opt.hpp"
 
+#include "../utils/jitter.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "intel_gpu/runtime/utils.hpp"
-#include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "sdpa_base.hpp"
 #include "sdpa_opt.hpp"
