@@ -207,6 +207,17 @@ else()
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*)
 endif()
 
+# Exclude KLEIDIAI files when disabled
+if(NOT ENABLE_KLEIDIAI_FOR_CPU)
+    list(APPEND EXCLUDE_PATHS 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/kleidiai/*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/kleidiai/*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/kleidiai/*
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/kleidiai/*
+    )
+endif()
+
+
 if(NOT (AARCH64 OR ARM))
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/cpu_opset/arm/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*

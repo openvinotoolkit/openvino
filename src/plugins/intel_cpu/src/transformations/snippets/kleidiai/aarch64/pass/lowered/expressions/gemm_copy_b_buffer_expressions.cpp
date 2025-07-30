@@ -17,8 +17,8 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
-#include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_copy_b.hpp"
+#include "transformations/snippets/kleidiai/aarch64/op/gemm_cpu.hpp"
 #include "utils/general_utils.h"
 
 using namespace ov::snippets::lowered;

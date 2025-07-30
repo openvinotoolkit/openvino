@@ -16,7 +16,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include "emitters/snippets/aarch64/kernel_executors/gemm.hpp"
+#include "emitters/snippets/kleidiai/aarch64/kernel_executors/gemm.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
