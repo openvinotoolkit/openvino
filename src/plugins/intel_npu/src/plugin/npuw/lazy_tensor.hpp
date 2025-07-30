@@ -83,7 +83,7 @@ class Const {
 public:
     Const() = default;
 
-    explicit Const(std::shared_ptr<ov::op::v0::Constant> n);
+    explicit Const(const std::shared_ptr<ov::op::v0::Constant>& n);
     std::size_t hash() const;
     bool operator==(const Const& other) const;
     ov::Tensor eval() const;

@@ -25,7 +25,7 @@ own::ade::Nodes own::ade::Node::srcNodes() {
                       return locked_graph->meta(a).get<detail::CreateIdx>().m_idx <
                              locked_graph->meta(b).get<detail::CreateIdx>().m_idx;
                   });
-        cached_src_nodes = src_nodes;
+        cached_src_nodes = std::move(src_nodes);
         src_nodes_cache_dirty = false;
     }
     return cached_src_nodes;
