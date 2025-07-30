@@ -60,6 +60,9 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
+void gather_nf4(const ov::SoPtr<ov::ITensor>& src,
+                const ov::SoPtr<ov::ITensor>& idx,
+                const ov::SoPtr<ov::ITensor>& dst);
 
 using View = std::vector<std::size_t>;
 ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, const View& from, const View& to);

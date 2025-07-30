@@ -26,6 +26,7 @@ class Concat;
 class Unpack;
 class Permute;
 class Convert;
+class Gather;
 }  // namespace op
 
 class LazyTensor {
@@ -39,7 +40,8 @@ public:
                                    ov::npuw::weights::op::Concat,
                                    ov::npuw::weights::op::Unpack,
                                    ov::npuw::weights::op::Permute,
-                                   ov::npuw::weights::op::Convert>;
+                                   ov::npuw::weights::op::Convert,
+                                   ov::npuw::weights::op::Gather>;
 
     LazyTensor() = default;
     LazyTensor(const std::shared_ptr<ov::op::v0::Constant>& const_ptr);
@@ -49,6 +51,10 @@ public:
                const LazyTensor& cs,
                const ov::element::Type& type,
                const ov::Shape& shape);  // construct from unpack
+    LazyTensor(const LazyTensor& cw,
+               const ov::Tensor& t,
+               const ov::element::Type& type,
+               const ov::Shape& shape);  // construct from nf4_gather
 
     LazyTensor permute(const std::vector<std::size_t>& axes);
     LazyTensor convert(const ov::element::Type& type);
@@ -191,6 +197,33 @@ public:
 private:
     LazyTensor tensor;
     ov::element::Type type;
+};
+
+class Gather {
+    friend struct ov::npuw::weights::LazyTensorImpl;
+
+public:
+    Gather() = default;
+    Gather(const LazyTensor& _w, const ov::Tensor& _t, const ov::element::Type& _type, const ov::Shape& _shape)
+        : w(_w),
+          t(_t),
+          type(_type),
+          shape(_shape) {}
+
+    std::size_t hash() const;
+    bool operator==(const Gather& other) const;
+    ov::Tensor eval() const;
+    LazyTensor::Meta eval_meta() const;
+    void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
+    void detach();
+    void serialize(std::ostream& stream) const;
+    static Gather deserialize(std::istream& stream);
+
+private:
+    LazyTensor w;
+    ov::Tensor t;
+    ov::element::Type type;
+    ov::Shape shape;
 };
 }  // namespace op
 

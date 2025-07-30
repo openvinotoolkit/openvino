@@ -109,6 +109,21 @@ Context::PPtr Context::unpack(const Context::PPtr& w, const Context::PPtr& s, ov
     return new_param;
 }
 
+Context::PPtr Context::gather_nf4(const Context::PPtr& w, const ov::Tensor& t, ov::element::Type type) {
+    const auto& w_shape = w->get_shape();
+
+    Context::PPtr new_param;
+    if (w_shape.size() == 2) {
+        new_param = std::make_shared<ov::op::v0::Parameter>(type, w_shape);
+    } else {
+        NPUW_ASSERT(false && "Yet unsupported combination");
+    }
+
+    NPUW_ASSERT(new_param);
+    params_to_nf4_gather[new_param] = {w, t};
+    return new_param;
+}
+
 Context::PPtr Context::host_gather(const Context::PPtr& w, const Context::PPtr& ids) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
@@ -1651,6 +1666,62 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         return false;  // Root hasn't changed (yet)
     };
     register_matcher(std::make_shared<opp::Matcher>(qmul, "HostGatherDQ"), std::move(callback));
+}
+
+HostGatherNF4::HostGatherNF4(Context::Ref ctx) {
+    auto pids = opp::wrap_type<ov::op::v0::Parameter>();
+    auto cvtids = opp::wrap_type<ov::op::v0::Convert>({pids});
+
+    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
+    auto qweightt = opp::wrap_type<ov::op::v0::Constant>();
+    auto qcvtwt = opp::wrap_type<ov::op::v0::Convert>({qweightt});
+    auto qweightg = opp::wrap_type<ov::op::v8::Gather>({qcvtwt, qcvtw, opp::any_input()});
+
+    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+
+    auto qmul = opp::wrap_type<ov::op::v1::Multiply>({qweightg, qcoeff});
+    auto qcvtmul = opp::wrap_type<ov::op::v0::Convert>({qmul});
+
+    auto qgthr = opp::wrap_type<ov::op::v8::Gather>({qcvtmul, cvtids, opp::any_input()});
+
+    auto callback = [=](ov::pass::pattern::Matcher& m) {
+        auto& node_to_output = m.get_pattern_value_map();
+        const auto& matched_out_mul = node_to_output.at(qmul);
+        auto out_shape = matched_out_mul.get_shape();
+
+        if (out_shape.size() == 2 && out_shape.back() >= 2048 &&
+            node_to_output.at(qweight).get_element_type() == ov::element::u4) {
+            auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
+            auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
+            auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
+            auto matched_node_qgthr = node_to_output.at(qgthr).get_node_shared_ptr();
+            auto matched_node_qweightt = node_to_output.at(qweightt).get_node_shared_ptr();
+
+            auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+            auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
+            auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
+            auto matched_qweightt = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweightt);
+
+            // Need to gather the weight into f16 first
+            auto fp16weight = ctx.get().gather_nf4(matched_qweight,
+                                                   ov::npuw::util::copy_tensor_from_const(matched_qweightt),
+                                                   ov::element::f16);
+            auto fp16vocab = ctx.get().unpack(fp16weight, matched_qcoeff, ov::element::f16);
+            auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);
+
+            NPUW_ASSERT(new_param);
+            NPUW_ASSERT(matched_node_qgthr->get_element_type() == ov::element::f32);
+            auto cvt_new_param = std::make_shared<ov::op::v0::Convert>(new_param, ov::element::f32);
+
+            for (auto&& r : node_to_output.at(qgthr).get_target_inputs()) {
+                r.replace_source_output(cvt_new_param);
+            }
+            return true;  // Root has changed
+        }
+        return false;  // Root hasn't changed (yet)
+    };
+    register_matcher(std::make_shared<opp::Matcher>(qgthr, "HostGatherNF4"), std::move(callback));
 }
 
 // FROM:

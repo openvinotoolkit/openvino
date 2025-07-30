@@ -402,6 +402,29 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     }
 }
 
+void ov::npuw::util::gather_nf4(const ov::SoPtr<ov::ITensor>& src,
+                                const ov::SoPtr<ov::ITensor>& idx,
+                                const ov::SoPtr<ov::ITensor>& dst) {
+    const auto src_type = src->get_element_type();
+    const auto dst_type = dst->get_element_type();
+    NPUW_ASSERT(idx->get_element_type() == ov::element::u4);
+    NPUW_ASSERT(src_type == ov::element::f8e4m3 || src_type == ov::element::f8e5m2 || src_type == ov::element::f8e8m0);
+    NPUW_ASSERT(dst_type == ov::element::f16);
+
+    NPUW_ASSERT(idx->get_shape().size() == 2);
+    NPUW_ASSERT(src->get_shape().size() == 1);
+    NPUW_ASSERT(dst->get_shape().size() == 2);
+
+    using idx_type = typename element_type_traits<ov::element::Type_t::u4>::value_type;
+    const idx_type* pIdx = idx->data<idx_type>();
+    const uint8_t* pSrc = static_cast<uint8_t*>(src->data());
+    uint16_t* pDst = static_cast<uint16_t*>(dst->data());
+
+    for (std::size_t i = 0; i < dst->get_size(); ++i) {
+        *pDst++ = pSrc[*pIdx++];
+    }
+}
+
 ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
                                             const ov::npuw::util::View& from,
                                             const ov::npuw::util::View& to) {
