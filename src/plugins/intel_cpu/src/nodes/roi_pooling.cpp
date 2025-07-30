@@ -961,10 +961,10 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
                                                                              const int pooled_w) {
     float height_scale =
         (pooled_h > 1 ? ((roi_end_h - roi_start_h) * static_cast<float>(ih - 1)) / static_cast<float>(pooled_h - 1)
-                      : 0.0f);
+                      : 0.0F);
     float width_scale =
         (pooled_w > 1 ? ((roi_end_w - roi_start_w) * static_cast<float>(iw - 1)) / static_cast<float>(pooled_w - 1)
-                      : 0.0f);
+                      : 0.0F);
 
     float in_y = NAN;
     float in_x = NAN;
@@ -977,13 +977,13 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
             (oh == pooled_h - 1 ? roi_end_h * static_cast<float>(ih - 1)
                                 : (static_cast<float>(oh) * height_scale + roi_start_h * static_cast<float>(ih - 1)));
     } else {
-        in_y = 0.5f * (roi_start_h + roi_end_h) * static_cast<float>(ih - 1);
+        in_y = 0.5F * (roi_start_h + roi_end_h) * static_cast<float>(ih - 1);
     }
     if (pooled_w > 1) {
         in_x = (ow == pooled_w - 1 ? roi_end_w * static_cast<float>(iw - 1)
                                    : (static_cast<float>(ow) * width_scale + roi_start_w * static_cast<float>(iw - 1)));
     } else {
-        in_x = 0.5f * (roi_start_w + roi_end_w) * static_cast<float>(iw - 1);
+        in_x = 0.5F * (roi_start_w + roi_end_w) * static_cast<float>(iw - 1);
     }
 
     return std::make_pair(in_x, in_y);
