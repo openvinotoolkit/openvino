@@ -33,6 +33,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -72,7 +73,7 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
         /* Axes */
         const auto& axesTensorPrec = getOriginalInputPrecisionAtPort(AXES_INDEX);
-        if (axesTensorPrec != ov::element::i32 && axesTensorPrec != ov::element::i64) {
+        if (none_of(axesTensorPrec, ov::element::i32, ov::element::i64)) {
             CPU_NODE_THROW("has unsupported 'axes' input precision: ", axesTensorPrec.get_type_name());
         }
 
@@ -81,7 +82,7 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
         /* Shift */
         const auto& shiftTensorPrec = getOriginalInputPrecisionAtPort(SHIFT_INDEX);
-        if (shiftTensorPrec != ov::element::i32 && shiftTensorPrec != ov::element::i64) {
+        if (none_of(shiftTensorPrec, ov::element::i32, ov::element::i64)) {
             CPU_NODE_THROW("has unsupported 'shift' input precision: ", shiftTensorPrec.get_type_name());
         }
 

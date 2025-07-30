@@ -27,6 +27,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/bucketize.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -67,17 +68,15 @@ void Bucketize::initSupportedPrimitiveDescriptors() {
 
     // check precisions for input and output tensors
     input_precision = getOriginalInputPrecisionAtPort(INPUT_TENSOR_PORT);
-    if (input_precision != ov::element::f32 && input_precision != ov::element::i32 &&
-        input_precision != ov::element::i64) {
+    if (none_of(input_precision, ov::element::f32, ov::element::i32, ov::element::i64)) {
         input_precision = ov::element::f32;
     }
     boundaries_precision = getOriginalInputPrecisionAtPort(INPUT_BINS_PORT);
-    if (boundaries_precision != ov::element::f32 && boundaries_precision != ov::element::i32 &&
-        boundaries_precision != ov::element::i64) {
+    if (none_of(boundaries_precision, ov::element::f32, ov::element::i32, ov::element::i64)) {
         boundaries_precision = ov::element::f32;
     }
     output_precision = getOriginalOutputPrecisionAtPort(OUTPUT_TENSOR_PORT);
-    if (output_precision != ov::element::i32 && output_precision != ov::element::i64) {
+    if (none_of(output_precision, ov::element::i32, ov::element::i64)) {
         output_precision = ov::element::i32;
     }
 

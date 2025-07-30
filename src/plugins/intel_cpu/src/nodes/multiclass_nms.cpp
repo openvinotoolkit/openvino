@@ -45,7 +45,7 @@ using ngNmsSortResultType = ov::op::util::MulticlassNmsBase::SortResultType;
 bool MultiClassNms::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                          std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v9::MulticlassNms::get_type_info_static(),
                     ov::op::v8::MulticlassNms::get_type_info_static(),
                     ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
@@ -65,11 +65,11 @@ MultiClassNms::MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphCon
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_type_info(), ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
+    if (any_of(op->get_type_info(), ov::op::internal::MulticlassNmsIEInternal::get_type_info_static())) {
         m_outStaticShape = true;
     }
 
-    CPU_NODE_ASSERT(getOriginalInputsNumber() == 2 || getOriginalInputsNumber() == 3,
+    CPU_NODE_ASSERT(any_of(getOriginalInputsNumber(), 2U, 3U),
                     "has incorrect number of input edges: ",
                     getOriginalInputsNumber());
 

@@ -25,6 +25,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
@@ -116,7 +117,7 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     float step_w = step_widths == 0 ? step : step_widths;
     float step_h = step_heights == 0 ? step : step_heights;
-    if (step_w == 0 && step_h == 0) {
+    if (all_of(0, step_w, step_h)) {
         step_w = static_cast<float>(img_width) / static_cast<float>(layer_width);
         step_h = static_cast<float>(img_height) / static_cast<float>(layer_height);
     }

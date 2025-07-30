@@ -1086,8 +1086,8 @@ void cpu_convert(const void* srcPtr,
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);
 #if defined(OPENVINO_ARCH_X86_64)
     } else if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_fp16) &&
-               (one_of(srcPrc, ov::element::f8e4m3, ov::element::f8e5m2) ||
-                one_of(dstPrc, ov::element::f8e4m3, ov::element::f8e5m2))) {
+               (any_of(srcPrc, ov::element::f8e4m3, ov::element::f8e5m2) ||
+                any_of(dstPrc, ov::element::f8e4m3, ov::element::f8e5m2))) {
         ConvertFP8Context ctx{srcPtr, dstPtr, size, false};
         OV_SWITCH(intel_cpu, ConvertFP8Precision, ctx, std::tie(srcPrc, dstPrc), INTEL_CPU_CVT_FP8_LIST);
         OPENVINO_ASSERT(ctx.converted, "cpu_convert can't convert from: ", srcPrc, " precision to: ", dstPrc);

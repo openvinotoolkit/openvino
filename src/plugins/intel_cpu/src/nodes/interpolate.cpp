@@ -77,7 +77,7 @@ using namespace Xbyak;
 namespace ov::intel_cpu::node {
 
 static inline bool isFloatCompatible(ov::element::Type prc) {
-    return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::f64);
+    return any_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16, ov::element::f64);
 }
 
 #if defined(OPENVINO_ARCH_X86_64)
@@ -1790,7 +1790,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
         if (const auto interp = ov::as_type_ptr<const ov::op::v4::Interpolate>(op)) {
             const auto& interpAttr = interp->get_attrs();
             const auto& interpMode = interpAttr.mode;
-            if (!one_of(interpMode,
+            if (none_of(interpMode,
                         ngInterpMode::NEAREST,
                         ngInterpMode::LINEAR,
                         ngInterpMode::LINEAR_ONNX,
@@ -1800,7 +1800,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             }
 
             const auto& interpCoordTransMode = interpAttr.coordinate_transformation_mode;
-            if (!one_of(interpCoordTransMode,
+            if (none_of(interpCoordTransMode,
                         ngInterpCoordTransf::HALF_PIXEL,
                         ngInterpCoordTransf::PYTORCH_HALF_PIXEL,
                         ngInterpCoordTransf::ASYMMETRIC,
@@ -1813,7 +1813,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
 
             if (interpMode == ngInterpMode::NEAREST) {
                 const auto& interpNearestMode = interpAttr.nearest_mode;
-                if (!one_of(interpNearestMode,
+                if (none_of(interpNearestMode,
                             ngInterpNearMode::ROUND_PREFER_FLOOR,
                             ngInterpNearMode::ROUND_PREFER_CEIL,
                             ngInterpNearMode::FLOOR,
@@ -1826,7 +1826,7 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
             }
 
             const auto& interpShapeCalcMode = interpAttr.shape_calculation_mode;
-            if (!one_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
+            if (none_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
                 errorMessage =
                     "Interpolate-4 does not support shape_calculation_mode: " + ov::as_string(interpShapeCalcMode);
                 return false;
@@ -1858,12 +1858,12 @@ bool Interpolate::isSupportedOperation(const std::shared_ptr<const ov::Node>& op
         } else if (const auto interp = ov::as_type_ptr<const ov::op::v11::Interpolate>(op)) {
             const auto& interpAttr = interp->get_attrs();
             const auto& interpMode = interpAttr.mode;
-            if (!one_of(interpMode, ngInterpMode::BILINEAR_PILLOW, ngInterpMode::BICUBIC_PILLOW)) {
+            if (none_of(interpMode, ngInterpMode::BILINEAR_PILLOW, ngInterpMode::BICUBIC_PILLOW)) {
                 errorMessage = "Interpolate-11 does not support interpolate mode: " + ov::as_string(interpMode);
                 return false;
             }
             const auto& interpShapeCalcMode = interpAttr.shape_calculation_mode;
-            if (!one_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
+            if (none_of(interpShapeCalcMode, ngInterpShapeCalcMode::SCALES, ngInterpShapeCalcMode::SIZES)) {
                 errorMessage =
                     "Interpolate-11 does not support shape_calculation_mode: " + ov::as_string(interpShapeCalcMode);
                 return false;
@@ -2160,9 +2160,9 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
     ov::element::Type inputPrecision = getOriginalInputPrecisionAtPort(DATA_ID);
 
 #if defined(OV_CPU_WITH_ACL)
-    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::f16);
+    bool isInputPrecisionSupported = any_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::f16);
 #else
-    bool isInputPrecisionSupported = one_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::bf16);
+    bool isInputPrecisionSupported = any_of(inputPrecision, ov::element::i8, ov::element::u8, ov::element::bf16);
 #endif
     if (!isInputPrecisionSupported) {
         inputPrecision = ov::element::f32;
@@ -2174,7 +2174,7 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
 
     // support input with rank<=3 only with float precision and planar layout.
     // Jit for avx2(gather is available) and ref for no-avx2 machine.
-    if (!one_of(dataRank, 4U, 5U)) {
+    if (none_of(dataRank, 4U, 5U)) {
         inputPrecision = ov::element::f32;
     }
     ov::element::Type outputPrecision = inputPrecision;
@@ -4492,7 +4492,7 @@ size_t Interpolate::getSpatialDimsNum(const Dim rank) {
 bool Interpolate::canFuse(const NodePtr& node) const {
     if (!mayiuse(cpu::x64::sse41) || interpAttrs.mode == InterpolateMode::linear ||
         interpAttrs.mode == InterpolateMode::bilinear_pillow || interpAttrs.mode == InterpolateMode::bicubic_pillow ||
-        (!one_of(dataRank, 4U, 5U) && !mayiuse(cpu::x64::avx2))) {
+        (none_of(dataRank, 4U, 5U) && !mayiuse(cpu::x64::avx2))) {
         return false;
     }
 

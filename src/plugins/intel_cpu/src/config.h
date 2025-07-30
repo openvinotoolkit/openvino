@@ -44,7 +44,7 @@ struct Config {
     enum CacheQuantMode : uint8_t {
         AUTO,
         BY_CHANNEL,
-        BY_HIDDEN,
+        BY_TOKEN,
     };
 
     enum class ModelType : uint8_t { CNN, LLM, Unknown };
@@ -85,6 +85,7 @@ struct Config {
     size_t valueCacheGroupSize = 0ul;
     CacheQuantMode keyCacheQuantMode = CacheQuantMode::AUTO;
     CacheQuantMode valueCacheQuantMode = CacheQuantMode::AUTO;
+    bool enableSageAttn = false;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;

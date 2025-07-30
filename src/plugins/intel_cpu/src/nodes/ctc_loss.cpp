@@ -27,6 +27,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -50,7 +51,7 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5) {
+    if (none_of(getOriginalInputsNumber(), 4U, 5U)) {
         CPU_NODE_THROW("has invalid inputs number.");
     }
 
