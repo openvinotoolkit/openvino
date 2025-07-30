@@ -146,15 +146,16 @@ public:
             const Shape& kernel,
             bool exclude_pad,
             RoundingType rounding_type = RoundingType::FLOOR,
-            const PadType& auto_pad = PadType::EXPLICIT):AvgPool(arg,
-                                                                 strides,
-                                                                 std::vector<size_t>(kernel.size(), 1),
-                                                                 pads_begin,
-                                                                 pads_end,
-                                                                 kernel,
-                                                                 exclude_pad,
-                                                                 rounding_type,
-                                                                 auto_pad) {}
+            const PadType& auto_pad = PadType::EXPLICIT)
+        : AvgPool(arg,
+                  strides,
+                  std::vector<size_t>(kernel.size(), 1),
+                  pads_begin,
+                  pads_end,
+                  kernel,
+                  exclude_pad,
+                  rounding_type,
+                  auto_pad) {}
 
     void validate_and_infer_types() override;
 
