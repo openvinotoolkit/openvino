@@ -49,7 +49,7 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
 
     auto q_proj_weight_const = pattern::wrap_const();
     auto q_proj_weight_cvt =
-        pattern::optional<op::v0::Convert>({q_proj_weight_const}, pattern::type_matches(element::i32));  //  [4096,4096]
+        pattern::optional<op::v0::Convert>({q_proj_weight_const}, pattern::type_matches(element::f32));  //  [4096,4096]
     auto q_proj = pattern::wrap_type<v0::MatMul>({input, q_proj_weight_cvt | q_proj_weight_deq},
                                                  {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
 
