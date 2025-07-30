@@ -11,7 +11,8 @@
 #include <cstdint>
 #include <memory>
 #include <openvino/core/rt_info.hpp>
-#include <openvino/pass/manager.hpp>
+#include <openvino/core/type/element_type.hpp>
+#include <openvino/pass/pattern/op/pattern.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <tuple>
 #include <vector>
@@ -41,7 +42,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "transformations/defs.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 
