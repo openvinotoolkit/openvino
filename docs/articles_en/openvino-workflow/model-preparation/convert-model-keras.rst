@@ -73,9 +73,9 @@ Here is an example:
 
    compiled_model = ov.Core().compile_model(ov_model_path, "CPU")
    inputs = {
-      "token_ids:0": np.ones((1, 12), dtype="int32"),
-      "segment_ids:0": np.zeros((1, 12), dtype="int32"),
-      "padding_mask:0": np.ones((1, 12), dtype="int32"),
+      "token_ids": np.ones((1, 12), dtype="int32"),
+      "segment_ids": np.zeros((1, 12), dtype="int32"),
+      "padding_mask": np.ones((1, 12), dtype="int32"),
    }
    ov_output = compiled_model(inputs)[0]
    print(ov_output)
