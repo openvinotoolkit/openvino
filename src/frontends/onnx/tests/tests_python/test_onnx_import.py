@@ -15,7 +15,8 @@ from tests.tests_python.utils.onnx_helpers import import_onnx_model
 
 def test_average_pool_opset11():
     core = Core()
-    model = core.read_model("src/frontends/onnx/tests/tests_python/models/average_pool_opset11.onnx")
+    model_path = os.path.join(os.path.dirname(__file__), "models/average_pool_opset11.onnx")
+    model = core.read_model(model=model_path)
 
     assert model is not None
 
