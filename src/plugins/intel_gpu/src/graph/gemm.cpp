@@ -154,8 +154,8 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
             return input_padding;
         }
 
-        std::vector<int32_t> pad_low(input_padding._lower_size.begin(), input_padding._lower_size.begin() + input_rank);
-        std::vector<int32_t> pad_up(input_padding._upper_size.begin(), input_padding._upper_size.begin() + input_rank);
+        std::vector<ov::Dimension::value_type> pad_low(input_padding._lower_size.begin(), input_padding._lower_size.begin() + input_rank);
+        std::vector<ov::Dimension::value_type> pad_up(input_padding._upper_size.begin(), input_padding._upper_size.begin() + input_rank);
 
         if (input_rank == 1) {
             if (first_input) {
