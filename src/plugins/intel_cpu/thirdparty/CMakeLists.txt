@@ -28,19 +28,16 @@ function(ov_create_acl_version_file)
     else()
         set(ACL_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/acl_build")
     endif()
-    set(ACL_VERSION_FILE_PATH "${ACL_BUILD_DIR}/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
-    file(MAKE_DIRECTORY "${ACL_BUILD_DIR}/${OV_CPU_ARM_TARGET_ARCH}/src/core")
+
+    set(ACL_VERSION_FILE_PATH "${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
     file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
-    
     # Create symlink in source directory where oneDNN expects it
-    set(ACL_VERSION_FILE_PATH_SRC "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
     file(MAKE_DIRECTORY "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core")
     execute_process(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink 
-            "${ACL_VERSION_FILE_PATH}"
-            "${ACL_VERSION_FILE_PATH_SRC}"
+            COMMAND ${CMAKE_COMMAND} -E create_symlink
+            "${ACL_BUILD_DIR}/${ACL_VERSION_FILE_PATH}"
+            "${ACL_ROOT_DIR}/build/${ACL_VERSION_FILE_PATH}"
         RESULT_VARIABLE result
-        ERROR_VARIABLE error_msg
     )
     if(result)
         # Fallback to copying if symlink fails (e.g., on Windows without admin rights)
