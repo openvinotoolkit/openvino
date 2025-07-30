@@ -39,7 +39,7 @@ public:
     [[nodiscard]] size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
     [[nodiscard]] size_t get_scratch_b_size() const;
-    [[nodiscard]] static size_t get_wsp_size() {
+    [[nodiscard]] static constexpr size_t get_wsp_size() {
         return 4 * 1024;
     }
 
