@@ -22,11 +22,14 @@
 #    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #endif
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OV_CPU_WITH_ACL)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "post_ops.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/debug_messages.hpp"
 #    include "nodes/executors/executor.hpp"
-#    include "post_ops.hpp"
 #endif
 
 namespace ov::intel_cpu {

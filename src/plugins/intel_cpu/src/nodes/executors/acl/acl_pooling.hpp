@@ -86,8 +86,8 @@ public:
         }
 
         if (srcDescs[0]->getShape().getRank() < 5) {
-            if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-                !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+            if ((!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+                (!srcDescs[0]->hasLayoutType(LayoutType::nspc) || !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
                 DEBUG_LOG("NEPoolingLayer does not support layouts:",
                           " src=",
                           srcDescs[0]->serializeFormat(),
@@ -96,10 +96,10 @@ public:
                 return false;
             }
             if (srcDescs.size() == 2U &&
-                !(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
-                  dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-                !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && srcDescs[1]->hasLayoutType(LayoutType::nspc) &&
-                  dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+                (!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !srcDescs[1]->hasLayoutType(LayoutType::ncsp) ||
+                 !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+                (!srcDescs[0]->hasLayoutType(LayoutType::nspc) || !srcDescs[1]->hasLayoutType(LayoutType::nspc) ||
+                 !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
                 DEBUG_LOG("NEPoolingLayer does not support layouts:",
                           " src[0]=",
                           srcDescs[0]->serializeFormat(),
@@ -110,8 +110,8 @@ public:
                 return false;
             }
         } else {
-            if (!(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc)) &&
-                !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+            if ((!srcDescs[0]->hasLayoutType(LayoutType::nspc) || !dstDescs[0]->hasLayoutType(LayoutType::nspc)) &&
+                (!srcDescs[0]->hasLayoutType(LayoutType::nspc) || !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
                 DEBUG_LOG("Pooling3dLayer does not support layouts:",
                           " src=",
                           srcDescs[0]->serializeFormat(),

@@ -34,8 +34,8 @@ public:
     [[nodiscard]] bool isSupported([[maybe_unused]] const TransposeParams& transposeParams,
                                    const std::vector<MemoryDescPtr>& srcDescs,
                                    const std::vector<MemoryDescPtr>& dstDescs) const override {
-        if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-            !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+        if ((srcDescs[0]->hasLayoutType(LayoutType::ncsp) || dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+            (srcDescs[0]->hasLayoutType(LayoutType::nspc) || dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
             DEBUG_LOG("NEPermute does not support layout:",
                       " src: ",
                       srcDescs[0]->serializeFormat(),

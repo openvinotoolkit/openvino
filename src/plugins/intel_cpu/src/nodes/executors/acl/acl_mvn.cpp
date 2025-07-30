@@ -111,8 +111,8 @@ bool AclMVNExecutorBuilder::isSupported(const MVNAttrs& mvnAttrs,
         return false;
     }
 
-    if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-        !(srcDescs[0]->hasLayoutType(LayoutType::nspc) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+    if ((!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+        (!srcDescs[0]->hasLayoutType(LayoutType::nspc) || !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
         DEBUG_LOG("NEMeanStdDevNormalizationLayer does not support layout:",
                   " src: ",
                   srcDescs[0]->serializeFormat(),

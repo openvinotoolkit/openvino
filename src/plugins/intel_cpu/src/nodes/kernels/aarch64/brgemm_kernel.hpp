@@ -39,7 +39,7 @@ public:
     [[nodiscard]] size_t get_scratch_a_size() const;
     // bytes needed to place scratch buffer b
     [[nodiscard]] size_t get_scratch_b_size() const;
-    [[nodiscard]] static const size_t get_wsp_size() {
+    [[nodiscard]] static constexpr size_t get_wsp_size() {
         return 4 * 1024;
     }
 
@@ -60,7 +60,7 @@ private:
         dnnl_data_type_t dt_in1 = dnnl_data_type_undef;
         bool transpose_a = false;
         bool transpose_b = false;
-        float beta = 0.0f;
+        float beta = 0.0F;
     };
     brgemmCtx brgCtxs[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::aarch64::brgemm_kernel_t> brgKernels[MHA_BRGEMM_KERNELS_NUM];

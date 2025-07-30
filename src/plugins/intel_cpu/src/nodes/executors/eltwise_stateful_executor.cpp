@@ -21,7 +21,6 @@
 #include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/eltwise_executor.hpp"
 #include "nodes/executors/executor.hpp"
-#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/jit/eltwise.h"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/ref/eltwise.hpp"
@@ -31,6 +30,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "post_ops.hpp"
 #include "utils/debug_capabilities.h"
+
+#ifndef OPENVINO_ARCH_ARM64
+#    include "nodes/executors/implementation_utils.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
