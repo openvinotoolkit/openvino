@@ -385,9 +385,9 @@ jobs:
           export LD_PRELOAD=$(gcc -print-file-name=libasan.so)
           ls -la ${REQ_PATH}
           python3 -m pip install -r ${REQ_PATH}/requirements.txt
-          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }} --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
+          python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
         timeout-minutes: ${{ inputs.scope == 'nightly' && 125 || 400 }}
-
+          # python3 ${PARALLEL_TEST_SCRIPT} -e ${INSTALL_TEST_DIR}/ov_cpu_func_tests -c ${PARALLEL_TEST_CACHE} -w ${INSTALL_TEST_DIR} -s suite -rf 0 -- --gtest_print_time=1 ${{ env.GTEST_FILTER }} --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
       - name: Upload Test Results
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}

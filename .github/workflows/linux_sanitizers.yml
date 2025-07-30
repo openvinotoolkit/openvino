@@ -555,10 +555,10 @@ jobs:
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
         env:
           GTEST_FILTER: ${{ github.event_name == 'workflow_dispatch' && inputs.gtestFilter || '*smoke*Conv_*' }}
-#                --gtest_filter=${{ env.GTEST_FILTER }} \
         run: |
           source ${INSTALL_DIR}/setupvars.sh
           ${INSTALL_TEST_DIR}/ov_cpu_func_tests --gtest_print_time=1 \
+                --gtest_filter=${{ env.GTEST_FILTER }} \
                 --gtest_output=xml:${INSTALL_TEST_DIR}/TEST-CPUFuncTests.xml
 
       - name: Upload Test Results
