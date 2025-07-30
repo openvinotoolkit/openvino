@@ -371,12 +371,16 @@ elseif(NOT TARGET arm_compute::arm_compute)
             ${SCONS} ${ARM_COMPUTE_OPTIONS}
                 ${arm_compute}
         BUILD_IN_SOURCE 1
-        INSTALL_COMMAND ""
+        INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory ${ARM_COMPUTE_BUILD_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${ARM_COMPUTE_SOURCE_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a
+                ${ARM_COMPUTE_BUILD_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a
+            COMMAND ${CMAKE_COMMAND} -E remove_directory ${ARM_COMPUTE_SOURCE_DIR}/build
         LOG_BUILD ON
     )
 
-    # Get the full path to the built library
-    set(arm_compute_full_path "${ARM_COMPUTE_SOURCE_DIR}/${arm_compute}")
+    # Get the full path to the built library  
+    set(arm_compute_full_path "${ARM_COMPUTE_BUILD_DIR}/${arm_compute}")
 
     # Import targets
     add_library(arm_compute::arm_compute STATIC IMPORTED GLOBAL)
