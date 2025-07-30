@@ -118,7 +118,7 @@ void refine_anchors(const float* deltas,
             proposals[p_idx + 3] = y1;
             proposals[p_idx + 4] = score;
             proposals[p_idx + 5] =
-                static_cast<float>(static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h)) * 1.0f;
+                static_cast<float>(static_cast<int>(min_box_W <= box_w) * static_cast<int>(min_box_H <= box_h)) * 1.0F;
         }
     });
 }

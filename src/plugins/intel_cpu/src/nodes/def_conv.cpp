@@ -983,7 +983,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
                                    static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;
                 } else {
-                    skip_compute = map_w < 0.0f || map_w >= static_cast<float>(IW) || map_h < 0.0f ||
+                    skip_compute = map_w < 0.0F || map_w >= static_cast<float>(IW) || map_h < 0.0F ||
                                    map_h >= static_cast<float>(IH);
                 }
                 if (!skip_compute) {
