@@ -31,7 +31,7 @@ using namespace dnnl::impl::cpu;
 using namespace Xbyak;
 
 enum {
-    CONST_1_F = 0x3f800000,  // 1.f
+    CONST_1_F = 0x3f800000,  // 1.F
     INF_MASK = 0x7F800000,
     INF_NEG_MASK = 0xFF800000
 };

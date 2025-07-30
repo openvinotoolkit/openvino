@@ -23,6 +23,7 @@
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/store.hpp"
+#include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
@@ -176,7 +177,9 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
                               src_prc.get_type_name(),
                               " and ",
                               dst_prc.get_type_name());
-    OV_CPU_JIT_EMITTER_ASSERT(src_prc == ov::element::f32, "Only supports FP32 precision.");
+    OV_CPU_JIT_EMITTER_ASSERT(any_of(src_prc.size(), 1U, 2U, 4U), "Unsupported element type: ", src_prc);
+
+    byte_size = src_prc.size();
 
     const auto broadcast_load = ov::as_type_ptr<snippets::op::BroadcastLoad>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(broadcast_load != nullptr, "Expects BroadcastLoad expression");
@@ -196,7 +199,28 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     auto src = XReg(in[0]);
     auto dst = TReg(out[0]);
 
-    h->uni_ld1rw(dst.s, src, compiled_byte_offset);
+    auto load_broadcast = [&](auto reg_view) {
+        if (compiled_byte_offset == 0) {
+            h->ld1r(reg_view, ptr(src));
+        } else {
+            h->add_imm(h->X_DEFAULT_ADDR, src, compiled_byte_offset, h->X_TMP_0);
+            h->ld1r(reg_view, ptr(h->X_DEFAULT_ADDR));
+        }
+    };
+
+    switch (byte_size) {
+    case 1:
+        load_broadcast(dst.b);
+        break;
+    case 2:
+        load_broadcast(dst.h);
+        break;
+    case 4:
+        h->uni_ld1rw(dst.s, src, compiled_byte_offset);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
+    }
 }
 
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)

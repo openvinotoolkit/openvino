@@ -2607,8 +2607,8 @@ VectorDims Interpolate::getPaddedInputShape(const VectorDims& srcDims,
 }
 
 // get scales of data rank size
-// if "scale" version: set scales with input scales, 1.f for other dims not in axis
-// if "size" version: scales = shape[target] / shape[input].pad, 1.f for other dims not in axis
+// if "scale" version: set scales with input scales, 1.F for other dims not in axis
+// if "size" version: scales = shape[target] / shape[input].pad, 1.F for other dims not in axis
 // scales is a required input, but should not use input scales when "size" case, which may added eps or is a dummy
 // value, recalculate scales instead.
 std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const VectorDims& dstDim) {

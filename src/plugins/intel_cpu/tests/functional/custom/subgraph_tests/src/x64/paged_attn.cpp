@@ -38,7 +38,7 @@ using namespace std;
 namespace ov {
 namespace test {
 using InputShapes = std::vector<InputShape>;
-using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool>;
+using PagedAttnTestParams = std::tuple<ElementType, InputShapes, bool, ov::AnyMap>;
 
 class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams>,
                           virtual public ov::test::SubgraphBaseTest,
@@ -48,7 +48,8 @@ public:
         ElementType inType;
         InputShapes inputShapes;
         bool extendBlockIndices;
-        std::tie(inType, inputShapes, extendBlockIndices) = obj.param;
+        ov::AnyMap additional_config;
+        std::tie(inType, inputShapes, extendBlockIndices, additional_config) = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -65,7 +66,12 @@ public:
             result << ")_";
         }
         result << "Prc=" << inType << "_";
-        result << "ExtendBlockIndices=" << extendBlockIndices << std::endl;
+        result << "ExtendBlockIndices=" << extendBlockIndices;
+        result << "config=(";
+        for (const auto& configEntry : additional_config) {
+            result << configEntry.first << ", " << configEntry.second.as<std::string>() << "_";
+        }
+        result << ")";
 
         return result.str();
     }
@@ -213,7 +219,8 @@ public:
         ElementType inType;
         InputShapes inputShapes;
         bool extendBlockIndices;
-        std::tie(inType, inputShapes, extendBlockIndices) = this->GetParam();
+        ov::AnyMap additional_config;
+        std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -221,6 +228,8 @@ public:
             configuration[ov::hint::inference_precision.name()] = ov::element::bf16;
             rel_threshold = 0.01f;
         }
+
+        configuration.insert(additional_config.begin(), additional_config.end());
         init_input_shapes(inputShapes);
         ov::ParameterVector inputParams;
 
@@ -422,11 +431,19 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     ElementType inType;
     InputShapes inputShapes;
     bool extendBlockIndices;
-    std::tie(inType, inputShapes, extendBlockIndices) = this->GetParam();
+    ov::AnyMap additional_config;
+    std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
+    bool isSageAttn = additional_config[ov::intel_cpu::enable_sage_attn.name()].as<bool>();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+    if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
         GTEST_SKIP();
     // compare the logits from paged attn and sdpa
     auto actualOutputs = run_test(function, extendBlockIndices);
+    // reference model doesn't support sage attention
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
     auto expectedOutputs = run_ref_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
@@ -434,6 +451,8 @@ TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
 }
 
 namespace {
+const std::vector<ov::AnyMap> additional_configs = {{{ov::intel_cpu::enable_sage_attn.name(), true}},
+                                                    {{ov::intel_cpu::enable_sage_attn.name(), false}}};
 const std::vector<InputShapes> inputShapeAndReorders = {  // greedy search
     {
         // L1, B, H, S
@@ -446,7 +465,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSSDPATest,
                          PagedAttnVSSDPATest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::bf16),
                                             ::testing::ValuesIn(inputShapeAndReorders),
-                                            ::testing::Values(true, false)),
+                                            ::testing::Values(true, false),
+                                            ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 
@@ -640,11 +660,19 @@ TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     ElementType inType;
     InputShapes inputShapes;
     bool extendBlockIndices;
-    std::tie(inType, inputShapes, extendBlockIndices) = this->GetParam();
+    ov::AnyMap additional_config;
+    std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
+    bool isSageAttn = additional_config[ov::intel_cpu::enable_sage_attn.name()].as<bool>();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
+        GTEST_SKIP();
+    if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
         GTEST_SKIP();
     // compare the logits from paged attn and sdpa
     auto actualOutputs = run_test(function, extendBlockIndices);
+    // reference model doesn't support sage attention, disable it
+    if (isSageAttn) {
+        configuration[ov::intel_cpu::enable_sage_attn.name()] = false;
+    }
     auto expectedOutputs = run_ref_test(functionRefs);
     for (size_t i = 0; i < actualOutputs.size(); i++) {
         ov::test::utils::compare(expectedOutputs[i], actualOutputs[i], abs_threshold, rel_threshold);
@@ -665,7 +693,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_PagedAttnVSMatmulTest,
                          PagedAttnVSMatmulTest,
                          ::testing::Combine(::testing::Values(ElementType::f32, ElementType::f16),
                                             ::testing::ValuesIn(inputShapes),
-                                            ::testing::Values(true, false)),
+                                            ::testing::Values(true, false),
+                                            ::testing::ValuesIn(additional_configs)),
                          PagedAttnTestBase::getTestCaseName);
 }  // namespace
 

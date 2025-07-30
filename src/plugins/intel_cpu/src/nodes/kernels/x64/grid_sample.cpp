@@ -92,7 +92,7 @@ void GridSampleKernel<x64::avx512_core>::initVectors() {
 
     if (any_of(jcp.interpolationMode, GridSampleInterpolationMode::BICUBIC, GridSampleInterpolationMode::BILINEAR)) {
         vOnesF = getVmm();
-        mov(r32Aux, 0x3f800000);  // 1.f
+        mov(r32Aux, 0x3f800000);  // 1.F
         vpbroadcastd(vOnesF, r32Aux);
     }
 

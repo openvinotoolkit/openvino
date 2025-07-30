@@ -63,8 +63,6 @@ using namespace ov::element;
 using namespace TypeMaskAlias;
 using namespace executor;
 
-static const MappingNotation dnnlFCMappingNotation{ARG_SRC, ARG_WEI, ARG_BIAS, ARG_DST};
-
 using LayoutConfig = std::vector<LayoutType>;
 static const LayoutConfig dnnlFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
 static const LayoutConfig aclFCLayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp};
@@ -79,81 +77,80 @@ struct Require {
 // clang-format off
 static const TypeMapping dnnlFCTypeMapping {
     // {src, wei, bia, dst}                                   pt<src, wei, bias, dst>
-    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},               pt(bypass(), bypass(), use<3>(), bypass())},
-    {{_f16, _f16, _any, _f16 | _f32},                         pt(bypass(), bypass(), use<3>(), bypass())},
+    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},               {bypass(), bypass(), use<3>(), bypass()}},
+    {{_f16, _f16, _any, _f16 | _f32},                         {bypass(), bypass(), use<3>(), bypass()}},
     // integer precision outputs are not supported for float precision inputs
-    {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            {bypass(), bypass(), use<0>(), use<0>()}},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any},                  {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_bf16, _f16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_f16, _bf16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
     // quantization configuration
     // int8 inner_product does not support f16 output and bias
-    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), bypass(),  bypass())},
-    {{_u8 | _i8, _i8, _f16, _u8 | _i8 | _i32 | _bf16 | _f32}, pt(bypass(), bypass(), just<f32>(), bypass())},
-    {{_u8 | _i8, _i8, _any, _any}, pt(bypass(), bypass(), just<f32>(), just<f32>())},
+    {{_u8 | _i8, _i8, _u8 | _i8 | _i32 | _bf16 | _f32 | _dynamic, _u8 | _i8 | _i32 | _bf16 | _f32}, {bypass(), bypass(), bypass(),  bypass()}},
+    {{_u8 | _i8, _i8, _f16, _u8 | _i8 | _i32 | _bf16 | _f32}, {bypass(), bypass(), just<f32>(), bypass()}},
+    {{_u8 | _i8, _i8, _any, _any}, {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights (@todo more strict requrements for output precision?)
-    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>()),
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()},
      Require<dnnl::impl::cpu::x64::avx512_core_bf16>()}, // Ticket 122347
-    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       pt(just<f32>(), bypass(), just<f32>(), just<f32>())},
-    {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_bf16, _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       {just<f32>(), bypass(), just<f32>(), just<f32>()}},
+    {{_f32,  _u8 | _i8 | _nf4 | _u4 | _i4 | _f4e2m1, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()}},
     // @todo should we fallback to FPXX instead of _f32?
-    {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
+    {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
 };
 
 static const TypeMapping aclFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
-    {{_f32 | _f16, _f32 | _f16, _any, _any}, pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_any, _any, _any, _any},               pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())}
+    {{_f32 | _f16, _f32 | _f16, _any, _any}, {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_any, _any, _any, _any},               {just<f32>(), just<f32>(), just<f32>(), just<f32>()}}
 };
 
 static const TypeMapping aclLowpFCTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
-    {{_i8, _i8, _any, _f32},                 pt(bypass(), bypass(), use<3>(), bypass())}
+    {{_i8, _i8, _any, _f32},                 {bypass(), bypass(), use<3>(), bypass()}}
 };
 
-static const MappingNotation dnnlConvolutionMappingNotation {
-    ARG_SRC, ARG_WEI, ARG_BIAS, ARG_DST
-};
-
-static const MappingNotation aclFullyConnectedMappingNotation {
-    ARG_SRC, ARG_WEI, ARG_BIAS, ARG_DST
+static const MappingNotation fcMappingNotation {
+    {ARG_SRC,  0},
+    {ARG_WEI,  1},
+    {ARG_BIAS, 2},
+    {ARG_DST,  3}
 };
 
 static const TypeMapping dnnlConvolutionTypeMapping {
     // {src, wei, bia, dst}                        pt<src, wei, bias, dst>
-    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},    pt(bypass(), bypass(), use<3>(), bypass())},
-    {{_f16, _f16, _any, _f16 | _f32},              pt(bypass(), bypass(), use<3>(), bypass())},
+    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},    {bypass(), bypass(), use<3>(), bypass()}},
+    {{_f16, _f16, _any, _f16 | _f32},              {bypass(), bypass(), use<3>(), bypass()}},
     // integer precision outputs are not supported for float precision inputs
-    {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8}, pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8}, {bypass(), bypass(), use<0>(), use<0>()}},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any},       pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any},             pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any},       {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_bf16, _f16, _any, _any},             {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_f16, _bf16, _any, _any},             {bypass(), bypass(), use<0>(), use<0>()}},
     // quantization configuration
-    {{_u8 | _i8, _i8, _any, _any},                 pt(bypass(), bypass(), use<3>(), bypass())},
+    {{_u8 | _i8, _i8, _any, _any},                 {bypass(), bypass(), use<3>(), bypass()}},
     // @todo should we fallback to _fxx instead of _f32 (currenly legacy logic is replicated)
-    {{_any, _any, _any, _any},                     pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
+    {{_any, _any, _any, _any},                     {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
 };
 
 static const TypeMapping dnnlMatMulTypeMapping {
     // {src, wei, bia, dst}                                   pt<src, wei, bias, dst>
-    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},               pt(bypass(), bypass(), use<3>(), bypass())},
-    {{_f16, _f16, _any, _f16 | _f32},                         pt(bypass(), bypass(), use<3>(), bypass())},
+    {{_bf16, _bf16 | _f32, _any, _bf16 | _f32},               {bypass(), bypass(), use<3>(), bypass()}},
+    {{_f16, _f16, _any, _f16 | _f32},                         {bypass(), bypass(), use<3>(), bypass()}},
     // integer precision outputs are not supported for float precision inputs
-    {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32 | _bf16 | _f16, _any, _any, _i8 | _u8},            {bypass(), bypass(), use<0>(), use<0>()}},
     // compresses float weights which do not match input data precision
-    {{_f32, _half_float, _any, _any},                  pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_bf16, _f16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
-    {{_f16, _bf16, _any, _any},                        pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32, _half_float, _any, _any},                  {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_bf16, _f16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
+    {{_f16, _bf16, _any, _any},                        {bypass(), bypass(), use<0>(), use<0>()}},
     // quantization configuration
-    {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_dynamic, _u8|_i8|_i32|_bf16|_f16|_f32}, pt(bypass(), bypass(), bypass(),  bypass())},
-    {{_u8 | _i8, _i8, _any, _any},                            pt(bypass(), bypass(), just<f32>(), just<f32>())},
+    {{_u8 | _i8, _i8, _u8|_i8|_i32|_bf16|_f16|_f32|_dynamic, _u8|_i8|_i32|_bf16|_f16|_f32}, {bypass(), bypass(), bypass(),  bypass()}},
+    {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights
-    {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            pt(bypass(), bypass(), use<0>(), use<0>())},
+    {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
     // @todo should we fallback to FPXX instead of _f32?
-    {{_any, _any, _any, _any},                                pt(just<f32>(), just<f32>(), just<f32>(), just<f32>())},
+    {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
 };
 // clang-format on
@@ -172,10 +169,7 @@ static const TypeMapping dnnlMatMulTypeMapping {
 
 struct CreateOptimalConfigDefault {
     std::optional<ConvConfig> operator()(const ConvConfig& config) const {
-        return createOptimalConfigCommon(config,
-                                         dnnlMatMulTypeMapping,
-                                         dnnlFCLayoutConfig,
-                                         dnnlConvolutionMappingNotation);
+        return createOptimalConfigCommon(config, dnnlMatMulTypeMapping, dnnlFCLayoutConfig, fcMappingNotation);
     }
 };
 
@@ -239,7 +233,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return createOptimalConfigCommon(config,
                                                  dnnlConvolutionTypeMapping,
                                                  dnnlFCLayoutConfig,
-                                                 dnnlFCMappingNotation);
+                                                 fcMappingNotation);
             },
             // acceptsShapes
             []([[maybe_unused]] const FCAttrs& attrs,
@@ -261,8 +255,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 // Disable Conv1x1 when weight size >= 16M to avoid different weight layout when having different input
                 // activation shapes. As a consuquence, peak memory consumption in LLM can be decreased.
                 VERIFY(weightsSize < (16 * 1 << 20), " weights size is to big");
-                VERIFY(widthInConv >= 2 && widthInConv <= 3136 && K >= 96 && K <= 4096 && N >= 96 && N <= K * 4,
-                       HEURISTICS_MISMATCH);
+                const bool width_in_range = widthInConv >= 2 && widthInConv <= 3136;
+                const bool k_in_range = K >= 96 && K <= 4096;
+                const bool n_in_range = N >= 96 && N <= K * 4;
+                const bool all_conditions_met = width_in_range && k_in_range && n_in_range;
+                VERIFY(all_conditions_met, HEURISTICS_MISMATCH);
 
                 return true;
             },
@@ -320,7 +317,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return createOptimalConfigCommon(config,
                                                  aclFCTypeMapping,
                                                  aclFCLayoutConfig,
-                                                 aclFullyConnectedMappingNotation);
+                                                 fcMappingNotation);
             },
             AcceptsAnyShape<FCAttrs>{},
             CreateDefault<ACLFullyConnectedExecutor, FCAttrs>{}
@@ -341,7 +338,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return createOptimalConfigCommon(config,
                                                  aclLowpFCTypeMapping,
                                                  aclFCLayoutConfig,
-                                                 aclFullyConnectedMappingNotation);
+                                                 fcMappingNotation);
             },
             // acceptsShapes
             []([[maybe_unused]] const FCAttrs& attrs,
@@ -412,7 +409,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return createOptimalConfigCommon(config,
                                                  dnnlMatMulTypeMapping,
                                                  dnnlFCLayoutConfig,
-                                                 dnnlFCMappingNotation);
+                                                 fcMappingNotation);
             },
             AcceptsAnyShape<FCAttrs>{},
             // create
@@ -455,7 +452,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 return createOptimalConfigCommon(config,
                                                  dnnlFCTypeMapping,
                                                  dnnlFCLayoutConfig,
-                                                 dnnlConvolutionMappingNotation);
+                                                 fcMappingNotation);
             },
             AcceptsAnyShape<FCAttrs>{},
             CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{false, true}
