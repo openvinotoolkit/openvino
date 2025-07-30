@@ -185,12 +185,12 @@ std::string AvgPoolingV16LayerTest::getTestCaseName(const testing::TestParamInfo
     ov::element::Type inPrc;
     std::tie(basicParamsSet, inPrc, inputShapes, targetDevice) = obj.param;
 
-    std::vector<size_t> kernel, stride, dilations;
+    std::vector<size_t> kernel, stride, dilation;
     std::vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
     bool excludePad;
-    std::tie(kernel, stride, dilations, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
+    std::tie(kernel, stride, dilation, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
 
     std::ostringstream results;
     results << "IS=(";
@@ -210,6 +210,7 @@ std::string AvgPoolingV16LayerTest::getTestCaseName(const testing::TestParamInfo
     results << "AvgPoolV16_ExcludePad=" << excludePad << "_";
     results << "K" << ov::test::utils::vec2str(kernel) << "_";
     results << "S" << ov::test::utils::vec2str(stride) << "_";
+    results << "D" << ov::test::utils::vec2str(dilation) << "_";
     results << "PB" << ov::test::utils::vec2str(padBegin) << "_";
     results << "PE" << ov::test::utils::vec2str(padEnd) << "_";
     results << "Rounding=" << roundingType << "_";
