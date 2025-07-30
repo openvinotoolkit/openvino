@@ -32,7 +32,7 @@ TEST(permute_gpu_f32, output_ordering_test)
 {
     auto& engine = get_test_engine();
 
-    std::vector<std::vector<int32_t>> input_tensors = {
+    std::vector<std::vector<ov::Dimension::value_type>> input_tensors = {
         { 10, 5, 15, 2 },
         { 2, 4, 6, 8 },
         { 2, 2, 3, 2 },
@@ -46,9 +46,9 @@ TEST(permute_gpu_f32, output_ordering_test)
     };
     std::vector<format> input_formats = { format::bfyx, format::yxfb };
 
-    auto get_permutation = [&](const std::vector<int32_t>& inp1, const std::vector<uint16_t>& order) -> std::vector<int32_t> {
+    auto get_permutation = [&](const std::vector<ov::Dimension::value_type>& inp1, const std::vector<uint16_t>& order) -> std::vector<ov::Dimension::value_type> {
         EXPECT_EQ(inp1.size(), order.size());
-        std::vector<int32_t> output;
+        std::vector<ov::Dimension::value_type> output;
         for (auto const& o : order) {
             output.push_back(inp1.at(o));
         }
@@ -1852,7 +1852,7 @@ TEST(permute_gpu_f32_tile_8x8_4x4, xf_remainder_bfwzyx_0_2_3_4_5_1) {
 }
 
 struct TiledPermuteParam {
-    std::vector<cldnn::tensor::value_type> sizes;
+    std::vector<ov::Dimension::value_type> sizes;
     cldnn::format format_fsv;
 };
 
@@ -1872,7 +1872,7 @@ public:
     }
 
     template<data_types Data_Type>
-    void run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
+    void run_test(const std::vector<ov::Dimension::value_type>& sizes, cldnn::format format_fsv,
                   const std::string & permute_opt = "permute_tile_8x8_4x4_fsv",
                   std::vector<uint16_t> permute_order = {}, bool is_caching_test = false);
 
@@ -1907,14 +1907,14 @@ void TiledPermuteTest::set_random_values<int8_t>(const cldnn::memory::ptr mem) c
 }
 
 template<data_types Data_Type>
-void TiledPermuteTest::run_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
+void TiledPermuteTest::run_test(const std::vector<ov::Dimension::value_type>& sizes, cldnn::format format_fsv,
                                 const std::string & permute_opt, std::vector<uint16_t> permute_order, bool is_caching_test)
 {
     // convert ov::float16 to ov::float16
     using type_ = typename ov::element_type_traits<Data_Type>::value_type;
     using type = typename std::conditional<std::is_same<type_, ov::float16>::value, ov::float16, type_>::type;
 
-    std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
+    std::vector<ov::Dimension::value_type> internal_sizes(sizes);
     std::swap(internal_sizes.at(2), internal_sizes.back());
     cldnn::tensor tensor(internal_sizes);
 
@@ -2417,14 +2417,14 @@ struct TiledPerformancePermuteTest : TiledPermuteTest
     }
     
     template<data_types Data_Type>
-    void execute_perf_test(const std::vector<cldnn::tensor::value_type>& sizes, cldnn::format format_fsv,
+    void execute_perf_test(const std::vector<ov::Dimension::value_type>& sizes, cldnn::format format_fsv,
                             const std::string & kernel_name, std::vector<uint16_t> permute_order)
     {
         auto& engine = get_test_engine();
         // convert half_t to FLOAT16
         using type = typename ov::element_type_traits<Data_Type>::value_type;
 
-        std::vector<cldnn::tensor::value_type> internal_sizes(sizes);
+        std::vector<ov::Dimension::value_type> internal_sizes(sizes);
         std::swap(internal_sizes.at(2), internal_sizes.back());
         cldnn::tensor tensor(internal_sizes);
 

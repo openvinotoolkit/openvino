@@ -14,9 +14,9 @@ namespace {
 
 template <class T>
 struct roll_test_input {
-    std::vector<int32_t> input_shape;
+    std::vector<ov::Dimension::value_type> input_shape;
     std::vector<T> input_values;
-    std::vector<int32_t> shift;
+    std::vector<ov::Dimension::value_type> shift;
     std::vector<T> expected_values;
 };
 

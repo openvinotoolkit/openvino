@@ -16,6 +16,7 @@
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "low_precision/add.hpp"
 #include "low_precision/concat.hpp"
 #include "low_precision/convolution.hpp"
@@ -57,6 +58,7 @@
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
@@ -509,18 +511,29 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         kv_cache_config.valueCachePrecision = config.get_kv_cache_precision();
         kv_cache_config.inferencePrecision = infer_precision;
         kv_cache_config.keyCacheBlockSize = 16;
-        kv_cache_config.valueCacheBlockSize = 16;
         kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+        kv_cache_config.keyCacheQuantBychannel = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL);
+        kv_cache_config.keyCacheGroupSize = (config.get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;
+        kv_cache_config.valueCacheBlockSize = 16;
         kv_cache_config.valueCacheDimOrder = {0, 1, 2, 3};
+        kv_cache_config.valueCacheQuantBychannel = false;
+        kv_cache_config.valueCacheGroupSize = 0;
+
         manager.register_pass<ov::pass::ConvertPagedAttnInputs>(kv_cache_config,
             [&infer_precision](const ov::element::Type& precision,
                const bool bychannel,
                const size_t group_num,
                int64_t& head_size,
                int64_t& block_size) {
-                OPENVINO_ASSERT(!bychannel, "[GPU] Unsupported KV-cache quantization mode");
-                if (precision == ov::element::i8 || precision == ov::element::u8) {
-                    head_size += infer_precision.size() * 2 * group_num;
+                if (bychannel) {
+                    // TODO: need to handle group size != block size case
+                    if (precision == ov::element::i8 || precision == ov::element::u8) {
+                        block_size += infer_precision.size() * 2;
+                    }
+                } else {
+                    if (precision == ov::element::i8 || precision == ov::element::u8) {
+                        head_size += infer_precision.size() * 2 * group_num;
+                    }
                 }
             });
 
