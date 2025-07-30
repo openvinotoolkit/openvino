@@ -562,6 +562,8 @@ available options and parameters:
                 -nstreams  <integer>          Optional. Number of streams to use for inference on the CPU or GPU devices (for HETERO and MULTI device cases use format <dev1>:<nstreams1>,   <dev2>:<nstreams2> or just <nstreams>). Default value is determined automatically for a device.Please note that although the automatic selection usually provides a reasonable    performance, it still may be non - optimal for some cases, especially for very small models. See sample's README for more details. Also, using nstreams>1 is inherently    throughput-oriented option, while for the best-latency estimations the number of streams should be set to 1.
                 -inference_only         Optional. Measure only inference stage. Default option for static models. Dynamic models are measured in full mode which includes inputs setup stage,    inference only mode available for them with single input data shape only. To enable full mode for static models pass "false" value to this argument: ex. "-inference_only=false".
                 -infer_precision        Optional. Specifies the inference precision. Example #1: '-infer_precision bf16'. Example #2: '-infer_precision CPU:bf16,GPU:f32'
+                -no_warmup                    Optional. Skip warmup inference. Useful for benchmarking purposes in simulated environments. Otherwise, not recommended.
+
 
             Preprocessing options:
                 -ip   <value>           Optional. Specifies precision for all input layers of the model.

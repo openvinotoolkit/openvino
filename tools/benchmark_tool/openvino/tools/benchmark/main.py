@@ -603,13 +603,17 @@ def main():
             logger.info("Benchmarking in inference only mode (inputs filling are not included in measurement loop).")
         else:
             logger.info("Benchmarking in full mode (inputs filling are included in measurement loop).")
-        duration_ms = f"{benchmark.first_infer(requests):.2f}"
-        logger.info(f"First inference took {duration_ms} ms")
-        if statistics:
-            statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
-                                    [
-                                        ('first inference time (ms)', duration_ms)
-                                    ])
+        if not args.no_warmup:
+            duration_ms = f"{benchmark.first_infer(requests):.2f}"
+            logger.info(f"First inference took {duration_ms} ms")
+            if statistics:
+                statistics.add_parameters(StatisticsReport.Category.EXECUTION_RESULTS,
+                                        [
+                                            ('first inference time (ms)', duration_ms)
+                                        ])
+        else:
+            logger.info("Skipping warmup inference due to -no_warmup flag")
+
 
         pcseq = args.pcseq
         if static_mode or len(benchmark.latency_groups) == 1:
