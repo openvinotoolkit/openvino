@@ -22,11 +22,14 @@
 #    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
 #endif
 
-#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OV_CPU_WITH_ACL)
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "post_ops.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OV_CPU_WITH_ACL)
 #    include "nodes/executors/debug_messages.hpp"
 #    include "nodes/executors/executor.hpp"
-#    include "post_ops.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -91,7 +94,10 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
 
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config.attrs.postOps), UNSUPPORTED_POST_OPS);
-                VERIFY(isQuantized(config) || DnnlConvolutionPrimitive::isBrgConvAvailable(config), "is not quantized or brgemm convolution is not available");
+                const bool is_quantized = isQuantized(config);
+                const bool brg_conv_available = DnnlConvolutionPrimitive::isBrgConvAvailable(config);
+                const bool valid_config = is_quantized || brg_conv_available;
+                VERIFY(valid_config, "is not quantized or brgemm convolution is not available");
 
                 return true;
             },

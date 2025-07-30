@@ -109,7 +109,7 @@ protected:
         bool has_post_ops = false;
         bool transpose_a = false;
         bool transpose_b = false;
-        float beta = 0.0f;
+        float beta = 0.0F;
     };
     brgemmCtx brgCtxs[MHA_BRGEMM_KERNELS_NUM];
     std::unique_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgKernels[MHA_BRGEMM_KERNELS_NUM];

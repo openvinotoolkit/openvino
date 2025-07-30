@@ -29,7 +29,7 @@ size_t OptimizeDomain::optimize(std::vector<VectorDims>& input_shapes,
                                 const size_t min_parallel_work_amount,
                                 const size_t min_jit_work_amount) {
     if (master_shape.size() <= 2) {
-        return 0u;
+        return 0U;
     }
 
     auto CollapseLastDim = [](VectorDims& dims) {
@@ -135,7 +135,7 @@ bool OptimizeDomain::run(snippets::lowered::LinearIR& linear_ir) {
         input_shapes.emplace_back(shape);
     }
     const auto total_work_amount =
-        std::accumulate(master_shape.begin(), master_shape.end(), (size_t)1, std::multiplies<>());
+        std::accumulate(master_shape.begin(), master_shape.end(), static_cast<size_t>(1), std::multiplies<>());
     const auto num_dims_collapsed = blocked_input_shapes ? 0
                                                          : optimize(input_shapes,
                                                                     master_shape,
