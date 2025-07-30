@@ -197,7 +197,7 @@ bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupportedConfiguration(
 bool ov::intel_cpu::ACLInterpolateExecutorBuilder::isSupported(const ov::intel_cpu::InterpolateAttrs& interpolateAttrs,
                                                                const std::vector<MemoryDescPtr>& srcDescs,
                                                                const std::vector<MemoryDescPtr>& dstDescs) const {
-    if (srcDescs[0]->getShape().getDims().size() != 4u) {
+    if (srcDescs[0]->getShape().getDims().size() != 4U) {
         DEBUG_LOG("ACL Interpolate does not support src shape rank: ", srcDescs[0]->getShape().getDims().size());
         return false;
     }

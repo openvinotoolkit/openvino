@@ -55,7 +55,7 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
         const auto is_scalar = constant && (ov::shape_size(input.get_shape()) == 1);
         const auto should_be_inside_body =
             constant && ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op);
-        if (!(is_scalar || should_be_inside_body)) {
+        if (!is_scalar && !should_be_inside_body) {
             count++;
         }
     }

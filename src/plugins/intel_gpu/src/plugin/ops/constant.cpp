@@ -32,7 +32,7 @@
 namespace ov::intel_gpu {
 
 static cldnn::tensor getConstTensor(const ov::Shape constDims) {
-    std::vector<cldnn::tensor::value_type> shuffled_dims(constDims.size());
+    std::vector<ov::Dimension::value_type> shuffled_dims(constDims.size());
 
     // cldnn tensor c-tor expects constants be in a reversed order (x, y, z, w, u, v)
     for (size_t i = 0; i < constDims.size(); i++) {
@@ -77,7 +77,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     auto constFormat = cldnn::format::get_default_format(const_shape.size());
 
     if (props.needsBatchInterpretation) {
-        constTensor.batch[0] = static_cast<cldnn::tensor::value_type>(constTensor.count());
+        constTensor.batch[0] = static_cast<ov::Dimension::value_type>(constTensor.count());
         constTensor.feature[0] = 1;
     }
 
