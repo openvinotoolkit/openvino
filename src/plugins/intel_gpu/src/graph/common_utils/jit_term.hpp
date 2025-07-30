@@ -25,60 +25,60 @@ std::string to_code_string(T val) {
 // 18 - Representation of a double of maximum length in hexadecimal notation
 // 11 - as_double()
 // 17 - Commented representation of the maximum double in scientific .6e notation /*1.797693e+308*/
-// static thread_local char buf[18 + 11 + 17] = "";
+static thread_local char buf[18 + 11 + 17] = "";
 
-// inline std::string to_code_string(const std::string& val) {
-//     return val;
-// }
+inline std::string to_code_string(const std::string& val) {
+    return val;
+}
 
-// inline std::string to_code_string(const char* val) {
-//     return val;
-// }
+inline std::string to_code_string(const char* val) {
+    return val;
+}
 
-// inline std::string to_code_string(bool val) {
-//     return val ? "1" : "0";
-// }
+inline std::string to_code_string(bool val) {
+    return val ? "1" : "0";
+}
 
-// inline std::string to_code_string(size_t val) {
-//     snprintf(buf, sizeof(buf), "%zu", val);
-//     return buf;
-// }
+inline std::string to_code_string(size_t val) {
+    snprintf(buf, sizeof(buf), "%zu", val);
+    return buf;
+}
 
-// inline std::string to_code_string(uint8_t val) {
-//     snprintf(buf, sizeof(buf), "%d", static_cast<int>(val));
-//     return buf;
-// }
+inline std::string to_code_string(uint8_t val) {
+    snprintf(buf, sizeof(buf), "%d", static_cast<int>(val));
+    return buf;
+}
 
-// inline std::string to_code_string(int8_t val) {
-//     snprintf(buf, sizeof(buf), "%d", static_cast<int>(val));
-//     return buf;
-// }
+inline std::string to_code_string(int8_t val) {
+    snprintf(buf, sizeof(buf), "%d", static_cast<int>(val));
+    return buf;
+}
 
-// inline std::string to_code_string(float val) {
-//     if (std::isinf(val)) {
-//         return std::signbit(val) ? "-INFINITY" : "INFINITY";
-//     }
-//     // Workaround GCC compiler/STL bug
-// #ifdef GPU_DEBUG_CONFIG
-//     snprintf(buf, sizeof(buf), "as_float(0x%" PRIx32 ")/*%.6e*/", *reinterpret_cast<uint32_t*>(&val), val);
-// #else
-//     snprintf(buf, sizeof(buf), "as_float(0x%" PRIx32 ")", *reinterpret_cast<uint32_t*>(&val));
-// #endif
-//     return buf;
-// }
+inline std::string to_code_string(float val) {
+    if (std::isinf(val)) {
+        return std::signbit(val) ? "-INFINITY" : "INFINITY";
+    }
+    // Workaround GCC compiler/STL bug
+#ifdef GPU_DEBUG_CONFIG
+    snprintf(buf, sizeof(buf), "as_float(0x%" PRIx32 ")/*%.6e*/", *reinterpret_cast<uint32_t*>(&val), val);
+#else
+    snprintf(buf, sizeof(buf), "as_float(0x%" PRIx32 ")", *reinterpret_cast<uint32_t*>(&val));
+#endif
+    return buf;
+}
 
-// inline std::string to_code_string(double val) {
-//     if (std::isinf(val)) {
-//         return std::signbit(val) ? "-INFINITY" : "INFINITY";
-//     }
-//     // Workaround GCC compiler/STL bug
-// #ifdef GPU_DEBUG_CONFIG
-//     snprintf(buf, sizeof(buf), "as_double(0x%" PRIx64 ")/*%.6e*/", *reinterpret_cast<uint64_t*>(&val), val);
-// #else
-//     snprintf(buf, sizeof(buf), "as_double(0x%" PRIx64 ")", *reinterpret_cast<uint64_t*>(&val));
-// #endif
-//     return buf;
-// }
+inline std::string to_code_string(double val) {
+    if (std::isinf(val)) {
+        return std::signbit(val) ? "-INFINITY" : "INFINITY";
+    }
+    // Workaround GCC compiler/STL bug
+#ifdef GPU_DEBUG_CONFIG
+    snprintf(buf, sizeof(buf), "as_double(0x%" PRIx64 ")/*%.6e*/", *reinterpret_cast<uint64_t*>(&val), val);
+#else
+    snprintf(buf, sizeof(buf), "as_double(0x%" PRIx64 ")", *reinterpret_cast<uint64_t*>(&val));
+#endif
+    return buf;
+}
 
 class JitTerm {
 public:
