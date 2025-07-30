@@ -34,6 +34,7 @@ const std::vector<ov::test::ElementType> weights_precisions_fp8 = {ov::element::
 const std::vector<MatMulDecompressionShapeParams> input_shapes_basic = {
     {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
     {{{}, {{1, 8, 16}}}, {16, 32}, 4ul},
+    {{{}, {{1, 8, 32}}}, {32, 32}, 32ul}, // matmul limitation is that group must be divided by 32.
     {{{}, {{1, 4, 16}}}, {1, 16, 32}},
     {{{}, {{5, 40, 496}}}, {1, 496, 240}},
     {{{}, {{1, 4, 48}}}, {48, 256}},
