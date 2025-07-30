@@ -54,16 +54,12 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
         return false;
     }
 
-    if (weightDesc->getPrecision() != element::i8) {
-        return false;
-    }
-
-    return true;
+    return weightDesc->getPrecision() == element::i8;
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
-    return !(config.descs.at(ARG_WEI)->getPrecision() != element::f32 &&
-             !useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI)));
+    return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
+           useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,
