@@ -1041,10 +1041,6 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
         ov::op::util::set_name(*parameter, variable_name);
         replace_node(read_value, parameter);
 
-        auto tensor = ov::Tensor(element_type, shape.is_dynamic() ? ov::Shape{0} : shape.to_shape());
-        ov::SoPtr<ov::ITensor> soPtr = ov::get_tensor_impl(tensor);
-        m_variableStates.push_back(std::make_shared<VariableState>(variable_name, soPtr));
-
         auto assign = assigns[i];
         model->remove_sink(assign);
         model->remove_variable(model->get_variable_by_id(variable_name));
