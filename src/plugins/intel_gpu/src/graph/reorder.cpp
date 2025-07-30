@@ -186,6 +186,8 @@ std::vector<layout> reorder_inst::calc_output_layouts(reorder_node const& /*node
 #ifdef ENABLE_ONEDNN_FOR_GPU
         auto onednn_weights_params = std::dynamic_pointer_cast<onednn::WeightsReorderParamsOneDNN>(desc->weights_reorder_params);
         if (onednn_weights_params && input_layout.format != onednn::find_data_format(onednn_weights_params->_in_desc)) {
+            auto shape_consistent = onednn::keep_weights_reorder_shape_consistent(input_layout, onednn_weights_params->_out_desc);
+            OPENVINO_ASSERT(shape_consistent, "[GPU] Input shape and output shape of weight reorder should be same.");
             onednn_weights_params->_in_desc = onednn::layout_to_memory_desc(input_layout);
         }
 #endif // ENABLE_ONEDNN_FOR_GPU
