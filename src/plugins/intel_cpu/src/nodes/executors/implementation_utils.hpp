@@ -131,7 +131,7 @@ struct SupportsAnyConfig {
 
 // Allows to express 'shape agnostic' intention in a more verbose way
 template <typename Attrs>
-static const inline typename ExecutorImplementation<Attrs>::AcceptsShapePredicate AcceptsAnyShape{};
+const inline typename ExecutorImplementation<Attrs>::AcceptsShapePredicate AcceptsAnyShape{};
 
 template <typename Primitive, typename Attrs>
 struct CreateDefault {
