@@ -7,6 +7,7 @@
 #    define _OPENVINO_OP_REG(x, y)
 #endif
 
+_OPENVINO_OP_REG(RotRPEAttentionWeightWithIndexComputation, ov::op::v5)
 _OPENVINO_OP_REG(Abs, ov::op::v0)
 _OPENVINO_OP_REG(Acos, ov::op::v0)
 _OPENVINO_OP_REG(Add, ov::op::v1)

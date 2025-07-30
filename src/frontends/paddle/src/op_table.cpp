@@ -138,6 +138,7 @@ OP_CONVERTER(write_to_array);
 OP_CONVERTER(where_index);
 OP_CONVERTER(yolo_box);
 OP_CONVERTER(generate_proposals_v2);
+OP_CONVERTER(rpe_attention_weight);
 }  // namespace op
 std::map<std::string, CreatorFunction> get_supported_ops() {
     return {{"arg_max", op::argmax},
@@ -277,7 +278,8 @@ std::map<std::string, CreatorFunction> get_supported_ops() {
             {"while", op::while_},
             {"write_to_array", op::write_to_array},
             {"where_index", op::where_index},
-            {"yolo_box", op::yolo_box}};
+            {"yolo_box", op::yolo_box},
+            {"RotRPEAttentionWeightWithIndexComputation", op::rpe_attention_weight}};
 };
 
 }  // namespace paddle

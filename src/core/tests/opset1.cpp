@@ -38,6 +38,7 @@ string capitalize(string name) {
     }
 
 TEST(opset, check_opset1) {
+    CHECK_OPSET(op::v5::RotRPEAttentionWeightWithIndexComputation, opset1::RotRPEAttentionWeightWithIndexComputation)
     CHECK_OPSET(op::v0::Abs, opset1::Abs)
     CHECK_OPSET(op::v0::Acos, opset1::Acos)
     CHECK_OPSET(op::v1::Add, opset1::Add)
