@@ -10,6 +10,8 @@
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 
+#include "utils/cpu_utils.hpp"
+
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
 using namespace dnnl::impl::cpu::x64;
@@ -26,7 +28,7 @@ jit_uni_dft_kernel_f32<isa>::jit_uni_dft_kernel_f32() : jit_uni_dft_kernel(),
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_dft_kernel_f32<isa>::create_ker() {
     jit_generator_t::create_kernel();
-    ker_ = (decltype(ker_))jit_ker();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <cpu::x64::cpu_isa_t isa>
@@ -127,7 +129,7 @@ jit_uni_fft_kernel_f32<isa>::jit_uni_fft_kernel_f32() : jit_uni_fft_kernel(),
 template <cpu::x64::cpu_isa_t isa>
 void jit_uni_fft_kernel_f32<isa>::create_ker() {
     jit_generator_t::create_kernel();
-    ker_ = (decltype(ker_))jit_ker();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <cpu::x64::cpu_isa_t isa>

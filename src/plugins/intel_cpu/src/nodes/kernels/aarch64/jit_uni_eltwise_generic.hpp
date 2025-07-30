@@ -14,6 +14,7 @@
 #include "cpu_types.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 // TODO: handle x64 headers more accurate and remove undef later
 // symbols are defined as global macros as result we should disable them
@@ -50,7 +51,7 @@ public:
 
     void create_ker() override {
         jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override;

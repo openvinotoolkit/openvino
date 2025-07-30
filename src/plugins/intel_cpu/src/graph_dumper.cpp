@@ -320,7 +320,7 @@ void summary_perf(const Graph& graph) {
     std::cout << "Summary of " << graph.GetName() << " @" << std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(&graph))
               << '\n';
     std::cout << "     Total(us): " << total << '\n';
-    std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << '\n';
+    std::cout << " Total_avg(us): " << static_cast<uint64_t>(total_avg) << '\n';
     {
         std::cout << " perf_by_type:" << '\n';
         std::vector<std::pair<std::string, double>> A;

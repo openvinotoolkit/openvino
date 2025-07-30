@@ -145,7 +145,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto src_data = N * K * src_dt_size;
         const auto dst_data = std::accumulate(buffer_b_allocation_shape.cbegin(),
                                               buffer_b_allocation_shape.cend(),
-                                              size_t(1),
+                                              static_cast<size_t>(1),
                                               std::multiplies<>()) *
                               dst_dt_size;
         data_size += src_data + dst_data;

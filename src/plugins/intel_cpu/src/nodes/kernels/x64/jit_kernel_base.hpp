@@ -16,6 +16,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
+#include "utils/cpu_utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/jit_generator.hpp"
@@ -219,7 +220,7 @@ public:
                         ". ",
                         "Xbyak error code: ",
                         Xbyak::ConvertErrorToString(Xbyak::GetError()));
-        m_func = (decltype(m_func))jit_ker();
+        m_func = jit_kernel_cast<decltype(m_func)>(jit_ker());
         return code;
     }
 
