@@ -1035,8 +1035,14 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_mode_1) {
     const auto rounding_mode = ov::op::RoundingType::CEIL;
 
     const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v16::AvgPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    auto mp = make_shared<ov::op::v16::AvgPool>(arg,
+                                                strides,
+                                                dilations,
+                                                pads_begin,
+                                                pads_end,
+                                                kernel_shape,
+                                                exclude_pad,
+                                                rounding_mode);
     const auto expected_output_shape =
         ov::PartialShape{ov::Dimension::dynamic(), 3, {4, ov::util::dim::inf_bound}, {4, 5}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
@@ -1053,8 +1059,14 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_torch_mode_1) {
     const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
 
     const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v16::AvgPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    auto mp = make_shared<ov::op::v16::AvgPool>(arg,
+                                                strides,
+                                                dilations,
+                                                pads_begin,
+                                                pads_end,
+                                                kernel_shape,
+                                                exclude_pad,
+                                                rounding_mode);
     const auto expected_output_shape =
         ov::PartialShape{ov::Dimension::dynamic(), 3, {3, ov::util::dim::inf_bound}, {4, 4}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
@@ -1071,8 +1083,14 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_mode_2) {
     const auto rounding_mode = ov::op::RoundingType::CEIL;
 
     const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v16::AvgPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    auto mp = make_shared<ov::op::v16::AvgPool>(arg,
+                                                strides,
+                                                dilations,
+                                                pads_begin,
+                                                pads_end,
+                                                kernel_shape,
+                                                exclude_pad,
+                                                rounding_mode);
     const auto expected_output_shape =
         ov::PartialShape{ov::Dimension::dynamic(), 3, {6, ov::util::dim::inf_bound}, {6, 7}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
@@ -1089,13 +1107,18 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_torch_mode_2) {
     const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
 
     const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v16::AvgPool>(arg, strides, dilations, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    auto mp = make_shared<ov::op::v16::AvgPool>(arg,
+                                                strides,
+                                                dilations,
+                                                pads_begin,
+                                                pads_end,
+                                                kernel_shape,
+                                                exclude_pad,
+                                                rounding_mode);
     const auto expected_output_shape =
         ov::PartialShape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 6}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
-
 
 REGISTER_TYPED_TEST_SUITE_P(AvgPoolOperator,
                             avg_pool_default_ctor,
