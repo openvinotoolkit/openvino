@@ -46,18 +46,13 @@ std::optional<size_t> IONodeMetadata::extract_batch(const ov::Shape& shape,
     return std::nullopt;  // TODO get layout from shape
 }
 
-IGraph::IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob)
-    : _handle(handle),
-      _metadata(std::move(metadata)),
+IGraph::IGraph(NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob)
+    : _metadata(std::move(metadata)),
       _blob(std::move(blob)),
       _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;
-}
-
-ze_graph_handle_t IGraph::get_handle() const {
-    return _handle;
 }
 
 void IGraph::update_network_name(std::string_view name) {

@@ -30,7 +30,7 @@ struct IONodeMetadata {
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
-    IGraph(ze_graph_handle_t handle, NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
+    IGraph(NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
 
     /**
      * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
@@ -52,7 +52,7 @@ public:
     virtual ~IGraph() = default;
 
     const NetworkMetadata& get_metadata() const;
-    ze_graph_handle_t get_handle() const;
+    virtual ze_graph_handle_t get_handle() const = 0;
 
     void update_network_name(std::string_view name);
 
@@ -103,7 +103,6 @@ protected:
      * the plugin.
      */
 
-    ze_graph_handle_t _handle = nullptr;
     NetworkMetadata _metadata;
 
     std::vector<ArgumentDescriptor> _input_descriptors;
