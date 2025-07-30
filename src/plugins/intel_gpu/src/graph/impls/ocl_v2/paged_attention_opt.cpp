@@ -58,22 +58,7 @@ inline bool get_kv_compressed(const RuntimeParams& params) {
 }
 
 inline size_t get_element_size(ov::element::Type_t type) {
-    switch (type) {
-    case ov::element::Type_t::i64:
-        return 8;
-    case ov::element::Type_t::f32:
-    case ov::element::Type_t::i32:
-    case ov::element::Type_t::u32:
-        return 4;
-    case ov::element::Type_t::f16:
-        return 2;
-    case ov::element::Type_t::i8:
-    case ov::element::Type_t::u8:
-        return 1;
-    default:
-        OPENVINO_ASSERT(false, "Unsupported element type for get_element_size");
-        return 0;  // Fallback case, should not be reached
-    }
+    return ov::element::Type(type).size();
 }
 
 static size_t get_pa_sg_number_scale_factor(const device_info& info, size_t head_size, size_t kernel_type, bool is_kv_compressed = false) {
@@ -1230,7 +1215,7 @@ public:
         return;
     }
 
-    // update rt parameter once shape is changed
+    // update impl_parameter and rt_parameter
     void update(primitive_inst& inst, const kernel_impl_params& impl_params) override {
         SDPAImplBase::update(inst, impl_params);
         update_rt_params(inst);

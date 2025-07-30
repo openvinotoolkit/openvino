@@ -988,8 +988,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     }
 
     if (config.has_const_scale_val) {
-        jit.add(make_float_jit_constant("STATIC_SCALE_VALUE", config.scale_val));
-        jit.add(make_float_jit_constant("STATIC_SCALE_VALUE_INV", 1.0f / config.scale_val));
+        jit.make("STATIC_SCALE_VALUE", config.scale_val);
+        jit.make("STATIC_SCALE_VALUE_INV", 1.0f / config.scale_val);
     } else {
         jit.make("WITH_SCALE", data_inputs_num > scale_input_idx);
     }

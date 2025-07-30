@@ -72,9 +72,6 @@ struct SDPABase : public KernelGenerator {
 
 class SDPAImplBase : public PrimitiveImplOCL {
 public:
-    static constexpr const size_t INDIRECT_STAGE = 10;
-    static constexpr const size_t REGULAR_STAGE = 20;
-
     explicit SDPAImplBase(const std::string& name) : PrimitiveImplOCL(name) {}
     explicit SDPAImplBase(const ov::DiscreteTypeInfo& info) : PrimitiveImplOCL(std::string(info.name)) {}
 

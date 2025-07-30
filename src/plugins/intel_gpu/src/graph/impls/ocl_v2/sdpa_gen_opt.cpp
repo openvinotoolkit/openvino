@@ -70,11 +70,11 @@ JitConstants SDPAOptGeneratorBase::get_jit_constants_base(const kernel_impl_para
         if ((data_inputs_num > scale_idx) && (!desc->scale_val.has_value())) {
             jit.make("HAS_SCALE_INPUT", 1);
         } else if (desc->scale_val.has_value()) {
-            jit.add(make_float_jit_constant("STATIC_SCALE_VALUE", desc->scale_val.value()));
-            jit.add(make_float_jit_constant("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value()));
+            jit.make("STATIC_SCALE_VALUE", desc->scale_val.value());
+            jit.make("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value());
         } else {
-            jit.add(make_float_jit_constant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(k_head_size))));
-            jit.add(make_float_jit_constant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(k_head_size))));
+            jit.make("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(k_head_size)));
+            jit.make("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(k_head_size)));
         }
         // jit.make("NUM_KV_HEADS", -1);
         if (info.supports_immad && broadcast_axis == -1 && k_head_size >= 128) {

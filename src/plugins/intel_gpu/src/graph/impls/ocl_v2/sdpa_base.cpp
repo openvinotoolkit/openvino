@@ -317,8 +317,8 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         jit.make("KV_NUM_HEADS", desc->kv_heads_num);
 
         if (desc->scale_val.has_value()) {
-            jit.add(make_float_jit_constant("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value()));
-            jit.add(make_float_jit_constant("STATIC_SCALE_VALUE", desc->scale_val.value()));
+            jit.make("STATIC_SCALE_VALUE_INV", 1.0f / desc->scale_val.value());
+            jit.make("STATIC_SCALE_VALUE", desc->scale_val.value());
         } else {
             jit.make("HAS_SCALE_INPUT", 1);
         }
