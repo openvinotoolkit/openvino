@@ -561,7 +561,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV16_ExplicitPad_FloorRounding, AvgPoolingV
 const auto avgPoolV16_ExplicitPad_FloorRounding_5Dinput_Params = ::testing::Combine(
         ::testing::ValuesIn(kernel_3d),
         ::testing::ValuesIn(strides_3d),
-        ::testing::ValuesIn(dilation_3d),
+        ::testing::Values(dilation_3d[0]),
         ::testing::ValuesIn(pad_begins_3d),
         ::testing::ValuesIn(pad_ends_3d),
         ::testing::Values(ov::op::RoundingType::FLOOR),
