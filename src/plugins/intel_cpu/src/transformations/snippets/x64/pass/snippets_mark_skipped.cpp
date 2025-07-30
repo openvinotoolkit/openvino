@@ -267,7 +267,8 @@ bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& nod
     const auto out = node->outputs();
     const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     const bool has_two_parents = node->get_input_size() == 2;
-    if (!(is_suitable_node && has_only_child && has_two_parents)) {
+    const bool all_conditions_met = is_suitable_node && has_only_child && has_two_parents;
+    if (!all_conditions_met) {
         return false;
     }
 
@@ -445,8 +446,10 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
         }
         const auto conv = n->get_input_source_output(0);
         const auto bias = n->get_input_source_output(1);
-        if (!(ov::is_type<ov::op::v0::Constant>(bias.get_node_shared_ptr()) &&
-              isSuitableConvolutionParent(conv.get_node_shared_ptr()))) {
+        const bool is_bias_constant = ov::is_type<ov::op::v0::Constant>(bias.get_node_shared_ptr());
+        const bool is_conv_suitable = isSuitableConvolutionParent(conv.get_node_shared_ptr());
+        const bool valid_bias_conv_pair = is_bias_constant && is_conv_suitable;
+        if (!valid_bias_conv_pair) {
             return false;
         }
         const auto& conv_shape = conv.get_partial_shape();

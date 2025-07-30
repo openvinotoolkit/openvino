@@ -654,7 +654,8 @@ void RNN::initCell() {
                        "; Hidden state rank: ",
                        getInputShapeAtPort(1).getRank());
     }
-    CPU_NODE_ASSERT(!(is_augru && getInputShapeAtPort(5).getRank() != 2LU),
+    const bool is_augru_with_wrong_rank = is_augru && getInputShapeAtPort(5).getRank() != 2LU;
+    CPU_NODE_ASSERT(!is_augru_with_wrong_rank,
                     "has incorrect input ranks. Attention rank: ",
                     getInputShapeAtPort(2).getRank());
 
@@ -694,7 +695,10 @@ void RNN::initCell() {
 
         if (is_augru) {
             const Shape shapeA{B, 1};
-            CPU_NODE_ASSERT(!(getInputShapeAtPort(5).isStatic() && getInputShapeAtPort(5) != shapeA),
+            const bool is_static = getInputShapeAtPort(5).isStatic();
+            const bool wrong_shape = getInputShapeAtPort(5) != shapeA;
+            const bool static_with_wrong_shape = is_static && wrong_shape;
+            CPU_NODE_ASSERT(!static_with_wrong_shape,
                             "has incorrect input shapes. Attention shape: ",
                             getInputShapeAtPort(5).toString());
         }

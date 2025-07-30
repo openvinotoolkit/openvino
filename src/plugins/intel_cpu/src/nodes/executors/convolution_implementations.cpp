@@ -91,7 +91,10 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
 
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config.attrs.postOps), UNSUPPORTED_POST_OPS);
-                VERIFY(isQuantized(config) || DnnlConvolutionPrimitive::isBrgConvAvailable(config), "is not quantized or brgemm convolution is not available");
+                const bool is_quantized = isQuantized(config);
+                const bool brg_conv_available = DnnlConvolutionPrimitive::isBrgConvAvailable(config);
+                const bool valid_config = is_quantized || brg_conv_available;
+                VERIFY(valid_config, "is not quantized or brgemm convolution is not available");
 
                 return true;
             },

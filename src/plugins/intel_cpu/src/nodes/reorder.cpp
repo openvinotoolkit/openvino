@@ -110,7 +110,10 @@ void Reorder::initSupportedPrimitiveDescriptors() {
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::reorder);
 
     // must be to initialize here since shapes are unknown at the time of Reorder node creation
-    isDynamic = !(config.inConfs[0].getMemDesc()->isDefined() && config.outConfs[0].getMemDesc()->isDefined());
+    const bool input_defined = config.inConfs[0].getMemDesc()->isDefined();
+    const bool output_defined = config.outConfs[0].getMemDesc()->isDefined();
+    const bool both_defined = input_defined && output_defined;
+    isDynamic = !both_defined;
     if (isDynamicNode() && !shapeInference) {
         shapeInference = std::make_shared<ShapeInferPassThrough>();
     }

@@ -2107,9 +2107,9 @@ void Reduce::getSupportedDescriptors() {
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
         bool is_emulated_0d_as_1d =
             getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
-        CPU_NODE_ASSERT(
-            !(getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d),
-            "gets incorrect number of input/output dimensions!");
+        const bool rank_condition = getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank();
+        const bool invalid_config = rank_condition && !is_emulated_0d_as_1d;
+        CPU_NODE_ASSERT(!invalid_config, "gets incorrect number of input/output dimensions!");
     }
 }
 

@@ -159,7 +159,7 @@ CheckOptions:
   - key: readability-simplify-boolean-expr.ChainedConditionalAssignment
     value: true
   - key: readability-simplify-boolean-expr.SimplifyDeMorgan
-    value: false
+    value: true
   - key: readability-simplify-boolean-expr.SimplifyDeMorganRelaxed
-    value: false
+    value: true
 ---
