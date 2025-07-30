@@ -1606,7 +1606,9 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             if (fuseCandidate->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto isNotSpecialConvolutionAddFusing = [](const NodePtr& fusedNode) {
                     const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
-                    return !(eltwise && eltwise->isSpecialConvolutionAddFusing());
+                    const auto has_eltwise = static_cast<bool>(eltwise);
+                    const bool is_special_fusing = has_eltwise && eltwise->isSpecialConvolutionAddFusing();
+                    return !is_special_fusing;
                 };
                 auto allFusedNodesNotSpecial = [&]() {
                     return std::all_of(binConv->fusedWith.begin(),
@@ -2107,8 +2109,8 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
             auto parents = childNode->parentEdges;
             auto initialParentInNum = parentNode->getParentEdges().size();
 
-            for (const auto& i : parents) {
-                auto p_edge = i.lock();
+            for (size_t parentId = 0; parentId < parents.size(); parentId++) {
+                auto p_edge = parents[parentId].lock();
                 if (!p_edge) {
                     continue;
                 }
@@ -2159,11 +2161,10 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                         parentNode->inputShapes.resize(outNum + 1);
                     }
                     parentNode->inputShapes[outNum] = parent->getOutputShapeAtPort(inNum);
-
+                    parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(parentId));
                     graph.CreateEdge(parent, parentNode, inNum, outNum);
                 }
             }
-
             graph.DropNode(childNode);
         } else {
             graph.DropNode(childNode);
@@ -2533,7 +2534,8 @@ bool GraphOptimizer::canBeInplaced(const NodePtr& parentNode, const NodePtr& chi
     const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
         return edge->inPlace(Edge::LOOK_DOWN);
     });
-    return !(parentInPlace && childInPlace);
+    const bool both_in_place = parentInPlace && childInPlace;
+    return !both_in_place;
 }
 
 bool GraphOptimizer::checkAscendingFinalOrder(const VectorDims& transposeOrder,

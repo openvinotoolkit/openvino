@@ -46,7 +46,7 @@
 namespace {
 bool is_supported_tensor(const ov::descriptor::Tensor& t) {
     return t.get_partial_shape().rank().is_static() &&
-           ov::snippets::utils::any_of(t.get_partial_shape().size(), 2lu, 3lu, 4lu);
+           ov::snippets::utils::any_of(t.get_partial_shape().size(), 2LU, 3LU, 4LU);
 }
 
 bool is_supported_intermediate_op(const std::shared_ptr<ov::Node>& node) {
@@ -163,8 +163,8 @@ size_t get_potential_body_params(const std::shared_ptr<ov::Node>& op) {
         const auto input = op->input_value(i);
         const auto parent = input.get_node_shared_ptr();
         const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(parent);
-        if (!(constant && (ov::shape_size(input.get_shape()) == 1 || ov::is_type<ov::op::v0::FakeQuantize>(op) ||
-                           ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op)))) {
+        if (!constant || (ov::shape_size(input.get_shape()) != 1 && !ov::is_type<ov::op::v0::FakeQuantize>(op) &&
+                          !ov::snippets::op::Subgraph::constant_input_should_be_inside_body(op))) {
             count++;
         }
     }
