@@ -371,16 +371,26 @@ elseif(NOT TARGET arm_compute::arm_compute)
             ${SCONS} ${ARM_COMPUTE_OPTIONS}
                 ${arm_compute}
         BUILD_IN_SOURCE 1
+        BUILD_BYPRODUCTS ${ARM_COMPUTE_BUILD_DIR}/${arm_compute}
         INSTALL_COMMAND ${CMAKE_COMMAND} -E make_directory ${ARM_COMPUTE_BUILD_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${ARM_COMPUTE_BUILD_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core
+            COMMAND ${CMAKE_COMMAND} -E copy
                 ${ARM_COMPUTE_SOURCE_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a
                 ${ARM_COMPUTE_BUILD_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/libarm_compute-static.a
+            COMMAND ${CMAKE_COMMAND} -E copy
+                ${ARM_COMPUTE_SOURCE_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed
+                ${ARM_COMPUTE_BUILD_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed
             COMMAND ${CMAKE_COMMAND} -E remove_directory ${ARM_COMPUTE_SOURCE_DIR}/build
         LOG_BUILD ON
     )
 
-    # Get the full path to the built library  
+    # Get the full path to the built library after it's copied
     set(arm_compute_full_path "${ARM_COMPUTE_BUILD_DIR}/${arm_compute}")
+    
+    message(STATUS "ACL build configuration:")
+    message(STATUS "  ARM_COMPUTE_BUILD_DIR: ${ARM_COMPUTE_BUILD_DIR}")
+    message(STATUS "  arm_compute: ${arm_compute}")
+    message(STATUS "  arm_compute_full_path: ${arm_compute_full_path}")
 
     # Import targets
     add_library(arm_compute::arm_compute STATIC IMPORTED GLOBAL)
@@ -407,4 +417,6 @@ elseif(NOT TARGET arm_compute::arm_compute)
 
     # required by oneDNN to attempt to parse ACL version
     set(ACL_INCLUDE_DIR "${ARM_COMPUTE_SOURCE_DIR}")
+    # Set environment variable to tell oneDNN where to find ACL version file
+    set(ENV{ACL_ROOT_DIR} "${ARM_COMPUTE_BUILD_DIR}")
 endif()
