@@ -62,9 +62,6 @@ compiled_model = core.compile_model(model, "CPU")
 ✅ _Use this method for guaranteed fusion disablement before compilation._
 
 ---
-
-أكيد! إليك القسم الكامل الخاص بـ **Option 2 – Environment Variable (Now Functional)** بصيغة Markdown، مع كود متكامل يوضح طريقة التفعيل باستخدام متغيرات البيئة (CMD أو Bash) وتشغيل سكريبت داخلي:
-
 ---
 
 ### ✅ Option 2 – Environment Variable (Now Functional)
