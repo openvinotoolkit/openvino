@@ -237,6 +237,33 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                                       m_lm_head_request->get_tensor(lm_head_embed_port));
     }
 
+    // FIXME: E-177589
+    // FIXME: "fixes"/workarounds caching import on CPU (also might be related to bf16 weights).
+    // Unclear how it's related. Previously fill_tensor()
+    // was in copy_kvcache() call. When it was removed, it broke the import accuracy.
+    bool enable_cpu_wa = false;
+    for (const auto& kv_sub : m_npuw_llm_compiled_model->m_kvcache_compiled->m_compiled_submodels) {
+        if (*kv_sub.device_it == "CPU") {
+            enable_cpu_wa = true;
+            break;
+        }
+    }
+
+    if (enable_cpu_wa) {
+        const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
+        // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
+        for (std::size_t i = kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
+            const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
+            const auto& input_name =
+                std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
+            if (m_kvcache_in_ports.find(input_name) == m_kvcache_in_ports.end()) {
+                continue;
+            }
+            auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
+            fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+        }
+    }
+
     m_generate_initialized = false;
 }
 
