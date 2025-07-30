@@ -205,7 +205,7 @@ bool ov::snippets::pass::PropagatePrecision::validate_and_infer_types_and_restor
         const auto op_element_type = op->get_input_element_type(0);
         if (type_relaxed_node->get_overridden_output_type(0) != op_element_type) {
             was_updated = true;
-            OPENVINO_ASSERT(op->get_output_size() == 1ull, "operation with several output is not supported");
+            OPENVINO_ASSERT(op->get_output_size() == 1ULL, "operation with several output is not supported");
 
             type_relaxed_node->set_overridden_output_type(op_element_type, 0);
             op->validate_and_infer_types();
