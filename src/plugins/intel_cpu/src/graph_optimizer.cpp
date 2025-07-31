@@ -3415,7 +3415,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
     searchForTailNodes = [&](const NodePtr& node, std::unordered_map<NodePtr, bool>& tailNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
             const auto& parent = node->getParentEdgeAt(i)->getParent();
-            if (one_of(parent->getType(),
+            if (any_of(parent->getType(),
                        Type::Convolution,
                        Type::FullyConnected,
                        Type::RNNCell,
@@ -3473,11 +3473,11 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                     return false;
                 }
                 if ((std::find(kStartTypes.begin(), kStartTypes.end(), parent->getType()) != kStartTypes.end()) &&
-                    tailNodesMap.count(parent) != 0u) {
+                    tailNodesMap.count(parent) != 0U) {
                     continue;
                 }
                 if ((std::find(kPathTypes.begin(), kPathTypes.end(), parent->getType()) != kPathTypes.end()) &&
-                    tailNodesMap.count(parent) != 0u) {
+                    tailNodesMap.count(parent) != 0U) {
                     if (!parent->isInPlace()) {
                         return false;
                     }
@@ -3539,14 +3539,14 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
             if (!tailNodesMap.count(parent)) {
                 continue;
             }
-            if (one_of(parent->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
+            if (any_of(parent->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
                 continue;
             }
             if (parent->keepOrigPrecision()) {
                 continue;
             }
             if ((parent->getType() == Type::Convert) && (parent->getOriginalInputPrecisionAtPort(0) == inferPrec) &&
-                outputPrecisions.count(parent->getOriginalOutputPrecisionAtPort(0)) != 0u) {
+                outputPrecisions.count(parent->getOriginalOutputPrecisionAtPort(0)) != 0U) {
                 bool suitableCase = false;
                 auto outprecision = parent->getOriginalOutputPrecisionAtPort(0);
                 NodePtr concatConvertfusedNode;
@@ -3556,7 +3556,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                         continue;
                     }
                     if ((std::find(kPathTypes.begin(), kPathTypes.end(), p->getType()) != kPathTypes.end()) &&
-                        tailNodesMap.count(parent) != 0u) {
+                        tailNodesMap.count(parent) != 0U) {
                         if (!p->isInPlace()) {
                             // if FuseConvert method implement, we can fuse the following convert into this node
                             auto* concat = dynamic_cast<node::Concat*>(p.get());
