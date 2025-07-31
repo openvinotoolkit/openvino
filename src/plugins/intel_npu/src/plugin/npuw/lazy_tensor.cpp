@@ -21,7 +21,7 @@ namespace ov {
 namespace npuw {
 namespace weights {
 namespace op {
-Const::Const(std::shared_ptr<ov::op::v0::Constant> n) : m_node(n) {
+Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     m_cached_type = m_node->get_element_type();
     m_cached_shape = m_node->get_shape();
     m_cached_ptr = m_node->get_data_ptr();

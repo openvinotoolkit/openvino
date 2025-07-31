@@ -84,7 +84,7 @@ struct jit_uni_binarization_kernel : public jit_uni_quantize_kernel, public jit_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     };
 
     void generate() override {
@@ -285,7 +285,7 @@ struct jit_uni_quantization_kernel : public jit_uni_quantize_kernel, public jit_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     };
 
     void generate() override {
@@ -1879,10 +1879,12 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
 
     bool is_blk_format = !srcDesc.hasLayoutType(LayoutType::nspc) && any_of(srcDesc.getShape().getRank(), 4U, 5U);
     int blk_size = 1;
-    if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U)) &&
-        mayiuse(cpu::x64::avx512_core)) {
+    const bool has_ncsp_layout = srcDesc.hasLayoutType(LayoutType::ncsp);
+    const bool has_valid_rank = any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U);
+    const bool is_ncsp_with_valid_rank = has_ncsp_layout && has_valid_rank;
+    if (!is_ncsp_with_valid_rank && mayiuse(cpu::x64::avx512_core)) {
         blk_size = 16;
-    } else if (!(srcDesc.hasLayoutType(LayoutType::ncsp) && any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U))) {
+    } else if (!is_ncsp_with_valid_rank) {
         blk_size = 8;
     }
 
@@ -2146,7 +2148,7 @@ void FakeQuantize::appendPostOpsImpl(dnnl::post_ops& ops, const VectorDims& post
 
     if (getAlgorithm() == Algorithm::FQBinarization) {
         ops.append_binarization(dnnl::algorithm::binarization_depthwise,
-                                (const float*)binarizationThresholds.data(),
+                                static_cast<const float*>(binarizationThresholds.data()),
                                 reinterpret_cast<const float*>(binarizationOutputMask.data()));
     } else {
         dnnl::algorithm alg = getAlgorithm() == Algorithm::FQQuantization
