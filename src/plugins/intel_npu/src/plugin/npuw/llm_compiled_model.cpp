@@ -499,7 +499,7 @@ public:
         auto dim_merge_shape = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1}));
         auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
 
-        return {output, present_k, present_v};
+        return {std::move(output), std::move(present_k), std::move(present_v)};
     }
 
     // make split functions is a copy-past from ONNX FE. TODO: move it to one place
@@ -1284,6 +1284,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.num_stored_tokens);
         write(model_stream, m_kvcache_desc.dim);
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
+        write(model_stream, m_prefill_chunk_size);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1474,6 +1475,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
         read(model_stream, compiled->m_kvcache_desc.dim);
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
+        read(model_stream, compiled->m_prefill_chunk_size);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
