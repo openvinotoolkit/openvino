@@ -77,13 +77,6 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
     }
 }
 
-bool memory_and_size_aligned_to_standard_page_size(void* addr, size_t size) {
-    auto addr_int = reinterpret_cast<uintptr_t>(addr);
-
-    // addr is aligned to standard page size
-    return (addr_int % STANDARD_PAGE_SIZE == 0) && (size % STANDARD_PAGE_SIZE == 0);
-}
-
 }  // namespace
 
 //------------------------------------------------------------------------------
@@ -267,7 +260,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         updateCommandListArg = true;
     } else {
         if (_externalMemoryStandardAllocationSupported &&
-            memory_and_size_aligned_to_standard_page_size(tensor->data(), tensor->get_byte_size())) {
+            utils::memory_and_size_aligned_to_standard_page_size(tensor->data(), tensor->get_byte_size())) {
             _logger.debug("ZeroInferRequest::set_tensor_data - import memory from a system memory pointer");
             auto hostMemSharedAllocator =
                 zeroMemory::HostMemSharedAllocator(_initStructs,
@@ -679,8 +672,8 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                 _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state()._ptr;
             } else {
                 if (_externalMemoryStandardAllocationSupported &&
-                    memory_and_size_aligned_to_standard_page_size(zeroState->get_state()->data(),
-                                                                  zeroState->get_state()->get_byte_size())) {
+                    utils::memory_and_size_aligned_to_standard_page_size(zeroState->get_state()->data(),
+                                                                         zeroState->get_state()->get_byte_size())) {
                     auto hostMemSharedAllocator =
                         zeroMemory::HostMemSharedAllocator(_initStructs, zeroState->get_state()._ptr);
 

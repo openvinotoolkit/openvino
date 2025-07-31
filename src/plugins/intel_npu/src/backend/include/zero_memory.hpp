@@ -61,7 +61,7 @@ public:
         : HostMemAllocator(initStructs, flag),
           _tensor(tensor) {}
 
-    void* allocate(const size_t bytes = 0, const size_t alignment = STANDARD_PAGE_SIZE) noexcept override;
+    void* allocate(const size_t bytes = 0, const size_t alignment = utils::STANDARD_PAGE_SIZE) noexcept override;
 
 private:
     const std::shared_ptr<ov::ITensor> _tensor;
