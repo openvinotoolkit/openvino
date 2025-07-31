@@ -487,14 +487,4 @@ bool eltwise_node::need_input_tensors_dims_unalign_for_numpy_broadcast(size_t in
 
     return false;
 }
-
-std::optional<size_t> eltwise_node::find_eltwise_const_dep_idx() const {
-    for (size_t i = 0; i < get_dependencies().size(); ++i) {
-        if (get_dependency(i).is_constant())
-            return i;
-    }
-
-    return std::nullopt;
-}
-
 }  // namespace cldnn

@@ -69,6 +69,16 @@ void prepare_primitive_fusing::run(program& p) {
     optimize_fused_ops(p);
 }
 
+static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node) {
+    for (size_t i = 0; i < node.get_dependencies().size(); ++i) {
+        if (node.get_dependency(i).is_constant())
+            return i;
+    }
+
+    return std::nullopt;
+}
+
+
 void prepare_primitive_fusing::remove_redundant_reshape(program &p) {
     auto node_itr = p.get_processing_order().begin();
     while (node_itr != p.get_processing_order().end()) {
@@ -219,7 +229,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             continue;
 
         auto& eltw_node = node->as<eltwise>();
-        auto const_dep_idx = eltw_node.find_eltwise_const_dep_idx();
+        auto const_dep_idx = find_eltwise_const_dep_idx(eltw_node);
         bool is_bias_add = eltw_node.get_primitive()->mode == eltwise_mode::sum &&
                            eltw_node.get_dependencies().size() == 2 &&
                            const_dep_idx.has_value() &&
