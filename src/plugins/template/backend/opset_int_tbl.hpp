@@ -7,6 +7,8 @@
 #    define _OPENVINO_OP_REG(x, y)
 #endif
 
+_OPENVINO_OP_REG(RotRPEAttentionWeightWithIndexComputation, op::v5)
+_OPENVINO_OP_REG(RotRPEProjectValueWithIndexComputation, op::v5)
 _OPENVINO_OP_REG(Abs, op::v0)
 _OPENVINO_OP_REG(BatchNormInference, op::v0)
 _OPENVINO_OP_REG(Ceiling, op::v0)

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "openvino/op/rpe.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/acos.hpp"
 #include "openvino/op/acosh.hpp"

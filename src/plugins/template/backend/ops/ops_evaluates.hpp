@@ -265,6 +265,13 @@ extern template bool evaluate_node<ov::op::v5::BatchNormInference>(std::shared_p
                                                                    ov::TensorVector& outputs,
                                                                    const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v5::RotRPEAttentionWeightWithIndexComputation>(std::shared_ptr<ov::Node> node,
+                                                                   ov::TensorVector& outputs,
+                                                                   const ov::TensorVector& inputs);
+extern template bool evaluate_node<ov::op::v5::RotRPEProjectValueWithIndexComputation>(std::shared_ptr<ov::Node> node,
+                                                                   ov::TensorVector& outputs,
+                                                                   const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v5::GatherND>(std::shared_ptr<ov::Node> node,
                                                          ov::TensorVector& outputs,
                                                          const ov::TensorVector& inputs);
