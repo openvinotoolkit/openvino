@@ -605,10 +605,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_isinf_float16_cpu",
     ),
     (
-        xfail_issue_125491,
-        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_1_ceil_mode_is_True_cpu",
-    ),
-    (
         xfail_issue_125492,
         "OnnxBackendNodeModelTest.test_dft_axis_opset19_cpu",
         "OnnxBackendNodeModelTest.test_dft_inverse_opset19_cpu",
