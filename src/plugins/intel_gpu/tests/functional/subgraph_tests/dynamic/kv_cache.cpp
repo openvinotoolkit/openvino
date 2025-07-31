@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
-#include "common_test_utils/file_utils.hpp"
-#include "subgraphs_builders.hpp"
-#include "shared_test_classes/base/utils/compare_results.hpp"
-
+#include "common_test_utils/subgraph_builders/llm_builders.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/convert.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/compare_results.hpp"
 
 namespace {
 using ov::test::InputShape;
@@ -60,7 +59,7 @@ protected:
 
         inType = outType = element_type;
 
-        function = tests::make_llm_kv_cache_pattern(inputDynamicShapes[0][0], inputDynamicShapes[0][1], inputDynamicShapes[0][3], element_type);
+        function = ov::test::utils::make_llm_kv_cache_pattern(inputDynamicShapes[0][0], inputDynamicShapes[0][1], inputDynamicShapes[0][3], element_type);
     }
 };
 
@@ -136,7 +135,7 @@ class KVCacheTests: public ::testing::Test {
 
         ov::element::Type element_type = ov::element::f16;
 
-        auto model = tests::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type);
+        auto model = ov::test::utils::make_llm_kv_cache_pattern(batch, n_heads, n_features, element_type);
         if (is_caching_test) {
             core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
         }
@@ -291,24 +290,24 @@ class KVCacheTests: public ::testing::Test {
 
         const bool stateful = true;
 
-        auto model = tests::make_llm_kv_cache_pattern(build_state_initializer ? ov::Dimension::dynamic() : batch,
-                                                      n_heads,
-                                                      n_features,
-                                                      element_type,
-                                                      concat_axis,
-                                                      stateful,
-                                                      fuse_cache_reorder,
-                                                      build_state_initializer && stateful,
-                                                      num_groups);
-        auto ref_model = tests::make_llm_kv_cache_pattern(build_state_initializer ? ov::Dimension::dynamic() : batch,
-                                                          n_heads,
-                                                          n_features,
-                                                          element_type,
-                                                          concat_axis,
-                                                          !stateful,
-                                                          fuse_cache_reorder,
-                                                          build_state_initializer && !stateful,
-                                                          num_groups);
+        auto model = ov::test::utils::make_llm_kv_cache_pattern(build_state_initializer ? ov::Dimension::dynamic() : batch,
+                                                                n_heads,
+                                                                n_features,
+                                                                element_type,
+                                                                concat_axis,
+                                                                stateful,
+                                                                fuse_cache_reorder,
+                                                                build_state_initializer && stateful,
+                                                                num_groups);
+        auto ref_model = ov::test::utils::make_llm_kv_cache_pattern(build_state_initializer ? ov::Dimension::dynamic() : batch,
+                                                                    n_heads,
+                                                                    n_features,
+                                                                    element_type,
+                                                                    concat_axis,
+                                                                    !stateful,
+                                                                    fuse_cache_reorder,
+                                                                    build_state_initializer && !stateful,
+                                                                    num_groups);
         if (is_caching_test) {
             core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
         }
@@ -550,14 +549,7 @@ public:
 
         const bool stateful = true;
 
-        auto model = tests::make_llm_kv_cache_pattern(n_batch,
-                                                      n_heads,
-                                                      n_features,
-                                                      element_type,
-                                                      2,
-                                                      stateful,
-                                                      false,
-                                                      stateful);
+        auto model = ov::test::utils::make_llm_kv_cache_pattern(n_batch, n_heads, n_features, element_type, 2, stateful, false, stateful);
         auto compiled_model = core->compile_model(model, ov::test::utils::DEVICE_GPU, properties);
 
         auto input0 = model->get_parameters().at(0);
