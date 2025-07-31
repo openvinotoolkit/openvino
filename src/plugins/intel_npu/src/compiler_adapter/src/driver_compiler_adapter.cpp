@@ -453,7 +453,11 @@ uint32_t DriverCompilerAdapter::get_version() const {
 SerializedIR DriverCompilerAdapter::serializeIR(const std::shared_ptr<const ov::Model>& model,
                                                 ze_graph_compiler_version_info_t compilerVersion,
                                                 const uint32_t supportedOpsetVersion) const {
-    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion);
+    // TODO: version check to see if we use traditional or new way since old driver can not parse map
+    bool serializeWeightsPtrToXml =
+        (compilerVersion.major > 7) || (compilerVersion.major == 7 && compilerVersion.minor >= 22);
+
+    driver_compiler_utils::IRSerializer irSerializer(model, supportedOpsetVersion, serializeWeightsPtrToXml);
 
     // Contract between adapter and compiler in driver
     const uint32_t maxNumberOfElements = 10;
