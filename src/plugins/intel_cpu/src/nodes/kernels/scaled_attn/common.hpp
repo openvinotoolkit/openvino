@@ -37,6 +37,7 @@ static constexpr size_t vec_len_f32_avx512 = vec_len_avx512 / sizeof(float);
 static constexpr size_t vec_len_f32_avx2 = vec_len_avx2 / sizeof(float);
 static constexpr size_t vec_len_f32_neon = vec_len_neon / sizeof(float);
 static constexpr size_t vec_len_f16_neon = vec_len_neon / sizeof(ov::float16);
+static constexpr size_t vec_len_epi8_avx2 = vec_len_avx2 / sizeof(int8_t);
 
 #if defined(HAVE_SVE)
 inline size_t vec_len_f32_sve() {
