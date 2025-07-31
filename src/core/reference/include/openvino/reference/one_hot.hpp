@@ -38,7 +38,8 @@ void one_hot(const INPUT_TYPE* indices,
 
             if (input_val >= min_valid && input_val <= max_valid) {
                 const int64_t actual_index = (input_val < 0) ? depth_i64 + input_val : input_val;
-                const size_t output_offset = out_elem_size * (outer_i * depth + inner_i + static_cast<size_t>(actual_index) * inner_block);
+                const size_t output_offset =
+                    out_elem_size * (outer_i * depth + inner_i + static_cast<size_t>(actual_index) * inner_block);
                 std::copy(on_value, on_value + out_elem_size, out + output_offset);
             }
         }
