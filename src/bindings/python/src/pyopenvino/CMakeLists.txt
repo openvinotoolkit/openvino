@@ -60,7 +60,7 @@ list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch|j
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
-if(ENABLE_NO_GIL_PYTHON_API)
+if(NOT ENABLE_GIL_PYTHON_API)
     # disable GIL for free-threaded python build
     target_compile_definitions(${PROJECT_NAME} PRIVATE Py_GIL_DISABLED=1)
 endif()
