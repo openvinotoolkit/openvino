@@ -20,11 +20,11 @@ class Graph : public IGraph {
 public:
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-          ze_graph_handle_t graphHandle,
+          const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          const bool persistentBlob,
           const Config& config,
+          const bool blobIsPersistent = false,
           const ov::SoPtr<ICompiler>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
@@ -34,6 +34,8 @@ public:
                                                             const Config& config) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
+
+    ze_graph_handle_t get_handle() const override;
 
     void initialize(const Config& config) override;
 
@@ -46,10 +48,12 @@ protected:
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
+    GraphDescriptor _graphDesc;
+
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _persistentBlob = false;
+    bool _blobIsPersistent = false;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;
