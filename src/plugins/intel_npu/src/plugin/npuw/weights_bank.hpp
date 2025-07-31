@@ -25,9 +25,7 @@ namespace weights {
 
 class Bank {
 public:
-    explicit Bank(const std::shared_ptr<const ov::ICore>& core,
-                  const std::string& alloc_device,
-                  const std::string& bank_name)
+    Bank(const std::shared_ptr<const ov::ICore>& core, const std::string& alloc_device, const std::string& bank_name)
         : m_core(core),
           m_alloc_device(alloc_device),
           m_bank_name(bank_name) {}

@@ -66,6 +66,7 @@ private:
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
+    friend class LLMInferRequest;
 
     bool compile_for_success(std::size_t id);
     bool compile_for_device(std::size_t id, const std::string& device_to_try);
@@ -191,6 +192,7 @@ private:
 
     std::unordered_map<const void*, std::size_t> m_const_to_offset;
     ov::npuw::s11n::BF16Cache m_bf16_consts;
+    ov::npuw::s11n::WeightsContext m_import_weights_ctx;
 };
 }  // namespace npuw
 }  // namespace ov
