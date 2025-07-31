@@ -139,6 +139,11 @@ void ZeroInferRequest::create_pipeline() {
         batchSize = _graph->get_batch_size(_metadata, _userInputTensors.at(0), _graphInputDescriptors[0]);
     }
     for (size_t inputIndex = 0; inputIndex < _metadata.inputs.size(); ++inputIndex) {
+        if (_metadata.inputs.at(inputIndex).isMainInputWeights) {
+            // These values were set while running the "WeightlessGraph::init" method
+            continue;
+        }
+
         if (is_batched_input(inputIndex) && batchSize.has_value()) {
             if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
                 _logger.debug("ZeroInferRequest::create_pipeline - tensors %s were already allocated",

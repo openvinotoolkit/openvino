@@ -51,7 +51,7 @@ namespace ov::intel_cpu::node {
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     op::v9::NonMaxSuppression::get_type_info_static(),
                     op::internal::NonMaxSuppressionIEInternal::get_type_info_static(),
                     op::v13::NMSRotated::get_type_info_static())) {
@@ -62,7 +62,7 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ov::Nod
 
         if (const auto* nms9 = as_type<const op::v9::NonMaxSuppression>(op.get())) {
             const auto boxEncoding = nms9->get_box_encoding();
-            if (!one_of(boxEncoding,
+            if (none_of(boxEncoding,
                         op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
                         op::v9::NonMaxSuppression::BoxEncodingType::CORNER)) {
                 errorMessage = "Supports only CENTER and CORNER box encoding type";
@@ -82,7 +82,7 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_type_info(), op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
+    if (any_of(op->get_type_info(), op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
         m_out_static_shape = true;
     }
 

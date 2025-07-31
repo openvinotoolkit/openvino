@@ -89,6 +89,11 @@ struct precision_of<uint8_t> {
 };
 
 template <>
+struct precision_of<int8_t> {
+    static constexpr ov::element::Type_t value = ov::element::Type_t::i8;
+};
+
+template <>
 struct precision_of<float16> {
     static constexpr ov::element::Type_t value = ov::element::Type_t::f16;
 };
@@ -397,7 +402,7 @@ struct PlainTensor {
     }
 
     [[nodiscard]] size_t sub_byte_data_type_multiplier() const {
-        if (one_of(m_dt, ov::element::i4, ov::element::u4)) {
+        if (any_of(m_dt, ov::element::i4, ov::element::u4)) {
             return 2;
         }
         return 1;

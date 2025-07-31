@@ -145,7 +145,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto src_data = N * K * src_dt_size;
         const auto dst_data = std::accumulate(buffer_b_allocation_shape.cbegin(),
                                               buffer_b_allocation_shape.cend(),
-                                              size_t(1),
+                                              static_cast<size_t>(1),
                                               std::multiplies<>()) *
                               dst_dt_size;
         data_size += src_data + dst_data;
@@ -177,12 +177,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         }
 
         const auto& config = static_cast<const BrgemmCopyBKernelConfig&>(executor->get_config());
-        const auto [blocked_dims, blocked_order] =
-            brgemm_utils::repacking::get_wei_blocked_shape(planar_shape,
-                                                           prc,
-                                                           config.get_wei_K_blk(),
-                                                           config.get_wei_N_blk(),
-                                                           config.are_wei_blocked());
         const auto desc = get_desc(planar_shape,
                                    prc,
                                    config.get_wei_K_blk(),
@@ -204,6 +198,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
             auto& offsets = cpu_config->io_data_offsets[i];
             std::fill(offsets.begin(), offsets.end(), 0);
         } else {
+            const auto blocked_dims = desc->getBlockDims();
             const auto inner_blocks_num = blocked_dims.size() - planar_shape.size();
             const auto rank = in_offsets.size() + inner_blocks_num;  // to align with src offsets rank
             OPENVINO_ASSERT(rank >= blocked_dims.size(), "Incorrect target rank for dst offsets");

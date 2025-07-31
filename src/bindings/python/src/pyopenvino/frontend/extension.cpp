@@ -40,15 +40,15 @@ void regclass_frontend_TelemetryExtension(py::module m) {
                             const std::string& action,
                             const std::string& label,
                             int value) {
-                py::gil_scoped_acquire acquire;
+                ConditionalGILScopedAcquire acquire;
                 (*send_event_sp)(category, action, label, value);
             },
             [send_error_sp](const std::string& category, const std::string& error_message) {
-                py::gil_scoped_acquire acquire;
+                ConditionalGILScopedAcquire acquire;
                 (*send_error_sp)(category, error_message);
             },
             [send_stack_trace_sp](const std::string& category, const std::string& error_message) {
-                py::gil_scoped_acquire acquire;
+                ConditionalGILScopedAcquire acquire;
                 (*send_stack_trace_sp)(category, error_message);
             });
     }));
@@ -125,7 +125,7 @@ void regclass_frontend_ProgressReporterExtension(py::module m) {
 
     ext.def(py::init([](py::function& callback) {
         return std::make_shared<ProgressReporterExtension>([callback](float a, unsigned int b, unsigned int c) {
-            py::gil_scoped_acquire acquire;
+            ConditionalGILScopedAcquire acquire;
             callback(a, b, c);
         });
     }));
