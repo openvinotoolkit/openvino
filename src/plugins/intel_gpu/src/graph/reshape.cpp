@@ -154,6 +154,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
     auto input_layout = impl_param.get_input_layout(0);
 
     auto& memory_deps = impl_param.memory_deps;
+
     if ((memory_deps.empty() && prim->output_pattern.empty()) || input_layout.is_dynamic()) {
         // For the cases with Reshape being updated for user node without given memory_dpes and target pattern
         // Update reshape tensor for numpy broadcast of user Eltwise
@@ -169,7 +170,7 @@ std::vector<layout> reshape_inst::calc_output_layouts(reshape_node const& node, 
                     pshape = input_layout.get_partial_shape();
                 }
 
-                GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << "update shape for eltwise numpy broadcast " << pshape << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << impl_param.desc->id << " update shape for eltwise numpy broadcast " << pshape << std::endl;
                 return { layout{pshape, input_layout.data_type, node.get_output_layout().format} };
             }
         }

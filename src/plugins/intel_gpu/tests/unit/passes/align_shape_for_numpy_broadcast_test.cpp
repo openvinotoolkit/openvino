@@ -22,7 +22,7 @@
 using namespace cldnn;
 using namespace ::tests;
 
-TEST(update_shape_info, eltwise_broadcast) {
+TEST(align_shape_for_numpy_broadcast, eltwise_broadcast) {
     // Topology :
     //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
     // Expected : Eltwise <- (bfzyx) <- Reshape <- (bfyz) <- Input1
@@ -48,5 +48,6 @@ TEST(update_shape_info, eltwise_broadcast) {
     auto& eltwise_node = prog_impl->get_node("eltwise");
 
     ASSERT_EQ(eltwise_node.get_input_layouts()[0].format, format::b_fs_zyx_fsv16);
+    ASSERT_EQ(eltwise_node.get_input_layouts()[1].format, format::b_fs_zyx_fsv16);
     ASSERT_EQ(eltwise_node.get_output_layout().format, format::b_fs_zyx_fsv16);
 }

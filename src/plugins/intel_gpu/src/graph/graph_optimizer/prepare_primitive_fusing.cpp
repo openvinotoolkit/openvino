@@ -228,6 +228,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (!is_bias_add)
             continue;
 
+        OPENVINO_ASSERT(const_dep_idx.has_value(), " Cannot find const dependency");
+
         auto non_const_dep_idx = 1 - const_dep_idx.value();
 
         for (auto& dep : eltw_node.get_dependencies()) {

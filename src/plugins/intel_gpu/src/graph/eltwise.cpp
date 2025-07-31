@@ -470,7 +470,7 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
     }
 }
 
-bool eltwise_node::need_input_tensors_size_align() const {
+bool eltwise_node::need_input_tensors_size_align_for_numpy_broadcast() const {
     if (get_input_layouts().size() < 2)
         return false;
     if (get_primitive()->broadcast_spec != ov::op::AutoBroadcastType::NUMPY)

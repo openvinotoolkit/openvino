@@ -255,9 +255,9 @@ private:
     bool remove_output_reorders;
 };
 
-class update_shape_info : public base_pass {
+class align_shape_for_numpy_broadcast : public base_pass {
 public:
-    update_shape_info() : base_pass("update_shape_info") {}
+    align_shape_for_numpy_broadcast() : base_pass("update_shape_info") {}
 
 private:
     void run(program& p) override;
