@@ -764,6 +764,29 @@ TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
     OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
 }
 
+TEST_P(OVCompiledModelBaseTest, import_from_istream) {
+    std::stringstream export_stream;
+    {
+        auto model = make_model_with_weights();
+        auto compiled_model = core->compile_model(model, target_device);
+        ASSERT_TRUE(compiled_model);
+        compiled_model.export_model(export_stream);
+    }
+    EXPECT_NO_THROW(core->import_model(export_stream, target_device));
+}
+
+TEST_P(OVCompiledModelBaseTest, import_from_tensor) {
+    std::stringstream export_stream;
+    {
+        auto model = make_model_with_weights();
+        auto compiled_model = core->compile_model(model, target_device);
+        ASSERT_TRUE(compiled_model);
+        compiled_model.export_model(export_stream);
+    }
+    ov::Tensor exported_model = from_stream(export_stream, export_stream.str().size());
+    EXPECT_NO_THROW(core->import_model(exported_model, target_device));
+}
+
 TEST_P(OVCompiledModelBaseTest, import_from_weightless_blob) {
     const auto w_file_path =
         ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix() + "_weights.bin"});
