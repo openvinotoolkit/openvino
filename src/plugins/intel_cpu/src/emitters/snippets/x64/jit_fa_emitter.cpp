@@ -36,13 +36,14 @@ namespace ov::intel_cpu {
 jit_fa_emitter::jit_fa_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr,
-                               const snippets::KernelExecutorTablePtr& kernel_table)
+                               const snippets::KernelExecutorTablePtr& kernel_table,
+                               const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto fa_node = ov::as_type_ptr<FACPU>(expr->get_node());
     auto fa_config = fa_node->get_config();
     const FAKernelConfig kernel_config(fa_config);
-    m_kernel_executor_fa = kernel_table->register_kernel<FAKernelExecutor>(expr, kernel_config);
+    m_kernel_executor_fa = kernel_table->register_kernel<FAKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
     m_memory_offsets = {fa_node->get_offset_a(), fa_node->get_offset_b(), fa_node->get_offset_c(), fa_node->get_offset_d()};
 }
 

@@ -90,6 +90,7 @@ class MHAMulAdd : public MHA {
 
 class MHATransposedB : public MHA {
     std::shared_ptr<SnippetsFunctionBase> get_subgraph() const override;
+    void init_thresholds() override;
 };
 
 class MHAINT8MatMul : public MHA {

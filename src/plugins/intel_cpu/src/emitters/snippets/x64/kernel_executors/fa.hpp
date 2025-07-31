@@ -136,9 +136,18 @@ private:
 };
 
 struct FACompiledKernel {
-    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_qk_ukernel = nullptr;
-    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_ukernel = nullptr;       // beta is 1
-    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_ukernel_init = nullptr;  // beta is 0
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_qk_MN_ukernel = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_qk_mN_ukernel = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_qk_Mn_ukernel = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_qk_mn_ukernel = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_MK_ukernel = nullptr;           // beta is 1
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_mK_ukernel = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_Mk_ukernel = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_mk_ukernel = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_MK_ukernel_init = nullptr;     // beta is 0
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_mK_ukernel_init = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_Mk_ukernel_init = nullptr;
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_mk_ukernel_init = nullptr;
     std::shared_ptr<jit_uni_online_softmax_kernel> online_softmax_ukernel = nullptr;
     std::shared_ptr<jit_uni_online_softmax_kernel> online_softmax_ukernel_init = nullptr;
     // this buffer include qk result and calibration coefficient.
@@ -146,13 +155,11 @@ struct FACompiledKernel {
 };
 
 class FAKernelExecutor : public BrgemmBaseKernelExecutor,
-                         public snippets::KernelExecutor<FAKernelConfig, FACompiledKernel> {
+                         public CPUKernelExecutor<FAKernelConfig, FACompiledKernel> {
 public:
-    FAKernelExecutor(FAKernelConfig config);
+    FAKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, FAKernelConfig config);
 
-    // No need kernel update, just update config is enough for update. The universal ukernel is reused with any config.
-    void update_kernel(const FAKernelConfig& config,
-                       std::shared_ptr<FACompiledKernel>& kernel) const override final;
+    [[nodiscard]] std::shared_ptr<FACompiledKernel> compile_kernel(const FAKernelConfig& c) const override;
 
     // Function that will be called in runtime to execute the kernel
     static void execute(const FAKernelExecutor* executor, void* in0, void* in1, void* in2, void* out);
@@ -161,6 +168,9 @@ private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
                        const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                        FAKernelConfig& config) const override;
+
+    std::shared_ptr<jit_uni_online_softmax_kernel> m_online_softmax_ukernel = nullptr;
+    std::shared_ptr<jit_uni_online_softmax_kernel> m_online_softmax_ukernel_init = nullptr;
 };
 
 }  // namespace ov::intel_cpu::x64

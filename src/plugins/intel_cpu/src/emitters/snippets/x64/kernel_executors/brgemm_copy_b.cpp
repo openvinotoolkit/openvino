@@ -257,18 +257,18 @@ void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     if (brgCopyKernelConf.orig_wei_dt != brgCopyKernelConf.wei_dt && brgCopyKernelConf.wei_dt == dnnl_bf16) {
         brgCopyKernelConf.is_bf32 = true;
     }
-    std::cout << "conf.is_transposed_B():" << conf.is_transposed_B() << std::endl;
-    std::cout << "conf.get_N():" << conf.get_N() << std::endl;
-    std::cout << "conf.get_N_blk():" << conf.get_N_blk() << std::endl;
-    std::cout << "conf.get_wei_N_blk():" << conf.get_wei_N_blk() << std::endl;
-    std::cout << "conf.get_wei_N_tail():" << conf.get_wei_N_tail() << std::endl;
-    std::cout << "conf.get_copy_B_wei_stride():" << conf.get_copy_B_wei_stride() << std::endl;
-    std::cout << "conf.get_LDB():" << conf.get_LDB() << std::endl;
+    // std::cout << "conf.is_transposed_B():" << conf.is_transposed_B() << std::endl;
+    // std::cout << "conf.get_N():" << conf.get_N() << std::endl;
+    // std::cout << "conf.get_N_blk():" << conf.get_N_blk() << std::endl;
+    // std::cout << "conf.get_wei_N_blk():" << conf.get_wei_N_blk() << std::endl;
+    // std::cout << "conf.get_wei_N_tail():" << conf.get_wei_N_tail() << std::endl;
+    // std::cout << "conf.get_copy_B_wei_stride():" << conf.get_copy_B_wei_stride() << std::endl;
+    // std::cout << "conf.get_LDB():" << conf.get_LDB() << std::endl;
 
-    std::cout << "conf.get_K():" << conf.get_K() << std::endl;
-    std::cout << "conf.get_K_blk():" << conf.get_K_blk() << std::endl;
-    std::cout << "conf.get_wei_K_blk():" << conf.get_wei_K_blk() << std::endl;
-    std::cout << "brgCopyKernelConf.N_blk:" << brgCopyKernelConf.N_blk << std::endl;
+    // std::cout << "conf.get_K():" << conf.get_K() << std::endl;
+    // std::cout << "conf.get_K_blk():" << conf.get_K_blk() << std::endl;
+    // std::cout << "conf.get_wei_K_blk():" << conf.get_wei_K_blk() << std::endl;
+    // std::cout << "brgCopyKernelConf.N_blk:" << brgCopyKernelConf.N_blk << std::endl;
 
 
     brgCopyKernelConf.wei_n_blk = static_cast<int>(conf.get_wei_N_blk());

@@ -23,7 +23,8 @@ public:
     jit_fa_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                    dnnl::impl::cpu::x64::cpu_isa_t isa,
                    const ov::snippets::lowered::ExpressionPtr& expr,
-                   const snippets::KernelExecutorTablePtr& kernel_table);
+                   const snippets::KernelExecutorTablePtr& kernel_table,
+                   const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache);
 
     size_t get_inputs_num() const override {
         return 3;
