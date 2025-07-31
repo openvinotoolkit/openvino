@@ -553,8 +553,6 @@ void program::pre_optimize_graph(bool is_internal) {
 
         apply_opt_pass<select_preferred_formats>();
 
-        apply_opt_pass<align_shape_for_numpy_broadcast>();
-
         apply_opt_pass<reorder_inputs>(rf);
         // Ideally this should be done before fusing to simplify logic and make the pass more powerful,
         // but after format selection to select correct alignment.

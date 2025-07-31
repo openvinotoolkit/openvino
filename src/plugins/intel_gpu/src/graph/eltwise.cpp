@@ -470,7 +470,9 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
     }
 }
 
-bool eltwise_node::need_input_tensors_size_align_for_numpy_broadcast() const {
+bool eltwise_node::need_input_tensors_dims_unalign_for_numpy_broadcast(size_t input_rank, format output_format) const {
+    if (format::is_default_format(output_format))
+        return false;
     if (get_input_layouts().size() < 2)
         return false;
     if (get_primitive()->broadcast_spec != ov::op::AutoBroadcastType::NUMPY)
@@ -478,7 +480,9 @@ bool eltwise_node::need_input_tensors_size_align_for_numpy_broadcast() const {
 
     auto pshape_a_rank = get_input_pshape(0).size();
     auto pshape_b_rank = get_input_pshape(1).size();
-    if (pshape_a_rank != pshape_b_rank && pshape_a_rank > 1 && pshape_b_rank > 1)
+    auto small_pshape_rank = (pshape_a_rank > pshape_b_rank) ? pshape_b_rank : pshape_a_rank;
+    if (pshape_a_rank != pshape_b_rank && pshape_a_rank > 1 && pshape_b_rank > 1 &&
+        input_rank == small_pshape_rank)
         return true;
 
     return false;

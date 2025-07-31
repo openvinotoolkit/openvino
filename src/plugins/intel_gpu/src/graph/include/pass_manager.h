@@ -255,14 +255,6 @@ private:
     bool remove_output_reorders;
 };
 
-class align_shape_for_numpy_broadcast : public base_pass {
-public:
-    align_shape_for_numpy_broadcast() : base_pass("update_shape_info") {}
-
-private:
-    void run(program& p) override;
-};
-
 class reorder_inputs : public base_pass {
 public:
     reorder_inputs(reorder_factory& rf_ref);
