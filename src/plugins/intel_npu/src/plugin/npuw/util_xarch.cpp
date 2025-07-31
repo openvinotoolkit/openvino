@@ -391,6 +391,7 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
         __m256i vout0, vout1;
         avx2_i4toi8(inv, &vout0, &vout1);
 
+        /*
         int8_t tmp[64];  // FIXME: Avoid it
         __m256i* tmpv0 = reinterpret_cast<__m256i*>(tmp);
         __m256i* tmpv1 = reinterpret_cast<__m256i*>(tmp + 32);
@@ -406,6 +407,18 @@ void ov::npuw::util::XARCH::unpack_i4f16(const ov::SoPtr<ov::ITensor>& from,
             _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
             _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
             _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+        };
+        */
+        __m128i mask = _mm_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0);
+        __m128i i8vecs[8] = {
+            _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
+            _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
+            _mm_and_si128(_mm256_extracti128_si256(vout0, 1), mask),
+            _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout0, 1), 8), mask),
+            _mm_and_si128(_mm256_castsi256_si128(vout1), mask),
+            _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout1), 8), mask),
+            _mm_and_si128(_mm256_extracti128_si256(vout1, 1), mask),
+            _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout1, 1), 8), mask),
         };
 
         __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
@@ -553,11 +566,13 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
                 __m256i vout0, vout1;
                 avx2_i4toi8(inv, &vout0, &vout1);
 
+                /*
                 int8_t tmp[64];  // FIXME: Avoid it
                 __m256i* tmpv0 = reinterpret_cast<__m256i*>(tmp);
                 __m256i* tmpv1 = reinterpret_cast<__m256i*>(tmp + 32);
                 _mm256_storeu_si256(tmpv0, vout0);
                 _mm256_storeu_si256(tmpv1, vout1);
+
 
                 __m128i i8vecs[8] = {
                     _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp)),
@@ -568,6 +583,18 @@ void ov::npuw::util::XARCH::unpack_i4f16_scale(const ov::SoPtr<ov::ITensor>& fro
                     _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
                     _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
                     _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+                };
+*/
+                __m128i mask = _mm_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0);
+                __m128i i8vecs[8] = {
+                    _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
+                    _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
+                    _mm_and_si128(_mm256_extracti128_si256(vout0, 1), mask),
+                    _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout0, 1), 8), mask),
+                    _mm_and_si128(_mm256_castsi256_si128(vout1), mask),
+                    _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout1), 8), mask),
+                    _mm_and_si128(_mm256_extracti128_si256(vout1, 1), mask),
+                    _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout1, 1), 8), mask),
                 };
 
                 __m128i vresults[8] = {avx2_i8tof16(i8vecs[0], svec),
@@ -678,6 +705,8 @@ void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
                     __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc_iter));
                     __m256i vout0, vout1;
                     avx2_i4toi8(vinput, &vout0, &vout1);
+
+                    /*
                     int8_t tmp[64];  // FIXME: Avoid it
                     __m256i* tmpv0 = reinterpret_cast<__m256i*>(tmp);
                     __m256i* tmpv1 = reinterpret_cast<__m256i*>(tmp + 32);
@@ -692,6 +721,19 @@ void ov::npuw::util::XARCH::unpack_i4f16_z(const ov::SoPtr<ov::ITensor>& from,
                         _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 40)),
                         _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48)),
                         _mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56)),
+                    };
+*/
+
+                    __m128i mask = _mm_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0);
+                    __m128i i8vecs[8] = {
+                        _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
+                        _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
+                        _mm_and_si128(_mm256_extracti128_si256(vout0, 1), mask),
+                        _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout0, 1), 8), mask),
+                        _mm_and_si128(_mm256_castsi256_si128(vout1), mask),
+                        _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout1), 8), mask),
+                        _mm_and_si128(_mm256_extracti128_si256(vout1, 1), mask),
+                        _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout1, 1), 8), mask),
                     };
 
                     const float* pScl_iter = pScl + w + W * c;
@@ -775,6 +817,7 @@ void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
             reinterpret_cast<__m128i*>(pDst + 56),
         };
 
+        /*
         int8_t tmp[64];  // FIXME: Avoid it
         for (std::size_t ii = 0; ii < 32; ii++) {
             tmp[ii * 2] = static_cast<int8_t>(lo4(pSrc[ii]));      // LSB is [0] -- since OpenVINO 24.0!
@@ -791,6 +834,32 @@ void ov::npuw::util::XARCH::unpack_u4f16(const ov::SoPtr<ov::ITensor>& from,
             avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 48))),
             avx2_i8tof16(_mm_loadl_epi64(reinterpret_cast<__m128i*>(tmp + 56))),
         };
+        */
+
+        __m256i vinput = _mm256_lddqu_si256(reinterpret_cast<const __m256i*>(pSrc));
+        __m256i vout0, vout1;
+        avx2_i4toi8(vinput, &vout0, &vout1);
+
+        __m128i mask = _mm_setr_epi64x(0xFFFFFFFFFFFFFFFF, 0x0);
+        __m128i i8vecs[8] = {
+            _mm_and_si128(_mm256_castsi256_si128(vout0), mask),
+            _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout0), 8), mask),
+            _mm_and_si128(_mm256_extracti128_si256(vout0, 1), mask),
+            _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout0, 1), 8), mask),
+            _mm_and_si128(_mm256_castsi256_si128(vout1), mask),
+            _mm_and_si128(_mm_srli_si128(_mm256_castsi256_si128(vout1), 8), mask),
+            _mm_and_si128(_mm256_extracti128_si256(vout1, 1), mask),
+            _mm_and_si128(_mm_srli_si128(_mm256_extracti128_si256(vout1, 1), 8), mask),
+        };
+
+        __m128i vresults[8] = {avx2_i8tof16(i8vecs[0]),
+                               avx2_i8tof16(i8vecs[1]),
+                               avx2_i8tof16(i8vecs[2]),
+                               avx2_i8tof16(i8vecs[3]),
+                               avx2_i8tof16(i8vecs[4]),
+                               avx2_i8tof16(i8vecs[5]),
+                               avx2_i8tof16(i8vecs[6]),
+                               avx2_i8tof16(i8vecs[7])};
 
         _mm_storeu_si128(outv[0], vresults[0]);
         _mm_storeu_si128(outv[1], vresults[1]);
