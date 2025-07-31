@@ -9,6 +9,8 @@
 #include <sstream>
 #ifdef __linux__
 #include <malloc.h>
+#include <unistd.h>
+#include <fcntl.h>
 #endif
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
@@ -226,17 +228,23 @@ size_t ov::pass::ConstantFolding::get_memory_threshold_from_env() {
 }
 
 size_t ov::pass::ConstantFolding::get_current_memory_usage_mb() {
-    // Simple memory usage estimation - can be improved with more sophisticated tracking
 #ifdef __linux__
-    std::ifstream status("/proc/self/status");
-    std::string line;
-    while (std::getline(status, line)) {
-        if (line.find("VmRSS:") == 0) {
-            std::istringstream iss(line);
-            std::string label, value, unit;
-            iss >> label >> value >> unit;
-            return std::stoull(value) / 1024; // Convert KB to MB
-        }
+    static int fd = -1;
+    if (fd == -1) {
+        fd = open("/proc/self/statm", O_RDONLY);
+        if (fd == -1) return 0;
+    }
+    
+    char buffer[256];
+    lseek(fd, 0, SEEK_SET);  // Reset to beginning
+    ssize_t bytes = read(fd, buffer, sizeof(buffer) - 1);
+    if (bytes <= 0) return 0;
+    
+    buffer[bytes] = '\0';
+    unsigned long total, resident;
+    if (sscanf(buffer, "%lu %lu", &total, &resident) == 2) {
+        // resident in pages, convert to MB (assuming 4KB pages)
+        return (resident * 4) / 1024;
     }
 #endif
     return 0; // Fallback - disable memory tracking if not available
