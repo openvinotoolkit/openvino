@@ -19,6 +19,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
 
