@@ -48,8 +48,13 @@ NamedOutputs assign_value(const NodeContext& node) {
         break;
     }
     case element::boolean: {
-        auto values = node.get_attribute<std::vector<int32_t>>("bool_values");
-        const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values)};
+        if (node.has_attribute("bool_values")) {
+            auto values = node.get_attribute<std::vector<int32_t>>("bool_values");
+            const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values)};
+        } else {
+            auto values = node.get_attribute<std::vector<bool>>("values");
+            const_node = {opset6::Constant::create(dtype, Shape{shape.begin(), shape.end()}, values)};
+        }
         break;
     }
     case element::i64: {
