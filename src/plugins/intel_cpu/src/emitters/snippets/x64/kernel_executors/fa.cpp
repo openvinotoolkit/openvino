@@ -153,22 +153,75 @@ std::string FAKernelConfig::StaticParams::to_string() const {
 #    undef PRINT
 #endif
 
-FAKernelExecutor::FAKernelExecutor(FAKernelConfig config)
-    : snippets::KernelExecutor<FAKernelConfig, FACompiledKernel>(std::move(config)) {}
+FAKernelExecutor::FAKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, FAKernelConfig config)
+    : CPUKernelExecutor<FAKernelConfig, FACompiledKernel>(std::move(kernel_cache), std::move(config)) {
+    // universal shape agnostic online softmax jit kernel, no need recompilation
+    auto jcp = jit_params_online_softmax();
+    jcp.src_prc = ov::element::f32;
+    jcp.dst_prc = ov::element::f32;
+    jcp.with_calibration = true;
+    if (mayiuse(cpu::x64::avx512_core)) {
+        m_online_softmax_ukernel =
+            std::make_shared<jit_uni_online_softmax_kernel_f32<cpu::x64::avx512_core>>(jcp);
+    } else if (mayiuse(cpu::x64::avx2)) {
+        m_online_softmax_ukernel =
+            std::make_shared<jit_uni_online_softmax_kernel_f32<cpu::x64::avx2>>(jcp);
+    }
+    jcp.with_calibration = false;
+    if (mayiuse(cpu::x64::avx512_core)) {
+        m_online_softmax_ukernel_init =
+            std::make_shared<jit_uni_online_softmax_kernel_f32<cpu::x64::avx512_core>>(jcp);
+    } else if (mayiuse(cpu::x64::avx2)) {
+        m_online_softmax_ukernel_init =
+            std::make_shared<jit_uni_online_softmax_kernel_f32<cpu::x64::avx2>>(jcp);
+    }
+    if (m_online_softmax_ukernel) {
+        m_online_softmax_ukernel->create_ker();
+    }
+    if (m_online_softmax_ukernel_init) {
+        m_online_softmax_ukernel_init->create_ker();
+    }
+}
 
-void FAKernelExecutor::update_kernel([[maybe_unused]] const FAKernelConfig& config,
-                                          std::shared_ptr<FACompiledKernel>& kernel) const {
-    if (kernel == nullptr) {
-        // universal kernel could be used in any config and shape, as excuted peice by peice as binary call.
-        // config is passed as binary call parameters.
-        kernel = std::make_shared<FACompiledKernel>();
-        dnnl_post_ops post_ops;
-        create_brgemm_kernel(kernel->brgemm_qk_ukernel,
+std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKernelConfig& config) const {
+    std::shared_ptr<FACompiledKernel> compiled_kernel = std::make_shared<FACompiledKernel>();
+
+    // Brgemm is not executable - nothing to compile
+    if (config.is_empty()) {
+        return compiled_kernel;
+    }
+
+    const auto& q_len = config.get_q_seq_len();
+    const auto& kv_len = config.get_kv_seq_len();
+    const auto& qk_head_size = config.get_qk_head_size();
+    const auto& v_head_size = config.get_v_head_size();
+    const auto& q_len_blk = config.get_q_len_blk();
+    const auto& kv_len_blk = config.get_kv_len_blk();
+    const auto& q_len_tail = q_len % q_len_blk;
+    const auto& kv_len_tail = kv_len % q_len_blk;
+    dnnl_post_ops post_ops;
+    create_brgemm_kernel(compiled_kernel->brgemm_qk_MN_ukernel,
+                         dnnl_data_type_t::dnnl_f32,
+                         dnnl_data_type_t::dnnl_f32,
+                         dnnl_data_type_t::dnnl_f32,
+                         config.get_isa(),
+                         config.get_q_len_blk(),              // M
+                         config.get_kv_len_blk(),             // N
+                         config.get_qk_head_size(),           // K
+                         config.get_qk_head_size(),           // lda
+                         config.get_kv_len_blk(),             // ldb
+                         config.get_kv_len_blk(),             // ldc
+                         0.0f,                                // beta
+                         post_ops);
+
+    // QK tail kernels
+    if (q_len_tail != 0) {
+        create_brgemm_kernel(compiled_kernel->brgemm_qk_mN_ukernel,
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
-                             config.get_q_len_blk(),              // M
+                             q_len_tail,                          // M
                              config.get_kv_len_blk(),             // N
                              config.get_qk_head_size(),           // K
                              config.get_qk_head_size(),           // lda
@@ -176,12 +229,71 @@ void FAKernelExecutor::update_kernel([[maybe_unused]] const FAKernelConfig& conf
                              config.get_kv_len_blk(),             // ldc
                              0.0f,                                // beta
                              post_ops);
-        create_brgemm_kernel(kernel->brgemm_sv_ukernel_init,
+    }
+    if (kv_len_tail != 0) {
+        create_brgemm_kernel(compiled_kernel->brgemm_qk_Mn_ukernel,
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
-                             config.get_q_len_blk(),               // M
+                             config.get_q_len_blk(),              // M
+                             kv_len_tail,                         // N
+                             config.get_qk_head_size(),           // K
+                             config.get_qk_head_size(),           // lda
+                             config.get_kv_len_blk(),             // ldb
+                             kv_len_tail,                         // ldc
+                             0.0f,                                // beta
+                             post_ops);
+    }
+    if (q_len_tail != 0 && kv_len_tail != 0) {
+        create_brgemm_kernel(compiled_kernel->brgemm_qk_mn_ukernel,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             config.get_isa(),
+                             q_len_tail,                          // M
+                             kv_len_tail,                         // N
+                             config.get_qk_head_size(),           // K
+                             config.get_qk_head_size(),           // lda
+                             config.get_kv_len_blk(),             // ldb
+                             kv_len_tail,                         // ldc
+                             0.0f,                                // beta
+                             post_ops);
+    }
+    create_brgemm_kernel(compiled_kernel->brgemm_sv_MK_ukernel_init,
+                         dnnl_data_type_t::dnnl_f32,
+                         dnnl_data_type_t::dnnl_f32,
+                         dnnl_data_type_t::dnnl_f32,
+                         config.get_isa(),
+                         config.get_q_len_blk(),               // M
+                         config.get_v_head_size(),             // N
+                         config.get_kv_len_blk(),              // K
+                         config.get_kv_len_blk(),              // lda
+                         config.get_v_head_size(),             // ldb
+                         config.get_v_head_size(),             // ldc
+                         0.0f,                                 // beta is 0
+                         post_ops);
+    create_brgemm_kernel(compiled_kernel->brgemm_sv_MK_ukernel,
+                         dnnl_data_type_t::dnnl_f32,
+                         dnnl_data_type_t::dnnl_f32,
+                         dnnl_data_type_t::dnnl_f32,
+                         config.get_isa(),
+                         config.get_q_len_blk(),               // M
+                         config.get_v_head_size(),             // N
+                         config.get_kv_len_blk(),              // K
+                         config.get_kv_len_blk(),              // lda
+                         config.get_v_head_size(),             // ldb
+                         config.get_v_head_size(),             // ldc
+                         1.0f,                                 // beta is 1
+                         post_ops);
+    // SV tail kernels
+    if (q_len_tail != 0) {
+        create_brgemm_kernel(compiled_kernel->brgemm_sv_mK_ukernel_init,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             config.get_isa(),
+                             q_len_tail,                           // M
                              config.get_v_head_size(),             // N
                              config.get_kv_len_blk(),              // K
                              config.get_kv_len_blk(),              // lda
@@ -189,12 +301,12 @@ void FAKernelExecutor::update_kernel([[maybe_unused]] const FAKernelConfig& conf
                              config.get_v_head_size(),             // ldc
                              0.0f,                                 // beta is 0
                              post_ops);
-        create_brgemm_kernel(kernel->brgemm_sv_ukernel,
+        create_brgemm_kernel(compiled_kernel->brgemm_sv_mK_ukernel,
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
-                             config.get_q_len_blk(),               // M
+                             q_len_tail,                           // M
                              config.get_v_head_size(),             // N
                              config.get_kv_len_blk(),              // K
                              config.get_kv_len_blk(),              // lda
@@ -202,39 +314,74 @@ void FAKernelExecutor::update_kernel([[maybe_unused]] const FAKernelConfig& conf
                              config.get_v_head_size(),             // ldc
                              1.0f,                                 // beta is 1
                              post_ops);
-        // create online softmax jit kernel:
-        auto jcp = jit_params_online_softmax();
-        jcp.src_prc = ov::element::f32;
-        jcp.dst_prc = ov::element::f32;
-        jcp.with_calibration = true;
-        if (mayiuse(cpu::x64::avx512_core)) {
-            kernel->online_softmax_ukernel =
-                std::make_shared<jit_uni_online_softmax_kernel_f32<cpu::x64::avx512_core>>(jcp);
-        } else if (mayiuse(cpu::x64::avx2)) {
-            kernel->online_softmax_ukernel =
-                std::make_shared<jit_uni_online_softmax_kernel_f32<cpu::x64::avx2>>(jcp);
-        }
-        jcp.with_calibration = false;
-        if (mayiuse(cpu::x64::avx512_core)) {
-            kernel->online_softmax_ukernel_init =
-                std::make_shared<jit_uni_online_softmax_kernel_f32<cpu::x64::avx512_core>>(jcp);
-        } else if (mayiuse(cpu::x64::avx2)) {
-            kernel->online_softmax_ukernel_init =
-                std::make_shared<jit_uni_online_softmax_kernel_f32<cpu::x64::avx2>>(jcp);
-        }
-        if (kernel->online_softmax_ukernel) {
-            kernel->online_softmax_ukernel->create_ker();
-        }
-        if (kernel->online_softmax_ukernel_init) {
-            kernel->online_softmax_ukernel_init->create_ker();
-        }
-
-        // buffer allocation
-        size_t qk_result_size = config.get_q_len_blk() * config.get_kv_len_blk();
-        size_t coefficient_size = config.get_q_seq_len() * 4;  // max_old, max_new, denominator_old, denominator_new
-        auto threads = parallel_get_max_threads();
-        kernel->buffer->resize((qk_result_size + coefficient_size) * sizeof(float) * threads, 0);
     }
+    if (kv_len_tail != 0) {
+        create_brgemm_kernel(compiled_kernel->brgemm_sv_Mk_ukernel_init,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             config.get_isa(),
+                             config.get_q_len_blk(),               // M
+                             config.get_v_head_size(),             // N
+                             kv_len_tail,                          // K
+                             kv_len_tail,                          // lda
+                             config.get_v_head_size(),             // ldb
+                             config.get_v_head_size(),             // ldc
+                             0.0f,                                 // beta is 0
+                             post_ops);
+        create_brgemm_kernel(compiled_kernel->brgemm_sv_Mk_ukernel,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             config.get_isa(),
+                             config.get_q_len_blk(),               // M
+                             config.get_v_head_size(),             // N
+                             kv_len_tail,                          // K
+                             kv_len_tail,                          // lda
+                             config.get_v_head_size(),             // ldb
+                             config.get_v_head_size(),             // ldc
+                             1.0f,                                 // beta is 1
+                             post_ops);
+    }
+    if (q_len_tail != 0 && kv_len_tail != 0) {
+        create_brgemm_kernel(compiled_kernel->brgemm_sv_mk_ukernel_init,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             config.get_isa(),
+                             q_len_tail,                           // M
+                             config.get_v_head_size(),             // N
+                             kv_len_tail,                          // K
+                             kv_len_tail,                          // lda
+                             config.get_v_head_size(),             // ldb
+                             config.get_v_head_size(),             // ldc
+                             0.0f,                                 // beta is 0
+                             post_ops);
+        create_brgemm_kernel(compiled_kernel->brgemm_sv_mk_ukernel,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             dnnl_data_type_t::dnnl_f32,
+                             config.get_isa(),
+                             q_len_tail,                           // M
+                             config.get_v_head_size(),             // N
+                             kv_len_tail,                          // K
+                             kv_len_tail,                          // lda
+                             config.get_v_head_size(),             // ldb
+                             config.get_v_head_size(),             // ldc
+                             1.0f,                                 // beta is 1
+                             post_ops);
+    }
+
+    compiled_kernel->online_softmax_ukernel = m_online_softmax_ukernel;
+    compiled_kernel->online_softmax_ukernel_init = m_online_softmax_ukernel_init;
+
+    // buffer allocation
+    size_t qk_result_size = config.get_q_len_blk() * config.get_kv_len_blk();
+    size_t coefficient_size = config.get_q_seq_len() * 4;  // max_old, max_new, denominator_old, denominator_new
+    auto threads = parallel_get_max_threads();
+    compiled_kernel->buffer->resize((qk_result_size + coefficient_size) * sizeof(float) * threads, 0);
+
+    return compiled_kernel;
 }
 
 void FAKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
@@ -253,10 +400,6 @@ void FAKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr&
     auto kv_len = *in1_shape.rbegin();
     auto v_head_size = *in2_shape.rbegin();
     config.update(q_len, kv_len, qk_head_size, v_head_size);
-    // std::cout << "q_len:" << q_len << std::endl;
-    // std::cout << "kv_len:" << kv_len << std::endl;
-    // std::cout << "qk_head_size:" << qk_head_size << std::endl;
-    // std::cout << "v_head_size:" << v_head_size << std::endl;
 }
 
 void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void* in1, void* in2, void* out) {
@@ -274,9 +417,18 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
     const auto& kv_len_blk = config.get_kv_len_blk();
 
     const auto& kernel = executor->get_kernel();
-    const auto& qk_kernel = kernel->brgemm_qk_ukernel;
-    const auto& sv_kernel = kernel->brgemm_sv_ukernel;
-    const auto& sv_kernel_init = kernel->brgemm_sv_ukernel_init;
+    const auto& qk_MN_kernel = kernel->brgemm_qk_MN_ukernel;
+    const auto& qk_mN_kernel = kernel->brgemm_qk_mN_ukernel;
+    const auto& qk_Mn_kernel = kernel->brgemm_qk_Mn_ukernel;
+    const auto& qk_mn_kernel = kernel->brgemm_qk_mn_ukernel;
+    const auto& sv_MK_kernel = kernel->brgemm_sv_MK_ukernel;
+    const auto& sv_mK_kernel = kernel->brgemm_sv_mK_ukernel;
+    const auto& sv_Mk_kernel = kernel->brgemm_sv_Mk_ukernel;
+    const auto& sv_mk_kernel = kernel->brgemm_sv_mk_ukernel;
+    const auto& sv_MK_kernel_init = kernel->brgemm_sv_MK_ukernel_init;
+    const auto& sv_mK_kernel_init = kernel->brgemm_sv_mK_ukernel_init;
+    const auto& sv_Mk_kernel_init = kernel->brgemm_sv_Mk_ukernel_init;
+    const auto& sv_mk_kernel_init = kernel->brgemm_sv_mk_ukernel_init;
     const auto& online_softmax_kernel = kernel->online_softmax_ukernel;
     const auto& online_softmax_kernel_init = kernel->online_softmax_ukernel_init;
 
@@ -292,22 +444,24 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
 
     size_t kv_block_num = ov::snippets::utils::div_up(kv_len, kv_len_blk);
     size_t q_block_num = ov::snippets::utils::div_up(q_len, q_len_blk);
-    // std::cout << "kv_block_num:" << kv_block_num << std::endl;
-    // std::cout << "q_block_num:" << q_block_num << std::endl;
     for (size_t i = 0; i < kv_block_num; i++) {
         size_t kv_start = i * kv_len_blk;
-        // size_t kv_end = std::min(kv_start + kv_len_blk, static_cast<size_t>(kv_len));
-        // size_t rt_kv_len_blk = kv_end - kv_start;  // no used as not support tails for now
+        size_t kv_end = std::min(kv_start + kv_len_blk, static_cast<size_t>(kv_len));
+        size_t rt_kv_len_blk = kv_end - kv_start;
+        bool is_tail_kv = rt_kv_len_blk < kv_len_blk;
         float* k_ptr = k + kv_start * qk_head_size;   // k is repacked
         float* v_ptr = v + kv_start * v_head_size;
         bool is_first_kv = (i == 0);
         for (size_t j = 0; j < q_block_num; j++) {
             size_t q_start = j * q_len_blk;
-            // size_t q_end = std::min(q_start + q_len_blk, static_cast<size_t>(q_len));
-            // size_t rt_q_len_blk = q_end - q_start;  // no used as not support tails for now
+            size_t q_end = std::min(q_start + q_len_blk, static_cast<size_t>(q_len));
+            size_t rt_q_len_blk = q_end - q_start;
+            bool is_tail_q = rt_q_len_blk < q_len_blk;
             float* q_ptr = q + q_start * qk_head_size;
             // q*k
-            execute_brgemm_kernel(qk_kernel,
+            const auto& used_qk_ker = (is_tail_kv && is_tail_q) ? qk_mn_kernel :
+                                      (is_tail_kv ? qk_Mn_kernel : (is_tail_q ? qk_mN_kernel : qk_MN_kernel));
+            execute_brgemm_kernel(used_qk_ker,
                                   q_ptr,
                                   k_ptr,
                                   qk_result,
@@ -315,7 +469,7 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
                                   nullptr,           // post ops args
                                   false,             // compensation
                                   false);            // apply post_ops
-            // softmax and on line calibration coeff
+            // on line softmax and output calibration
             const auto& max_past_q = coeff_max_past + q_start;
             const auto& max_q = coeff_max + q_start;
             const auto& denominator_past_q = coeff_denominator_past + q_start;
@@ -329,9 +483,9 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
             args.max = reinterpret_cast<void*>(max_q);
             args.denominator = reinterpret_cast<void*>(denominator_q);
             args.out = reinterpret_cast<void*>(out_ptr);
-            args.work_amount_inner = kv_len_blk;
+            args.work_amount_inner = is_tail_kv ? rt_kv_len_blk : kv_len_blk;
             args.work_amount_inner_head_size = v_head_size;
-            args.work_amount_outer = q_len_blk;
+            args.work_amount_outer = is_tail_q ? rt_q_len_blk : q_len_blk;
             if (is_first_kv) {
                 (*online_softmax_kernel_init)(&args);
             } else {
@@ -340,7 +494,9 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
 
             // sv
             if (is_first_kv) {
-                execute_brgemm_kernel(sv_kernel_init,
+                const auto& used_sv_ker = (is_tail_kv && is_tail_q) ? sv_mk_kernel_init :
+                                          (is_tail_kv ? sv_Mk_kernel_init : (is_tail_q ? sv_mK_kernel_init : sv_MK_kernel_init));
+                execute_brgemm_kernel(used_sv_ker,
                                       qk_result,
                                       v_ptr,
                                       out_ptr,
@@ -349,7 +505,9 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
                                       false,             // compensation
                                       false);            // apply post_ops
             } else {
-                execute_brgemm_kernel(sv_kernel,
+                const auto& used_sv_ker = (is_tail_kv && is_tail_q) ? sv_mk_kernel :
+                                          (is_tail_kv ? sv_Mk_kernel : (is_tail_q ? sv_mK_kernel : sv_MK_kernel));
+                execute_brgemm_kernel(used_sv_ker,
                                       qk_result,
                                       v_ptr,
                                       out_ptr,

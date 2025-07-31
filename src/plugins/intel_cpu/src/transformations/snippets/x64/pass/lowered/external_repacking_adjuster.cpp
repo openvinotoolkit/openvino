@@ -75,7 +75,6 @@ BrgemmExternalRepackingAdjuster::RepackExecutorPtr BrgemmExternalRepackingAdjust
             brgemm_config = brgemm->get_config();
         } else {
             auto fa_config = fa->get_config();
-            std::cout << "fa_config.transposed_b():" << fa_config.transposed_b() << std::endl;
             brgemm_config = brgemm_utils::BrgemmConfig(fa_config.src_dt(),
                                                        fa_config.wei_dt(),
                                                        fa_config.orig_wei_dt(),
@@ -123,6 +122,7 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
     const auto LDB =
         brgemm_utils::repacking::compute_K_blocked_stride(N, config->get_wei_N_blk(), config->are_wei_blocked());
     config->update(N, N, K, K, copy_wei_stride, LDB);
+
     executor->update_by_config(*config);
 }
 

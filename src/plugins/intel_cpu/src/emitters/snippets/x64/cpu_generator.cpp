@@ -339,7 +339,9 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
                                 configurator->get_kernel_executor_table(),
                                 compiled_kernel_cache);
     jitters[intel_cpu::FACPU::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_fa_emitter, configurator->get_kernel_executor_table());
+        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_fa_emitter,
+                                configurator->get_kernel_executor_table(),
+                                compiled_kernel_cache);
     jitters[snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
     jitters[snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
     // Service

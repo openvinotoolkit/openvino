@@ -54,6 +54,7 @@ void jit_uni_online_softmax_kernel_f32<isa>::generate() {
         mov(reg_work_amount_inner, ptr[reg_params + GET_OFF(work_amount_inner)]);
         mov(reg_work_amount_inner_head_size, ptr[reg_params + GET_OFF(work_amount_inner_head_size)]);
         mov(reg_table, l_table_constant);
+        uni_vpxor(vmm_zero, vmm_zero, vmm_zero);
 
         Xbyak::Label outer_loop_label;
         Xbyak::Label outer_loop_end_label;
@@ -83,6 +84,26 @@ void jit_uni_online_softmax_kernel_f32<isa>::generate() {
                 jmp(max_loop_label, T_NEAR);
             }
             L(max_loop_end_label);
+
+            Xbyak::Label max_loop_label_tail;
+            Xbyak::Label max_loop_end_label_tail;
+            L(max_loop_label_tail);
+            {
+                cmp(reg_work_amount_inner_aux, 1);
+                jl(max_loop_end_label_tail, T_NEAR);
+
+                load_emitter_scalar->emit_code({static_cast<size_t>(reg_data_aux.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
+                uni_vbroadcastss(vmm_val, Xbyak::Xmm(vmm_val.getIdx()));
+                uni_vmaxps(vmm_max, vmm_max, vmm_val);
+
+                add(reg_data_aux, sizeof(float));
+                sub(reg_work_amount_inner_aux, 1);
+                jmp(max_loop_label_tail, T_NEAR);
+            }
+            L(max_loop_end_label_tail);
 
             // local max
             reduce_vmm(vmm_max.getIdx(), true);
@@ -123,6 +144,35 @@ void jit_uni_online_softmax_kernel_f32<isa>::generate() {
             }
             L(exp_loop_end_label);
 
+            Xbyak::Label exp_loop_label_tail;
+            Xbyak::Label exp_loop_end_label_tail;
+            L(exp_loop_label_tail);
+            {
+                cmp(reg_work_amount_inner_aux, 1);
+                jl(exp_loop_end_label_tail, T_NEAR);
+
+                load_emitter_scalar->emit_code({static_cast<size_t>(reg_data_aux.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
+                uni_vsubps(vmm_val, vmm_val, vmm_max);
+                exp_injector->compute_vector_range(vmm_val.getIdx(), vmm_val.getIdx() + 1);
+                // store
+                store_emitter_scalar->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                                {static_cast<size_t>(reg_data_aux.getIdx())},
+                                                {store_pool_vec_idxs},
+                                                {store_pool_gpr_idxs});
+                // zero clear besides the scalar
+                uni_vpxor(vmm_aux1, vmm_aux1, vmm_aux1);
+                uni_vmovss(Xbyak::Xmm(xmm_aux1.getIdx()), Xbyak::Xmm(vmm_val.getIdx()));
+                uni_vaddps(vmm_denominator, vmm_denominator, vmm_aux1);
+
+                add(reg_data_aux, sizeof(float));
+                sub(reg_work_amount_inner_aux, 1);
+                jmp(exp_loop_label_tail, T_NEAR);
+            }
+            L(exp_loop_end_label_tail);
+
             // local denominator
             reduce_vmm(vmm_denominator.getIdx(), false);
             // update denominator
@@ -162,6 +212,29 @@ void jit_uni_online_softmax_kernel_f32<isa>::generate() {
             }
             L(div_loop_end_label);
 
+            Xbyak::Label div_loop_label_tail;
+            Xbyak::Label div_loop_end_label_tail;
+            L(div_loop_label_tail);
+            {
+                cmp(reg_work_amount_inner_aux, 1);
+                jl(div_loop_end_label_tail, T_NEAR);
+
+                load_emitter_scalar->emit_code({static_cast<size_t>(reg_data_aux.getIdx())},
+                                               {static_cast<size_t>(vmm_val.getIdx())},
+                                               {},
+                                               {load_pool_gpr_idxs});
+                uni_vdivps(vmm_val, vmm_val, vmm_denominator);
+                store_emitter_scalar->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                                {static_cast<size_t>(reg_data_aux.getIdx())},
+                                                {store_pool_vec_idxs},
+                                                {store_pool_gpr_idxs});
+
+                add(reg_data_aux, sizeof(float));
+                sub(reg_work_amount_inner_aux, 1);
+                jmp(div_loop_label_tail, T_NEAR);
+            }
+            L(div_loop_end_label_tail);
+
             if (jcp_.with_calibration) {
                 // output calibration
                 uni_vmovss(vmm_max_past, ptr[reg_max_past]);
@@ -198,7 +271,32 @@ void jit_uni_online_softmax_kernel_f32<isa>::generate() {
                     jmp(calibration_loop_label, T_NEAR);
                 }
                 L(calibration_loop_end_label);
+
+                // tail for v_head_size
+                Xbyak::Label calibration_loop_label_tails;
+                Xbyak::Label calibration_loop_end_label_tails;
+                L(calibration_loop_label_tails);
+                {
+                    cmp(reg_work_amount_inner_aux, 1);
+                    jl(calibration_loop_end_label_tails, T_NEAR);
+
+                    load_emitter_scalar->emit_code({static_cast<size_t>(reg_data_aux.getIdx())},
+                                                   {static_cast<size_t>(vmm_val.getIdx())},
+                                                   {},
+                                                   {load_pool_gpr_idxs});
+                    uni_vmulps(vmm_val, vmm_val, vmm_max_past);
+                    store_emitter_scalar->emit_code({static_cast<size_t>(vmm_val.getIdx())},
+                                                    {static_cast<size_t>(reg_data_aux.getIdx())},
+                                                    {store_pool_vec_idxs},
+                                                    {store_pool_gpr_idxs});
+
+                    add(reg_data_aux, sizeof(float));
+                    sub(reg_work_amount_inner_aux, 1);
+                    jmp(calibration_loop_label_tails, T_NEAR);
+                }
+                L(calibration_loop_end_label_tails);
             }
+
             // update current to past
             uni_vmovss(vmm_max, ptr[reg_max]);
             uni_vmovss(ptr[reg_max_past], vmm_max);

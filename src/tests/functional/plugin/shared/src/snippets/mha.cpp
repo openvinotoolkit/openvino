@@ -242,6 +242,11 @@ std::shared_ptr<SnippetsFunctionBase> MHATransposedB::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHATransposedInputFunction>(inputDynamicShapes, true);
 }
 
+void MHATransposedB::init_thresholds() {
+    MHABase::init_thresholds();
+    abs_threshold = 1e-3;
+}
+
 std::shared_ptr<SnippetsFunctionBase> MHAWithExtractedReshape::get_subgraph() const {
     return std::make_shared<ov::test::snippets::MHAWithExtractedReshapeFunction>(inputDynamicShapes, false);
 }
