@@ -20,14 +20,14 @@ AvgPool
 
   * **Description**: *strides* is a distance (in pixels) to slide the window on the feature map over the (z, y, x) axes for 3D poolings and (y, x) axes for 2D poolings. For example, *strides* equal "4,2,1" means sliding the window 4 pixel at a time over depth dimension, 2 over height dimension and 1 over width dimension.
   * **Range of values**: integer values starting from 0
-  * **Type**: int[]
+  * **Type**: *T_IDX*
   * **Required**: *yes*
 
 * *dilations*
 
-  * **Description**: *dilations* specify the index of the next pixel to select when pooling. If not present, the dilation defaults to 1, meaning the adjacent pixel is chosen. A value of 2 indicates that one pixel is skipped and every other pixel is considered. Dilations specify one value for each spatial axis of the kernel: ``(z, y, x)`` for 3D poolings and ``(y, x)``  for 2D poolings.
+  * **Description**: *dilations* specify the index of the next pixel to select when pooling. If not present, the dilation defaults to 1, meaning the adjacent pixel is chosen. A value of 2 indicates that one pixel is skipped and every other pixel is considered. Dilations specify one value for each spatial axis of the kernel: ``(z, y, x)`` for 3D poolings and ``(y, x)`` for 2D poolings.
   * **Range of values**: integer values starting from 0
-  * **Type**: int[]
+  * **Type**: *T_IDX*
   * **Default value**: ``[1, 1, ...]``
   * **Required**: *no*
 
@@ -35,7 +35,7 @@ AvgPool
 
   * **Description**: *pads_begin* is a number of pixels to add to the beginning along each axis. For example, *pads_begin* equal "1,2" means adding 1 pixel to the top of the input and 2 to the left of the input.
   * **Range of values**: integer values starting from 0
-  * **Type**: int[]
+  * **Type**: *T_IDX*
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -43,7 +43,7 @@ AvgPool
 
   * **Description**: *pads_end* is a number of pixels to add to the ending along each axis. For example, *pads_end* equal "1,2" means adding 1 pixel to the bottom of the input and 2 to the right of the input.
   * **Range of values**: integer values starting from 0
-  * **Type**: int[]
+  * **Type**: *T_IDX*
   * **Required**: *yes*
   * **Note**: the attribute is ignored when *auto_pad* attribute is specified.
 
@@ -51,7 +51,7 @@ AvgPool
 
   * **Description**: *kernel* is a size of each filter. For example, *kernel* equal (2, 3) means that each filter has height equal to 2 and width equal to 3.
   * **Range of values**: integer values starting from 1
-  * **Type**: int[]
+  * **Type**: *T_IDX*
   * **Required**: *yes*
 
 * *exclude-pad*
