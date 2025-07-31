@@ -181,7 +181,7 @@ void MVN::initSupportedPrimitiveDescriptors() {
         const auto rank = getInputShapeAtPort(0).getRank();
         const bool is_rank_4_or_5 = rank == 4 || rank == 5;
         const bool has_blocked_layouts = BlockedDescCreator::getCommonCreators().count(LayoutType::nCsp8c) != 0U ||
-                                        BlockedDescCreator::getCommonCreators().count(LayoutType::nCsp16c) != 0U;
+                                         BlockedDescCreator::getCommonCreators().count(LayoutType::nCsp16c) != 0U;
         if (is_rank_4_or_5 && has_blocked_layouts) {
             willUseBlockedLayout = true;
         }

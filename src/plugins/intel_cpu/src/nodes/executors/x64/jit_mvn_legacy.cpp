@@ -1870,7 +1870,7 @@ void MVNJitExecutorLegacy::exec(const uint8_t* src_data,
     const bool no_mean_kernel = !mvn_mean_kernel;
     const bool no_variance_kernel = mvnAttrs.normalizeVariance_ && !mvn_variance_kernel;
     const bool no_mvn_kernel = !mvn_kernel;
-    
+
     if (no_mean_kernel || no_variance_kernel || no_mvn_kernel) {
         OPENVINO_THROW("MVN layer doesn't create kernel to execute on sse41 above platform.");
     }

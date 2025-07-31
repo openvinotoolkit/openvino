@@ -50,7 +50,7 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
 
     const bool unsupported_src_precision = srcPrecision != ov::element::f32 && srcPrecision != ov::element::f16;
     const bool unsupported_dst_precision = dstPrecision != ov::element::f32 && dstPrecision != ov::element::f16;
-    
+
     if (unsupported_src_precision || unsupported_dst_precision) {
         DEBUG_LOG("ACL MVN: Unsupported precision");
         return false;
@@ -74,7 +74,7 @@ bool ACLMVNExecutor::supports(const MVNConfig& config) {
     // Check layout compatibility
     const bool ncsp_mismatch = srcDesc->hasLayoutType(LayoutType::ncsp) && !dstDesc->hasLayoutType(LayoutType::ncsp);
     const bool nspc_mismatch = srcDesc->hasLayoutType(LayoutType::nspc) && !dstDesc->hasLayoutType(LayoutType::nspc);
-    
+
     if (ncsp_mismatch || nspc_mismatch) {
         DEBUG_LOG("ACL MVN: Layout mismatch");
         return false;
