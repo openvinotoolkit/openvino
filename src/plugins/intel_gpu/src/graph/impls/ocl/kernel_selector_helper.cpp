@@ -88,7 +88,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     const char* kernel_code = R""""(
         static_assert(__cplusplus >= 201703L);
         CM_INLINE uint64_t dummy() {
-            return;
+            return ((uint64_t)0L);
         }
         extern "C" _GENX_MAIN_ void cm_check(half *x [[type("svmptr_t")]]) {
             unsigned int id = cm_linear_global_id();
