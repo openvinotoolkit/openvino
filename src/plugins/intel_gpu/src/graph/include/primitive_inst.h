@@ -42,6 +42,7 @@ class primitive_inst;
 template <class PType>
 class typed_primitive_inst;
 
+class PrimitiveInstTestHelper;
 struct ImplementationManager;
 
 struct BufferDescriptor {
@@ -167,6 +168,7 @@ struct ImplementationsFactory {
 class primitive_inst {
     template <class PType>
     friend class typed_primitive_inst;
+    friend class PrimitiveInstTestHelper;
 
 public:
     primitive_inst(network& network);
