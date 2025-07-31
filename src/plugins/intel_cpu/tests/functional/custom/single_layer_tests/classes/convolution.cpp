@@ -63,7 +63,7 @@ std::string ConvolutionLayerCPUTest::getTestCaseName(const testing::TestParamInf
             result << "_" << item.first << "=" << item.second.as<std::string>();
         }
     }
-    result << std::to_string(obj.index);
+    // result << std::to_string(obj.index);
 
     return result.str();
 }
