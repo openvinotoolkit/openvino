@@ -4,6 +4,12 @@
 
 #include "openvino/pass/constant_folding.hpp"
 
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#ifdef __linux__
+#include <malloc.h>
+#endif
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -106,9 +112,17 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
 
     bool rewritten = pre_calculated_values_folding(model);
 
-    for (const auto& original_node : model->get_ordered_ops()) {
-        auto node = original_node;
-        if (!original_node->can_constant_fold(original_node->input_values())) {
+    // Memory cleanup configuration
+    const size_t memory_cleanup_threshold_mb = get_memory_threshold_from_env();
+    size_t nodes_processed = 0;
+    const size_t cleanup_check_interval = get_batch_size_from_env(); // Reuse batch size as cleanup check interval
+    
+    // Track memory before processing
+    size_t memory_before = get_current_memory_usage_mb();
+    
+    for (auto node : model->get_ordered_ops()) {
+        // Original constant folding logic (restored)
+        if (!node->can_constant_fold(node->input_values())) {
             if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                 // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
                 size_t sub_graphs_num = sub_graph_node->get_internal_subgraphs_size();
@@ -117,12 +131,13 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                         run_on_model(sub_graph_node->get_function(static_cast<int>(sub_graph_ind))) || rewritten;
                 }
             }
-            rewritten = restore_original_input_precision(original_node) || rewritten;
+            rewritten = restore_original_input_precision(node) || rewritten;
             if (rewritten) {
-                original_node->validate_and_infer_types();
+                node->validate_and_infer_types();
             }
             continue;
         }
+
         if (node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
             node = util::convert_to_supported_precision(node.get());
@@ -134,9 +149,9 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
             node->validate_and_infer_types();
         }
 
-        OutputVector replacements(node->get_output_size());
+        ov::OutputVector replacements(node->get_output_size());
         if (node->constant_fold(replacements, node->input_values())) {
-            OPENVINO_ASSERT(!constant_folding_is_disabled(original_node),
+            OPENVINO_ASSERT(!constant_folding_is_disabled(node),
                             "Node folded but constant folding disabled. Check constant_fold implementation for ",
                             node);
             OPENVINO_ASSERT(replacements.size() == node->get_output_size(),
@@ -144,34 +159,100 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                             node);
 
             for (size_t i = 0; i < replacements.size(); ++i) {
-                auto node_output = original_node->output(i);
+                auto node_output = node->output(i);
                 const auto& replacement = replacements.at(i);
-                auto replacement_ptr = replacement.get_node_shared_ptr();
-                if (replacement_ptr && (node_output != replacement)) {
-                    replacement_ptr->set_friendly_name(friendly_name_from(*original_node, replacements.size(), i));
+                auto replacement_node = replacement.get_node_shared_ptr();
+                if (replacement_node && (node_output != replacement)) {
+                    replacement_node->set_friendly_name(
+                        friendly_name_from(*node, replacements.size(), i));
 
                     node_output.replace(replacement);
                     // Copy runtime info from source nodes
                     // when it was not propogated during pre-calculation
-                    copy_runtime_info_from_input_values(original_node);
+                    copy_runtime_info_from_input_values(node);
                     // Propagate runtime info attributes to replacement
-                    copy_runtime_info(original_node, replacement_ptr);
-                    ov::copy_weightless_cache_attr(original_node, replacement_ptr);
-
-                    rewritten = true;
+                    copy_runtime_info(node, replacement_node);
+                    ov::copy_weightless_cache_attr(node, replacement_node);
                 }
             }
+            rewritten = true;
         } else {
             // if CF was unsuccessful remove original precision attribute from inputs
-            bool restored = restore_original_input_precision(original_node);
+            bool restored = restore_original_input_precision(node);
             if (restored) {
-                original_node->validate_and_infer_types();
+                node->validate_and_infer_types();
                 rewritten = true;
+            }
+        }
+        
+        // Periodic memory cleanup check
+        nodes_processed++;
+        if (nodes_processed % cleanup_check_interval == 0) {
+            size_t current_memory = get_current_memory_usage_mb();
+            if (current_memory - memory_before > memory_cleanup_threshold_mb) {
+                force_memory_cleanup();
+                memory_before = get_current_memory_usage_mb(); // Reset baseline after cleanup
             }
         }
     }
 
     return rewritten;
+}
+
+
+size_t ov::pass::ConstantFolding::get_batch_size_from_env() {
+    const char* env_batch_size = std::getenv("OV_CONSTANT_FOLDING_BATCH_SIZE");
+    if (env_batch_size) {
+        try {
+            size_t batch_size = std::stoull(env_batch_size);
+            return std::max(batch_size, size_t(1)); // Minimum batch size of 1
+        } catch (...) {
+            // Invalid environment variable, use default
+        }
+    }
+    return 50; // Default batch size
+}
+
+size_t ov::pass::ConstantFolding::get_memory_threshold_from_env() {
+    const char* env_threshold = std::getenv("OV_CONSTANT_FOLDING_MEMORY_THRESHOLD_MB");
+    if (env_threshold) {
+        try {
+            return std::stoull(env_threshold);
+        } catch (...) {
+            // Invalid environment variable, use default
+        }
+    }
+    return 200; // Default 200MB threshold
+}
+
+size_t ov::pass::ConstantFolding::get_current_memory_usage_mb() {
+    // Simple memory usage estimation - can be improved with more sophisticated tracking
+#ifdef __linux__
+    std::ifstream status("/proc/self/status");
+    std::string line;
+    while (std::getline(status, line)) {
+        if (line.find("VmRSS:") == 0) {
+            std::istringstream iss(line);
+            std::string label, value, unit;
+            iss >> label >> value >> unit;
+            return std::stoull(value) / 1024; // Convert KB to MB
+        }
+    }
+#endif
+    return 0; // Fallback - disable memory tracking if not available
+}
+
+void ov::pass::ConstantFolding::force_memory_cleanup() {
+    // Force cleanup of temporary objects and caches
+#ifdef __linux__
+    // Trigger malloc_trim to return memory to OS
+    malloc_trim(0);
+#endif
+    
+    // Additional cleanup can be added here:
+    // - Clear internal caches
+    // - Force garbage collection if available
+    // - Trim allocator pools
 }
 
 void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::shared_ptr<Node>& node) {
