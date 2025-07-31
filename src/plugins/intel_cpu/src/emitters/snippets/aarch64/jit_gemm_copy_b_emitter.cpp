@@ -4,7 +4,6 @@
 
 #include "jit_gemm_copy_b_emitter.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
 #include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <cpu/aarch64/cpu_isa_traits.hpp>
@@ -18,7 +17,6 @@
 
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
 #include "emitters/snippets/aarch64/utils.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
@@ -98,10 +96,13 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
 
     // Dynamically choose safe auxiliary registers that don't conflict with mem_ptrs or load_regs
     std::vector<size_t> used_indices;
-    for (const auto& reg : mem_ptrs)
+    used_indices.reserve(mem_ptrs.size());
+    for (const auto& reg : mem_ptrs) {
         used_indices.push_back(reg.getIdx());
-    for (const auto& reg : load_regs)
+    }
+    for (const auto& reg : load_regs) {
         used_indices.push_back(reg.getIdx());
+    }
     std::vector<Xbyak_aarch64::XReg> aux_regs = utils::get_aux_gprs(used_indices);
 
     utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_regs, load_regs);

@@ -4,11 +4,12 @@
 
 #include "utils.hpp"
 
-#include <algorithm>
-#include <common/utils.hpp>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <set>
 #include <unordered_set>
 #include <vector>
@@ -16,54 +17,53 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/except.hpp"
-#include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
-#include "snippets/lowered/expression_port.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
-#include "snippets/op/loop.hpp"
-#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::aarch64;
 
 namespace ov::intel_cpu::aarch64::utils {
 
-Xbyak_aarch64::XReg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
-    // SP - stack pointer should be preserved, X0 and X1 - runtime parameter registers in the kernel
+std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count) {
+    // X0 and X1 - runtime parameter registers in the kernel
     // X18 - platform register should not be used
-    static std::unordered_set<size_t> blacklist_gpr_idxs = {
-        31,  // Stack pointer (SP)
+    // SP - stack pointer should be preserved
+    static const std::unordered_set<size_t> blacklist_gpr_idxs = {
         0,   // abi_param1 (X0)
         1,   // abi_param2 (X1)
-        18   // Platform register (X18)
+        18,  // Platform register (X18)
+        31,  // Stack pointer (SP)
     };
 
-    // Iterate through available GPR registers (X0-X30, excluding X31 which is SP)
-    for (size_t gpr_idx = 0; gpr_idx <= 30; ++gpr_idx) {
-        size_t _idx = 30 - gpr_idx;  // we allocate from the end
-        if (std::find(used_gpr_idxs.cbegin(), used_gpr_idxs.cend(), _idx) != used_gpr_idxs.cend()) {
-            continue;
-        }
-        if (blacklist_gpr_idxs.count(_idx) > 0) {
-            continue;
-        }
-        return Xbyak_aarch64::XReg(_idx);
-    }
-    OV_CPU_JIT_EMITTER_THROW("Failed to allocate aux GPR");
-}
+    OPENVINO_ASSERT(count <= 32 - blacklist_gpr_idxs.size(),
+                    "Cannot allocate more than ",
+                    32 - blacklist_gpr_idxs.size(),
+                    " auxiliary registers");
 
-std::vector<Xbyak_aarch64::XReg> get_aux_gprs(const std::vector<size_t>& used_gpr_idxs, size_t count) {
+    // Convert used_gpr_idxs to unordered_set for O(1) lookups
+    const std::unordered_set<size_t> used_set(used_gpr_idxs.begin(), used_gpr_idxs.end());
+
     std::vector<Xbyak_aarch64::XReg> aux_regs;
     aux_regs.reserve(count);
-    std::vector<size_t> temp_used_indices = used_gpr_idxs;
 
-    for (size_t i = 0; i < count; i++) {
-        auto aux_reg = get_aux_gpr(temp_used_indices);
-        aux_regs.push_back(aux_reg);
-        temp_used_indices.push_back(aux_reg.getIdx());
+    // Iterate from X30 down to X0 (allocate from the end)
+    for (size_t idx = 30; idx != SIZE_MAX; --idx) {
+        if (used_set.count(idx) || blacklist_gpr_idxs.count(idx)) {
+            continue;
+        }
+        aux_regs.emplace_back(idx);
+        if (aux_regs.size() == count) {
+            break;
+        }
     }
 
+    OPENVINO_ASSERT(aux_regs.size() == count, "Expected ", count, " auxiliary registers, but got ", aux_regs.size());
     return aux_regs;
+}
+
+Xbyak_aarch64::XReg get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
+    return get_aux_gprs(used_gpr_idxs, 1)[0];
 }
 
 Xbyak_aarch64::XReg init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
