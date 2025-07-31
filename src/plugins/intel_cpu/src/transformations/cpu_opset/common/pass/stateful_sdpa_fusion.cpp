@@ -10,21 +10,18 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <openvino/core/rt_info.hpp>
-#include <openvino/core/type/element_type.hpp>
-#include <openvino/pass/pattern/op/pattern.hpp>
-#include <openvino/pass/pattern/op/wrap_type.hpp>
 #include <tuple>
 #include <vector>
 
-#include "transformations/defs.hpp"
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -41,8 +38,11 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
+#include "transformations/defs.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
 
