@@ -1633,7 +1633,11 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         const auto& matched_out_mul = node_to_output.at(qmul);
         auto out_shape = matched_out_mul.get_shape();
 
-        if (out_shape.size() != 3 && out_shape.size() != 4) {
+        const auto& matched_out_qweight = node_to_output.at(qweight);
+        auto qweight_type = matched_out_qweight.get_element_type();
+
+        if ((out_shape.size() != 3 && out_shape.size() != 4) ||
+            (out_shape.size() == 2 && qweight_type != ov::element::nf4)) {
             return false;
         }
 
@@ -1642,12 +1646,9 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
         // were Hs = hidden size, G is # of groups, N is the prompt size.
         auto out_len = out_shape.size() == 3 ? out_shape[2] : out_shape[2] * out_shape[3];
 
-        const auto& matched_out_qweight = node_to_output.at(qweight);
-        auto qweight_type = matched_out_qweight.get_element_type();
-
         if (out_len >= 2048 && (qweight_type == ov::element::i4 || qweight_type == ov::element::i8 ||
-                                qweight_type == ov::element::f8e4m3 || qweight_type == ov::element::f8e5m2 ||
-                                qweight_type == ov::element::f8e8m0)) {
+                                qweight_type == ov::element::nf4 || qweight_type == ov::element::f8e4m3 ||
+                                qweight_type == ov::element::f8e5m2 || qweight_type == ov::element::f8e8m0)) {
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
