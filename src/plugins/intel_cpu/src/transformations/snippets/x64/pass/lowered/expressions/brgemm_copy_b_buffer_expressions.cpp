@@ -62,7 +62,7 @@ void RepackedWeightsBufferExpression::init_allocation_size(
                                                                    brgemm_config.are_wei_blocked(),
                                                                    brgemm_config.transposed_b());
     m_allocation_size =
-        std::accumulate(buffer_b_shape.cbegin(), buffer_b_shape.cend(), size_t(1), [](size_t a, size_t b) {
+        std::accumulate(buffer_b_shape.cbegin(), buffer_b_shape.cend(), static_cast<size_t>(1), [](size_t a, size_t b) {
             return snippets::utils::dynamic_safe_mul(a, b);
         });
 }
