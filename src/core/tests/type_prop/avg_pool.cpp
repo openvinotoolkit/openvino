@@ -919,7 +919,6 @@ TEST(type_prop, avg_pool_16_dynamic_dims_ceil_torch_mode_2) {
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
-// TODO: check shapes
 TEST(type_prop, avg_pool_16_dilations_auto_padding_ceil_torch) {
     const ov::PartialShape arg_shape{1, 3, 9, 9};
     const ov::Strides strides{1, 1};
