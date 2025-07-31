@@ -116,8 +116,9 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config.attrs.postOps), UNSUPPORTED_POST_OPS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
+                VERIFY(all_of(1U, IC, groupOC), HEURISTICS_MISMATCH);
 
-                return all_of(1U, IC, groupOC);
+                return true;
             },
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp, LayoutType::ncsp}},
             AcceptsAnyShape<ConvAttrs>,
@@ -134,10 +135,10 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config.attrs.postOps), UNSUPPORTED_POST_OPS);
-
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
+                VERIFY(IC < 4 && groupOC != 1, HEURISTICS_MISMATCH);
 
-                return IC < 4 && groupOC != 1;
+                return true;
             },
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
             AcceptsAnyShape<ConvAttrs>,
@@ -149,12 +150,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
-
-
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
+                VERIFY(IC < 4 && groupOC != 1, HEURISTICS_MISMATCH);
 
-                return IC < 4 && groupOC != 1;
+                return true;
             },
             CreateOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
             AcceptsAnyShape<ConvAttrs>,
@@ -171,10 +171,10 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
                 // fork kernel with dw conv post ops supports only src: (ncsp | nCsp8c), dst: nCsp8c
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 VERIFY(!hasPostOp<DepthwiseConvolutionPostOp>(config.attrs.postOps), UNSUPPORTED_POST_OPS);
-
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
+                VERIFY(IC > 4, HEURISTICS_MISMATCH);
 
-                return IC > 4;
+                return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nCsp16c, LayoutType::ncsp, LayoutType::nCsp16c, LayoutType::nCsp16c}},
             AcceptsAnyShape<ConvAttrs>,
@@ -189,8 +189,9 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
 
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
                 const auto [groupNum, groupIC, IC, groupOC] = DnnlConvolutionPrimitive::getChannelParams(config);
+                VERIFY(IC > 4, HEURISTICS_MISMATCH);
 
-                return IC > 4;
+                return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nCsp8c, LayoutType::ncsp, LayoutType::nCsp8c, LayoutType::nCsp8c}},
             AcceptsAnyShape<ConvAttrs>,
@@ -219,10 +220,11 @@ const std::vector<ExecutorImplementation<ConvAttrs>>& getImplementations() {
             [](const ConvConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, dnnlConvolutionMappingNotation), MEMORY_FORMAT_MISMATCH);
-
                 VERIFY(!isQuantized(config), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(none_of(srcType(config), ov::element::bf16, ov::element::f16), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(DnnlConvolutionPrimitive::isNspcAvailable(config), HEURISTICS_MISMATCH);
 
-                return none_of(srcType(config), ov::element::bf16, ov::element::f16) && DnnlConvolutionPrimitive::isNspcAvailable(config);
+                return true;
             },
             CreateOptimalConfigDefault{{LayoutType::nspc, LayoutType::ncsp, LayoutType::nspc, LayoutType::nspc}},
             AcceptsAnyShape<ConvAttrs>,
