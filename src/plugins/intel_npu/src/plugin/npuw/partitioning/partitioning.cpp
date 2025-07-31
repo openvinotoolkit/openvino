@@ -2008,7 +2008,8 @@ void Partitioner::optimize(const std::string& func_name) {
             const auto& tensor_to_gather = p.second;
             auto w_idx = f._model->get_parameter_index(tensor_to_gather.w);
 
-            new_params.push_back(p.first);
+            // Need to add a new parameter right away, since it's going to be processed by the unpack below
+            f._model->add_parameters({p.first});
             to_remove.push_back(tensor_to_gather.w);
             to_remove_idx.insert(w_idx);
 
