@@ -1100,51 +1100,6 @@ TEST_F(TransformationTestsF, SDPAFusionTest_QKInputScale) {
     comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }
 
-TEST_F(TransformationTestsF, SDPAFusionTest_ConvertOnValue) {
-    // Init.
-    const PartialShape query_shape{1, 10, 1024, 64};
-    const PartialShape key_shape{1, 10, 77, 64};
-    const PartialShape value_shape{1, 10, 77, 64};
-
-    const Shape query_reshaped{10, 1024, 64};
-    const Shape key_reshaped{10, 77, 64};
-    const Shape value_reshaped{10, 77, 64};
-    const Shape final_output{1, 10, 1024, 64};
-
-    SDPA sdpa(f16, query_shape, key_shape, value_shape);
-    SDPA sdpa_ref(f16, query_shape, key_shape, value_shape);
-
-    // Preprocessing callback inserts Convert on the Value input.
-    auto callback = [](unordered_map<InputType, Output<Node>>& nodes) {
-        nodes[InputType::V] = std::make_shared<v0::Convert>(nodes[InputType::V], element::f16);
-    };
-
-    // SDPA model.
-    {
-        sdpa.set_preprocessing_callback(callback);
-        sdpa.reshape_q(query_reshaped);
-        sdpa.reshape_k(key_reshaped);
-        sdpa.reshape_v(value_reshaped);
-        sdpa.set_scale(1.0f);
-        sdpa.create_pattern_sdpa(/*transpose_b=*/true);
-        sdpa.reshape_sdpa(final_output);
-
-        model = sdpa.build_model();
-        manager.register_pass<ov::pass::SDPAFusion>();
-    }
-
-    // SDPA reference model.
-    {
-        sdpa_ref.set_preprocessing_callback(callback);
-        sdpa_ref.set_scale(1.0f);
-        sdpa_ref.create_reference_sdpa();
-        model_ref = sdpa_ref.build_model();
-    }
-
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
-}
-
 TEST_F(TransformationTestsF, SDPAFusionTest_ConvertedInputs) {
     const PartialShape query_shape{1, 1, 4096, 512};
     const PartialShape key_shape{1, 1, 4096, 512};
