@@ -335,8 +335,10 @@ void WeightlessGraph::initialize(const Config& config) {
 
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {
-        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
+            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+        }
     }
 
     _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
@@ -595,7 +597,8 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex) {
-    if (_initsGraphDesc[initIndex]._data || _blobIsPersistent || _initBlobs == std::nullopt) {
+    if (_initsGraphDesc.at(initIndex)._data || _blobIsPersistent || _initBlobs == std::nullopt ||
+        _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {
         return;
     }
 
