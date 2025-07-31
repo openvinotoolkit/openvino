@@ -55,10 +55,7 @@ class PagedAttnScoreTest : public testing::WithParamInterface<PagedAttnTestParam
                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
-        ElementType inType;
-        InputShapes inputShapes;
-        uint32_t score_aggregation_window;
-        std::tie(inType, inputShapes, score_aggregation_window) = obj.param;
+        const auto& [inType, inputShapes, score_aggregation_window] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -148,10 +145,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShapes inputShapes;
-        uint32_t score_aggregation_window;
-        std::tie(inType, inputShapes, score_aggregation_window) = this->GetParam();
+        const auto& [inType, inputShapes, score_aggregation_window] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 0.01f;
         abs_threshold = 0.01f;
@@ -493,10 +487,7 @@ public:
 
 TEST_P(PagedAttnScoreTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ElementType inType;
-    InputShapes inputShapes;
-    uint32_t score_aggregation_window;
-    std::tie(inType, inputShapes, score_aggregation_window) = this->GetParam();
+    const auto& [inType, inputShapes, score_aggregation_window] = this->GetParam();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     auto actualOutputs = run_test(function, score_aggregation_window);

@@ -22,13 +22,7 @@ class RollLayerCPUTest : public testing::WithParamInterface<RollCPUTestParams>,
                          virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RollCPUTestParams> obj) {
-        InputShape inputShape;
-        ov::element::Type inputPrecision;
-        std::vector<int64_t> shift;
-        std::vector<int64_t> axes;
-        std::string targetDevice;
-        std::tie(inputShape, inputPrecision, shift, axes, targetDevice) = obj.param;
-
+        const auto& [inputShape, inputPrecision, shift, axes, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
@@ -45,13 +39,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
-        ov::element::Type inputPrecision;
-        std::vector<int64_t> shift;
-        std::vector<int64_t> axes;
-
-        std::tie(inputShape, inputPrecision, shift, axes, targetDevice) = GetParam();
-
+        const auto& [inputShape, inputPrecision, shift, axes, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
         init_input_shapes({inputShape});
 
         ov::ParameterVector paramsIn;

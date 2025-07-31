@@ -45,11 +45,7 @@ class PagedAttnTestBase : public testing::WithParamInterface<PagedAttnTestParams
                           public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PagedAttnTestParams>& obj) {
-        ElementType inType;
-        InputShapes inputShapes;
-        bool extendBlockIndices;
-        ov::AnyMap additional_config;
-        std::tie(inType, inputShapes, extendBlockIndices, additional_config) = obj.param;
+        const auto& [inType, inputShapes, extendBlockIndices, additional_config] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -216,11 +212,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShapes inputShapes;
-        bool extendBlockIndices;
-        ov::AnyMap additional_config;
-        std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
+        const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -428,12 +420,8 @@ public:
 
 TEST_P(PagedAttnVSSDPATest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ElementType inType;
-    InputShapes inputShapes;
-    bool extendBlockIndices;
-    ov::AnyMap additional_config;
-    std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
-    bool isSageAttn = additional_config[ov::intel_cpu::enable_sage_attn.name()].as<bool>();
+    const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
+    const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
@@ -657,12 +645,8 @@ public:
 
 TEST_P(PagedAttnVSMatmulTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ElementType inType;
-    InputShapes inputShapes;
-    bool extendBlockIndices;
-    ov::AnyMap additional_config;
-    std::tie(inType, inputShapes, extendBlockIndices, additional_config) = this->GetParam();
-    bool isSageAttn = additional_config[ov::intel_cpu::enable_sage_attn.name()].as<bool>();
+    const auto& [inType, inputShapes, extendBlockIndices, additional_config] = this->GetParam();
+    const bool isSageAttn = intel_cpu::contains_key_value(additional_config, {ov::intel_cpu::enable_sage_attn.name(), true});
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (isSageAttn && !(ov::with_cpu_x86_avx512_core_amx_int8() || CPUTestUtils::with_cpu_x86_avx2_vnni_2()))
