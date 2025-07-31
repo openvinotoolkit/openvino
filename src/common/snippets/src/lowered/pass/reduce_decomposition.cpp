@@ -42,8 +42,8 @@ bool ReduceDecomposition::run(LinearIR& linear_ir, LinearIR::constExprIt begin, 
 
     auto get_initial_value = [](const ov::DiscreteTypeInfo& type_info) {
         static const std::map<ov::DiscreteTypeInfo, uint32_t> reduce_initial_values{
-            {op::ReduceMax::get_type_info_static(), uint32_t(0xff7fffff)},
-            {op::ReduceSum::get_type_info_static(), uint32_t(0x00000000)},
+            {op::ReduceMax::get_type_info_static(), static_cast<uint32_t>(0xff7fffff)},
+            {op::ReduceSum::get_type_info_static(), static_cast<uint32_t>(0x00000000)},
         };
         OPENVINO_ASSERT(reduce_initial_values.count(type_info), "Unexpected ReduceType");
         return reduce_initial_values.at(type_info);

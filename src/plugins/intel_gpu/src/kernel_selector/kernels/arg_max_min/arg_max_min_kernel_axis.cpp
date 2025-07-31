@@ -168,7 +168,7 @@ KernelsData ArgMaxMinKernelAxis::GetKernelsData(const Params& params) const {
                      orgParams.outputs_num,
                      orgParams.is_shape_agnostic);
 
-    if (is_dynamic) {
+    if (is_dynamic || getSortSize(orgParams) * orgParams.inputs[0].ElementSize() > 4096) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 1});
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 2});
@@ -202,6 +202,10 @@ JitConstants ArgMaxMinKernelAxis::GetJitConstants(const arg_max_min_params& para
 
     if (params.values_first)
         jit.AddConstant(MakeJitConstant("TOP_K_ORDER", 1));
+
+    if (params.has_dynamic_tensors() || getSortSize(params) * params.inputs[0].ElementSize() > 4096) {
+        jit.AddConstant(MakeJitConstant("USE_INTERNAL_BUFFERS", 1));
+    }
 
     return jit;
 }

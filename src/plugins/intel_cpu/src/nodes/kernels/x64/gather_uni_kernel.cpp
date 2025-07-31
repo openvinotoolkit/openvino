@@ -16,6 +16,7 @@
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -93,7 +94,7 @@ void jitUniGatherKernel<isa>::create_ker() {
     OPENVINO_ASSERT(code == dnnl::impl::status::success,
                     "Could not create Gather kernel. Error code: ",
                     std::to_string(code));
-    ker_ = (decltype(ker_))jit_ker();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <x64::cpu_isa_t isa>
