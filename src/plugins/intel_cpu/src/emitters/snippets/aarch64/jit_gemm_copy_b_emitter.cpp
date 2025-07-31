@@ -117,11 +117,11 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     restore_context(exclude);
 }
 
-const uintptr_t jit_gemm_copy_b_emitter::get_compiled_kernel_ptr() const {
+uintptr_t jit_gemm_copy_b_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor.get());
 }
 
-const uintptr_t jit_gemm_copy_b_emitter::get_execute_function_ptr() {
+uintptr_t jit_gemm_copy_b_emitter::get_execute_function_ptr() {
     return reinterpret_cast<const uintptr_t>(GemmCopyBKaiKernelExecutor::execute);
 }
 }  // namespace ov::intel_cpu::aarch64

@@ -48,8 +48,8 @@ protected:
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
     dnnl_alg_kind_t kind{dnnl_alg_kind_undef};
-    float alpha{0.f};
-    float beta{0.f};
+    float alpha{0.F};
+    float beta{0.F};
 
     std::shared_ptr<dnnl::impl::cpu::x64::jit_uni_eltwise_injector_t<dnnl::impl::cpu::x64::sse41>>
         eltwise_injector_sse42;
