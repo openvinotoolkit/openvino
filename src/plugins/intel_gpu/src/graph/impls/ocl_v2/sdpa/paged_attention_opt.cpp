@@ -1203,7 +1203,6 @@ public:
 #else
             rt_params->use_micro_sdpa = false;
 #endif
-            // desc->sliding_window == 0 || (desc->sliding_window > 0 && rt_params->paged_attention_aligned_seq_len < desc->sliding_window);
             rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
         } else {
             rt_params->use_micro_sdpa = false;
