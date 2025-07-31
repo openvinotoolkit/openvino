@@ -37,8 +37,9 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
                                    cpu_isa_t isa,
                                    const ExpressionPtr& expr,
-                                   const snippets::KernelExecutorTablePtr& kernel_table)
-    : jit_emitter(h, isa) {
+                                   const snippets::KernelExecutorTablePtr& kernel_table,
+                                   const std::set<snippets::Reg>& live_regs)
+    : jit_binary_call_emitter(h, isa, live_regs) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     GemmKernelKaiConfig kernel_config;
     m_kernel_executor_kai = kernel_table->register_kernel<GemmKaiKernelExecutor>(expr, kernel_config);
@@ -70,53 +71,91 @@ void jit_gemm_emitter::validate_arguments(const std::vector<size_t>& in, const s
 
 void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
-    // todo: use optimized reg spill after CVS-162498
-    std::unordered_set<size_t> exclude = {};
-    store_context(exclude);
+
+    std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
+
+    init_binary_call_regs(2, mem_ptrs_idxs);
+    emit_call(mem_ptrs_idxs);
+}
+
+void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
+    const auto& call_address_reg = get_call_address_reg();
+    const auto& callee_saved_reg = get_callee_saved_reg();
+
+    std::unordered_set<size_t> exclude_spill = {};
+    store_context(exclude_spill);
+
+    auto reserved_stack_size = sizeof(GemmKaiKernelExecutor::call_args);
+    reserved_stack_size = ov::intel_cpu::rnd_up(reserved_stack_size, 16);
+    emit_stack_preserve(reserved_stack_size);
+
+    const size_t A_offset = offsetof(GemmKaiKernelExecutor::call_args, A);
+    const size_t B_offset = offsetof(GemmKaiKernelExecutor::call_args, B);
+    const size_t C_offset = offsetof(GemmKaiKernelExecutor::call_args, C);
+    const size_t scratch_offset = offsetof(GemmKaiKernelExecutor::call_args, scratch);
+
+    const std::vector<size_t> gemm_args_offsets = {A_offset, B_offset, C_offset, scratch_offset};
+
+    const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
+
+    for (size_t i = 0; i < mem_ptrs.size(); i++) {
+        if (i < m_memory_offsets.size() && ov::snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
+            if (i < m_buffer_ids.size() && !ov::snippets::utils::is_dynamic_value(m_buffer_ids[i]) &&
+                m_buffer_ids[i] < 24) {
+                size_t runtime_offset = GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t);
+
+                // Create auxiliary register vector for the utility function
+                std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg,
+                                                             callee_saved_reg,
+                                                             Xbyak_aarch64::XReg(10)};
+                utils::push_ptr_with_runtime_offset_on_stack(h,
+                                                             gemm_args_offsets[i],
+                                                             mem_ptrs[i],
+                                                             aux_regs,
+                                                             runtime_offset);
+            } else {
+                std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg};
+                utils::push_ptr_with_static_offset_on_stack(h, gemm_args_offsets[i], mem_ptrs[i], aux_regs, 0);
+            }
+        } else {
+            size_t offset = (i < m_memory_offsets.size()) ? m_memory_offsets[i] : 0;
+            std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg};
+            utils::push_ptr_with_static_offset_on_stack(h, gemm_args_offsets[i], mem_ptrs[i], aux_regs, offset);
+        }
+    }
+
+    if (mem_ptrs.size() < 4) {
+        h->mov(call_address_reg, 0);
+        h->str(call_address_reg, Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(scratch_offset)));
+    }
 
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
-    Xbyak_aarch64::XReg x2(2);
-    Xbyak_aarch64::XReg x3(3);
-    Xbyak_aarch64::XReg aux_reg(5);
 
-    // Prepare memory pointers with offsets
-    std::vector<size_t> mem_ptrs_idxs{in[0], in[1], out[0]};
-    const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
+    auto execute_func_ptr =
+        static_cast<void (*)(const GemmKaiKernelExecutor*, const GemmKaiKernelExecutor::call_args*)>(
+            GemmKaiKernelExecutor::execute);
+    h->mov(call_address_reg, reinterpret_cast<uintptr_t>(execute_func_ptr));
 
-    // Apply memory offsets and load adjusted pointers
-    std::vector<Xbyak_aarch64::XReg> load_regs{x1, x2, x3};
+    h->mov(x0, reinterpret_cast<uintptr_t>(m_kernel_executor_kai.get()));
+    h->mov(x1, h->sp);
 
-    // Dynamically choose safe auxiliary registers that don't conflict with mem_ptrs or load_regs
-    std::vector<size_t> used_indices;
-    used_indices.reserve(mem_ptrs.size());
-    for (const auto& reg : mem_ptrs) {
-        used_indices.push_back(reg.getIdx());
-    }
-    for (const auto& reg : load_regs) {
-        used_indices.push_back(reg.getIdx());
-    }
-    std::vector<Xbyak_aarch64::XReg> aux_regs = utils::get_aux_gprs(used_indices);
+    h->blr(call_address_reg);
 
-    utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_regs, load_regs);
+    emit_stack_restore(reserved_stack_size);
 
-    // Set up executor pointer as first argument
-    const auto& compiled_kernel = get_compiled_kernel_ptr();
-    h->mov(x0, compiled_kernel);
-
-    Xbyak_aarch64::XReg func_reg(9);
-    h->mov(func_reg, get_execute_function_ptr());
-    h->blr(func_reg);
-
-    restore_context(exclude);
+    restore_context(exclude_spill);
 }
 
 uintptr_t jit_gemm_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor_kai.get());
 }
 
-uintptr_t jit_gemm_emitter::get_execute_function_ptr() {
-    return reinterpret_cast<const uintptr_t>(GemmKaiKernelExecutor::execute);
+const uintptr_t jit_gemm_emitter::get_execute_function_ptr() {
+    auto execute_func_ptr =
+        static_cast<void (*)(const GemmKaiKernelExecutor*, const GemmKaiKernelExecutor::call_args*)>(
+            GemmKaiKernelExecutor::execute);
+    return reinterpret_cast<const uintptr_t>(execute_func_ptr);
 }
 
 }  // namespace ov::intel_cpu::aarch64
