@@ -36,7 +36,6 @@ private:
     std::string getPrimitiveType(const utils::ComparisonTypes& comparison_type, ov::element::Type modelType) const;
 };
 
-
 namespace comparison {
 
 const std::vector<std::vector<InputShape>>& inShapesWithParameter();
@@ -49,5 +48,6 @@ const std::vector<ov::element::Type>& modelPrc();
 const std::vector<ov::element::Type> inferPrc();
 
 }  // namespace comparison
+
 }  // namespace test
 }  // namespace ov

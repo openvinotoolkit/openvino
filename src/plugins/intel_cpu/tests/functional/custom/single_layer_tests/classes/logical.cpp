@@ -19,7 +19,7 @@ using namespace ov::test::utils;
 namespace ov {
 namespace test {
 std::string LogicalLayerCPUTest::getTestCaseName(const testing::TestParamInfo<LogicalLayerCPUTestParamSet> &obj) {
-    const auto [shapes, logicalType, secondInType, enforceSnippets] = obj.param;
+    const auto& [shapes, logicalType, secondInType, enforceSnippets] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -44,7 +44,7 @@ std::string LogicalLayerCPUTest::getTestCaseName(const testing::TestParamInfo<Lo
 }
 
 void LogicalLayerCPUTest::SetUp() {
-    const auto [shapes, logicalType, secondInType, enforceSnippets] = this->GetParam();
+    const auto& [shapes, logicalType, secondInType, enforceSnippets] = this->GetParam();
     targetDevice = ov::test::utils::DEVICE_CPU;
 
     const auto primitiveType = getPrimitiveType(logicalType);

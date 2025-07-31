@@ -19,7 +19,7 @@ using namespace ov::test::utils;
 namespace ov {
 namespace test {
 std::string ComparisonLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ComparisonLayerCPUTestParamSet> &obj) {
-    const auto [shapes, comparisonType, secondInType, modelType, inferPrc, enforceSnippets] = obj.param;
+    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -34,7 +34,7 @@ std::string ComparisonLayerCPUTest::getTestCaseName(const testing::TestParamInfo
     }
     result << "OpType=" << comparisonType << "_";
     result << "secondInType=" << secondInType << "_";
-    result << "modelType=" << modelType.to_string() << "_";
+    result << "modelPrc=" << modelPrc.to_string() << "_";
     result << "inferPrc=" << inferPrc.to_string() << "_";
     result << "_enforceSnippets=" << enforceSnippets;
 
@@ -42,18 +42,16 @@ std::string ComparisonLayerCPUTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void ComparisonLayerCPUTest::SetUp() {
-    auto [shapes, comparisonType, secondInType, modelType, inferPrc, enforceSnippets] = this->GetParam();
+    const auto& [shapes, comparisonType, secondInType, modelPrc, inferPrc, enforceSnippets] = this->GetParam();
     targetDevice = ov::test::utils::DEVICE_CPU;
 
     // we have to change model precision as well, otherwise inference precision won't affect single-node graph
     // due to enforce inference precision optimization for the eltwise as first node of the model
-    if (ov::element::Type(modelType).is_real()) {
-        modelType = inferPrc;
-    }
+    const auto currModelPrc = ov::element::Type(modelPrc).is_real() ? inferPrc : modelPrc;
 
-    const auto primitiveType = getPrimitiveType(comparisonType, modelType);
+    const auto primitiveType = getPrimitiveType(comparisonType, currModelPrc);
     const auto primiticePrcType =
-        ov::intel_cpu::any_of(primitiveType, "ref", "acl") ? ov::element::f32.to_string() : modelType.to_string();
+        ov::intel_cpu::any_of(primitiveType, "ref", "acl") ? ov::element::f32.to_string() : currModelPrc.to_string();
     selectedType = primitiveType.empty() ? "" : primitiveType + "_" + primiticePrcType;
 
     init_input_shapes(shapes);
@@ -65,14 +63,14 @@ void ComparisonLayerCPUTest::SetUp() {
     }
     configuration.insert(ov::hint::inference_precision(inferPrc));
 
-    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(modelType, inputDynamicShapes[0])};
+    ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(currModelPrc, inputDynamicShapes[0])};
 
     std::shared_ptr<ov::Node> secondInput;
     if (ov::test::utils::InputLayerType::CONSTANT == secondInType) {
-        auto tensor = ov::test::utils::create_and_fill_tensor(modelType, targetStaticShapes[0][1]);
+        auto tensor = ov::test::utils::create_and_fill_tensor(currModelPrc, targetStaticShapes[0][1]);
         secondInput = std::make_shared<ov::op::v0::Constant>(tensor);
     } else {
-        auto param = std::make_shared<ov::op::v0::Parameter>(modelType, inputDynamicShapes[1]);
+        auto param = std::make_shared<ov::op::v0::Parameter>(currModelPrc, inputDynamicShapes[1]);
         secondInput = param;
         params.push_back(param);
     }

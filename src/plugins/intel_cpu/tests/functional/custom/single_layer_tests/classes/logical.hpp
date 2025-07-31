@@ -34,7 +34,6 @@ private:
     std::string getPrimitiveType(const utils::LogicalTypes& logical_type) const;
 };
 
-
 namespace logical {
 
 const std::vector<std::vector<InputShape>>& inUnaryShapes();
@@ -47,5 +46,6 @@ const std::vector<utils::LogicalTypes>& logicalBinaryTypes();
 const std::vector<bool>& enforceSnippets();
 
 }  // namespace logical
+
 }  // namespace test
 }  // namespace ov
