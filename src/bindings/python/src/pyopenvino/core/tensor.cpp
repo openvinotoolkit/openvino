@@ -118,8 +118,8 @@ void regclass_Tensor(py::module m) {
                 Creates a Tensor from a given Python list.
                 Warning: It is always a copy of list's data!
 
-                :param array: List to create the tensor from.
-                :type array: List[int, float, str]
+                :param array: list to create the tensor from.
+                :type array: list[int, float, str]
             )");
 
     cls.def(py::init<const ov::element::Type, const ov::Shape>(), py::arg("type"), py::arg("shape"));
@@ -218,7 +218,7 @@ void regclass_Tensor(py::module m) {
     cls.def(py::init([](py::object& image) {
                 if (!py::isinstance(image, py::module::import("PIL.Image").attr("Image"))) {
                     throw py::type_error(
-                        "Input argument must be a PIL.Image.Image/numpy.array/List[int, float, str] object");
+                        "Input argument must be a PIL.Image.Image/numpy.array/list[int, float, str] object");
                 }
                 auto numpy = py::module::import("numpy");
                 py::array np_array = numpy.attr("array")(image);

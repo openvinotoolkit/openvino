@@ -4,7 +4,30 @@
 
 #include "acl_deconv.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/core/Utils.h>
+#include <arm_compute/runtime/NEON/functions/NEDeconvolutionLayer.h>
+
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/acl/acl_utils.hpp"
+#include "nodes/executors/deconv.hpp"
+#include "nodes/executors/executor.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -13,7 +36,7 @@ using namespace arm_compute;
 ACLDeconvTensorInfo getACLDeconvTensorInfo(const DeconvAttrs& deconvAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) {
-    auto func_mod = [](long a) -> unsigned int {
+    auto func_mod = [](int64_t a) -> unsigned int {
         return a < 0 ? 0 : a;
     };
     auto pad_l = deconvAttrs.paddingL.size() > 1 ? deconvAttrs.paddingL.at(1) : deconvAttrs.paddingL.at(0);
@@ -110,8 +133,9 @@ bool AclDeconvExecutor::init(const DeconvAttrs& deconvAttrs,
     srcTensor.allocator()->init(srcTensorInfo);
     weiTensor.allocator()->init(weiTensorInfo);
     dstTensor.allocator()->init(dstTensorInfo);
-    if (deconvAttrs.withBiasesParam)
+    if (deconvAttrs.withBiasesParam) {
         biasTensor.allocator()->init(biasTensorInfo);
+    }
 
     deconv = std::make_unique<arm_compute::NEDeconvolutionLayer>();
     configureThreadSafe([&] {
@@ -130,10 +154,10 @@ static void transpose_weights(const MemoryCPtr& srcMemPtr, MemoryPtr& newSrcMemP
     const auto src_data = srcMemPtr->getDataAs<T>();
     const auto new_src_data = newSrcMemPtr->getDataAs<T>();
 
-    const int DIM0 = static_cast<int>(srcMemPtr->getStaticDims()[0]);
-    const int DIM1 = static_cast<int>(srcMemPtr->getStaticDims()[1]);
-    const int DIM2 = static_cast<int>(srcMemPtr->getStaticDims()[2]);
-    const int DIM3 = static_cast<int>(srcMemPtr->getStaticDims()[3]);
+    const auto DIM0 = static_cast<int>(srcMemPtr->getStaticDims()[0]);
+    const auto DIM1 = static_cast<int>(srcMemPtr->getStaticDims()[1]);
+    const auto DIM2 = static_cast<int>(srcMemPtr->getStaticDims()[2]);
+    const auto DIM3 = static_cast<int>(srcMemPtr->getStaticDims()[3]);
 
     // 0123 -> 1023
     if (isNCHW) {
@@ -194,15 +218,17 @@ void AclDeconvExecutor::exec(const std::vector<MemoryCPtr>& src,
     srcTensor.allocator()->import_memory(src[0]->getData());
     weiTensor.allocator()->import_memory(newWei->getData());
     dstTensor.allocator()->import_memory(dst[0]->getData());
-    if (deconvAttrs.withBiasesParam)
+    if (deconvAttrs.withBiasesParam) {
         biasTensor.allocator()->import_memory(src[2]->getData());
+    }
     deconv->run();
 
     srcTensor.allocator()->free();
     dstTensor.allocator()->free();
     weiTensor.allocator()->free();
-    if (deconvAttrs.withBiasesParam)
+    if (deconvAttrs.withBiasesParam) {
         biasTensor.allocator()->free();
+    }
 }
 
 bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
@@ -221,9 +247,9 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         return false;
     }
 
-    if (!(one_of(srcDescs[0]->getPrecision(), ov::element::f16, ov::element::f32) &&
-          srcDescs[0]->getPrecision() == srcDescs[1]->getPrecision() &&
-          srcDescs[1]->getPrecision() == dstDescs[0]->getPrecision())) {
+    if (!any_of(srcDescs[0]->getPrecision(), ov::element::f16, ov::element::f32) ||
+        srcDescs[0]->getPrecision() != srcDescs[1]->getPrecision() ||
+        srcDescs[1]->getPrecision() != dstDescs[0]->getPrecision()) {
         DEBUG_LOG("AclDeconvExecutor does not support precisions:",
                   " src[0]=",
                   srcDescs[0]->getPrecision(),
@@ -239,11 +265,11 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         return false;
     }
 
-    if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
-          dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-        !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-          // Check weights as ncsp because we remove reorder and will transform ncsp -> nspc in exec() function
-          srcDescs[1]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+    if ((!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !srcDescs[1]->hasLayoutType(LayoutType::ncsp) ||
+         !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+        (!srcDescs[0]->hasLayoutType(LayoutType::nspc) ||
+         // Check weights as ncsp because we remove reorder and will transform ncsp -> nspc in exec() function
+         !srcDescs[1]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
         DEBUG_LOG("AclDeconvExecutor does not support layouts:",
                   " src[0]=",
                   srcDescs[0]->serializeFormat(),
@@ -278,8 +304,8 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
     unsigned int dilation_x =
         (deconvAttrs.dilation.size() > 1) ? deconvAttrs.dilation.at(1) : deconvAttrs.dilation.at(0);
     unsigned int dilation_y = deconvAttrs.dilation.at(0);
-    if (!one_of(dilation_x, static_cast<unsigned int>(0), static_cast<unsigned int>(1)) ||
-        !one_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1))) {
+    if (none_of(dilation_x, static_cast<unsigned int>(0), static_cast<unsigned int>(1)) ||
+        none_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1))) {
         return false;
     }
 

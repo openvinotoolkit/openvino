@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -59,7 +59,7 @@ Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_
  * @param aux_reg aux register
  * @param runtime_offset offset in runtime params `abi_param1`
  */
-void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
+void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t* h,
                                            size_t stack_offset,
                                            Xbyak::Reg64 ptr_reg,
                                            Xbyak::Reg64 aux_reg,
@@ -72,7 +72,7 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* 
  * @param ptr_reg register contains data pointer
  * @param ptr_offset offset which will be added to data pointer
  */
-void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
+void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t* h,
                                           size_t stack_offset,
                                           Xbyak::Reg64 ptr_reg,
                                           size_t ptr_offset);

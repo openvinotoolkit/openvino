@@ -140,7 +140,7 @@ private:
 bool MemoryOutputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                             std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v3::Assign::get_type_info_static(),
                     ov::op::v6::Assign::get_type_info_static())) {
             errorMessage = "Node is not an instance of Assign from the operation set v3 or v6.";
@@ -304,7 +304,7 @@ void MemoryOutput::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto parentEdge = getParentEdgeAt(0);  // always only one parent edge
 
-    CPU_NODE_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+    CPU_NODE_ASSERT(any_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
                     " Unexpected inplace resolve call to an allocated edge: ",
                     *parentEdge);
 
@@ -387,7 +387,7 @@ void MemoryOutputStub::resolveInPlaceEdges(Edge::LOOK look) {
 
     auto parentEdge = getParentEdgeAt(0);  // always only one parent edge
 
-    CPU_NODE_ASSERT(one_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+    CPU_NODE_ASSERT(any_of(parentEdge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
                     " Unexpected inplace resolve call to an allocated edge: ",
                     *parentEdge);
 
@@ -404,7 +404,7 @@ void MemoryOutputStub::assignExtMemory(const MemoryPtr& mem, const MemoryDescPtr
 bool MemoryInputBase::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v3::ReadValue::get_type_info_static(),
                     ov::op::v6::ReadValue::get_type_info_static(),
                     ov::intel_cpu::ReadValueWithSubgraph::get_type_info_static())) {
@@ -470,7 +470,7 @@ MemoryInputBase::MemoryInputBase(const std::string& id,
     } else if (mode::single_read_value == mode) {
         executeHook = &MemoryInputBase::bypassAssignState;
     } else {
-        THROW_CPU_NODE_ERR("Unexpected MemoryInput mode");
+        CPU_NODE_THROW("Unexpected MemoryInput mode");
     }
 }
 
@@ -901,7 +901,7 @@ void MemoryInput::resolveInPlaceEdges(Edge::LOOK look) {
     memBlock = std::make_shared<ProxyMemoryBlock>();
 
     for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
-        CPU_NODE_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+        CPU_NODE_ASSERT(any_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
                         "Unexpected inplace resolve call to an allocated edge: ",
                         *edge);
 
@@ -1049,7 +1049,7 @@ void MemoryInputSDPA::resolveInPlaceEdges(Edge::LOOK look) {
     } else {
         auto memDesc = getBaseMemDescAtOutputPort(0);
         for (auto&& edge : getChildEdgesAtPort(0)) {  // always only one child port
-            CPU_NODE_ASSERT(one_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
+            CPU_NODE_ASSERT(any_of(edge->getStatus(), Edge::Status::Uninitialized, Edge::Status::NotAllocated),
                             " Unexpected inplace resolve call to an allocated edge: ",
                             *edge);
 

@@ -4,7 +4,24 @@
 
 #include "jit_gemm_emitter.hpp"
 
-#include "snippets/utils/utils.hpp"
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <unordered_set>
+#include <vector>
+
+#include "emitters/snippets/aarch64/kernel_executors/gemm.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
 
 using namespace Xbyak_aarch64;
 
@@ -24,7 +41,8 @@ jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
     m_kernel_executor_kai = kernel_table->register_kernel<GemmKaiKernelExecutor>(expr, kernel_config);
 }
 
-std::set<std::vector<element::Type>> jit_gemm_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node) {
+std::set<std::vector<element::Type>> jit_gemm_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     // Note: currently supports only fp32 on arm
     return {{element::f32, element::f32}};
 }
@@ -60,11 +78,11 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
     restore_context(exclude);
 }
 
-const uintptr_t jit_gemm_emitter::get_compiled_kernel_ptr() const {
+uintptr_t jit_gemm_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor_kai.get());
 }
 
-const uintptr_t jit_gemm_emitter::get_execute_function_ptr() const {
+uintptr_t jit_gemm_emitter::get_execute_function_ptr() {
     return reinterpret_cast<const uintptr_t>(GemmKaiKernelExecutor::execute);
 }
 

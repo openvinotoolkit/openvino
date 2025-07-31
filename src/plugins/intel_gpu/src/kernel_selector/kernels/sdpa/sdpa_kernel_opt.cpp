@@ -160,18 +160,18 @@ ParamsKey SDPAKernelOpt::GetSupportedKey() const {
 
 bool SDPAKernelOpt::Validate(const Params& p) const {
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
     if (params.conf.k_head_size < 1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.is_paged_attention && unaligned_head_size(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.use_asymmetric_quantization && !params.conf.combine_scales_and_zp)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

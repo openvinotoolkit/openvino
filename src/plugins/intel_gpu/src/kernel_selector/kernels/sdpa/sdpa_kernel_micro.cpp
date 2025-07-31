@@ -570,7 +570,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
         problem_kq.Ta_scale = scale_dt;
         problem_kq.A_scale.setAlignment(scale_dt.size());
         problem_kq.A_scale.layout = micro::MatrixLayout::N;
-        problem_kq.aScale2D = true;
+        problem_kq.asPtrDims = 2;
     }
 
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
@@ -635,7 +635,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
         problem_vs.Ta_scale = scale_dt;
         problem_vs.A_scale.setAlignment(scale_dt.size());
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
-        problem_vs.aScale2D = true;
+        problem_vs.asPtrDims = 2;
     }
 
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
@@ -706,17 +706,18 @@ ParamsKey SDPAKernelMicro::GetSupportedKey() const {
 
 bool SDPAKernelMicro::Validate(const Params& p) const {
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
     if (params.should_use_sdpa_opt)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.engineInfo.arch < gpu_arch::xe_hpg || !params.engineInfo.supports_microkernels)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.indirect_axis != -1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto Q_num_heads_dim = params.conf.is_paged_attention ? params.conf.heads_num
                                                           : get_num_heads(params, params.inputs[0], params.input0_order);
@@ -724,46 +725,46 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     auto V_num_heads_dim = get_num_heads(params, params.inputs[2], params.input2_order);
 
     if (params.input0_order[3] != 3 || params.input1_order[3] != 3 || params.input2_order[3] != 3)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (Q_num_heads_dim.is_dynamic || K_num_heads_dim.is_dynamic || V_num_heads_dim.is_dynamic || K_num_heads_dim.v != V_num_heads_dim.v)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.k_head_size != params.conf.v_head_size)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.k_head_size > 256)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.v_head_size > 256)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
     if (!params.conf.is_paged_attention) {
         const auto mask_idx = 3lu;
         if (!params.conf.has_const_attn_mask_val && params.inputs.size() > mask_idx && !params.inputs[mask_idx].is_dynamic() &&
             params.inputs[mask_idx].LogicalSize() == 1) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 
     const auto scale_idx = params.conf.is_paged_attention || params.conf.has_const_attn_mask_val ? 4lu : 3lu;
     if (!params.conf.has_const_scale_val && params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() &&
         params.inputs[scale_idx].LogicalSize() == 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Scores output is not supported
     if (params.conf.is_paged_attention && (params.outputs.size() > 1 || params.conf.has_score_aggregation))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.is_paged_attention && params.conf.paged_attention_sliding_window != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Alibi is not supported
     if (params.conf.is_paged_attention && params.conf.has_alibi_input)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

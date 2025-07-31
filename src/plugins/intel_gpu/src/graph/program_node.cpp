@@ -1108,6 +1108,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
             case onednn_post_op_type::binary_mul:
             case onednn_post_op_type::binary_max:
             case onednn_post_op_type::binary_min:
+            case onednn_post_op_type::binary_div:
             {
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
@@ -1538,6 +1539,7 @@ void program_node::create_onednn_primitive_attributes(
                                   type == onednn_post_op_type::binary_max ||
                                   type == onednn_post_op_type::binary_min ||
                                   type == onednn_post_op_type::binary_relu ||
+                                  type == onednn_post_op_type::binary_div ||
                                   type == onednn_post_op_type::scale ||
                                   type == onednn_post_op_type::sum;
 
@@ -1657,6 +1659,8 @@ void program_node::create_onednn_primitive_attributes(
                 set_binary_op(dnnl::algorithm::binary_sub, onednn_post_op_type::binary_sub);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
                 set_binary_op(dnnl::algorithm::binary_mul, onednn_post_op_type::binary_mul);
+            } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::div) {
+                set_binary_op(dnnl::algorithm::binary_div, onednn_post_op_type::binary_div);
             } else {
                 std::stringstream error_msg;
                 error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";

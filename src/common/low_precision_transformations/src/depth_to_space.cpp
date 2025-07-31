@@ -29,7 +29,7 @@ DepthToSpaceTransformation::DepthToSpaceTransformation(const Params& params) : T
 }
 
 bool DepthToSpaceTransformation::canBeTransformed(const std::shared_ptr<ov::Node>& layer) const {
-    if (!LayerTransformation::canBeTransformed(layer)) {
+    if (!TransparentBaseTransformation::canBeTransformed(layer)) {
         return false;
     }
 

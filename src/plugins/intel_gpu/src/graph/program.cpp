@@ -736,6 +736,10 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
                     if (lhs_layout.is_dynamic())
                         return false;
 
+                    if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
+                        return lhs->get_unique_id() < rhs->get_unique_id();
+                    }
+
                     return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
             });
 

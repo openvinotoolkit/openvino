@@ -221,24 +221,24 @@ ParamsKey PagedAttentionSDPAKernelOpt::GetSupportedKey() const {
 
 bool PagedAttentionSDPAKernelOpt::Validate(const Params& p) const {
     if (p.GetType() != KernelType::PA_SDPA)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const pa_sdpa_params&>(p);
     if (!params.conf.is_paged_attention)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (seq_len_partition_size % params.conf.paged_attention_block_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.k_head_size % subgroup_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.v_head_size % subgroup_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto subgroups_per_wg = params.conf.v_head_size / subgroup_size;
     if (subgroups_per_wg > subgroup_size)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
@@ -262,12 +262,19 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
 
     if (params.conf.is_kv_compressed) {
         auto scales_zp_size = params.inputs[0].ElementSize() * 2; // scale + zp
-        jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
-        jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size + scales_zp_size));
+        if (params.conf.is_key_by_channel) {
+            jit.AddConstant(MakeJitConstant("IS_KEY_BY_CHANNEL", 1));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size));
+        } else {
+            jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size + scales_zp_size));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
+        }
         jit.AddConstant(MakeJitConstant("ADJUSTED_V_HEAD_SIZE", params.conf.v_head_size + scales_zp_size));
     } else {
         jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size));
         jit.AddConstant(MakeJitConstant("ADJUSTED_V_HEAD_SIZE", params.conf.v_head_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
     }
 
     if (kernel_idx == KernelsTypes::SINGLE_TOKEN_GQA) {

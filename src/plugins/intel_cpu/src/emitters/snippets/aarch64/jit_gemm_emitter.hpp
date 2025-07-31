@@ -28,8 +28,8 @@ protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
-    const uintptr_t get_execute_function_ptr() const;
-    const uintptr_t get_compiled_kernel_ptr() const;
+    static uintptr_t get_execute_function_ptr();
+    uintptr_t get_compiled_kernel_ptr() const;
 
     std::shared_ptr<GemmKaiKernelExecutor> m_kernel_executor_kai = nullptr;
 };

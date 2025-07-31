@@ -61,6 +61,12 @@ public:
     std::vector<Transform> get_transformations() const;
     void detach();
 
+    struct Meta {
+        ov::Shape shape;
+        ov::element::Type type;
+    };
+    Meta eval_meta() const;
+
     void serialize(std::ostream& stream) const;
     static LazyTensor deserialize(std::istream& stream);
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
@@ -77,10 +83,11 @@ class Const {
 public:
     Const() = default;
 
-    explicit Const(std::shared_ptr<ov::op::v0::Constant> n);
+    explicit Const(const std::shared_ptr<ov::op::v0::Constant>& n);
     std::size_t hash() const;
     bool operator==(const Const& other) const;
     ov::Tensor eval() const;
+    LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
@@ -106,6 +113,7 @@ public:
     std::size_t hash() const;
     bool operator==(const Concat& other) const;
     ov::Tensor eval() const;
+    LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
@@ -131,6 +139,7 @@ public:
     std::size_t hash() const;
     bool operator==(const Unpack& other) const;
     ov::Tensor eval() const;
+    LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
@@ -152,6 +161,7 @@ public:
     std::size_t hash() const;
     bool operator==(const Permute& other) const;
     ov::Tensor eval() const;
+    LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;
@@ -172,6 +182,7 @@ public:
     std::size_t hash() const;
     bool operator==(const Convert& other) const;
     ov::Tensor eval() const;
+    LazyTensor::Meta eval_meta() const;
     void read_weight(const ov::npuw::s11n::WeightsContext& ctx);
     void detach();
     void serialize(std::ostream& stream) const;

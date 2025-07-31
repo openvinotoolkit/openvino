@@ -81,12 +81,12 @@ CommonDispatchData LRNKernelAcrossChannelMultipleFeatures::SetDefault(const lrn_
 
 bool LRNKernelAcrossChannelMultipleFeatures::Validate(const Params& p) const {
     if (!LRNKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const lrn_params& params = static_cast<const lrn_params&>(p);
     if (params.localSize > 32) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
