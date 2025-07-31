@@ -154,9 +154,9 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
 }
 
 void unpack_f16f16(const ov::SoPtr<ov::ITensor>& from,
-                  const ov::SoPtr<ov::ITensor>& scale,
-                  const ov::SoPtr<ov::ITensor>& to,
-                  const ov::npuw::util::UnpackOptions& unpack_options) {
+                   const ov::SoPtr<ov::ITensor>& scale,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
     auto from_shape = from->get_shape();
     auto scale_shape = scale->get_shape();
 
@@ -170,14 +170,13 @@ void unpack_f16f16(const ov::SoPtr<ov::ITensor>& from,
     NPUW_ASSERT(scale->get_element_type() == ov::element::f16);
     NPUW_ASSERT(to->get_element_type() == ov::element::f16);
 
+    const auto* from_ptr = from->data<ov::float16>();
     const auto* scale_ptr = scale->data<ov::float16>();
     auto* to_ptr = to->data<ov::float16>();
+    const auto size = to->get_size();
 
-    const auto size = from->get_size();
-
-    const auto* from_ptr = from->data<ov::float16>();
     ov::parallel_for(size, [&](size_t idx) {
-        to_ptr[idx] = static_cast<float>(from_ptr[idx]) * scale_ptr[idx / from_shape[1]];
+        to_ptr[idx] = from_ptr[idx] * scale_ptr[idx / from_shape[1]];
     });
 }
 
@@ -448,14 +447,31 @@ void ov::npuw::util::gather_nf4(const ov::SoPtr<ov::ITensor>& src,
 
     NPUW_ASSERT(dst->get_size() % 2 == 0);
 
-    const uint8_t* pIdx = static_cast<uint8_t*>(idx->data()); // u4
-    const uint8_t* pSrc = static_cast<uint8_t*>(src->data()); // f8
-    uint16_t* pDst = static_cast<uint16_t*>(dst->data());
+    const uint8_t* pIdx = static_cast<uint8_t*>(idx->data());  // u4
+    ov::float16* pDst = dst->data<ov::float16>();
 
-    for (std::size_t i = 0; i < dst->get_size(); i += 2) {
-        *(pDst + i) = pSrc[hi4(*pIdx)];
-        *(pDst + i + 1) = pSrc[lo4(*pIdx)];
-        pIdx++;
+    // FIXME: copypaste with a different type
+    if (src_type == ov::element::f8e4m3) {
+        const auto* pSrc = src->data<ov::float8_e4m3>();
+        for (std::size_t i = 0; i < dst->get_size(); i += 2) {
+            *(pDst + i) = float(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = float(pSrc[hi4(*pIdx)]);
+            pIdx++;
+        }
+    } else if (src_type == ov::element::f8e5m2) {
+        const auto* pSrc = src->data<ov::float8_e5m2>();
+        for (std::size_t i = 0; i < dst->get_size(); i += 2) {
+            *(pDst + i) = float(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = float(pSrc[hi4(*pIdx)]);
+            pIdx++;
+        }
+    } else {
+        const auto* pSrc = src->data<ov::float8_e8m0>();
+        for (std::size_t i = 0; i < dst->get_size(); i += 2) {
+            *(pDst + i) = float(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = float(pSrc[hi4(*pIdx)]);
+            pIdx++;
+        }
     }
 }
 
