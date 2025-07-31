@@ -30,13 +30,13 @@ protected:
 private:
     /// \brief Get batch size from environment variable or default (used as cleanup interval)
     size_t get_batch_size_from_env();
-    
+
     /// \brief Get memory cleanup threshold from environment variable or default
     size_t get_memory_threshold_from_env();
-    
+
     /// \brief Get current memory usage in MB (Linux-specific implementation)
     size_t get_current_memory_usage_mb();
-    
+
     /// \brief Force memory cleanup and return memory to OS
     void force_memory_cleanup();
 };

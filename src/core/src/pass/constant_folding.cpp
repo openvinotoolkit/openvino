@@ -8,9 +8,9 @@
 #include <fstream>
 #include <sstream>
 #ifdef __linux__
-#include <malloc.h>
-#include <unistd.h>
-#include <fcntl.h>
+#    include <fcntl.h>
+#    include <malloc.h>
+#    include <unistd.h>
 #endif
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
@@ -117,11 +117,11 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     // Memory cleanup configuration
     const size_t memory_cleanup_threshold_mb = get_memory_threshold_from_env();
     size_t nodes_processed = 0;
-    const size_t cleanup_check_interval = get_batch_size_from_env(); // Reuse batch size as cleanup check interval
-    
+    const size_t cleanup_check_interval = get_batch_size_from_env();  // Reuse batch size as cleanup check interval
+
     // Track memory before processing
     size_t memory_before = get_current_memory_usage_mb();
-    
+
     for (auto node : model->get_ordered_ops()) {
         // Original constant folding logic (restored)
         if (!node->can_constant_fold(node->input_values())) {
@@ -165,8 +165,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 const auto& replacement = replacements.at(i);
                 auto replacement_node = replacement.get_node_shared_ptr();
                 if (replacement_node && (node_output != replacement)) {
-                    replacement_node->set_friendly_name(
-                        friendly_name_from(*node, replacements.size(), i));
+                    replacement_node->set_friendly_name(friendly_name_from(*node, replacements.size(), i));
 
                     node_output.replace(replacement);
                     // Copy runtime info from source nodes
@@ -186,14 +185,14 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 rewritten = true;
             }
         }
-        
+
         // Periodic memory cleanup check
         nodes_processed++;
         if (nodes_processed % cleanup_check_interval == 0) {
             size_t current_memory = get_current_memory_usage_mb();
             if (current_memory - memory_before > memory_cleanup_threshold_mb) {
                 force_memory_cleanup();
-                memory_before = get_current_memory_usage_mb(); // Reset baseline after cleanup
+                memory_before = get_current_memory_usage_mb();  // Reset baseline after cleanup
             }
         }
     }
@@ -201,18 +200,17 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     return rewritten;
 }
 
-
 size_t ov::pass::ConstantFolding::get_batch_size_from_env() {
     const char* env_batch_size = std::getenv("OV_CONSTANT_FOLDING_BATCH_SIZE");
     if (env_batch_size) {
         try {
             size_t batch_size = std::stoull(env_batch_size);
-            return std::max(batch_size, size_t(1)); // Minimum batch size of 1
+            return std::max(batch_size, size_t(1));  // Minimum batch size of 1
         } catch (...) {
             // Invalid environment variable, use default
         }
     }
-    return 50; // Default batch size
+    return 50;  // Default batch size
 }
 
 size_t ov::pass::ConstantFolding::get_memory_threshold_from_env() {
@@ -224,7 +222,7 @@ size_t ov::pass::ConstantFolding::get_memory_threshold_from_env() {
             // Invalid environment variable, use default
         }
     }
-    return 200; // Default 200MB threshold
+    return 200;  // Default 200MB threshold
 }
 
 size_t ov::pass::ConstantFolding::get_current_memory_usage_mb() {
@@ -232,14 +230,16 @@ size_t ov::pass::ConstantFolding::get_current_memory_usage_mb() {
     static int fd = -1;
     if (fd == -1) {
         fd = open("/proc/self/statm", O_RDONLY);
-        if (fd == -1) return 0;
+        if (fd == -1)
+            return 0;
     }
-    
+
     char buffer[256];
     lseek(fd, 0, SEEK_SET);  // Reset to beginning
     ssize_t bytes = read(fd, buffer, sizeof(buffer) - 1);
-    if (bytes <= 0) return 0;
-    
+    if (bytes <= 0)
+        return 0;
+
     buffer[bytes] = '\0';
     unsigned long total, resident;
     if (sscanf(buffer, "%lu %lu", &total, &resident) == 2) {
@@ -247,7 +247,7 @@ size_t ov::pass::ConstantFolding::get_current_memory_usage_mb() {
         return (resident * 4) / 1024;
     }
 #endif
-    return 0; // Fallback - disable memory tracking if not available
+    return 0;  // Fallback - disable memory tracking if not available
 }
 
 void ov::pass::ConstantFolding::force_memory_cleanup() {
@@ -256,7 +256,7 @@ void ov::pass::ConstantFolding::force_memory_cleanup() {
     // Trigger malloc_trim to return memory to OS
     malloc_trim(0);
 #endif
-    
+
     // Additional cleanup can be added here:
     // - Clear internal caches
     // - Force garbage collection if available
