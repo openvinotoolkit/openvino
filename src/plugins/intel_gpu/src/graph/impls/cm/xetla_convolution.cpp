@@ -109,6 +109,8 @@ protected:
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 4});
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 5});
             break;
+        default:
+            assert(0 && "Unknown PostOp value");
         }
         return args;
     }

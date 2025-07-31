@@ -56,10 +56,10 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             return false;
 
         auto key = desc.value().get_shape_key();
-        auto post_op = desc.value().post_op;
 
         if (ConvMap.find(key) == ConvMap.end())
             return false;
+
         if (desc.value().has_fused_groupnorm())
             if (NormMap.find(key) == NormMap.end())
                 return false;
@@ -178,7 +178,7 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             desc.padding = conv_prim->padding_begin[0];
 
             const auto& fused_ops = params.fused_desc;
-            if (!desc.process_fused_ops(params.fused_desc, conv_prim->bias.is_valid()))
+            if (!desc.process_fused_ops(fused_ops, conv_prim->bias.is_valid()))
                 return std::nullopt;
             return desc;
         }
