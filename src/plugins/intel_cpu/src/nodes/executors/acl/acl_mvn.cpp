@@ -5,17 +5,13 @@
 #include "acl_mvn.hpp"
 
 #include <arm_compute/core/Error.h>
-#include <arm_compute/core/TensorInfo.h>
-#include <arm_compute/core/Types.h>
 #include <arm_compute/runtime/NEON/functions/NEMeanStdDevNormalizationLayer.h>
 
 #include <algorithm>
 #include <cstddef>
-#include <limits>
 #include <memory>
-#include <string>
 
-#include "acl_utils.hpp"
+#include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/memory_arguments.hpp"
