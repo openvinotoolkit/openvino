@@ -108,9 +108,7 @@ std::shared_ptr<Node> AvgPool::clone_with_new_inputs(const OutputVector& new_arg
 }  // namespace ov
 
 // ------------------------------ V16 ------------------------------
-namespace ov {
-namespace op {
-namespace v16 {
+namespace ov::op::v16 {
 AvgPool::AvgPool(const Output<Node>& arg,
                  const Strides& strides,
                  const Strides& dilations,
@@ -153,6 +151,4 @@ bool AvgPool::visit_attributes(AttributeVisitor& visitor) {
     return true;
 }
 
-}  // namespace v16
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::v16
