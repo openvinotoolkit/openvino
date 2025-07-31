@@ -182,7 +182,7 @@ class TestSession:
                 "commit_date": os.environ.get("commitDate", "2030-12-22T22:22:22.000Z"),
                 "branch": os.environ.get("sourceBranch", "unknown"),
                 "target_branch": os.environ.get("targetBranch", "unknown"),
-                "log_path": os.environ.get("SHARED_LOG_PATH", ""),  # TODO: ADD IT
+                "log_path": os.environ.get("SHARED_LOG_PATH", ""),
                 "dldt_version": os.environ["TT_PRODUCT_BUILD_NUMBER"],
                 "ext": {}
             }
@@ -196,7 +196,7 @@ class TestSession:
             key=lambda item: os.lstat(item).st_ctime
         )
         if not matching_dirs:
-            raise Exception("{directory} not found")
+            raise Exception(f"{directory} not found")
         cache_dir = os.path.abspath(os.path.normpath(matching_dirs[-1]))
         print(f"Scanning requested {directory} -> {cache_dir}")
 

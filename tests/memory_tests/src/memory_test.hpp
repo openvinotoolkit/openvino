@@ -103,7 +103,7 @@ struct MemoryCounters {
         return out;
     }
 
-    MemoryCounters subtract_base(MemoryCounters &base) {
+    MemoryCounters subtract_base(const MemoryCounters &base) {
         return {
             virtual_size - base.virtual_size,
             virtual_peak - base.virtual_peak,
