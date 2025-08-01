@@ -4,6 +4,7 @@
 
 #include "jit_gemm_emitter.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
 #include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <cpu/aarch64/cpu_isa_traits.hpp>
@@ -15,6 +16,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "emitters/snippets/aarch64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/aarch64/kernel_executors/gemm.hpp"
 #include "emitters/snippets/aarch64/utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
@@ -23,9 +25,12 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
 

@@ -29,7 +29,7 @@ public:
                             std::set<snippets::Reg> live_regs);
 
     // Need at least one register to store the callable address
-    size_t aux_gprs_count() const {
+    static size_t aux_gprs_count() {
         return 1;
     }
 
