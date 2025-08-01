@@ -10,12 +10,8 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "template/properties.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 
 namespace ov {
@@ -169,16 +165,9 @@ void LoraPatternMatmul::SetUp() {
     auto t6 = std::make_shared<ov::op::v6::ReadValue>(variable_t6);
     auto t6_assign = std::make_shared<ov::op::v6::Assign>(t6, variable_t6);
 
-    auto shape_of_state_a = std::make_shared<ov::op::v3::ShapeOf>(t6);
-    auto indices_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
-    auto axis_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
-    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of_state_a, indices_node, axis_node);
-    auto convert = std::make_shared<ov::op::v0::Convert>(gather, netType);
-    auto divide = std::make_shared<ov::op::v1::Divide>(t5, convert);
-
     // Apply LoRA parameters to the current activations
     auto t5810 = std::make_shared<ov::op::v0::MatMul>(param_y, t6, false, true);
-    auto t5811 = std::make_shared<ov::op::v1::Multiply>(t5810, divide);
+    auto t5811 = std::make_shared<ov::op::v1::Multiply>(t5810, t5);
     auto t5812 = std::make_shared<ov::op::v0::MatMul>(t5811, t4, false, true);
 
     // Mix LoRA part into normally computed activations after the "main" MatMul
@@ -244,20 +233,13 @@ void LoraPatternConvolution::SetUp() {
     auto t6 = std::make_shared<ov::op::v6::ReadValue>(variable_t6);
     auto t6_assign = std::make_shared<ov::op::v6::Assign>(t6, variable_t6);
 
-    auto shape_of_state_a = std::make_shared<ov::op::v3::ShapeOf>(t6);
-    auto indices_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
-    auto axis_node = ov::op::v0::Constant::create(ov::element::i32, ov::Shape(), {0});
-    auto gather = std::make_shared<ov::op::v8::Gather>(shape_of_state_a, indices_node, axis_node);
-    auto convert = std::make_shared<ov::op::v0::Convert>(gather, netType);
-    auto divide = std::make_shared<ov::op::v1::Divide>(t5, convert);
-
     // LoRA pattern with additional Transposes to move channel dimensions into positions where MatMul can be applied
     auto t4940 =
         std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{4}, std::vector<size_t>{2, 3, 0, 1});
 
     auto t4941 = std::make_shared<ov::op::v1::Transpose>(param_y, t4940);
     auto t4942 = std::make_shared<ov::op::v0::MatMul>(t4941, t6, false, true);
-    auto t4943 = std::make_shared<ov::op::v1::Multiply>(t4942, divide);
+    auto t4943 = std::make_shared<ov::op::v1::Multiply>(t4942, t5);
     auto t4944 = std::make_shared<ov::op::v0::MatMul>(t4943, t4, false, true);
 
     auto t4945 =

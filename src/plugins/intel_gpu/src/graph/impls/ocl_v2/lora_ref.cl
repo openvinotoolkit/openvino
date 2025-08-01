@@ -31,7 +31,7 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
                   acc);
     }
 
-    acc *= TO_ACCUMULATOR_TYPE(state_alpha[local_id]) / TO_ACCUMULATOR_TYPE(LORA_RANK);
+    acc *= TO_ACCUMULATOR_TYPE(state_alpha[local_id]);
 
     __local ACCUMULATOR_TYPE tmp_buf[MAX_LORA_RANK];
     tmp_buf[local_id] = acc;
@@ -97,10 +97,10 @@ KERNEL(lora_ref)(OPTIONAL_SHAPE_INFO_ARG
 #endif
     }
 
-    acc0 *= TO_ACCUMULATOR_TYPE(state_alpha_0[local_id]) / TO_ACCUMULATOR_TYPE(LORA_RANK);
-    acc1 *= TO_ACCUMULATOR_TYPE(state_alpha_1[local_id]) / TO_ACCUMULATOR_TYPE(LORA_RANK);
+    acc0 *= TO_ACCUMULATOR_TYPE(state_alpha_0[local_id]);
+    acc1 *= TO_ACCUMULATOR_TYPE(state_alpha_1[local_id]);
 #if LORA_COUNT == 3
-    acc2 *= TO_ACCUMULATOR_TYPE(state_alpha_2[local_id]) / TO_ACCUMULATOR_TYPE(LORA_RANK);
+    acc2 *= TO_ACCUMULATOR_TYPE(state_alpha_2[local_id]);
 #endif
 
     __local ACCUMULATOR_TYPE tmp_buf[LORA_COUNT * MAX_LORA_RANK];
