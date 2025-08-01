@@ -936,6 +936,20 @@ TEST(type_prop, avg_pool_16_dilations_dynamic_dims_ceil_torch_mode_2) {
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
+TEST(type_prop, avg_pool_16_dilations_invalid_dilated_too_large) {
+    const auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{6, 2, 8, 8});
+    const ov::Shape kernel{4, 4};
+    EXPECT_THROW(std::ignore = make_shared<ov::op::v16::AvgPool>(param,
+                                                                 ov::Strides{1, 1},
+                                                                 ov::Strides{3, 3},
+                                                                 ov::Shape{},
+                                                                 ov::Shape{},
+                                                                 kernel,
+                                                                 true,
+                                                                 ov::op::RoundingType::FLOOR),
+                 ov::NodeValidationFailure);
+}
+
 REGISTER_TYPED_TEST_SUITE_P(AvgPoolOperator,
                             avg_pool_default_ctor,
                             avg_pool_auto_padding,
