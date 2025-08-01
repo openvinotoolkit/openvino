@@ -54,7 +54,6 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
                                                  {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        std::cout << "start" << std::endl;
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
@@ -63,12 +62,10 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
         auto&& children = src.get_target_inputs();
 
         if (children.size() < 3) {
-            std::cout << "children size" << std::endl;
             return false;
         }
 
         if (!src.get_element_type().is_real()) {
-            std::cout << "is real()" << std::endl;
             return false;
         }
 
@@ -80,7 +77,6 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
         size_t hidden_size = 0;
         std::vector<int> proj_size;
         for (const auto& child : children) {
-            std::cout << "child" << std::endl;
             auto* mm = ov::as_type<op::v0::MatMul>(child.get_node());
             if (!mm) {
                 // maybe a ShapeOf
@@ -148,11 +144,9 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
 
         // make sure just 3 projections are found
         if (outputs.size() != 3) {
-            std::cout << "outputs.size() != 3" << std::endl;
             return false;
         }
         if (args.size() != 4) {
-            std::cout << "outputs.size() != 4" << std::endl;
             return false;
         }
         // append dequantize scales at the end
@@ -176,7 +170,6 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
 
         // callback is for plugin implementation to check if it can be supported
         if (!transformation_callback(new_node)) {
-            std::cout << "!transformation_callback(new_node)" << std::endl;
             return false;
         }
 
@@ -187,7 +180,6 @@ ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
             new_node->add_node_control_dependencies(target);
             target->clear_control_dependents();
         }
-        std::cout << "end" << std::endl;
         return true;
     };
 
