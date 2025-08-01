@@ -29,6 +29,63 @@ const std::set<eltwise_mode>
                                     eltwise_mode::is_inf,
                                     eltwise_mode::is_nan };
 
+// template<typename ShapeType>
+// static std::vector<ShapeType> shape_infer_for_eltwise_output(kernel_impl_params const& impl_param) {
+//     auto desc = impl_param.typed_desc<eltwise>();
+//     // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
+//     ov::op::v1::Add op;
+//     op.set_autob(desc->broadcast_spec);
+//     std::vector<ShapeType> output_shapes = {ShapeType()};
+//     std::vector<ShapeType> input_shapes;
+//     for (size_t i = 0; i < desc->input_size(); i++) {
+//         input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
+//     }
+
+//     // Special handling for is_finite, is_nan, is_inf modes
+//     if (input_shapes.size() == 1) {
+//         output_shapes = input_shapes;
+//     } else {
+//         output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
+//     }
+
+//     return output_shapes;
+// }
+
+static cldnn::layout get_eltwise_output_layout(const layout& input_layout, kernel_impl_params const& impl_param) {
+    auto desc = impl_param.typed_desc<eltwise>();
+    auto out_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
+
+    // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
+    ov::op::v1::Add op;
+    op.set_autob(desc->broadcast_spec);
+    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
+    std::vector<ov::PartialShape> input_shapes;
+    for (size_t i = 0; i < desc->input_size(); i++) {
+        input_shapes.push_back(impl_param.get_input_layout(i).get<ov::PartialShape>());
+    }
+
+    // Special handling for is_finite, is_nan, is_inf modes
+    if (input_shapes.size() == 1) {
+        output_shapes = input_shapes;
+    } else {
+        output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
+    }
+
+    cldnn::format out_format = input_layout.format;
+    for (size_t i = 0; i < desc->input_size(); i++) {
+        if (impl_param.primary_input_idx == i)
+            continue;
+
+        auto l = impl_param.get_non_padded_input_layout(i);
+        if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
+            out_format = format::b_fs_zyx_fsv16;
+        else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
+            out_format = format::bs_fs_zyx_bsv16_fsv16;
+    }
+
+    return layout(output_shapes[0], out_data_type, out_format);
+}
+
 layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_params const& impl_param) {
     size_t primary_input_idx = 0;
     if (node.input(primary_input_idx).is_constant()) {
@@ -39,25 +96,17 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
             }
         }
     }
+
+    // For numpy broadcast of Eltwise, primary input index should be large pshape input(not just constant) to be aligned
     auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
-    auto desc = impl_param.typed_desc<eltwise>();
-    auto output_type = desc->output_data_types[0].value_or(input_node_layout.data_type);
-
-    auto size = input_node_layout.get_tensor();
-    auto format = input_node_layout.format;
-    for (size_t i = 0; i < desc->input_size(); i++) {
-        if (i == primary_input_idx)
-            continue;
-
-        auto l = impl_param.get_non_padded_input_layout(i);
-        size = tensor::max(size, l.get_tensor());
-        if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
-            format = format::b_fs_zyx_fsv16;
-        else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
-            format = format::bs_fs_zyx_bsv16_fsv16;
+    if (node.need_input_tensors_dims_unalign_for_numpy_broadcast(input_node_layout) && node.get_dependencies().size() >= 2) {
+        primary_input_idx = 1 - primary_input_idx;
+        input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
     }
-    auto output_layout = layout(output_type, format, size);
 
+    auto output_layout = get_eltwise_output_layout(input_node_layout, impl_param);
+
+    auto desc = impl_param.typed_desc<eltwise>();
     auto mode = desc->mode;
     // list of operations supported for integer types
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
@@ -119,48 +168,8 @@ template<typename ShapeType>
 std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<eltwise>();
     auto input_layout = impl_param.get_non_padded_input_layout(impl_param.primary_input_idx);
-    auto out_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
+    auto output_layout = get_eltwise_output_layout(input_layout, impl_param);
 
-    auto get_output_layout = [&]() {
-        cldnn::format out_format = input_layout.format;
-
-        // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
-        ov::op::v1::Add op;
-        op.set_autob(desc->broadcast_spec);
-
-        std::vector<ShapeType> output_shapes = {ShapeType()};
-        std::vector<ShapeType> input_shapes;
-        for (size_t i = 0; i < desc->input_size(); i++) {
-            input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
-        }
-
-        // Special handling for is_finite, is_nan, is_inf modes
-        if (input_shapes.size() == 1) {
-            output_shapes = input_shapes;
-        } else {
-            output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
-        }
-
-        if (input_layout.format == format::b_fs_zyx_fsv16)  // use optimized 5D
-            out_format = format::b_fs_zyx_fsv16;
-        else if (input_layout.format == format::bs_fs_zyx_bsv16_fsv16)
-            out_format = format::bs_fs_zyx_bsv16_fsv16;
-
-        for (size_t i = 0; i < desc->input_size(); i++) {
-            if (impl_param.primary_input_idx == i)
-                continue;
-
-            auto l = impl_param.get_non_padded_input_layout(i);
-            if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
-                out_format = format::b_fs_zyx_fsv16;
-            else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
-                out_format = format::bs_fs_zyx_bsv16_fsv16;
-        }
-
-        return layout(output_shapes[0], out_data_type, out_format);
-    };
-
-    auto output_layout = get_output_layout();
     auto mode = desc->mode;
     // list of operations supported for integer types
     if (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8 ||
@@ -471,8 +480,8 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
 }
 
 bool eltwise_node::need_input_tensors_dims_unalign_for_numpy_broadcast(const layout& input) const {
-    if (format::is_default_format(get_output_layout().format) ||
-        input.format == get_output_layout().format)
+    if (is_valid_output_layout() &&
+        (format::is_default_format(get_output_layout().format) || input.format == get_output_layout().format))
         return false;
     if (get_input_layouts().size() < 2)
         return false;

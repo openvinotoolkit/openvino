@@ -243,7 +243,8 @@ public:
     void test_eltwise_broadcast_static(format small_reshape_format) {
         // Topology :
         //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
-        // Expected : Eltwise <- (bfzyx) <- Reshape <- (bfyz) <- Input1
+        // Expected :
+        //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
         auto& engine = get_test_engine();
 
         topology topology;
@@ -263,12 +264,6 @@ public:
         auto prog_impl = prog.get();
         auto& eltwise_node = prog_impl->get_node("eltwise");
         auto input_layouts = eltwise_node.get_input_layouts();
-        for (size_t i = 0; i < eltwise_node.get_dependencies().size(); i++) {
-            const auto& d = eltwise_node.get_dependency_with_port(i);
-            auto node = d.first;
-            auto layout = node->get_output_layout(true, d.second);
-            std::cout << " IDX " << i << ", " << node->id() << " : " << layout << std::endl;
-        }
 
         ASSERT_EQ(input_layouts[0].format, small_reshape_format);
         ASSERT_EQ(input_layouts[1].format, format::b_fs_zyx_fsv16);
@@ -280,8 +275,8 @@ public:
     void test_eltwise_broadcast_dynamic(format small_reshape_format) {
         // Topology :
         //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
-        // Expected : Eltwise <- (bfzyx) <- Reshape <- (bfyz) <- Input1
-
+        // Expected :
+        //   Input0 -> reorder -> (b_fs_yx_fsv16 / 5dims) -> Eltwise <- (bfyx / 3dims) <- Input1
         tests::random_generator rg(GET_SUITE_NAME);
         auto& engine = get_test_engine();
 
@@ -317,12 +312,6 @@ public:
         auto prog_impl = prog.get();
         auto& eltwise_node = prog_impl->get_node("eltwise");
         auto input_layouts = eltwise_node.get_input_layouts();
-        for (size_t i = 0; i < eltwise_node.get_dependencies().size(); i++) {
-            const auto& d = eltwise_node.get_dependency_with_port(i);
-            auto node = d.first;
-            auto layout = node->get_output_layout(true, d.second);
-            std::cout << " IDX " << i << ", " << node->id() << " : " << layout << std::endl;
-        }
 
         ASSERT_EQ(input_layouts[0].format, small_reshape_format);
         ASSERT_EQ(input_layouts[1].format, format::b_fs_zyx_fsv16);
