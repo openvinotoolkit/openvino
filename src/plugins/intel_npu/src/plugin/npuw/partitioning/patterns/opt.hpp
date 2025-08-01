@@ -174,15 +174,6 @@ public:
 template class HostGatherQuantSymm<ov::op::v0::Parameter>;
 template class HostGatherQuantSymm<ov::op::v0::Constant>;
 
-template <typename WType = ov::op::v0::Parameter>
-class HostGatherQuant : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuant");
-    HostGatherQuant(Context::Ref ctx, bool verify_only = false);
-};
-template class HostGatherQuant<ov::op::v0::Parameter>;
-template class HostGatherQuant<ov::op::v0::Constant>;
-
 class HostGather : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGather");

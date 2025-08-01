@@ -1500,66 +1500,6 @@ HostGatherQuantSymm<WType>::HostGatherQuantSymm(Context::Ref ctx, bool verify_on
     register_matcher(std::make_shared<opp::Matcher>(qcvtm, "HostGatherQuantSymm"), std::move(callback));
 }
 
-// Overall it's a combination of DQUnpackDictGather and HostGather
-// but we do unpack and gather in the runtime.
-template <typename WType>
-HostGatherQuant<WType>::HostGatherQuant(Context::Ref ctx, bool verify_only) {
-    auto pids = opp::wrap_type<ov::op::v0::Parameter>();
-    auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
-
-    auto qweight = opp::wrap_type<WType>();
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
-
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-        auto out_shape = node_to_output.at(qgthrw).get_shape();
-        auto& matched_out_qweight = node_to_output.at(qweight);
-        auto qweight_type = matched_out_qweight.get_element_type();
-
-        const auto& matched_out_gather = node_to_output.at(qgthrw);
-
-        auto sole_reader = [](ov::Output<ov::Node> out) {
-            const auto readers = out.get_target_inputs();
-            NPUW_ASSERT(readers.size() >= 1);
-            return readers.begin()->get_node();
-        };
-
-        if (out_shape.back() >= 2048 && (matched_out_gather.get_target_inputs().size() > 1 ||
-                                         ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
-            if (verify_only) {
-                // No transformations needed, just set dummy QuantizedGather
-                ctx.get().params_to_quant_gather_unpack = Context::QuantizedGather{};
-                return false;  // root hasn't changed
-            }
-            auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
-            auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
-            const auto& matched_out_gthr = node_to_output.at(qgthrw);
-            auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
-            auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
-
-            if (qweight_type == ov::element::f32) {
-                ctx.get().to_f16(matched_qweight);
-            }
-
-            auto new_param =
-                ctx.get().host_gather_unpack_quant(matched_ids, matched_qweight, nullptr, nullptr, ov::element::f16);
-            std::shared_ptr<ov::Node> new_cvt;
-            if (qweight_type == ov::element::f16) {
-                new_cvt = new_param;
-            } else {
-                new_cvt = std::make_shared<ov::op::v0::Convert>(new_param, ov::element::f32);
-            }
-            NPUW_ASSERT(new_cvt);
-            for (auto&& r : matched_out_gthr.get_target_inputs()) {
-                r.replace_source_output(new_cvt);
-            }
-            return true;  // root has changed
-        }
-        return false;  // root hasn't changed
-    };
-    register_matcher(std::make_shared<opp::Matcher>(qgthrw, "HostGatherQuant"), std::move(callback));
-}
-
 // Identify the case* where the FP16/32 vocab tensor is gathered with
 // input_ids and the embedding size is high. In this case, substitute
 // gather with a host-side op. Lower vocab tensor to f16.

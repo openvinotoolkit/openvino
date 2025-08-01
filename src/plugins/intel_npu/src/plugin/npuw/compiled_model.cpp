@@ -549,7 +549,6 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Constant>>(std::ref(ctx), true);
     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Constant>>(std::ref(ctx), true);
-    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuant<ov::op::v0::Constant>>(std::ref(ctx), true);
     rewr.run_on_model(model);
     bool pattern_matched = ctx.found_host_gather_quant();
 
@@ -585,7 +584,7 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
             LOG_WARN("Consider enabling NPUW_HOST_GATHER:QUANT for better performance.");
         }
     } else if (explicit_host_gather == "QUANT") {
-        if ((!pattern_matched || !compiler_version_enough) || (!pattern_matched && npu_devices.empty())) {
+        if (!pattern_matched || !compiler_version_enough) {
             LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
         }
     } else {
