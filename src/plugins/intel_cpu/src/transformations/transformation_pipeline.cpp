@@ -138,6 +138,7 @@
 #include "low_precision/add.hpp"
 #include "low_precision/convert_subtract_constant.hpp"
 #include "low_precision/low_precision.hpp"
+#include "low_precision/move_fake_convert_up_through_kv_cache_concat.hpp"
 #include "low_precision/multiply_to_group_convolution.hpp"
 #include "low_precision/network_helper.hpp"
 #include "low_precision/rt_info/bias_attribute.hpp"
@@ -423,11 +424,15 @@ void Transformations::UpToLpt() {
                                                           levels::int8,
                                                           levels::int8_narrow_range};
 
+    // TODO: Revert after FP8 PoC is done
+    const bool check_fake_convert = true;
     const bool useLpt = config.lpTransformsMode == Config::LPTransformsMode::On &&
-                        LowPrecision::isFunctionQuantized(model, supported_fq_levels) &&
+                        LowPrecision::isFunctionQuantized(model, supported_fq_levels, check_fake_convert) &&
                         CPU_DEBUG_CAP_IS_TRANSFORMATION_ENABLED(config.debugCaps, Lpt);
 
-    const auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
+    auto defaultPrecisions = useLpt ? precision_set::get_int8_support() : std::vector<ov::element::Type>{};
+    const auto fp8_precisions = precision_set::get_fp8_support();
+    defaultPrecisions.insert(defaultPrecisions.end(), fp8_precisions.begin(), fp8_precisions.end());
 
     PreLpt(defaultPrecisions);
 
@@ -593,6 +598,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         }
     };
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertPagedAttnInputs, cacheConfig, update_paged_attention_shape_func);
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::low_precision::MoveFakeConvertUpThroughKVCacheConcat);
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::CommonOptimizations);
     CPU_REGISTER_PASS_X64(manager, ov::pass::KeepConstPrecision, decompression_precisions, false, true);
     CPU_SET_CALLBACK_X64(
