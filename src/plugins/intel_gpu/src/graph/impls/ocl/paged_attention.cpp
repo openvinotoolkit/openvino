@@ -414,8 +414,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
         }
 
         if (stage == PagedAttentionStage::PREFILL && use_micro_sdpa) {
-            const auto memory_idx = intermediates_memories.size() - 1;
-            auto memory = intermediates_memories[memory_idx];
+            auto memory = intermediates_memories[get_internal_buffer_descs(*instance.get_impl_params()).size() - 1];
             micro_sdpa_block_starts_and_gws_mapping_lock.reset(new mem_lock<int32_t, mem_lock_type::write>(memory, stream));
         }
 
@@ -540,7 +539,7 @@ struct paged_attention_impl : multi_stage_primitive<paged_attention> {
                                       intermediate_memories.begin() + internal_buffers_offset + internal_buffers_count);
 
             if (stage == Stage::SDPA && use_micro_sdpa) {
-                args.intermediates.push_back(intermediate_memories.back());
+                args.intermediates.push_back(intermediate_memories[get_internal_buffer_descs(*instance.get_impl_params()).size() - 1]);
             }
 
             GPU_DEBUG_TRACE_DETAIL << "Execute stage=" << stage << " kernel=" << kd_idx << " " << _kernels_data[stage_idx].kernelName << " start_offset="
