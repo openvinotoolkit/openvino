@@ -13,7 +13,7 @@ from . import utils
 from . import version
 from __future__ import annotations
 from importlib import metadata as importlib_metadata
-from openvino._pyopenvino import get_version as get_rt_version
+from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import get_version as get_rt_version
 from openvino.tools.ovc.convert import convert_model
 from openvino.tools.ovc.telemetry_utils import init_ovc_telemetry
 from openvino.tools.ovc.telemetry_utils import is_keras3

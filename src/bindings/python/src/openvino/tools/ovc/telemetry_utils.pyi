@@ -1,6 +1,6 @@
 # type: ignore
 from __future__ import annotations
-from openvino._pyopenvino import get_version as get_rt_version
+from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import get_version as get_rt_version
 from openvino.tools.ovc.cli_parser import get_params_with_paths_list
 from openvino.tools.ovc.utils import check_values_equal
 from openvino_telemetry.backend import backend_ga4

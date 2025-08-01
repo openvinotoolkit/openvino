@@ -14,8 +14,8 @@ from openvino._pyopenvino import OpValidationFailure
 from openvino._pyopenvino import Place
 from openvino._pyopenvino import ProgressReporterExtension
 from openvino._pyopenvino import TelemetryExtension
-from openvino._pyopenvino import get_version
 from openvino._pyopenvino.frontend import OpExtension
+from openvino._pyopenvino.pybind11_detail_function_record_v1_system_libstdcpp_gxx_abi_1xxx_use_cxx11_abi_0 import get_version
 from openvino.frontend.frontend import FrontEnd
 from openvino.frontend.frontend import FrontEndManager
 """
