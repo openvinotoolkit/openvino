@@ -23,17 +23,8 @@ class ReshapeFcCPUTest : public testing::WithParamInterface<ReshapeFcParams>,
                          public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ReshapeFcParams> obj) {
-        std::vector<InputShape> shapes;
-        std::vector<int> data;
-        ElementType prc;
-
-        ReshapeFcSpecParams specParams;
-        fusingSpecificParams fusingParams;
-        CPUSpecificParams cpuParams;
-
-        std::tie(specParams, fusingParams, cpuParams) = obj.param;
-        std::tie(shapes, data, prc) = specParams;
-
+        const auto& [specParams, fusingParams, cpuParams] = obj.param;
+        const auto& [shapes, data, prc] = specParams;
         std::ostringstream result;
 
         result << "IS=";
@@ -64,17 +55,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> shapes;
-        std::vector<int> data;
-        ElementType prc;
-
-        ReshapeFcSpecParams specParams;
-        fusingSpecificParams fusingParams;
-        CPUSpecificParams cpuParams;
-
-        std::tie(specParams, fusingParams, cpuParams) = this->GetParam();
-        std::tie(shapes, data, prc) = specParams;
+        const auto& [specParams, fusingParams, cpuParams] = this->GetParam();
+        const auto& [shapes, data, prc] = specParams;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 

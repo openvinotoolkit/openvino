@@ -36,14 +36,7 @@ class LoopLayerCPUTest : public testing::WithParamInterface<LoopParams>,
                          virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<LoopParams> obj) {
-        InputLayerType trip_count_type;
-        int64_t trip_count;
-        bool exec_cond;
-        std::vector<InputShape> shapes;
-        std::vector<LOOP_IN_TYPE> types;
-        ElementType netType;
-        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, netType) = obj.param;
-
+        const auto& [trip_count_type, trip_count, exec_cond, shapes, types, netType] = obj.param;
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
             result << "Input" << i << "_";
@@ -93,14 +86,7 @@ protected:
     }
 
     void SetUp() override {
-        InputLayerType trip_count_type;
-        int64_t trip_count;
-        bool exec_cond;
-        std::vector<InputShape> shapes;
-        std::vector<LOOP_IN_TYPE> types;
-        ElementType netType;
-        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, netType) = this->GetParam();
-
+        const auto& [trip_count_type, trip_count, exec_cond, shapes, types, netType] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 
@@ -176,13 +162,8 @@ protected:
     //  i += 2
 
     void SetUp() override {
-        InputLayerType trip_count_type;
-        int64_t trip_count;
-        bool exec_cond;
-        std::vector<InputShape> shapes;
-        std::vector<LOOP_IN_TYPE> types;
-        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
-
+        const auto& [trip_count_type, trip_count, exec_cond, shapes, types, _inType] = this->GetParam();
+        inType = _inType;
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
         for (auto& target : targetStaticShapes)
@@ -249,13 +230,8 @@ class LoopForDiffShapesLayerCPUTest : public LoopLayerCPUTest {
 
 protected:
     void SetUp() override {
-        InputLayerType trip_count_type;
-        int64_t trip_count;
-        bool exec_cond;
-        std::vector<InputShape> shapes;
-        std::vector<LOOP_IN_TYPE> types;
-        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
-
+        const auto& [trip_count_type, trip_count, exec_cond, shapes, types, _inType] = this->GetParam();
+        inType = _inType;
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 
@@ -327,13 +303,8 @@ class LoopForConcatLayerCPUTest : public LoopLayerCPUTest {
 
 protected:
     void SetUp() override {
-        InputLayerType trip_count_type;
-        int64_t trip_count;
-        bool exec_cond;
-        std::vector<InputShape> shapes;
-        std::vector<LOOP_IN_TYPE> types;
-        std::tie(trip_count_type, trip_count, exec_cond, shapes, types, inType) = this->GetParam();
-
+        const auto& [trip_count_type, trip_count, exec_cond, shapes, types, _inType] = this->GetParam();
+        inType = _inType;
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(shapes);
 

@@ -27,14 +27,7 @@ class GatherTreeLayerCPUTest : public testing::WithParamInterface<GatherTreeCPUT
                                public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherTreeCPUTestParams>& obj) {
-        InputShape inputShape;
-        ov::element::Type netPrecision;
-        ov::element::Type inPrc, outPrc;
-        ov::test::utils::InputLayerType secondaryInputType;
-        std::string targetName;
-
-        std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, targetName) = obj.param;
-
+        const auto& [inputShape, secondaryInputType, netPrecision, inPrc, outPrc, targetName] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
         result << "TS=";
@@ -52,12 +45,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape inputShape;
-        ov::element::Type netPrecision;
-        ov::test::utils::InputLayerType secondaryInputType;
-        ov::element::Type inPrc, outPrc;
-
-        std::tie(inputShape, secondaryInputType, netPrecision, inPrc, outPrc, targetDevice) = GetParam();
+        const auto& [inputShape, secondaryInputType, netPrecision, inPrc, outPrc, _targetDevice] = GetParam();
+        targetDevice = _targetDevice;
         InputShape parentShape{inputShape};
         InputShape::first_type maxSeqLenFirst;
         if (inputShape.first.is_dynamic()) {

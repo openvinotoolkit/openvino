@@ -34,9 +34,7 @@ class DisableGatherCompressedForQuantizedModel : public testing::WithParamInterf
                                                  virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<DisableGatherCompressedForQuantizedModelParams> obj) {
-        element::Type weight_prec;
-        InputShape inputShape1, inputShape2;
-        std::tie(weight_prec, inputShape1, inputShape2) = obj.param;
+        const auto& [weight_prec, inputShape1, inputShape2] = obj.param;
         std::ostringstream result;
         result << "weight_prec=" << weight_prec << "_" << "inputShape1=" << inputShape1 << "_"
                << "inputShape2=" << inputShape2;
@@ -46,10 +44,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-        element::Type weight_prec;
-        InputShape inputShape1, inputShape2;
-        std::tie(weight_prec, inputShape1, inputShape2) = GetParam();
-
+        const auto& [weight_prec, inputShape1, inputShape2] = GetParam();
         init_input_shapes({inputShape1, inputShape2});
 
         targetDevice = utils::DEVICE_CPU;

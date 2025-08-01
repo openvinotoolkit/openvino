@@ -15,25 +15,16 @@ namespace ov {
 namespace test {
 namespace StringTensorPack {
 std::string StringTensorPackLayerCPUTest::getTestCaseName(testing::TestParamInfo<StringTensorPackLayerCPUTestParamsSet> obj) {
-        StringTensorPackLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        StringTensorPackSpecificParams StringTensorPackPar;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        std::string td;
-        ElementType indicesPrecision;
-        std::tie(StringTensorPackPar, indicesPrecision, td) = basicParamsSet;
-
-        InputShape indicesShape;
-        InputShape symbolsShape;
-        std::tie(indicesShape, symbolsShape) = StringTensorPackPar;
-        std::ostringstream result;
-
-        result << ov::test::utils::partialShape2str({ indicesShape.first }) << "_";
-        result << "TS=";
-        result << "(";
-        for (const auto& targetShape : indicesShape.second) {
-            result << ov::test::utils::vec2str(targetShape) << "_";
-        }
+    const auto& [basicParamsSet, cpuParams] = obj.param;
+    const auto& [StringTensorPackPar, indicesPrecision, td] = basicParamsSet;
+    const auto& [indicesShape, symbolsShape] = StringTensorPackPar;
+    std::ostringstream result;
+    result << ov::test::utils::partialShape2str({indicesShape.first}) << "_";
+    result << "TS=";
+    result << "(";
+    for (const auto& targetShape : indicesShape.second) {
+        result << ov::test::utils::vec2str(targetShape) << "_";
+    }
         result << ")";
         result << "_symbolsShape=";
         result << "(";
@@ -79,27 +70,19 @@ void StringTensorPackLayerCPUTest::generate_inputs(const std::vector<ov::Shape>&
 }
 
 void StringTensorPackLayerCPUTest::SetUp() {
-        StringTensorPackLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-        std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        StringTensorPackSpecificParams StringTensorPackParams;
-        ElementType indicesPrecision;
-        std::tie(StringTensorPackParams, indicesPrecision, targetDevice) = basicParamsSet;
-
-        InputShape indicesShape;
-        InputShape symbolsShape;
-        std::tie(indicesShape, symbolsShape) = StringTensorPackParams;
-
-        init_input_shapes({indicesShape, indicesShape, symbolsShape});
-        auto beginsParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[0]);
-        auto endsParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[1]);
-        auto symbolsParameter = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, inputDynamicShapes[2]);
-        auto StringTensorPack = std::make_shared<ov::op::v15::StringTensorPack>(beginsParameter, endsParameter, symbolsParameter);
-
-        ov::ParameterVector params{ beginsParameter, endsParameter, symbolsParameter };
-        function = makeNgraphFunction(ov::element::string, params, StringTensorPack, "StringTensorPack");
+    const auto& [basicParamsSet, cpuParams] = this->GetParam();
+    std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
+    const auto& [StringTensorPackParams, indicesPrecision, _targetDevice] = basicParamsSet;
+    targetDevice = _targetDevice;
+    const auto& [indicesShape, symbolsShape] = StringTensorPackParams;
+    init_input_shapes({indicesShape, indicesShape, symbolsShape});
+    auto beginsParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[0]);
+    auto endsParameter = std::make_shared<ov::op::v0::Parameter>(indicesPrecision, inputDynamicShapes[1]);
+    auto symbolsParameter = std::make_shared<ov::op::v0::Parameter>(ov::element::u8, inputDynamicShapes[2]);
+    auto StringTensorPack =
+        std::make_shared<ov::op::v15::StringTensorPack>(beginsParameter, endsParameter, symbolsParameter);
+    ov::ParameterVector params{beginsParameter, endsParameter, symbolsParameter};
+    function = makeNgraphFunction(ov::element::string, params, StringTensorPack, "StringTensorPack");
 }
 
 TEST_P(StringTensorPackLayerCPUTest, CompareWithRefs) {

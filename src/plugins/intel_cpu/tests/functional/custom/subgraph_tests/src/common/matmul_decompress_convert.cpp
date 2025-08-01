@@ -8,6 +8,7 @@
 #include "transformations/rt_info/decompression.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
 
@@ -93,14 +94,7 @@ class MatMulDecompressConvertTest : public testing::WithParamInterface<MatMulDec
                                     public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MatMulDecompressConvertParams> obj) {
-        std::vector<InputShape> inputShapes;
-        std::pair<bool, bool> transpose;
-        ElementType weiElemType;
-        ov::AnyMap additionalConfig;
-        CPUSpecificParams cpuParams;
-
-        std::tie(inputShapes, transpose, weiElemType, additionalConfig, cpuParams) = obj.param;
-
+        const auto& [inputShapes, transpose, weiElemType, additionalConfig, cpuParams] = obj.param;
         std::ostringstream result;
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -160,14 +154,7 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        std::pair<bool, bool> transpose;
-        ElementType weiConstElemType;
-        ov::AnyMap additionalConfig;
-        CPUSpecificParams cpuParams;
-
-        std::tie(inputShapes, transpose, weiConstElemType, additionalConfig, cpuParams) = this->GetParam();
+        const auto& [inputShapes, transpose, origWeiConstElemType, additionalConfig, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         init_input_shapes(inputShapes);
@@ -200,8 +187,8 @@ protected:
 
         ElementType netType = ElementType::f32;
         ElementType convertOutType = ElementType::f32;
-        auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+        auto weiConstElemType = origWeiConstElemType;
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
         } else {
@@ -418,14 +405,7 @@ class MatMulDecompressConvertTest2 : public MatMulDecompressConvertTest {
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        std::pair<bool, bool> transpose;
-        ElementType weiConstElemType;
-        ov::AnyMap additionalConfig;
-        CPUSpecificParams cpuParams;
-
-        std::tie(inputShapes, transpose, weiConstElemType, additionalConfig, cpuParams) = this->GetParam();
+        const auto& [inputShapes, transpose, origWeiConstElemType, additionalConfig, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         init_input_shapes(inputShapes);
@@ -464,8 +444,8 @@ protected:
 
         ElementType netType = ElementType::f32;
         ElementType convertOutType = ElementType::f32;
-        auto it = additionalConfig.find(ov::hint::inference_precision.name());
-        if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
+        auto weiConstElemType = origWeiConstElemType;
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             convertOutType = inType = outType = netType = ElementType::bf16;
             weiConstElemType = (weiConstElemType != ElementType::f32) ? weiConstElemType : ElementType::bf16;
         } else {
@@ -558,14 +538,7 @@ class MatMulDecompressConvertTest3 : public MatMulDecompressConvertTest {
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        std::pair<bool, bool> transpose;
-        ElementType weiConstElemType;
-        ov::AnyMap additionalConfig;
-        CPUSpecificParams cpuParams;
-
-        std::tie(inputShapes, transpose, weiConstElemType, additionalConfig, cpuParams) = this->GetParam();
+        const auto& [inputShapes, transpose, weiConstElemType, additionalConfig, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         init_input_shapes(inputShapes);

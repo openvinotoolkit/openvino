@@ -8,25 +8,9 @@ using namespace CPUTestUtils;
 using namespace ov::test;
 
 std::string DeconvolutionLayerCPUTest::getTestCaseName(testing::TestParamInfo<DeconvLayerCPUTestParamsSet> obj) {
-    DeconvSpecParams basicParamsSet;
-    DeconvInputData inputData;
-    ElementType prec;
-    fusingSpecificParams fusingParams;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = obj.param;
-
-    ov::op::PadType padType;
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd, outPadding;
-    size_t convOutChannels;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding) = basicParamsSet;
-
-    InputShape inputShape;
-    ov::test::utils::InputLayerType outShapeType;
-    std::vector<std::vector<int32_t>> outShapeData;
-    std::tie(inputShape, outShapeType, outShapeData) = inputData;
-
+    const auto& [basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig] = obj.param;
+    const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding] = basicParamsSet;
+    const auto& [inputShape, outShapeType, outShapeData] = inputData;
     std::ostringstream result;
     result << "IS=";
     result << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -178,18 +162,10 @@ void DeconvolutionLayerCPUTest::SetUp() {
     rel_threshold = 1e-4f;
 
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    DeconvSpecParams basicParamsSet;
-    DeconvInputData inputData;
-    fusingSpecificParams fusingParams;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig) = this->GetParam();
-
-    InputShape inputShape;
-    ov::test::utils::InputLayerType outShapeType;
-    std::tie(inputShape, outShapeType, outShapeData) = inputData;
-
+    const auto& [basicParamsSet, inputData, _prec, fusingParams, cpuParams, additionalConfig] = this->GetParam();
+    prec = _prec;
+    const auto& [inputShape, outShapeType, _outShapeData] = inputData;
+    outShapeData = _outShapeData;
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;

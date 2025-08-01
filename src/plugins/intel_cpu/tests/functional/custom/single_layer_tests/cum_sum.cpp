@@ -21,13 +21,7 @@ class CumSumLayerCPUTest : public testing::WithParamInterface<cumSumParams>,
                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<cumSumParams> obj) {
-        ov::element::Type inputPrecision;
-        InputShape shapes;
-        std::int64_t axis;
-        bool exclusive;
-        bool reverse;
-        std::tie(inputPrecision, shapes, axis, exclusive, reverse) = obj.param;
-
+        const auto& [inputPrecision, shapes, axis, exclusive, reverse] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -42,11 +36,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        InputShape shapes;
-        std::int64_t axis;
-        bool exclusive;
-        bool reverse;
-        std::tie(inType, shapes, axis, exclusive, reverse) = this->GetParam();
+        const auto& [_inType, shapes, axis, exclusive, reverse] = this->GetParam();
+        inType = _inType;
         if (inType == ElementType::bf16)
             rel_threshold = 0.05f;
 

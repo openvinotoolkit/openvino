@@ -21,13 +21,7 @@ class SpaceToDepthLayerCPUTest : public testing::WithParamInterface<SpaceToDepth
                                  public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<SpaceToDepthLayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        ElementType inType;
-        ov::op::v0::SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t blockSize;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = obj.param;
-
+        const auto& [shapes, inType, mode, blockSize, cpuParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -53,13 +47,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ElementType inType;
-        ov::op::v0::SpaceToDepth::SpaceToDepthMode mode;
-        std::size_t blockSize;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = this->GetParam();
-
+        const auto& [shapes, inType, mode, blockSize, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();

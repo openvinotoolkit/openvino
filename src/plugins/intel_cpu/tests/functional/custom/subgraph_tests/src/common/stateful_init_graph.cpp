@@ -24,11 +24,7 @@ class InitGraphStatefulModelBase : virtual public ov::test::SubgraphBaseTest,
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<InitGraphStatefulModelTestParams>& obj) {
         std::ostringstream result;
-
-        std::vector<InputShape> inputShapes;
-        bool directPair;
-        std::tie(inputShapes, directPair) = obj.param;
-
+        const auto& [inputShapes, directPair] = obj.param;
         result << "IS=";
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -156,10 +152,8 @@ class InitGraphStatefulModel : public InitGraphStatefulModelBase {
 public:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-
-        bool directPair;
-        std::tie(inputShapes, directPair) = this->GetParam();
-
+        const auto& [_inputShapes, directPair] = this->GetParam();
+        inputShapes = _inputShapes;
         init_input_shapes(inputShapes);
         ov::ParameterVector input_params;
         for (auto&& shape : inputDynamicShapes) {

@@ -40,10 +40,7 @@ class ConvU8I8FP32 : public testing::WithParamInterface<ConvU8I8FP32Params>,
                      public CpuTestWithFusing {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvU8I8FP32Params>& obj) {
-        CPUSpecificParams cpuParams;
-        fusingSpecificParams fusingParams;
-        std::tie(cpuParams, fusingParams) = obj.param;
-
+        const auto& [cpuParams, fusingParams] = obj.param;
         std::ostringstream result;
         result << "CPU_";
         result << CPUTestsBase::getTestCaseName(cpuParams);

@@ -19,10 +19,7 @@ class Conv3dReshapeTest : public testing::WithParamInterface<Conv3dReshapeTestPa
                           virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<Conv3dReshapeTestParams> obj) {
-        nodeType conv;
-        size_t numOut;
-        std::tie(conv, numOut) = obj.param;
-
+        const auto& [conv, numOut] = obj.param;
         std::ostringstream result;
         result << nodeType2str(conv) << "_";
         result << "NUM_OUTPUTS=" << numOut;
@@ -35,10 +32,7 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        nodeType convType;
-        size_t numOut;
-        std::tie(convType, numOut) = this->GetParam();
-
+        const auto& [convType, numOut] = this->GetParam();
         cpuNodeType = nodeType2PluginType(convType);
 
         ov::ParameterVector inputParams{

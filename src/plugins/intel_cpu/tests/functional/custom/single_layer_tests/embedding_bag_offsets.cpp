@@ -34,18 +34,8 @@ class EmbeddingBagOffsetsLayerCPUTest : public testing::WithParamInterface<embed
 public:
     using Reduction = ov::op::util::EmbeddingBagOffsetsBase::Reduction;
     static std::string getTestCaseName(const testing::TestParamInfo<embeddingBagOffsetsLayerTestParamsSet>& obj) {
-        embeddingBagOffsetsParams params;
-        ElementType netPrecision, indPrecision;
-        std::string targetDevice;
-        std::tie(params, netPrecision, indPrecision, targetDevice) = obj.param;
-
-        InputShape inputShapes;
-        std::vector<size_t> indices, offsets;
-        size_t defaultIndex;
-        bool withWeights, withDefIndex;
-        Reduction reduction;
-        std::tie(inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex, reduction) = params;
-
+        const auto& [params, netPrecision, indPrecision, targetDevice] = obj.param;
+        const auto& [inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex, reduction] = params;
         std::ostringstream result;
         result << "IS=" << inputShapes << "_";
         result << "I" << ov::test::utils::vec2str(indices) << "_";
@@ -61,17 +51,10 @@ public:
     }
 
     void SetUp() override {
-        embeddingBagOffsetsParams embParams;
-        ElementType indPrecision;
-        std::tie(embParams, inType, indPrecision, targetDevice) = this->GetParam();
-
-        InputShape inputShapes;
-        std::vector<size_t> indices, offsets;
-        bool withWeights, withDefIndex;
-        Reduction reduction;
-        size_t defaultIndex;
-        std::tie(inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex, reduction) = embParams;
-
+        const auto& [embParams, _inType, indPrecision, _targetDevice] = this->GetParam();
+        inType = _inType;
+        targetDevice = _targetDevice;
+        const auto& [inputShapes, indices, offsets, defaultIndex, withWeights, withDefIndex, reduction] = embParams;
         selectedType = makeSelectedTypeStr("ref", inType);
         targetDevice = ov::test::utils::DEVICE_CPU;
 

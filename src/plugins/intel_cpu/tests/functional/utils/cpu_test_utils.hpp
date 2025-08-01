@@ -124,7 +124,7 @@ using InputGenerateDataMap = std::unordered_map<size_t, ov::test::utils::InputGe
 class CPUTestsBase {
 public:
     using CPUInfo = std::map<std::string, ov::Any>;
-    static std::string getTestCaseName(CPUSpecificParams params);
+    static std::string getTestCaseName(const CPUSpecificParams& params);
     static const char* cpu_fmt2str(cpu_memory_format_t v);
     static cpu_memory_format_t cpu_str2fmt(const char* str);
     static std::string fmts2str(const std::vector<cpu_memory_format_t>& fmts, const std::string& prefix);

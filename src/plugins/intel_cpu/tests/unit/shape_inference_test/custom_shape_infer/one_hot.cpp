@@ -29,12 +29,7 @@ class OneHotCpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<o
                                       public WithParamInterface<OneHotTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<OneHotTestParams>& obj) {
-        unit_test::ShapeVector tmp_input_shapes;
-        int64_t tmp_depth;
-        int32_t tmp_on;
-        int32_t tmp_off;
-        StaticShape tmp_exp_shape;
-        std::tie(tmp_input_shapes, tmp_depth, tmp_on, tmp_off, tmp_exp_shape) = obj.param;
+        const auto& [tmp_input_shapes, tmp_depth, tmp_on, tmp_off, tmp_exp_shape] = obj.param;
         std::ostringstream result;
         result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
         result << "depth" << tmp_depth << "_";

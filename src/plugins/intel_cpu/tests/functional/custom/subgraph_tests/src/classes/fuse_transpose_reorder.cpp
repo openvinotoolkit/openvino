@@ -16,10 +16,7 @@ namespace test {
 
 std::string FuseTransposeAndReorderTest::getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj) {
     std::ostringstream result;
-    ov::Shape input_shape;
-    ov::element::Type in_prec;
-    std::tie(input_shape, in_prec) = obj.param;
-
+    const auto& [input_shape, in_prec] = obj.param;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
     result << "Precision=" << in_prec.to_string();
 

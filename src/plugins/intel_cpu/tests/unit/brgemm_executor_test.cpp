@@ -21,10 +21,7 @@ namespace brgemmUnitTest {
 class BrgemmKernelTest : public ov::test::TestsCommon, public testing::WithParamInterface<BrgemmKernelParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BrgemmKernelParams>& obj) {
-        ov::element::Type rtPrec;
-        bool postScale;
-        size_t M, N, K;
-        std::tie(rtPrec, M, N, K, postScale) = obj.param;
+        const auto& [rtPrec, M, N, K, postScale] = obj.param;
         std::ostringstream result;
         result << "Prec=" << rtPrec.to_string();
         result << ",M=" << M;
@@ -201,10 +198,7 @@ static void run_test_post_scales(ov::element::Type rtPrec, size_t M, size_t N, s
 }
 
 TEST_P(BrgemmKernelTest, simpleGemmTest) {
-    ov::element::Type rtPrec;
-    bool postScale;
-    size_t M, N, K;
-    std::tie(rtPrec, M, N, K, postScale) = this->GetParam();
+    const auto& [rtPrec, M, N, K, postScale] = this->GetParam();
     if (rtPrec == ov::element::bf16 && !ov::with_cpu_x86_bfloat16())
         GTEST_SKIP();
     if (rtPrec == ov::element::f16 && !ov::with_cpu_x86_avx512_core_fp16())

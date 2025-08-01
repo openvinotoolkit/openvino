@@ -23,10 +23,7 @@ namespace test {
 
 std::string ConvWithZeroPointFuseSubgraphTest::getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj) {
     std::ostringstream result;
-    nodeType type;
-    ov::Shape inputShapes;
-    std::tie(type, inputShapes) = obj.param;
-
+    const auto& [type, inputShapes] = obj.param;
     result << "Type=" << nodeType2str(type) << "_";
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
 
@@ -35,9 +32,7 @@ std::string ConvWithZeroPointFuseSubgraphTest::getTestCaseName(testing::TestPara
 
 void ConvWithZeroPointFuseSubgraphTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-    nodeType type;
-    ov::Shape inputShapes;
-    std::tie(type, inputShapes) = this->GetParam();
+    const auto& [type, inputShapes] = this->GetParam();
     pluginTypeNode = nodeType2PluginType(type);
 
     const ov::op::PadType paddingType{ov::op::PadType::EXPLICIT};

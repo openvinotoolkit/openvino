@@ -33,25 +33,10 @@ class FakeQuantizeLayerCPUTest : public testing::WithParamInterface<fqLayerTestP
                                  public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj) {
-        fqSpecificParams fqParams;
-        inputShapes testShapes;
-        ov::element::Type inPrec;
-        std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
-        bool shouldBeDecomposed;
-        CPUSpecificParams cpuParams;
-        std::tie(fqParams, testShapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams) = obj.param;
-
-        InputShape shapes;
-        std::vector<ov::Shape> ranges;
-        std::tie(shapes, ranges) = testShapes;
-
-        int64_t inDataLowBounds, inDataHighBounds;
-        std::vector<float> inputLow, inputHigh, outputLow, outputHigh;
-        size_t levels;
-        inputLow = inputRangesValues.first;
-        inputHigh = inputRangesValues.second;
-        std::tie(inDataLowBounds, inDataHighBounds, outputLow, outputHigh, levels) = fqParams;
-
+        const auto& [fqParams, testShapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams] = obj.param;
+        const auto& [shapes, ranges] = testShapes;
+        const auto &[inputLow, inputHigh] = inputRangesValues;
+        const auto &[inDataLowBounds, inDataHighBounds, outputLow, outputHigh, levels] = fqParams;
         std::ostringstream result;
 
         result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -83,31 +68,21 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        fqSpecificParams fqParams;
-        inputShapes testShapes;
-        ov::element::Type inPrec;
-        std::pair<std::vector<float>, std::vector<float>> inputRangesValues;
-        bool shouldBeDecomposed;
-        CPUSpecificParams cpuParams;
-        std::tie(fqParams, testShapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams) = this->GetParam();
-
+        const auto& [fqParams, testShapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        InputShape shapes;
-        std::vector<ov::Shape> ranges;
-        std::tie(shapes, ranges) = testShapes;
-
+        const auto& [shapes, ranges] = testShapes;
         inputDynamicShapes.push_back(shapes.first);
         for (size_t i = 0; i < shapes.second.size(); i++) {
             targetStaticShapes.push_back(std::vector<ov::Shape>{shapes.second[i]});
         }
-
-        size_t levels;
         std::vector<std::vector<float>> rangesBounds(RANGES_INPUT_NUMBER);
         rangesBounds[0] = inputRangesValues.first;
         rangesBounds[1] = inputRangesValues.second;
-        std::tie(inDataLowBounds, inDataHighBounds, rangesBounds[2], rangesBounds[3], levels) = fqParams;
-
+        const auto& [_inDataLowBounds, _inDataHighBounds, _tmp, _tmp1, levels] = fqParams;
+        inDataLowBounds = _inDataLowBounds;
+        inDataHighBounds = _inDataHighBounds;
+        rangesBounds[2] = _tmp;
+        rangesBounds[3] = _tmp1;
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes)
             params.push_back(std::make_shared<ov::op::v0::Parameter>(inPrec, shape));

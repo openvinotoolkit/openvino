@@ -43,12 +43,10 @@ class FuseSDPAReshapeTransposeTest : virtual public ov::test::SubgraphBaseTest,
                                      public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FuseSDPAReshapeTransposeTestParams>& obj) {
-        ElementType inType;
-        InputShapeAndReshapeOrder inputShapeAndOrders;
-        std::tie(inType, inputShapeAndOrders) = obj.param;
+        const auto& [inType, inputShapeAndOrders] = obj.param;
         std::ostringstream result;
-        std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
-        auto& reshapeOrderHS = inputShapeAndOrders.second;
+        const auto& [inputShapes, reshapeOrderHS] = inputShapeAndOrders;
+
         result << "IS=";
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -75,11 +73,9 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShapeAndReshapeOrder inputShapeAndOrders;
-        std::tie(inType, inputShapeAndOrders) = this->GetParam();
-        std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
-        auto& reshapeOrderHS = inputShapeAndOrders.second;
+        const auto& [inType, inputShapeAndOrders] = this->GetParam();
+        const auto& [inputShapes, reshapeOrderHS] = inputShapeAndOrders;
+
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;

@@ -18,12 +18,7 @@ namespace ov {
 namespace test {
 
 std::string RMSNormLayerCPUTest::getTestCaseName(const testing::TestParamInfo<RMSNormCPUTestParams>& obj) {
-    CPUSpecificParams cpuParams;
-    ElementType inType;
-    std::vector<InputShape> inputShapes;
-    std::string targetDevice;
-    std::tie(inType, inputShapes, targetDevice, cpuParams) = obj.param;
-
+    const auto& [inType, inputShapes, targetDevice, cpuParams] = obj.param;
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
     result << "IS=";
@@ -90,11 +85,8 @@ void RMSNormLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 }
 
 void RMSNormLayerCPUTest::SetUp() {
-    ElementType inType;
-    CPUSpecificParams cpuParams;
-    std::vector<InputShape> inputShapes;
-    std::tie(inType, inputShapes, targetDevice, cpuParams) = this->GetParam();
-
+    const auto& [inType, inputShapes, _targetDevice, cpuParams] = this->GetParam();
+    targetDevice = _targetDevice;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();

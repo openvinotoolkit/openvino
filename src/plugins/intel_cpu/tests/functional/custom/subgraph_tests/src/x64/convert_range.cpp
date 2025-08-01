@@ -71,10 +71,7 @@ class ConvertRangeSubgraphCPUTest: public testing::WithParamInterface<ConvertRan
                                  virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConvertRangeSubgraphCPUTestParams> obj) {
-        std::map<std::string, ov::element::Type> additionalConfig;
-        std::vector<InputShape> inputShapes;
-        std::vector<ov::Shape> targetShapes;
-        std::tie(additionalConfig, inputShapes, targetShapes) = obj.param;
+        const auto& [additionalConfig, inputShapes, targetShapes] = obj.param;
         std::ostringstream result;
         result << "IS=";
         for (const auto& shape : inputShapes) {
@@ -90,16 +87,15 @@ public:
             }
             result << ")";
         }
-        result << "Prc=" << additionalConfig[ov::hint::inference_precision.name()];
+
+        if (additionalConfig.count(ov::hint::inference_precision.name())) {
+            result << "Prc=" << additionalConfig.at(ov::hint::inference_precision.name());
+        }
         return result.str();
     }
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::vector<InputShape> inputShapes;
-        std::vector<ov::Shape> targetShapes;
-        std::map<std::string, ov::element::Type> additionalConfig;
-        std::tie(additionalConfig, inputShapes, targetShapes) = this->GetParam();
-
+        const auto &[additionalConfig, inputShapes, targetShapes] = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
         init_input_shapes(inputShapes);

@@ -19,11 +19,7 @@ class TensorIteratorCPUTest : public testing::WithParamInterface<TensorIteratorP
                               virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<TensorIteratorParams> obj) {
-        std::vector<InputShape> shapes;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType inType;
-        std::tie(shapes, direction, inType) = obj.param;
-
+        const auto& [shapes, direction, inType] = obj.param;
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {
             result << "Input" << i << "_";
@@ -40,11 +36,7 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> shapes;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType inType;
-        std::tie(shapes, direction, inType) = this->GetParam();
-
+        const auto& [shapes, direction, inType] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 

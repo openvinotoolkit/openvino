@@ -21,11 +21,7 @@ class LogSoftmaxLayerCPUTest
           public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<logSoftmaxLayerTestParams> obj) {
-        std::vector<InputShape> inputShapes;
-        ov::element::Type netPrecision;
-        int64_t axis;
-        std::tie(inputShapes, netPrecision, axis) = obj.param;
-
+        const auto& [inputShapes, netPrecision, axis] = obj.param;
         std::ostringstream result;
         if (inputShapes.front().first.size() != 0) {
             result << "IS=(";
@@ -49,12 +45,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        ov::element::Type netPrecision;
-        int64_t axis;
-        std::tie(inputShapes, netPrecision, axis) = this->GetParam();
-
+        const auto& [inputShapes, netPrecision, axis] = this->GetParam();
         auto ngPrc = netPrecision;
         inType = outType = ngPrc;
 

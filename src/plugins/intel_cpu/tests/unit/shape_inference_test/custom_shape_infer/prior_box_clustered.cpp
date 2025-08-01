@@ -28,11 +28,7 @@ class PriorBoxClusteredV0CpuShapeInferenceTest  : public unit_test::OpCpuShapeIn
                                                   public WithParamInterface<PriorBoxClusteredV0TestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<PriorBoxClusteredV0TestParams>& obj) {
-        unit_test::ShapeVector tmp_input_shapes;
-        op::v0::PriorBoxClustered::Attributes tmp_attrs;
-        std::vector<std::vector<int32_t>> tmp_data;
-        StaticShape tmp_exp_shape;
-        std::tie(tmp_input_shapes, tmp_attrs, tmp_data, tmp_exp_shape) = obj.param;
+        const auto& [tmp_input_shapes, tmp_attrs, tmp_data, tmp_exp_shape] = obj.param;
         std::ostringstream result;
 
         result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";

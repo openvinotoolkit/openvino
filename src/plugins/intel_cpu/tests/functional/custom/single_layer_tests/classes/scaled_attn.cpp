@@ -16,15 +16,7 @@ namespace ov {
 namespace test {
 
 std::string ScaledAttnLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ScaledAttnCPUTestParams>& obj) {
-    CPUSpecificParams cpuParams;
-    ElementType inType;
-    std::vector<InputShape> inputShapes;
-    bool is_causal;
-    bool has_attn;
-    bool has_scale;
-    std::string targetDevice;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = obj.param;
-
+    const auto& [inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams] = obj.param;
     std::ostringstream result;
     result << "netPRC=" << inType << "_";
     result << "IS=";
@@ -48,11 +40,11 @@ std::string ScaledAttnLayerCPUTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void ScaledAttnLayerCPUTest::SetUp() {
-    ElementType inType;
-    CPUSpecificParams cpuParams;
-    std::vector<InputShape> inputShapes;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = this->GetParam();
-
+    const auto& [inType, inputShapes, _is_causal, _has_attn, _has_scale, _targetDevice, cpuParams] = this->GetParam();
+    is_causal = _is_causal;
+    has_attn = _has_attn;
+    has_scale = _has_scale;
+    targetDevice = _targetDevice;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {
         selectedType = getPrimitiveType();
@@ -124,14 +116,7 @@ void ScaledAttnLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 }
 
 TEST_P(ScaledAttnLayerCPUTest, CompareWithRefs) {
-    CPUSpecificParams cpuParams;
-    ElementType inType;
-    std::vector<InputShape> inputShapes;
-    bool is_causal;
-    bool has_attn;
-    bool has_scale;
-    std::string targetDevice;
-    std::tie(inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams) = this->GetParam();
+    const auto& [inType, inputShapes, is_causal, has_attn, has_scale, targetDevice, cpuParams] = this->GetParam();
     if (inType == ElementType::bf16 && !ov::with_cpu_x86_bfloat16() && !with_cpu_x86_avx2_vnni_2())
         GTEST_SKIP();
     run();

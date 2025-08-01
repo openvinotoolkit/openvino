@@ -26,10 +26,7 @@ class SqueezeCpuShapeInferenceTest  : public unit_test::OpCpuShapeInferenceTest<
                                       public WithParamInterface<SqueezeTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SqueezeTestParams>& obj) {
-        unit_test::ShapeVector tmp_input_shapes;
-        std::vector<int64_t> tmp_axes;
-        StaticShape tmp_exp_shape;
-        std::tie(tmp_input_shapes, tmp_axes, tmp_exp_shape) = obj.param;
+        const auto& [tmp_input_shapes, tmp_axes, tmp_exp_shape] = obj.param;
         std::ostringstream result;
         result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
         result << "axes" << ov::test::utils::vec2str(tmp_axes) << "_";

@@ -38,9 +38,8 @@ typedef std::tuple<std::vector<InputShape>,   // Input shapes
                    std::string                // Device name
                    >
     MHATuple;
-
-static std::shared_ptr<ov::Model> initMHASubgraph0(std::vector<ov::PartialShape>& inputDynamicShapes,
-                                                   std::vector<ElementType>& inputPrecisions) {
+static std::shared_ptr<ov::Model> initMHASubgraph0(const std::vector<ov::PartialShape>& inputDynamicShapes,
+                                                   const std::vector<ElementType>& inputPrecisions) {
     ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
@@ -108,9 +107,8 @@ static std::shared_ptr<ov::Model> initMHASubgraph0(std::vector<ov::PartialShape>
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
     return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
-
-static std::shared_ptr<ov::Model> initMHASubgraph1(std::vector<ov::PartialShape>& inputDynamicShapes,
-                                                   std::vector<ElementType>& inputPrecisions) {
+static std::shared_ptr<ov::Model> initMHASubgraph1(const std::vector<ov::PartialShape>& inputDynamicShapes,
+                                                   const std::vector<ElementType>& inputPrecisions) {
     ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
@@ -160,17 +158,11 @@ static std::shared_ptr<ov::Model> initMHASubgraph1(std::vector<ov::PartialShape>
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
     return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
-
 class MHATest : public testing::WithParamInterface<MHATuple>, virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MHATuple>& obj) {
-        std::vector<InputShape> inputShapes;
-        std::vector<ElementType> inputPrecisions;
-        std::vector<ElementType> matMulIn0Precisions;
-        size_t patternType;
-        ExpectedNodes expectedNodes;
-        std::string targetName;
-        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetName) = obj.param;
+        const auto& [inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetName] =
+            obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -221,12 +213,11 @@ protected:
     size_t patternType;
     ExpectedNodes expectedNodes;
     void SetUp() override {
-        std::vector<InputShape> inputShapes;
-        std::vector<ElementType> inputPrecisions;
-        std::vector<ElementType> matMulIn0Precisions;
-        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) =
+        const auto& [inputShapes, inputPrecisions, matMulIn0Precisions, _patternType, _expectedNodes, _targetDevice] =
             this->GetParam();
-
+        patternType = _patternType;
+        expectedNodes = _expectedNodes;
+        targetDevice = _targetDevice;
         init_input_shapes(inputShapes);
 
         if (patternType == 0) {
@@ -259,14 +250,9 @@ protected:
 };
 
 TEST_P(MHATest, CompareWithRefs) {
-    std::vector<InputShape> inputShapes;
-    std::vector<ElementType> inputPrecisions;
-    std::vector<ElementType> matMulIn0Precisions;
-    size_t patternType;
-    ExpectedNodes expectedNodes;
-    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) =
+    const auto& [inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, _targetDevice] =
         this->GetParam();
-
+    targetDevice = _targetDevice;
     if (inputPrecisions[0] == ElementType::bf16 && !is_bf16_supported())
         GTEST_SKIP();
 
@@ -343,10 +329,9 @@ INSTANTIATE_TEST_SUITE_P(
     MHATest::getTestCaseName);
 
 }  // namespace
-
-static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialShape>& inputDynamicShapes,
-                                                        std::vector<ElementType>& inputPrecisions,
-                                                        std::vector<ElementType>& matMulIn0Precisions) {
+static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(const std::vector<ov::PartialShape>& inputDynamicShapes,
+                                                        const std::vector<ElementType>& inputPrecisions,
+                                                        const std::vector<ElementType>& matMulIn0Precisions) {
     ov::ParameterVector paramVect;
 
     auto transpose0Param = std::make_shared<ov::op::v0::Parameter>(inputPrecisions[0], inputDynamicShapes[0]);
@@ -471,7 +456,6 @@ static std::shared_ptr<ov::Model> initMHAQuantSubgraph0(std::vector<ov::PartialS
     ov::ResultVector results{std::make_shared<ov::op::v0::Result>(transpose3)};
     return std::make_shared<ov::Model>(results, paramVect, "mha");
 }
-
 static std::shared_ptr<ov::Model> initMHAQuantSubgraph1(const std::vector<ov::PartialShape>& inputDynamicShapes,
                                                         const std::vector<ElementType>& inputPrecisions,
                                                         const std::vector<ElementType>& matMulIn0Precisions,
@@ -566,13 +550,8 @@ class MHAQuantTest : public testing::WithParamInterface<MHATuple>,
                      public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MHATuple>& obj) {
-        std::vector<InputShape> inputShapes;
-        std::vector<ElementType> inputPrecisions;
-        std::vector<ElementType> matMulIn0Precisions;
-        size_t patternType;
-        std::string targetName;
-        ExpectedNodes expectedNodes;
-        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetName) = obj.param;
+        const auto& [inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetName] =
+            obj.param;
         std::ostringstream results;
 
         results << "IS=(";
@@ -625,15 +604,9 @@ public:
 protected:
     void SetUp() override {
         abs_threshold = 0.1f;
-
-        std::vector<InputShape> inputShapes;
-        std::vector<ElementType> inputPrecisions;
-        std::vector<ElementType> matMulIn0Precisions;
-        size_t patternType;
-        ExpectedNodes expectedNodes;
-        std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) =
+        const auto& [inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, _targetDevice] =
             this->GetParam();
-
+        targetDevice = _targetDevice;
         init_input_shapes(inputShapes);
 
         if (patternType == 0) {
@@ -656,14 +629,9 @@ protected:
 };
 
 TEST_P(MHAQuantTest, CompareWithRefs) {
-    std::vector<InputShape> inputShapes;
-    std::vector<ElementType> inputPrecisions;
-    std::vector<ElementType> matMulIn0Precisions;
-    size_t patternType;
-    ExpectedNodes expectedNodes;
-    std::tie(inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, targetDevice) =
+    const auto& [inputShapes, inputPrecisions, matMulIn0Precisions, patternType, expectedNodes, _targetDevice] =
         this->GetParam();
-
+    targetDevice = _targetDevice;
     if (inputPrecisions[0] == ElementType::bf16 && !is_bf16_supported())
         GTEST_SKIP();
 

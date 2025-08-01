@@ -19,12 +19,7 @@ class GatherNDLayerCPUTest : public testing::WithParamInterface<GatherNDLayerCPU
                              virtual public SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherNDLayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        std::pair<Shape, std::vector<int>> indexes;
-        ElementType dataElementType, idxElementType;
-        int batchDims;
-        std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = obj.param;
-
+        const auto& [shapes, indexes, dataElementType, idxElementType, batchDims] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -41,12 +36,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        std::pair<Shape, std::vector<int>> indexes;
-        ElementType dataElementType, idxElementType;
-        int batchDims;
-        std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
-
+        const auto& [shapes, indexes, dataElementType, idxElementType, batchDims] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 
@@ -70,12 +60,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        std::pair<Shape, std::vector<int>> indexes;
-        ElementType dataElementType, idxElementType;
-        int batchDims;
-        std::tie(shapes, indexes, dataElementType, idxElementType, batchDims) = this->GetParam();
-
+        const auto& [shapes, indexes, dataElementType, idxElementType, batchDims] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes({shapes});
 

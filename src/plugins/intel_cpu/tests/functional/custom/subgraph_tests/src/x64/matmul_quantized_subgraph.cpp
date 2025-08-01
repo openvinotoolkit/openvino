@@ -32,13 +32,7 @@ class MatmulBrgemmInt8Test : public testing::WithParamInterface<MatmulBrgemmInt8
                       virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MatmulBrgemmInt8TestParams> obj) {
-        ov::Shape supportedInputShapes;
-        bool isFC;
-        ElementType inType;
-        ElementType outType;
-        CPUSpecificParams cpuParams;
-        std::tie(supportedInputShapes, isFC, inType, outType, cpuParams) = obj.param;
-
+        const auto& [supportedInputShapes, isFC, inType, outType, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=" << supportedInputShapes.to_string() << "_";
         result << (isFC ? "FullyConnected" : "MatMul") << "_";
@@ -56,9 +50,10 @@ protected:
     ElementType outType;
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        ov::Shape inShapes;
-        CPUSpecificParams cpuParams;
-        std::tie(inShapes, isFC, inType, outType, cpuParams) = this->GetParam();
+        const auto& [inShapes, _isFC, _inType, _outType, cpuParams] = this->GetParam();
+        isFC = _isFC;
+        inType = _inType;
+        outType = _outType;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         const auto ngPrec = ov::element::f32;
         ov::ParameterVector inputParams {std::make_shared<ov::op::v0::Parameter>(ngPrec, ov::Shape(inShapes))};

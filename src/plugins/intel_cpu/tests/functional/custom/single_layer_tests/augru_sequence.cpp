@@ -8,6 +8,7 @@
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_sequences_to_tensor_iterator.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
 
@@ -31,26 +32,8 @@ class AUGRUSequenceCPUTest : public testing::WithParamInterface<AUGRUSequenceCpu
                              public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<AUGRUSequenceCpuSpecificParams>& obj) {
-        std::vector<InputShape> inputShapes;
-        ov::test::utils::SequenceTestsMode seqMode;
-        std::vector<std::string> activations;
-        float clip;
-        bool linearBeforeRest;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes,
-                 seqMode,
-                 activations,
-                 clip,
-                 linearBeforeRest,
-                 direction,
-                 netPrecision,
-                 cpuParams,
-                 additionalConfig) = obj.param;
-
+        const auto &[inputShapes, seqMode, activations, clip, linearBeforeRest, direction, netPrecision, cpuParams,
+                     additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : inputShapes) {
@@ -84,25 +67,8 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> inputShapes;
-        ov::test::utils::SequenceTestsMode seqMode;
-        std::vector<std::string> activations;
-        float clip;
-        bool linearBeforeReset;
-        ov::op::RecurrentSequenceDirection direction;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes,
-                 seqMode,
-                 activations,
-                 clip,
-                 linearBeforeReset,
-                 direction,
-                 netPrecision,
-                 cpuParams,
-                 additionalConfig) = this->GetParam();
+        const auto &[inputShapes, seqMode, activations, clip, linearBeforeReset, direction, netPrecision, cpuParams,
+                     additionalConfig] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
 
@@ -117,7 +83,7 @@ protected:
         const size_t inputSize = targetStaticShapes.front()[0][2];
         const size_t numDirections = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
 
-        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
             selectedType = makeSelectedTypeStr(selectedType, netPrecision);

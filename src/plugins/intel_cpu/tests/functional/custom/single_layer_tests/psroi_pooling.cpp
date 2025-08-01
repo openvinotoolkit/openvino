@@ -35,23 +35,9 @@ class PSROIPoolingLayerCPUTest : public testing::WithParamInterface<PSROIPooling
                                  public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PSROIPoolingLayerCPUTestParamsSet> obj) {
-        std::vector<float> proposal;
-        ov::Shape featureMapShape;
-        size_t spatialBinsX;
-        size_t spatialBinsY;
-        float spatialScale;
-        size_t groupSize;
-        size_t outputDim;
-        std::string mode;
-
-        PSROIPoolingLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        std::string td;
-        ov::element::Type netPr;
-        PSROIPoolingSpecificParams psroiPar;
-        std::tie(psroiPar, netPr, td) = basicParamsSet;
-        std::tie(featureMapShape, proposal, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode) =
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [psroiPar, netPr, td] = basicParamsSet;
+        const auto& [featureMapShape, proposal, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode] =
             psroiPar;
         std::ostringstream result;
         result << "PSROIPoolingTest_";
@@ -69,26 +55,13 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<float> proposal;
-        ov::Shape featureMapShape;
-        size_t spatialBinsX;
-        size_t spatialBinsY;
-        float spatialScale;
-        size_t groupSize;
-        size_t outputDim;
-        std::string mode;
-        PSROIPoolingLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        PSROIPoolingSpecificParams psroiPoolingParams;
-        auto netPrecision = ov::element::dynamic;
-        std::tie(psroiPoolingParams, netPrecision, targetDevice) = basicParamsSet;
+        const auto& [psroiPoolingParams, netPrecision, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
         inType = outType = netPrecision;
-        std::tie(featureMapShape, proposal, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode) =
+        const auto& [featureMapShape, proposal, outputDim, groupSize, spatialScale, spatialBinsX, spatialBinsY, mode] =
             psroiPoolingParams;
-
         ov::Shape proposalShape = {proposal.size() / 5, 5};
 
         auto coords = std::make_shared<ov::op::v0::Constant>(ov::element::f32, proposalShape, proposal);

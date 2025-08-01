@@ -9,11 +9,8 @@
 namespace CPUTestUtils {
 
 std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
+    const auto& [postOpMgrPtr, fusedOps] = params;
     std::ostringstream result;
-    std::vector<std::string> fusedOps;
-    std::shared_ptr<postOpMgr> postOpMgrPtr;
-    std::tie(postOpMgrPtr, fusedOps) = params;
-
     if (postOpMgrPtr) {
         auto postOpsNames = postOpMgrPtr->getFusedOpsNames();
         if (!postOpsNames.empty()) {

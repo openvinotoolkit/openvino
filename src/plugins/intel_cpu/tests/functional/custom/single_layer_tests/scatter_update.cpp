@@ -30,10 +30,7 @@ class ScatterUpdateLayerCPUTest : public testing::WithParamInterface<scatterUpda
                                   public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<scatterUpdateParams> obj) {
-        ScatterUpdateLayerParams scatterParams;
-        ElementType inputPrecision;
-        ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = obj.param;
+        const auto& [scatterParams, inputPrecision, idxPrecision] = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesDescr = scatterParams.indicesDescriprion;
         const auto axis = scatterParams.axis;
@@ -60,10 +57,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        ScatterUpdateLayerParams scatterParams;
-        ElementType inputPrecision;
-        ElementType idxPrecision;
-        std::tie(scatterParams, inputPrecision, idxPrecision) = this->GetParam();
+        const auto& [scatterParams, inputPrecision, idxPrecision] = this->GetParam();
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesDescr = scatterParams.indicesDescriprion;
         const auto axis = scatterParams.axis;
