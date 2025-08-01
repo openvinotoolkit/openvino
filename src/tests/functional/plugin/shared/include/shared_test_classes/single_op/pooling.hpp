@@ -15,7 +15,7 @@ namespace ov {
 namespace test {
 typedef std::tuple<ov::test::utils::PoolingTypes,  // Pooling type, max or avg
                    std::vector<size_t>,            // Kernel size
-                   std::vector<size_t>,            // Stride
+                   Strides,            // Stride
                    std::vector<size_t>,            // Pad begin
                    std::vector<size_t>,            // Pad end
                    ov::op::RoundingType,           // Rounding type
@@ -32,8 +32,8 @@ typedef std::tuple<poolSpecificParams,
     poolLayerTestParamsSet;
 
 typedef std::tuple<std::vector<size_t>,   // Kernel size
-                   std::vector<size_t>,   // Stride
-                   std::vector<size_t>,   // Dilation
+                   Strides,   // Stride
+                   Strides,   // Dilation
                    std::vector<size_t>,   // Pad begin
                    std::vector<size_t>,   // Pad end
                    ov::element::Type,     // Index element type
@@ -51,8 +51,8 @@ typedef std::tuple<maxPoolV8SpecificParams,
     maxPoolV8LayerTestParamsSet;
 
 typedef std::tuple<std::vector<size_t>,   // Kernel size
-                   std::vector<size_t>,   // Stride
-                   std::vector<size_t>,   // Dilation
+                   Strides,       // Stride
+                   Strides,       // Dilation
                    std::vector<size_t>,   // Pad begin
                    std::vector<size_t>,   // Pad end
                    ov::op::RoundingType,  // Rounding type

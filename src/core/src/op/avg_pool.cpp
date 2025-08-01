@@ -122,6 +122,24 @@ AvgPool::AvgPool(const Output<Node>& arg,
     constructor_validate_and_infer_types();
 }
 
+AvgPool::AvgPool(const Output<Node>& arg,
+                 const Strides& strides,
+                 const Shape& pads_begin,
+                 const Shape& pads_end,
+                 const Shape& kernel,
+                 bool exclude_pad,
+                 RoundingType rounding_type,
+                 const PadType& auto_pad)
+    : AvgPool(arg,
+              strides,
+              Strides(kernel.size(), 1),
+              pads_begin,
+              pads_end,
+              kernel,
+              exclude_pad,
+              rounding_type,
+              auto_pad) {}
+
 void AvgPool::validate_and_infer_types() {
     OV_OP_SCOPE(v16_AvgPool_validate_and_infer_types);
 
@@ -149,6 +167,14 @@ bool AvgPool::visit_attributes(AttributeVisitor& visitor) {
     util::AvgPoolBase::visit_attributes(visitor);
     visitor.on_attribute("dilations", m_dilations);
     return true;
+}
+
+const Strides& AvgPool::get_dilations() const {
+    return m_dilations;
+}
+
+void AvgPool::set_dilations(const Strides& dilations) {
+    m_dilations = dilations;
 }
 
 }  // namespace ov::op::v16
