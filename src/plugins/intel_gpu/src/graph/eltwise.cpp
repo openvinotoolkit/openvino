@@ -29,28 +29,6 @@ const std::set<eltwise_mode>
                                     eltwise_mode::is_inf,
                                     eltwise_mode::is_nan };
 
-// template<typename ShapeType>
-// static std::vector<ShapeType> shape_infer_for_eltwise_output(kernel_impl_params const& impl_param) {
-//     auto desc = impl_param.typed_desc<eltwise>();
-//     // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
-//     ov::op::v1::Add op;
-//     op.set_autob(desc->broadcast_spec);
-//     std::vector<ShapeType> output_shapes = {ShapeType()};
-//     std::vector<ShapeType> input_shapes;
-//     for (size_t i = 0; i < desc->input_size(); i++) {
-//         input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
-//     }
-
-//     // Special handling for is_finite, is_nan, is_inf modes
-//     if (input_shapes.size() == 1) {
-//         output_shapes = input_shapes;
-//     } else {
-//         output_shapes = ov::op::eltwise_shape_infer(&op, input_shapes);
-//     }
-
-//     return output_shapes;
-// }
-
 static cldnn::layout get_eltwise_output_layout(const layout& input_layout, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<eltwise>();
     auto out_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
