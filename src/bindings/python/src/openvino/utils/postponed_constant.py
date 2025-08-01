@@ -24,8 +24,9 @@ class PostponedConstant(Op):
         :type name: Optional[str]
 
         :Example of a maker that returns a Tensor:
-        
-        .. code-block:: python       
+
+        .. code-block:: python
+
             class Maker:
                 def __call__(self) -> ov.Tensor:
                     tensor_data = np.array([2, 2, 2, 2], dtype=np.float32)
