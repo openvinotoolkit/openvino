@@ -561,7 +561,8 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
     // Now make a decision based on the checks above
     if (explicit_host_gather == "") {
         // Default value is used, can force the best option
-        if ((!pattern_matched || !compiler_version_enough) || (!pattern_matched && npu_devices.empty())) {
+        if ((!pattern_matched || (!npu_devices.empty() && !compiler_version_enough)) ||
+            (!pattern_matched && npu_devices.empty())) {
             LOG_INFO("Couldn't match NPUW_HOST_GATHER:QUANT patterns or the compiler version is too low. Enabling "
                      "NPUW_HOST_GATHER:YES instead.");
             std::map<std::string, std::string> host_gather_cfg;
