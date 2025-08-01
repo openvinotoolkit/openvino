@@ -262,8 +262,7 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
     // 1.2. store the remaining register
     if (last != 0) {
         const auto shift = ov::intel_cpu::rnd_up(get_gpr_length(), 16);
-        h->str(Xbyak_aarch64::XReg(gpr_regs[store_gpr_regs_size - 1]), 
-               pre_ptr(h->sp, -static_cast<int32_t>(shift)));
+        h->str(Xbyak_aarch64::XReg(gpr_regs[store_gpr_regs_size - 1]), pre_ptr(h->sp, -static_cast<int32_t>(shift)));
     }
 
     // 2. SIMD and Floating-Point registers
@@ -280,7 +279,8 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
             continue;
         }
         const auto shift = ov::intel_cpu::rnd_up(get_vec_length() * 2, 16);
-        h->stp(Xbyak_aarch64::QReg(prev_reg_idx), Xbyak_aarch64::QReg(reg_idx), 
+        h->stp(Xbyak_aarch64::QReg(prev_reg_idx),
+               Xbyak_aarch64::QReg(reg_idx),
                pre_ptr(h->sp, -static_cast<int32_t>(shift)));
         prev_reg_idx = -1;
     }
@@ -289,8 +289,7 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
     if (prev_reg_idx != -1) {
         if (ignore_vec_regs.find(prev_reg_idx) == ignore_vec_regs.end()) {
             const auto shift = ov::intel_cpu::rnd_up(get_vec_length(), 16);
-            h->str(Xbyak_aarch64::QReg(prev_reg_idx), 
-                   pre_ptr(h->sp, -static_cast<int32_t>(shift)));
+            h->str(Xbyak_aarch64::QReg(prev_reg_idx), pre_ptr(h->sp, -static_cast<int32_t>(shift)));
         } else {
             ignore_registers_count++;
         }
@@ -337,8 +336,7 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
             continue;
         }
         const auto shift = ov::intel_cpu::rnd_up(get_vec_length() * 2, 16);
-        h->ldp(Xbyak_aarch64::QReg(reg_idx), Xbyak_aarch64::QReg(prev_reg_idx), 
-               post_ptr(h->sp, shift));
+        h->ldp(Xbyak_aarch64::QReg(reg_idx), Xbyak_aarch64::QReg(prev_reg_idx), post_ptr(h->sp, shift));
         prev_reg_idx = -1;
     }
 
@@ -351,8 +349,7 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
     const auto last = save_gpr_regs_size % 2;
     if (last != 0) {
         const auto shift = ov::intel_cpu::rnd_up(get_gpr_length(), 16);
-        h->ldr(Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1]), 
-               post_ptr(h->sp, shift));
+        h->ldr(Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1]), post_ptr(h->sp, shift));
     }
 
     // 2.2. restore pair registers
