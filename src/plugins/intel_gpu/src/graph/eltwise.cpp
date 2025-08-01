@@ -37,10 +37,10 @@ static cldnn::layout get_eltwise_output_layout(const layout& input_layout, kerne
     // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
     ov::op::v1::Add op;
     op.set_autob(desc->broadcast_spec);
-    std::vector<shapeType> output_shapes = {ShapeType()};
-    std::vector<shapeType> input_shapes;
+    std::vector<ShapeType> output_shapes = {ShapeType()};
+    std::vector<ShapeType> input_shapes;
     for (size_t i = 0; i < desc->input_size(); i++) {
-        input_shapes.push_back(impl_param.get_input_layout(i).get<shapeType>());
+        input_shapes.push_back(impl_param.get_input_layout(i).get<ShapeType>());
     }
 
     // Special handling for is_finite, is_nan, is_inf modes
@@ -78,7 +78,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
 
     // For numpy broadcast of Eltwise, primary input index should be large pshape input(not just constant) to be aligned
     auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
-    if (node.need_input_tensors_dims_unalign_for_numpy_broadcast(input_node_layout) && node.get_dependencies().size() >= 2) {
+    if (node.need_align_for_numpy_broadcast(input_node_layout) && node.get_dependencies().size() >= 2) {
         primary_input_idx = 1 - primary_input_idx;
         input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
     }
@@ -458,7 +458,7 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
     }
 }
 
-bool eltwise_node::need_input_tensors_dims_unalign_for_numpy_broadcast(const layout& input) const {
+bool eltwise_node::need_align_for_numpy_broadcast(const layout& input) const {
     if (is_valid_output_layout() &&
         (format::is_default_format(get_output_layout().format) || input.format == get_output_layout().format))
         return false;

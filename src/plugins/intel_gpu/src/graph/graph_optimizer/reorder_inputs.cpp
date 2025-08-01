@@ -412,10 +412,10 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
     return is_weights_dep;
 }
 
-static bool is_align_shape_for_numpy_broadcast(program_node* predecessor, program_node* successor, format output_format) {
+static bool need_align_shape_for_numpy_broadcast(program_node* predecessor, program_node* successor, format output_format) {
     if (successor->is_type<eltwise>()) {
         auto& elt_suc = successor->as<eltwise>();
-        if (elt_suc.need_input_tensors_dims_unalign_for_numpy_broadcast(predecessor->get_output_layout())) {
+        if (elt_suc.need_align_for_numpy_broadcast(predecessor->get_output_layout())) {
             GPU_DEBUG_TRACE_DETAIL << " Skip add reorder in reorder_in_dir for numpy broadcast " << successor->id()
                                     << output_format.to_string() << std::endl;
             return true;
@@ -451,7 +451,7 @@ void insert_reorders_in_dir(program& p, const std::map<program_node*, format::ty
         if (in_layout.format == out_layout.format)
             continue;
 
-        if (is_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format))
+        if (need_align_shape_for_numpy_broadcast(predecessor, successor, out_layout.format))
             continue;
 
         GPU_DEBUG_LOG << dir_msg(dir) << "  " << node->id() << " --> " << get_node(next)->id() << " ## "
