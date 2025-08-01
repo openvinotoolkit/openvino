@@ -85,17 +85,17 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         if (status) {
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
-        const bool do_dequantize = !(status && ((std::all_of(osc.cbegin(),
+        const bool do_dequantize = !status || ((!std::all_of(osc.cbegin(),
                                                              osc.cend(),
                                                              [](float val) {
-                                                                 return val == 1.f;
-                                                             }) &&
-                                                 std::all_of(osh.cbegin(),
+                                                                 return val == 1.F;
+                                                             }) ||
+                                                !std::all_of(osh.cbegin(),
                                                              osh.cend(),
                                                              [](float val) {
-                                                                 return val == 0.f;
-                                                             })) ||
-                                                !out_scales.empty()));
+                                                                 return val == 0.F;
+                                                             })) &&
+                                               out_scales.empty());
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
                                  fake_quantize_node->get_output_element_type(0) == ov::element::f16;
 
@@ -335,48 +335,48 @@ std::vector<float> ov::snippets::pass::FakeQuantizeDecomposition::calculateScale
         std::all_of(cl.cbegin(),
                     cl.cend(),
                     [](float val) {
-                        return val == 0.0f;
+                        return val == 0.0F;
                     }) &&
         std::all_of(ish.cbegin(),
                     ish.cend(),
                     [](float val) {
-                        return val == 0.0f;
+                        return val == 0.0F;
                     }) &&
         std::all_of(osc.cbegin(),
                     osc.cend(),
                     [](float val) {
-                        return val == 1.0f;
+                        return val == 1.0F;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return val == 0.0f;
+            return val == 0.0F;
         })) {
         out_scales = isc;
     }
 
-    static const float thr = 0.0001f;
+    static const float thr = 0.0001F;
     if (out_type == ov::element::i8 &&
         std::all_of(ish.cbegin(),
                     ish.cend(),
                     [](float val) {
-                        return std::abs(val - 128.f) < thr;
+                        return std::abs(val - 128.F) < thr;
                     }) &&
         std::all_of(osc.cbegin(),
                     osc.cend(),
                     [](float val) {
-                        return val == 1.f;
+                        return val == 1.F;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return std::abs(val + 128.f) < thr;
+            return std::abs(val + 128.F) < thr;
         })) {
         bool is_crop_aligned = true;
         for (size_t i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > thr) {
+            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.F) > thr) {
                 is_crop_aligned = false;
             }
         }
 
         for (size_t i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > thr) {
+            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.F) > thr) {
                 is_crop_aligned = false;
             }
         }

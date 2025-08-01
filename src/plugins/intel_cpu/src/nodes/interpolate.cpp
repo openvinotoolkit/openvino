@@ -62,6 +62,7 @@
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -92,7 +93,7 @@ struct jit_uni_interpolate_kernel_f32 : public jit_uni_interpolate_kernel, publi
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -2607,8 +2608,8 @@ VectorDims Interpolate::getPaddedInputShape(const VectorDims& srcDims,
 }
 
 // get scales of data rank size
-// if "scale" version: set scales with input scales, 1.f for other dims not in axis
-// if "size" version: scales = shape[target] / shape[input].pad, 1.f for other dims not in axis
+// if "scale" version: set scales with input scales, 1.F for other dims not in axis
+// if "size" version: scales = shape[target] / shape[input].pad, 1.F for other dims not in axis
 // scales is a required input, but should not use input scales when "size" case, which may added eps or is a dummy
 // value, recalculate scales instead.
 std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const VectorDims& dstDim) {

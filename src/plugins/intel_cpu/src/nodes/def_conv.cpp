@@ -44,6 +44,7 @@
 #    include <xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -68,7 +69,7 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     };
 
     void generate() override {
@@ -983,7 +984,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
                                    static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;
                 } else {
-                    skip_compute = map_w < 0.0f || map_w >= static_cast<float>(IW) || map_h < 0.0f ||
+                    skip_compute = map_w < 0.0F || map_w >= static_cast<float>(IW) || map_h < 0.0F ||
                                    map_h >= static_cast<float>(IH);
                 }
                 if (!skip_compute) {

@@ -73,4 +73,11 @@ static constexpr Property<SnippetsMode, PropertyMutability::RW> snippets_mode{"S
  */
 static constexpr Property<bool, PropertyMutability::RW> enable_tensor_parallel{"ENABLE_TENSOR_PARALLEL"};
 
+/**
+ * @brief Define whether to enable sage_attn
+ * @param true - enable
+ * @param false - disable
+ */
+static constexpr Property<bool, PropertyMutability::RW> enable_sage_attn{"ENABLE_SAGE_ATTN"};
+
 }  // namespace ov::intel_cpu

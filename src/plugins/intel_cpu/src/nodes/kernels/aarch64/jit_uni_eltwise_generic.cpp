@@ -22,6 +22,7 @@
 #include "cpu_types.h"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "openvino/cc/selective_build.h"
 #include "openvino/core/except.hpp"

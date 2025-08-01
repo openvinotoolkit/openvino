@@ -182,7 +182,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             "fullyconnected_mlas",
             ExecutorType::Mlas,
             OperationType::MatMul,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 // @todo probably there is no need of having implementation name in the debug message
@@ -191,18 +190,18 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
-                return MlasGemmExecutor::supports(config);
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDefault<MlasGemmExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
             "convolution_1x1_dnnl",
             ExecutorType::Dnnl,
             OperationType::Convolution,
-            ShapeTolerance::Dependant,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
@@ -255,8 +254,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 // Disable Conv1x1 when weight size >= 16M to avoid different weight layout when having different input
                 // activation shapes. As a consuquence, peak memory consumption in LLM can be decreased.
                 VERIFY(weightsSize < (16 * 1 << 20), " weights size is to big");
-                VERIFY(widthInConv >= 2 && widthInConv <= 3136 && K >= 96 && K <= 4096 && N >= 96 && N <= K * 4,
-                       HEURISTICS_MISMATCH);
+                const bool width_in_range = widthInConv >= 2 && widthInConv <= 3136;
+                const bool k_in_range = K >= 96 && K <= 4096;
+                const bool n_in_range = N >= 96 && N <= K * 4;
+                const bool all_conditions_met = width_in_range && k_in_range && n_in_range;
+                VERIFY(all_conditions_met, HEURISTICS_MISMATCH);
 
                 return true;
             },
@@ -302,12 +304,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             "fullyconnected_acl",
             ExecutorType::Acl,
             OperationType::FullyConnected,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                return ACLFullyConnectedExecutor::supports(config);
+                VERIFY(ACLFullyConnectedExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -316,19 +319,20 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                  aclFCLayoutConfig,
                                                  fcMappingNotation);
             },
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDefault<ACLFullyConnectedExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
             "fullyconnected_acl_lowp",
             ExecutorType::Acl,
             OperationType::FullyConnected,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                return ACLLowpFullyConnectedExecutor::supports(config);
+                VERIFY(ACLLowpFullyConnectedExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -351,7 +355,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             "fullyconnected_kleidiai",
             ExecutorType::Kleidiai,
             OperationType::MatMul,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
@@ -362,35 +365,36 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
                 }
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
-                return MatMulKleidiAIExecutor::supports(config);
+                VERIFY(MatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDefault<MatMulKleidiAIExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_SHL(
             "fullyconnected_shl",
             ExecutorType::Shl,
             OperationType::FullyConnected,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(ShlFCExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
-                return ShlFCExecutor::supports(config);
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDefault<ShlFCExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL(
             "matmul_dnnl",
             ExecutorType::Dnnl,
             OperationType::MatMul,
-            ShapeTolerance::Dependant,
             // supports
             []([[maybe_unused]] const FCConfig& config) -> bool {
                 // enable only with debug caps and env variable defined for now
@@ -408,7 +412,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                  dnnlFCLayoutConfig,
                                                  fcMappingNotation);
             },
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             // create
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
@@ -442,7 +446,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             "fullyconnected_dnnl",
             ExecutorType::Dnnl,
             OperationType::FullyConnected,
-            ShapeTolerance::Dependant,
             SupportsAnyConfig<FCAttrs>{},
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -451,7 +454,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                  dnnlFCLayoutConfig,
                                                  fcMappingNotation);
             },
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{false, true}
             )
     };

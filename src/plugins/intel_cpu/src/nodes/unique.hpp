@@ -59,8 +59,8 @@ private:
     int axis = 0;
     bool definedOutputs[4] = {false, false, false, false};
     ov::element::Type dataPrecision;
-    int64_t dataTypeSize = 1l;
-    size_t uniqueLen = 1lu;
+    int64_t dataTypeSize = 1L;
+    size_t uniqueLen = 1LU;
 
     static constexpr size_t IN_DATA = 0;
     static constexpr size_t AXIS = 1;

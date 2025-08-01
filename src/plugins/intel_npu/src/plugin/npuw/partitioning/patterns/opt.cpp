@@ -37,7 +37,7 @@ void Context::to_f16(const PPtr& orig_param) {
     orig_param->validate_and_infer_types();
 }
 
-void Context::register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm) {
+void Context::register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm) {
     par_dq_mms[std::make_pair(multiply, axis)].push_back(std::move(mm));
 }
 
@@ -123,10 +123,10 @@ Context::PPtr Context::host_gather(const Context::PPtr& w, const Context::PPtr& 
     return new_param;
 }
 
-Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
-                                                Context::PPtr w,
-                                                Context::PPtr z,
-                                                Context::PPtr s,
+Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
+                                                const Context::PPtr& w,
+                                                const Context::PPtr& z,
+                                                const Context::PPtr& s,
                                                 ov::element::Type type) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();

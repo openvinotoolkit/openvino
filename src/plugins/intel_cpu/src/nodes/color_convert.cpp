@@ -237,7 +237,7 @@ void jit_uni_converter::yuv_to_rgb(const variable<float[N]>& y,
 
     uni_vbroadcastss(tmp, ptr[_consts + 0 * sizeof(float)]);  // tmp = [16.0f,16.0f,...]
     uni_vsubps(y, y, tmp);                                    // y = y - tmp
-    uni_vbroadcastss(tmp, ptr[_consts + 1 * sizeof(float)]);  // tmp = [128.f,128.f,...]
+    uni_vbroadcastss(tmp, ptr[_consts + 1 * sizeof(float)]);  // tmp = [128.F,128.F,...]
     uni_vsubps(u, u, tmp);                                    // u = u - tmp
     uni_vsubps(v, v, tmp);                                    // v = v - tmp
 

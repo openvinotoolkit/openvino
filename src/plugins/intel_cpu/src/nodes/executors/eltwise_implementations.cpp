@@ -266,33 +266,36 @@ template <>
 const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
     static const std::vector<ExecutorImplementation<EltwiseAttrs>> eltwiseImplementations {
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_jit_ncsp", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_ncsp", ExecutorType::Jit, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
+                VERIFY(EltwiseJitExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
-                return EltwiseJitExecutor::supports(config);
+                return true;
             },
             createOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp}},
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_jit_nspc", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_nspc", ExecutorType::Jit, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
                 VERIFY(isChannelFirstApplicable(config), HEURISTICS_MISMATCH);
-                return EltwiseJitExecutor::supports(config);
+                VERIFY(EltwiseJitExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             createOptimalConfigDefault{{LayoutType::nspc, LayoutType::nspc}},
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
-            "eltwise_jit_nCsp16c", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_nCsp16c", ExecutorType::Jit, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nCsp16c, LayoutType::nCsp16c},
@@ -300,7 +303,9 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
 
                 VERIFY(dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core), UNSUPPORTED_ISA);
                 VERIFY(isBlockedApplicable(config), HEURISTICS_MISMATCH);
-                return EltwiseJitExecutor::supports(config);
+                VERIFY(EltwiseJitExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
                 return createOptimalConfigEltwise(config,
@@ -308,17 +313,18 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   {LayoutType::nCsp16c, LayoutType::nCsp16c},
                                                   eltwiseMappingNotation);
             },
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
-            "eltwise_jit_nCsp8c", ExecutorType::Jit, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_jit_nCsp8c", ExecutorType::Jit, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nCsp8c, LayoutType::nCsp8c},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
                 VERIFY(isBlockedApplicable(config), HEURISTICS_MISMATCH);
-                return EltwiseJitExecutor::supports(config);
+                VERIFY(EltwiseJitExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+                return true;
             },
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
                 return createOptimalConfigEltwise(config,
@@ -326,16 +332,18 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   {LayoutType::nCsp8c, LayoutType::nCsp8c},
                                                   eltwiseMappingNotation);
             },
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
-            "eltwise_acl_ncsp", ExecutorType::Acl, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_acl_ncsp", ExecutorType::Acl, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
-                return AclEltwiseExecutor::supports(config);
+                VERIFY(AclEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
@@ -344,17 +352,19 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
                                                   eltwiseMappingNotation);
             },
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
-            "eltwise_acl_nspc", ExecutorType::Acl, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_acl_nspc", ExecutorType::Acl, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
                 VERIFY(isChannelFirstApplicable(config), HEURISTICS_MISMATCH);
-                return AclEltwiseExecutor::supports(config);
+                VERIFY(AclEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             // createOptimalConfig
             [](const EltwiseConfig& config) -> std::optional<EltwiseConfig> {
@@ -363,35 +373,39 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                   LayoutConfig{LayoutType::nspc, LayoutType::nspc},
                                                   eltwiseMappingNotation);
             },
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<AclEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_SHL(
-            "eltwise_shl_ncsp", ExecutorType::Shl, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_shl_ncsp", ExecutorType::Shl, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
-                return ShlEltwiseExecutor::supports(config);
+                VERIFY(ShlEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             createOptimalConfigDefault{{LayoutType::ncsp, LayoutType::ncsp}},
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<ShlEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_SHL(
-            "eltwise_shl_nspc", ExecutorType::Shl, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_shl_nspc", ExecutorType::Shl, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
                                                  memoryFormatFilter, eltwiseMappingNotation), MEMORY_FORMAT_MISMATCH);
-                return ShlEltwiseExecutor::supports(config);
+                VERIFY(ShlEltwiseExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             createOptimalConfigDefault{{LayoutType::nspc, LayoutType::nspc}},
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<ShlEltwiseExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_ref_ncsp", ExecutorType::Reference, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_ref_ncsp", ExecutorType::Reference, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
@@ -405,11 +419,11 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                  LayoutConfig{LayoutType::ncsp, LayoutType::ncsp},
                                                  eltwiseMappingNotation);
             },
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
         OV_CPU_INSTANCE_COMMON(
-            "eltwise_ref_nspc", ExecutorType::Reference, OperationType::Eltwise, ShapeTolerance::Agnostic,
+            "eltwise_ref_nspc", ExecutorType::Reference, OperationType::Eltwise,
             // supports
             [](const EltwiseConfig& config, const MemoryFormatFilter& memoryFormatFilter) -> bool {
                 VERIFY(MatchesMemoryFormatFilter(config.descs, LayoutConfig{LayoutType::nspc, LayoutType::nspc},
@@ -425,7 +439,7 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations() {
                                                  LayoutConfig{LayoutType::nspc, LayoutType::nspc},
                                                  eltwiseMappingNotation);
             },
-            AcceptsAnyShape<EltwiseAttrs>{},
+            AcceptsAnyShape<EltwiseAttrs>,
             CreateDefault<EltwiseStatefulExecutor, EltwiseAttrs>{}
             )
     };

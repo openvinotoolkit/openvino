@@ -499,7 +499,7 @@ public:
         auto dim_merge_shape = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1}));
         auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
 
-        return {output, present_k, present_v};
+        return {std::move(output), std::move(present_k), std::move(present_v)};
     }
 
     // make split functions is a copy-past from ONNX FE. TODO: move it to one place
@@ -1393,7 +1393,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             compiled->m_prefill_compiled->m_weights_bank = bank;
 
             compiled->m_kvcache_compiled->finalize_weights_bank();
+            compiled->m_kvcache_compiled->m_import_weights_ctx.reset();
             compiled->m_prefill_compiled->finalize_weights_bank();
+            compiled->m_prefill_compiled->m_import_weights_ctx.reset();
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
