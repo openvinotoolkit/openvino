@@ -4,7 +4,7 @@
 
 #include "jit_matmul_small.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <common/c_types_map.hpp>
@@ -31,12 +31,12 @@ void jit_uni_matmul_small_kernel_f32<isa>::generate() {
     for (int i = 0; i < p.len(); i++) {
         auto& post_op = p.entry_[i];
         if (post_op.is_eltwise()) {
-            eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
-                                                                                        post_op.eltwise.alg,
-                                                                                        post_op.eltwise.alpha,
-                                                                                        post_op.eltwise.beta,
-                                                                                        1.f,
-                                                                                        data_type::f32));
+            eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
+                                                                                          post_op.eltwise.alg,
+                                                                                          post_op.eltwise.alpha,
+                                                                                          post_op.eltwise.beta,
+                                                                                          1.F,
+                                                                                          data_type::f32));
         } else if (post_op.is_depthwise()) {
             depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
         } else if (post_op.is_quantization()) {
@@ -55,9 +55,6 @@ void jit_uni_matmul_small_kernel_f32<isa>::generate() {
     mov(reg_input2, ptr[reg_params + GET_OFF(input2)]);
     mov(reg_out, ptr[reg_params + GET_OFF(output)]);
     mov(reg_work_amount, ptr[reg_params + GET_OFF(B)]);
-    if (jcp_.M > 2 || jcp_.N > 2 || jcp_.K > 2) {
-        assert("matmul_small_kernel only support M/N/K smaller than 3.");
-    }
 
     if (attr_.post_ops_.len() != 0) {
         mov(reg_post_ops_data, ptr[reg_params + GET_OFF(post_op_data)]);

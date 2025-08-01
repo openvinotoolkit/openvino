@@ -20,9 +20,9 @@ public:
     OPENVINO_OP("Brgemm", "SnippetsOpset");
     Brgemm(const Output<Node>& A,
            const Output<Node>& B,
-           size_t offset_a = 0lu,
-           size_t offset_b = 0lu,
-           size_t offset_c = 0lu,
+           size_t offset_a = 0LU,
+           size_t offset_b = 0LU,
+           size_t offset_c = 0LU,
            const std::vector<size_t>& layout_a = {},
            const std::vector<size_t>& layout_b = {},
            const std::vector<size_t>& layout_c = {});

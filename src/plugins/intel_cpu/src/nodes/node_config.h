@@ -47,9 +47,7 @@ protected:
 class PortDescGeneric : public PortDescBase_<PortDescGeneric> {
 public:
     explicit PortDescGeneric(MemoryDescPtr memDesc) : _memDesc(std::move(memDesc)) {
-        if (nullptr == _memDesc) {
-            OPENVINO_THROW("ParameterMismatch: PortDescGeneric constructor got nullptr");
-        }
+        OPENVINO_ASSERT(_memDesc, "ParameterMismatch: PortDescGeneric constructor got nullptr");
     }
     [[nodiscard]] bool isCompatible(const PortDescGeneric& rhs) const {
         return _memDesc->isCompatible(*rhs._memDesc);
@@ -67,9 +65,7 @@ public:
     using CmpMask = BlockedMemoryDesc::CmpMask;
 
     PortDescBlocked(BlockedMemoryDescPtr memDesc, CmpMask cmpMask) : _memDesc(std::move(memDesc)), _cmpMask(cmpMask) {
-        if (nullptr == _memDesc) {
-            OPENVINO_THROW("ParameterMismatch: PortDescBlocked constructor got nullptr");
-        }
+        OPENVINO_ASSERT(_memDesc, "ParameterMismatch: PortDescBlocked constructor got nullptr");
     }
     [[nodiscard]] bool isCompatible(const PortDescBlocked& rhs) const {
         return _memDesc->isCompatible(*rhs._memDesc, _cmpMask) && (((~_cmpMask) | rhs._cmpMask).all());

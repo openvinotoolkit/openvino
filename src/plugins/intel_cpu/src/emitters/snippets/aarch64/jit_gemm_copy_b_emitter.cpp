@@ -4,8 +4,7 @@
 
 #include "jit_gemm_copy_b_emitter.hpp"
 
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
@@ -17,6 +16,8 @@
 #include <vector>
 
 #include "emitters/snippets/aarch64/kernel_executors/gemm_copy_b.hpp"
+#include "emitters/snippets/aarch64/utils.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
@@ -53,6 +54,13 @@ jit_gemm_copy_b_emitter::jit_gemm_copy_b_emitter(jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(n_blk_size > 0, "n_blk_size of gemm_repack is expected to be greater than 0.");
     GemmCopyBKernelKaiConfig kernel_config(n_blk_size);
     m_kernel_executor = kernel_table->register_kernel<GemmCopyBKaiKernelExecutor>(expr, kernel_config);
+
+    // Initialize memory offsets similar to x64 brgemm_copy_b implementation
+    m_memory_offsets = {gemm_repack->get_offset_in(), gemm_repack->get_offset_out()};
+
+    // Initialize buffer IDs using the utils function
+    m_buffer_ids = {ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(0))};
 }
 
 std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_precisions(
@@ -64,6 +72,8 @@ std::set<std::vector<element::Type>> jit_gemm_copy_b_emitter::get_supported_prec
 void jit_gemm_copy_b_emitter::validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     OV_CPU_JIT_EMITTER_ASSERT(in.size() == 1, "Expects 1 input reg, got", in.size());
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
+    OV_CPU_JIT_EMITTER_ASSERT(m_memory_offsets.size() == 2, "Expected 2 memory offsets for input and output");
+    OV_CPU_JIT_EMITTER_ASSERT(m_buffer_ids.size() == 2, "Expected 2 buffer IDs for input and output");
 }
 
 void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
@@ -75,10 +85,29 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
     Xbyak_aarch64::XReg x2(2);
-    h->str(Xbyak_aarch64::XReg(in[0]), pre_ptr(h->sp, -get_vec_length()));
-    h->str(Xbyak_aarch64::XReg(out[0]), pre_ptr(h->sp, -get_vec_length()));
-    h->ldr(x2, post_ptr(h->sp, get_vec_length()));
-    h->ldr(x1, post_ptr(h->sp, get_vec_length()));
+    Xbyak_aarch64::XReg aux_reg(3);
+
+    // Prepare memory pointers with offsets
+    std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
+    const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
+
+    // Apply memory offsets and load adjusted pointers
+    std::vector<Xbyak_aarch64::XReg> load_regs{x1, x2};
+
+    // Dynamically choose safe auxiliary registers that don't conflict with mem_ptrs or load_regs
+    std::vector<size_t> used_indices;
+    used_indices.reserve(mem_ptrs.size());
+    for (const auto& reg : mem_ptrs) {
+        used_indices.push_back(reg.getIdx());
+    }
+    for (const auto& reg : load_regs) {
+        used_indices.push_back(reg.getIdx());
+    }
+    std::vector<Xbyak_aarch64::XReg> aux_regs = utils::get_aux_gprs(used_indices);
+
+    utils::push_and_load_ptrs_with_offsets(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_regs, load_regs);
+
+    // Set up executor pointer as first argument
     const auto& compiled_kernel = get_compiled_kernel_ptr();
     h->mov(x0, compiled_kernel);
 
@@ -89,11 +118,11 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
     restore_context(exclude);
 }
 
-const uintptr_t jit_gemm_copy_b_emitter::get_compiled_kernel_ptr() const {
+uintptr_t jit_gemm_copy_b_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor.get());
 }
 
-const uintptr_t jit_gemm_copy_b_emitter::get_execute_function_ptr() {
+uintptr_t jit_gemm_copy_b_emitter::get_execute_function_ptr() {
     return reinterpret_cast<const uintptr_t>(GemmCopyBKaiKernelExecutor::execute);
 }
 }  // namespace ov::intel_cpu::aarch64

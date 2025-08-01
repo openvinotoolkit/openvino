@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -24,14 +24,6 @@ inline static std::vector<Xbyak::Reg64> transform_idxs_to_regs(const std::vector
     });
     return regs;
 }
-
-/**
- * @brief If the passed `port` is connected to a Buffer, return its cluster ID.
- *        Otherwise returns SIZE_MAX
- * @param port expression port of memory access op
- * @return cluster ID of the connected Buffer or SIZE_MAX
- */
-size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port);
 
 /**
  * @brief Find the available register from the pool excepting: abi_param1, abi_param2, RSP and `used_gpr_idxs`
@@ -55,11 +47,11 @@ Xbyak::Reg64 init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_
  * @brief Push data pointer on stack adding offset. The offset is taken from runtime params `abi_param1`
  * @param h generator
  * @param stack_offset stack offset
- * @param ptr_reg register contains data pointer
+ * @param ptr_reg register containing data pointer
  * @param aux_reg aux register
  * @param runtime_offset offset in runtime params `abi_param1`
  */
-void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
+void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t* h,
                                            size_t stack_offset,
                                            Xbyak::Reg64 ptr_reg,
                                            Xbyak::Reg64 aux_reg,
@@ -67,12 +59,13 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* 
 
 /**
  * @brief Push data pointer on stack adding static offset `ptr_offset`
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
  * @param h generator
  * @param stack_offset stack offset
- * @param ptr_reg register contains data pointer
+ * @param ptr_reg register containing data pointer
  * @param ptr_offset offset which will be added to data pointer
  */
-void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator* h,
+void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t* h,
                                           size_t stack_offset,
                                           Xbyak::Reg64 ptr_reg,
                                           size_t ptr_offset);

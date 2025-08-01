@@ -146,6 +146,10 @@ which do not require specifying quantization parameters:
 * TheBloke/Llama-2-7B-Chat-GPTQ
 * Qwen/Qwen2-7B-Instruct-GPTQ-Int4
 
+.. note::
+
+   Pre-converted models optimized for NPU are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
+     
 
 Run generation using OpenVINO GenAI
 ###############################################################################################

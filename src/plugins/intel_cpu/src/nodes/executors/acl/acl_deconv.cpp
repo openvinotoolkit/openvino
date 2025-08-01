@@ -247,9 +247,9 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         return false;
     }
 
-    if (!(one_of(srcDescs[0]->getPrecision(), ov::element::f16, ov::element::f32) &&
-          srcDescs[0]->getPrecision() == srcDescs[1]->getPrecision() &&
-          srcDescs[1]->getPrecision() == dstDescs[0]->getPrecision())) {
+    if (!any_of(srcDescs[0]->getPrecision(), ov::element::f16, ov::element::f32) ||
+        srcDescs[0]->getPrecision() != srcDescs[1]->getPrecision() ||
+        srcDescs[1]->getPrecision() != dstDescs[0]->getPrecision()) {
         DEBUG_LOG("AclDeconvExecutor does not support precisions:",
                   " src[0]=",
                   srcDescs[0]->getPrecision(),
@@ -265,11 +265,11 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
         return false;
     }
 
-    if (!(srcDescs[0]->hasLayoutType(LayoutType::ncsp) && srcDescs[1]->hasLayoutType(LayoutType::ncsp) &&
-          dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
-        !(srcDescs[0]->hasLayoutType(LayoutType::nspc) &&
-          // Check weights as ncsp because we remove reorder and will transform ncsp -> nspc in exec() function
-          srcDescs[1]->hasLayoutType(LayoutType::ncsp) && dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
+    if ((!srcDescs[0]->hasLayoutType(LayoutType::ncsp) || !srcDescs[1]->hasLayoutType(LayoutType::ncsp) ||
+         !dstDescs[0]->hasLayoutType(LayoutType::ncsp)) &&
+        (!srcDescs[0]->hasLayoutType(LayoutType::nspc) ||
+         // Check weights as ncsp because we remove reorder and will transform ncsp -> nspc in exec() function
+         !srcDescs[1]->hasLayoutType(LayoutType::ncsp) || !dstDescs[0]->hasLayoutType(LayoutType::nspc))) {
         DEBUG_LOG("AclDeconvExecutor does not support layouts:",
                   " src[0]=",
                   srcDescs[0]->serializeFormat(),
@@ -304,8 +304,8 @@ bool AclDeconvExecutorBuilder::customIsSupported(const DeconvAttrs& deconvAttrs,
     unsigned int dilation_x =
         (deconvAttrs.dilation.size() > 1) ? deconvAttrs.dilation.at(1) : deconvAttrs.dilation.at(0);
     unsigned int dilation_y = deconvAttrs.dilation.at(0);
-    if (!one_of(dilation_x, static_cast<unsigned int>(0), static_cast<unsigned int>(1)) ||
-        !one_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1))) {
+    if (none_of(dilation_x, static_cast<unsigned int>(0), static_cast<unsigned int>(1)) ||
+        none_of(dilation_y, static_cast<unsigned int>(0), static_cast<unsigned int>(1))) {
         return false;
     }
 

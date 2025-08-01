@@ -28,6 +28,8 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
 
     // NB: Pre/Post processing can be configured only for Model case.
     if (std::holds_alternative<OpenVINOParams::ModelPath>(params.path)) {
+        network->cfgEnsureNamedTensors();
+
         if (std::holds_alternative<int>(params.output_precision)) {
             network->cfgOutputTensorPrecision(std::get<int>(params.output_precision));
         } else if (std::holds_alternative<AttrMap<int>>(params.output_precision)) {

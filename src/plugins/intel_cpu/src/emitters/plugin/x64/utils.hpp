@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
@@ -35,7 +35,7 @@ size_t get_callee_saved_aux_gpr(std::vector<size_t>& available_gprs,
 // The class emit register spills for the possible call of external binary code
 class EmitABIRegSpills {
 public:
-    EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator* h);
+    EmitABIRegSpills(dnnl::impl::cpu::x64::jit_generator_t* h);
     ~EmitABIRegSpills();
     [[nodiscard]] size_t get_num_spilled_regs() const {
         return m_regs_to_spill.size();
@@ -57,7 +57,7 @@ public:
 private:
     EmitABIRegSpills() = default;
     static dnnl::impl::cpu::x64::cpu_isa_t get_isa();
-    dnnl::impl::cpu::x64::jit_generator* h{nullptr};
+    dnnl::impl::cpu::x64::jit_generator_t* h{nullptr};
     const dnnl::impl::cpu::x64::cpu_isa_t isa{dnnl::impl::cpu::x64::cpu_isa_t::isa_undef};
     std::vector<Xbyak::Reg> m_regs_to_spill;
     Xbyak::Reg m_rsp_align_reg;
