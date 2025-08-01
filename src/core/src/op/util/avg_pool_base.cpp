@@ -75,14 +75,6 @@ void AvgPoolBase::set_strides(const Strides& strides) {
     m_strides = strides;
 }
 
-const Strides& AvgPoolBase::get_dilations() const {
-    return m_dilations;
-}
-
-void AvgPoolBase::set_dilations(const Strides& dilations) {
-    m_dilations = dilations;
-}
-
 const Shape& AvgPoolBase::get_pads_begin() const {
     return m_pads_begin;
 }

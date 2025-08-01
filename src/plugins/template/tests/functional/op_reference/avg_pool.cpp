@@ -71,7 +71,7 @@ struct AvgPoolParams {
           m_exclude_pad(exclude_pad),
           m_rounding_type(rounding_type),
           m_pad_type(pad_type) {
-        m_dilations = std::vector<size_t>(m_kernel.size(), 1);
+        m_dilations = Stride(m_kernel.size(), 1);
     }
 
     Shape m_input_shape;
