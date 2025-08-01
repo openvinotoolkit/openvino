@@ -16,8 +16,7 @@ public:
     jit_gemm_emitter(dnnl::impl::cpu::aarch64::jit_generator* h,
                      dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                      const ov::snippets::lowered::ExpressionPtr& expr,
-                     const snippets::KernelExecutorTablePtr& kernel_table,
-                     const std::set<snippets::Reg>& live_regs = {});
+                     const snippets::KernelExecutorTablePtr& kernel_table);
 
     size_t get_inputs_count() const override {
         return 2;
