@@ -45,7 +45,7 @@ struct VLSDPAOptImplementationManager : public ImplementationManager {
         const auto& info = engine.get_device_info();
 
         // CM optimized for Xe1/Xe2 architectures
-        if (!check_cm_jit_support(engine, config) || !(info.arch >= gpu_arch::xe_lp) || !config.get_use_cm()) {
+        if (!check_cm_jit_support(engine, config) || !(info.arch > gpu_arch::xe_lp) || !config.get_use_cm()) {
             return false;
         }
 

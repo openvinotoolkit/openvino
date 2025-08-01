@@ -87,6 +87,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     // This program checks if cm sources can be jitted by current IGC version
     const char* kernel_code = R""""(
         static_assert(__cplusplus >= 201703L);
+        static_assert(CM_HAS_DPAS);
         CM_INLINE uint64_t dummy() {
             return ((uint64_t)0L);
         }
@@ -100,6 +101,10 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     kernel_string->entry_point = "cm_check";
     kernel_string->batch_compilation = true;
     kernel_string->language = kernel_language::CM;
+
+    if (device->get_info().arch >= gpu_arch::xe2) {
+        kernel_string->str.append("\nstatic_assert(CM_HAS_LSC_UNTYPED_2D);\n");
+    }
 
     // Add timestamp to avoid IGC uses a cached cm_check kernel.
     auto timestamp = std::chrono::high_resolution_clock::now()

@@ -85,7 +85,6 @@ TEST_F(TransformationTestsF, TransposeVLSDPATest) {
     disable_rt_info_check();
     {
         model = build_model();
-        ov::pass::Serialize(std::string("build_model.xml"), std::string("build_model.bin")).run_on_model(model);
         manager.register_pass<TransposeFusion>();
     }
     { model_ref = build_target_model(); }

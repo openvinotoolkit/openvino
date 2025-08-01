@@ -358,7 +358,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 [&](const_node_ptr &) -> bool {
                     auto& engine = m_context->get_engine();
                     const auto& info = engine.get_device_info();
-                    if (!(info.arch >= cldnn::gpu_arch::xe_lp)) {
+                    if (!(info.arch > cldnn::gpu_arch::xe_lp)) { // gpu with XMX
                         return true;
                     }
 
@@ -370,7 +370,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
                     if (!check_cm_jit_support(engine, config)) {
                         util::log_message("You may miss SDPAToVLSDPA optimization for QWenVL model,"
-                                    "as current IGC version cannot compile its CM kernel. Enable it by update IGC.");
+                                    "as current IGC version is not compatible to the CM kernel used. Enable it by update IGC."
+                                    "Please also make sure clangFEWrapper for CM is present by checking environment varibles like "
+                                    "CM_FE_DIR or LD_LIBRARY_PATH if you are using Linux.");
                         return true;
                     }
 
