@@ -11,6 +11,26 @@ from openvino import Op, Type, Shape, Tensor, PartialShape, TensorVector
 class PostponedConstant(Op):
     """Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose."""
     def __init__(self, element_type: Type, shape: Shape, maker: Union[Callable[[], Tensor], Callable[[Tensor], None]], name: Optional[str] = None) -> None:
+        """Creates a PostponedConstant.
+
+        :param element_type: Element type of the constant.
+        :type element_type: openvino.Type
+        :param shape: Shape of the constant.
+        :type shape: openvino.Shape
+        :param maker: A callable that returns a Tensor or modifies the provided Tensor to represent the constant.
+                    Note: It's recommended to use a callable without arguments (returns Tensor) to avoid unnecessary tensor data copies.
+        :type maker: Union[Callable[[], Tensor], Callable[[Tensor], None]]
+        :param name: Optional name for the constant.
+        :type name: Optional[str]
+
+        :Example of a maker that returns a Tensor:
+        
+        .. code-block:: python       
+            class Maker:
+                def __call__(self) -> ov.Tensor:
+                    tensor_data = np.array([2, 2, 2, 2], dtype=np.float32)
+                    return ov.Tensor(tensor_data)
+        """
         super().__init__(self)
         self.get_rt_info()["postponed_constant"] = True  # value doesn't matter
         self.m_element_type = element_type
