@@ -29,6 +29,7 @@ const std::set<eltwise_mode>
                                     eltwise_mode::is_inf,
                                     eltwise_mode::is_nan };
 
+template<typename ShapeType>
 static cldnn::layout get_eltwise_output_layout(const layout& input_layout, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<eltwise>();
     auto out_data_type = desc->output_data_types[0].value_or(input_layout.data_type);
@@ -36,10 +37,10 @@ static cldnn::layout get_eltwise_output_layout(const layout& input_layout, kerne
     // We create dummy Add op as shape infer is exactly the same for any eltwise op type, so there is no need to have correct op type
     ov::op::v1::Add op;
     op.set_autob(desc->broadcast_spec);
-    std::vector<ov::PartialShape> output_shapes = {ov::PartialShape()};
-    std::vector<ov::PartialShape> input_shapes;
+    std::vector<shapeType> output_shapes = {ShapeType()};
+    std::vector<shapeType> input_shapes;
     for (size_t i = 0; i < desc->input_size(); i++) {
-        input_shapes.push_back(impl_param.get_input_layout(i).get<ov::PartialShape>());
+        input_shapes.push_back(impl_param.get_input_layout(i).get<shapeType>());
     }
 
     // Special handling for is_finite, is_nan, is_inf modes
@@ -82,7 +83,7 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
         input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
     }
 
-    auto output_layout = get_eltwise_output_layout(input_node_layout, impl_param);
+    auto output_layout = get_eltwise_output_layout<ov::PartialShape>(input_node_layout, impl_param);
 
     auto desc = impl_param.typed_desc<eltwise>();
     auto mode = desc->mode;
@@ -146,7 +147,7 @@ template<typename ShapeType>
 std::vector<layout> eltwise_inst::calc_output_layouts(eltwise_node const& /*node*/, kernel_impl_params const& impl_param) {
     auto desc = impl_param.typed_desc<eltwise>();
     auto input_layout = impl_param.get_non_padded_input_layout(impl_param.primary_input_idx);
-    auto output_layout = get_eltwise_output_layout(input_layout, impl_param);
+    auto output_layout = get_eltwise_output_layout<ShapeType>(input_layout, impl_param);
 
     auto mode = desc->mode;
     // list of operations supported for integer types

@@ -10,7 +10,6 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "primitive_type_base.h"
-#include "eltwise_inst.h"
 #include "reshape_inst.h"
 #include "read_value_inst.h"
 #include "reshape_shape_inference.hpp"
