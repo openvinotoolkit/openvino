@@ -3,12 +3,8 @@
 //
 
 #include <string>
-#include <utility>
 #include <vector>
-#include <memory>
 
-#include "openvino/core/any.hpp"
-#include "openvino/core/graph_util.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -67,110 +63,138 @@ public:
     }
 };
 
-static std::shared_ptr<ov::Model> get_simple_model_with_custom_add_op(float alpha, float beta, ov::PartialShape inp_shape) {
-    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inp_shape);
-    auto op = std::make_shared<CustomAddOp>(input, alpha, beta);
-    auto result = std::make_shared<ov::op::v0::Result>(op);
+using CustomOpDynamicTestParams = std::tuple<std::vector<ov::Shape>,            // input shape
+                                             std::vector<std::vector<float>>>;  // input data
+class CustomOpDynamic : public ov::test::TestsCommon, public testing::WithParamInterface<CustomOpDynamicTestParams> {
+    void SetUp() override {
+        generate_config_files();
+    };
 
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "model_with_custom_op_dynamic");
-}
-
-static std::pair<std::string, std::string> generate_config_files() {
-    std::string config_cl = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.cl";
-    std::string config_xml = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.xml";
-
-    std::string content_cl = R"(
-    __kernel void custom_add_kernel(
-        __global const INPUT0_TYPE* inp0,
-        __global OUTPUT0_TYPE* outp) {
-        const uint b = (uint)get_global_id(0);
-        const uint f = (uint)get_global_id(1);
-        const uint y = (uint)get_global_id(2);
-        #if INPUT0_DIMS_SIZE == 4
-            const uint x = 0;
-        #endif
-
-        const unsigned src_index = b*INPUT0_DIMS[1]*INPUT0_DIMS[2]*INPUT0_DIMS[3] + f*INPUT0_DIMS[2]*INPUT0_DIMS[3] + y*INPUT0_DIMS[3] + x;
-        const unsigned dst_index = src_index;
-
-        outp[dst_index] = inp0[src_index] * alpha + beta;
-    })";
-
-    std::string content_xml = R"(
-        <CustomLayer name="CustomAddOp" type="SimpleGPU" version="1">
-            <Kernel entry="custom_add_kernel">
-                <Source filename=")" + config_cl + R"("/>
-                <Define name="alpha" type="float" param="alpha" default="1.0"/>
-                <Define name="beta" type="float" param="beta" default="0.1"/>
-            </Kernel>
-            <Buffers>
-                <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
-                <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
-            </Buffers>
-            <CompilerOptions options="-cl-mad-enable"/>
-            <WorkSizes global="B,F,Y"/>
-        </CustomLayer>)";
-
-    ov::test::utils::createFile(config_cl, content_cl);
-    ov::test::utils::createFile(config_xml, content_xml);
-    return {config_xml, config_cl};
-}
-
-static void remove_configs(std::pair<std::string, std::string> config_files) {
-    ov::test::utils::removeFile(config_files.first.c_str());
-    ov::test::utils::removeFile(config_files.second.c_str());
-}
-
-TEST(CustomOpDynamic, CanReadValidCustomOpConfig) {
-    ov::Core core;
-    auto config_files = generate_config_files();
-    core.set_property(ov::test::utils::DEVICE_GPU, {{"CONFIG_FILE", config_files.first}});
-    remove_configs(config_files);
-}
-
-TEST(smoke_CustomOpDynamic, Accuracy) {
-    ov::Core core;
-    float alpha = 1.0, beta = 0.1;
-    const size_t dim1 = 1;
-    auto model = get_simple_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1});
-
-    auto config_files = generate_config_files();
-    ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_files.first}};
-    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
-
-    auto runtime_graph = compiled_model.get_runtime_model();
-    auto ops = runtime_graph->get_ordered_ops();
-
-    bool found_custom_op = false;
-    for (auto op : ops) {
-        if (op->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>() == "CustomGPUPrimitive") {
-            found_custom_op = true;
-            break;
-        }
+    void TearDown() override {
+        ov::test::utils::removeFile(config_cl);
+        ov::test::utils::removeFile(config_xml);
     }
-    ASSERT_TRUE(found_custom_op);
 
-    auto inp_arr_1 = std::vector<float>{0.2, 0.4};
-    auto inp_arr_2 = std::vector<float>{0.2, 0.4, 0.3, 0.5, 0.7, 0.9};
-    auto inputs = std::vector<ov::Tensor>{ov::Tensor({ov::element::f32}, ov::Shape{1, dim1, 2}, inp_arr_1.data()),
-                                          ov::Tensor({ov::element::f32}, ov::Shape{2, dim1, 3}, inp_arr_2.data())};
-    auto ireq = compiled_model.create_infer_request();
-    for (auto input : inputs) {
-        ireq.set_input_tensor(0, input);
-        ireq.infer();
-        auto output = ireq.get_output_tensor(0);
-        std::vector<float> actual(output.data<float>(), output.data<float>() + output.get_size());
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<CustomOpDynamicTestParams>& obj) {
+        std::vector<ov::Shape> input_shapes;
+        std::vector<std::vector<float>> input_datas;
+        std::tie(input_shapes, input_datas) = obj.param;
 
-        ASSERT_EQ(output.get_element_type(), element::f32);
+        std::ostringstream result;
+        result << "input_shape=";
+        for (auto shape : input_shapes) {
+            result << shape;
+        }
+        return result.str();
+    }
 
-        float* inp_data = input.data<float>();
-        for (size_t i = 0; i < output.get_size(); i++) {
-            ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta);
+    static const size_t dim1 = 1;
+    void run() {
+        std::vector<ov::Shape> input_shapes;
+        std::vector<std::vector<float>> input_datas;
+        std::tie(input_shapes, input_datas) = GetParam();
+        ASSERT_TRUE(input_shapes.size() == input_datas.size());
+
+        ov::Core core;
+        float alpha = 1.0, beta = 0.1;
+        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1});
+
+        ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
+        auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
+
+        auto runtime_graph = compiled_model.get_runtime_model();
+        auto ops = runtime_graph->get_ordered_ops();
+
+        bool found_custom_op = false;
+        for (auto op : ops) {
+            if (op->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>() == "CustomGPUPrimitive") {
+                found_custom_op = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(found_custom_op);
+
+        auto ireq = compiled_model.create_infer_request();
+        for (size_t i = 0; i < input_datas.size(); i++) {
+            auto input = ov::Tensor({ov::element::f32}, input_shapes[i], input_datas[i].data());
+            ireq.set_input_tensor(0, input);
+            ireq.infer();
+            auto output = ireq.get_output_tensor(0);
+            std::vector<float> actual(output.data<float>(), output.data<float>() + output.get_size());
+
+            ASSERT_EQ(output.get_element_type(), element::f32);
+
+            float* inp_data = input.data<float>();
+            for (size_t i = 0; i < output.get_size(); i++) {
+                ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta);
+            }
         }
     }
 
-    remove_configs(config_files);
+private:
+    std::string config_cl;
+    std::string config_xml;
+
+    void generate_config_files() {
+        config_cl = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.cl";
+        config_xml = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.xml";
+
+        std::string content_cl = R"(
+        __kernel void custom_add_kernel(
+            __global const INPUT0_TYPE* inp0,
+            __global OUTPUT0_TYPE* outp) {
+            const uint b = (uint)get_global_id(0);
+            const uint f = (uint)get_global_id(1);
+            const uint y = (uint)get_global_id(2);
+            #if INPUT0_DIMS_SIZE == 4
+                const uint x = 0;
+            #endif
+    
+            const unsigned src_index = b*INPUT0_DIMS[1]*INPUT0_DIMS[2]*INPUT0_DIMS[3] + f*INPUT0_DIMS[2]*INPUT0_DIMS[3] + y*INPUT0_DIMS[3] + x;
+            const unsigned dst_index = src_index;
+    
+            outp[dst_index] = inp0[src_index] * alpha + beta;
+        })";
+
+        std::string content_xml = R"(
+            <CustomLayer name="CustomAddOp" type="SimpleGPU" version="1">
+                <Kernel entry="custom_add_kernel">
+                    <Source filename=")" + config_cl + R"("/>
+                    <Define name="alpha" type="float" param="alpha" default="1.0"/>
+                    <Define name="beta" type="float" param="beta" default="0.1"/>
+                </Kernel>
+                <Buffers>
+                    <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+                    <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
+                </Buffers>
+                <CompilerOptions options="-cl-mad-enable"/>
+                <WorkSizes global="B,F,Y"/>
+            </CustomLayer>)";
+
+        ov::test::utils::createFile(config_cl, content_cl);
+        ov::test::utils::createFile(config_xml, content_xml);
+    }
+
+    std::shared_ptr<ov::Model> generate_model_with_custom_add_op(float alpha, float beta, ov::PartialShape inp_shape) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, inp_shape);
+        auto op = std::make_shared<CustomAddOp>(input, alpha, beta);
+        auto result = std::make_shared<ov::op::v0::Result>(op);
+        return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "model_with_custom_op_dynamic");
+    }
+};
+
+TEST_P(CustomOpDynamic, Accuracy) {
+    run();
 }
+
+const std::vector<ov::Shape> input_shapes{{1, CustomOpDynamic::dim1, 2}, {2, CustomOpDynamic::dim1, 3}};
+const std::vector<std::vector<float>> input_datas{{0.2, 0.4}, {0.2, 0.4, 0.3, 0.5, 0.7, 0.9}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_Accuracy, CustomOpDynamic,
+    ::testing::Combine(::testing::Values(input_shapes),
+                       ::testing::Values(input_datas)),
+    CustomOpDynamic::getTestCaseName);
 
 } // namespace intel_gpu
 } // namespace test
