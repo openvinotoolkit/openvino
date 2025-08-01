@@ -76,7 +76,6 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
         }
     }
 
-    // For numpy broadcast of Eltwise, primary input index should be large pshape input(not just constant) to be aligned
     auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
     auto desc = impl_param.typed_desc<eltwise>();
     auto output_type = desc->output_data_types[0].value_or(input_node_layout.data_type);
