@@ -19,6 +19,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+#include <limits>
 
 #include "config.h"
 #include "cpu_memory.h"
@@ -45,6 +46,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
@@ -619,6 +621,16 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     m_attrs.data.algo = getAlgorithm();
     m_attrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
     m_attrs.opsList = {getType()};
+
+    if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
+        if (m_attrs.data.gamma < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())) {
+            m_attrs.data.gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        }
+        if (m_attrs.data.gamma > static_cast<float>(std::numeric_limits<ov::bfloat16>::max())) {
+            m_attrs.data.gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        }
+    }
+
     // Create memory descriptors
     std::vector<MemoryDescPtr> srcDescs;
     // Select preferred layout for memory descriptors
