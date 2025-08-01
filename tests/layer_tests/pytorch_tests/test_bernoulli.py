@@ -20,12 +20,16 @@ class TestBernoulli(PytorchLayerTest):
             def __init__(self, out, seed) -> None:
                 super().__init__()
                 gen = torch.Generator()
-                gen.manual_seed(seed)
                 self.gen = gen
+                self.seed = seed
                 if not out:
                     self.forward = self.bernoulli
                 else:
                     self.forward = self.bernoulli_out
+
+            def __call__(self, *args, **kwargs):
+                self.gen.manual_seed(self.seed)
+                return self.forward(*args, **kwargs)
 
             def bernoulli(self, input):
                 bernoulli_res = torch.bernoulli(input, generator=self.gen)
@@ -48,6 +52,7 @@ class TestBernoulli(PytorchLayerTest):
     @pytest.mark.parametrize("seed", [1, 50, 1234])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_bernoulli(self, input, input_type, out, seed, ie_device, precision, ir_version):
         if input_type == np.float64:
             pytest.skip("156027: Incorrect specification or reference for RandomUniform for fp64 output type")
@@ -68,10 +73,14 @@ class TestBernoulliWithP(PytorchLayerTest):
             def __init__(self, p, seed) -> None:
                 super().__init__()
                 gen = torch.Generator()
-                gen.manual_seed(seed)
                 self.gen = gen
                 self.p = p
+                self.seed = seed
                 self.forward = self.bernoulli_with_p
+
+            def __call__(self, *args, **kwargs):
+                self.gen.manual_seed(self.seed)
+                return self.forward(*args, **kwargs)
 
             def bernoulli_with_p(self, input):
                 bernoulli_res = torch.bernoulli(input, self.p, generator=self.gen)
@@ -90,6 +99,7 @@ class TestBernoulliWithP(PytorchLayerTest):
     @pytest.mark.parametrize("seed", [12])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_fx_backend
     def test_bernoulli(self, input, input_type, p, seed, ie_device, precision, ir_version):
         if p not in [0.0, 1.0]:
             pytest.skip("156027: Incorrect specification or reference for RandomUniform for fp64 output type")
