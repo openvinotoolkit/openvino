@@ -35,6 +35,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -327,6 +328,28 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
 bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SDPASubgraphFusion);
+
+    // Early check: if model has no SDPA operations, skip symbolic processing entirely
+    bool has_sdpa = false;
+    for (const auto& op : f->get_ordered_ops()) {
+        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
+            has_sdpa = true;
+            break;
+        }
+    }
+
+    if (!has_sdpa) {
+        // Use traditional manager if no SDPA operations found
+        ov::pass::Manager manager("SDPASubgraphFusion");
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::SimplifyGatherShapeOf);
+        CPU_REGISTER_PASS_COMMON(manager, ov::pass::transpose_sinking::TSShapeOfForward);
+        CPU_REGISTER_PASS_COMMON(manager, StatefulSDPAFusion);
+        CPU_REGISTER_PASS_X64(manager, ov::intel_cpu::SDPAFuseTransposeReshape);
+        manager.run_passes(f);
+        return false;
+    }
+
+    // Use symbolic optimizations only if SDPA operations are present
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     const auto& ctx_manager = symbolic_optimizations.get_manager();
 
@@ -335,7 +358,9 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     ctx_manager->register_pass<StatefulSDPAFusion>();
     CPU_REGISTER_PASS_X64((*ctx_manager), ov::intel_cpu::SDPAFuseTransposeReshape);
 
-    return symbolic_optimizations.run_on_model(f);
+    // Run symbolic optimizations but always return false to maintain old behavior
+    symbolic_optimizations.run_on_model(f);
+    return false;
 }
 
 }  // namespace ov::intel_cpu
