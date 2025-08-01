@@ -9,6 +9,8 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
+#include "transformations/rt_info/decompression.hpp"
+#include "transformations/rt_info/disable_constant_folding.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -81,6 +83,22 @@ uint32_t rearrange_awq_bits(uint32_t num) {
     return result;
 }
 
+uint16_t rearrange_bitnet_bits(uint16_t num) {
+    uint16_t result = 0;
+    const uint16_t mask = 0x0003;
+
+    result |= (num & (mask << 0)) << 0;
+    result |= (num & (mask << 8)) >> 6;
+    result |= (num & (mask << 4)) << 0;
+    result |= (num & (mask << 10)) >> 4;
+    result |= (num & (mask << 6)) << 2;
+    result |= (num & (mask << 12)) >> 2;
+    result |= (num & (mask << 8)) << 4;
+    result |= (num & (mask << 14)) << 0;
+
+    return result;
+}
+
 Output<Node> rearrange_constant(const Output<Node>& c, uint32_t groups) {
     auto constant = ov::as_type_ptr<v0::Constant>(c.get_node_shared_ptr());
     FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
@@ -133,6 +151,52 @@ OutputVector translate_linear_awq(const NodeContext& context) {
             bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
         }
         matmul = context.mark_node(std::make_shared<v1::Add>(matmul, bias));
+    }
+    return {matmul};
+};
+
+OutputVector translate_linear_bitnet(const NodeContext& context) {
+    num_inputs_check(context, 3, 4);
+    auto x = context.get_input(0);
+    auto weight = context.get_input(1);
+
+    auto constant = ov::as_type_ptr<v0::Constant>(weight.get_node_shared_ptr());
+    FRONT_END_OP_CONVERSION_CHECK(constant, "weight must be Constant.");
+    auto src = reinterpret_cast<const uint16_t*>(constant->get_data_ptr());
+    auto initial_shape = constant->get_shape();
+    FRONT_END_OP_CONVERSION_CHECK(initial_shape.size() == 2, "Only 2D constants are supported.");
+    auto new_shape = Shape{initial_shape[0] * 4, initial_shape[1]};
+    auto new_weight = std::make_shared<v0::Constant>(element::u2, new_shape);
+    auto dst = const_cast<uint16_t*>(reinterpret_cast<const uint16_t*>(new_weight->get_data_ptr()));
+    for (size_t i = 0; i < shape_size(initial_shape) / 2; i++) {
+        dst[i] = rearrange_bitnet_bits(src[i]);
+    }
+    new_weight->set_friendly_name(weight.get_node_shared_ptr()->get_friendly_name());
+    auto zero_point = context.mark_node(std::make_shared<v0::Constant>(element::u2, Shape{}, 1));
+    auto weight_zp = context.mark_node(std::make_shared<v1::Subtract>(new_weight, zero_point));
+    auto convert = context.mark_node(std::make_shared<v0::Convert>(weight_zp, element::f32));
+
+    disable_constant_folding(new_weight);
+    disable_constant_folding(zero_point);
+    disable_constant_folding(weight_zp);
+    disable_constant_folding(convert);
+
+    auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, convert, false, true));
+    if (!context.input_is_none(3)) {
+        auto bias = context.get_input(3);
+
+        if (bias.get_element_type() == element::f16 || bias.get_element_type() == element::bf16) {
+            bias = context.mark_node(std::make_shared<v1::ConvertLike>(bias, x));
+        }
+        matmul = context.mark_node(std::make_shared<v1::Add>(matmul, bias));
+    }
+    if (!context.input_is_none(2)) {
+        auto scales = context.get_input(2);
+
+        if (scales.get_element_type() == element::f16 || scales.get_element_type() == element::bf16) {
+            scales = context.mark_node(std::make_shared<v1::ConvertLike>(scales, x));
+        }
+        matmul = context.mark_node(std::make_shared<v1::Multiply>(matmul, scales));
     }
     return {matmul};
 };
