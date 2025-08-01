@@ -105,6 +105,7 @@
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/power_static.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
+#include "utils/bfloat16.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
@@ -619,6 +620,16 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     m_attrs.data.algo = getAlgorithm();
     m_attrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
     m_attrs.opsList = {getType()};
+
+    if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
+        if (m_attrs.data.gamma < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())) {
+            m_attrs.data.gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        }
+        if (m_attrs.data.gamma > static_cast<float>(std::numeric_limits<ov::bfloat16>::max())) {
+            m_attrs.data.gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        }
+    }
+
     // Create memory descriptors
     std::vector<MemoryDescPtr> srcDescs;
     // Select preferred layout for memory descriptors
