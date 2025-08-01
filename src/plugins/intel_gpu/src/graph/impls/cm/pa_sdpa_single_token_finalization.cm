@@ -1,0 +1,45 @@
+// Copyright (C) 2025 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#define num_heads HEADS_NUM
+#define head_size HEAD_SIZE
+
+#define kv_len KV_LEN
+#define kv_split_len KV_SPLIT_LEN
+#define kv_split_data_size KV_SPLIT_DATA_SIZE
+
+#define split_num KV_LEN/KV_SPLIT_LEN
+#define total_split_num split_num*num_heads
+
+//cm_sdpa_2nd_reduce
+extern "C" _GENX_MAIN_ void KERNEL_NAME(
+    half* input [[type("svmptr_t")]], // 
+    half* output [[type("svmptr_t")]],
+    float* lse [[type("svmptr_t")]]
+    ) {
+        auto batch = cm_global_id(0);
+        auto head = cm_global_id(1);
+        auto offset = cm_group_id(2) * kv_split_data_size;
+
+        // load lse
+        uint lse_offset = batch * total_split_num + head * split_num;
+        vector<float, split_num> lse_vec;
+        cm_svm_block_read<float, split_num>((svmptr_t)(lse + lse_offset), lse_vec.format<float>());
+        float total_lse = cm_sum<float>(lse_vec);
+
+        // load input, total_split_num = head_nums * split_num;
+        matrix<half, 1, kv_split_data_size> out_mat = 0;
+        matrix<half, 1, kv_split_data_size> data_mat;
+        uint input_offset = batch * total_split_num * head_size + head * split_num * head_size + offset;
+        #pragma unroll
+        for(int k = 0; k < split_num; k ++) {
+            cm_svm_block_read<half, kv_split_data_size>((svmptr_t)(input + input_offset), data_mat.format<half>());
+            input_offset += head_size;
+            out_mat += cm_mul<half>(data_mat, (float)(lse_vec[k]/total_lse));
+        }
+
+        // write output
+        uint output_offset = batch * num_heads * head_size + head * head_size + offset;
+        cm_svm_block_write<half, kv_split_data_size>((svmptr_t)(output + output_offset),out_mat.format<half>());
+    }
