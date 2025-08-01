@@ -20,6 +20,7 @@
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
+#include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/precision_translation.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -128,12 +129,9 @@ struct SupportsAnyConfig {
     }
 };
 
+// Allows to express 'shape agnostic' intention in a more verbose way
 template <typename Attrs>
-struct AcceptsAnyShape {
-    bool operator()([[maybe_unused]] const Attrs& attrs, [[maybe_unused]] const MemoryArgs& memory) const {
-        return true;
-    }
-};
+const inline typename ExecutorImplementation<Attrs>::AcceptsShapePredicate AcceptsAnyShape{};
 
 template <typename Primitive, typename Attrs>
 struct CreateDefault {
