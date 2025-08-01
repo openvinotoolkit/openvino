@@ -27,13 +27,13 @@ inline void input_check(const ov::Node* node,
     const auto& rank = node->get_input_partial_shape(idx).rank();
     const auto& tp = node->get_input_element_type(idx);
 
-    auto rank_check = [&](const Rank& rank) {
-        return rank.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rank.get_length(), allowed_ranks);
+    auto rank_check = [&](const Rank& rnk) {
+        return rnk.is_dynamic() || empty(allowed_ranks) || is_rank_compatible_any_of(rnk.get_length(), allowed_ranks);
     };
 
-    auto type_check = [&](const Type& type) {
-        auto it = std::find(allowed_types.begin(), allowed_types.end(), tp);
-        return type.is_dynamic() || allowed_types.empty() || it != allowed_types.end();
+    auto type_check = [&](const Type& t) {
+        return t.is_dynamic() || allowed_types.empty() ||
+               std::find(allowed_types.begin(), allowed_types.end(), t) != allowed_types.end();
     };
 
     NODE_VALIDATION_CHECK(node,
@@ -143,8 +143,8 @@ void PagedAttentionExtension::validate_and_infer_types() {
     OV_OP_SCOPE(PagedAttentionExtension_validate_and_infer_types);
 
     NODE_VALIDATION_CHECK(this,
-                          get_input_size() == 14 || get_input_size() == 17,
-                          "PagedAttensionExtension expects 14 or 17 inputs, but it has ",
+                          get_input_size() == 13 || get_input_size() == 16,
+                          "PagedAttentionExtension expects 13 (no rotation) or 16 (with rotation) inputs, but it has ",
                           get_input_size());
 
     // format: Node*, input_idx, name, {rank_list}, {type_list}
@@ -161,11 +161,10 @@ void PagedAttentionExtension::validate_and_infer_types() {
     input_check(this, 10, "sliding_window", {0}, {element::i32});
     input_check(this, 11, "alibi_slopes", {1}, get_real_types());
     input_check(this, 12, "max_context_len", {0}, {element::i32});
-    input_check(this, 13, "score_aggregation_window", {0, 1}, {element::i32});
-    if (get_input_size() == 17) {
-        input_check(this, 14, "rotated_block_indices", {1}, {element::i32});
-        input_check(this, 15, "rotation_deltas", {2}, {element::i32});
-        input_check(this, 16, "rotation_trig_lut", {2}, {element::f16, element::f32});
+    if (get_input_size() == 16) {
+        input_check(this, 13, "rotated_block_indices", {1}, {element::i32});
+        input_check(this, 14, "rotation_deltas", {2}, {element::i32});
+        input_check(this, 15, "rotation_trig_lut", {2}, {element::f16, element::f32});
     }
 
     const auto input_shapes = ov::util::get_node_input_partial_shapes(*this);

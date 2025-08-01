@@ -19,12 +19,16 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
+#ifndef PA_DEBUG
+#define PA_DEBUG 0
+#endif
+
 namespace ov::reference {
 namespace paged_attention_utils {
 
 // TODO Delete when redundant
 //---------------------------------------------------------------------------
-// Debug-print utilities
+// Debug-print utilities (gated by PA_DEBUG)
 //---------------------------------------------------------------------------
 
 // Recursive helper for printing an N-dimensional tensor
@@ -35,6 +39,7 @@ void debug_print_tensor_recursive(const T* data,
                                   size_t offset,
                                   const std::string& prefix,
                                   int indent) {
+#if PA_DEBUG
     if (dim == shape.size() - 1) {
         // Last dimension: print a flat row
         std::cout << std::string(indent, ' ') << "[ ";
@@ -59,11 +64,14 @@ void debug_print_tensor_recursive(const T* data,
         }
         std::cout << std::string(indent, ' ') << "]";
     }
+#else
+    (void)data; (void)shape; (void)dim; (void)offset; (void)prefix; (void)indent;
+#endif
 }
 
 template <typename T>
 void debug_print_tensor(const T* data, const std::vector<size_t>& shape, const std::string& name) {
-    // Print header: name and shape
+#if PA_DEBUG
     std::cout << name << " (shape = [";
     for (size_t i = 0; i < shape.size(); ++i) {
         std::cout << shape[i];
@@ -74,10 +82,14 @@ void debug_print_tensor(const T* data, const std::vector<size_t>& shape, const s
     // Recursively print contents
     debug_print_tensor_recursive(data, shape, 0, 0, name, 0);
     std::cout << "\n\n";
+#else
+    (void)data; (void)shape; (void)name;
+#endif
 }
 
 template <typename T>
 void debug_print_vector(const T* data, size_t length, const std::string& name) {
+#if PA_DEBUG
     std::cout << name << " (length = " << length << "): [ ";
     std::cout << std::fixed << std::setprecision(6);
     for (size_t i = 0; i < length; ++i) {
@@ -86,6 +98,9 @@ void debug_print_vector(const T* data, size_t length, const std::string& name) {
             std::cout << ", ";
     }
     std::cout << " ]\n\n";
+#else
+    (void)data; (void)length; (void)name;
+#endif
 }
 
 template <typename T>
@@ -95,15 +110,27 @@ void debug_print_std_vector(const std::vector<T>& vec, const std::string& name) 
 
 template <typename T>
 void debug_print_scalar(const T& value, const std::string& name) {
+#if PA_DEBUG
     std::cout << name << ": " << std::fixed << std::setprecision(6) << value << "\n\n";
+#else
+    (void)value; (void)name;
+#endif
 }
 
 inline void debug_print_int_scalar(const int32_t& value, const std::string& name) {
+#if PA_DEBUG
     std::cout << name << ": " << value << "\n\n";
+#else
+    (void)value; (void)name;
+#endif
 }
 
 inline void debug_print_size_t_scalar(const size_t& value, const std::string& name) {
+#if PA_DEBUG
     std::cout << name << ": " << value << "\n\n";
+#else
+    (void)value; (void)name;
+#endif
 }
 
 //---------------------------------------------------------------------------
@@ -269,6 +296,7 @@ void insert_new_token_into_cache(PagedAttentionContext& ctx, size_t token_index,
     int32_t begin = ctx.block_indices_begins[sequence_index];
     ctx.block_indices[begin + ctx.sequence_block_count[sequence_index] - 1] = block_id;
 
+#if PA_DEBUG
     // Debug: report insertion parameters
     std::cout << "[Debug] insert_new_token_into_cache:\n";
     std::cout << "  token_index = " << token_index << "\n";
@@ -276,6 +304,7 @@ void insert_new_token_into_cache(PagedAttentionContext& ctx, size_t token_index,
     std::cout << "  local_index = " << local_index << "\n";
     std::cout << "  offset = " << offset << "\n";
     std::cout << "  block_id = " << block_id << "\n\n";
+#endif
 
     // Copy key and value vectors, with debug prints
     for (size_t head = 0; head < ctx.num_heads; ++head) {
@@ -287,14 +316,12 @@ void insert_new_token_into_cache(PagedAttentionContext& ctx, size_t token_index,
         const T* src_val = value_ptr + token_index * ctx.value_feature_size + head * ctx.value_head_size;
         std::memcpy(value_cache_ptr + v_offset, src_val, ctx.value_head_size * sizeof(T));
 
-        // Debug: show inserted key slice
+        // Debug: show inserted key/value slices
         std::vector<size_t> key_slice_shape = {ctx.key_head_size};
         debug_print_tensor(src_key,
                            key_slice_shape,
                            "  key_cache insertion [block=" + std::to_string(block_id) +
                                ", head=" + std::to_string(head) + ", offset=" + std::to_string(offset) + "]");
-
-        // Debug: show inserted value slice
         std::vector<size_t> val_slice_shape = {ctx.value_head_size};
         debug_print_tensor(src_val,
                            val_slice_shape,
@@ -334,7 +361,6 @@ T compute_score_for_cached_key(const T* query_vec,
     const T* cache_base = static_cast<const T*>(ctx.key_cache);
     const T* key_vec = cache_base + ((block_id * ctx.num_heads + head) * ctx.block_size + offset) * ctx.key_head_size;
 
-    // Debug: print the key vector used for dot product
     std::vector<size_t> key_vec_shape = {ctx.key_head_size};
     debug_print_tensor(key_vec,
                        key_vec_shape,
@@ -351,7 +377,6 @@ T compute_score_for_cached_key(const T* query_vec,
                    get_trig_index(rot_idx, offset, ctx));
         score = dot_product(query_vec, tmp.data(), ctx.key_head_size);
 
-        // Debug: print the rotated key vector if rotation applied
         debug_print_std_vector(tmp,
                                "    rotated key_vec [block=" + std::to_string(block_id) +
                                    ", head=" + std::to_string(head) + ", offset=" + std::to_string(offset) + "]");
@@ -367,7 +392,6 @@ T compute_score_for_new_key(const T* query_vec, size_t head, int32_t new_token_i
     const T* key_ptr = static_cast<const T*>(ctx.key);
     const T* key_vec = key_ptr + size_t(new_token_idx) * ctx.key_feature_size + head * ctx.key_head_size;
 
-    // Debug: print the new key vector used for dot product
     std::vector<size_t> new_key_vec_shape = {ctx.key_head_size};
     debug_print_tensor(
         key_vec,
@@ -390,7 +414,6 @@ void accumulate_value_for_cached_key(size_t head,
     const T* cache_base = static_cast<const T*>(ctx.value_cache);
     const T* val_vec = cache_base + ((block_id * ctx.num_heads + head) * ctx.block_size + offset) * ctx.value_head_size;
 
-    // Debug: print the value vector used for accumulation
     std::vector<size_t> val_vec_shape = {ctx.value_head_size};
     debug_print_tensor(val_vec,
                        val_vec_shape,
@@ -414,7 +437,6 @@ void accumulate_value_for_new_key(int32_t new_token_idx,
     const T* value_ptr = static_cast<const T*>(ctx.value);
     const T* val_vec = value_ptr + size_t(new_token_idx) * ctx.value_feature_size + head * ctx.value_head_size;
 
-    // Debug: print the new value vector used for accumulation
     std::vector<size_t> new_val_vec_shape = {ctx.value_head_size};
     debug_print_tensor(
         val_vec,
@@ -433,7 +455,7 @@ void accumulate_value_for_new_key(int32_t new_token_idx,
 //---------------------------------------------------------------------------
 template <typename T>
 void paged_attention(T* out,    // Output attention result
-                     T* score,  // Output concatenated raw scores
+                     T* score,  // Output concatenated raw/softmax scores (layout: [B_tokens, H, max_ctx])
 
                      const T* query,                      // [batch_tokens, num_heads * q_head_size]
                      const T* key,                        // [batch_tokens, num_heads * k_head_size]
@@ -464,28 +486,20 @@ void paged_attention(T* out,    // Output attention result
                      const ov::Shape& rotation_trig_lut_shape) {
     using namespace paged_attention_utils;
 
-    //--------------------------------------------------------------------------------
-    // Initial Debug Print of Raw Inputs
-    //--------------------------------------------------------------------------------
-
+#if PA_DEBUG
     std::cout << "===== paged_attention: Initial Inputs =====\n\n";
-
-    // Query
     {
         std::vector<size_t> q_shape_vec = {query_shape[0], query_shape[1]};
         debug_print_tensor(query, q_shape_vec, "Input Q");
     }
-    // Key
     {
         std::vector<size_t> k_shape_vec = {key_shape[0], key_shape[1]};
         debug_print_tensor(key, k_shape_vec, "Input K");
     }
-    // Value
     {
         std::vector<size_t> v_shape_vec = {value_shape[0], value_shape[1]};
         debug_print_tensor(value, v_shape_vec, "Input V");
     }
-    // Key Cache (before any insertions)
     {
         std::vector<size_t> kc_shape_vec = {key_cache_shape[0],
                                             key_cache_shape[1],
@@ -493,7 +507,6 @@ void paged_attention(T* out,    // Output attention result
                                             key_cache_shape[3]};
         debug_print_tensor(key_cache, kc_shape_vec, "Initial Key Cache");
     }
-    // Value Cache (before any insertions)
     {
         std::vector<size_t> vc_shape_vec = {value_cache_shape[0],
                                             value_cache_shape[1],
@@ -501,67 +514,49 @@ void paged_attention(T* out,    // Output attention result
                                             value_cache_shape[3]};
         debug_print_tensor(value_cache, vc_shape_vec, "Initial Value Cache");
     }
-    // past_lens
     if (past_lens) {
         std::vector<size_t> pl_shape = {past_lens_shape[0]};
         debug_print_tensor(past_lens, pl_shape, "past_lens");
     }
-    // subsequence_begins
     if (subsequence_begins) {
         std::vector<size_t> sb_shape = {past_lens_shape[0] + 1};
         debug_print_tensor(subsequence_begins, sb_shape, "subsequence_begins");
     }
-    // block_indices
     if (block_indices) {
-        // block_indices length = key_cache_shape[0] (num_blocks)
         std::vector<size_t> bi_shape = {key_cache_shape[0]};
         debug_print_tensor(block_indices, bi_shape, "block_indices (initial)");
     }
-    // block_indices_begins
     if (block_indices_begins) {
         std::vector<size_t> bib_shape = {past_lens_shape[0] + 1};
         debug_print_tensor(block_indices_begins, bib_shape, "block_indices_begins");
     }
-    // scale
     if (scale_ptr) {
         debug_print_scalar(scale_ptr[0], "scale_ptr[0]");
     }
-    // sliding_window
     if (sliding_window_ptr) {
         debug_print_int_scalar(sliding_window_ptr[0], "sliding_window_ptr[0]");
     }
-    // alibi_slopes
     if (alibi_slopes) {
-        std::vector<size_t> al_shape = {query_shape[1] / (/* assume evenly divided among heads? */ 1)};
-        // actual shape is [num_heads], but for debug we print the raw array length
-        // (user can infer from context.num_heads below)
-        debug_print_tensor(static_cast<const T*>(alibi_slopes), al_shape, "alibi_slopes");
+        std::vector<size_t> al_shape = {query_shape[1]};
+        debug_print_tensor(static_cast<const T*>(alibi_slopes), al_shape, "alibi_slopes (raw length)");
     }
-    // max_context_len
     if (max_context_len_ptr) {
         debug_print_int_scalar(max_context_len_ptr[0], "max_context_len_ptr[0]");
     }
-    // rotated_block_indices
     if (rotated_block_indices) {
         std::vector<size_t> rbi_shape = {rotated_block_indices_shape[0]};
         debug_print_tensor(rotated_block_indices, rbi_shape, "rotated_block_indices");
     }
-    // rotation_deltas
     if (rotation_deltas) {
         std::vector<size_t> rd_shape = {rotation_deltas_shape[0], rotation_deltas_shape[1]};
         debug_print_tensor(rotation_deltas, rd_shape, "rotation_deltas");
     }
-    // rotation_trig_lut
     if (rotation_trig_lut) {
         std::vector<size_t> rtl_shape = {rotation_trig_lut_shape[0], rotation_trig_lut_shape[1]};
         debug_print_tensor(rotation_trig_lut, rtl_shape, "rotation_trig_lut");
     }
-
     std::cout << "===========================================\n\n";
-
-    //--------------------------------------------------------------------------------
-    // Build Context Print
-    //--------------------------------------------------------------------------------
+#endif
 
     PagedAttentionContext ctx{};
 
@@ -609,6 +604,7 @@ void paged_attention(T* out,    // Output attention result
         ctx.sequence_block_count[s] = end - begin;
     }
 
+#if PA_DEBUG
     std::cout << "===== paged_attention: Context Contents =====\n\n";
     debug_print_size_t_scalar(ctx.batch_tokens, "ctx.batch_tokens");
     debug_print_size_t_scalar(ctx.batch_sequence_count, "ctx.batch_sequence_count");
@@ -628,9 +624,10 @@ void paged_attention(T* out,    // Output attention result
     debug_print_size_t_scalar(ctx.rotation_deltas_dim, "ctx.rotation_deltas_dim");
     debug_print_std_vector(ctx.sequence_block_count, "ctx.sequence_block_count");
     std::cout << "==============================================\n\n";
+#endif
 
-    // Compute scale factor
-    T scale = scale_ptr ? scale_ptr[0] : T(1) / std::sqrt(T(ctx.value_head_size));
+    // Compute scale factor (default: 1/sqrt(d_k))
+    T scale = scale_ptr ? scale_ptr[0] : T(1) / std::sqrt(T(ctx.key_head_size));
     debug_print_scalar(scale, "Computed scale");
 
     //--------------------------------------------------------------------------------
@@ -640,12 +637,15 @@ void paged_attention(T* out,    // Output attention result
     for (size_t token_idx = 0; token_idx < ctx.batch_tokens; ++token_idx) {
         size_t seq_idx = get_sequence_index(token_idx, ctx);
 
+#if PA_DEBUG
         std::cout << "----- Processing token " << token_idx << " (sequence " << seq_idx << ") -----\n\n";
+#endif
 
         // Update KV cache if new token in this sequence
         if (subsequence_begins && token_idx >= size_t(subsequence_begins[seq_idx])) {
             insert_new_token_into_cache<T>(ctx, token_idx, seq_idx);
 
+#if PA_DEBUG
             // Debug: print key_cache and value_cache after insertion
             {
                 std::vector<size_t> kc_shape_vec = {key_cache_shape[0],
@@ -661,14 +661,18 @@ void paged_attention(T* out,    // Output attention result
                                                     value_cache_shape[3]};
                 debug_print_tensor(value_cache, vc_shape_vec, "Value Cache after insertion");
             }
+#endif
         }
 
         // Per-head attention
         for (size_t head = 0; head < ctx.num_heads; ++head) {
+#if PA_DEBUG
             std::cout << "  >>> Head " << head << " <<<\n\n";
+#endif
 
-            // 3.2.1) Extract query vector for this token and head
+            // Extract query vector for this token and head
             const T* q_vector = query + token_idx * ctx.query_feature_size + head * ctx.query_head_size;
+#if PA_DEBUG
             {
                 std::vector<size_t> qv_shape = {ctx.query_head_size};
                 debug_print_tensor(
@@ -676,6 +680,7 @@ void paged_attention(T* out,    // Output attention result
                     qv_shape,
                     "    q_vector [token=" + std::to_string(token_idx) + ", head=" + std::to_string(head) + "]");
             }
+#endif
 
             // Determine past_tokens, new_tokens, total_keys
             int32_t past_tokens = past_lens ? past_lens[seq_idx] : 0;
@@ -687,46 +692,58 @@ void paged_attention(T* out,    // Output attention result
             debug_print_int_scalar(new_tokens, "    new_tokens");
             debug_print_int_scalar(total_keys, "    total_keys");
 
-            // 3.2.2) Allocate and compute raw scores vector
+            // Sliding window boundary: keep only last W tokens
+            const int32_t keep_from = (ctx.sliding_window > 0)
+                                        ? std::max(0, total_keys - ctx.sliding_window)
+                                        : 0;
+
+            // Raw scores vector
             std::vector<T> scores(total_keys, T(0));
             for (int32_t k = 0; k < total_keys; ++k) {
+                if (ctx.sliding_window > 0 && k < keep_from) {
+                    scores[k] = -std::numeric_limits<T>::infinity();
+                    continue;
+                }
+
+#if PA_DEBUG
                 std::cout << "    -- Computing score for k = " << k << " --\n\n";
+#endif
 
                 T score_value = T(0);
                 if (k < past_tokens) {
                     int32_t block_id, offset;
                     if (find_cached_token(seq_idx, k, ctx, block_id, offset)) {
+#if PA_DEBUG
                         std::cout << "      Found cached token at block_id = " << block_id << ", offset = " << offset
                                   << "\n\n";
-
-                        if (block_id == ctx.block_indices[ctx.block_indices_begins[seq_idx]] &&
-                            offset < ctx.sliding_window) {
-                            std::cout << "      Token is within sliding window cutoff. Assigning -inf.\n\n";
-                            scores[k] = -std::numeric_limits<T>::infinity();
-                            continue;
-                        } else {
-                            std::cout << "      Computing score via cached key.\n\n";
-                            score_value = compute_score_for_cached_key(q_vector, head, ctx, block_id, offset);
-                        }
+                        std::cout << "      Computing score via cached key.\n\n";
+#endif
+                        score_value = compute_score_for_cached_key(q_vector, head, ctx, block_id, offset);
                     }
                 } else {
                     int32_t new_idx =
                         subsequence_begins ? (subsequence_begins[seq_idx] + (k - past_tokens)) : (k - past_tokens);
+#if PA_DEBUG
                     std::cout << "      Computing score via new key at token index = " << new_idx << "\n\n";
+#endif
                     score_value = compute_score_for_new_key(q_vector, head, new_idx, ctx);
                 }
 
                 T alibi = alibi_slopes ? ((T*)alibi_slopes)[head] : T(0);
+#if PA_DEBUG
                 std::cout << "      Raw dot-product score = " << std::fixed << std::setprecision(6) << score_value
                           << "\n";
                 std::cout << "      Alibi slope for head = " << alibi << "\n";
+#endif
                 T biased_score = score_value * scale + alibi * T(-(total_keys - k - 1));
+#if PA_DEBUG
                 std::cout << "      Biased (scaled + alibi) score = " << biased_score << "\n\n";
+#endif
 
                 scores[k] = biased_score;
             }
 
-            // Raw scores array
+#if PA_DEBUG
             {
                 std::vector<size_t> scores_shape = {(size_t)total_keys};
                 debug_print_tensor(scores.data(),
@@ -734,9 +751,12 @@ void paged_attention(T* out,    // Output attention result
                                    "    raw_scores before softmax [token=" + std::to_string(token_idx) +
                                        ", head=" + std::to_string(head) + "]");
             }
+#endif
 
             // Softmax normalization
             softmax(scores);
+
+#if PA_DEBUG
             {
                 std::vector<size_t> scores_shape = {(size_t)total_keys};
                 debug_print_tensor(scores.data(),
@@ -744,33 +764,31 @@ void paged_attention(T* out,    // Output attention result
                                    "    normalized_scores after softmax [token=" + std::to_string(token_idx) +
                                        ", head=" + std::to_string(head) + "]");
             }
+#endif
 
             // Accumulate values into output_vector
             std::vector<T> output_vector(ctx.value_head_size, T(0));
             for (int32_t k = 0; k < total_keys; ++k) {
-                std::cout << "    -- Accumulating value for k = " << k << " --\n\n";
                 T weight = scores[k];
+#if PA_DEBUG
                 std::cout << "      weight = " << std::fixed << std::setprecision(6) << weight << "\n\n";
+#endif
 
                 if (k < past_tokens) {
                     int32_t block_id, offset;
                     if (find_cached_token(seq_idx, k, ctx, block_id, offset)) {
-                        if (!(block_id == ctx.block_indices[ctx.block_indices_begins[seq_idx]] &&
-                              offset < ctx.sliding_window)) {
-                            std::cout << "      Using cached value for accumulation.\n";
-                            accumulate_value_for_cached_key(head, ctx, block_id, offset, weight, output_vector);
-                        } else {
-                            std::cout << "      Skipping accumulation (within sliding window cutoff).\n";
-                        }
+                        accumulate_value_for_cached_key(head, ctx, block_id, offset, weight, output_vector);
                     }
                 } else {
                     int32_t new_idx =
                         subsequence_begins ? (subsequence_begins[seq_idx] + (k - past_tokens)) : (k - past_tokens);
+#if PA_DEBUG
                     std::cout << "      Using new value at token index = " << new_idx << " for accumulation.\n";
+#endif
                     accumulate_value_for_new_key<T>(new_idx, head, ctx, weight, output_vector);
                 }
 
-                // Partial output_vector after each accumulation
+#if PA_DEBUG
                 {
                     std::vector<size_t> outv_shape = {ctx.value_head_size};
                     debug_print_tensor(output_vector.data(),
@@ -778,12 +796,16 @@ void paged_attention(T* out,    // Output attention result
                                        "      partial_output_vector [token=" + std::to_string(token_idx) +
                                            ", head=" + std::to_string(head) + ", after k=" + std::to_string(k) + "]");
                 }
+#endif
 
-                size_t global_index = seq_idx * ctx.max_context_length + k;
-                score[global_index] = scores[k];
+                // Write per-head scores into [B_tokens, H, max_ctx]
+                size_t score_idx =
+                    (token_idx * ctx.num_heads + head) * static_cast<size_t>(ctx.max_context_length) +
+                    static_cast<size_t>(k);
+                score[score_idx] = scores[k];
             }
 
-            // Final output_vector for this head
+#if PA_DEBUG
             {
                 std::vector<size_t> outv_shape = {ctx.value_head_size};
                 debug_print_tensor(output_vector.data(),
@@ -791,17 +813,25 @@ void paged_attention(T* out,    // Output attention result
                                    "    final_output_vector [token=" + std::to_string(token_idx) +
                                        ", head=" + std::to_string(head) + "]");
             }
+#endif
 
             // Copy output_vector into the out buffer
             T* destination = out + token_idx * ctx.value_feature_size + head * ctx.value_head_size;
             std::memcpy(destination, output_vector.data(), ctx.value_head_size * sizeof(T));
 
+#if PA_DEBUG
             std::cout << "\n  <<< End of head " << head << " >>>\n\n";
+#endif
         }
 
+#if PA_DEBUG
         std::cout << "----- End processing token " << token_idx << " -----\n\n";
+#endif
     }
+#if PA_DEBUG
     std::cout << "===== End of paged_attention =====\n\n";
+#endif
 }
 
 }  // namespace ov::reference
+
