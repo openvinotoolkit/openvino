@@ -1841,7 +1841,7 @@ TEST(concat_gpu_onednn, crop_b_fs_yx_fsv16_input_types) {
                 data("biases1", biases1),
                 convolution( "conv1", input_info("variadic_split.out1"), "weights1", "biases1", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false),
                 concatenation("concat",
-                              { input_info("conv1"), input_info("variadic_split.out0") },
+                              { input_info("variadic_split.out0"), input_info("conv1") },
                               1,
                               test_dt),
                 reorder("reorder", input_info("concat"), reorder_layout)
