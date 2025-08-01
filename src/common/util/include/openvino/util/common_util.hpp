@@ -78,6 +78,21 @@ inline size_t hash_combine(std::initializer_list<size_t>&& list) {
     return seed;
 }
 
+constexpr uint64_t u64_hash_combine(uint64_t h, uint64_t k) {
+    // Hash combine formula from boost for uint64_t.
+    constexpr uint64_t m = 0xc6a4a7935bd1e995;
+    constexpr int r = 47;
+
+    k *= m;
+    k ^= k >> r;
+    k *= m;
+
+    h ^= k;
+    h *= m;
+
+    return h + 0xe6546b64;
+}
+
 /**
  * @brief trim from start (in place)
  * @param s - string to trim
