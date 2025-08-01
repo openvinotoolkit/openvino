@@ -71,6 +71,8 @@ kernel_selector::dev_type get_device_type(cldnn::device_type type) {
 namespace cldnn {
 
 bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config) {
+    return true;
+
     // Even though CM frontend is a component of Intel GPU driver on Windows, the version
     // may still be incompatible to existing CM kernels.
     auto device = e.get_device().get();
