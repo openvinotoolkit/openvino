@@ -12,18 +12,6 @@ using namespace tests;
 
 namespace {
 
-template <typename vecElementType>
-std::string vec2str(const std::vector<vecElementType>& vec) {
-    if (!vec.empty()) {
-        std::ostringstream result;
-        result << "(";
-        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
-        result << vec.back() << ")";
-        return result.str();
-    }
-    return "()";
-}
-
 template <class ElemT, class IndexT, class CountT>
 struct unique_test_inputs {
     ov::Shape data_shape;
