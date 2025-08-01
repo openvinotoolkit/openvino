@@ -84,7 +84,9 @@ void NonZero::initSupportedPrimitiveDescriptors() {
                     inPrc.get_type_name(),
                     " precision on 0 port");
 
-    addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::dynamic}},
+                         {{LayoutType::ncsp, ov::element::i32}},
+                         impl_desc_type::ref);
 }
 
 template <typename T>

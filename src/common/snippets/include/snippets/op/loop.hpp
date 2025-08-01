@@ -25,7 +25,7 @@ namespace ov::snippets::op {
 class LoopBase : public ov::op::Op {
 public:
     OPENVINO_OP("LoopBase", "SnippetsOpset");
-    LoopBase(const std::vector<Output<Node>>& args);
+    explicit LoopBase(const std::vector<Output<Node>>& args);
     LoopBase() = default;
 
 protected:

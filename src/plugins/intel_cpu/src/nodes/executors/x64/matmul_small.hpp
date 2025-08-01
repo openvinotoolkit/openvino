@@ -20,7 +20,7 @@ struct MatMulSmallAttrs {
 
 class MatMulSmallExecutor : public IMatmulExecutor {
 public:
-    MatMulSmallExecutor(MatMulSmallAttrs attrs);
+    explicit MatMulSmallExecutor(MatMulSmallAttrs attrs);
     void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) override;
     [[nodiscard]] DnnlMemoryDescPtr getScratchPadDesc() const override;
 

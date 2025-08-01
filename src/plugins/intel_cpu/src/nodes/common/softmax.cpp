@@ -68,7 +68,7 @@ template <cpu_isa_t isa>
 struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_softmax_kernel_f32)
 
-    jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp)
+    explicit jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp)
         : jit_uni_softmax_kernel(),
           jit_generator_t(jit_name()),
           jcp_(jcp) {}

@@ -91,10 +91,10 @@ void Range::initSupportedPrimitiveDescriptors() {
     } else {
         inDataConf.reserve(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); ++i) {
-            inDataConf.emplace_back(LayoutType::ncsp);
+            inDataConf.emplace_back(LayoutType::ncsp, ov::element::dynamic);
         }
         outDataConf.reserve(1);
-        outDataConf.emplace_back(LayoutType::ncsp);
+        outDataConf.emplace_back(LayoutType::ncsp, ov::element::dynamic);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     }
 }

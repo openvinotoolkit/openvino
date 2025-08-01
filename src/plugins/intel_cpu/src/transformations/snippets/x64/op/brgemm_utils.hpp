@@ -196,7 +196,7 @@ snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::Expres
 template <>
 class AttributeAdapter<intel_cpu::brgemm_utils::BrgemmConfig> : public VisitorAdapter {
 public:
-    AttributeAdapter(intel_cpu::brgemm_utils::BrgemmConfig& ref) : m_ref(ref) {}
+    explicit AttributeAdapter(intel_cpu::brgemm_utils::BrgemmConfig& ref) : m_ref(ref) {}
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<intel_cpu::brgemm_utils::BrgemmConfig>");

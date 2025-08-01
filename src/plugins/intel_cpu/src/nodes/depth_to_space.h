@@ -51,7 +51,7 @@ protected:
 private:
     DepthToSpaceAttrs attrs;
     struct DepthToSpaceExecutor {
-        DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
+        explicit DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs);
         void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB);
         ~DepthToSpaceExecutor() = default;
 

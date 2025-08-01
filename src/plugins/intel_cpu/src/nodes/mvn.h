@@ -119,7 +119,7 @@ private:
 
     class MVNExecutorBase {
     public:
-        MVNExecutorBase(const MVNAttrs& mvnAttrs);
+        explicit MVNExecutorBase(const MVNAttrs& mvnAttrs);
         virtual void exec(const uint8_t* in_ptr_,
                           uint8_t* dst_data,
                           const void* post_ops_data_,
@@ -160,7 +160,7 @@ private:
 
     class MVNRefExecutor : public MVNExecutorBase {
     public:
-        MVNRefExecutor(const MVNAttrs& mvnAttrs);
+        explicit MVNRefExecutor(const MVNAttrs& mvnAttrs);
 
         void exec(const uint8_t* src_data,
                   uint8_t* dst_data,

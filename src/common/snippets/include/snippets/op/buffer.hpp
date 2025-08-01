@@ -36,9 +36,9 @@ class Buffer : public ov::op::Op {
 public:
     OPENVINO_OP("Buffer", "SnippetsOpset");
     Buffer() = default;
-    Buffer(const ov::Output<ov::Node>& arg);
-    Buffer(const OutputVector& arguments);
-    Buffer(const ov::Shape& shape, ov::element::Type element_type = ov::element::u8);
+    explicit Buffer(const ov::Output<ov::Node>& arg);
+    explicit Buffer(const OutputVector& arguments);
+    explicit Buffer(const ov::Shape& shape, ov::element::Type element_type = ov::element::u8);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -100,7 +100,7 @@ private:
     // The buffers with this implementation mustn't have source (parents)
     class NewMemoryImpl : public BaseImpl {
     public:
-        NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type);
+        explicit NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type);
 
         [[nodiscard]] size_t get_allocation_size() const override;
         [[nodiscard]] std::shared_ptr<BaseImpl> clone() const override;

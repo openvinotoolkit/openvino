@@ -69,9 +69,9 @@ public:
 
     struct Point2D {
         float x, y;
-        Point2D(const float px = 0.F, const float py = 0.F) : x(px), y(py) {}
+        explicit Point2D(const float px = 0.F, const float py = 0.F) : x(px), y(py) {}
         Point2D operator+(const Point2D& p) const {
-            return {x + p.x, y + p.y};
+            return Point2D(x + p.x, y + p.y);
         }
         Point2D& operator+=(const Point2D& p) {
             x += p.x;
@@ -79,10 +79,10 @@ public:
             return *this;
         }
         Point2D operator-(const Point2D& p) const {
-            return {x - p.x, y - p.y};
+            return Point2D(x - p.x, y - p.y);
         }
         Point2D operator*(const float coeff) const {
-            return {x * coeff, y * coeff};
+            return Point2D(x * coeff, y * coeff);
         }
     };
 

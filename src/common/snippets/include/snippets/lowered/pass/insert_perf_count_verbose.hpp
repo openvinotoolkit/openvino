@@ -25,7 +25,7 @@ namespace ov::snippets::lowered::pass {
  */
 class InsertPerfCountVerbose : public snippets::lowered::pass::RangedPass {
 public:
-    InsertPerfCountVerbose(std::string subgraph_name) : m_subgraph_name(std::move(subgraph_name)) {}
+    explicit InsertPerfCountVerbose(std::string subgraph_name) : m_subgraph_name(std::move(subgraph_name)) {}
     OPENVINO_RTTI("InsertPerfCountVerbose", "", RangedPass);
 
     bool run(snippets::lowered::LinearIR& linear_ir,

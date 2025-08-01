@@ -230,7 +230,7 @@ MemoryPtr acl_fc_executor::reorderWeights(const MemoryArgs& memory,
         const std::string string_hash = format + "_" + std::to_string(memory.at(ARG_WEI)->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(memory.at(ARG_WEI)->getData()));
         DEBUG_LOG("ACLFullyConnectedExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("ACLFullyConnectedExecutor: Weights cache is not available");

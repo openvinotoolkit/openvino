@@ -52,7 +52,7 @@ using policy = std::function<ov::element::Type(const std::vector<ov::element::Ty
 
 struct PortsTranslation {
     template <typename... Policies>
-    PortsTranslation(Policies... policies) : m_policies{policies...} {}
+    explicit PortsTranslation(Policies... policies) : m_policies{policies...} {}
 
     std::vector<ov::element::Type> operator()(const std::vector<ov::element::Type>& types) const {
         assert(types.size() == m_policies.size());

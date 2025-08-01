@@ -16,7 +16,7 @@ namespace ov::snippets::lowered::pass {
 class SerializeBase : public ConstPass {
 public:
     OPENVINO_RTTI("SerializeBase", "", ConstPass)
-    SerializeBase(std::string xml_path);
+    explicit SerializeBase(std::string xml_path);
 
 protected:
     static std::string get_bin_path();

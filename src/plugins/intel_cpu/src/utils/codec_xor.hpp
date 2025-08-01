@@ -23,13 +23,13 @@ union CacheDecrypt {
 
     CacheDecrypt() {}
 
-    CacheDecrypt(CacheDecryptStr fn) : m_decrypt_str(std::move(fn)) {}
+    explicit CacheDecrypt(CacheDecryptStr fn) : m_decrypt_str(std::move(fn)) {}
 
-    CacheDecrypt(CacheDecryptChar fn) : m_decrypt_char(std::move(fn)) {}
+    explicit CacheDecrypt(CacheDecryptChar fn) : m_decrypt_char(std::move(fn)) {}
 
     ~CacheDecrypt() {}
 
-    operator bool() const {
+    explicit operator bool() const {
         return m_decrypt_char || m_decrypt_str;
     }
 };

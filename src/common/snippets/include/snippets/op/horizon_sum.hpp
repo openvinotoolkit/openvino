@@ -23,7 +23,7 @@ class HorizonSum : public ov::op::Op {
 public:
     OPENVINO_OP("HorizonSum", "SnippetsOpset");
 
-    HorizonSum(const Output<Node>& x);
+    explicit HorizonSum(const Output<Node>& x);
     HorizonSum() = default;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;

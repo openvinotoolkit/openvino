@@ -22,7 +22,7 @@ namespace ov::snippets::lowered::pass {
  */
 class UpdateMemoryAccessCounts : public pass::RangedPass {
 public:
-    UpdateMemoryAccessCounts(size_t count);
+    explicit UpdateMemoryAccessCounts(size_t count);
     OPENVINO_RTTI("UpdateMemoryAccessCounts", "", RangedPass);
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
     std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
@@ -39,7 +39,7 @@ private:
  */
 class SetFillOffset : public pass::RangedPass {
 public:
-    SetFillOffset(size_t offset);
+    explicit SetFillOffset(size_t offset);
     OPENVINO_RTTI("SetFillOffset", "", RangedPass);
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
     std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;

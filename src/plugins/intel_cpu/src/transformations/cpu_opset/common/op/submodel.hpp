@@ -25,7 +25,7 @@ public:
 
     SubModel() = default;
 
-    SubModel(const std::shared_ptr<ov::Model>& body);
+    explicit SubModel(const std::shared_ptr<ov::Model>& body);
 
     SubModel(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 

@@ -135,9 +135,9 @@ public:
 protected:
     // Note: The constructor initialization is private since an expression can be created only by Linear IR.
     //       The method must be used only by Linear IR builder of expressions!
-    Expression(const std::shared_ptr<Node>& n,
-               const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
-               bool need_shape_infer = true);
+    explicit Expression(const std::shared_ptr<Node>& n,
+                        const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
+                        bool need_shape_infer = true);
 
     // Virtual clone method which is called in clone_with_new_inputs with common logic
     virtual ExpressionPtr clone() const;

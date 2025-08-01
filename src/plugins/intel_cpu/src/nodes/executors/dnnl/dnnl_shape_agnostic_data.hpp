@@ -13,7 +13,7 @@
 namespace ov::intel_cpu {
 
 struct DnnlShapeAgnosticData {
-    DnnlShapeAgnosticData(DnnlPrimitiveAttrs primAttrs, impl_desc_type implType = impl_desc_type::undef)
+    explicit DnnlShapeAgnosticData(DnnlPrimitiveAttrs primAttrs, impl_desc_type implType = impl_desc_type::undef)
         : m_primAttrs(std::move(primAttrs)),
           m_implType(implType) {}
 

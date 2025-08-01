@@ -75,7 +75,7 @@ private:
     void prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) override;
     class RnnDnnlExecutor : public DnnlExecutorLegacy {
     public:
-        RnnDnnlExecutor(const dnnl::primitive_desc& pd);
+        explicit RnnDnnlExecutor(const dnnl::primitive_desc& pd);
 
         DnnlMemoryDescPtr getWeightIterDesc() const {
             return wghts_iter_md;

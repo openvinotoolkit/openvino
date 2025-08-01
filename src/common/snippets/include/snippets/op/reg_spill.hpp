@@ -30,7 +30,7 @@ namespace ov::snippets::op {
 class RegSpillBase : public ov::op::Op {
 public:
     OPENVINO_OP("RegSpillBaseBase", "SnippetsOpset");
-    RegSpillBase(const std::vector<Output<Node>>& args);
+    explicit RegSpillBase(const std::vector<Output<Node>>& args);
     RegSpillBase() = default;
     virtual const std::set<Reg>& get_regs_to_spill() const = 0;
     bool visit_attributes(AttributeVisitor& visitor) override;
@@ -44,7 +44,7 @@ class RegSpillEnd;
 class RegSpillBegin : public RegSpillBase {
 public:
     OPENVINO_OP("RegSpillBegin", "SnippetsOpset", RegSpillBase);
-    RegSpillBegin(std::set<Reg> regs_to_spill);
+    explicit RegSpillBegin(std::set<Reg> regs_to_spill);
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
@@ -74,7 +74,7 @@ class RegSpillEnd : public RegSpillBase {
 public:
     OPENVINO_OP("RegSpillEnd", "SnippetsOpset", RegSpillBase);
     RegSpillEnd() = default;
-    RegSpillEnd(const Output<Node>& reg_spill_begin);
+    explicit RegSpillEnd(const Output<Node>& reg_spill_begin);
 
     void validate_and_infer_types() override;
 

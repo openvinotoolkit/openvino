@@ -74,7 +74,7 @@ public:
     using exprReverseIt = container::reverse_iterator;
     using constExprReverseIt = container::const_reverse_iterator;
 
-    LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
+    explicit LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
     LinearIR(const std::shared_ptr<ov::Model>& m,
              const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
              Config config = {});

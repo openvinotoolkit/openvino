@@ -32,7 +32,7 @@ namespace ov::intel_cpu {
 struct BrgemmCopyBKernelConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     BrgemmCopyBKernelConfig() = default;
-    BrgemmCopyBKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config);
+    explicit BrgemmCopyBKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config);
 
     bool operator==(const BrgemmCopyBKernelConfig& rhs) const;
     bool operator!=(const BrgemmCopyBKernelConfig& rhs) const {
@@ -175,7 +175,7 @@ struct BrgemmCopyBKernel : public InputRepackerKernel, public dnnl::impl::cpu::x
     };
 
     BrgemmCopyBKernel();
-    BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf);
+    explicit BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf);
 
     dnnl::impl::status_t create_kernel() override;
 
