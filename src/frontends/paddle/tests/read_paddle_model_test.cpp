@@ -18,14 +18,17 @@
 #include "openvino/pass/serialize.hpp"
 
 TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
-    auto model =
-        FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "conv2d_relu/conv2d_relu.pdmodel");
+    auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
+                                                    "conv2d_relu/conv2d_relu" + std::string(TEST_PADDLE_MODEL_EXT));
     auto param = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) +
                                                     "conv2d_relu/conv2d_relu.pdiparams");
 
     ov::Core core;
     auto read_file = [&](const std::string& file_name, size_t& size) {
         FILE* sFile = fopen(file_name.c_str(), "r");
+        if (sFile == nullptr) {
+            return (uint8_t*)nullptr;
+        }
         fseek(sFile, 0, SEEK_END);
         size = ftell(sFile);
         uint8_t* ss = (uint8_t*)malloc(size);
@@ -40,7 +43,9 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
 
     size_t xml_size, bin_size;
     auto xml_ptr = read_file(model, xml_size);
+    ASSERT_TRUE(xml_ptr != nullptr) << "can't open " << model;
     auto bin_ptr = read_file(param, bin_size);
+    ASSERT_TRUE(bin_ptr != nullptr) << "can't open " << param;
     ov::Tensor weight_tensor = ov::Tensor(ov::element::u8, {1, bin_size}, bin_ptr);
     std::string model_str = std::string((char*)xml_ptr, xml_size);
     auto function = core.read_model(model_str, weight_tensor);
@@ -62,15 +67,24 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
     const auto relu = std::make_shared<ov::opset1::Relu>(conv2d->output(0));
     relu->set_friendly_name("relu_0.tmp_0");
     relu->output(0).get_tensor().add_names({"relu_0.tmp_0"});
-    const auto bias = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 0.0);
-    const auto scale = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 1.0);
-    const auto mul = std::make_shared<ov::opset1::Multiply>(relu->output(0), scale);
-    const auto add = std::make_shared<ov::opset1::Add>(mul->output(0), bias);
-    add->set_friendly_name("scale_0.tmp_0");
-    add->output(0).get_tensor().add_names({"save_infer_model/scale_0.tmp_0"});
 
-    const auto result = std::make_shared<ov::opset1::Result>(add->output(0));
-    result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
+    std::shared_ptr<ov::opset1::Result> result;
+    if (std::string(TEST_GEN_TAG) == "ge3") {
+        result = std::make_shared<ov::opset1::Result>(relu->output(0));
+        result->set_friendly_name("save_infer_model/scale_0.tmp_0");
+    } else if (std::string(TEST_GEN_TAG) == "ge2") {
+        const auto bias = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 0.0);
+        const auto scale = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 1.0);
+        const auto mul = std::make_shared<ov::opset1::Multiply>(relu->output(0), scale);
+        const auto add = std::make_shared<ov::opset1::Add>(mul->output(0), bias);
+        add->set_friendly_name("scale_0.tmp_0");
+        add->output(0).get_tensor().add_names({"save_infer_model/scale_0.tmp_0"});
+
+        result = std::make_shared<ov::opset1::Result>(add->output(0));
+        result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
+    } else {
+        ASSERT_TRUE(false) << "Unsupported TEST_GEN_TAG: " << std::string(TEST_GEN_TAG);
+    }
 
     const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NONE);
@@ -81,7 +95,8 @@ TEST(Paddle_Reader_Tests, LoadModelMemoryToCore) {
 }
 
 TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
-    auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu.pdmodel");
+    auto model = FrontEndTestUtils::make_model_path(std::string(TEST_PADDLE_MODELS_DIRNAME) + "relu/relu" +
+                                                    std::string(TEST_PADDLE_MODEL_EXT));
 
     ov::Core core;
     auto function = core.read_model(FrontEndTestUtils::make_model_path(model));
@@ -94,15 +109,22 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
     const auto relu = std::make_shared<ov::opset1::Relu>(data->output(0));
     relu->set_friendly_name("relu_0.tmp_0");
     relu->output(0).get_tensor().add_names({"relu_0.tmp_0"});
-    const auto bias = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 0.0);
-    const auto scale = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 1.0);
-    const auto mul = std::make_shared<ov::opset1::Multiply>(relu->output(0), scale);
-    const auto add = std::make_shared<ov::opset1::Add>(mul->output(0), bias);
-    add->set_friendly_name("save_infer_model/scale_0.tmp_0");
-    add->output(0).get_tensor().add_names({"save_infer_model/scale_0.tmp_0"});
-
-    const auto result = std::make_shared<ov::opset1::Result>(add->output(0));
-    result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
+    std::shared_ptr<ov::opset1::Result> result;
+    if (std::string(TEST_GEN_TAG) == "ge3") {
+        result = std::make_shared<ov::opset1::Result>(relu->output(0));
+        result->set_friendly_name("save_infer_model/scale_0.tmp_0");
+    } else if (std::string(TEST_GEN_TAG) == "ge2") {
+        const auto bias = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 0.0);
+        const auto scale = std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{}, 1.0);
+        const auto mul = std::make_shared<ov::opset1::Multiply>(relu->output(0), scale);
+        const auto add = std::make_shared<ov::opset1::Add>(mul->output(0), bias);
+        add->set_friendly_name("save_infer_model/scale_0.tmp_0");
+        add->output(0).get_tensor().add_names({"save_infer_model/scale_0.tmp_0"});
+        result = std::make_shared<ov::opset1::Result>(add->output(0));
+        result->set_friendly_name("save_infer_model/scale_0.tmp_0/Result");
+    } else {
+        ASSERT_TRUE(false) << "Unsupported TEST_GEN_TAG: " << std::string(TEST_GEN_TAG);
+    }
 
     const auto reference = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{data}, "Model0");
     const FunctionsComparator func_comparator = FunctionsComparator::with_default().enable(FunctionsComparator::NAMES);
@@ -112,7 +134,7 @@ TEST(Paddle_Reader_Tests, ImportBasicModelToCore) {
 
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
 TEST(Paddle_Reader_Tests, ImportBasicModelToCoreWstring) {
-    std::string win_dir_path{TEST_PADDLE_MODELS_DIRNAME "relu/relu.pdmodel"};
+    std::string win_dir_path{TEST_PADDLE_MODELS_DIRNAME "relu/relu" + std::string(TEST_PADDLE_MODEL_EXT)};
     win_dir_path = FrontEndTestUtils::make_model_path(win_dir_path);
     std::wstring wmodel =
         ov::test::utils::addUnicodePostfixToPath(win_dir_path, ov::test::utils::test_unicode_postfix_vector[0]);

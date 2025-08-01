@@ -37,10 +37,10 @@ public:
     struct SpaceToDepthAttrs {
         LayoutType layoutType = LayoutType::nspc;
         Mode mode = BLOCKS_FIRST;
-        size_t blockSize = 0lu;
-        size_t blockStep = 1lu;
-        size_t dataSize = 1lu;
-        size_t nSpatialDims = 0lu;
+        size_t blockSize = 0LU;
+        size_t blockStep = 1LU;
+        size_t dataSize = 1LU;
+        size_t nSpatialDims = 0LU;
         VectorDims srcBlockedDims;
         VectorDims destBlockedDims;
         [[nodiscard]] size_t hash() const;

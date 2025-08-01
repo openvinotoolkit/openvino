@@ -35,11 +35,11 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    const size_t PROBABILITIES_IN_IDX = 0lu;
-    const size_t ANCHORS_IN_IDX = 1lu;
-    const size_t IMG_INFO_IN_IDX = 2lu;
-    const size_t ROI_OUT_IDX = 0lu;
-    const size_t PROBABILITIES_OUT_IDX = 1lu;
+    const size_t PROBABILITIES_IN_IDX = 0LU;
+    const size_t ANCHORS_IN_IDX = 1LU;
+    const size_t IMG_INFO_IN_IDX = 2LU;
+    const size_t ROI_OUT_IDX = 0LU;
+    const size_t PROBABILITIES_OUT_IDX = 1LU;
 
     proposal_conf conf;
     std::vector<float> anchors;

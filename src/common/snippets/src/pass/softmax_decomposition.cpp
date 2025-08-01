@@ -62,7 +62,7 @@ SoftmaxDecomposition::SoftmaxDecomposition() {
 
         const auto reduce_sum = std::make_shared<ov::snippets::op::ReduceSum>(exp, axis);
         ov::snippets::op::ReduceBase::compute_and_set_reduce_subtensors(reduce_sum);
-        const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.f);
+        const auto power = std::make_shared<ov::snippets::op::PowerStatic>(reduce_sum, -1.F);
         const auto multiply = std::make_shared<ov::op::v1::Multiply>(exp, power);
 
         OPENVINO_ASSERT(axis < rank, "Softmax has incorrect axis");

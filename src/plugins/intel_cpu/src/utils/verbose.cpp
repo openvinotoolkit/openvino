@@ -37,7 +37,10 @@ bool Verbose::shouldBePrinted() const {
         return false;
     }
 
-    return !(lvl < 3 && node->isConstant());
+    const bool low_level = lvl < 3;
+    const bool is_constant = node->isConstant();
+    const bool skip_node = low_level && is_constant;
+    return !skip_node;
 }
 
 /**
