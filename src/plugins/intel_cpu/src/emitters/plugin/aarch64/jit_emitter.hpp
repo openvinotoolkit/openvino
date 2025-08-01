@@ -70,6 +70,8 @@ public:
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
+    static constexpr int sp_alignment = 16;
+
 protected:
     static size_t get_max_vecs_count();
     static int32_t get_vec_length();
@@ -155,6 +157,10 @@ protected:
         }
     }
 
+    static int32_t get_gpr_length() {
+        return 8;
+    }
+
 private:
     mutable std::vector<size_t> preserved_vec_idxs;
     mutable std::vector<size_t> preserved_gpr_idxs;
@@ -177,10 +183,6 @@ private:
 
     static size_t get_asimd_vectors_count() {
         return 32;
-    }
-
-    int32_t get_gpr_length() const {
-        return h->x0.getBit() / 8;
     }
 
     void store_context(const std::vector<size_t>& gpr_regs,

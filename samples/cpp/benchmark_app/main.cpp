@@ -1175,47 +1175,53 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // warming up - out of scope
-        auto inferRequest = inferRequestsQueue.get_idle_request();
-        if (!inferRequest) {
-            OPENVINO_THROW("No idle Infer Requests!");
-        }
+        std::shared_ptr<InferReqWrap> inferRequest;
 
-        if (!inferenceOnly) {
-            auto inputs = app_inputs_info[0];
-
-            for (auto& item : inputs) {
-                auto inputName = item.first;
-                const auto& data = inputsData.at(inputName)[0];
-                inferRequest->set_tensor(inputName, data);
+        // conditional warmup based on FLAGS_no_warmup
+        if (!FLAGS_no_warmup) {
+            // warming up - out of scope
+            inferRequest = inferRequestsQueue.get_idle_request();
+            if (!inferRequest) {
+                OPENVINO_THROW("No idle Infer Requests!");
             }
+            if (!inferenceOnly) {
+                auto inputs = app_inputs_info[0];
 
-            if (useGpuMem) {
-                auto outputTensors =
-                    ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
-                for (auto& output : compiledModel.outputs()) {
-                    inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                for (auto& item : inputs) {
+                    auto inputName = item.first;
+                    const auto& data = inputsData.at(inputName)[0];
+                    inferRequest->set_tensor(inputName, data);
+                }
+
+                if (useGpuMem) {
+                    auto outputTensors =
+                        ::gpu::get_remote_output_tensors(compiledModel, inferRequest->get_output_cl_buffer());
+                    for (auto& output : compiledModel.outputs()) {
+                        inferRequest->set_tensor(output.get_any_name(), outputTensors[output.get_any_name()]);
+                    }
                 }
             }
-        }
 
-        if (FLAGS_api == "sync") {
-            inferRequest->infer();
+            if (FLAGS_api == "sync") {
+                inferRequest->infer();
+            } else {
+                inferRequest->start_async();
+            }
+
+            inferRequestsQueue.wait_all();
+
+            auto duration_ms = inferRequestsQueue.get_latencies()[0];
+            slog::info << "First inference took " << double_to_string(duration_ms) << " ms" << slog::endl;
+
+            if (statistics) {
+                statistics->add_parameters(
+                    StatisticsReport::Category::EXECUTION_RESULTS,
+                    {StatisticsVariant("first inference time (ms)", "first_inference_time", duration_ms)});
+            }
+            inferRequestsQueue.reset_times();
         } else {
-            inferRequest->start_async();
+            slog::info << "Skipping warmup inference due to -no_warmup flag" << slog::endl;
         }
-
-        inferRequestsQueue.wait_all();
-
-        auto duration_ms = inferRequestsQueue.get_latencies()[0];
-        slog::info << "First inference took " << double_to_string(duration_ms) << " ms" << slog::endl;
-
-        if (statistics) {
-            statistics->add_parameters(
-                StatisticsReport::Category::EXECUTION_RESULTS,
-                {StatisticsVariant("first inference time (ms)", "first_inference_time", duration_ms)});
-        }
-        inferRequestsQueue.reset_times();
 
         size_t processedFramesN = 0;
         auto startTime = Time::now();
