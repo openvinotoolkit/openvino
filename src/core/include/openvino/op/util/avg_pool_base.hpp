@@ -52,10 +52,6 @@ public:
     const Strides& get_strides() const;
     void set_strides(const Strides& strides);
 
-    /// \return The dilations.
-    const Strides& get_dilations() const;
-    void set_dilations(const Strides& dilations);
-
     /// \return The beginning of padding shape.
     const Shape& get_pads_begin() const;
     void set_pads_begin(const Shape& pads_begin);

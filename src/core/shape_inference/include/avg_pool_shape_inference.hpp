@@ -80,12 +80,26 @@ std::vector<TRShape> avg_pool_shape_infer_util(const TOp* op,
                                                TContainer& pads_end) {
     NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
     const auto& data_shape = input_shapes[0];
-    auto dilations = op->get_dilations();
-    if (dilations.empty()) {
-        // If dilations are not specified, use default value of 1 for each spatial dimension.
-        // This is the case for AvgPool v1 and v14.
-        dilations.resize(op->get_kernel().size(), 1);
-    }
+    const auto dilations = Strides(op->get_kernel().size(), 1);
+
+    auto num_spatial = dilations.size();
+    pooling::resize_empty_padding(num_spatial, pads_begin, pads_end);
+    pooling::validate::padding(op, pads_begin, pads_end);
+    pooling::validate::attributes(op, data_shape, dilations);
+    pooling::apply_padding(op, data_shape, dilations, pads_begin, pads_end);
+
+    return {pooling::out_shape_infer(op, data_shape, pads_begin, pads_end, dilations)};
+}
+
+// Specialization for v16::AvgPool
+template <class TShape, class TContainer, class TRShape = result_shape_t<TShape>>
+std::vector<TRShape> avg_pool_shape_infer_util(const v16::AvgPool* op,
+                                               const std::vector<TShape>& input_shapes,
+                                               TContainer& pads_begin,
+                                               TContainer& pads_end) {
+    NODE_VALIDATION_CHECK(op, input_shapes.size() == 1);
+    const auto& data_shape = input_shapes[0];
+    const auto& dilations = op->get_dilations().empty() ? Strides(op->get_kernel().size(), 1) : op->get_dilations();
 
     auto num_spatial = dilations.size();
     pooling::resize_empty_padding(num_spatial, pads_begin, pads_end);

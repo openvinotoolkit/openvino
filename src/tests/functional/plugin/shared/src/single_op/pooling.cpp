@@ -185,7 +185,8 @@ std::string AvgPoolingV16LayerTest::getTestCaseName(const testing::TestParamInfo
     ov::element::Type inPrc;
     std::tie(basicParamsSet, inPrc, inputShapes, targetDevice) = obj.param;
 
-    std::vector<size_t> kernel, stride, dilation;
+    std::vector<size_t> kernel;
+    Strides stride, dilation;
     std::vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;
@@ -226,7 +227,8 @@ void AvgPoolingV16LayerTest::SetUp() {
     ov::element::Type inPrc;
     std::tie(basicParamsSet, inPrc, inputShapes, targetDevice) = this->GetParam();
 
-    std::vector<size_t> kernel, stride, dilation;
+    std::vector<size_t> kernel;
+    Strides stride, dilation;
     std::vector<size_t> padBegin, padEnd;
     ov::op::PadType padType;
     ov::op::RoundingType roundingType;

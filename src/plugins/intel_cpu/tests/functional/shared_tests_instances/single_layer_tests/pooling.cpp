@@ -23,12 +23,12 @@ const std::vector<std::vector<size_t >> kernels = {{3, 3},
                                                           {3, 5}};
 const std::vector<std::vector<size_t >> kernel_3d = {{2, 2, 2}};
 
-const std::vector<std::vector<size_t>> strides = {{1, 1},
+const std::vector<ov::Strides> strides = {{1, 1},
                                                   {1, 2},
                                                   {2, 1},
                                                   {2, 2}};
 
-const std::vector<std::vector<size_t >> strides_3d = {{1, 1, 1},
+const std::vector<ov::Strides> strides_3d = {{1, 1, 1},
                                                       {2, 2, 2}};
 
 const std::vector<std::vector<size_t >> pad_begins = {{0, 0},
@@ -310,8 +310,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_SameLowerPad_CeilRounding_5Dinput, Poolin
 
 ////* ========== Max Pooling V8 ========== */
 
-const std::vector<std::vector<size_t>> dilation = {{1, 1}, {2, 2}};
-const std::vector<std::vector<size_t >> dilation_3d = {{1, 1, 1}, {2, 2, 2}};
+const std::vector<ov::Strides> dilation = {{1, 1}, {2, 2}};
+const std::vector<ov::Strides> dilation_3d = {{1, 1, 1}, {2, 2, 2}};
 
 /* ========== Explicit Pad Floor Rounding ========== */
 const auto maxPoolv8_ExplicitPad_FloorRounding_Params = ::testing::Combine(
