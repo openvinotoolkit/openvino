@@ -17,6 +17,7 @@
 
 #include "emitters/snippets/aarch64/kernel_executors/gemm.hpp"
 #include "emitters/snippets/aarch64/utils.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "openvino/core/node.hpp"
@@ -151,7 +152,7 @@ uintptr_t jit_gemm_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor_kai.get());
 }
 
-const uintptr_t jit_gemm_emitter::get_execute_function_ptr() {
+uintptr_t jit_gemm_emitter::get_execute_function_ptr() {
     auto execute_func_ptr =
         static_cast<void (*)(const GemmKaiKernelExecutor*, const GemmKaiKernelExecutor::call_args*)>(
             GemmKaiKernelExecutor::execute);
