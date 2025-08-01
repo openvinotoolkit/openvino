@@ -42,7 +42,7 @@ public:
     size_t get_related_tensor_index() const;
 
     /**
-     * @brief Get acknowledge if the tensor was updated
+     * @brief Get acknowledgment if the tensor was updated
      */
     bool tensor_was_updated() const;
 
@@ -52,7 +52,7 @@ public:
     void reset_tensor_updated_flag();
 
     /**
-     * @brief Get acknowledge if the zero tensor was updated
+     * @brief Get acknowledgment if the zero tensor was updated
      * @details In case the memory was allocated in the same level zero context update the zero tensor
      */
     bool zero_tensor_should_be_updated() const;
@@ -63,7 +63,7 @@ public:
     void reset_zero_tensor_updated_flag();
 
     /**
-     * @brief Get acknowledge if the zero tensor can be imported
+     * @brief Get acknowledgment if the zero tensor can be imported
      */
     bool zero_tensor_should_be_imported() const;
 

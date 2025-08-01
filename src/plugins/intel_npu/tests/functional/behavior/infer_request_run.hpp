@@ -140,7 +140,6 @@ TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScop
             ov::test::utils::PluginCache::get().reset();
         }
     }
-    std::cout << "Plugin should be unloaded from memory at this point" << std::endl;
 }
 
 TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
@@ -1286,7 +1285,6 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
     for (auto state : states) {
         auto last_state = state.get_state();
         auto last_state_size = last_state.get_size();
-        std::cout << "last_state_size: " << last_state_size << std::endl;
         auto last_state_data = static_cast<float*>(last_state.data());
 
         ASSERT_TRUE(last_state_size != 0) << "State size should not be 0";
@@ -1300,6 +1298,8 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
 using CpuVaTensorsTests = InferRequestRunTests;
 
 TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     auto shape = Shape{1, 16, 16, 16};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -1363,6 +1363,8 @@ TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
 }
 
 TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     auto shape = Shape{1, 16, 16, 16};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -1433,6 +1435,8 @@ TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
 }
 
 TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
     auto shape = Shape{1, 16, 16, 16};
     auto shape_size = ov::shape_size(shape);
     auto model = createModel(element::f32, shape, "N...");
@@ -1512,7 +1516,6 @@ TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
 }
 
 TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     testing::internal::Random random(1);
@@ -1604,7 +1607,6 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
 }
 
 TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
-    // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     testing::internal::Random random(1);
@@ -1641,7 +1643,6 @@ TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
     tensor_state_shape = get_tensor_state.get_shape();
     auto state_byte_size = ov::shape_size(tensor_state_shape) * sizeof(float);
 
-    std::cout << "state_byte_size: " << state_byte_size << std::endl;
     state_data[0] = static_cast<float*>(::operator new(state_byte_size, std::align_val_t(4096)));
     state_tensor[0] = ov::Tensor{ov::element::f32, tensor_state_shape, state_data[0]};
     states[1].set_state(state_tensor[0]);
