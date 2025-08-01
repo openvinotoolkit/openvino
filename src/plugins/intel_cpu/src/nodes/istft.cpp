@@ -77,7 +77,7 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
     }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!one_of(dataPrecision, ov::element::f32)) {
+    if (none_of(dataPrecision, ov::element::f32)) {
         dataPrecision = ov::element::f32;
     }
 
@@ -267,7 +267,7 @@ void ISTFT::executeDynamicImpl(const dnnl::stream& strm) {
 
 bool ISTFT::needShapeInfer() const {
     return (m_has_signal_length_input && !m_is_signal_length_const) ||
-           (!m_has_signal_length_input && !(m_is_frame_size_const && m_is_frame_step_const)) || Node::needShapeInfer();
+           (!m_has_signal_length_input && (!m_is_frame_size_const || !m_is_frame_step_const)) || Node::needShapeInfer();
 }
 
 void ISTFT::createPrimitive() {

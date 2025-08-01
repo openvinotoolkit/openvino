@@ -92,8 +92,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 14 || orgInputNumber == 17,
-                    "The input number of PagedAttention should be 14 or 17.");
+    CPU_NODE_ASSERT(any_of(orgInputNumber, 14U, 17U), "The input number of PagedAttention should be 14 or 17.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -174,7 +173,7 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
     // for non-x86 platform, by-channel quantization is disabled
     // By default, by-channel should only be enabled when precision is integral
     bool byChannel = precision.is_integral() && isKey;
-    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_HIDDEN) {
+    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_TOKEN) {
         byChannel = false;
     }
 #if defined(OPENVINO_ARCH_ARM64)
@@ -199,13 +198,12 @@ void PagedAttention::createPrimitive() {
         bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
         bool quantValuebyChannel =
             isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
-        return make_pa_executor(rtPrecision,
-                                kCachePrecision,
-                                vCachePrecision,
-                                cpuConfig.keyCacheGroupSize,
-                                cpuConfig.valueCacheGroupSize,
-                                quantKeybyChannel,
-                                quantValuebyChannel);
+        PagedAttnQuantParams params{cpuConfig.keyCacheGroupSize,
+                                    cpuConfig.valueCacheGroupSize,
+                                    quantKeybyChannel,
+                                    quantValuebyChannel,
+                                    cpuConfig.enableSageAttn};
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params);
 #else
         return nullptr;
 #endif
@@ -270,14 +268,15 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     try {
         auto vCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_VCACHE);
         auto kCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_KCACHE);
-        if (one_of(vCachePrecision,
+        if (any_of(vCachePrecision,
                    ov::element::u4,
                    ov::element::u8,
                    ov::element::f32,
                    ov::element::f16,
                    ov::element::bf16)) {
-            if (!one_of(kCachePrecision,
+            if (none_of(kCachePrecision,
                         ov::element::u4,
+                        ov::element::i8,
                         ov::element::u8,
                         ov::element::f16,
                         ov::element::f32,

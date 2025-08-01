@@ -43,7 +43,25 @@ if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (UNIX AND OV_COMPILER_IS_
         set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} -fstack-protector-strong")
         set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} -z noexecstack -z relro -z now")
     endif()
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+    set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} /sdl /guard:cf")
+    set(OV_LINKER_FLAGS "${OV_LINKER_FLAGS} /guard:cf")
 endif()
+
+function(ov_disable_sdl_flags_for_sources TARGET_NAME)
+    set(options)
+    set(oneValueArgs)
+    set(multiValueArgs SOURCES)
+    cmake_parse_arguments(PARSE_ARGV 0 DISABLE_SDL "${options}" "${oneValueArgs}" "${multiValueArgs}")
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+        set_source_files_properties(
+            ${DISABLE_SDL_SOURCES}
+            PROPERTIES
+            COMPILE_OPTIONS "/guard:cf-;/sdl-"
+        )
+    endif()
+endfunction()
 
 if(ENABLE_QSPECTRE)
     set(OV_C_CXX_FLAGS "${OV_C_CXX_FLAGS} /Qspectre")

@@ -17,6 +17,7 @@
 #include "nodes/kernels/x64/registers_pool.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu;
@@ -41,7 +42,7 @@ void GridSampleKernel<isa>::create_ker() {
     OPENVINO_ASSERT(code == dnnl::impl::status::success,
                     "Could not create GridSample kernel. Error code: ",
                     std::to_string(code));
-    ker_ = (decltype(ker_))jit_ker();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <x64::cpu_isa_t isa>
@@ -90,9 +91,9 @@ void GridSampleKernel<x64::avx512_core>::initVectors() {
     vZeros = getVmm();
     uni_vpxor(vZeros, vZeros, vZeros);
 
-    if (one_of(jcp.interpolationMode, GridSampleInterpolationMode::BICUBIC, GridSampleInterpolationMode::BILINEAR)) {
+    if (any_of(jcp.interpolationMode, GridSampleInterpolationMode::BICUBIC, GridSampleInterpolationMode::BILINEAR)) {
         vOnesF = getVmm();
-        mov(r32Aux, 0x3f800000);  // 1.f
+        mov(r32Aux, 0x3f800000);  // 1.F
         vpbroadcastd(vOnesF, r32Aux);
     }
 
@@ -176,7 +177,7 @@ void GridSampleKernel<isa>::initVectors() {
     mov(rAux, ptr[regParams + GET_OFF(srcWidthF)]);
     uni_vmovups(vSrcWidthF, ptr[rAux]);
 
-    if (one_of(jcp.interpolationMode, GridSampleInterpolationMode::BILINEAR, GridSampleInterpolationMode::NEAREST) ||
+    if (any_of(jcp.interpolationMode, GridSampleInterpolationMode::BILINEAR, GridSampleInterpolationMode::NEAREST) ||
         (jcp.interpolationMode == GridSampleInterpolationMode::BICUBIC &&
          (jcp.paddingMode == GridSamplePaddingMode::REFLECTION ||
           (jcp.paddingMode == GridSamplePaddingMode::BORDER && !jcp.alignCorners) ||
@@ -194,9 +195,9 @@ void GridSampleKernel<isa>::initVectors() {
     }
 
     if (jcp.interpolationMode != GridSampleInterpolationMode::BICUBIC) {
-        if (one_of(jcp.paddingMode, GridSamplePaddingMode::BORDER, GridSamplePaddingMode::ZEROS) &&
+        if (any_of(jcp.paddingMode, GridSamplePaddingMode::BORDER, GridSamplePaddingMode::ZEROS) &&
             ((isa == x64::avx2 && jcp.interpolationMode == GridSampleInterpolationMode::NEAREST) ||
-             one_of(isa, x64::avx, x64::sse41))) {
+             any_of(isa, x64::avx, x64::sse41))) {
             vZeros = getVmm();
             uni_vpxor(vZeros, vZeros, vZeros);
         }
@@ -1362,7 +1363,7 @@ void GridSampleKernel<x64::avx512_core>::bilinearInterpolation(const Vmm& vWCoor
         reflectionPadding(shift10, shift10, coord::w);
         reflectionPadding(shift11, shift11, coord::h);
     }
-    if (jcp.paddingMode == GridSamplePaddingMode::BORDER || jcp.paddingMode == GridSamplePaddingMode::REFLECTION) {
+    if (any_of(jcp.paddingMode, GridSamplePaddingMode::BORDER, GridSamplePaddingMode::REFLECTION)) {
         // W * y + x
         hwShiftPs2dq(vAux, shift11, shift00, vSrcWidthF);
         hwShiftPs2dq(shift00, shift01, shift00, vSrcWidthF);
@@ -1537,7 +1538,7 @@ void GridSampleKernel<isa>::bilinearInterpolation(const Vmm& vWCoord, const Vmm&
         reflectionPadding(shift10, shift10, coord::w);
         reflectionPadding(shift11, shift11, coord::h);
     }
-    if (one_of(jcp.paddingMode, GridSamplePaddingMode::BORDER, GridSamplePaddingMode::REFLECTION)) {
+    if (any_of(jcp.paddingMode, GridSamplePaddingMode::BORDER, GridSamplePaddingMode::REFLECTION)) {
         // W * y + x
         hwShiftPs2dq(vAux, shift11, vWRound, vSrcWidthF);
         hwShiftPs2dq(vWRound, vHRound, vWRound, vSrcWidthF);
@@ -2137,7 +2138,7 @@ void GridSampleKernel<isa>::dataTypeShiftPs2Dq(const Vmm& vDst, const Vmm& vSrc)
 template <x64::cpu_isa_t isa>
 void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, const Vmm& vWCoord, const Vmm& vWidth) {
     if (vDst.getIdx() == vWCoord.getIdx()) {
-        if (one_of(isa, x64::avx512_core, x64::avx2)) {
+        if (any_of(isa, x64::avx512_core, x64::avx2)) {
             uni_vfmadd231ps(vDst, vHCoord, vWidth);
         } else {
             auto vTmp = getVmm();
@@ -2149,7 +2150,7 @@ void GridSampleKernel<isa>::hwShiftPs2dq(const Vmm& vDst, const Vmm& vHCoord, co
     } else if (vDst.getIdx() == vWidth.getIdx()) {
         uni_vfmadd132ps(vDst, vWCoord, vHCoord);
     } else {
-        if (one_of(isa, x64::avx2, x64::avx512_core)) {
+        if (any_of(isa, x64::avx2, x64::avx512_core)) {
             uni_vmovups(vDst, vWCoord);
             uni_vfmadd231ps(vDst, vHCoord, vWidth);
         } else {

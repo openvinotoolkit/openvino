@@ -23,15 +23,15 @@ class WeightlessGraph final : public Graph {
 public:
     WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                     const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                    const bool blobAllocatedByPlugin,
-                    ze_graph_handle_t mainGraphHandle,
+                    const GraphDescriptor& mainGraphDesc,
                     NetworkMetadata mainMetadata,
                     std::optional<ov::Tensor> mainBlob,
-                    const std::vector<ze_graph_handle_t>& initGraphHandles,
+                    const std::vector<GraphDescriptor>& initGraphDesc,
                     std::vector<NetworkMetadata> initMetadata,
                     std::optional<std::vector<ov::Tensor>> initBlobs,
                     const std::shared_ptr<const ov::Model>& model,
                     const Config& config,
+                    const bool blobIsPersistent = false,
                     const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
     /**
@@ -100,9 +100,10 @@ private:
      */
     void set_weights_inputs();
 
-    void release_init_blob(const size_t initIndex, const Config& config);
+    void release_init_blob(const size_t initIndex);
+    void release_graphs();
 
-    std::vector<ze_graph_handle_t> _initsHandles;
+    std::vector<GraphDescriptor> _initsGraphDesc;
     std::optional<std::vector<ov::Tensor>> _initBlobs;
     std::vector<NetworkMetadata> _initsMetadata;
     std::shared_ptr<const ov::Model> _model;

@@ -8,6 +8,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/matmul.hpp"
@@ -251,8 +252,22 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
     auto qk_opt_scaled_opt_mask_added = optional<v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask}, add_pred);
     auto qk_post_mask_opt_reshaped = optional<v1::Reshape>({qk_opt_scaled_opt_mask_added, any_input()});
 
-    auto softmax_pred = (shape_matches("..., H, S_q, S_kv") || shape_matches("S_q, S_kv")) && consumers_count(1);
-    auto softmax = wrap_type<v8::Softmax>({qk_post_mask_opt_reshaped}, softmax_pred, {{"axis", -1}});
+    // Softmax axis can be:
+    // Pattern 1: axis = -1 (last axis)
+    // Pattern 2: axis = rank size - 1 (also means last axis for static rank inputs)
+    auto axis_predicate = ([](const ov::Output<ov::Node>& node) {
+        auto softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(node.get_node_shared_ptr());
+        if (!softmax)
+            return false;
+        auto input_rank = node.get_partial_shape().rank();
+        if (input_rank.is_dynamic())
+            return false;
+        auto axis = ov::util::try_normalize_axis(softmax->get_axis(), input_rank, *softmax);
+        return static_cast<size_t>(input_rank.get_length() - 1) == axis;
+    });
+    auto softmax_pred =
+        consumers_count(1) && axis_predicate && (shape_matches("..., H, S_q, S_kv") || shape_matches("S_q, S_kv"));
+    auto softmax = wrap_type<v8::Softmax>({qk_post_mask_opt_reshaped}, softmax_pred);
     auto softmax_opt_reshaped = optional<v1::Reshape>({softmax, any_input()});
 
     auto qkv_shape = shape_matches("..., H, S_q, Ev") || shape_matches("S_q, Ev");

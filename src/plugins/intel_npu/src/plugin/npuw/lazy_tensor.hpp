@@ -83,7 +83,7 @@ class Const {
 public:
     Const() = default;
 
-    explicit Const(std::shared_ptr<ov::op::v0::Constant> n);
+    explicit Const(const std::shared_ptr<ov::op::v0::Constant>& n);
     std::size_t hash() const;
     bool operator==(const Const& other) const;
     ov::Tensor eval() const;
@@ -101,6 +101,8 @@ private:
     std::size_t m_offset = 0;
     std::size_t m_byte_size = 0;
     ov::Tensor m_read_from_bin;
+    std::string m_weights_path;
+    mutable ov::npuw::s11n::WeightsPtr m_mmaped_weights = nullptr;
 };
 
 class Concat {

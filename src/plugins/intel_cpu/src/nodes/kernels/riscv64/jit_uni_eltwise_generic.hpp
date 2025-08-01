@@ -7,7 +7,6 @@
 #include "cpu_isa_traits.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "jit_generator.hpp"
-#include "nodes/executors/eltwise.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
@@ -24,7 +23,7 @@ public:
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override;

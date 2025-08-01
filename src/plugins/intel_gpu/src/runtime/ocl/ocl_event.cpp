@@ -33,6 +33,21 @@ instrumentation::profiling_interval get_profiling_interval(instrumentation::prof
 
 }  // namespace
 
+namespace cldnn::ocl::utils {
+std::vector<cl::Event> get_cl_events(const std::vector<event::ptr>& events) {
+    std::vector<cl::Event> cl_events;
+    for (const auto& ev : events) {
+        if (auto ocl_base_ev = dynamic_cast<ocl_base_event*>(ev.get())) {
+            if (ocl_base_ev->get().get() != nullptr) {
+                cl_events.push_back(ocl_base_ev->get());
+            }
+        }
+    }
+
+    return cl_events;
+}
+}  // namespace cldnn::ocl::utils
+
 void CL_CALLBACK ocl_event::ocl_event_completion_callback(cl_event, cl_int, void* me) {
     reinterpret_cast<ocl_event*>(me)->_set = true;
     reinterpret_cast<ocl_event*>(me)->call_handlers();

@@ -146,7 +146,6 @@ def test_visit_attributes_custom_op(device, prepared_paths, attributes, expectat
     custom = CustomOpWithAttribute(inputs=[param1, param2], attrs=attributes)
     res = ops.result(custom, name="result")
     model_with_op_attr = Model(res, [param1, param2], "CustomModel")
-
     xml_path, bin_path = prepared_paths
 
     with expectation as e:
@@ -163,7 +162,6 @@ def test_visit_attributes_custom_op(device, prepared_paths, attributes, expectat
 
     input_data = np.ones([2, 1], dtype=np.float32)
     expected_output = np.maximum(0.0, input_data)
-
     compiled_model = compile_model(model_with_op_attr, device)
     input_tensor = Tensor(input_data)
     results = compiled_model({"data1": input_tensor})

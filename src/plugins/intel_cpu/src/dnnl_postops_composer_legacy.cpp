@@ -24,6 +24,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -123,12 +124,12 @@ void DnnlPostOpsComposerLegacy::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    OPENVINO_ASSERT(scale.size() == OC || scale.size() == 1);
+    OPENVINO_ASSERT(any_of(scale.size(), OC, 1U));
 
     bool fuseIntoWeiScale = false;
     // Use dest scale when last post-ops is per-tensor quantization.
     if ((isINT8 && isLastPostOp && scale.size() == 1)) {
-        dst_scale_val = 1.0 / scale[0];
+        dst_scale_val = 1.0F / scale[0];
         updateDestScales();
         return true;
     }
@@ -164,7 +165,7 @@ bool DnnlPostOpsComposerLegacy::appendScale(const std::vector<float>& scale, boo
         }
 
         // (x + dst[:])*s = (x*s + s*dst[:])
-        if (scale.size() == 1 && ops.len() == 1) {
+        if (all_of(1, static_cast<int>(scale.size()), ops.len())) {
             auto& cur_op = ops.get()->entry_.back();
             if (cur_op.kind == dnnl::impl::primitive_kind::sum) {
                 cur_op.sum.scale *= scale[0];
@@ -229,7 +230,7 @@ bool DnnlPostOpsComposerLegacy::appendLinear(const std::vector<float>& scale,
                                              const std::vector<float>& shift,
                                              bool isLastPostOp,
                                              bool allowBinary) {
-    if (scale.size() == 1 && shift.size() == 1) {
+    if (all_of(1U, scale.size(), shift.size())) {
         if (shift[0] == 0.0F) {
             return appendScale(scale, isLastPostOp, allowBinary);
         }
@@ -256,7 +257,7 @@ bool DnnlPostOpsComposerLegacy::appendLinear(const std::vector<float>& scale,
 }
 
 void DnnlPostOpsComposerLegacy::appendClip(const std::vector<float>& low, const std::vector<float>& high) {
-    if (low.size() == 1 && high.size() == 1) {
+    if (all_of(1U, low.size(), high.size())) {
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], high[0]);
     } else if (low.size() == 1) {
         OPENVINO_ASSERT(high.size() == OC);

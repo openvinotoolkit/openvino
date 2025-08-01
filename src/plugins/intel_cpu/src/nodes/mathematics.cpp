@@ -56,7 +56,7 @@ bool Math::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             return false;
         }
 
-        if (one_of(op->get_type_info(),
+        if (any_of(op->get_type_info(),
                    ov::op::v0::HardSigmoid::get_type_info_static(),
                    ov::op::v0::Selu::get_type_info_static())) {
             auto firstConst = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));

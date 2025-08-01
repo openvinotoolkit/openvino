@@ -87,23 +87,41 @@ public:
      * @return A shared pointer to the created Executor.
      */
     ExecutorPtr make(const MemoryArgs& memory) {
-        auto config = createConfig(memory, m_attrs);
-        const bool configMatched = std::all_of(m_suitableImplementations.begin(),
-                                               m_suitableImplementations.end(),
-                                               [&config](const ExecutorImplementationRef& impl) {
-                                                   return !impl.get().createOptimalConfig(config).has_value();
-                                               });
+        std::vector<ExecutorImplementationRef> implementations;
+
+        auto acceptsConfig = [](const ExecutorImplementationRef& impl, const executor::Config<Attrs>& config) {
+            // current config is already considered as the optimal one
+            return !impl.get().createOptimalConfig(config).has_value();
+        };
+
+        // Filter out implementations that still require changes in configuration
+        for (const auto& impl : m_suitableImplementations) {
+            auto config = createConfig(memory, m_attrs);
+
+            if (!acceptsConfig(impl, config)) {
+                continue;
+            }
+
+            implementations.push_back(impl);
+
+            if (impl.get().shapeAgnostic() &&
+                impl.get().type() != ExecutorType::Acl) {  // @todo fix acl_eltwise precision mapping)
+                break;  // there is no way an implementation with a lower priority will be chosen
+            }
+        }
+
         OPENVINO_ASSERT(
-            configMatched,
-            "Failed to create executor since the provided memory arguments do not match the expected configuration");
+            !implementations.empty(),
+            "No suitable implementations."
+            "This may indicate that the provided memory descriptors are not compatible with any implementation.");
 
         // only single executor is available
-        if (m_suitableImplementations.size() == 1) {
-            const auto& theOnlyImplementation = m_suitableImplementations.front().get();
+        if (implementations.size() == 1) {
+            const auto& theOnlyImplementation = implementations.front().get();
             return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 
-        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, m_suitableImplementations);
+        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, implementations);
     }
 
 private:
@@ -137,20 +155,31 @@ private:
             }
 
             if (!implementation.supports(config, memoryFormatFilter)) {
-                DEBUG_LOG("Implementation is not supported: ", implementation.name());
+                DEBUG_LOG("Implementation is NOT supported: ", implementation.name());
                 continue;
             }
 
+            DEBUG_LOG("Implementation is supported: ", implementation.name());
             suitableImplementations.push_back(std::ref(implementation));
+        }
 
-            // implementation is supported and it is shape agnostic, there is no way
-            // an implementation with a lower priority will be chosen
-            if (implementation.shapeAgnostic()) {
-                DEBUG_LOG("Implementation is shape agnostic: ",
-                          implementation.name(),
-                          ". Stop processing implementations");
-                break;
-            }
+        const bool hasShapeAgnosticNonReferenceImplementation =
+            std::any_of(suitableImplementations.begin(),
+                        suitableImplementations.end(),
+                        [](const ExecutorImplementationRef& impl) {
+                            return impl.get().type() != ExecutorType::Reference &&
+                                   impl.get().type() != ExecutorType::Acl &&  // @todo fix acl_eltwise precision mapping
+                                   impl.get().shapeAgnostic();
+                        });
+
+        // Consider reference implementation only if there is nothing else available
+        if (hasShapeAgnosticNonReferenceImplementation) {
+            suitableImplementations.erase(std::remove_if(suitableImplementations.begin(),
+                                                         suitableImplementations.end(),
+                                                         [](const ExecutorImplementationRef& impl) {
+                                                             return impl.get().type() == ExecutorType::Reference;
+                                                         }),
+                                          suitableImplementations.end());
         }
 
         return suitableImplementations;

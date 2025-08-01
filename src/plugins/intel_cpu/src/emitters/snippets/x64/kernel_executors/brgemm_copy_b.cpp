@@ -39,6 +39,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
@@ -61,11 +62,11 @@ BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const brgemm_utils::BrgemmConfi
       m_hash(compute_hash()) {}
 
 bool BrgemmCopyBKernelConfig::is_completed() const {
-    return !utils::one_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
+    return none_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
 }
 
 bool BrgemmCopyBKernelConfig::is_empty() const {
-    return everyone_is(0, m_N, m_N_blk, m_K, m_K_blk, m_copy_B_wei_stride, m_LDB);
+    return all_of(0, m_N, m_N_blk, m_K, m_K_blk, m_copy_B_wei_stride, m_LDB);
 }
 
 bool BrgemmCopyBKernelConfig::operator==(const BrgemmCopyBKernelConfig& rhs) const {
@@ -83,7 +84,7 @@ void BrgemmCopyBKernelConfig::update(dnnl_dim_t N,
                                      dnnl_dim_t LDB) {
     // If one of the dims is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (utils::one_of(0, N, K)) {
+    if (any_of(0, N, K)) {
         m_N = 0;
         m_N_blk = 0;
         m_K = 0;
@@ -231,7 +232,7 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
 status_t BrgemmCopyBKernel::create_kernel() {
     const auto code = jit_generator_t::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
-    ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
+    ker_ = jit_kernel_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;
 }
 

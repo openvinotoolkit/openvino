@@ -26,6 +26,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/prior_box.hpp"
 #include "shape_inference/custom/priorbox.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 namespace {
@@ -97,9 +98,9 @@ PriorBox::PriorBox(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         }
     }
 
-    number_of_priors = ov::op::v0::PriorBox::number_of_priors(attrs);
+    number_of_priors = static_cast<int>(ov::op::v0::PriorBox::number_of_priors(attrs));
 
-    if (attrs.variance.size() == 1 || attrs.variance.size() == 4) {
+    if (any_of(attrs.variance.size(), 1U, 4U)) {
         for (float i : attrs.variance) {
             CPU_NODE_ASSERT(i >= 0, "variance must be > 0.");
 
@@ -169,12 +170,12 @@ void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (!scale_all_sizes) {
         // mxnet-like PriorBox
         if (step_ == -1) {
-            step_ = 1.F * IH / H;
+            step_ = 1.F * static_cast<float>(IH) / static_cast<float>(H);
         } else {
-            step_ *= IH;
+            step_ *= static_cast<float>(IH);
         }
         for (auto& size : min_size_) {
-            size *= IH;
+            size *= static_cast<float>(IH);
         }
     }
 
@@ -189,8 +190,8 @@ void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
     float IHI = 1.0F / static_cast<float>(IH);
 
     if (step_ == 0) {
-        step_x = static_cast<float>(IW) / W;
-        step_y = static_cast<float>(IH) / H;
+        step_x = static_cast<float>(IW) / static_cast<float>(W);
+        step_y = static_cast<float>(IH) / static_cast<float>(H);
     } else {
         step_x = step_;
         step_y = step_;
@@ -215,11 +216,11 @@ void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
     for (int64_t h = 0; h < H; ++h) {
         for (int64_t w = 0; w < W; ++w) {
             if (step_ == 0) {
-                center_x = (w + 0.5F) * step_x;
-                center_y = (h + 0.5F) * step_y;
+                center_x = (static_cast<float>(w) + 0.5F) * step_x;
+                center_y = (static_cast<float>(h) + 0.5F) * step_y;
             } else {
-                center_x = (offset + w) * step_;
-                center_y = (offset + h) * step_;
+                center_x = (offset + static_cast<float>(w)) * step_;
+                center_y = (offset + static_cast<float>(h)) * step_;
             }
 
             for (size_t s = 0; s < fixed_size.size(); ++s) {
@@ -229,14 +230,18 @@ void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
                 if (!fixed_ratio.empty()) {
                     for (float ar : fixed_ratio) {
                         auto density_ = static_cast<int64_t>(density[s]);
-                        auto shift = static_cast<int64_t>(fixed_size[s] / density_);
+                        auto shift = static_cast<int64_t>(fixed_size[s] / static_cast<float>(density_));
                         ar = std::sqrt(ar);
                         float box_width_ratio = fixed_size[s] * 0.5F * ar;
                         float box_height_ratio = fixed_size[s] * 0.5F / ar;
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2.F + shift / 2.F + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2.F + shift / 2.F + r * shift;
+                                float center_x_temp = center_x - static_cast<float>(fixed_size_) / 2.F +
+                                                      static_cast<float>(shift) / 2.F +
+                                                      static_cast<float>(c) * static_cast<float>(shift);
+                                float center_y_temp = center_y - static_cast<float>(fixed_size_) / 2.F +
+                                                      static_cast<float>(shift) / 2.F +
+                                                      static_cast<float>(r) * static_cast<float>(shift);
                                 calculate_data(center_x_temp, center_y_temp, box_width_ratio, box_height_ratio, true);
                             }
                         }
@@ -244,11 +249,15 @@ void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
                 } else {
                     if (!density.empty()) {
                         auto density_ = static_cast<int64_t>(density[s]);
-                        auto shift = static_cast<int64_t>(fixed_size[s] / density_);
+                        auto shift = static_cast<int64_t>(fixed_size[s] / static_cast<float>(density_));
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2.F + shift / 2.F + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2.F + shift / 2.F + r * shift;
+                                float center_x_temp = center_x - static_cast<float>(fixed_size_) / 2.F +
+                                                      static_cast<float>(shift) / 2.F +
+                                                      static_cast<float>(c) * static_cast<float>(shift);
+                                float center_y_temp = center_y - static_cast<float>(fixed_size_) / 2.F +
+                                                      static_cast<float>(shift) / 2.F +
+                                                      static_cast<float>(r) * static_cast<float>(shift);
                                 calculate_data(center_x_temp, center_y_temp, box_width, box_height, true);
                             }
                         }
@@ -260,14 +269,18 @@ void PriorBox::execute([[maybe_unused]] const dnnl::stream& strm) {
                         }
 
                         auto density_ = static_cast<int64_t>(density[s]);
-                        auto shift = static_cast<int64_t>(fixed_size[s] / density_);
+                        auto shift = static_cast<int64_t>(fixed_size[s] / static_cast<float>(density_));
                         ar = std::sqrt(ar);
                         float box_width_ratio = fixed_size[s] * 0.5F * ar;
                         float box_height_ratio = fixed_size[s] * 0.5F / ar;
                         for (int64_t r = 0; r < density_; ++r) {
                             for (int64_t c = 0; c < density_; ++c) {
-                                float center_x_temp = center_x - fixed_size_ / 2.F + shift / 2.F + c * shift;
-                                float center_y_temp = center_y - fixed_size_ / 2.F + shift / 2.F + r * shift;
+                                float center_x_temp = center_x - static_cast<float>(fixed_size_) / 2.F +
+                                                      static_cast<float>(shift) / 2.F +
+                                                      static_cast<float>(c) * static_cast<float>(shift);
+                                float center_y_temp = center_y - static_cast<float>(fixed_size_) / 2.F +
+                                                      static_cast<float>(shift) / 2.F +
+                                                      static_cast<float>(r) * static_cast<float>(shift);
                                 calculate_data(center_x_temp, center_y_temp, box_width_ratio, box_height_ratio, true);
                             }
                         }

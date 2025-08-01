@@ -17,6 +17,7 @@
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -68,7 +69,7 @@ struct jit_uni_matmul_small_kernel_f32 : public jit_uni_matmul_small_kernel,
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override;

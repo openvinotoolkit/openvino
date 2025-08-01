@@ -28,6 +28,21 @@ bool TransparentBaseTransformation::transform(ov::pass::pattern::Matcher &m) {
 }
 
 bool TransparentBaseTransformation::canBeTransformed(const std::shared_ptr<Node>& layer) const {
+    if (!LayerTransformation::canBeTransformed(layer)) {
+        return false;
+    }
+
+    const auto dequantization = NetworkHelper::getDequantization(layer, defaultPrecisions);
+    if (dequantization.multiply == nullptr) {
+        return false;
+    }
+
+    // If dequantization is placed on constant path and it doesn't change precision,
+    // there is no point in the DQ propagation since it can be constant folded
+    if (ov::is_type<ov::op::v0::Constant>(dequantization.data.get_node_shared_ptr()) &&
+        dequantization.data.get_element_type() == dequantization.multiply->get_output_element_type(0)) {
+        return false;
+    }
     return true;
 }
 

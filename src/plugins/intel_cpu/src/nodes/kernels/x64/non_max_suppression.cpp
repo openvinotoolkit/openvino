@@ -363,7 +363,7 @@ void NonMaxSuppression<isa>::suppressed_by_score() {
 template <x64::cpu_isa_t isa>
 void NonMaxSuppression<isa>::iou(int ele_num) {
     auto load = [&](Xbyak::Reg64 reg_src, Vmm vmm_dst) {
-        OPENVINO_ASSERT(one_of(ele_num, scalar_step, vector_step),
+        OPENVINO_ASSERT(any_of(ele_num, scalar_step, vector_step),
                         "NMS JIT implementation supports load emitter with only element count scalar_step or "
                         "vector_step! Get: ",
                         ele_num);

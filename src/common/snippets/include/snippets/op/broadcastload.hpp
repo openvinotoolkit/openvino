@@ -29,7 +29,7 @@ class BroadcastLoad : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("BroadcastLoad", "SnippetsOpset");
 
-    BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset = 0lu);
+    BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset = 0LU);
     BroadcastLoad() = default;
 
     size_t get_offset() const {

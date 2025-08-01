@@ -28,10 +28,12 @@ protected:
     void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
-    static const uintptr_t get_execute_function_ptr();
-    const uintptr_t get_compiled_kernel_ptr() const;
+    static uintptr_t get_execute_function_ptr();
+    uintptr_t get_compiled_kernel_ptr() const;
 
     std::shared_ptr<GemmKaiKernelExecutor> m_kernel_executor_kai = nullptr;
+    std::vector<size_t> m_memory_offsets;
+    std::vector<size_t> m_buffer_ids;
 };
 
 }  // namespace ov::intel_cpu::aarch64

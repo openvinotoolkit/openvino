@@ -120,11 +120,12 @@ struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
         return nullptr;
     }
     [[nodiscard]] const dnnl::impl::cpu::x64::brgemm_desc_t& get_brg() const override {
+        OV_CPU_JIT_EMITTER_THROW("get_brg should not be called for reference kernel");
+        static const dnnl::impl::cpu::x64::brgemm_desc_t brg;
         return brg;
     }
 
 private:
-    dnnl::impl::cpu::x64::brgemm_desc_t brg;
     BrgemmKernelConfig m_config;
 };
 #endif

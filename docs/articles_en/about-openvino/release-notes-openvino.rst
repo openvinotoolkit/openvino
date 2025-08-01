@@ -328,6 +328,17 @@ Known Issues
 |   Performance regression of models on ARM due to an upgrade to the latest ACL. A corresponding issue has 
     been created in the ACL and oneDNN repositories. 
 
+| **Component: OpenVINO Homebrew Installation**
+| ID: NA
+| Description:
+|    Recent OpenVINO releases are currently unavailable via Homebrew due to an issue with
+     `protobuf` in the internal Homebrew CI infrastructure. This affects the ability
+     to build and publish formula updates. The upstream issue is actively monitored,
+     and availability will be restored as soon as it is resolved. Until then, use the
+     S3 archive as an alternative to Homebrew on Linux and macOS.
+     For more information, see :doc:`Linux Installation Guide <./../get-started/install-openvino/install-openvino-archive-linux>`
+     and :doc:`macOS Installation Guide <./../get-started/install-openvino/install-openvino-archive-macos>`.
+
 
 .. Previous 2025 releases
 .. ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

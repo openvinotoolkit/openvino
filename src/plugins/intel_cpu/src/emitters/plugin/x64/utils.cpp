@@ -4,10 +4,10 @@
 
 #include "utils.hpp"
 
+#include <utils/general_utils.h>
 #include <xbyak/xbyak.h>
 
 #include <algorithm>
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
@@ -46,8 +46,7 @@ inline snippets::Reg Xbyak2SnippetsReg(const Xbyak::Reg& xb_reg) {
 }
 
 template <cpu_isa_t isa,
-          std::enable_if_t<dnnl::impl::utils::one_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core),
-                           bool> = true>
+          std::enable_if_t<any_of(isa, cpu_isa_t::sse41, cpu_isa_t::avx2, cpu_isa_t::avx512_core), bool> = true>
 struct regs_to_spill {
     static std::vector<Xbyak::Reg> get(const std::set<snippets::Reg>& live_regs) {
         std::vector<Xbyak::Reg> regs_to_spill;

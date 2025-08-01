@@ -150,7 +150,7 @@ void jit_load_emitter::load_byte(const std::vector<size_t>& in_idxs, const std::
 template <cpu_isa_t isa>
 void jit_load_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(
-        one_of(prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
+        any_of(prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported precision.");
     OV_CPU_JIT_EMITTER_ASSERT(load_num_ <= 4, "Unexpected number of elements to load.");
 
@@ -306,7 +306,7 @@ void jit_store_emitter::store_byte(const std::vector<size_t>& in_idxs, const std
 template <cpu_isa_t isa>
 void jit_store_emitter::emit_isa(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(
-        one_of(prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
+        any_of(prc_, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported precision.");
     OV_CPU_JIT_EMITTER_ASSERT(store_num_ <= 4, "Unexpected number of elements to store.");
 

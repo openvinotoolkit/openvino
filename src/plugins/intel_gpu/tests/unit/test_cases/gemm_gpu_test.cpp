@@ -66,7 +66,7 @@ const std::vector<data_types> all_types = {
 };
 
 typedef std::tuple<
-std::vector<std::vector<int32_t>>,
+std::vector<std::vector<ov::Dimension::value_type>>,
 std::vector<std::vector<float>>,
 format,
 data_types,
@@ -82,7 +82,7 @@ class GemmGPUTest : public ::testing::TestWithParam<GemmParams> {
 protected:
     std::vector<std::vector<float>> input_data;
     std::vector<float> out_data;
-    std::vector<std::vector<int32_t>> shapes;
+    std::vector<std::vector<ov::Dimension::value_type>> shapes;
     format fmt{format::bfyx};
     data_types type;
     bool transpose_input0;
@@ -233,8 +233,8 @@ TEST_P(GemmGPUTestRandom, basic) {
 INSTANTIATE_TEST_SUITE_P(
     GemmGPUTest_basic_t1, GemmGPUTestRandom,
     ::testing::Combine(
-        ::testing::Values(std::vector<std::vector<int32_t>>{{1, 1, 3, 4},
-                                                            {1, 1, 1, 4}}),
+        ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{1, 1, 3, 4},
+                                                                              {1, 1, 1, 4}}),
         ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
         ::testing::ValuesIn(planar_formats), ::testing::ValuesIn(float_types),
         ::testing::Values(std::vector<float>{}),
@@ -244,8 +244,8 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     GemmGPUTest_basic_t2, GemmGPUTestRandom,
     ::testing::Combine(
-        ::testing::Values(std::vector<std::vector<int32_t>>{{1, 1, 4, 3},
-                                                            {1, 1, 4, 1}}),
+        ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{1, 1, 4, 3},
+                                                                              {1, 1, 4, 1}}),
         ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
         ::testing::ValuesIn(planar_formats), ::testing::ValuesIn(float_types),
         ::testing::Values(std::vector<float>{}),
@@ -378,10 +378,10 @@ public:
             cldnn::mem_lock<ov::float16> mem_ptr(mem, get_test_stream());
             auto&& l = mem->get_layout();
             auto data_idx = 0;
-            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+            for (ov::Dimension::value_type b = 0; b < l.batch(); ++b) {
+                for (ov::Dimension::value_type f = 0; f < l.feature(); ++f) {
+                    for (ov::Dimension::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (ov::Dimension::value_type x = 0; x < l.spatial(0); ++x) {
                             auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
                             auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
@@ -545,10 +545,10 @@ public:
             cldnn::mem_lock<ov::float16> mem_ptr(mem, get_test_stream());
             auto&& l = mem->get_layout();
             auto data_idx = 0;
-            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+            for (ov::Dimension::value_type b = 0; b < l.batch(); ++b) {
+                for (ov::Dimension::value_type f = 0; f < l.feature(); ++f) {
+                    for (ov::Dimension::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (ov::Dimension::value_type x = 0; x < l.spatial(0); ++x) {
                             auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
                             auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
@@ -886,10 +886,10 @@ public:
             cldnn::mem_lock<float> mem_ptr(mem, get_test_stream());
             auto&& l = mem->get_layout();
             auto data_idx = 0;
-            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+            for (ov::Dimension::value_type b = 0; b < l.batch(); ++b) {
+                for (ov::Dimension::value_type f = 0; f < l.feature(); ++f) {
+                    for (ov::Dimension::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (ov::Dimension::value_type x = 0; x < l.spatial(0); ++x) {
                             auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
                             auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
@@ -1032,10 +1032,10 @@ public:
             cldnn::mem_lock<float> mem_ptr(mem, get_test_stream());
             auto&& l = mem->get_layout();
             auto data_idx = 0;
-            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+            for (ov::Dimension::value_type b = 0; b < l.batch(); ++b) {
+                for (ov::Dimension::value_type f = 0; f < l.feature(); ++f) {
+                    for (ov::Dimension::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (ov::Dimension::value_type x = 0; x < l.spatial(0); ++x) {
                             auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
                             auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
@@ -1176,10 +1176,10 @@ public:
             cldnn::mem_lock<ov::float16> mem_ptr(mem, get_test_stream());
             auto&& l = mem->get_layout();
             auto data_idx = 0;
-            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+            for (ov::Dimension::value_type b = 0; b < l.batch(); ++b) {
+                for (ov::Dimension::value_type f = 0; f < l.feature(); ++f) {
+                    for (ov::Dimension::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (ov::Dimension::value_type x = 0; x < l.spatial(0); ++x) {
                             auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
                             auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
@@ -1847,7 +1847,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_t1t2,
         GemmGPUTestRandom,
         ::testing::Combine(
-            ::testing::Values(std::vector<std::vector<int32_t>>{{2, 1, 3, 4}, {2, 1, 4, 1}}),
+            ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{2, 1, 3, 4}, {2, 1, 4, 1}}),
             ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
             ::testing::ValuesIn(planar_formats),
             ::testing::ValuesIn(float_types),
@@ -1862,7 +1862,7 @@ INSTANTIATE_TEST_SUITE_P(
 INSTANTIATE_TEST_SUITE_P(
     GemmGPUTest_basic_input3, GemmGPUTest,
     ::testing::Combine(
-        ::testing::Values(std::vector<std::vector<int32_t>>{
+        ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{
             {1, 1, 3, 2}, {1, 1, 2, 3}, {1, 1, 2, 2}}),
         ::testing::Values(std::vector<std::vector<float>>{
             {1.0f, 2.0f, 3.0f, 1.0f, 0.0f, 1.0f},
@@ -1889,7 +1889,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_input3_t1t2,
         GemmGPUTest,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 1, 1, 4, 3 }, { 1, 1, 3, 2 }, { 1, 1, 2, 4 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 1, 1, 4, 3 }, { 1, 1, 3, 2 }, { 1, 1, 2, 4 }}),
                     ::testing::Values(std::vector<std::vector<float>>{
                         {
                             1.0f, 2.0f, 3.0f, 4.0f,
@@ -1927,7 +1927,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_input3_1,
         GemmGPUTest,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 1, 1, 3, 4 }, { 1, 1, 2, 3 }, { 1, 1, 2, 4 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 1, 1, 3, 4 }, { 1, 1, 2, 3 }, { 1, 1, 2, 4 }}),
                     ::testing::Values(std::vector<std::vector<float>>{
                         {
                             1.0f, 1.0f, 0.0f,
@@ -1968,7 +1968,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_input3_t2,
         GemmGPUTest,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 1, 1, 3, 4 }, { 1, 1, 3, 2 }, { 1, 1, 2, 4 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 1, 1, 3, 4 }, { 1, 1, 3, 2 }, { 1, 1, 2, 4 }}),
                     ::testing::Values(std::vector<std::vector<float>>{
                         {
                             1.0f, 1.0f, 0.0f,
@@ -2008,7 +2008,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_input3_t1,
         GemmGPUTest,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 1, 1, 4, 3 }, { 1, 1, 2, 3 }, { 1, 1, 2, 4 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 1, 1, 4, 3 }, { 1, 1, 2, 3 }, { 1, 1, 2, 4 }}),
                     ::testing::Values(std::vector<std::vector<float>>{
                         {
                             1.0f, 2.0f, 3.0f, 4.0f,
@@ -2047,7 +2047,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_basic,
         GemmGPUTestRandom,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 2, 1, 4, 3 }, { 2, 1, 1, 4 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 2, 1, 4, 3 }, { 2, 1, 1, 4 }}),
                     ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
                     ::testing::ValuesIn(planar_formats),
                     ::testing::ValuesIn(float_types),
@@ -2064,7 +2064,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_basic3_bfyx,
         GemmGPUTestRandom,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 5, 1, 500, 9 }, { 5, 1, 1, 500 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 5, 1, 500, 9 }, { 5, 1, 1, 500 }}),
                     ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
                     ::testing::ValuesIn(planar_formats),
                     ::testing::ValuesIn(float_types),
@@ -2080,7 +2080,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_basic_smarcink2,
         GemmGPUTestRandom,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 2, 1, 3, 2 }, { 2, 1, 2, 3 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 2, 1, 3, 2 }, { 2, 1, 2, 3 }}),
                     ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
                     ::testing::ValuesIn(planar_formats),
                     ::testing::ValuesIn(float_types),
@@ -2096,7 +2096,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_f_block_4d_formats,
         GemmGPUTestRandom,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 1, 32, 3, 2 }, { 1, 32, 2, 3 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 1, 32, 3, 2 }, { 1, 32, 2, 3 }}),
                     ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
                     ::testing::ValuesIn(f_blocked_4d_formats),
                     ::testing::ValuesIn(float_types),
@@ -2112,7 +2112,7 @@ INSTANTIATE_TEST_SUITE_P(
         GemmGPUTest_b_block_4d_formats,
         GemmGPUTestRandom,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 32, 1, 3, 2 }, { 32, 1, 2, 3 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 32, 1, 3, 2 }, { 32, 1, 2, 3 }}),
                     ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
                     ::testing::ValuesIn(b_blocked_4d_formats),
                     ::testing::ValuesIn(float_types),
@@ -2128,7 +2128,7 @@ INSTANTIATE_TEST_SUITE_P(
         DISABLED_GemmGPUTest_f_block_5d_formats,
         GemmGPUTestRandom,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 1, 16, 2, 3, 2 }, { 1, 16, 2, 2, 3 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 1, 16, 2, 3, 2 }, { 1, 16, 2, 2, 3 }}),
                     ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
                     ::testing::ValuesIn(f_blocked_5d_formats),
                     ::testing::ValuesIn(float_types),
@@ -2144,7 +2144,7 @@ INSTANTIATE_TEST_SUITE_P(
         DISABLED_GemmGPUTest_b_block_5d_formats,
         GemmGPUTestRandom,
                 ::testing::Combine(
-                    ::testing::Values(std::vector<std::vector<int32_t>>{{ 16, 1, 2, 3, 2 }, { 16, 1, 2, 2, 3 }}),
+                    ::testing::Values(std::vector<std::vector<ov::Dimension::value_type>>{{ 16, 1, 2, 3, 2 }, { 16, 1, 2, 2, 3 }}),
                     ::testing::Values(std::vector<std::vector<float>>{{}, {}}),
                     ::testing::ValuesIn(b_blocked_5d_formats),
                     ::testing::ValuesIn(float_types),
@@ -2721,7 +2721,7 @@ public:
 
     layout get_input_layout(T& p, int in_no) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad.spatial[0], pad.spatial[1] };
         if (in_no == 0)
             return layout{ p.data_type_in0, p.input_format, p.in_shapes.at(0), padding{ pad_ } };
         else if (in_no == 1)
@@ -2948,10 +2948,10 @@ public:
             cldnn::mem_lock<ov::float16> mem_ptr(mem, get_test_stream());
             auto&& l = mem->get_layout();
             auto data_idx = 0;
-            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+            for (ov::Dimension::value_type b = 0; b < l.batch(); ++b) {
+                for (ov::Dimension::value_type f = 0; f < l.feature(); ++f) {
+                    for (ov::Dimension::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (ov::Dimension::value_type x = 0; x < l.spatial(0); ++x) {
                             auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
                             auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];
@@ -3114,10 +3114,10 @@ public:
             cldnn::mem_lock<ov::float16> mem_ptr(mem, get_test_stream());
             auto&& l = mem->get_layout();
             auto data_idx = 0;
-            for (cldnn::tensor::value_type b = 0; b < l.batch(); ++b) {
-                for (cldnn::tensor::value_type f = 0; f < l.feature(); ++f) {
-                    for (cldnn::tensor::value_type y = 0; y < l.spatial(1); ++y) {
-                        for (cldnn::tensor::value_type x = 0; x < l.spatial(0); ++x) {
+            for (ov::Dimension::value_type b = 0; b < l.batch(); ++b) {
+                for (ov::Dimension::value_type f = 0; f < l.feature(); ++f) {
+                    for (ov::Dimension::value_type y = 0; y < l.spatial(1); ++y) {
+                        for (ov::Dimension::value_type x = 0; x < l.spatial(0); ++x) {
                             auto tensor_coord = cldnn::tensor{{b, f, x, y}, 0};
                             auto buffer_idx = l.get_linear_offset(tensor_coord);
                             mem_ptr[buffer_idx] = data[data_idx++];

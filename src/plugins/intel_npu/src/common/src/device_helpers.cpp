@@ -6,6 +6,8 @@
 
 #include "openvino/core/except.hpp"
 
+namespace intel_npu {
+
 bool utils::isNPUDevice(const uint32_t deviceId) {
     // bits 26-24 define interface type
     // 000 - IPC
@@ -52,3 +54,5 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
 
     return utils::getPlatformByDeviceName(availableDevicesNames.at(0));
 }
+
+}  // namespace intel_npu

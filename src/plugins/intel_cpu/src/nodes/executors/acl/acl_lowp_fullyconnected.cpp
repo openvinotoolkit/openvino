@@ -85,8 +85,8 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
     }
 
     VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
-    VERIFY(one_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
-    VERIFY(one_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
+    VERIFY(any_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
+    VERIFY(any_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
     return true;
 }
 
@@ -97,13 +97,13 @@ void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShap
 arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     const auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
     if (dequantizationScales.empty()) {
-        tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.f));
+        tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.F));
     } else {
         tensor_info->set_quantization_info(arm_compute::QuantizationInfo(dequantizationScales[0]));
     }
 
     const auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
-    tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1.f));
+    tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1.F));
 
     auto matMulValid = arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                                            aclMemoryInfos[ACLArgs::ACL_WEI].get(),

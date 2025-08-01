@@ -71,7 +71,7 @@ void EmbeddingSegmentsSum::initSupportedPrimitiveDescriptors() {
                                                                     ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
+    if (any_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
         inDataPrecision = ov::element::f32;
     }
     if (!supportedPrecisions.empty()) {

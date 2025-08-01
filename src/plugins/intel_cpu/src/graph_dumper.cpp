@@ -293,7 +293,7 @@ void summary_perf(const Graph& graph) {
     double total_avg = 0;
     uint64_t total = 0;
     for (const auto& node : graph.GetNodes()) {  // important: graph.graphNodes are in topological order
-        double avg = node->PerfCounter().avg();
+        auto avg = node->PerfCounter().avg();
         auto type = node->getTypeStr() + "_" + node->getPrimitiveDescriptorType();
 
         total += node->PerfCounter().count() * avg;
@@ -320,7 +320,7 @@ void summary_perf(const Graph& graph) {
     std::cout << "Summary of " << graph.GetName() << " @" << std::hash<uint64_t>{}(reinterpret_cast<uint64_t>(&graph))
               << '\n';
     std::cout << "     Total(us): " << total << '\n';
-    std::cout << " Total_avg(us): " << (uint64_t)(total_avg) << '\n';
+    std::cout << " Total_avg(us): " << static_cast<uint64_t>(total_avg) << '\n';
     {
         std::cout << " perf_by_type:" << '\n';
         std::vector<std::pair<std::string, double>> A;
@@ -405,7 +405,7 @@ void average_counters(const Graph& graph) {
     uint64_t total = 0;
 
     auto toMs = [](uint64_t value) {
-        return std::chrono::microseconds(value).count() / 1000.0;
+        return static_cast<double>(std::chrono::microseconds(value).count()) / 1000.0;
     };
 
     auto printAverageCounter = [&toMs, &file](const NodePtr& node) {

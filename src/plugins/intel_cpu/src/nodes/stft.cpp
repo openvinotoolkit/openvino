@@ -72,7 +72,7 @@ void STFT::initSupportedPrimitiveDescriptors() {
     }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!one_of(dataPrecision, ov::element::f32)) {
+    if (none_of(dataPrecision, ov::element::f32)) {
         dataPrecision = ov::element::f32;
     }
 
@@ -188,7 +188,8 @@ void STFT::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 bool STFT::needShapeInfer() const {
-    return !(m_is_frame_size_const && m_is_frame_step_const) || Node::needShapeInfer();
+    const bool both_const = m_is_frame_size_const && m_is_frame_step_const;
+    return !both_const || Node::needShapeInfer();
 }
 
 void STFT::createPrimitive() {

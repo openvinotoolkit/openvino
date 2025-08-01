@@ -74,7 +74,7 @@ bool SpaceToDepth::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             return false;
         }
         const auto mode = spaceToDepth->get_mode();
-        if (!one_of(mode,
+        if (none_of(mode,
                     ov::op::v0::SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST,
                     ov::op::v0::SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST)) {
             errorMessage = "Does not support mode: " + ov::as_string(mode);
@@ -92,7 +92,7 @@ SpaceToDepth::SpaceToDepth(const std::shared_ptr<ov::Node>& op, const GraphConte
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    CPU_NODE_ASSERT(inputShapes.size() == 1 && outputShapes.size() == 1, "has incorrect number of input/output edges!");
+    CPU_NODE_ASSERT(all_of(1U, inputShapes.size(), outputShapes.size()), "has incorrect number of input/output edges!");
 
     auto spaceToDepth = ov::as_type_ptr<const ov::op::v0::SpaceToDepth>(op);
     CPU_NODE_ASSERT(spaceToDepth, "supports only v0");
@@ -217,11 +217,11 @@ void SpaceToDepth::prepareParams() {
 
 SpaceToDepth::SpaceToDepthExecutor::SpaceToDepthExecutor(const SpaceToDepthAttrs& attrs) {
     OPENVINO_ASSERT(
-        one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
+        any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
         "SpaceToDepth executor supports only 'nCsp16c', 'nCsp8c', "
         "'nspc' or 'ncsp' layouts.");
 
-    const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isBlocked = any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
     const auto& srcBlockedDims = attrs.srcBlockedDims;
     const auto& dstBlockedDims = attrs.destBlockedDims;

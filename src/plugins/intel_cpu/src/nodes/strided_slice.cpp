@@ -75,10 +75,14 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         attrs.AXES_ID = 5;
     }
 
-    CPU_NODE_ASSERT(!(attrs.isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) &&
-                        !(!attrs.isStridedSliceOp &&
-                          (inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1))),
-                    "has incorrect number of input edges");
+    const bool is_strided_slice = attrs.isStridedSliceOp;
+    const bool wrong_size_for_strided = inputShapes.size() < 3 || inputShapes.size() > 4;
+    const bool wrong_size_for_slice =
+        inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1);
+    const bool strided_slice_with_wrong_size = is_strided_slice && wrong_size_for_strided;
+    const bool slice_with_wrong_size = !is_strided_slice && wrong_size_for_slice;
+    const bool valid_config = !strided_slice_with_wrong_size && !slice_with_wrong_size;
+    CPU_NODE_ASSERT(valid_config, "has incorrect number of input edges");
     CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges");
 
     if (inputShapes.size() > attrs.STRIDE_ID) {
@@ -91,7 +95,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     for (size_t i = 0LU; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
+        if (!isConstantInput[i] && any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
             !attrs.isSliceScatterOp) {
             shapeHasDataDependency = true;
         }
@@ -151,7 +155,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
         int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
         int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
-        attrs.equalDims = newAxis == 0 && shrinkAxis == 0;
+        attrs.equalDims = all_of(0, newAxis, shrinkAxis);
     } else {
         attrs.equalDims = true;
     }

@@ -580,6 +580,13 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
               << "." << static_cast<int>(device_info.gfx_ver.revision);
         }
         return decltype(ov::device::architecture)::value_type {s.str()};
+    } else if (name == ov::device::pci_info) {
+        ov::device::PCIInfo info;
+        info.domain = device_info.pci_info.pci_domain;
+        info.bus = device_info.pci_info.pci_bus;
+        info.device = device_info.pci_info.pci_device;
+        info.function = device_info.pci_info.pci_function;
+        return decltype(ov::device::pci_info)::value_type {info};
     } else {
         OPENVINO_THROW("Unsupported metric key ", name);
     }
@@ -615,6 +622,8 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::device::type.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::gops.name(), PropertyMutability::RO},
         ov::PropertyName{ov::device::capabilities.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::device::pci_info.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::device_id.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},

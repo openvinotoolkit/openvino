@@ -11,6 +11,7 @@
 
 #include "cpu_types.h"
 #include "openvino/core/except.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -20,7 +21,7 @@ bool Shape::isCompatible(const VectorDims& vecDims) const {
     }
 
     auto comparator = [](Dim lhs, Dim rhs) {
-        return (lhs == rhs) || (lhs == Shape::UNDEFINED_DIM);
+        return any_of(lhs, rhs, Shape::UNDEFINED_DIM);
     };
 
     if (!std::equal(getDims().begin(), getDims().end(), vecDims.begin(), comparator)) {

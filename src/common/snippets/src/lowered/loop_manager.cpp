@@ -327,7 +327,7 @@ void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target,
     for (const auto& p : m_map) {
         if (const auto inner_splitted_loop_info = ov::as_type_ptr<InnerSplittedUnifiedLoopInfo>(p.second)) {
             const auto outer = inner_splitted_loop_info->get_outer_splitted_loop_info();
-            if (utils::one_of(outer, loop_info_upper, loop_info_lower)) {
+            if (utils::any_of(outer, loop_info_upper, loop_info_lower)) {
                 inner_splitted_loop_info->set_outer_splitted_loop_info(m_map[to]);
             }
         }

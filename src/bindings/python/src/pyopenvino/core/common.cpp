@@ -10,6 +10,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/util/common_util.hpp"
 #include "pyopenvino/core/remote_tensor.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 #define C_CONTIGUOUS py::detail::npy_api::constants::NPY_ARRAY_C_CONTIGUOUS_
 
@@ -418,7 +419,7 @@ std::shared_ptr<ov::SharedBuffer<py::array>> get_shared_memory(py::array& array)
             array.ndim() == 0 ? array.itemsize() : array.nbytes(),
             array);
         std::shared_ptr<ov::SharedBuffer<py::array>> memory(buffer, [](ov::SharedBuffer<py::array>* buffer) {
-            py::gil_scoped_acquire acquire;
+            ConditionalGILScopedAcquire acquire;
             delete buffer;
         });
         return memory;
@@ -572,14 +573,14 @@ ov::PartialShape partial_shape_from_list(const py::list& shape) {
                                      std::to_string(bounded_dim.size()) + " elements were given.");
             }
             if (!(py::isinstance<py::int_>(bounded_dim[0]) && py::isinstance<py::int_>(bounded_dim[1]))) {
-                throw py::type_error("Incorrect pair of types (" + std::string(py::str(bounded_dim[0].get_type())) +
-                                     ", " + std::string(py::str(bounded_dim[1].get_type())) +
+                throw py::type_error("Incorrect pair of types (" + std::string(py::str(py::type::of(bounded_dim[0]))) +
+                                     ", " + std::string(py::str(py::type::of(bounded_dim[1]))) +
                                      ") for dynamic dimension, ints are expected.");
             }
             pshape.insert(pshape.end(),
                           ov::Dimension(bounded_dim[0].cast<value_type>(), bounded_dim[1].cast<value_type>()));
         } else {
-            throw py::type_error("Incorrect type " + std::string(py::str(dim.get_type())) +
+            throw py::type_error("Incorrect type " + std::string(py::str(py::type::of(dim))) +
                                  " for dimension. Expected types are: "
                                  "int, str, openvino.Dimension, list/tuple with lower and upper values for "
                                  "dynamic dimension.");
@@ -595,7 +596,7 @@ const ov::Tensor& cast_to_tensor(const py::handle& tensor) {
         return tensor.cast<const RemoteTensorWrapper&>().tensor;
     }
 
-    throw py::type_error("Unable to cast " + std::string(py::str(tensor.get_type())) + " object to ov::Tensor");
+    throw py::type_error("Unable to cast " + std::string(py::str(py::type::of(tensor))) + " object to ov::Tensor");
 }
 
 void set_request_tensors(ov::InferRequest& request, const py::dict& inputs) {

@@ -1,5 +1,6 @@
 # type: ignore
 from __future__ import annotations
+from builtins import list as TensorShape
 from functools import partial
 from openvino._pyopenvino import Node
 from openvino._pyopenvino import PartialShape
@@ -750,7 +751,7 @@ def interpolate(*args, **kwargs) -> openvino._pyopenvino.Node:
         Available attributes are:
     
         * axes              Specify spatial dimension indices where interpolation is applied.
-                            Type: List of non-negative integer numbers.
+                            Type: list of non-negative integer numbers.
                             Required: yes.
     
         * mode              Specifies type of interpolation.
@@ -1676,7 +1677,7 @@ def squeeze(*args, **kwargs) -> openvino._pyopenvino.Node:
     Perform squeeze operation on input tensor.
     
         :param data: The node with data tensor.
-        :param axes: List of non-negative integers, indicate the dimensions to squeeze.
+        :param axes: list of non-negative integers, indicate the dimensions to squeeze.
                       One of: input node or array.
         :param name: Optional new name for output node.
         :return: The new node performing a squeeze operation on input tensor.
@@ -1784,7 +1785,7 @@ def unsqueeze(data: typing.Union[openvino._pyopenvino.Node, int, float, numpy.nd
                      Result: tensor with shape [1, 3, 4, 5, 1]
     
         :param data: The node with data tensor.
-        :param axes: List of non-negative integers, indicate the dimensions to be inserted.
+        :param axes: list of non-negative integers, indicate the dimensions to be inserted.
                       One of: input node or array.
         :return: The new node performing an unsqueeze operation on input tensor.
         
@@ -1803,5 +1804,4 @@ NodeInput: typing._UnionGenericAlias  # value = typing.Union[openvino._pyopenvin
 NumericData: typing._UnionGenericAlias  # value = typing.Union[int, float, numpy.ndarray]
 NumericType: typing._UnionGenericAlias  # value = typing.Union[type, numpy.dtype]
 ScalarData: typing._UnionGenericAlias  # value = typing.Union[int, float]
-TensorShape: typing._GenericAlias  # value = typing.List[int]
 _get_node_factory_opset1: functools.partial  # value = functools.partial(<function _get_node_factory at memory_address>, 'opset1')

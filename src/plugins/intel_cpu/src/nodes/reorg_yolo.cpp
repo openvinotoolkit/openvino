@@ -19,6 +19,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/reorg_yolo.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -42,7 +43,7 @@ ReorgYolo::ReorgYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    CPU_NODE_ASSERT(getOriginalInputsNumber() == 1 && getOriginalOutputsNumber() == 1,
+    CPU_NODE_ASSERT(all_of(1U, getOriginalInputsNumber(), getOriginalOutputsNumber()),
                     "has incorrect number of input/output edges!");
 
     const auto reorgYolo = ov::as_type_ptr<const ov::op::v0::ReorgYolo>(op);
