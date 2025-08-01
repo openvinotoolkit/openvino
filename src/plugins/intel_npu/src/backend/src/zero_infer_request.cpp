@@ -220,33 +220,31 @@ void ZeroInferRequest::create_pipeline() {
 
             get_user_input(zeroState->get_tensor_index()) = zeroState->get_state();
             _userOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state();
-
             zeroState->reset_tensor_updated_flag();
+
+            auto& userInput = get_user_input(zeroState->get_tensor_index())._ptr;
 
             if (zeroState->zero_tensor_should_be_updated()) {
                 _logger.debug("ZeroInferRequest::create_pipeline - level zero state tensor should be updated");
 
+                auto& levelZeroInput = get_level_zero_input(zeroState->get_tensor_index());
+                auto& levelZeroOutput = _levelZeroOutputTensors.at(zeroState->get_related_tensor_index());
+
                 if (zeroState->zero_tensor_should_be_imported()) {
-                    auto hostMemSharedAllocator =
-                        zeroMemory::HostMemSharedAllocator(_initStructs,
-                                                           get_user_input(zeroState->get_tensor_index())._ptr);
-                    get_level_zero_input(zeroState->get_tensor_index()) =
-                        std::make_shared<ZeroTensor>(_initStructs,
-                                                     _config,
-                                                     get_user_input(zeroState->get_tensor_index())->get_element_type(),
-                                                     get_user_input(zeroState->get_tensor_index())->get_shape(),
-                                                     hostMemSharedAllocator);
+                    auto hostMemSharedAllocator = zeroMemory::HostMemSharedAllocator(_initStructs, userInput);
+                    levelZeroInput = std::make_shared<ZeroTensor>(_initStructs,
+                                                                  _config,
+                                                                  userInput->get_element_type(),
+                                                                  userInput->get_shape(),
+                                                                  hostMemSharedAllocator);
+                    std::dynamic_pointer_cast<ZeroTensor>(levelZeroInput)->set_tensor_shared_with_user();
 
-                    std::dynamic_pointer_cast<ZeroTensor>(get_level_zero_input(zeroState->get_tensor_index()))
-                        ->set_tensor_shared_with_user();
-
-                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) =
-                        get_level_zero_input(zeroState->get_tensor_index());
+                    levelZeroOutput = levelZeroInput;
 
                     zeroState->reset_tensor_imported_flag();
                 } else {
-                    get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_state()._ptr;
-                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state()._ptr;
+                    levelZeroInput = userInput;
+                    levelZeroOutput = userInput;
                 }
 
                 zeroState->reset_zero_tensor_updated_flag();
@@ -682,33 +680,31 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
             zeroState->reset_tensor_updated_flag();
 
+            auto& userInput = get_user_input(zeroState->get_tensor_index())._ptr;
+            auto& levelZeroInput = get_level_zero_input(zeroState->get_tensor_index());
+            auto& levelZeroOutput = _levelZeroOutputTensors.at(zeroState->get_related_tensor_index());
+
             if (zeroState->zero_tensor_should_be_updated()) {
                 if (zeroState->zero_tensor_should_be_imported()) {
-                    auto hostMemSharedAllocator =
-                        zeroMemory::HostMemSharedAllocator(_initStructs,
-                                                           get_user_input(zeroState->get_tensor_index())._ptr);
-                    get_level_zero_input(zeroState->get_tensor_index()) =
-                        std::make_shared<ZeroTensor>(_initStructs,
-                                                     _config,
-                                                     get_user_input(zeroState->get_tensor_index())->get_element_type(),
-                                                     get_user_input(zeroState->get_tensor_index())->get_shape(),
-                                                     hostMemSharedAllocator);
+                    auto hostMemSharedAllocator = zeroMemory::HostMemSharedAllocator(_initStructs, userInput);
+                    levelZeroInput = std::make_shared<ZeroTensor>(_initStructs,
+                                                                  _config,
+                                                                  userInput->get_element_type(),
+                                                                  userInput->get_shape(),
+                                                                  hostMemSharedAllocator);
 
-                    std::dynamic_pointer_cast<ZeroTensor>(get_level_zero_input(zeroState->get_tensor_index()))
-                        ->set_tensor_shared_with_user();
+                    std::dynamic_pointer_cast<ZeroTensor>(levelZeroInput)->set_tensor_shared_with_user();
 
-                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) =
-                        get_level_zero_input(zeroState->get_tensor_index());
+                    levelZeroOutput = levelZeroInput;
 
-                    _pipeline->update_graph_arguments(
-                        _graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
-                        get_level_zero_input(zeroState->get_tensor_index())->data(),
-                        get_level_zero_input(zeroState->get_tensor_index())->get_byte_size());
+                    _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
+                                                      levelZeroInput->data(),
+                                                      levelZeroInput->get_byte_size());
 
                     _pipeline->update_graph_arguments(
                         _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
-                        get_level_zero_input(zeroState->get_tensor_index())->data(),
-                        get_level_zero_input(zeroState->get_tensor_index())->get_byte_size());
+                        levelZeroInput->data(),
+                        levelZeroInput->get_byte_size());
 
                     zeroState->reset_tensor_imported_flag();
                 } else {
@@ -726,33 +722,30 @@ void ZeroInferRequest::update_states_if_memory_changed() {
                         userBuffer,
                         zeroState->get_state()->get_byte_size());
 
-                    get_level_zero_input(zeroState->get_tensor_index()) = zeroState->get_state()._ptr;
-                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) = zeroState->get_state()._ptr;
+                    levelZeroInput = zeroState->get_state()._ptr;
+                    levelZeroOutput = zeroState->get_state()._ptr;
                 }
 
                 zeroState->reset_zero_tensor_updated_flag();
-            } else if (get_level_zero_input(zeroState->get_tensor_index())) {
-                auto zeroTensor =
-                    std::dynamic_pointer_cast<ZeroTensor>(get_level_zero_input(zeroState->get_tensor_index()));
+            } else if (levelZeroInput) {
+                auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroInput);
 
                 if (zeroTensor == nullptr || (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user())) {
-                    get_level_zero_input(zeroState->get_tensor_index()) = create_tensor(
+                    levelZeroInput = create_tensor(
                         _metadata.inputs.at(zeroState->get_tensor_index()).precision,
                         _metadata.inputs.at(zeroState->get_tensor_index()).shapeFromCompiler.get_max_shape(),
                         *_inputAllocator);
 
-                    _levelZeroOutputTensors.at(zeroState->get_related_tensor_index()) =
-                        get_level_zero_input(zeroState->get_tensor_index());
+                    levelZeroOutput = levelZeroInput;
 
-                    _pipeline->update_graph_arguments(
-                        _graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
-                        _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->data(),
-                        _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->get_byte_size());
+                    _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
+                                                      levelZeroOutput->data(),
+                                                      levelZeroOutput->get_byte_size());
 
                     _pipeline->update_graph_arguments(
                         _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
-                        _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->data(),
-                        _levelZeroOutputTensors.at(zeroState->get_related_tensor_index())->get_byte_size());
+                        levelZeroOutput->data(),
+                        levelZeroOutput->get_byte_size());
 
                     zeroState->reset_zero_tensor_updated_flag();
                 }
