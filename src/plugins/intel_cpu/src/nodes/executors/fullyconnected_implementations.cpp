@@ -401,7 +401,9 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             []([[maybe_unused]] const FCConfig& config) -> bool {
                 // enable only with debug caps and env variable defined for now
                 CPU_DEBUG_CAP_ENABLE(
-                    if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
+                    // if (getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC")) {
+                    bool useMatmulPrim = true;
+                    if (useMatmulPrim) {
                         VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                         return true;
                     })

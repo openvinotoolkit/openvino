@@ -64,8 +64,8 @@ namespace ov::intel_cpu::node {
 ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
-    bool useMatmulPrim = false;
-    CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+    bool useMatmulPrim = true;
+    // CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
 
     if (useMatmulPrim) {
         return {Type_t::u8, Type_t::i8, Type_t::u4, Type_t::i4};
@@ -87,8 +87,8 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
 ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
     using ov::element::Type_t;
 
-    bool useMatmulPrim = false;
-    CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+    bool useMatmulPrim = true;
+    // CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
 
     if (useMatmulPrim) {
         return {Type_t::f32, Type_t::f16};
@@ -199,8 +199,8 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
     }
     return true;
 #else
-    bool useMatmulPrim = false;
-    CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
+    bool useMatmulPrim = true;
+    // CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
     return useMatmulPrim;
 #endif
 }
