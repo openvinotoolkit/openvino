@@ -23,13 +23,7 @@ class DepthToSpaceLayerCPUTest : public testing::WithParamInterface<DepthToSpace
                                  public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceLayerCPUTestParamSet> obj) {
-        InputShape shapes;
-        ElementType inType;
-        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
-        std::size_t blockSize;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = obj.param;
-
+        const auto& [shapes, inType, mode, blockSize, cpuParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -55,12 +49,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
-        std::size_t blockSize;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, mode, blockSize, cpuParams) = this->GetParam();
-
+        const auto& [shapes, _inType, mode, blockSize, cpuParams] = this->GetParam();
+        inType = _inType;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();

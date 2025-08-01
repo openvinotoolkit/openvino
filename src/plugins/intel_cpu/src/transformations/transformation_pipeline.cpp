@@ -39,8 +39,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/mish.hpp"
@@ -49,7 +47,6 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -182,6 +179,7 @@
 #    include "openvino/op/divide.hpp"
 #    include "openvino/op/elu.hpp"
 #    include "openvino/op/equal.hpp"
+#    include "openvino/op/erf.hpp"
 #    include "openvino/op/exp.hpp"
 #    include "openvino/op/floor.hpp"
 #    include "openvino/op/floor_mod.hpp"
@@ -189,6 +187,7 @@
 #    include "openvino/op/greater.hpp"
 #    include "openvino/op/greater_eq.hpp"
 #    include "openvino/op/hswish.hpp"
+#    include "openvino/op/less.hpp"
 #    include "openvino/op/less_eq.hpp"
 #    include "openvino/op/logical_and.hpp"
 #    include "openvino/op/logical_not.hpp"
@@ -197,6 +196,8 @@
 #    include "openvino/op/maximum.hpp"
 #    include "openvino/op/minimum.hpp"
 #    include "openvino/op/mod.hpp"
+#    include "openvino/op/negative.hpp"
+#    include "openvino/op/not_equal.hpp"
 #    include "openvino/op/power.hpp"
 #    include "openvino/op/prelu.hpp"
 #    include "openvino/op/relu.hpp"
@@ -204,6 +205,7 @@
 #    include "openvino/op/select.hpp"
 #    include "openvino/op/sigmoid.hpp"
 #    include "openvino/op/sqrt.hpp"
+#    include "openvino/op/squared_difference.hpp"
 #    include "openvino/op/tanh.hpp"
 #    include "openvino/op/xor.hpp"
 #    include "snippets/utils/utils.hpp"
@@ -270,6 +272,9 @@
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "openvino/op/gru_sequence.hpp"
+#    include "openvino/op/lstm_sequence.hpp"
+#    include "openvino/op/softmax.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -567,7 +572,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                 const size_t group_num,
                                                 int64_t& head_size,
                                                 int64_t& block_size) {
-        if (precision == ov::element::u8) {
+        if (precision == ov::element::i8) {
+            if (bychannel) {
+                block_size += sizeof(float);
+            } else {
+                head_size += sizeof(float) * group_num;
+            }
+        } else if (precision == ov::element::u8) {
             if (bychannel) {
                 block_size += 2 * sizeof(float);
             } else {
@@ -961,8 +972,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [&](const_node_ptr& node) -> bool {
-            return !(NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
-                     any_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3));
+            return !NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) ||
+                   !any_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3);
         },
         MatMulTransformation);
 

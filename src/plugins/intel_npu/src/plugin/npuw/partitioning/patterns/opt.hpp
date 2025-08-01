@@ -42,7 +42,7 @@ struct Context {
     };
     using DQParMMs = std::vector<DQParMM>;
     std::map<std::pair<O, std::size_t>, DQParMMs> par_dq_mms;
-    void register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm);
+    void register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm);
 
     std::map<PPtr, std::pair<ov::ParameterVector, std::size_t>> params_to_concat;
     PPtr concat(ov::ParameterVector&& v, std::size_t dim);
@@ -66,8 +66,8 @@ struct Context {
         PPtr pids;
     };
     std::optional<QuantizedGather> params_to_quant_gather_unpack;
-    PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr z, PPtr s, ov::element::Type type);
     bool found_host_gather_quant() const;
+    PPtr host_gather_unpack_quant(const PPtr& ids, const PPtr& w, const PPtr& z, const PPtr& s, ov::element::Type type);
 
     using Ref = std::reference_wrapper<Context>;
 };
@@ -156,11 +156,23 @@ public:
     DQUnpackDictGatherGQi(Context::Ref ctx);
 };
 
+template <typename WType = ov::op::v0::Parameter>
 class HostGatherQuantAsymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantAsymm");
     HostGatherQuantAsymm(Context::Ref ctx, bool verify_only = false);
 };
+template class HostGatherQuantAsymm<ov::op::v0::Parameter>;
+template class HostGatherQuantAsymm<ov::op::v0::Constant>;
+
+template <typename WType = ov::op::v0::Parameter>
+class HostGatherQuantSymm : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantSymm");
+    HostGatherQuantSymm(Context::Ref ctx, bool verify_only = false);
+};
+template class HostGatherQuantSymm<ov::op::v0::Parameter>;
+template class HostGatherQuantSymm<ov::op::v0::Constant>;
 
 class HostGather : public ov::pass::MatcherPass {
 public:
@@ -209,6 +221,16 @@ public:
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
     PreserveConstDictMatMulAsymm(Results to_keep);
+};
+
+class PreserveConstDictMatMulSymm : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulSymm");
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    PreserveConstDictMatMulSymm(Results to_keep);
 };
 
 // Slice last Matmul
