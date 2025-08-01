@@ -19,6 +19,7 @@
 #include "intel_gpu/primitives/crop.hpp"
 #include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
+#include "intel_gpu/primitives/group_normalization.hpp"
 #include "intel_gpu/primitives/normalize.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
@@ -35,6 +36,7 @@
 #include "swiglu_inst.h"
 #include "activation_inst.h"
 #include "eltwise_inst.h"
+#include "group_normalization_inst.h"
 #include "quantize_inst.h"
 #include "reorder_inst.h"
 
@@ -43,6 +45,7 @@
 #include "kernel_selector/kernels/depth_to_space/depth_to_space_kernel_base.h"
 #include "kernel_selector/kernels/eltwise/eltwise_kernel_base.h"
 #include "kernel_selector/kernels/quantize/quantize_kernel_params.h"
+#include "kernel_selector/kernels/group_normalization/group_normalization_params.h"
 #include "kernel_selector/kernels/reorder/reorder_kernel_base.h"
 
 #include "impls/ocl/kernels_cache.hpp"
@@ -1064,6 +1067,9 @@ std::shared_ptr<kernel_selector::fuse_params> convert_fuse_params(std::shared_pt
                                                                        casted->_out_hi,
                                                                        casted->_out_scale,
                                                                        casted->_out_shift);
+    } else if (p->type() == group_normalization::type_id()) {
+        auto casted = std::dynamic_pointer_cast<GroupNormFuseParams>(p);
+        return std::make_shared<kernel_selector::group_normalization_fuse_params>();
     }
 
     OPENVINO_ASSERT(false, "[GPU] Unhandled fused params type");
