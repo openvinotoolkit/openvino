@@ -591,7 +591,12 @@ TEST(type_prop, avg_pool_invalid_rounding_type) {
                     , ov::NodeValidationFailure, HasSubstr("Rounding CEIL_TORCH is not supported."));
 }
 
-TEST(type_prop, avg_pool_14_auto_padding_ceil_torch) {
+template <class TOp>
+class AvgPoolGE14Operator : public TypePropOpTest<TOp> {};
+
+TYPED_TEST_SUITE_P(AvgPoolGE14Operator);
+
+TYPED_TEST_P(AvgPoolGE14Operator, avg_pool_auto_padding_ceil_torch) {
     const ov::PartialShape arg_shape{1, 3, 9, 9};
     const ov::Strides strides{1, 1};
     const ov::Shape pads_begin{1, 1};
@@ -602,21 +607,14 @@ TEST(type_prop, avg_pool_14_auto_padding_ceil_torch) {
     const auto auto_pad = ov::op::PadType::SAME_LOWER;
 
     auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp = make_shared<ov::op::v14::AvgPool>(arg,
-                                                strides,
-                                                pads_begin,
-                                                pads_end,
-                                                kernel_shape,
-                                                exclude_pad,
-                                                rounding_mode,
-                                                auto_pad);
+    auto mp = this->make_op(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode, auto_pad);
 
     EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 9, 9}));
     EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1, 1}));
     EXPECT_EQ(mp->get_pads_end(), (ov::Shape{0, 0}));
 }
 
-TEST(type_prop, avg_pool_14_explicit_padding_ceil_torch) {
+TYPED_TEST_P(AvgPoolGE14Operator, avg_pool_explicit_padding_ceil_torch) {
     const ov::PartialShape arg_shape{1, 3, 9, 9};
     const ov::Strides strides{2, 2};
     const ov::Shape pads_begin{1, 1};
@@ -627,21 +625,14 @@ TEST(type_prop, avg_pool_14_explicit_padding_ceil_torch) {
     const auto auto_pad = ov::op::PadType::EXPLICIT;
 
     auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp = make_shared<ov::op::v14::AvgPool>(arg,
-                                                strides,
-                                                pads_begin,
-                                                pads_end,
-                                                kernel_shape,
-                                                exclude_pad,
-                                                rounding_mode,
-                                                auto_pad);
+    auto mp = this->make_op(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode, auto_pad);
 
     EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 5, 5}));
     EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1, 1}));
     EXPECT_EQ(mp->get_pads_end(), (ov::Shape{1, 1}));
 }
 
-TEST(type_prop, avg_pool_14_explicit_padding_ceil_torch_no_strides) {
+TYPED_TEST_P(AvgPoolGE14Operator, avg_pool_explicit_padding_ceil_torch_no_strides) {
     const ov::PartialShape arg_shape{1, 3, 9, 9};
     const ov::Strides strides{1, 1};
     const ov::Shape pads_begin{1, 1};
@@ -652,31 +643,24 @@ TEST(type_prop, avg_pool_14_explicit_padding_ceil_torch_no_strides) {
     const auto auto_pad = ov::op::PadType::EXPLICIT;
 
     auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp = make_shared<ov::op::v14::AvgPool>(arg,
-                                                strides,
-                                                pads_begin,
-                                                pads_end,
-                                                kernel_shape,
-                                                exclude_pad,
-                                                rounding_mode,
-                                                auto_pad);
+    auto mp = this->make_op(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode, auto_pad);
 
     EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 10, 10}));
     EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1, 1}));
     EXPECT_EQ(mp->get_pads_end(), (ov::Shape{1, 1}));
 }
 
-TEST(type_prop, avg_pool_14_2d_deduce_strided_2) {
+TYPED_TEST_P(AvgPoolGE14Operator, avg_pool_2d_deduce_strided_2) {
     const auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{64, 3, 100, 150});
     const ov::Shape kernel{10, 20};
     const auto move_strides = ov::Strides{2, 3};
-    const auto avg_pool = make_shared<ov::op::v14::AvgPool>(param,
-                                                            move_strides,
-                                                            ov::Shape{0, 0},
-                                                            ov::Shape{0, 0},
-                                                            kernel,
-                                                            true,
-                                                            ov::op::RoundingType::CEIL_TORCH);
+    const auto avg_pool = this->make_op(param,
+                                        move_strides,
+                                        ov::Shape{0, 0},
+                                        ov::Shape{0, 0},
+                                        kernel,
+                                        true,
+                                        ov::op::RoundingType::CEIL_TORCH);
 
     EXPECT_EQ(avg_pool->get_output_element_type(0), ov::element::f32);
     EXPECT_EQ(avg_pool->get_output_shape(0), (ov::Shape{64, 3, 46, 45}));
@@ -687,7 +671,7 @@ TEST(type_prop, avg_pool_14_2d_deduce_strided_2) {
     EXPECT_EQ(avg_pool->get_pads_end(), (ov::Shape{0, 0}));
 }
 
-TEST(type_prop, avg_pool_14_dynamic_dims_ceil_mode_1) {
+TYPED_TEST_P(AvgPoolGE14Operator, avg_pool_dynamic_dims_ceil_mode_1) {
     const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
     const ov::Strides strides{2, 2};
     const ov::Shape pads_begin{1, 1};
@@ -697,14 +681,13 @@ TEST(type_prop, avg_pool_14_dynamic_dims_ceil_mode_1) {
     const auto rounding_mode = ov::op::RoundingType::CEIL;
 
     const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v14::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    auto mp = this->make_op(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
     const auto expected_output_shape =
         ov::PartialShape{ov::Dimension::dynamic(), 3, {4, ov::util::dim::inf_bound}, {4, 5}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
-TEST(type_prop, avg_pool_14_dynamic_dims_ceil_torch_mode_1) {
+TYPED_TEST_P(AvgPoolGE14Operator, avg_pool_dynamic_dims_ceil_torch_mode_1) {
     const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
     const ov::Strides strides{2, 2};
     const ov::Shape pads_begin{1, 1};
@@ -714,14 +697,13 @@ TEST(type_prop, avg_pool_14_dynamic_dims_ceil_torch_mode_1) {
     const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
 
     const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v14::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    auto mp = this->make_op(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
     const auto expected_output_shape =
         ov::PartialShape{ov::Dimension::dynamic(), 3, {3, ov::util::dim::inf_bound}, {4, 4}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
-TEST(type_prop, avg_pool_14_dynamic_dims_ceil_mode_2) {
+TYPED_TEST_P(AvgPoolGE14Operator, avg_pool_dynamic_dims_ceil_mode_2) {
     const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
     const ov::Strides strides{3, 3};
     const ov::Shape pads_begin{1, 1};
@@ -731,14 +713,13 @@ TEST(type_prop, avg_pool_14_dynamic_dims_ceil_mode_2) {
     const auto rounding_mode = ov::op::RoundingType::CEIL;
 
     const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v14::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    auto mp = this->make_op(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
     const auto expected_output_shape =
         ov::PartialShape{ov::Dimension::dynamic(), 3, {6, ov::util::dim::inf_bound}, {6, 7}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
-TEST(type_prop, avg_pool_14_dynamic_dims_ceil_torch_mode_2) {
+TYPED_TEST_P(AvgPoolGE14Operator, avg_pool_dynamic_dims_ceil_torch_mode_2) {
     const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
     const ov::Strides strides{3, 3};
     const ov::Shape pads_begin{1, 1};
@@ -748,177 +729,13 @@ TEST(type_prop, avg_pool_14_dynamic_dims_ceil_torch_mode_2) {
     const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
 
     const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v14::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
+    auto mp = this->make_op(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
     const auto expected_output_shape =
         ov::PartialShape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 6}};
     EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
 }
 
-TEST(type_prop, avg_pool_16_auto_padding_ceil_torch) {
-    const ov::PartialShape arg_shape{1, 3, 9, 9};
-    const ov::Strides strides{1, 1};
-    const ov::Shape pads_begin{1, 1};
-    const ov::Shape pads_end{1, 1};
-    const ov::Shape kernel_shape{2, 2};
-    const bool exclude_pad = false;
-    const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
-    const auto auto_pad = ov::op::PadType::SAME_LOWER;
-
-    auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp = make_shared<ov::op::v16::AvgPool>(arg,
-                                                strides,
-                                                pads_begin,
-                                                pads_end,
-                                                kernel_shape,
-                                                exclude_pad,
-                                                rounding_mode,
-                                                auto_pad);
-
-    EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 9, 9}));
-    EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1, 1}));
-    EXPECT_EQ(mp->get_pads_end(), (ov::Shape{0, 0}));
-}
-
-TEST(type_prop, avg_pool_16_explicit_padding_ceil_torch) {
-    const ov::PartialShape arg_shape{1, 3, 9, 9};
-    const ov::Strides strides{2, 2};
-    const ov::Shape pads_begin{1, 1};
-    const ov::Shape pads_end{1, 1};
-    const ov::Shape kernel_shape{2, 2};
-    const bool exclude_pad = false;
-    const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
-    const auto auto_pad = ov::op::PadType::EXPLICIT;
-
-    auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp = make_shared<ov::op::v16::AvgPool>(arg,
-                                                strides,
-                                                pads_begin,
-                                                pads_end,
-                                                kernel_shape,
-                                                exclude_pad,
-                                                rounding_mode,
-                                                auto_pad);
-
-    EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 5, 5}));
-    EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1, 1}));
-    EXPECT_EQ(mp->get_pads_end(), (ov::Shape{1, 1}));
-}
-
-TEST(type_prop, avg_pool_16_explicit_padding_ceil_torch_no_strides) {
-    const ov::PartialShape arg_shape{1, 3, 9, 9};
-    const ov::Strides strides{1, 1};
-    const ov::Shape pads_begin{1, 1};
-    const ov::Shape pads_end{1, 1};
-    const ov::Shape kernel_shape{2, 2};
-    const bool exclude_pad = false;
-    const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
-    const auto auto_pad = ov::op::PadType::EXPLICIT;
-
-    auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp = make_shared<ov::op::v16::AvgPool>(arg,
-                                                strides,
-                                                pads_begin,
-                                                pads_end,
-                                                kernel_shape,
-                                                exclude_pad,
-                                                rounding_mode,
-                                                auto_pad);
-
-    EXPECT_EQ(mp->get_output_partial_shape(0), ov::PartialShape({1, 3, 10, 10}));
-    EXPECT_EQ(mp->get_pads_begin(), (ov::Shape{1, 1}));
-    EXPECT_EQ(mp->get_pads_end(), (ov::Shape{1, 1}));
-}
-
-TEST(type_prop, avg_pool_16_2d_deduce_strided_2) {
-    const auto param = make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{64, 3, 100, 150});
-    const ov::Shape kernel{10, 20};
-    const auto move_strides = ov::Strides{2, 3};
-    const auto avg_pool = make_shared<ov::op::v16::AvgPool>(param,
-                                                            move_strides,
-                                                            ov::Shape{0, 0},
-                                                            ov::Shape{0, 0},
-                                                            kernel,
-                                                            true,
-                                                            ov::op::RoundingType::CEIL_TORCH);
-
-    EXPECT_EQ(avg_pool->get_output_element_type(0), ov::element::f32);
-    EXPECT_EQ(avg_pool->get_output_shape(0), (ov::Shape{64, 3, 46, 45}));
-
-    EXPECT_EQ(avg_pool->get_strides(), (ov::Strides{2, 3}));
-    EXPECT_EQ(avg_pool->get_kernel(), (ov::Shape{10, 20}));
-    EXPECT_EQ(avg_pool->get_pads_begin(), (ov::Shape{0, 0}));
-    EXPECT_EQ(avg_pool->get_pads_end(), (ov::Shape{0, 0}));
-}
-
-TEST(type_prop, avg_pool_16_dynamic_dims_ceil_mode_1) {
-    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
-    const ov::Strides strides{2, 2};
-    const ov::Shape pads_begin{1, 1};
-    const ov::Shape pads_end{1, 1};
-    const ov::Shape kernel_shape{2, 2};
-    const bool exclude_pad = false;
-    const auto rounding_mode = ov::op::RoundingType::CEIL;
-
-    const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v16::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
-    const auto expected_output_shape =
-        ov::PartialShape{ov::Dimension::dynamic(), 3, {4, ov::util::dim::inf_bound}, {4, 5}};
-    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
-}
-
-TEST(type_prop, avg_pool_16_dynamic_dims_ceil_torch_mode_1) {
-    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 7}};
-    const ov::Strides strides{2, 2};
-    const ov::Shape pads_begin{1, 1};
-    const ov::Shape pads_end{1, 1};
-    const ov::Shape kernel_shape{2, 2};
-    const bool exclude_pad = false;
-    const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
-
-    const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v16::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
-    const auto expected_output_shape =
-        ov::PartialShape{ov::Dimension::dynamic(), 3, {3, ov::util::dim::inf_bound}, {4, 4}};
-    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
-}
-
-TEST(type_prop, avg_pool_16_dynamic_dims_ceil_mode_2) {
-    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
-    const ov::Strides strides{3, 3};
-    const ov::Shape pads_begin{1, 1};
-    const ov::Shape pads_end{1, 1};
-    const ov::Shape kernel_shape{3, 3};
-    const bool exclude_pad = false;
-    const auto rounding_mode = ov::op::RoundingType::CEIL;
-
-    const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v16::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
-    const auto expected_output_shape =
-        ov::PartialShape{ov::Dimension::dynamic(), 3, {6, ov::util::dim::inf_bound}, {6, 7}};
-    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
-}
-
-TEST(type_prop, avg_pool_16_dynamic_dims_ceil_torch_mode_2) {
-    const ov::PartialShape arg_shape{ov::Dimension::dynamic(), 3, {14, ov::util::dim::inf_bound}, {15, 17}};
-    const ov::Strides strides{3, 3};
-    const ov::Shape pads_begin{1, 1};
-    const ov::Shape pads_end{1, 1};
-    const ov::Shape kernel_shape{3, 3};
-    const bool exclude_pad = false;
-    const auto rounding_mode = ov::op::RoundingType::CEIL_TORCH;
-
-    const auto arg = make_shared<ov::op::v0::Parameter>(ov::element::f32, arg_shape);
-    auto mp =
-        make_shared<ov::op::v16::AvgPool>(arg, strides, pads_begin, pads_end, kernel_shape, exclude_pad, rounding_mode);
-    const auto expected_output_shape =
-        ov::PartialShape{ov::Dimension::dynamic(), 3, {5, ov::util::dim::inf_bound}, {6, 6}};
-    EXPECT_EQ(mp->get_output_partial_shape(0), expected_output_shape);
-}
-
+// V16 with dilation
 TEST(type_prop, avg_pool_16_dilations_auto_padding_ceil_torch) {
     const ov::PartialShape arg_shape{1, 3, 9, 9};
     const ov::Strides strides{1, 1};
@@ -1162,3 +979,16 @@ REGISTER_TYPED_TEST_SUITE_P(AvgPoolOperator,
 
 using AvgPoolOpTypes = Types<ov::op::v1::AvgPool, ov::op::v14::AvgPool, ov::op::v16::AvgPool>;
 INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, AvgPoolOperator, AvgPoolOpTypes);
+
+REGISTER_TYPED_TEST_SUITE_P(AvgPoolGE14Operator,
+                            avg_pool_auto_padding_ceil_torch,
+                            avg_pool_explicit_padding_ceil_torch,
+                            avg_pool_explicit_padding_ceil_torch_no_strides,
+                            avg_pool_2d_deduce_strided_2,
+                            avg_pool_dynamic_dims_ceil_mode_1,
+                            avg_pool_dynamic_dims_ceil_torch_mode_1,
+                            avg_pool_dynamic_dims_ceil_mode_2,
+                            avg_pool_dynamic_dims_ceil_torch_mode_2);
+
+using AvgPoolGE14OpTypes = Types<ov::op::v14::AvgPool, ov::op::v16::AvgPool>;
+INSTANTIATE_TYPED_TEST_SUITE_P(type_prop, AvgPoolGE14Operator, AvgPoolGE14OpTypes);
