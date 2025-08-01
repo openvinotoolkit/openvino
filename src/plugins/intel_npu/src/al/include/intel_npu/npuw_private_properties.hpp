@@ -525,7 +525,7 @@ static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM
  * Type: bool.
  * Tell NPUW to separate LM head into the 3rd model, that will be shared between
  * prefill and generate.
- * Default value: false.
+ * Default value: true.
  */
 static constexpr ov::Property<bool> shared_lm_head{"NPUW_LLM_SHARED_HEAD"};
 
