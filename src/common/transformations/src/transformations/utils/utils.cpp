@@ -8,6 +8,7 @@
 
 #include <functional>
 #include <memory>
+#include <tuple>
 
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
@@ -28,11 +29,13 @@
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/utils/gen_pattern.hpp"
 
 namespace ov {
 namespace op {
@@ -542,6 +545,33 @@ bool process_subgraph(ov::pass::ModelPass& model_pass, const std::shared_ptr<Nod
     }
 
     return changed;
+}
+
+std::tuple<std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>,
+           std::shared_ptr<ov::Node>>
+match_multi_query_bcst(const std::shared_ptr<ov::Node>& kv) {
+    using namespace ov::pass;
+    using namespace ov::pass::pattern;
+    using namespace ov::gen_pattern;
+
+    auto reshape_kv = wrap_type<ov::op::v1::Reshape>({kv, any_input()});
+    auto unsqueeze_kv = wrap_type<ov::op::v0::Unsqueeze>({kv, any_input()});
+
+    auto constant_bcst = wrap_type<ov::op::v0::Constant>(value_matches("1.0"));
+
+    auto computed_bcst = makePattern<ov::op::v1::Broadcast>(
+        {wrap_type<ov::op::v0::Constant>(value_matches("1.0")), any_input(), any_input()},
+        {{"mode", "numpy"}});
+
+    auto multiply_kv = wrap_type<ov::op::v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
+    auto computed_bcst3 = makePattern<ov::op::v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
+
+    auto result = wrap_type<ov::op::v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
+    return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
 }
 
 }  // namespace util

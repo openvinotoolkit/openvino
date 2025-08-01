@@ -44,14 +44,16 @@ std::shared_ptr<ov::Node> make_attention_mask(ov::Output<ov::Node> q,
  * @brief Creates a Grouped Query Attention (GQA)
  * @param kv Key or Value tensor
  * @param num_groups Number of groups for GQA
- * @param target_shape_v Target shape vector
  * @param n_heads Number of heads
+ * @param features Number of features (key or value features)
+ * @param qkv_order Order of QKV dimensions for shape transformation
  * @return Shared pointer to the created GQA
  */
 std::shared_ptr<ov::Node> make_gqa(ov::Output<ov::Node> kv,
                                    size_t num_groups,
-                                   std::vector<int32_t> target_shape_v,
-                                   int32_t n_heads);
+                                   ov::Dimension n_heads,
+                                   ov::Dimension features,
+                                   std::vector<int64_t> qkv_order = {0, 1, 2, 3});
 
 /**
  * @brief Creates a transpose operation for QKV tensors
@@ -70,7 +72,49 @@ std::shared_ptr<ov::Node> make_qkv_transpose(ov::Output<ov::Node> qkv, std::vect
  */
 std::shared_ptr<ov::Node> make_kv_rearrange(ov::Output<ov::Node> kv_past,
                                             ov::Output<ov::Node> beam_idx,
-                                            int axis_val = 0);
+                                            int64_t axis_val = 0);
+
+/**
+ * @brief Makes a model stateful by setting up KV cache state management
+ * @param model The model to make stateful
+ * @param params Parameter vector containing the model parameters.
+ * Note: params must be in the following order: {q, past_k, past_v, in_k_token, in_v_token}
+ * @param present_k Result node for present K cache
+ * @param present_v Result node for present V cache
+ * @param element_type Element type for state initializers
+ * @param k_features K features dimension
+ * @param v_features V features dimension
+ * @param qkv_order Order of QKV dimensions
+ */
+void make_sdpa_model_stateful(std::shared_ptr<ov::Model> model,
+                              const ov::ParameterVector& params,
+                              std::shared_ptr<ov::op::v0::Result> present_k,
+                              std::shared_ptr<ov::op::v0::Result> present_v,
+                              ov::element::Type_t element_type,
+                              ov::Dimension k_features,
+                              ov::Dimension v_features,
+                              std::vector<int64_t> qkv_order);
+
+/**
+ * @brief Creates parameters for SDPA pattern model
+ * @param batch Batch dimension
+ * @param n_heads Number of heads dimension
+ * @param k_features Key features dimension
+ * @param v_features Value features dimension
+ * @param qkv_precision Element type for QKV tensors
+ * @param past_kv_precision Element type for past KV cache
+ * @param qkv_order Order of QKV dimensions
+ * @param num_groups Number of groups for GQA
+ * @return Parameter vector containing {q, past_k, past_v, in_k_token, in_v_token}
+ */
+ov::ParameterVector form_sdpa_params(ov::Dimension batch,
+                                     ov::Dimension n_heads,
+                                     ov::Dimension k_features,
+                                     ov::Dimension v_features,
+                                     ov::element::Type_t qkv_precision,
+                                     ov::element::Type_t past_kv_precision,
+                                     std::vector<int64_t> qkv_order,
+                                     size_t num_groups);
 
 /**
  * @brief Creates an LLM KV cache pattern model
