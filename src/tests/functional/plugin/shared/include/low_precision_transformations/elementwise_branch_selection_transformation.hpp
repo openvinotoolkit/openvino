@@ -33,8 +33,7 @@ typedef std::tuple<
     ov::element::Type,
     ov::PartialShape,
     std::string,
-    ElementwiseBranchSelectionTestValues,
-    std::string
+    std::pair<ElementwiseBranchSelectionTestValues, std::string>
 > ElementwiseBranchSelectionTransformationParams;
 
 class ElementwiseBranchSelectionTransformation :
