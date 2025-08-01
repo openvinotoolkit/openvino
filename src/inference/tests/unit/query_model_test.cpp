@@ -645,9 +645,8 @@ TEST_P(GetSupportedNodesCommonTest, SplitModelWithDifferentRatioTest) {
         result->set_friendly_name("res");
         m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
-    float query_model_ratio;
-    std::unordered_set<std::string> expected;
-    std::tie(query_model_ratio, expected) = this->GetParam();
+
+    const auto& [query_model_ratio, expected] = this->GetParam();
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
@@ -674,9 +673,8 @@ TEST_P(GetSupportedNodesOneConstOp, OneConstOpTest) {
         res->set_friendly_name("res");
         m_function = std::make_shared<ov::Model>(ov::ResultVector{res}, ov::ParameterVector{param});
     }
-    float query_model_ratio;
-    std::unordered_set<std::string> expected;
-    std::tie(query_model_ratio, expected) = this->GetParam();
+
+    const auto& [query_model_ratio, expected] = this->GetParam();
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
@@ -707,9 +705,8 @@ TEST_P(GetSupportedNodesStopSplit, StopSplitTest) {
         result->set_friendly_name("res");
         m_function = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
     }
-    float query_model_ratio;
-    std::unordered_set<std::string> expected;
-    std::tie(query_model_ratio, expected) = this->GetParam();
+
+    const auto& [query_model_ratio, expected] = this->GetParam();
     Run(
         [&](std::shared_ptr<ov::Model>& model) {
             ov::pass::Manager m;
