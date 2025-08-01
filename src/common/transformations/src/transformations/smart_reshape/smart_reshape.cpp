@@ -35,7 +35,7 @@ bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     static_manager.register_pass<ov::pass::BroadcastConstRangeReplacement>();
     static_manager.register_pass<ov::pass::LSTMStatesBroadcast>();
     static_manager.register_pass<ov::pass::ReshapeSinkingMatMul>();
-    static_manager.run_passes(f);
+    bool model_changed = static_manager.run_passes(f);
 
     ov::pass::Manager dynamic_manager("SmartReshape:dynamic");
     // function revalidation will cause "fake" dynamism due to ShapeOf ops insertions
@@ -44,7 +44,10 @@ bool ov::pass::SmartReshape::run_on_model(const std::shared_ptr<ov::Model>& f) {
     dynamic_manager.register_pass<ov::pass::ReshapeAMatMul>();
     dynamic_manager.register_pass<ov::pass::ReshapeBMatMul>();
     dynamic_manager.register_pass<ov::pass::ShapeOfConstFolding>();
-    dynamic_manager.run_passes(f);
+    model_changed = dynamic_manager.run_passes(f) || model_changed;
+
+    if (model_changed)
+        f->validate_nodes_and_infer_types();
 
     return true;
 }
