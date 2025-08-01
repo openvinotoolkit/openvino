@@ -29,8 +29,16 @@ using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 template <typename RegType>
 static void load_with_offset_check(jit_generator* h, const RegType& dst, const XReg& src, int offset) {
     if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
-        // Use uni_ldr for VReg/QReg - it handles large offsets automatically
-        h->uni_ldr(VReg(dst.getIdx()), src, offset);
+        // Manual offset handling for VReg/QReg due to uni_ldr limitations
+        const int off_mod = offset % 16;
+        const int off_mul_vl = offset / 16;
+
+        if (off_mod == 0 && off_mul_vl >= 0 && off_mul_vl <= 4095) {
+            h->ldr(QReg(dst.getIdx()), ptr(src, offset));
+        } else {
+            h->add_imm(h->X_DEFAULT_ADDR, src, offset, h->X_TMP_0);
+            h->ldr(QReg(dst.getIdx()), ptr(h->X_DEFAULT_ADDR));
+        }
     } else {
         // Manual offset handling for other register types
         int max_offset, alignment;
@@ -64,10 +72,11 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
 template <typename RegType>
 static void store_with_offset_check(jit_generator* h, const RegType& src, const XReg& dst, int offset) {
     if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
-        // Use uni_str for VReg/QReg if available, otherwise manual handling
-        // Note: uni_str might not be available, so we use manual handling for now
-        int max_offset = 65520, alignment = 16;
-        if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
+        // Manual offset handling for VReg/QReg due to uni_str limitations
+        const int off_mod = offset % 16;
+        const int off_mul_vl = offset / 16;
+
+        if (off_mod == 0 && off_mul_vl >= 0 && off_mul_vl <= 4095) {
             h->str(QReg(src.getIdx()), ptr(dst, offset));
         } else {
             h->add_imm(h->X_DEFAULT_ADDR, dst, offset, h->X_TMP_0);
@@ -151,7 +160,7 @@ void jit_load_emitter::load_qbyte(const std::vector<size_t>& in_idxs, const std:
         break;
     }
     case 4:
-        h->uni_ldr(VReg(out_idxs[0]), src, byte_offset_);
+        load_with_offset_check(h, QReg(out_idxs[0]), src, byte_offset_);
         break;
     default:
         OV_CPU_JIT_EMITTER_THROW("Unexpected number of elements to load.");
