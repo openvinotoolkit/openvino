@@ -1936,17 +1936,17 @@ void Partitioner::optimize(const std::string& func_name) {
             // the quantization logic.
             {
                 ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<>>(std::ref(ctx));
                 rewr2.run_on_model(f._model);
             }
             {
                 ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx));
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<>>(std::ref(ctx));
                 rewr2.run_on_model(f._model);
             }
             {
                 ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx));
+                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuant<>>(std::ref(ctx));
                 rewr2.run_on_model(f._model);
             }
         }

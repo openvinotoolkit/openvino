@@ -539,16 +539,17 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
     std::string explicit_host_gather = "";
     if (it != properties.end()) {
         explicit_host_gather = it->second.as<std::string>();
-        NPUW_ASSERT(explicit_host_gather == "NO" || explicit_host_gather == "YES" ||
-                    explicit_host_gather == "QUANT" && "NPUW_HOST_GATHER can only be NO, YES or QUANT!");
+        NPUW_ASSERT(
+            (explicit_host_gather == "NO" || explicit_host_gather == "YES" || explicit_host_gather == "QUANT") &&
+            "NPUW_HOST_GATHER can only be NO, YES or QUANT!");
     }
 
     // Check NPUW_HOST_GATHER:QUANT based on the patterns (for tail vocab)
     ov::npuw::patterns::opt::Context ctx;
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx), true, true);
-    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx), true, true);
-    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx), true, true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuant<ov::op::v0::Constant>>(std::ref(ctx), true);
     rewr.run_on_model(model);
     bool pattern_matched = ctx.found_host_gather_quant();
 
@@ -561,7 +562,7 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
     // Now make a decision based on the checks above
     if (explicit_host_gather == "") {
         // Default value is used, can force the best option
-        if (!pattern_matched || !compiler_version_enough) {
+        if ((!pattern_matched || !compiler_version_enough) || (!pattern_matched && npu_devices.empty())) {
             LOG_INFO("Couldn't match NPUW_HOST_GATHER:QUANT patterns or the compiler version is too low. Enabling "
                      "NPUW_HOST_GATHER:YES instead.");
             std::map<std::string, std::string> host_gather_cfg;
@@ -574,17 +575,17 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
             m_cfg.update(host_gather_cfg);
         }
     } else if (explicit_host_gather == "NO") {
-        if (pattern_matched && compiler_version_enough) {
+        if (pattern_matched && (compiler_version_enough || npu_devices.empty())) {
             LOG_WARN("Consider enabling NPUW_HOST_GATHER:QUANT for better performance.");
         } else {
             LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
         }
     } else if (explicit_host_gather == "YES") {
-        if (pattern_matched && compiler_version_enough) {
+        if (pattern_matched && (compiler_version_enough || npu_devices.empty())) {
             LOG_WARN("Consider enabling NPUW_HOST_GATHER:QUANT for better performance.");
         }
     } else if (explicit_host_gather == "QUANT") {
-        if (!pattern_matched || !compiler_version_enough) {
+        if ((!pattern_matched || !compiler_version_enough) || (!pattern_matched && npu_devices.empty())) {
             LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
         }
     } else {

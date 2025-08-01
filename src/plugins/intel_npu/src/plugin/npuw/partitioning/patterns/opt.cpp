@@ -1344,13 +1344,14 @@ DQUnpackDictGatherGQi::DQUnpackDictGatherGQi(Context::Ref ctx) {
 // compile-time converts asymmetric MM to fp16, do the same thing here
 // Overall it's a combination of DQUnpackDictGather and HostGather
 // but we do unpack and gather in the runtime.
-HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool wac, bool verify_only) {
+template <typename WType>
+HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
-    auto qweight = wac ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
-    auto qzerop = wac ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcoeff = wac ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
+    auto qweight = opp::wrap_type<WType>();
+    auto qzerop = opp::wrap_type<WType>();
+    auto qcoeff = opp::wrap_type<WType>();
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
     auto qgthrz = opp::wrap_type<ov::op::v8::Gather>({qzerop, cvtids, opp::any_input()});
     auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, cvtids, opp::any_input()});
@@ -1422,12 +1423,13 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx, bool wac, bool veri
 // block (mainly, a head) was turned a function (e.g. with FUNCALL_FOR_ALL)
 // Overall it's a combination of DQUnpackDictGatherGQi and HostGatherDQ
 // but we do unpack and gather in the runtime.
-HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx, bool wac, bool verify_only) {
+template <typename WType>
+HostGatherQuantSymm<WType>::HostGatherQuantSymm(Context::Ref ctx, bool verify_only) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
-    auto qweight = wac ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcoeff = wac ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
+    auto qweight = opp::wrap_type<WType>();
+    auto qcoeff = opp::wrap_type<WType>();
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
     auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, cvtids, opp::any_input()});
 
@@ -1477,8 +1479,8 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx, bool wac, bool verify
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             auto matched_node_cvt = node_to_output.at(qcvtm).get_node_shared_ptr();
 
-            auto matched_qweight = std::static_pointer_cast<WType>(matched_node_qweight);
-            auto matched_qcoeff = std::static_pointer_cast<WType>(matched_node_qcoeff);
+            auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
+            auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
 
             // Strip down the DQ subgraph, replace the original Q-ed closure tensor with unpacked fp16
@@ -1500,11 +1502,12 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx, bool wac, bool verify
 
 // Overall it's a combination of DQUnpackDictGather and HostGather
 // but we do unpack and gather in the runtime.
-HostGatherQuant::HostGatherQuant(Context::Ref ctx, bool wac, bool verify_only) {
+template <typename WType>
+HostGatherQuant<WType>::HostGatherQuant(Context::Ref ctx, bool verify_only) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
-    auto qweight = wac ? opp::wrap_type<ov::op::v0::Constant>() : opp::wrap_type<ov::op::v0::Parameter>();
+    auto qweight = opp::wrap_type<WType>();
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
