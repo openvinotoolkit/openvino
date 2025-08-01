@@ -78,14 +78,34 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
 
     // For numpy broadcast of Eltwise, primary input index should be large pshape input(not just constant) to be aligned
     auto input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
-    if (node.need_align_for_numpy_broadcast(input_node_layout) && node.get_dependencies().size() >= 2) {
-        primary_input_idx = 1 - primary_input_idx;
-        input_node_layout = impl_param.get_non_padded_input_layout(primary_input_idx);
+    auto desc = impl_param.typed_desc<eltwise>();
+    auto output_type = desc->output_data_types[0].value_or(input_node_layout.data_type);
+
+    auto size = input_node_layout.get_tensor();
+    auto format = input_node_layout.format;
+    auto small_pshape_idx = primary_input_idx;
+    for (size_t i = 0; i < desc->input_size(); i++) {
+        if (i == primary_input_idx)
+            continue;
+
+        auto l = impl_param.get_non_padded_input_layout(i);
+        size = tensor::max(size, l.get_tensor());
+        if (l.format == format::b_fs_zyx_fsv16)  // use optimized 5D
+            format = format::b_fs_zyx_fsv16;
+        else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
+            format = format::bs_fs_zyx_bsv16_fsv16;
+
+        if (l.get_rank() < input_node_layout.get_rank())
+            small_pshape_idx = i;
     }
 
-    auto output_layout = get_eltwise_output_layout<ov::PartialShape>(input_node_layout, impl_param);
+    auto output_layout = layout(output_type, format, size);
 
-    auto desc = impl_param.typed_desc<eltwise>();
+    auto input_layout = impl_param.get_non_padded_input_layout(small_pshape_idx);
+    if (node.need_align_for_numpy_broadcast(input_layout)) {
+        output_layout = get_eltwise_output_layout<ov::PartialShape>(input_layout, impl_param);
+    }
+
     auto mode = desc->mode;
     // list of operations supported for integer types
     if (input_node_layout.data_type == data_types::i8 || input_node_layout.data_type == data_types::u8 ||
