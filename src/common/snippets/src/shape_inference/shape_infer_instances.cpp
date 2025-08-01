@@ -251,6 +251,75 @@ Result BrgemmShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     return {{output_shape}, snippets::ShapeInferStatus::success};
 }
 
+FAShapeInfer::FAShapeInfer(const std::shared_ptr<Node>& n) {
+    for (size_t i = 0; i < 3; ++i) {
+        const auto& in = n->input(i);
+        const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(in);
+        m_io_layouts.push_back(port->get_layout());
+    }
+    const auto& port = lowered::PortDescriptorUtils::get_port_descriptor_ptr(n->output(0));
+    m_io_layouts.push_back(port->get_layout());
+}
+
+Result FAShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
+    OPENVINO_ASSERT(input_shapes.size() == 3, "Unexpected input_shapes count");
+
+    const auto& arg_q_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_io_layouts[0]);
+    const auto& arg_v_shape = ov::snippets::utils::get_planar_vdims(input_shapes[2].get(), m_io_layouts[2]);
+    size_t arg_q_rank = arg_q_shape.size(), arg_v_rank = arg_v_shape.size();
+
+    // temporary shapes to calculate output shape
+    VectorDims arg_q_shape_tmp(arg_q_shape), arg_v_shape_tmp(arg_v_shape);
+
+    // one-dimensional tensors unsqueezing is applied to each input independently.
+    if (arg_q_rank == 1) {
+        // If the first input is 1D tensor, it is unsqueezed to 2D tensor (row vector)
+        // by adding axes with size 1 at ROW_INDEX_DIM, to the left of the shape.
+        // For example {S} will be reshaped to {1, S}.
+        arg_q_shape_tmp.insert(arg_q_shape_tmp.begin(), 1);
+        arg_q_rank = arg_q_shape_tmp.size();
+    }
+    if (arg_v_rank == 1) {
+        // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
+        // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
+        // For example {S} will be reshaped to {S, 1}.
+        arg_v_shape_tmp.insert(arg_v_shape_tmp.end(), 1);
+        arg_v_rank = arg_v_shape_tmp.size();
+    }
+
+    // add 1 to begin to align shape ranks if needed
+    if (arg_q_rank < arg_v_rank) {
+        arg_q_shape_tmp.insert(arg_q_shape_tmp.begin(), arg_v_rank - arg_q_rank, 1);
+    } else if (arg_q_rank > arg_v_rank) {
+        arg_v_shape_tmp.insert(arg_v_shape_tmp.begin(), arg_q_rank - arg_v_rank, 1);
+    }
+
+    size_t max_rank = arg_q_shape_tmp.size();
+    VectorDims output_shape(max_rank);
+    for (size_t i = 0; i < max_rank - 2; ++i) {
+        if (!utils::broadcast_merge_dim(output_shape[i], arg_q_shape_tmp[i], arg_v_shape_tmp[i])) {
+            OPENVINO_THROW("Incompatible MatMul batch dimension. Can't merge dim ",
+                           arg_q_shape_tmp[i],
+                           " with dim ",
+                           arg_v_shape_tmp[i],
+                           " at index=",
+                           i);
+        }
+    }
+    output_shape[output_shape.size() - 2] = arg_q_shape_tmp[arg_q_shape_tmp.size() - 2];  // M in Q
+    output_shape[output_shape.size() - 1] = arg_v_shape_tmp[arg_v_shape_tmp.size() - 1];  // N in V
+
+    // removing the temporary axes from originally 1D tensors.
+    if (arg_q_shape.size() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 2);
+    }
+    if (arg_v_shape.size() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 1);
+    }
+    output_shape = ov::snippets::utils::get_planar_vdims(output_shape, m_io_layouts.back());
+    return {{output_shape}, snippets::ShapeInferStatus::success};
+}
+
 ReduceShapeInfer::ReduceShapeInfer(const std::shared_ptr<Node>& n) {
     const auto& reduce = as_type_ptr<ov::snippets::op::ReduceBase>(n);
     OPENVINO_ASSERT(reduce, "Invalid node passed to ReduceShapeInfer.");

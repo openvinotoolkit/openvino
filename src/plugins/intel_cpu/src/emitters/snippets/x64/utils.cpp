@@ -65,9 +65,9 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t*
                                           Xbyak::Reg64 ptr_reg,
                                           size_t ptr_offset) {
     const auto stack_frame = h->qword[h->rsp + stack_offset];
-    h->mov(stack_frame, ptr_reg);
+    h->mov(stack_frame, ptr_reg);  // move to value in address
     if (ptr_offset != 0) {
-        h->add(stack_frame, ptr_offset);
+        h->add(stack_frame, ptr_offset);   // the value in address add offset
     }
 }
 

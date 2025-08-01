@@ -79,7 +79,7 @@ void jit_brgemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const s
     if (out.size() > 1) {
         mem_ptrs_idxs.emplace_back(out[1]);
     }
-    init_binary_call_regs(2, mem_ptrs_idxs);
+    init_binary_call_regs(2, mem_ptrs_idxs);  // one for kernel, one for arg structure
 
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
