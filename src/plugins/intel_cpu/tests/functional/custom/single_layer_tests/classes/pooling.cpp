@@ -14,23 +14,8 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
-    ov::test::poolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    bool isInt8;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
-
-    utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    bool excludePad;
-    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
-
+    const auto& [basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig] = obj.param;
+    const auto& [poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
     std::ostringstream results;
     results << "IS=(";
     results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
@@ -69,25 +54,10 @@ std::string PoolingLayerCPUTest::getTestCaseName(const testing::TestParamInfo<po
 
 void PoolingLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    poolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    bool isInt8;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+    const auto& [basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig] =
+        this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    bool excludePad;
-    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
-
+    const auto& [poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
@@ -124,23 +94,8 @@ void PoolingLayerCPUTest::SetUp() {
 }
 
 std::string AvgPoolingV14LayerCPUTest::getTestCaseName(const testing::TestParamInfo<poolLayerCpuTestParamsSet>& obj) {
-    ov::test::poolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    bool isInt8;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = obj.param;
-
-    utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    bool excludePad;
-    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
-
+    const auto& [basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig] = obj.param;
+    const auto& [poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
     std::ostringstream results;
     results << "IS=(";
     results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
@@ -171,25 +126,10 @@ std::string AvgPoolingV14LayerCPUTest::getTestCaseName(const testing::TestParamI
 
 void AvgPoolingV14LayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    poolSpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    bool isInt8;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+    const auto& [basicParamsSet, inputShapes, inPrc, isInt8, cpuParams, fusingParams, additionalConfig] =
+        this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    utils::PoolingTypes poolType;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    bool excludePad;
-    std::tie(poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad) = basicParamsSet;
-
+    const auto& [poolType, kernel, stride, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
 
@@ -222,22 +162,9 @@ void AvgPoolingV14LayerCPUTest::SetUp() {
 
 std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
     const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
-    maxPoolV8SpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
-
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    ov::element::Type indexElementType;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
+    const auto& [basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig] = obj.param;
+    const auto& [kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType] =
         basicParamsSet;
-
     std::ostringstream results;
     results << "IS=(";
     results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
@@ -267,22 +194,9 @@ std::string MaxPoolingV8LayerCPUTest::getTestCaseName(
 
 void MaxPoolingV8LayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    maxPoolV8SpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
+    const auto& [basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig] = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    ov::element::Type indexElementType;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
+    const auto& [kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType] =
         basicParamsSet;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {
@@ -313,22 +227,9 @@ void MaxPoolingV8LayerCPUTest::SetUp() {
 
 std::string MaxPoolingV14LayerCPUTest::getTestCaseName(
 const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
-    maxPoolV8SpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = obj.param;
-
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    ov::element::Type indexElementType;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
+    const auto& [basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig] = obj.param;
+    const auto& [kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType] =
         basicParamsSet;
-
     std::ostringstream results;
     results << "IS=(";
     results << ov::test::utils::partialShape2str({inputShapes.first}) << ")_";
@@ -358,22 +259,9 @@ const testing::TestParamInfo<maxPoolV8LayerCpuTestParamsSet>& obj) {
 
 void MaxPoolingV14LayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    maxPoolV8SpecificParams basicParamsSet;
-    InputShape inputShapes;
-    ElementType inPrc;
-    CPUSpecificParams cpuParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig) = this->GetParam();
+    const auto& [basicParamsSet, inputShapes, inPrc, cpuParams, additionalConfig] = this->GetParam();
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> padBegin, padEnd;
-    ov::op::PadType padType;
-    ov::op::RoundingType roundingType;
-    ov::element::Type indexElementType;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType) =
+    const auto& [kernel, stride, dilation, padBegin, padEnd, indexElementType, axis, roundingType, padType] =
         basicParamsSet;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     if (selectedType.empty()) {

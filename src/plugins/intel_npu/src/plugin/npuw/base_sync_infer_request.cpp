@@ -537,11 +537,6 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
         const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
         const auto& vocabw = request->get_tensor(wport);
 
-        auto ids_shape = lookup->get_shape();
-        auto get_gathered_shape = [&ids_shape](const ov::Shape& shape) {
-            return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};
-        };
-
         // Gather weight
         ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(m_quant_gather_tensors.w));
 

@@ -42,7 +42,7 @@ struct Context {
     };
     using DQParMMs = std::vector<DQParMM>;
     std::map<std::pair<O, std::size_t>, DQParMMs> par_dq_mms;
-    void register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm);
+    void register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm);
 
     std::map<PPtr, std::pair<ov::ParameterVector, std::size_t>> params_to_concat;
     PPtr concat(ov::ParameterVector&& v, std::size_t dim);
@@ -66,8 +66,8 @@ struct Context {
         PPtr pids;
     };
     std::optional<QuantizedGather> params_to_quant_gather_unpack;
-    PPtr host_gather_unpack_quant(PPtr ids, PPtr w, PPtr z, PPtr s, ov::element::Type type);
     bool found_host_gather_quant() const;
+    PPtr host_gather_unpack_quant(const PPtr& ids, const PPtr& w, const PPtr& z, const PPtr& s, ov::element::Type type);
 
     using Ref = std::reference_wrapper<Context>;
 };

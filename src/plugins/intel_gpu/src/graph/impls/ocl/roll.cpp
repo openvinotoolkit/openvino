@@ -41,7 +41,7 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
             auto shift_raw = primitive->raw_shift;
 
             // Normalize axes and sum shift
-            std::vector<int32_t> shift(default_rank);
+            std::vector<ov::Dimension::value_type> shift(default_rank);
             for (size_t a = 0; a < axes_raw.size(); ++a) {
                 auto& axis = axes_raw[a];
                 if (axis < 0) {
@@ -56,7 +56,7 @@ struct roll_impl : typed_primitive_impl_ocl<roll> {
             // Normalize shift
             for (int s = 0; s < rank; ++s) {
                 auto& sh = shift[s];
-                const auto dim = static_cast<int32_t>(input_shape[s]);
+                const auto dim = static_cast<ov::Dimension::value_type>(input_shape[s]);
                 sh %= dim;
                 if (sh < 0) {
                     sh += dim;

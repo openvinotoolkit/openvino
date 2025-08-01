@@ -26,14 +26,7 @@ class VariadicSplitLayerCPUTest : public testing::WithParamInterface<varSplitCPU
                                   public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<varSplitCPUTestParams> obj) {
-        InputShape shapes;
-        int64_t axis;
-        LengthsPerInfer splitLengths;
-        ov::test::utils::InputLayerType lengthsType;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, axis, splitLengths, lengthsType, netPrecision, cpuParams) = obj.param;
-
+        const auto& [shapes, axis, splitLengths, lengthsType, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=";
         result << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -55,14 +48,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        InputShape inputShapes;
-        int64_t axis;
-        ov::test::utils::InputLayerType lengthsType;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShapes, axis, lengthsPerInfer, lengthsType, netPrecision, cpuParams) = this->GetParam();
-
+        const auto& [inputShapes, axis, _lengthsPerInfer, lengthsType, netPrecision, cpuParams] = this->GetParam();
+        lengthsPerInfer = _lengthsPerInfer;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType += std::string("_") + ov::element::Type(netPrecision).to_string();
 

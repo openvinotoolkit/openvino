@@ -126,25 +126,25 @@ void jit_generator_t::vfneg_vv(const Xbyak_riscv::VReg& vd, const Xbyak_riscv::V
 }
 
 Xbyak_riscv::LMUL jit_generator_t::float2lmul(const float lmul) {
-    if (lmul == 0.125f) {
+    if (lmul == 0.125F) {
         return LMUL::mf8;
     }
-    if (lmul == 0.25f) {
+    if (lmul == 0.25F) {
         return LMUL::mf4;
     }
-    if (lmul == 0.5f) {
+    if (lmul == 0.5F) {
         return LMUL::mf2;
     }
-    if (lmul == 1.f) {
+    if (lmul == 1.F) {
         return LMUL::m1;
     }
-    if (lmul == 2.f) {
+    if (lmul == 2.F) {
         return LMUL::m2;
     }
-    if (lmul == 4.f) {
+    if (lmul == 4.F) {
         return LMUL::m4;
     }
-    if (lmul == 8.f) {
+    if (lmul == 8.F) {
         return LMUL::m8;
     }
     OPENVINO_THROW(std::string("not supported vector length multiplier: ") + std::to_string(lmul));
@@ -153,11 +153,11 @@ Xbyak_riscv::LMUL jit_generator_t::float2lmul(const float lmul) {
 float jit_generator_t::lmul2float(const LMUL lmul) {
     switch (lmul) {
     case LMUL::mf8:
-        return 0.125f;
+        return 0.125F;
     case LMUL::mf4:
-        return 0.25f;
+        return 0.25F;
     case LMUL::mf2:
-        return 0.5f;
+        return 0.5F;
     case LMUL::m1:
         return 1;
     case LMUL::m2:
@@ -175,13 +175,13 @@ float jit_generator_t::lmul2float(const LMUL lmul) {
 
 Xbyak_riscv::SEW jit_generator_t::bytes2sew(const size_t sew) {
     switch (sew) {
-    case 1lu:
+    case 1LU:
         return SEW::e8;
-    case 2lu:
+    case 2LU:
         return SEW::e16;
-    case 4lu:
+    case 4LU:
         return SEW::e32;
-    case 8lu:
+    case 8LU:
         return SEW::e64;
     default: {
         OPENVINO_THROW(std::string("not supported sew: ") + std::to_string(sew));
@@ -192,13 +192,13 @@ Xbyak_riscv::SEW jit_generator_t::bytes2sew(const size_t sew) {
 size_t jit_generator_t::sew2bytes(const Xbyak_riscv::SEW sew) {
     switch (sew) {
     case SEW::e8:
-        return 1lu;
+        return 1LU;
     case SEW::e16:
-        return 2lu;
+        return 2LU;
     case SEW::e32:
-        return 4lu;
+        return 4LU;
     case SEW::e64:
-        return 8lu;
+        return 8LU;
     default: {
         OPENVINO_THROW(std::string("not supported sew: ") + std::to_string(static_cast<uint32_t>(sew)));
     }
