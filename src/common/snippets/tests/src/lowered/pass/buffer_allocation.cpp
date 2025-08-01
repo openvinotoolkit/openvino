@@ -27,11 +27,12 @@ namespace test {
 namespace snippets {
 
 std::string BufferAllocationTest::getTestCaseName(testing::TestParamInfo<ov::test::snippets::BufferAllocationParams> obj) {
-    std::vector<ov::PartialShape> shapes;
-    bool is_optimized, with_split_loops;
-    size_t expected_size, expected_reg_group_count, expected_cluster_count;
-
-    std::tie(shapes, is_optimized, with_split_loops, expected_size, expected_reg_group_count, expected_cluster_count) = obj.param;
+    const auto& [shapes,
+                 is_optimized,
+                 with_split_loops,
+                 expected_size,
+                 expected_reg_group_count,
+                 expected_cluster_count] = obj.param;
 
     std::ostringstream result;
     result << "Shapes=" << ov::test::utils::partialShape2str(shapes) << "_";

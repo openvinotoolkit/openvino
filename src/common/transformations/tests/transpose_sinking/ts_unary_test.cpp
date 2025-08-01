@@ -34,20 +34,13 @@ using TestParams = std::tuple<FactoryPtr,
 class TransposeSinkingUnaryTestFixture : public ::testing::WithParamInterface<TestParams>, public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestParams>& obj) {
-        FactoryPtr unary_factory;
-        PassFactoryPtr pass_factory;
-        size_t num_unary_ops;
-        CreateGraphF model_factory;
-        CreateGraphF reference_model_factory;
-        Shape input_shape;
-        element::Type input_type;
-        std::tie(unary_factory,
-                 pass_factory,
-                 num_unary_ops,
-                 model_factory,
-                 reference_model_factory,
-                 input_shape,
-                 input_type) = obj.param;
+        const auto& [unary_factory,
+                     pass_factory,
+                     num_unary_ops,
+                     model_factory,
+                     reference_model_factory,
+                     input_shape,
+                     input_type] = obj.param;
 
         std::ostringstream test_name;
         test_name << "unaryFactory=" << unary_factory->getTypeName() << "/";
@@ -423,20 +416,13 @@ std::vector<FactoryPtr> unary_factories = {
     CREATE_UNARY_FACTORY(ConvertLike)};
 
 TEST_P(TransposeSinkingUnaryTestFixture, CompareFunctions) {
-    FactoryPtr unary_factory;
-    PassFactoryPtr pass_factory;
-    size_t num_unary_ops;
-    CreateGraphF model_factory;
-    CreateGraphF reference_model_factory;
-    Shape input_shape;
-    element::Type input_type;
-    std::tie(unary_factory,
-             pass_factory,
-             num_unary_ops,
-             model_factory,
-             reference_model_factory,
-             input_shape,
-             input_type) = this->GetParam();
+    const auto& [unary_factory,
+                 pass_factory,
+                 num_unary_ops,
+                 model_factory,
+                 reference_model_factory,
+                 input_shape,
+                 input_type] = this->GetParam();
 
     model = model_factory(unary_factory, num_unary_ops, input_shape, input_type);
     model_ref = reference_model_factory(unary_factory, num_unary_ops, input_shape, input_type);

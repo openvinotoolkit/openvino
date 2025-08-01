@@ -29,20 +29,13 @@ class ConvertPagedAttnInputsTest : public TransformationTestsF,
                                    public testing::WithParamInterface<ConvertPagedAttnInputsParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConvertPagedAttnInputsParams>& obj) {
-        std::vector<ov::element::Type> cachePrecision;
-        std::vector<size_t> cacheGroupSize;
-        std::vector<size_t> blcokSize;
-        bool quantKeybychannel;
-        bool isAccuracyMode;
-        bool isIRKVCacheF16;
-        ov::element::Type inferPrec;
-        std::tie(cachePrecision,
-                 cacheGroupSize,
-                 blcokSize,
-                 inferPrec,
-                 quantKeybychannel,
-                 isAccuracyMode,
-                 isIRKVCacheF16) = obj.param;
+        const auto& [cachePrecision,
+                     cacheGroupSize,
+                     blcokSize,
+                     inferPrec,
+                     quantKeybychannel,
+                     isAccuracyMode,
+                     isIRKVCacheF16] = obj.param;
         std::ostringstream result;
         result << "KeyPrc=" << cachePrecision[0] << "_";
         result << "ValuePrc=" << cachePrecision[1] << "_";
@@ -74,10 +67,18 @@ public:
 };
 
 TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
-    std::vector<ov::element::Type> cachePrecision;
-    std::vector<size_t> cacheGroupSize;
-    std::tie(cachePrecision, cacheGroupSize, blockSize, inferPrec, quantKeybychannel, isAccuracyMode, isIRKVCacheF16) =
-        this->GetParam();
+    const auto& [cachePrecision,
+                 cacheGroupSize,
+                 _blockSize,
+                 _inferPrec,
+                 _quantKeybychannel,
+                 _isAccuracyMode,
+                 _isIRKVCacheF16] = this->GetParam();
+    blockSize = _blockSize;
+    inferPrec = _inferPrec;
+    quantKeybychannel = _quantKeybychannel;
+    isAccuracyMode = _isAccuracyMode;
+    isIRKVCacheF16 = _isIRKVCacheF16;
     keyCachePrecision = cachePrecision[0];
     valueCachePrecision = cachePrecision[1];
     keyCacheGroupSize = cacheGroupSize[0];
