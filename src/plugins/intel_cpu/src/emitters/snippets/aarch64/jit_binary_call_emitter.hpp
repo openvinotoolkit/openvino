@@ -28,11 +28,6 @@ public:
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             std::set<snippets::Reg> live_regs);
 
-    // Need at least one register to store the callable address
-    static size_t aux_gprs_count() {
-        return 1;
-    }
-
 protected:
     /**
      * @brief Returns a set of snippets::Reg that should be spilled in the derived emitter.

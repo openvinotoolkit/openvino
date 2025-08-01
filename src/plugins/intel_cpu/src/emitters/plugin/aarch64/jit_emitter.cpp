@@ -254,14 +254,14 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
     const auto store_gpr_regs_size = gpr_regs.size();
     const auto last = store_gpr_regs_size % 2;
     for (size_t i = 0; i < (store_gpr_regs_size - last); i += 2) {
-        const auto shift = ov::intel_cpu::rnd_up(get_gpr_length() * 2, 16);
+        const auto shift = ov::intel_cpu::rnd_up(get_gpr_length() * 2, sp_alignment);
         h->stp(Xbyak_aarch64::XReg(gpr_regs[i]),
                Xbyak_aarch64::XReg(gpr_regs[i + 1]),
                pre_ptr(h->sp, -static_cast<int32_t>(shift)));
     }
     // 1.2. store the remaining register
     if (last != 0) {
-        const auto shift = ov::intel_cpu::rnd_up(get_gpr_length(), 16);
+        const auto shift = ov::intel_cpu::rnd_up(get_gpr_length(), sp_alignment);
         h->str(Xbyak_aarch64::XReg(gpr_regs[store_gpr_regs_size - 1]), pre_ptr(h->sp, -static_cast<int32_t>(shift)));
     }
 
@@ -278,7 +278,7 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
             prev_reg_idx = static_cast<int>(reg_idx);
             continue;
         }
-        const auto shift = ov::intel_cpu::rnd_up(get_vec_length() * 2, 16);
+        const auto shift = ov::intel_cpu::rnd_up(get_vec_length() * 2, sp_alignment);
         h->stp(Xbyak_aarch64::QReg(prev_reg_idx),
                Xbyak_aarch64::QReg(reg_idx),
                pre_ptr(h->sp, -static_cast<int32_t>(shift)));
@@ -288,7 +288,7 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
     // 2.1. store the remaining register
     if (prev_reg_idx != -1) {
         if (ignore_vec_regs.find(prev_reg_idx) == ignore_vec_regs.end()) {
-            const auto shift = ov::intel_cpu::rnd_up(get_vec_length(), 16);
+            const auto shift = ov::intel_cpu::rnd_up(get_vec_length(), sp_alignment);
             h->str(Xbyak_aarch64::QReg(prev_reg_idx), pre_ptr(h->sp, -static_cast<int32_t>(shift)));
         } else {
             ignore_registers_count++;
@@ -317,7 +317,7 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
                 continue;
             }
 
-            const auto shift = ov::intel_cpu::rnd_up(get_vec_length(), 16);
+            const auto shift = ov::intel_cpu::rnd_up(get_vec_length(), sp_alignment);
             h->ldr(Xbyak_aarch64::QReg(reg_idx), post_ptr(h->sp, shift));
             break;
         }
@@ -335,7 +335,7 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
             prev_reg_idx = static_cast<int>(reg_idx);
             continue;
         }
-        const auto shift = ov::intel_cpu::rnd_up(get_vec_length() * 2, 16);
+        const auto shift = ov::intel_cpu::rnd_up(get_vec_length() * 2, sp_alignment);
         h->ldp(Xbyak_aarch64::QReg(reg_idx), Xbyak_aarch64::QReg(prev_reg_idx), post_ptr(h->sp, shift));
         prev_reg_idx = -1;
     }
@@ -348,13 +348,13 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
     const auto save_gpr_regs_size = gpr_regs.size();
     const auto last = save_gpr_regs_size % 2;
     if (last != 0) {
-        const auto shift = ov::intel_cpu::rnd_up(get_gpr_length(), 16);
+        const auto shift = ov::intel_cpu::rnd_up(get_gpr_length(), sp_alignment);
         h->ldr(Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1]), post_ptr(h->sp, shift));
     }
 
     // 2.2. restore pair registers
     for (size_t i = last; i < save_gpr_regs_size; i += 2) {
-        const auto shift = ov::intel_cpu::rnd_up(get_gpr_length() * 2, 16);
+        const auto shift = ov::intel_cpu::rnd_up(get_gpr_length() * 2, sp_alignment);
         h->ldp(Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1 - (i + 1)]),
                Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1 - i]),
                post_ptr(h->sp, shift));

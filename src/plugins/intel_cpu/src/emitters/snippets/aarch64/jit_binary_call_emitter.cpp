@@ -52,8 +52,11 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
 
     std::vector<size_t> all_used_idxs = used_gpr_idxs;
 
+    // Ensure we have enough registers for binary call arguments
+    OV_CPU_JIT_EMITTER_ASSERT(num_binary_args <= 8, "ARM64 ABI supports maximum 8 parameter registers (X0-X7)");
+
     // Add ABI parameter registers to used list (X0-X7 based on num_binary_args)
-    for (size_t i = 0; i < std::min(num_binary_args, static_cast<size_t>(8)); i++) {
+    for (size_t i = 0; i < num_binary_args; i++) {
         all_used_idxs.push_back(i);
         m_regs_to_spill.emplace(snippets::RegType::gpr, i);
     }
@@ -105,8 +108,7 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
 
 void jit_binary_call_emitter::emit_stack_preserve(size_t stack_size) const {
     // ARM64 requires 16-byte stack alignment
-    const size_t alignment = 16;
-    stack_size = ov::intel_cpu::rnd_up(stack_size, alignment);
+    stack_size = ov::intel_cpu::rnd_up(stack_size, sp_alignment);
 
     if (stack_size > 0) {
         h->sub(h->sp, h->sp, stack_size);

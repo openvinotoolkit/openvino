@@ -25,7 +25,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
@@ -43,9 +42,8 @@ using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 jit_gemm_emitter::jit_gemm_emitter(jit_generator* h,
                                    cpu_isa_t isa,
                                    const ExpressionPtr& expr,
-                                   const snippets::KernelExecutorTablePtr& kernel_table,
-                                   const std::set<snippets::Reg>& live_regs)
-    : jit_binary_call_emitter(h, isa, live_regs) {
+                                   const snippets::KernelExecutorTablePtr& kernel_table)
+    : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     GemmKernelKaiConfig kernel_config;
     m_kernel_executor_kai = kernel_table->register_kernel<GemmKaiKernelExecutor>(expr, kernel_config);
@@ -92,7 +90,7 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     store_context(exclude_spill);
 
     auto reserved_stack_size = sizeof(GemmKaiKernelExecutor::call_args);
-    reserved_stack_size = ov::intel_cpu::rnd_up(reserved_stack_size, 16);
+    reserved_stack_size = ov::intel_cpu::rnd_up(reserved_stack_size, sp_alignment);
     emit_stack_preserve(reserved_stack_size);
 
     const size_t A_offset = offsetof(GemmKaiKernelExecutor::call_args, A);
