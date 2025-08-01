@@ -1530,7 +1530,7 @@ struct MHA {
                 return;
             }
 
-            auto ithr = parallel_get_thread_num();
+            size_t ithr = static_cast<size_t>(parallel_get_thread_num());
             const size_t valid_len = item.valid_block_len;
             if (_helper._params.is_sage_attn) {
 #    if defined(OPENVINO_ARCH_X86_64)
@@ -1640,7 +1640,7 @@ struct MHA {
             const auto batch_in_seq = item.batch_in_seq;
             const auto batch_in_token = subsequence_begins.ptr<int32_t>()[batch_in_seq];
             const auto q_len = static_cast<size_t>(item.q_len);
-            size_t ithr = parallel_get_thread_num();
+            size_t ithr = static_cast<size_t>(parallel_get_thread_num());
 
             if (q_len == 1) {
                 const auto cur_kv_len = static_cast<size_t>(past_lens.ptr<int32_t>()[batch_in_seq]) + 1;
