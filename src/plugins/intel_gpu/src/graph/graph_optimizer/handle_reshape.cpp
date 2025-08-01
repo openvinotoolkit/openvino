@@ -5,6 +5,7 @@
 #include "pass_manager.h"
 #include "program_helpers.h"
 #include "reshape_inst.h"
+#include "reorder_inst.h"
 #include <vector>
 #include <memory>
 

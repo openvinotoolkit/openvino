@@ -126,12 +126,12 @@ protected:
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
 
-    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids) override {
+    void init_by_cached_kernels(const kernels_cache& kernels_cache, std::vector<std::string>& cached_kernel_ids, const engine& e) override {
         _kernels.clear();
 
         _kernels.reserve(cached_kernel_ids.size());
         for (size_t k = 0; k < cached_kernel_ids.size(); ++k) {
-            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k]));
+            _kernels.emplace_back(kernels_cache.get_kernel_from_cached_kernels(cached_kernel_ids[k], e));
         }
         this->can_share_kernels = kernels_cache.get_kernels_reuse();
     }
@@ -221,11 +221,12 @@ protected:
     void set_kernels(cldnn::kernels_cache::compiled_kernels kernels) override {
         OPENVINO_ASSERT(kernels.size() == 1, "Only the kernels of the single primitive should be allowed.");
         auto& kernel_vec = kernels.begin()->second;
+        auto& engine = kernels.begin()->first.get_program().get_engine();
         _kernels.clear();
         _kernels.resize(kernel_vec.size());
         for (auto& k : kernel_vec) {
             auto sub_kernel_idx = k.second;
-            _kernels[sub_kernel_idx] = k.first;
+            _kernels[sub_kernel_idx] = engine.prepare_kernel(k.first);
         }
     }
 
