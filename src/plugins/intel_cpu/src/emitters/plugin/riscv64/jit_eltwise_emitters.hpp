@@ -239,6 +239,15 @@ private:
     void register_table_entries() override;
 };
 
+/// Greater///
+class jit_greater_emitter : public jit_emitter {
+public:
+    jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc = element::f32);
+    jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
+
 class jit_gelu_erf_emitter : public jit_emitter {
 public:
     jit_gelu_erf_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
@@ -736,6 +745,7 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
+/// Sub
 class jit_subtract_emitter : public jit_emitter {
 public:
     jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
