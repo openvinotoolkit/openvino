@@ -470,8 +470,9 @@ void eltwise_inst::check_inputs_count(eltwise_node const& node) {
     }
 }
 
-bool eltwise_node::need_input_tensors_dims_unalign_for_numpy_broadcast(size_t input_rank, format output_format) const {
-    if (format::is_default_format(output_format))
+bool eltwise_node::need_input_tensors_dims_unalign_for_numpy_broadcast(const layout& input) const {
+    if (format::is_default_format(get_output_layout().format) ||
+        input.format == get_output_layout().format)
         return false;
     if (get_input_layouts().size() < 2)
         return false;
@@ -482,7 +483,7 @@ bool eltwise_node::need_input_tensors_dims_unalign_for_numpy_broadcast(size_t in
     auto pshape_b_rank = get_input_pshape(1).size();
     auto small_pshape_rank = (pshape_a_rank > pshape_b_rank) ? pshape_b_rank : pshape_a_rank;
     if (pshape_a_rank != pshape_b_rank && pshape_a_rank > 1 && pshape_b_rank > 1 &&
-        input_rank == small_pshape_rank)
+        input.get_partial_shape().rank() == small_pshape_rank)
         return true;
 
     return false;

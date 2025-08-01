@@ -415,7 +415,7 @@ static bool is_weights_dependency(program_node* predecessor, program_node* succe
 static bool is_align_shape_for_numpy_broadcast(program_node* predecessor, program_node* successor, format output_format) {
     if (successor->is_type<eltwise>()) {
         auto& elt_suc = successor->as<eltwise>();
-        if (elt_suc.need_input_tensors_dims_unalign_for_numpy_broadcast(predecessor->get_output_pshape().size(), output_format)) {
+        if (elt_suc.need_input_tensors_dims_unalign_for_numpy_broadcast(predecessor->get_output_layout())) {
             GPU_DEBUG_TRACE_DETAIL << " Skip add reorder in reorder_in_dir for numpy broadcast " << successor->id()
                                     << output_format.to_string() << std::endl;
             return true;

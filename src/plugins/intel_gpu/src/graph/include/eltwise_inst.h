@@ -38,7 +38,7 @@ public:
 
     // Inputs of NUMPY broadcast of Eltwise can be different dimensions
     // Bypass smaller tensor input to let Eltwise align those inputs for NUMPY broadcast
-    bool need_input_tensors_dims_unalign_for_numpy_broadcast(size_t input_rank, format output_format) const;
+    bool need_input_tensors_dims_unalign_for_numpy_broadcast(const layout& input) const;
 };
 
 using eltwise_node = typed_program_node<eltwise>;
