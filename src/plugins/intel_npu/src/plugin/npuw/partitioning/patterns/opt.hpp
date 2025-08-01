@@ -159,7 +159,19 @@ public:
 class HostGatherQuantAsymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantAsymm");
-    HostGatherQuantAsymm(Context::Ref ctx, bool verify_only = false);
+    HostGatherQuantAsymm(Context::Ref ctx, bool wac = false, bool verify_only = false);
+};
+
+class HostGatherQuantSymm : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantSymm");
+    HostGatherQuantSymm(Context::Ref ctx, bool wac = false, bool verify_only = false);
+};
+
+class HostGatherQuant : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuant");
+    HostGatherQuant(Context::Ref ctx, bool wac = false, bool verify_only = false);
 };
 
 class HostGather : public ov::pass::MatcherPass {
@@ -209,6 +221,16 @@ public:
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
     PreserveConstDictMatMulAsymm(Results to_keep);
+};
+
+class PreserveConstDictMatMulSymm : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulSymm");
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    using Results = std::reference_wrapper<std::vector<CPtr>>;
+
+    PreserveConstDictMatMulSymm(Results to_keep);
 };
 
 // Slice last Matmul

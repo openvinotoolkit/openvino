@@ -244,19 +244,11 @@ static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
 
 /**
  * @brief
- * Type: boolean
+ * Type: std::string
  * When applicable, do embedding gather on host.
- * Default value: true.
+ * Default value: "QUANT".
  */
-static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
-
-/**
- * @brief
- * Type: boolean
- * When applicable, do embedding gather on host but leave it quantized.
- * Default value: false.
- */
-static constexpr ov::Property<bool> gather_quant{"NPUW_HOST_GATHER_QUANT"};
+static constexpr ov::Property<std::string> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief

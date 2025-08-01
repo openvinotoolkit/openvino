@@ -222,9 +222,9 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
-    // Identify (based on compiler version) host gather or quantized host gather properties
+    // Identify (based on compiler version, user config and pattern) host gather or quantized host gather properties
     // and set them in m_cfg
-    identify_host_gather_property(model);
+    identify_host_gather_property(model, npuw_props);
 
     auto partitioning = getPartitioning(model, m_cfg);
     m_total_stat.gflops = partitioning.total_gflops;
@@ -530,54 +530,67 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
-void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_ptr<ov::Model>& model) {
-    // const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
-    // bool supports_asym_vocab = false;
+void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_ptr<ov::Model>& model,
+                                                            const ov::AnyMap& properties) {
+    LOG_INFO("Identifying best HOST_GATHER config value...");
+    LOG_BLOCK();
+    // Check if was explicitly specified
+    auto it = properties.find("NPUW_HOST_GATHER");
+    std::string explicit_host_gather = "";
+    if (it != properties.end()) {
+        explicit_host_gather = it->second.as<std::string>();
+        NPUW_ASSERT(explicit_host_gather == "NO" || explicit_host_gather == "YES" ||
+                    explicit_host_gather == "QUANT" && "NPUW_HOST_GATHER can only be NO, YES or QUANT!");
+    }
 
-    // // Identify based on the config
-    // if (npu_devices.empty()) {
-    //     // No device, keeping properties as is. Just do a sanity check
-    //     if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>() && m_cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
-    //         NPUW_ASSERT(false && "Conflicting configuration: NPUW_HOST_GATHER and NPUW_HOST_GATHER_QUANT can't be "
-    //                              "enabled together!");
-    //     }
-    // } else {
-    //     auto compiler_version = get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version);
-    //     if (compiler_version >= ONEAPI_MAKE_VERSION(7, 21)) {
-    //         supports_asym_vocab = true;
-    //     } else {
-    //         if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
-    //             NPUW_ASSERT(false && "NPU compiler doesn't support tail quantization! "
-    //                                  "Please either use NPUW_HOST_GATHER instead of NPUW_HOST_GATHER_QUANT "
-    //                                  "or get the latest driver.");
-    //         }
-    //     }  // compiler_version
-    // }
+    // Check NPUW_HOST_GATHER:QUANT based on the patterns (for tail vocab)
+    ov::npuw::patterns::opt::Context ctx;
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx), true, true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx), true, true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx), true, true);
+    rewr.run_on_model(model);
+    bool pattern_matched = ctx.found_host_gather_quant();
 
-    // // Verify NPUW_HOST_GATHER_QUANT based on the patterns (for tail vocab)
-    // if (supports_asym_vocab) {
-    //     ov::npuw::patterns::opt::Context ctx;
-    //     ov::pass::GraphRewrite rewr;
-    //     rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx), true);
-    //     rewr.run_on_model(model);
+    // Check the compiler version
+    const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
+    bool compiler_version_enough =
+        !npu_devices.empty() &&
+        get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version) >= ONEAPI_MAKE_VERSION(7, 21);
 
-    //     if (!ctx.found_host_gather_quant() && m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
-    //         LOG_INFO("Couldn't match NPUW_HOST_GATHER_QUANT-related patterns. Enabling NPUW_HOST_GATHER instead.");
-    //         std::map<std::string, std::string> host_gather_cfg;
-    //         host_gather_cfg["NPUW_HOST_GATHER_QUANT"] = "NO";
-    //         host_gather_cfg["NPUW_HOST_GATHER"] = "YES";
-    //         m_cfg.update(host_gather_cfg);
-    //     }
-
-    //     if (ctx.found_host_gather_quant() && !m_cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
-    //         // Force quantized host gather
-    //         LOG_INFO("Forcing NPUW_HOST_GATHER_QUANT property.");
-    //         std::map<std::string, std::string> host_gather_cfg;
-    //         host_gather_cfg["NPUW_HOST_GATHER_QUANT"] = "YES";
-    //         host_gather_cfg["NPUW_HOST_GATHER"] = "NO";
-    //         m_cfg.update(host_gather_cfg);
-    //     }
-    // }
+    // Now make a decision based on the checks above
+    if (explicit_host_gather == "") {
+        // Default value is used, can force the best option
+        if (!pattern_matched || !compiler_version_enough) {
+            LOG_INFO("Couldn't match NPUW_HOST_GATHER:QUANT patterns or the compiler version is too low. Enabling "
+                     "NPUW_HOST_GATHER:YES instead.");
+            std::map<std::string, std::string> host_gather_cfg;
+            host_gather_cfg["NPUW_HOST_GATHER"] = "YES";
+            m_cfg.update(host_gather_cfg);
+        } else if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER>() != "QUANT") {
+            LOG_INFO("Forcing NPUW_HOST_GATHER:QUANT for better performance.");
+            std::map<std::string, std::string> host_gather_cfg;
+            host_gather_cfg["NPUW_HOST_GATHER"] = "QUANT";
+            m_cfg.update(host_gather_cfg);
+        }
+    } else if (explicit_host_gather == "NO") {
+        if (pattern_matched && compiler_version_enough) {
+            LOG_WARN("Consider enabling NPUW_HOST_GATHER:QUANT for better performance.");
+        } else {
+            LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
+        }
+    } else if (explicit_host_gather == "YES") {
+        if (pattern_matched && compiler_version_enough) {
+            LOG_WARN("Consider enabling NPUW_HOST_GATHER:QUANT for better performance.");
+        }
+    } else if (explicit_host_gather == "QUANT") {
+        if (!pattern_matched || !compiler_version_enough) {
+            LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
+        }
+    } else {
+        NPUW_ASSERT(false);
+    }  // explicit_host_gather
+    LOG_INFO("DONE.");
 }
 
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
@@ -1766,7 +1779,6 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
-                          BIND(npuw::partitioning::gather_quant, NPUW_HOST_GATHER_QUANT),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),

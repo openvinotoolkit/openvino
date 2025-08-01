@@ -99,7 +99,7 @@ private:
     void log_device_dist() const;
     void implement_properties();
 
-    void identify_host_gather_property(const std::shared_ptr<ov::Model>& model);
+    void identify_host_gather_property(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties);
 
     // For full deserialization flow with weights
     void reconstruct_closure();
