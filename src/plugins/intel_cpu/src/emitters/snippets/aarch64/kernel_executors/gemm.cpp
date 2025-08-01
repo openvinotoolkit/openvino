@@ -97,8 +97,9 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
 }
 
 void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const call_args* args) {
-    if (!executor || !args)
+    if (!executor || !args) {
         return;
+    }
 
     execute(executor, const_cast<void*>(args->A), const_cast<void*>(args->B), args->C);
 }

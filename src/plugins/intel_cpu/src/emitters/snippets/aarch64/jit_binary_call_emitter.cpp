@@ -4,26 +4,27 @@
 
 #include "jit_binary_call_emitter.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <algorithm>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <set>
+#include <utility>
 #include <vector>
 
-#include "emitters/snippets/aarch64/utils.hpp"
 #include "emitters/utils.hpp"
 #include "snippets/emitter.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::aarch64;
 
 namespace ov::intel_cpu::aarch64 {
 
 jit_binary_call_emitter::jit_binary_call_emitter(jit_generator* h, cpu_isa_t isa, std::set<snippets::Reg> live_regs)
-    : jit_emitter(h, isa) {
-    // Store live registers that need to be preserved
-    m_regs_to_spill = std::move(live_regs);
-}
+    : jit_emitter(h, isa),
+      m_regs_to_spill(std::move(live_regs)) {}
 
 const std::set<snippets::Reg>& jit_binary_call_emitter::get_regs_to_spill() const {
     OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "Binary call registers must be initialized first");
@@ -52,7 +53,7 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     std::vector<size_t> all_used_idxs = used_gpr_idxs;
 
     // Add ABI parameter registers to used list (X0-X7 based on num_binary_args)
-    for (size_t i = 0; i < std::min(num_binary_args, size_t(8)); i++) {
+    for (size_t i = 0; i < std::min(num_binary_args, static_cast<size_t>(8)); i++) {
         all_used_idxs.push_back(i);
         m_regs_to_spill.emplace(snippets::RegType::gpr, i);
     }

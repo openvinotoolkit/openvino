@@ -41,7 +41,8 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
         }
     } else {
         // Manual offset handling for other register types
-        int max_offset, alignment;
+        int max_offset = 4095;  // Default fallback
+        int alignment = 1;      // Default fallback
         if constexpr (std::is_same_v<RegType, SReg>) {
             max_offset = 16380;
             alignment = 4;
@@ -54,9 +55,6 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
         } else if constexpr (std::is_same_v<RegType, BReg>) {
             max_offset = 4095;
             alignment = 1;
-        } else {
-            max_offset = 4095;
-            alignment = 1;  // Default fallback
         }
 
         if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
@@ -84,7 +82,8 @@ static void store_with_offset_check(jit_generator* h, const RegType& src, const 
         }
     } else {
         // Manual offset handling for other register types
-        int max_offset, alignment;
+        int max_offset = 4095;  // Default fallback
+        int alignment = 1;      // Default fallback
         if constexpr (std::is_same_v<RegType, SReg>) {
             max_offset = 16380;
             alignment = 4;
@@ -97,9 +96,6 @@ static void store_with_offset_check(jit_generator* h, const RegType& src, const 
         } else if constexpr (std::is_same_v<RegType, BReg>) {
             max_offset = 4095;
             alignment = 1;
-        } else {
-            max_offset = 4095;
-            alignment = 1;  // Default fallback
         }
 
         if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
