@@ -13,7 +13,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 list(APPEND DEFINES TEST_CUSTOM_OP_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op.xml")
-list(APPEND DEFINES TEST_CUSTOM_OP_DYNAMIC_CONFIG_PATH="${CMAKE_CURRENT_SOURCE_DIR}/custom_op/custom_op_dynamic.xml")
 
 ov_add_test_target(
         NAME

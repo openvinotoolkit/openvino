@@ -75,9 +75,57 @@ static std::shared_ptr<ov::Model> get_simple_model_with_custom_add_op(float alph
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "model_with_custom_op_dynamic");
 }
 
+static std::pair<std::string, std::string> generate_config_files() {
+    std::string config_cl = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.cl";
+    std::string config_xml = ov::test::utils::generateTestFilePrefix() + "_custom_op_dynamic.xml";
+
+    std::string content_cl = R"(
+    __kernel void custom_add_kernel(
+        __global const INPUT0_TYPE* inp0,
+        __global OUTPUT0_TYPE* outp) {
+        const uint b = (uint)get_global_id(0);
+        const uint f = (uint)get_global_id(1);
+        const uint y = (uint)get_global_id(2);
+        #if INPUT0_DIMS_SIZE == 4
+            const uint x = 0;
+        #endif
+
+        const unsigned src_index = b*INPUT0_DIMS[1]*INPUT0_DIMS[2]*INPUT0_DIMS[3] + f*INPUT0_DIMS[2]*INPUT0_DIMS[3] + y*INPUT0_DIMS[3] + x;
+        const unsigned dst_index = src_index;
+
+        outp[dst_index] = inp0[src_index] * alpha + beta;
+    })";
+
+    std::string content_xml = R"(
+        <CustomLayer name="CustomAddOp" type="SimpleGPU" version="1">
+            <Kernel entry="custom_add_kernel">
+                <Source filename=")" + config_cl + R"("/>
+                <Define name="alpha" type="float" param="alpha" default="1.0"/>
+                <Define name="beta" type="float" param="beta" default="0.1"/>
+            </Kernel>
+            <Buffers>
+                <Tensor arg-index="0" type="input" port-index="0" format="BFYX"/>
+                <Tensor arg-index="1" type="output" port-index="0" format="BFYX"/>
+            </Buffers>
+            <CompilerOptions options="-cl-mad-enable"/>
+            <WorkSizes global="B,F,Y"/>
+        </CustomLayer>)";
+
+    ov::test::utils::createFile(config_cl, content_cl);
+    ov::test::utils::createFile(config_xml, content_xml);
+    return {config_xml, config_cl};
+}
+
+static void remove_configs(std::pair<std::string, std::string> config_files) {
+    ov::test::utils::removeFile(config_files.first.c_str());
+    ov::test::utils::removeFile(config_files.second.c_str());
+}
+
 TEST(CustomOpDynamic, CanReadValidCustomOpConfig) {
     ov::Core core;
-    core.set_property(ov::test::utils::DEVICE_GPU, {{"CONFIG_FILE", TEST_CUSTOM_OP_DYNAMIC_CONFIG_PATH}});
+    auto config_files = generate_config_files();
+    core.set_property(ov::test::utils::DEVICE_GPU, {{"CONFIG_FILE", config_files.first}});
+    remove_configs(config_files);
 }
 
 TEST(smoke_CustomOpDynamic, Accuracy) {
@@ -86,7 +134,8 @@ TEST(smoke_CustomOpDynamic, Accuracy) {
     const size_t dim1 = 1;
     auto model = get_simple_model_with_custom_add_op(alpha, beta, ov::PartialShape{-1, dim1, -1});
 
-    ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", TEST_CUSTOM_OP_DYNAMIC_CONFIG_PATH}};
+    auto config_files = generate_config_files();
+    ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_files.first}};
     auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
 
     auto runtime_graph = compiled_model.get_runtime_model();
@@ -119,6 +168,8 @@ TEST(smoke_CustomOpDynamic, Accuracy) {
             ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta);
         }
     }
+
+    remove_configs(config_files);
 }
 
 } // namespace intel_gpu
