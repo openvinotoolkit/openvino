@@ -42,9 +42,6 @@ jobs:
           level: warning
           fail_level: error
           filter_mode: nofilter
-          exclude: |
-              "*/thirdparty/*"
-              "./temp/*"
 
   clang-format-aarch64:
     runs-on: ubuntu-24.04
@@ -81,9 +78,6 @@ jobs:
           level: warning
           fail_level: error
           filter_mode: nofilter
-          exclude: |
-              "*/thirdparty/*"
-              "./temp/*"
 
   clang-format-riscv64:
     runs-on: ubuntu-24.04
@@ -119,9 +113,6 @@ jobs:
           level: warning
           fail_level: error
           filter_mode: nofilter
-          exclude: |
-              "*/thirdparty/*"
-              "./temp/*"
 
   ShellCheck:
     runs-on: ubuntu-22.04
