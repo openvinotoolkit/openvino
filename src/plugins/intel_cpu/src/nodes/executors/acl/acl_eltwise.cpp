@@ -24,6 +24,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "acl_utils.hpp"
@@ -93,10 +94,7 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
                 return false;
             }
         }
-        if (dstDescs[0]->getPrecision() != dstPrc) {
-            return false;
-        }
-        return true;
+        return dstDescs[0]->getPrecision() == dstPrc;
     };
 
     const auto& eltwiseAttrs = config.attrs;
@@ -116,8 +114,8 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
     case Algorithm::EltwiseSwish:
     case Algorithm::EltwisePrelu:
     case Algorithm::EltwiseHswish:
-        if (!(checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
-              checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+        if (!checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) &&
+            !checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32)) {
             log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
@@ -125,9 +123,9 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
     case Algorithm::EltwiseAbs:
     case Algorithm::EltwiseExp:
     case Algorithm::EltwiseLog:
-        if (!(checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
-              checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
-              checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+        if (!checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) &&
+            !checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) &&
+            !checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32)) {
             log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
@@ -135,33 +133,33 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
     case Algorithm::EltwiseMaximum:
     case Algorithm::EltwiseMinimum:
     case Algorithm::EltwiseSquaredDifference:
-        if (!(checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
-              checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
-              checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
-              checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+        if (!checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) &&
+            !checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) &&
+            !checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) &&
+            !checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32)) {
             log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
         break;
     case Algorithm::EltwiseAdd:
     case Algorithm::EltwiseSubtract:
-        if (!(checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) ||
-              checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
-              checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) ||
-              checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
-              checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+        if (!checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) &&
+            !checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) &&
+            !checkPrecision({ov::element::i32, ov::element::i32}, ov::element::i32) &&
+            !checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) &&
+            !checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32)) {
             log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
         break;
     case Algorithm::EltwiseMultiply:
-        if (!(checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) ||
-              checkPrecision({ov::element::u8, ov::element::u8}, ov::element::i16) ||
-              checkPrecision({ov::element::u8, ov::element::i16}, ov::element::i16) ||
-              checkPrecision({ov::element::i16, ov::element::u8}, ov::element::i16) ||
-              checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) ||
-              checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) ||
-              checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+        if (!checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) &&
+            !checkPrecision({ov::element::u8, ov::element::u8}, ov::element::i16) &&
+            !checkPrecision({ov::element::u8, ov::element::i16}, ov::element::i16) &&
+            !checkPrecision({ov::element::i16, ov::element::u8}, ov::element::i16) &&
+            !checkPrecision({ov::element::i16, ov::element::i16}, ov::element::i16) &&
+            !checkPrecision({ov::element::f16, ov::element::f16}, ov::element::f16) &&
+            !checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32)) {
             log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
@@ -173,11 +171,11 @@ bool AclEltwiseExecutor::supports(const EltwiseConfig& config) {
     case Algorithm::EltwiseGreaterEqual:
     case Algorithm::EltwiseLess:
     case Algorithm::EltwiseLessEqual:
-        if (!(checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) ||
-              checkPrecision({ov::element::i16, ov::element::i16}, ov::element::u8) ||
-              checkPrecision({ov::element::i32, ov::element::i32}, ov::element::u8) ||
-              checkPrecision({ov::element::f16, ov::element::f16}, ov::element::u8) ||
-              checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32))) {
+        if (!checkPrecision({ov::element::u8, ov::element::u8}, ov::element::u8) &&
+            !checkPrecision({ov::element::i16, ov::element::i16}, ov::element::u8) &&
+            !checkPrecision({ov::element::i32, ov::element::i32}, ov::element::u8) &&
+            !checkPrecision({ov::element::f16, ov::element::f16}, ov::element::u8) &&
+            !checkPrecision({ov::element::f32, ov::element::f32}, ov::element::f32)) {
             log_unsupported_prec(srcDescs, dstDescs, eltwiseAttrs.data.algo);
             return false;
         }
@@ -283,7 +281,7 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         if (!NEPixelWiseMultiplication::validate(srcTensorsInfo.data(),
                                                  &srcTensorsInfo[1],
                                                  dstTensorsInfo.data(),
-                                                 1.0f,
+                                                 1.0F,
                                                  ConvertPolicy::SATURATE,
                                                  RoundingPolicy::TO_ZERO)) {
             return false;
@@ -293,7 +291,7 @@ bool AclEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
             acl_op->configure(srcTensors.data(),
                               &srcTensors[1],
                               dstTensors.data(),
-                              1.0f,
+                              1.0F,
                               ConvertPolicy::SATURATE,
                               RoundingPolicy::TO_ZERO);
             return acl_op;
@@ -522,11 +520,7 @@ bool AclEltwiseExecutor::update(const MemoryArgs& memory) {
         srcDescs[argId - ARG_SRC] = mem->getDescPtr();
     }
 
-    if (!init(srcDescs, dstDescs)) {
-        return false;
-    }
-
-    return true;
+    return init(srcDescs, dstDescs);
 }
 
 void AclEltwiseExecutor::execute(const MemoryArgs& memory) {

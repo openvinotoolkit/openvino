@@ -1165,7 +1165,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
                     && !fused_node->is_type<fully_connected>()
-                    && !fused_node->is_type<convolution>())
+                    && !fused_node->is_type<convolution>()
+                    && !fused_node->is_type<gemm>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))

@@ -41,7 +41,8 @@ using namespace ov::element;
 
 template <typename T>
 static std::vector<T> normalizeDimsTo2D(const std::vector<T>& dims) {
-    return {std::accumulate(dims.begin(), dims.end() - 1, (T)1, std::multiplies<T>()), dims[dims.size() - 1]};
+    return {std::accumulate(dims.begin(), dims.end() - 1, static_cast<T>(1), std::multiplies<T>()),
+            dims[dims.size() - 1]};
 }
 
 static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr& weightDesc) {
@@ -53,16 +54,12 @@ static bool useDynamicQuantizationImpl(const FCAttrs& attrs, const MemoryDescPtr
         return false;
     }
 
-    if (weightDesc->getPrecision() != element::i8) {
-        return false;
-    }
-
-    return true;
+    return weightDesc->getPrecision() == element::i8;
 }
 
 bool MatMulKleidiAIExecutor::supports(const FCConfig& config) {
-    return !(config.descs.at(ARG_WEI)->getPrecision() != element::f32 &&
-             !useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI)));
+    return config.descs.at(ARG_WEI)->getPrecision() == element::f32 ||
+           useDynamicQuantizationImpl(config.attrs, config.descs.at(ARG_WEI));
 }
 
 MatMulKleidiAIExecutor::MatMulKleidiAIExecutor(const FCAttrs& attrs,

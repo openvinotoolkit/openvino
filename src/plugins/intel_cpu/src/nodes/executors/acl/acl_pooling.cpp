@@ -176,7 +176,7 @@ bool AclPoolingExecutor::init(const PoolingAttrs& poolingAttrs,
     dstTensor.allocator()->init(dstTensorInfo);
 
     std::function<std::unique_ptr<IFunction>(void)> exec_func;
-    if (srcDims.size() == 5u) {
+    if (srcDims.size() == 5U) {
         if (dstDescs.size() == 1U) {
             Pooling3dLayerInfo pool_info;
             if (!isSupported(srcTensorInfo,
