@@ -27,6 +27,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "shape_inference/custom/reshape.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -93,7 +94,7 @@ bool Reshape::needShapeInfer() const {
 }
 
 void Reshape::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1 && getParentEdges().size() != 2) {
+    if (none_of(getParentEdges().size(), 1U, 2U)) {
         CPU_NODE_THROW("Incorrect number of input edges");
     }
     if (getChildEdges().empty()) {

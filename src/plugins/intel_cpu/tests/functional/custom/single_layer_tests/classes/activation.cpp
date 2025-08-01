@@ -237,8 +237,10 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Erf) ||
             (activation_type == utils::ActivationTypes::Exp) ||
             (activation_type == utils::ActivationTypes::Floor) ||
+            (activation_type == utils::ActivationTypes::GeluErf) ||
             (activation_type == utils::ActivationTypes::HSigmoid) ||
             (activation_type == utils::ActivationTypes::HSwish) ||
+            (activation_type == utils::ActivationTypes::Mish) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
@@ -284,6 +286,10 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,     {{}}},
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
+// On arm32 Mish is decomposed
+#if !defined(OPENVINO_ARCH_ARM)
+        {Mish,        {{}}},
+#endif
 // On other platforms HSigmoid is decomposed
 #if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {HSigmoid,    {{}}},
@@ -309,9 +315,11 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,               {{}}},
         {Clamp,                 {{-2.0f, 2.0f}}},
         {Elu,                   {{0.1f}}},
+        {Erf,                   {{}}},
         {Floor,                 {{}}},
         {GeluErf,               {{}}},
         {GeluTanh,              {{}}},
+        {Negative,              {{}}},
         {Relu,                  {{}}},
         {HSwish,                {{}}},
         {PReLu,                 {{-0.01f}}},

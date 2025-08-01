@@ -55,7 +55,7 @@ layout reduce_inst::calc_output_layout(reduce_node const& node, kernel_impl_para
         in_dims[reduce_axes[a]] = 1;
     }
 
-    std::vector<int32_t> updated_dims;
+    std::vector<ov::Dimension::value_type> updated_dims;
     if (!desc->keep_dims) {
         // Get unreduced from b-f and x-w range
         for (size_t b_f_index = 0; b_f_index < 2; b_f_index++) {

@@ -17,14 +17,16 @@
 #define UNSUPPORTED_WEI_RANK                 " unsupported wei rank"
 #define UNSUPPORTED_DST_RANK                 " unsupported dst rank"
 #define UNSUPPORTED_DST_STRIDES              " unsupported dst strides"
-#define HEURISTICS_MISMATCH                  " heuristics mismatch"
 #define UNSUPPORTED_PER_CHANNEL_QUANTIZATION " unsupported per-channel quantization"
+#define UNSUPPORTED_BY_EXECUTOR              " unsupported by executor"
+#define HEURISTICS_MISMATCH                  " heuristics mismatch"
+#define MEMORY_FORMAT_MISMATCH               " memory format mismatch"
 
 // @todo implement VERIFY_OR version to support multiple conditions and error messages
-#define VERIFY(condition, ...)      \
-    do {                            \
-        if (!(condition)) {         \
-            DEBUG_LOG(__VA_ARGS__); \
-            return false;           \
-        }                           \
+#define VERIFY(condition, ...)               \
+    do {                                     \
+        if (!static_cast<bool>(condition)) { \
+            DEBUG_LOG(__VA_ARGS__);          \
+            return false;                    \
+        }                                    \
     } while (0)
