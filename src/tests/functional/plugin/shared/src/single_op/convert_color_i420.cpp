@@ -11,11 +11,7 @@
 namespace ov {
 namespace test {
 std::string ConvertColorI420LayerTest::getTestCaseName(const testing::TestParamInfo<ConvertColorI420ParamsTuple> &obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type type;
-    bool conversion, single_plane;
-    std::string device_name;
-    std::tie(shapes, type, conversion, single_plane, device_name) = obj.param;
+    const auto& [shapes, type, conversion, single_plane, device_name] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -37,13 +33,10 @@ std::string ConvertColorI420LayerTest::getTestCaseName(const testing::TestParamI
 }
 
 void ConvertColorI420LayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type net_type;
-    bool conversion_to_rgb;
-    bool single_plane;
     abs_threshold = 1.1f; // I420 conversion can use various algorithms, thus some absolute deviation is allowed
     rel_threshold = 1.1f; // Ignore relative comparison for I420 convert (allow 100% relative deviation)
-    std::tie(shapes, net_type, conversion_to_rgb, single_plane, targetDevice) = GetParam();
+    const auto& [shapes, net_type, conversion_to_rgb, single_plane, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     if (single_plane) {

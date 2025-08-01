@@ -18,16 +18,14 @@
 namespace ov {
 namespace test {
 std::string LoopLayerTest::getTestCaseName(const testing::TestParamInfo<LoopParams> &obj) {
-    bool execute_first_iteration;
-    bool is_body_condition_const;
-    bool body_condition; // works only if is_body_condition_const ==
-    int64_t trip_count;
-    std::vector<InputShape> shapes;
-    std::vector<LOOP_IN_TYPE> input_types;
-    ov::element::Type model_type;
-    std::string targetDevice;
-    std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, shapes, input_types, model_type,
-                targetDevice) = obj.param;
+    const auto& [execute_first_iteration,
+                 is_body_condition_const, // works only if is_body_condition_const
+                 body_condition,
+                 trip_count,
+                 shapes,
+                 input_types,
+                 model_type,
+                 targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -55,15 +53,15 @@ std::string LoopLayerTest::getTestCaseName(const testing::TestParamInfo<LoopPara
 }
 
 void LoopLayerTest::SetUp() {
-    bool execute_first_iteration;
-    bool is_body_condition_const;
-    bool body_condition; // works only if is_body_condition_const ==
-    int64_t trip_count;
-    std::vector<InputShape> shapes;
-    std::vector<LOOP_IN_TYPE> input_types;
-    ov::element::Type model_type;
-    std::tie(execute_first_iteration, is_body_condition_const, body_condition, trip_count, shapes, input_types, model_type,
-                targetDevice) = this->GetParam();
+    const auto& [execute_first_iteration,
+                 is_body_condition_const, // works only if is_body_condition_const
+                 body_condition,
+                 trip_count,
+                 shapes,
+                 input_types,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     // Example:
@@ -128,25 +126,9 @@ void LoopLayerTest::SetUp() {
 }
 
 std::string StaticShapeLoopLayerTest::getTestCaseName(const testing::TestParamInfo<StaticShapeLoopParams> &obj) {
-    bool unrolling;
-    bool static_iter_num;
-    bool static_continue_cond;
-    int64_t max_iter_num;
-    int64_t dynamic_exit;
-    int64_t axis;
-    int64_t start_value;
-    ov::Shape data_shape;
-    ov::element::Type model_type;
-    std::string target_device;
-    auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-    std::tie(
-        unrolling,
-        static_continue_cond,
-        args_papck,
-        start_value,
-        data_shape,
-        model_type,
-        target_device) = obj.param;
+    const auto& [unrolling, static_continue_cond, args_papck, start_value, data_shape, model_type, target_device] =
+        obj.param;
+    const auto& [static_iter_num, max_iter_num, dynamic_exit, axis] = args_papck;
 
     std::ostringstream result;
     result << "unrolling=" << std::to_string(unrolling) << "_";
@@ -167,24 +149,10 @@ std::string StaticShapeLoopLayerTest::getTestCaseName(const testing::TestParamIn
 }
 
 void StaticShapeLoopLayerTest::SetUp() {
-    bool unrolling;
-    bool static_iter_num;
-    bool static_continue_cond;
-    int64_t max_iter_num;
-    int64_t dynamic_exit;
-    int64_t axis;
-    int64_t start_value;
-    ov::Shape data_shape;
-    ov::element::Type model_type;
-    auto args_papck = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-    std::tie(
-        unrolling,
-        static_continue_cond,
-        args_papck,
-        start_value,
-        data_shape,
-        model_type,
-        targetDevice) = GetParam();
+    const auto& [unrolling, static_continue_cond, args_papck, start_value, data_shape, model_type, _targetDevice] =
+        GetParam();
+    const auto& [static_iter_num, max_iter_num, dynamic_exit, axis] = args_papck;
+    targetDevice = _targetDevice;
 
     const auto ngShape = ov::Shape{data_shape};
     const auto scalarShape = ov::Shape{};

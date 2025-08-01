@@ -15,17 +15,10 @@
 namespace ov {
 namespace test {
 std::string ConvolutionBackpropDataLayerTest::getTestCaseName(const testing::TestParamInfo<convBackpropDataLayerTestParamsSet>& obj) {
-    convBackpropDataSpecificParams convBackpropDataParams;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    ov::Shape output_shapes;
-    std::string target_device;
-    std::tie(convBackpropDataParams, model_type, shapes, output_shapes, target_device) = obj.param;
-    ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<ptrdiff_t> pad_begin, pad_end, out_padding;
-    size_t convOutChannels;
-    std::tie(kernel, stride, pad_begin, pad_end, dilation, convOutChannels, pad_type, out_padding) = convBackpropDataParams;
+    const auto& [convBackpropDataParams, model_type, shapes, output_shapes, target_device] = obj.param;
+
+    const auto& [kernel, stride, pad_begin, pad_end, dilation, convOutChannels, pad_type, out_padding] =
+        convBackpropDataParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -55,18 +48,12 @@ std::string ConvolutionBackpropDataLayerTest::getTestCaseName(const testing::Tes
 }
 
 void ConvolutionBackpropDataLayerTest::SetUp() {
-    convBackpropDataSpecificParams convBackpropDataParams;
-    std::vector<InputShape> shapes;
-    ov::Shape output_shape;
-    ov::element::Type model_type;
-    std::tie(convBackpropDataParams, model_type, shapes, output_shape, targetDevice) = this->GetParam();
+    const auto& [convBackpropDataParams, model_type, shapes, output_shape, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
-    ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<ptrdiff_t> pad_begin, pad_end, out_padding;
-    size_t convOutChannels;
-    std::tie(kernel, stride, pad_begin, pad_end, dilation, convOutChannels, pad_type, out_padding) = convBackpropDataParams;
+    const auto& [kernel, stride, pad_begin, pad_end, dilation, convOutChannels, pad_type, out_padding] =
+        convBackpropDataParams;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 

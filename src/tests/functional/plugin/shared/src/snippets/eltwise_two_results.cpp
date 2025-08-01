@@ -11,10 +11,7 @@ namespace test {
 namespace snippets {
 
 std::string EltwiseTwoResults::getTestCaseName(testing::TestParamInfo<ov::test::snippets::EltwiseTwoResultsParams> obj) {
-    InputShape inputShapes0, inputShapes1;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes0, inputShapes1, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    const auto& [inputShapes0, inputShapes1, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShapes0.first}) << "_"
@@ -35,8 +32,10 @@ std::string EltwiseTwoResults::getTestCaseName(testing::TestParamInfo<ov::test::
 }
 
 void EltwiseTwoResults::SetUp() {
-    InputShape inputShape0, inputShape1;
-    std::tie(inputShape0, inputShape1, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape0, inputShape1, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape0, inputShape1});
 
     auto f = ov::test::snippets::EltwiseTwoResultsFunction({inputDynamicShapes[0], inputDynamicShapes[1]});

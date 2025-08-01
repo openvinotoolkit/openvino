@@ -122,10 +122,7 @@ void LoraPatternBase::run_test_random_tensors(ov::element::Type net_type, size_t
 }
 
 std::string LoraPatternMatmul::getTestCaseName(testing::TestParamInfo<LoraMatMulParams> obj) {
-    std::string device_name;
-    ov::element::Type net_type;
-    size_t M, N, K, lora_rank;
-    std::tie(device_name, net_type, M, N, K, lora_rank) = obj.param;
+    const auto& [device_name, net_type, M, N, K, lora_rank] = obj.param;
 
     std::ostringstream result;
     result << "M=" << M << "_";
@@ -139,10 +136,8 @@ std::string LoraPatternMatmul::getTestCaseName(testing::TestParamInfo<LoraMatMul
 }
 
 void LoraPatternMatmul::SetUp() {
-    ov::element::Type netType;
-    size_t M, N, K, lora_rank;
-
-    std::tie(targetDevice, netType, M, N, K, lora_rank) = this->GetParam();
+    const auto& [_targetDevice, netType, M, N, K, lora_rank] = this->GetParam();
+    targetDevice = _targetDevice;
 
     ov::PartialShape shape_x = {-1, -1, K};
     ov::PartialShape shape_w = {N, K};
@@ -193,10 +188,7 @@ void LoraPatternMatmul::SetUp() {
 }
 
 std::string LoraPatternConvolution::getTestCaseName(testing::TestParamInfo<LoraConvolutionParams> obj) {
-    std::string device_name;
-    ov::element::Type net_type;
-    size_t num_channels, lora_rank;
-    std::tie(device_name, net_type, num_channels, lora_rank) = obj.param;
+    const auto& [device_name, net_type, num_channels, lora_rank] = obj.param;
 
     std::ostringstream result;
     result << "NumChannels=" << num_channels << "_";
@@ -208,10 +200,8 @@ std::string LoraPatternConvolution::getTestCaseName(testing::TestParamInfo<LoraC
 }
 
 void LoraPatternConvolution::SetUp() {
-    ov::element::Type netType;
-    size_t num_channels, lora_rank;
-
-    std::tie(targetDevice, netType, num_channels, lora_rank) = this->GetParam();
+    const auto& [_targetDevice, netType, num_channels, lora_rank] = this->GetParam();
+    targetDevice = _targetDevice;
 
     ov::PartialShape shape_x = {-1, num_channels, -1, -1};
 

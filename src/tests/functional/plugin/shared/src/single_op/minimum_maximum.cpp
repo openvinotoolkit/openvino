@@ -18,12 +18,7 @@ using ov::test::utils::InputLayerType;
 using ov::test::utils::MinMaxOpType;
 
 std::string MaxMinLayerTest::getTestCaseName(const testing::TestParamInfo<MaxMinParamsTuple> &obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string target_name;
-    InputLayerType second_input_type;
-    MinMaxOpType op_type;
-    std::tie(shapes, op_type, model_type, second_input_type, target_name) = obj.param;
+    const auto& [shapes, op_type, model_type, second_input_type, target_name] = obj.param;
     std::ostringstream result;
 
     result << "IS=(";
@@ -46,11 +41,8 @@ std::string MaxMinLayerTest::getTestCaseName(const testing::TestParamInfo<MaxMin
 }
 
 void MaxMinLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    InputLayerType second_input_type;
-    MinMaxOpType op_type;
-    std::tie(shapes, op_type, model_type, second_input_type, targetDevice) = this->GetParam();
+    const auto& [shapes, op_type, model_type, second_input_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0])};

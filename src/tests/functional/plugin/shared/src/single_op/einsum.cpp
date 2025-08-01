@@ -9,13 +9,9 @@ namespace ov {
 namespace test {
 
 std::string EinsumLayerTest::getTestCaseName(const testing::TestParamInfo<EinsumLayerTestParamsSet>& obj) {
-    EinsumEquationWithInput equation_with_input;
-    ov::element::Type model_type;
-    std::string targetDevice;
-    std::tie(model_type, equation_with_input, targetDevice) = obj.param;
-    std::string equation;
-    std::vector<InputShape> shapes;
-    std::tie(equation, shapes) = equation_with_input;
+    const auto& [model_type, equation_with_input, targetDevice] = obj.param;
+
+    const auto& [equation, shapes] = equation_with_input;
 
     std::ostringstream result;
         result << "IS=(";
@@ -37,12 +33,10 @@ std::string EinsumLayerTest::getTestCaseName(const testing::TestParamInfo<Einsum
 }
 
 void EinsumLayerTest::SetUp() {
-    EinsumEquationWithInput equation_with_input;
-    ov::element::Type model_type;
-    std::tie(model_type, equation_with_input, targetDevice) = this->GetParam();
-    std::string equation;
-    std::vector<InputShape> shapes;
-    std::tie(equation, shapes) = equation_with_input;
+    const auto& [model_type, equation_with_input, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+
+    const auto& [equation, shapes] = equation_with_input;
     init_input_shapes(shapes);
 
     ov::ParameterVector params;

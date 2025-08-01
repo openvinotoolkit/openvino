@@ -11,14 +11,9 @@ namespace ov {
 namespace test {
 
 std::string OVRemoteTest::getTestCaseName(testing::TestParamInfo<RemoteTensorParams> obj) {
-    ov::element::Type element_type;
-    std::string target_device;
-    ov::AnyMap config;
-    std::pair<ov::AnyMap, ov::AnyMap> param_pair;
-    std::tie(element_type, target_device, config, param_pair) = obj.param;
-    ov::AnyMap context_parameters;
-    ov::AnyMap tensor_parameters;
-    std::tie(context_parameters, tensor_parameters) = param_pair;
+    const auto& [element_type, target_device, config, param_pair] = obj.param;
+
+    const auto& [context_parameters, tensor_parameters] = param_pair;
     std::ostringstream result;
     result << "element_type=" << element_type;
     result << "targetDevice=" << target_device;
@@ -42,8 +37,11 @@ std::string OVRemoteTest::getTestCaseName(testing::TestParamInfo<RemoteTensorPar
 
 void OVRemoteTest::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::pair<ov::AnyMap, ov::AnyMap> param_pair;
-    std::tie(element_type, target_device, config, param_pair) = GetParam();
+
+    const auto& [_element_type, _target_device, _config, param_pair] = GetParam();
+    element_type = _element_type;
+    target_device = _target_device;
+    config = _config;
     std::tie(context_parameters, tensor_parameters) = param_pair;
     function = ov::test::utils::make_conv_pool_relu({1, 1, 32, 32}, element_type);
     exec_network = core.compile_model(function, target_device, config);

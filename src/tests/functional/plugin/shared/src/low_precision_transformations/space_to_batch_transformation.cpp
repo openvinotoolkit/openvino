@@ -13,10 +13,7 @@
 namespace LayerTestsDefinitions {
 
 std::string SpaceToBatchTransformation::getTestCaseName(const testing::TestParamInfo<SpaceToBatchTransformationParams>& obj) {
-    ov::element::Type input_type;
-    std::string target_device;
-    SpaceToBatchTransformationParam param;
-    std::tie(input_type, target_device, param) = obj.param;
+    const auto& [input_type, target_device, param] = obj.param;
 
     std::ostringstream result;
     result << input_type << "_" << target_device << "_" << param.input_shape << "_" << param.fake_quantize;
@@ -24,9 +21,8 @@ std::string SpaceToBatchTransformation::getTestCaseName(const testing::TestParam
 }
 
 void SpaceToBatchTransformation::SetUp() {
-    ov::element::Type input_type;
-    SpaceToBatchTransformationParam param;
-    std::tie(input_type, targetDevice, param) = this->GetParam();
+    const auto& [input_type, _targetDevice, param] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(param.input_shape);
 

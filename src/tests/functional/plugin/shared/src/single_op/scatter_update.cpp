@@ -16,15 +16,8 @@ std::string ScatterUpdateLayerTest::getTestCaseName(const testing::TestParamInfo
         return ss;
     };
 
-    axisUpdateShapeInShape shapes_desc;
-    std::vector<InputShape> input_shapes;
-    int64_t axis;
-    ov::Shape indices_shape;
-    std::vector<int64_t> indices_value;
-    ov::element::Type model_type, indices_type;
-    std::string target_device;
-    std::tie(shapes_desc, indices_value, model_type, indices_type, target_device) = obj.param;
-    std::tie(input_shapes, indices_shape, axis) = shapes_desc;
+    const auto& [shapes_desc, indices_value, model_type, indices_type, target_device] = obj.param;
+    const auto& [input_shapes, indices_shape, axis] = shapes_desc;
 
     std::ostringstream result;
     result << "InputShape=" << shapes_ss(input_shapes.at(0)).str() << "_";
@@ -39,14 +32,9 @@ std::string ScatterUpdateLayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void ScatterUpdateLayerTest::SetUp() {
-    axisUpdateShapeInShape shapes_desc;
-    std::vector<InputShape> input_shapes;
-    int64_t axis;
-    ov::Shape indices_shape;
-    std::vector<int64_t> indices_value;
-    ov::element::Type model_type, indices_type;
-    std::tie(shapes_desc, indices_value, model_type, indices_type, targetDevice) = this->GetParam();
-    std::tie(input_shapes, indices_shape, axis) = shapes_desc;
+    const auto& [shapes_desc, indices_value, model_type, indices_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [input_shapes, indices_shape, axis] = shapes_desc;
 
     init_input_shapes(input_shapes);
 

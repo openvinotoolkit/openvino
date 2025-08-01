@@ -47,10 +47,17 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
 }
 
 void MatMul::SetUp() {
-    std::vector<ov::test::InputShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    ov::AnyMap additional_config;
-    std::tie(input_shapes, elem_types, matmul_type, ref_num_nodes, ref_num_subgraphs, targetDevice, additional_config) = this->GetParam();
+    const auto& [input_shapes,
+                 elem_types,
+                 _matmul_type,
+                 _ref_num_nodes,
+                 _ref_num_subgraphs,
+                 _targetDevice,
+                 additional_config] = this->GetParam();
+    matmul_type = _matmul_type;
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(input_shapes);
 
     const auto builder = get_builder(elem_types);

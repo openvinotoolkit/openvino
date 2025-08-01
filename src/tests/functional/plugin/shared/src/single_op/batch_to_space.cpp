@@ -8,11 +8,7 @@
 namespace ov {
 namespace test {
 std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<batchToSpaceParamsTuple> &obj) {
-    std::vector<InputShape> shapes;
-    std::vector<int64_t> block_shape, crops_begin, crops_end;
-    ov::element::Type model_type;
-    std::string target_name;
-    std::tie(block_shape, crops_begin, crops_end, shapes, model_type, target_name) = obj.param;
+    const auto& [block_shape, crops_begin, crops_end, shapes, model_type, target_name] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (const auto& shape : shapes) {
@@ -33,10 +29,8 @@ std::string BatchToSpaceLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void BatchToSpaceLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    std::vector<int64_t> block_shape, crops_begin, crops_end;
-    ov::element::Type model_type;
-    std::tie(block_shape, crops_begin, crops_end, shapes, model_type, targetDevice) = this->GetParam();
+    const auto& [block_shape, crops_begin, crops_end, shapes, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};

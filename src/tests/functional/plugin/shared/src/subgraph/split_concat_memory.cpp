@@ -11,11 +11,7 @@ namespace ov {
 namespace test {
 
 std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<ParamType>& obj) {
-    ov::element::Type netPrecision;
-    ov::Shape inputShapes;
-    int axis;
-    std::string targetDevice;
-    std::tie(inputShapes, netPrecision, axis, targetDevice) = obj.param;
+    const auto& [inputShapes, netPrecision, axis, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -27,9 +23,11 @@ std::string SplitConcatMemory::getTestCaseName(const testing::TestParamInfo<Para
 
 void SplitConcatMemory::SetUp() {
     abs_threshold = 0.01;
-    ov::Shape shape;
 
-    std::tie(shape, inType, axis, targetDevice) = this->GetParam();
+    const auto& [shape, _inType, _axis, _targetDevice] = this->GetParam();
+    inType = _inType;
+    axis = _axis;
+    targetDevice = _targetDevice;
 
     auto shape_14 = shape;
     shape_14[axis] /= 4;

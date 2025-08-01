@@ -14,10 +14,8 @@ namespace ov {
 namespace test {
 using ov::test::utils::ActivationTypes;
 void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    ov::element::Type model_type;
-    std::pair<std::vector<InputShape>, ov::Shape> input_shapes;
-    std::pair<ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, model_type, input_shapes, targetDevice) = GetParam();
+    const auto& [activationDecl, model_type, input_shapes, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     bool inPrcSigned = function->get_parameters()[0]->get_element_type().is_signed();
     int32_t data_start_from;
@@ -120,10 +118,8 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
 }
 
 void ActivationParamLayerTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
-    ov::element::Type model_type;
-    std::pair<std::vector<InputShape>, ov::Shape> input_shapes;
-    std::pair<ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, model_type, input_shapes, targetDevice) = GetParam();
+    const auto& [activationDecl, model_type, input_shapes, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     auto activationType = activationDecl.first;
     auto constants_value = activationDecl.second;
@@ -164,11 +160,7 @@ void ActivationParamLayerTest::generate_inputs(const std::vector<ov::Shape>& tar
 }
 
 std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<activationParams> &obj) {
-    ov::element::Type model_type;
-    std::pair<std::vector<InputShape>, ov::Shape> input_shapes;
-    std::string target_device;
-    std::pair<ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, model_type, input_shapes, target_device) = obj.param;
+    const auto& [activationDecl, model_type, input_shapes, target_device] = obj.param;
 
     auto shapes = input_shapes.first;
     auto const_shape = input_shapes.second;
@@ -196,10 +188,8 @@ std::string ActivationLayerTest::getTestCaseName(const testing::TestParamInfo<ac
 }
 
 void ActivationLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::pair<std::vector<InputShape>, ov::Shape> input_shapes;
-    std::pair<ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, model_type, input_shapes, targetDevice) = GetParam();
+    const auto& [activationDecl, model_type, input_shapes, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(input_shapes.first);
     auto const_shape = input_shapes.second;
 
@@ -233,10 +223,8 @@ void ActivationLayerTest::SetUp() {
 }
 
 void ActivationParamLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::pair<std::vector<InputShape>, ov::Shape> input_shapes;
-    std::pair<ActivationTypes, std::vector<float>> activationDecl;
-    std::tie(activationDecl, model_type, input_shapes, targetDevice) = GetParam();
+    const auto& [activationDecl, model_type, input_shapes, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     auto shapes = input_shapes.first;
     auto const_shape = input_shapes.second;
 

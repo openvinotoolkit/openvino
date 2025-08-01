@@ -8,15 +8,9 @@
 namespace ov {
 namespace test {
 std::string EmbeddingBagOffsetsSumLayerTest::getTestCaseName(const testing::TestParamInfo<embeddingBagOffsetsSumLayerTestParamsSet>& obj) {
-    embeddingBagOffsetsSumParams emb_params;
-    ov::element::Type model_type, ind_type;
-    std::vector<InputShape> shapes;
-    std::string target_device;
-    std::tie(emb_params, shapes, model_type, ind_type, target_device) = obj.param;
-    std::vector<size_t> indices, offsets;
-    size_t default_index;
-    bool with_weights, with_def_index;
-    std::tie(indices, offsets, default_index, with_weights, with_def_index) = emb_params;
+    const auto& [emb_params, shapes, model_type, ind_type, target_device] = obj.param;
+
+    const auto& [indices, offsets, default_index, with_weights, with_def_index] = emb_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -43,16 +37,11 @@ std::string EmbeddingBagOffsetsSumLayerTest::getTestCaseName(const testing::Test
 }
 
 void EmbeddingBagOffsetsSumLayerTest::SetUp() {
-    embeddingBagOffsetsSumParams emb_params;
-    ov::element::Type model_type, ind_type;
-    std::vector<InputShape> shapes;
-    std::tie(emb_params, shapes, model_type, ind_type, targetDevice) = this->GetParam();
+    const auto& [emb_params, shapes, model_type, ind_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
-    std::vector<size_t> indices, offsets;
-    bool with_weights, with_def_index;
-    size_t default_index;
-    std::tie(indices, offsets, default_index, with_weights, with_def_index) = emb_params;
+    const auto& [indices, offsets, default_index, with_weights, with_def_index] = emb_params;
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
 

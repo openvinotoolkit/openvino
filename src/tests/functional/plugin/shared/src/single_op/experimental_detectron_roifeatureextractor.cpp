@@ -9,13 +9,7 @@ namespace ov {
 namespace test {
 std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
         const testing::TestParamInfo<ExperimentalDetectronROIFeatureExtractorTestParams>& obj) {
-    std::vector<InputShape> shapes;
-    int64_t outputSize, sampling_ratio;
-    std::vector<int64_t> pyramid_scales;
-    bool aligned;
-    ElementType model_type;
-    std::string device_name;
-    std::tie(shapes, outputSize, sampling_ratio, pyramid_scales, aligned, model_type, device_name) = obj.param;
+    const auto& [shapes, outputSize, sampling_ratio, pyramid_scales, aligned, model_type, device_name] = obj.param;
 
     std::ostringstream result;
     if (shapes.front().first.size() != 0) {
@@ -43,13 +37,8 @@ std::string ExperimentalDetectronROIFeatureExtractorLayerTest::getTestCaseName(
 }
 
 void ExperimentalDetectronROIFeatureExtractorLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    int64_t outputSize, sampling_ratio;
-    std::vector<int64_t> pyramid_scales;
-    bool aligned;
-    ElementType model_type;
-    std::string targetName;
-    std::tie(shapes, outputSize, sampling_ratio, pyramid_scales, aligned, model_type, targetName) = this->GetParam();
+    const auto& [shapes, outputSize, sampling_ratio, pyramid_scales, aligned, model_type, targetName] =
+        this->GetParam();
 
     inType = outType = model_type;
     targetDevice = targetName;

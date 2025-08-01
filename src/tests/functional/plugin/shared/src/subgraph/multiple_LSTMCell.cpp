@@ -21,13 +21,7 @@ namespace ov {
 namespace test {
 
 std::string MultipleLSTMCellTest::getTestCaseName(const testing::TestParamInfo<multipleLSTMCellParams>& obj) {
-    std::string targetDevice;
-    ov::element::Type element_type;
-    size_t inputSize;
-    size_t hiddenSize;
-    ov::AnyMap config;
-    ov::test::utils::MemoryTransformation transformation;
-    std::tie(transformation, targetDevice, element_type, inputSize, hiddenSize, config) = obj.param;
+    const auto& [transformation, targetDevice, element_type, inputSize, hiddenSize, config] = obj.param;
     std::ostringstream result;
 
     result << "transformation=" << transformation << "_";
@@ -39,10 +33,10 @@ std::string MultipleLSTMCellTest::getTestCaseName(const testing::TestParamInfo<m
 }
 
 void MultipleLSTMCellTest::SetUp() {
-    ov::element::Type element_type;
-    ov::AnyMap config;
-    size_t inputSize;
-    std::tie(transformation, targetDevice, element_type, inputSize, hiddenSize, config) = this->GetParam();
+    const auto& [_transformation, _targetDevice, element_type, inputSize, _hiddenSize, config] = this->GetParam();
+    transformation = _transformation;
+    targetDevice = _targetDevice;
+    hiddenSize = _hiddenSize;
     configuration.insert(config.begin(), config.end());
 
     std::vector<size_t> input_dims{1, inputSize};
@@ -217,10 +211,10 @@ void MultipleLSTMCellTest::SetUp() {
 }
 
 void MultipleLSTMCellTest::switch_to_friendly_model() {
-    ov::element::Type element_type;
-    ov::AnyMap config;
-    size_t inputSize;
-    std::tie(transformation, targetDevice, element_type, inputSize, hiddenSize, config) = this->GetParam();
+    const auto& [_transformation, _targetDevice, element_type, inputSize, _hiddenSize, config] = this->GetParam();
+    transformation = _transformation;
+    targetDevice = _targetDevice;
+    hiddenSize = _hiddenSize;
 
     std::vector<size_t> input_dims{1, inputSize};
     std::vector<size_t> squeeze_axes{0};
@@ -309,10 +303,10 @@ void MultipleLSTMCellTest::switch_to_friendly_model() {
 }
 
 void MultipleLSTMCellTest::create_pure_tensor_iterator_model() {
-    ov::element::Type element_type;
-    ov::AnyMap config;
-    size_t inputSize;
-    std::tie(transformation, targetDevice, element_type, inputSize, hiddenSize, config) = this->GetParam();
+    const auto& [_transformation, _targetDevice, element_type, inputSize, _hiddenSize, config] = this->GetParam();
+    transformation = _transformation;
+    targetDevice = _targetDevice;
+    hiddenSize = _hiddenSize;
 
     std::vector<size_t> input_dims{1, inputSize};
     std::vector<size_t> squeeze_axes{0};

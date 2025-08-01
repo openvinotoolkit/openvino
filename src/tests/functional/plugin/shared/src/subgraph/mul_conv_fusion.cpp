@@ -17,11 +17,7 @@ namespace ov {
 namespace test {
 
 std::string MulConvFusion::getTestCaseName(const testing::TestParamInfo<MulConvFusionParams>& obj) {
-    ov::NodeTypeInfo conv_type;
-    ov::Shape input_shape, weights_shape, const_shape;
-    ov::element::Type precision;
-    std::string device;
-    std::tie(conv_type, input_shape, weights_shape, const_shape, precision, std::ignore, device) = obj.param;
+    const auto& [conv_type, input_shape, weights_shape, const_shape, precision, _ignore, device] = obj.param;
     std::ostringstream results;
 
     results << conv_type.name << "_";
@@ -34,12 +30,10 @@ std::string MulConvFusion::getTestCaseName(const testing::TestParamInfo<MulConvF
 }
 
 void MulConvFusion::SetUp() {
-    ov::NodeTypeInfo conv_type;
-    ov::Shape input_shape, weights_shape, const_shape;
-    ov::element::Type precision;
-    bool is_negative;
-    std::tie(conv_type, input_shape, weights_shape, const_shape, precision, is_negative, targetDevice) =
+    const auto& [conv_type, input_shape, weights_shape, _const_shape, precision, is_negative, _targetDevice] =
         this->GetParam();
+    auto const_shape = _const_shape;
+    targetDevice = _targetDevice;
     auto param = std::make_shared<ov::op::v0::Parameter>(precision, input_shape);
     auto spatial_dims = input_shape.size() - 2;
 

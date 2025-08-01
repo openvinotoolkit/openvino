@@ -15,17 +15,21 @@
 namespace ov {
 namespace test {
 std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxLayerParams>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string target_device;
-    priorBoxSpecificParams spec_params;
-    std::tie(spec_params, model_type, shapes, target_device) = obj.param;
+    const auto& [spec_params, model_type, shapes, target_device] = obj.param;
 
-    std::vector<float> min_size, max_size, aspect_ratio, density, fixed_ratio, fixed_size, variance;
-    float step, offset;
-    bool clip, flip, scale_all_sizes, min_max_aspect_ratios_order;
-    std::tie(min_size, max_size, aspect_ratio, density, fixed_ratio, fixed_size, clip,
-             flip, step, offset, variance, scale_all_sizes, min_max_aspect_ratios_order) = spec_params;
+    const auto& [min_size,
+                 max_size,
+                 aspect_ratio,
+                 density,
+                 fixed_ratio,
+                 fixed_size,
+                 clip,
+                 flip,
+                 step,
+                 offset,
+                 variance,
+                 scale_all_sizes,
+                 min_max_aspect_ratios_order] = spec_params;
 
     std::ostringstream result;
     const char separator = '_';
@@ -61,27 +65,22 @@ std::string PriorBoxLayerTest::getTestCaseName(const testing::TestParamInfo<prio
 }
 
 void PriorBoxLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::vector<float> min_size;
-    std::vector<float> max_size;
-    std::vector<float> aspect_ratio;
-    std::vector<float> density;
-    std::vector<float> fixed_ratio;
-    std::vector<float> fixed_size;
-    std::vector<float> variance;
-    float step;
-    float offset;
-    bool clip;
-    bool flip;
-    bool scale_all_sizes;
-    bool min_max_aspect_ratios_order;
+    const auto& [spec_params, model_type, shapes, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
-    priorBoxSpecificParams spec_params;
-    std::tie(spec_params, model_type, shapes, targetDevice) = GetParam();
-
-    std::tie(min_size, max_size, aspect_ratio, density, fixed_ratio, fixed_size, clip,
-             flip, step, offset, variance, scale_all_sizes, min_max_aspect_ratios_order) = spec_params;
+    const auto& [min_size,
+                 max_size,
+                 aspect_ratio,
+                 density,
+                 fixed_ratio,
+                 fixed_size,
+                 clip,
+                 flip,
+                 step,
+                 offset,
+                 variance,
+                 scale_all_sizes,
+                 min_max_aspect_ratios_order] = spec_params;
     init_input_shapes(shapes);
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]),
