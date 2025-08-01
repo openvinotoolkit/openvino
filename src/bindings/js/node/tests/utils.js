@@ -40,7 +40,7 @@ const testModels = {
     xml: getModelPath("add_model_with_var.xml"),
   },
   reluModel: {
-    xml: getModelPath('relu_model.xml'),
+    xml: getModelPath("relu_model.xml"),
   },
 };
 

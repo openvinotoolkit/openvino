@@ -671,13 +671,13 @@ type AsyncInferQueueCallback = (
 
 interface AsyncInferQueue {
   /**
- * Creates AsyncInferQueue.
- * @param compiledModel The compiledModel that will be used
- * to create InferRequests in the pool.
- * @param jobs Number of InferRequest objects in the pool. If not provided,
- * jobs number will be set automatically to the optimal number.
- */
-  new(compiledModel: CompiledModel, jobs?: number): AsyncInferQueue;
+   * Creates AsyncInferQueue.
+   * @param compiledModel The compiledModel that will be used
+   * to create InferRequests in the pool.
+   * @param jobs Number of InferRequest objects in the pool. If not provided,
+   * jobs number will be set automatically to the optimal number.
+   */
+  new (compiledModel: CompiledModel, jobs?: number): AsyncInferQueue;
   /**
    * Sets unified callback on all InferRequests from queue's pool.
    * The callback that was previously set will be replaced.
@@ -692,7 +692,8 @@ interface AsyncInferQueue {
    * @returns A Promise that can be used to track the callback completion.
    */
   startAsync(
-    inputData: { [inputName: string]: Tensor } | Tensor[], userData?: object
+    inputData: { [inputName: string]: Tensor } | Tensor[],
+    userData?: object,
   ): Promise<object>;
   /**
    * Releases resources associated with this AsyncInferQueue instance.
