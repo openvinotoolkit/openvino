@@ -233,19 +233,14 @@ DnnlMemoryDescPtr DnnlExtensionUtils::query_md(const const_dnnl_primitive_desc_t
     auto query = dnnl::convert_to_c(what);
     const auto* cdesc = dnnl_primitive_desc_query_md(pd, query, idx);
 
-    if (!cdesc) {
-        OPENVINO_THROW("query_md failed for query=", query, " idx=", idx, ".");
-    }
-
+    OPENVINO_ASSERT(cdesc, "query_md failed for query=", query, " idx=", idx, ".");
     return DnnlExtensionUtils::makeDescriptor(cdesc);
 }
 
 std::string DnnlExtensionUtils::query_impl_info_str(const const_dnnl_primitive_desc_t& pd) {
     const char* res = nullptr;
     dnnl_status_t status = dnnl_primitive_desc_query(pd, dnnl_query_impl_info_str, 0, reinterpret_cast<void*>(&res));
-    if (status != dnnl_success) {
-        OPENVINO_THROW("query_impl_info_str failed.");
-    }
+    OPENVINO_ASSERT(status == dnnl_success, "query_impl_info_str failed.");
     return res;
 }
 
@@ -273,7 +268,7 @@ const char* DnnlExtensionUtils::query_pd_info(const_dnnl_primitive_desc_t pd) {
 
 bool DnnlExtensionUtils::isUnarySupportedAsPostOp([[maybe_unused]] Algorithm alg) {
 #if defined(OV_CPU_WITH_ACL)
-    return one_of(alg,
+    return any_of(alg,
                   Algorithm::EltwiseRelu,
                   Algorithm::EltwiseTanh,
                   Algorithm::EltwiseElu,
@@ -283,7 +278,7 @@ bool DnnlExtensionUtils::isUnarySupportedAsPostOp([[maybe_unused]] Algorithm alg
                   Algorithm::EltwiseSigmoid,
                   Algorithm::EltwiseClamp);
 #elif defined(OPENVINO_ARCH_X86_64)
-    return one_of(alg,
+    return any_of(alg,
                   Algorithm::EltwiseRelu,
                   Algorithm::EltwiseGeluErf,
                   Algorithm::EltwiseGeluTanh,

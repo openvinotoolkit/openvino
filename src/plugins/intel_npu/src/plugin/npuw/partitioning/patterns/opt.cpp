@@ -37,7 +37,7 @@ void Context::to_f16(const PPtr& orig_param) {
     orig_param->validate_and_infer_types();
 }
 
-void Context::register_parallel_matmul(O multiply, std::size_t axis, DQParMM&& mm) {
+void Context::register_parallel_matmul(const O& multiply, std::size_t axis, DQParMM&& mm) {
     par_dq_mms[std::make_pair(multiply, axis)].push_back(std::move(mm));
 }
 
@@ -123,10 +123,10 @@ Context::PPtr Context::host_gather(const Context::PPtr& w, const Context::PPtr& 
     return new_param;
 }
 
-Context::PPtr Context::host_gather_unpack_quant(Context::PPtr ids,
-                                                Context::PPtr w,
-                                                Context::PPtr z,
-                                                Context::PPtr s,
+Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
+                                                const Context::PPtr& w,
+                                                const Context::PPtr& z,
+                                                const Context::PPtr& s,
                                                 ov::element::Type type) {
     const auto& w_shape = w->get_shape();
     const auto& ids_shape = ids->get_shape();
@@ -366,8 +366,9 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
         auto out_shape = matched_node_matmul->output(0).get_shape();
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
-            ov::element::f32 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[1] == 1 &&  // single-token case
+            (ov::element::f32 == matched_qcoeff->get_element_type() ||
+             ov::element::f16 == matched_qcoeff->get_element_type()) &&
+            qcoeff_shape.size() == 3 && act_shape.size() == 3 && act_shape[1] == 1 &&  // single-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == 1 && qcoeff_shape[2] == qweight_shape[2] &&
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
@@ -403,7 +404,9 @@ DQMatMulGQi::DQMatMulGQi(Context::Ref ctx) {
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
             // Mark S closure to be lowered fo f16
-            ctx.get().to_f16(matched_qcoeff);
+            if (ov::element::f32 == matched_qcoeff->get_element_type()) {
+                ctx.get().to_f16(matched_qcoeff);
+            }
 
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[0];
@@ -651,8 +654,9 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
         auto act_shape = matched_out_mmi.get_shape();
 
         if (ov::element::i4 == matched_qweight->get_element_type() && qweight_shape.size() == 3 &&
-            ov::element::f32 == matched_qcoeff->get_element_type() && qcoeff_shape.size() == 3 &&
-            act_shape.size() == 3 && act_shape[1] > 1 &&  // multi-token case
+            (ov::element::f32 == matched_qcoeff->get_element_type() ||
+             ov::element::f16 == matched_qcoeff->get_element_type()) &&
+            qcoeff_shape.size() == 3 && act_shape.size() == 3 && act_shape[1] > 1 &&  // multi-token case
             qcoeff_shape[0] == qweight_shape[0] && qcoeff_shape[1] == 1 && qcoeff_shape[2] == qweight_shape[2] &&
             !matched_matmul->get_transpose_a() && !matched_matmul->get_transpose_b()) {
             if (!ctx.get().mm_dq_full) {
@@ -688,7 +692,9 @@ DQMatMulGQiP::DQMatMulGQiP(Context::Ref ctx) {
             ctx.get().permute(matched_qweight, {0, 2, 1});
 
             // Mark S closure to be lowered fo f16
-            ctx.get().to_f16(matched_qcoeff);
+            if (ov::element::f32 == matched_qcoeff->get_element_type()) {
+                ctx.get().to_f16(matched_qcoeff);
+            }
 
             // Reshape the Act to group format
             const auto NSPLIT = qweight_shape[0];

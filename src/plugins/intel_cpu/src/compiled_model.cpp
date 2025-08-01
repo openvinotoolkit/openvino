@@ -35,6 +35,7 @@
 #include "openvino/runtime/threading/itask_executor.hpp"
 #include "sub_memory_manager.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/memory_stats_dump.hpp"
 #include "utils/serialize.hpp"
 
@@ -83,9 +84,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
-    if (!core) {
-        OPENVINO_THROW("Unable to get API version. Core is unavailable");
-    }
+    OPENVINO_ASSERT(core, "Unable to get API version. Core is unavailable");
 
     IStreamsExecutor::Config executor_config;
     if (m_cfg.exclusiveAsyncRequests) {
@@ -115,7 +114,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         set_callback_executor(m_callback_executor);
     }
 
-    m_optimized_single_stream = (executor_config.get_streams() == 1 && executor_config.get_threads() == 1);
+    m_optimized_single_stream = all_of(1, executor_config.get_streams(), executor_config.get_threads());
 
     int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
@@ -249,17 +248,13 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    if (m_graphs.empty()) {
-        OPENVINO_THROW("No graph was found");
-    }
+    OPENVINO_ASSERT(!m_graphs.empty(), "No graph was found");
 
     return get_graph()._graph.dump();
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    if (m_graphs.empty()) {
-        OPENVINO_THROW("No graph was found");
-    }
+    OPENVINO_ASSERT(!m_graphs.empty(), "No graph was found");
 
     if (name == ov::loaded_from_cache) {
         return m_loaded_from_cache;

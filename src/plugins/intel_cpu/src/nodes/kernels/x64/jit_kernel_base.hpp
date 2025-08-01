@@ -16,6 +16,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
+#include "utils/cpu_utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/jit_generator.hpp"
@@ -213,14 +214,13 @@ public:
 
     dnnl::impl::status_t create_kernel() override {
         const dnnl::impl::status_t code = jit_generator_t::create_kernel();
-        if (code != dnnl::impl::status::success) {
-            OPENVINO_THROW("Could not create kernel. Error code: ",
-                           std::to_string(code),
-                           ". ",
-                           "Xbyak error code: ",
-                           Xbyak::ConvertErrorToString(Xbyak::GetError()));
-        }
-        m_func = (decltype(m_func))jit_ker();
+        OPENVINO_ASSERT(code == dnnl::impl::status::success,
+                        "Could not create kernel. Error code: ",
+                        std::to_string(code),
+                        ". ",
+                        "Xbyak error code: ",
+                        Xbyak::ConvertErrorToString(Xbyak::GetError()));
+        m_func = jit_kernel_cast<decltype(m_func)>(jit_ker());
         return code;
     }
 

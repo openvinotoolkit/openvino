@@ -51,7 +51,7 @@ private:
     // for Deformable PSROIPolling
     bool noTrans;
     int partSize = 1;
-    float transStd = 1.f;
+    float transStd = 1.F;
 
     void unpackParams(const BlockedMemoryDesc& srcDesc,
                       const BlockedMemoryDesc& dstDesc,

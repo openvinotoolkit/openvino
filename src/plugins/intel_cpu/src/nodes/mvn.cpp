@@ -54,6 +54,7 @@
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -110,7 +111,7 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 
 // some utility functions
 static inline bool isFloatCompatible(ov::element::Type prc) {
-    return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16);
+    return any_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16);
 }
 
 // 8/4/2/1 tile
@@ -141,7 +142,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1003,7 +1004,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1973,7 +1974,7 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         }
     } else if (auto mvnOp = ov::as_type_ptr<ov::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
-        mvnAttrs.epsValue_ = mvnOp->get_eps();
+        mvnAttrs.epsValue_ = static_cast<float>(mvnOp->get_eps());
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
@@ -1984,7 +1985,7 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 void MVN::getSupportedDescriptors() {}
 
 static inline bool isUnaryEltwise(const NodePtr& node) {
-    return one_of(node->getAlgorithm(),
+    return any_of(node->getAlgorithm(),
                   Algorithm::EltwiseRelu,
                   Algorithm::EltwiseGeluErf,
                   Algorithm::EltwiseGeluTanh,
@@ -2190,9 +2191,8 @@ void MVN::MVNJitExecutor::exec(const uint8_t* src_data,
                                uint8_t* dst_data,
                                const void* post_ops_data_,
                                const VectorDims& shape5d) {
-    if (!mvn_mean_kernel || (mvnAttrs.normalizeVariance_ && !mvn_variance_kernel) || !mvn_kernel) {
-        OPENVINO_THROW("MVN layer doesn't create kernel to execute on sse41 above platform.");
-    }
+    OPENVINO_ASSERT(mvn_mean_kernel && (!mvnAttrs.normalizeVariance_ || mvn_variance_kernel) && mvn_kernel,
+                    "MVN layer doesn't create kernel to execute on sse41 above platform.");
     if (mvnAttrs.layout == MVNLayoutType::mvn_planar) {
         mvn_pln(src_data, dst_data, post_ops_data_, shape5d);
     } else if (mvnAttrs.layout == MVNLayoutType::mvn_by_channel) {
@@ -2215,13 +2215,13 @@ void MVN::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination memory is undefined.");
+        CPU_NODE_THROW("Destination memory is undefined.");
     }
     if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Input memory is undefined.");
+        CPU_NODE_THROW("Input memory is undefined.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+        CPU_NODE_THROW("Preferable primitive descriptor is not set.");
     }
 
     const VectorDims in_dims = srcMemPtr->getStaticDims();
@@ -2322,7 +2322,7 @@ void MVN::transformTo5DCase(const VectorDims& shape) {
         break;
     }
     default: {
-        THROW_CPU_NODE_ERR("doesn't support planar layout with rank: ", shape.size());
+        CPU_NODE_THROW("doesn't support planar layout with rank: ", shape.size());
     }
     }
 }
@@ -2344,11 +2344,11 @@ void MVN::setPostOps(dnnl::primitive_attr& attr, [[maybe_unused]] bool initWeigh
             eltwiseNode->appendPostOps(ops, shape5D, postOpsDataPtrs, channelAxis);
             continue;
         }
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
     attr.set_post_ops(ops);
 }
@@ -2368,7 +2368,7 @@ void MVN::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (aclExecPtr) {
         aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
-        THROW_CPU_NODE_ERR("Primitive wasn't created");
+        CPU_NODE_THROW("Primitive wasn't created");
     }
 }
 

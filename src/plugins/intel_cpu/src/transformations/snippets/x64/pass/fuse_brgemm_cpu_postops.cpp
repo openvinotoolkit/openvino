@@ -156,14 +156,14 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseUnaryEltwise")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
-        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCPU node is expected");
+        OPENVINO_ASSERT(brgemm, "BrgemmCPU node is expected");
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
         if (!can_be_fused(post_op)) {
             return false;
         }
 
         auto append_eltwise = [&brgemm](alg_kind_t alg_kind) {
-            brgemm->add_scalar_eltwise_postop(alg_kind, 0.f, 0.f);
+            brgemm->add_scalar_eltwise_postop(alg_kind, 0.F, 0.F);
         };
 
         if (pattern_map.count(m_round)) {
@@ -259,11 +259,11 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         };
 
         if (pattern_map.count(m_mul)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.f);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.F);
         } else if (pattern_map.count(m_add)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, scalar_value);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.F, scalar_value);
         } else if (pattern_map.count(m_sub)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, -scalar_value);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.F, -scalar_value);
         } else if (pattern_map.count(m_max)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_clip, scalar_value, std::numeric_limits<float>::max());
         } else if (pattern_map.count(m_min)) {
@@ -328,7 +328,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         }
 
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
-        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCPU node is expected");
+        OPENVINO_ASSERT(brgemm, "BrgemmCPU node is expected");
 
         const size_t OC = brgemm->get_output_partial_shape(0).rbegin()->get_length();
         const DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape({1, OC}));

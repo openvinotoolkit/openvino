@@ -100,9 +100,7 @@ public:
 
     private:
         void ensureValid() const {
-            if (!isInitialized()) {
-                OPENVINO_THROW("RegistersPool::Reg is either not initialized or released");
-            }
+            OPENVINO_ASSERT(isInitialized(), "RegistersPool::Reg is either not initialized or released");
         }
 
         void initialize(const RegistersPool::Ptr& pool, int requestedIdx = anyIdx) {
@@ -166,22 +164,16 @@ protected:
         PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
         void setAsUsed(size_t regIdx) {
-            if (regIdx >= isFreeIndexVector.size()) {
-                OPENVINO_THROW("regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
-            }
-            if (!isFreeIndexVector[regIdx]) {
-                OPENVINO_THROW("Inconsistency in RegistersPool::PhysicalSet::setAsUsed()");
-            }
+            OPENVINO_ASSERT(regIdx < isFreeIndexVector.size(),
+                            "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
+            OPENVINO_ASSERT(isFreeIndexVector[regIdx], "Inconsistency in RegistersPool::PhysicalSet::setAsUsed()");
             isFreeIndexVector[regIdx] = false;
         }
 
         void setAsUnused(size_t regIdx) {
-            if (regIdx >= isFreeIndexVector.size()) {
-                OPENVINO_THROW("regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
-            }
-            if (isFreeIndexVector[regIdx]) {
-                OPENVINO_THROW("Inconsistency in RegistersPool::PhysicalSet::setAsUnused()");
-            }
+            OPENVINO_ASSERT(regIdx < isFreeIndexVector.size(),
+                            "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
+            OPENVINO_ASSERT(!isFreeIndexVector[regIdx], "Inconsistency in RegistersPool::PhysicalSet::setAsUnused()");
             isFreeIndexVector[regIdx] = true;
         }
 
@@ -189,12 +181,12 @@ protected:
             if (requestedIdx == static_cast<size_t>(anyIdx)) {
                 return getFirstFreeIndex();
             }
-            if (requestedIdx >= isFreeIndexVector.size()) {
-                OPENVINO_THROW("requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
-            }
-            if (!isFreeIndexVector[requestedIdx]) {
-                OPENVINO_THROW("The register with index #", requestedIdx, " already used in the RegistersPool");
-            }
+            OPENVINO_ASSERT(requestedIdx < isFreeIndexVector.size(),
+                            "requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
+            OPENVINO_ASSERT(isFreeIndexVector[requestedIdx],
+                            "The register with index #",
+                            requestedIdx,
+                            " already used in the RegistersPool");
             return requestedIdx;
         }
 
@@ -291,9 +283,7 @@ private:
     static void checkUniqueAndUpdate(bool isCtor = true) {
         static thread_local bool isCreated = false;
         if (isCtor) {
-            if (isCreated) {
-                OPENVINO_THROW("There should be only one instance of RegistersPool per thread");
-            }
+            OPENVINO_ASSERT(!isCreated, "There should be only one instance of RegistersPool per thread");
             isCreated = true;
         } else {
             isCreated = false;

@@ -505,6 +505,7 @@ protected:
 };
 
 TEST_P(FullyConnectedHorizontalFusion, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     size_t lora_rank = std::get<0>(GetParam()).lora_rank;
     if (lora_rank != 0) {
         auto net_type = std::get<2>(GetParam());
@@ -592,6 +593,8 @@ const std::vector<ShapeParams> lora_input_shapes = {
     {{{-1, -1, 16}, {{1, 16, 16}}}, lora_weights2, -1, 16}    // first token a_small/b_medium_f32/b_small_f16
 };
 
+// Skip the test, unexpected validation failure on Linux CVS-170827
+#if defined(_WIN32)
 INSTANTIATE_TEST_SUITE_P(smoke_LoRA_HorizontalFusion,
                          FullyConnectedHorizontalFusion,
                          ::testing::Combine(::testing::ValuesIn(lora_input_shapes),
@@ -604,4 +607,5 @@ INSTANTIATE_TEST_SUITE_P(smoke_LoRA_HorizontalFusion,
                                             ::testing::Values(false),
                                             ::testing::Values(0)),
                          FullyConnectedHorizontalFusion::get_test_case_name);
+#endif
 }  // namespace

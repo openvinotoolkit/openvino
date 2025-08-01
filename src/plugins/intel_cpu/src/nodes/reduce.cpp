@@ -68,6 +68,7 @@
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 #if defined(OV_CPU_WITH_ACL)
@@ -186,7 +187,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1269,7 +1270,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -2072,17 +2073,13 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
             keep_dims = reduce->get_keep_dims();
             auto reduceConst =
                 ov::as_type_ptr<const ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
-            if (!reduceConst) {
-                THROW_CPU_NODE_ERR("second tensor is not constant!");
-            }
+            CPU_NODE_ASSERT(reduceConst, "second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         } else if (const auto reduce = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst =
                 ov::as_type_ptr<const ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
-            if (!reduceConst) {
-                THROW_CPU_NODE_ERR("second tensor is not constant!");
-            }
+            CPU_NODE_ASSERT(reduceConst, "second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         }
         set_use_aux_kernel = false;
@@ -2097,29 +2094,23 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 }
 
 void Reduce::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("gets incorrect number of input edges!");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("gets incorrect number of output edges!");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 2, "gets incorrect number of input edges!");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "gets incorrect number of output edges!");
 
-    if (getInputShapeAtPort(REDUCE_INDEXES).getRank() != 1) {
-        THROW_CPU_NODE_ERR("gets incorrect index vector dimension! Index vector should be 1 dimension.");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(REDUCE_INDEXES).getRank() == 1,
+                    "gets incorrect index vector dimension! Index vector should be 1 dimension.");
 
     if (keep_dims) {
-        if (getInputShapeAtPort(REDUCE_DATA).getRank() != getOutputShapeAtPort(0).getRank()) {
-            THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
-        }
+        CPU_NODE_ASSERT(getInputShapeAtPort(REDUCE_DATA).getRank() == getOutputShapeAtPort(0).getRank(),
+                        "gets incorrect number of input/output dimensions!");
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
         bool is_emulated_0d_as_1d =
             getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
-        if (getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d) {
-            THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
-        }
+        const bool rank_condition = getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank();
+        const bool invalid_config = rank_condition && !is_emulated_0d_as_1d;
+        CPU_NODE_ASSERT(!invalid_config, "gets incorrect number of input/output dimensions!");
     }
 }
 
@@ -2372,9 +2363,7 @@ void Reduce::prepareParams() {
         ReduceKey key = {reduce_post_jcp, attr.get_post_ops()};
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
-        if (!result.first) {
-            THROW_CPU_NODE_ERR("has not found jit_uni_reduce_post_kernel_f32.");
-        }
+        CPU_NODE_ASSERT(result.first, "has not found jit_uni_reduce_post_kernel_f32.");
 
         reduce_post_kernel = result.first;
         jit_mode = jit_mode && reduce_post_kernel;
@@ -2391,15 +2380,9 @@ void Reduce::createPrimitive() {
     }
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("has null destination memory.");
-    }
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("has null input memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dstMemPtr, "has null destination memory.");
+    CPU_NODE_ASSERT(srcMemPtr, "has null input memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has nullable preferable primitive descriptor");
 
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = ReduceLayoutType::reduce_ncsp;
@@ -2537,7 +2520,7 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto* out_ptr = reinterpret_cast<float*>(dst_data);
             reduce_ref(in_ptr, out_ptr);
         } else {
-            THROW_CPU_NODE_ERR("supports only plain layout on machine w/o sse42.");
+            CPU_NODE_THROW("supports only plain layout on machine w/o sse42.");
         }
     }
 }
@@ -3417,7 +3400,7 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
         }
         break;
     default:
-        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
+        CPU_NODE_THROW("gets unsupported reduce mode.");
     }
 }
 
@@ -3483,9 +3466,8 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
         if (axis < 0) {
             axis += src_dims.size();
         }
-        if (static_cast<size_t>(axis) > src_dims.size()) {
-            THROW_CPU_NODE_ERR("exceeds data tensor dimension on index to reduce");
-        }
+        CPU_NODE_ASSERT(static_cast<size_t>(axis) <= src_dims.size(),
+                        "exceeds data tensor dimension on index to reduce");
         axes.insert(static_cast<size_t>(axis));
     }
     for (size_t i = 0; i < src_dims.size(); i++) {
@@ -3508,15 +3490,13 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
         }
     }
     if (jit_mode && jit_beyond_5D) {
-        if (std::accumulate(out_dims.begin(), out_dims.end(), static_cast<size_t>(1), std::multiplies<>()) !=
-            std::accumulate(dst_dims.begin(), dst_dims.end(), static_cast<size_t>(1), std::multiplies<>())) {
-            THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
-        }
+        CPU_NODE_ASSERT(
+            std::accumulate(out_dims.begin(), out_dims.end(), static_cast<size_t>(1), std::multiplies<>()) ==
+                std::accumulate(dst_dims.begin(), dst_dims.end(), static_cast<size_t>(1), std::multiplies<>()),
+            "gets incorrect number of output dimensions!");
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
-            if (out_dims[i] != dst_dims[i]) {
-                THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
-            }
+            CPU_NODE_ASSERT(out_dims[i] == dst_dims[i], "gets incorrect number of output dimensions!");
         }
     }
 }
@@ -3661,7 +3641,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         });
         break;
     default:
-        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
+        CPU_NODE_THROW("gets unsupported reduce mode.");
     }
 }
 
@@ -3757,7 +3737,7 @@ inline void Reduce::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_
         });
         break;
     default:
-        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
+        CPU_NODE_THROW("gets unsupported reduce mode.");
     }
 }
 
@@ -3778,11 +3758,11 @@ void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs, getFusingAxis());
             continue;
         }
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);

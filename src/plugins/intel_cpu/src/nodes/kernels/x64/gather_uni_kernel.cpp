@@ -16,6 +16,7 @@
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -90,10 +91,10 @@ jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
 template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::create_ker() {
     auto code = x64::jit_generator_t::create_kernel();
-    if (code != dnnl::impl::status::success) {
-        OPENVINO_THROW("Could not create Gather kernel. Error code: ", std::to_string(code));
-    }
-    ker_ = (decltype(ker_))jit_ker();
+    OPENVINO_ASSERT(code == dnnl::impl::status::success,
+                    "Could not create Gather kernel. Error code: ",
+                    std::to_string(code));
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <x64::cpu_isa_t isa>
@@ -1190,7 +1191,8 @@ bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
         // There are no enough registers for these cases.
         const bool isSmallDataType = (jcp.dataTypeSize == 1 || jcp.dataTypeSize == 2);
         const bool isAvx2WithBlockedAfterAxis = (afterAxisSize > 1 && isa == x64::avx2);
-        return !(isAvx2WithBlockedAfterAxis && isSmallDataType);
+        const bool incompatible_config = isAvx2WithBlockedAfterAxis && isSmallDataType;
+        return !incompatible_config;
     }
     return static_cast<bool>(jcp.dynamicShapes && afterAxisSize == 1);
 }
