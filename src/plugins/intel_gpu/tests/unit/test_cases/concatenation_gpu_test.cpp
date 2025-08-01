@@ -1674,6 +1674,7 @@ TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     const int32_t input_b = 1, input_f = 88, input_y = 52, input_x = 52;
     const int32_t input_fsv16 = 16;
     const int32_t input_fs = input_f / input_fsv16 + 1;
+    const int32_t input_f_padding = input_fs * input_fsv16 - input_f;
     auto test_dt = data_types::f16;
     auto test_format = format::b_fs_yx_fsv16;
 
@@ -1685,6 +1686,21 @@ TEST(concat_gpu_onednn, b_fs_yx_fsv16_input_types) {
     using test_data_type = ov::float16;
     auto data_input0 = rg.generate_random_5d<test_data_type>(input_b, input_fs, input_y, input_x, input_fsv16, -1, 1);
     auto data_input1 = rg.generate_random_5d<test_data_type>(input_b, input_fs, input_y, input_x, input_fsv16, -1, 1);
+    // zero-pad for the padding part
+    for(int b=0; b < input_b; ++b) {
+        for(int f=0; f < input_fs; ++f) {
+            for(int y=0; y < input_y; ++y) {
+                for(int x=0; x < input_x; ++x) {
+                    for(int v=0; v < input_fsv16; ++v) {
+                        if(f == input_fs-1 && v >= input_fsv16 - input_f_padding) {
+                            data_input0[b][f][y][x][v] = 0;
+                            data_input1[b][f][y][x][v] = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
     auto data_input0_flat = flatten_5d(format::bfzyx, data_input0);
     auto data_input1_flat = flatten_5d(format::bfzyx, data_input1);
 
