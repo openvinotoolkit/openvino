@@ -362,11 +362,13 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
 
+#ifdef CPU_DEBUG_CAPS
                     if (!config.get_use_cm()) {
                         util::log_message("You may miss SDPAToVLSDPA optimization for QWenVL model,"
                                     "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
                         return true;
                     }
+#endif
 
                     if (!check_cm_jit_support(engine, config)) {
                         util::log_message("You may miss SDPAToVLSDPA optimization for QWenVL model,"
