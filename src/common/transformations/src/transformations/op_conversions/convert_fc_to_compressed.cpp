@@ -65,7 +65,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
     auto required_convert_m = wrap_type<ov::op::v0::Convert>({required_subtract_m});
 
     auto bias_m = any_input();
-    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m, mul_m, required_convert_m});
+    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(
+        ov::OutputVector{reshape_m, transpose_m, mul_m, required_convert_m});
     auto fully_connected_m = wrap_type<ov::op::internal::FullyConnected>({activation_m, weights_input_m, bias_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -83,9 +84,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
 
             OPENVINO_ASSERT(current_shape.size() == 3);
 
-            auto new_shape = merge_forward
-                                 ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
-                                 : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
+            auto new_shape = merge_forward ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
+                                           : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
 
             return std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
         };
@@ -101,23 +101,26 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
         const size_t OC = *(weights_shape.rbegin() + 1);
 
         const ov::Output<Node>& fc_input_a = fc->input_value(0);
-        std::shared_ptr<ov::Node> fc_input_b = reshape_const_to_2d(pattern_map.at(weights_m).get_node_shared_ptr(), false);
+        std::shared_ptr<ov::Node> fc_input_b =
+            reshape_const_to_2d(pattern_map.at(weights_m).get_node_shared_ptr(), false);
         std::shared_ptr<ov::Node> fc_input_bias = pattern_map.at(bias_m).get_node_shared_ptr();
 
         bool has_required_convert = pattern_map.count(required_convert_m);
         if (has_required_convert) {
-            std::shared_ptr<ov::Node> fc_input_scale = std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
+            std::shared_ptr<ov::Node> fc_input_scale =
+                std::make_shared<ov::op::v0::Constant>(element::dynamic, Shape{0});
             std::vector<std::shared_ptr<ov::Node>> result_nodes = {};
             ov::disable_constant_folding(fc_input_scale);
             result_nodes.push_back(fc_input_scale);
-            std::shared_ptr<ov::Node> fc_input_zp = reshape_const_to_2d(pattern_map.at(sub_const_m).get_node_shared_ptr(), false);
+            std::shared_ptr<ov::Node> fc_input_zp =
+                reshape_const_to_2d(pattern_map.at(sub_const_m).get_node_shared_ptr(), false);
 
             auto new_fc = std::make_shared<ov::op::internal::FullyConnectedCompressed>(fc_input_a,
-                                                                            fc_input_b,
-                                                                            fc_input_bias,
-                                                                            fc_input_scale,
-                                                                            fc_input_zp,
-                                                                            fc->get_output_type());
+                                                                                       fc_input_b,
+                                                                                       fc_input_bias,
+                                                                                       fc_input_scale,
+                                                                                       fc_input_zp,
+                                                                                       fc->get_output_type());
 
             if (supports_config && !supports_config(new_fc, IC, OC, 1))
                 return false;
@@ -155,8 +158,8 @@ ov::pass::ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnected
             pattern_map.count(sub_no_convert_m) > 0 || pattern_map.count(sub_with_convert_m) > 0;
         if (with_zero_point) {
             // WA: Convert ZP to u8 for OneDNN case to avoid u4 reorder
-            optional_zero_point =
-                convert_u4const_to_u8(reshape_const_to_2d(pattern_map.at(sub_const_m).get_node_shared_ptr(), merge_forward));
+            optional_zero_point = convert_u4const_to_u8(
+                reshape_const_to_2d(pattern_map.at(sub_const_m).get_node_shared_ptr(), merge_forward));
         }
 
         std::shared_ptr<ov::Node> fc_input_scale = scale;

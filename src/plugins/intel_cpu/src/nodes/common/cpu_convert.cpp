@@ -847,7 +847,7 @@ struct ConvertFromBinPrecision<std::tuple<src_t, dst_t>> {
 
 #define INTEL_CPU_CVT_FROM_2BIT_LIST                                                                 \
     INTEL_CPU_CVT(u2, f32), INTEL_CPU_CVT(u2, f16), INTEL_CPU_CVT(u2, bf16), INTEL_CPU_CVT(u2, i32), \
-    INTEL_CPU_CVT(u2, u8), INTEL_CPU_CVT(u2, i8)
+        INTEL_CPU_CVT(u2, u8), INTEL_CPU_CVT(u2, i8)
 
 struct ConvertFrom2BitContext {
     const void* srcPtr;

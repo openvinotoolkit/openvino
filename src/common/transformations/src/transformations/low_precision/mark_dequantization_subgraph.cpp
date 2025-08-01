@@ -231,7 +231,8 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
     // required zero points
     auto required_subtract_pattern = wrap_type<v1::Subtract>({input_pattern, zp_reshape_pattern});
     auto required_convert_pattern = wrap_type<v0::Convert>({required_subtract_pattern}, consumers_count(1));
-    auto pattern = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{multiply_pattern, required_convert_pattern});
+    auto pattern =
+        std::make_shared<ov::pass::pattern::op::Or>(OutputVector{multiply_pattern, required_convert_pattern});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) -> bool {
         const auto& pt_map = m.get_pattern_value_map();
@@ -249,7 +250,10 @@ ov::pass::MarkDequantization::MarkDequantization(const element::TypeVector& prec
             return false;
         } else {
             // Multiply and Subtract have to be marked as dq
-            set_rt_info(pt_map, mark_as_dequantization_node, {subtract_pattern, multiply_pattern}, {/* not applicable */});
+            set_rt_info(pt_map,
+                        mark_as_dequantization_node,
+                        {subtract_pattern, multiply_pattern},
+                        {/* not applicable */});
 
             // Convert might be presented on scales, zp and data_input.
             // Depending on the transformation arguments they have to be marked/unmarked with disable_cf rt_info.

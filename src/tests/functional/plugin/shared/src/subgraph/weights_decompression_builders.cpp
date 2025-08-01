@@ -87,9 +87,10 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
 
     auto up_to = weights_precision == ov::element::u2 ? 3 : weights_precision == ov::element::i4 ? 7 : 15;
     auto start_from = weights_precision == ov::element::u2 ? 0 : 1;
-    auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision,
-                                                                  transformed_weights_shape,
-                                                                  ov::test::utils::InputGenerateData(start_from, up_to));
+    auto weights_tensor =
+        ov::test::utils::create_and_fill_tensor(weights_precision,
+                                                transformed_weights_shape,
+                                                ov::test::utils::InputGenerateData(start_from, up_to));
     auto weights = std::make_shared<ov::op::v0::Constant>(weights_tensor);
 
     std::shared_ptr<ov::Node> last_node = weights;
@@ -118,9 +119,10 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraph(
     if (decompression_subtract_type != DecompressionType::empty) {
         auto subtract_shape =
             decompression_subtract_type == DecompressionType::full ? scaleshift_const_shape : ov::Shape({});
-        auto shift_const_tensor = ov::test::utils::create_and_fill_tensor(weights_precision,
-                                                                          subtract_shape,
-                                                                          ov::test::utils::InputGenerateData(start_from, up_to));
+        auto shift_const_tensor =
+            ov::test::utils::create_and_fill_tensor(weights_precision,
+                                                    subtract_shape,
+                                                    ov::test::utils::InputGenerateData(start_from, up_to));
         auto shift_const = std::make_shared<ov::op::v0::Constant>(shift_const_tensor);
 
         std::shared_ptr<ov::Node> shift_node = shift_const;
