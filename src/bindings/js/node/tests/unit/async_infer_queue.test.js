@@ -23,7 +23,7 @@ describe('Tests for AsyncInferQueue.', () => {
     compiledModel = core.compileModelSync(model, 'CPU');
   });
 
-  function basicUserCallback(request, jobId, err) {
+  function basicUserCallback(err, request, jobId) {
     if (err) {
       console.error(`Job ${jobId} failed: ${err}`);
     } else {
@@ -56,7 +56,7 @@ describe('Tests for AsyncInferQueue.', () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
 
-    function callback(request, jobId, err) {
+    function callback(err, request, jobId) {
       if (err) {
         console.error(`Job ${jobId} failed: ${err}`);
       } else {
@@ -93,7 +93,7 @@ describe('Tests for AsyncInferQueue.', () => {
 
   it('Test startAsync without user data', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
-    function basicUserCallback(request, userData, err) {
+    function basicUserCallback(err, request, userData) {
       if (err) {
         console.error(`Job failed: ${err}`);
       } else {
@@ -110,7 +110,7 @@ describe('Tests for AsyncInferQueue.', () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
     const jobsDone = Array.from({ length: jobs }, () => ({ finished: false }));
 
-    function callback(request, jobId, err) {
+    function callback(err, request, jobId) {
       if (err) {
         console.error(`Job ${jobId} failed: ${err}`);
       } else {
@@ -196,7 +196,7 @@ describe('Tests for AsyncInferQueue.', () => {
   it('Test possibility to catch error in callback', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
 
-    function callback(request, jobId, err) {
+    function callback(err, request, jobId) {
       if (err) {
         console.error(`Job ${jobId} failed: ${err}`);
       } else {
@@ -216,7 +216,7 @@ describe('Tests for AsyncInferQueue.', () => {
   it('Test error in callback and rejected promise', async () => {
     const inferQueue = new ov.AsyncInferQueue(compiledModel, numRequest);
 
-    function callback(request, jobId, err) {
+    function callback(err, request, jobId) {
       if (err) {
         console.error(`Job ${jobId} failed: ${err}`);
       } else {

@@ -664,9 +664,9 @@ interface PartialShape {
  * @param error Optional error that occurred during inference, if any.
  */
 type AsyncInferQueueCallback = (
+  error: null | Error,
   inferRequest: InferRequest,
   userData: object,
-  error?: Error
 ) => void;
 
 interface AsyncInferQueue {

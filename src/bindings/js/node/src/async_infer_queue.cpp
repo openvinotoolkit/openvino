@@ -118,7 +118,7 @@ void AsyncInferQueue::set_custom_callbacks(const Napi::CallbackInfo& info) {
                                 m_user_ids[handle].first.Value().ToString().Utf8Value() == UNDEFINED_USER_DATA
                                     ? env.Undefined()
                                     : m_user_ids[handle].first.Value();
-                            user_callback.Call({js_ir, user_data});
+                            user_callback.Call({env.Null(), js_ir, user_data});  // CVS-170804
                             promise.Resolve(user_data);
                             // returns before the promise's .then() is completed
                         } catch (Napi::Error& e) {
