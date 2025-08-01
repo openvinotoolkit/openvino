@@ -28,7 +28,7 @@ void HorizonMax::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(HorizonMax_validate_and_infer_types);
     auto new_shape = get_input_partial_shape(0);
     if (!ov::is_scalar(new_shape)) {
-        new_shape[new_shape.size() - 1] = 1lu;
+        new_shape[new_shape.size() - 1] = 1LU;
     }
     set_output_type(0, get_input_element_type(0), new_shape);
 }

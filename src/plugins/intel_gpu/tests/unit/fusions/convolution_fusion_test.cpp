@@ -129,7 +129,7 @@ public:
 
     layout get_input_layout(convolution_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
@@ -183,7 +183,7 @@ public:
 
     layout get_input_layout(convolution_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
@@ -236,7 +236,7 @@ public:
 
     layout get_input_layout(conv_eltw_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
@@ -284,7 +284,7 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
 
     layout get_input_layout(bc_force_kernel_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
