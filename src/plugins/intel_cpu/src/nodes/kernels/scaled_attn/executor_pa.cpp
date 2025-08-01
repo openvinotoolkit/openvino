@@ -2069,7 +2069,7 @@ struct AttentionExecutor : public PagedAttentionExecutor {
                      scale,
                      B_token,
                      max_context_len,
-                     alibi_slopes,
+                     static_cast<bool>(alibi_slopes),
                      init_rotation_coefficient_scratch);
     }
 
