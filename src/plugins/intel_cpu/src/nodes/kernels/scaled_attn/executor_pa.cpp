@@ -1867,6 +1867,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
               PlainTensor& rotated_block_indices,
               PlainTensor& rotation_deltas,
               PlainTensor& rotation_trig_lut,
+              PlainTensor& xattention_threshold,
+              int32_t& xattention_block_size,
+              int32_t& xattention_stride,
               PlainTensor& output_emb,
               PlainTensor& output_score) {
         q.reset(inputs[ID_Q]);  // [B_token, H * S]
@@ -1890,19 +1893,23 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         }
 
         size_t inputs_size = inputs.size();
-        if (inputs_size > ID_ROTATED_BLOCK_INDICES) {
-            OPENVINO_ASSERT(inputs_size >= ID_ROTATION_TRIG_LUT);
-            if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
-                rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
-            }
-            if (!inputs[ID_ROTATION_DELTAS]->getShape().hasZeroDims()) {
-                rotation_deltas.reset(inputs[ID_ROTATION_DELTAS]);  // [num_blocks,  block_size (32) || 1]
-            }
-            if (!inputs[ID_ROTATION_TRIG_LUT]->getShape().hasZeroDims()) {
-                rotation_trig_lut.reset(
-                    inputs[ID_ROTATION_TRIG_LUT]);  // [max_context_len * embedding_size], row-major layout
-            }
+        OPENVINO_ASSERT(inputs_size == 20);
+        if (!inputs[ID_ROTATED_BLOCK_INDICES]->getShape().hasZeroDims()) {
+            rotated_block_indices.reset(inputs[ID_ROTATED_BLOCK_INDICES]);  // [num_blocks]
         }
+        if (!inputs[ID_ROTATION_DELTAS]->getShape().hasZeroDims()) {
+            rotation_deltas.reset(inputs[ID_ROTATION_DELTAS]);  // [num_blocks,  block_size (32) || 1]
+        }
+        if (!inputs[ID_ROTATION_TRIG_LUT]->getShape().hasZeroDims()) {
+            rotation_trig_lut.reset(
+                inputs[ID_ROTATION_TRIG_LUT]);  // [max_context_len * embedding_size], row-major layout
+        }
+
+        if (!inputs[ID_XATTENTION_THRESHOLD]->getShape().hasZeroDims()) {
+            xattention_threshold.reset(inputs[ID_XATTENTION_THRESHOLD]);  // [B_seq]
+        }
+        xattention_stride = *inputs[ID_XATTENTION_STRIDE]->getDataAs<int32_t>();
+        xattention_block_size = *inputs[ID_XATTENTION_BLOCK_SIZE]->getDataAs<int32_t>();
 
         output_emb.reset(outputs[0]);
         if (outputs.size() == 2) {
@@ -2038,6 +2045,14 @@ struct AttentionExecutor : public PagedAttentionExecutor {
             rotation_trig_lut.assert_dims({0, S}, /* special_zero = */ true);
             init_rotation_coefficient_scratch = true;
         }
+        if (xattention_threshold) {
+            xattention_threshold.assert_dims({B_seq});
+            OPENVINO_ASSERT(xattention_block_size > 0);
+            OPENVINO_ASSERT(xattention_stride > 0);
+            // TODO: add assertions on the block size and stride limitations as defined by the
+            // block sparse operation and importance score computation impls
+        }
+
         output_emb.assert_dims({B_token, H * SV});
         output_emb = output_emb.reshape({B_token, 1, H * SV});
 
@@ -2123,10 +2138,15 @@ struct AttentionExecutor : public PagedAttentionExecutor {
         size_t sliding_window = 0;
         PlainTensor alibi_slopes;
         size_t max_context_len = 0;
+        PlainTensor score_aggregation_window;
+
         PlainTensor rotated_block_indices;
         PlainTensor rotation_deltas;
         PlainTensor rotation_trig_lut;
-        PlainTensor score_aggregation_window;
+
+        PlainTensor xattention_threshold;
+        int32_t xattention_block_size = 0;
+        int32_t xattention_stride = 0;
 
         PlainTensor output_emb;
         PlainTensor output_score;
@@ -2150,6 +2170,9 @@ struct AttentionExecutor : public PagedAttentionExecutor {
              rotated_block_indices,
              rotation_deltas,
              rotation_trig_lut,
+             xattention_threshold,
+             xattention_block_size,
+             xattention_stride,
              output_emb,
              output_score);
 

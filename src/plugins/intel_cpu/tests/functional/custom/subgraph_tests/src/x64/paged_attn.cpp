@@ -115,6 +115,18 @@ public:
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<float>{128});
         auto score_aggregation_window =
             std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto rotated_block_indices =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto rotation_deltas =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{0}, std::vector<int32_t>{0});
+        auto rotation_trig_lut =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
+        auto xattention_threshold =
+            std::make_shared<ov::op::v0::Constant>(ov::element::f32, Shape{0}, std::vector<float>{0});
+        auto xattention_block_size =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
+        auto xattention_stride =
+            std::make_shared<ov::op::v0::Constant>(ov::element::i32, Shape{}, std::vector<int32_t>{0});
         ParameterVector params =
             {q, k, v, key_cache, value_cache, past_lens, subsequence_begins, block_indices, block_indices_begins};
         auto paged_attn = std::make_shared<op::PagedAttentionExtension>(OutputVector{q,
@@ -130,7 +142,13 @@ public:
                                                                                      silding_windows,
                                                                                      alibi_slopes,
                                                                                      max_context_len,
-                                                                                     score_aggregation_window});
+                                                                                     score_aggregation_window,
+                                                                                     rotated_block_indices,
+                                                                                     rotation_deltas,
+                                                                                     rotation_trig_lut,
+                                                                                     xattention_threshold,
+                                                                                     xattention_block_size,
+                                                                                     xattention_stride});
         paged_attn->get_rt_info()["num_k_heads"] = head_num;
         paged_attn->get_rt_info()["k_head_size"] = head_size;
         paged_attn->get_rt_info()["num_v_heads"] = head_num;

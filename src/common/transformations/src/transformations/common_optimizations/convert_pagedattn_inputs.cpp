@@ -41,44 +41,30 @@ ov::pass::ConvertPagedAttnInputs::ConvertPagedAttnInputs(const KVCacheConfig& co
     auto rotated_block_indices = pattern::any_input(pattern::has_static_rank());
     auto rotation_deltas = pattern::any_input(pattern::has_static_rank());
     auto rotation_trig_lut = pattern::any_input(pattern::has_static_rank());
+    auto xattention_threshold = pattern::any_input(pattern::has_static_rank());
+    auto xattention_block_size = pattern::any_input(pattern::has_static_rank());
+    auto xattention_stride = pattern::any_input(pattern::has_static_rank());
 
-    auto pa_1 = pattern::wrap_type<op::PagedAttentionExtension>({
-        Q,
-        K,
-        V,
-        key_cache_0,
-        value_cache_0,
-        past_lens,
-        subsequence_begins,
-        block_indices,
-        block_indices_begins,
-        scale,
-        sliding_window,
-        alibi_slopes,
-        max_context_len,
-        score_aggregation_window,
-    });
-
-    auto pa_2 = pattern::wrap_type<op::PagedAttentionExtension>({
-        Q,
-        K,
-        V,
-        key_cache_0,
-        value_cache_0,
-        past_lens,
-        subsequence_begins,
-        block_indices,
-        block_indices_begins,
-        scale,
-        sliding_window,
-        alibi_slopes,
-        max_context_len,
-        score_aggregation_window,
-        rotated_block_indices,
-        rotation_deltas,
-        rotation_trig_lut,
-    });
-    auto result = pa_1 | pa_2;
+    auto result = pattern::wrap_type<op::PagedAttentionExtension>({Q,
+                                                                   K,
+                                                                   V,
+                                                                   key_cache_0,
+                                                                   value_cache_0,
+                                                                   past_lens,
+                                                                   subsequence_begins,
+                                                                   block_indices,
+                                                                   block_indices_begins,
+                                                                   scale,
+                                                                   sliding_window,
+                                                                   alibi_slopes,
+                                                                   max_context_len,
+                                                                   score_aggregation_window,
+                                                                   rotated_block_indices,
+                                                                   rotation_deltas,
+                                                                   rotation_trig_lut,
+                                                                   xattention_threshold,
+                                                                   xattention_block_size,
+                                                                   xattention_stride});
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto pa_op = m.get_match_root();
         auto key_cache = ov::as_type_ptr<v0::Parameter>(pa_op->get_input_node_shared_ptr(3));

@@ -106,6 +106,12 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
         auto score_aggregation_window = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotated_block_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotation_deltas = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotation_trig_lut = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
+        auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
+        auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                              K,
@@ -120,7 +126,13 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                              sliding_window,
                                                                              alibi_slopes,
                                                                              max_context_len,
-                                                                             score_aggregation_window});
+                                                                             score_aggregation_window,
+                                                                             rotated_block_indices,
+                                                                             rotation_deltas,
+                                                                             rotation_trig_lut,
+                                                                             xattention_threshold,
+                                                                             xattention_block_size,
+                                                                             xattention_stride});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -137,7 +149,13 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                 block_indices,
                                                                 block_indices_begins,
                                                                 max_context_len,
-                                                                score_aggregation_window});
+                                                                score_aggregation_window,
+                                                                rotated_block_indices,
+                                                                rotation_deltas,
+                                                                rotation_trig_lut,
+                                                                xattention_threshold,
+                                                                xattention_block_size,
+                                                                xattention_stride});
         if (isIRKVCacheF16) {
             model->set_rt_info("f16", "runtime_options", ov::hint::kv_cache_precision.name());
         }
@@ -203,6 +221,12 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
         auto sliding_window = std::make_shared<v0::Constant>(element::i32, Shape{}, 0);
         auto alibi_slopes = std::make_shared<v0::Constant>(element::f32, Shape{0});
         auto score_aggregation_window = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotated_block_indices = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotation_deltas = std::make_shared<v0::Parameter>(ov::element::i32, PartialShape{DYN});
+        auto rotation_trig_lut = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
+        auto xattention_threshold = std::make_shared<v0::Parameter>(ov::element::f32, PartialShape{DYN});
+        auto xattention_block_size = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
+        auto xattention_stride = std::make_shared<v0::Parameter>(ov::element::i32, Shape{});
 
         auto pa = std::make_shared<op::PagedAttentionExtension>(OutputVector{Q,
                                                                              K,
@@ -217,7 +241,13 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                              sliding_window,
                                                                              alibi_slopes,
                                                                              max_context_len,
-                                                                             score_aggregation_window});
+                                                                             score_aggregation_window,
+                                                                             rotated_block_indices,
+                                                                             rotation_deltas,
+                                                                             rotation_trig_lut,
+                                                                             xattention_threshold,
+                                                                             xattention_block_size,
+                                                                             xattention_stride});
         pa->get_rt_info()["num_k_heads"] = numKeyHeads;
         pa->get_rt_info()["k_head_size"] = keyHeadSize;
         pa->get_rt_info()["num_v_heads"] = numValueHeads;
@@ -234,7 +264,13 @@ TEST_P(ConvertPagedAttnInputsTest, checkPrecisionAndShape) {
                                                                     block_indices,
                                                                     block_indices_begins,
                                                                     max_context_len,
-                                                                    score_aggregation_window});
+                                                                    score_aggregation_window,
+                                                                    rotated_block_indices,
+                                                                    rotation_deltas,
+                                                                    rotation_trig_lut,
+                                                                    xattention_threshold,
+                                                                    xattention_block_size,
+                                                                    xattention_stride});
     }
     ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
     cacheConfig.keyCacheBlockSize = blockSize[0];
