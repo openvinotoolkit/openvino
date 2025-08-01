@@ -96,4 +96,11 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
     }
 }
 
+void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const call_args* args) {
+    OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
+    OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr args");
+
+    execute(executor, const_cast<void*>(args->A), const_cast<void*>(args->B), args->C);
+}
+
 }  // namespace ov::intel_cpu::aarch64
