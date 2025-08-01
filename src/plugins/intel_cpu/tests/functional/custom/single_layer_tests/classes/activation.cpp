@@ -18,15 +18,8 @@ using namespace ov::test::utils;
 namespace ov {
 namespace test {
 std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
-    std::vector<ov::test::InputShape> inputShapes;
-    std::vector<size_t> activationShapes;
-    std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
-    ov::element::Type netPrecision, inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    bool enforceSnippets;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) =
-             obj.param;
-
+    const auto& [inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision,
+                 cpuParams, enforceSnippets] = obj.param;
     std::ostringstream result;
     result << activationNames[activationTypeAndConstValue.first] << "_";
     if (inputShapes.front().first.size() != 0) {
@@ -118,15 +111,9 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 
 void ActivationLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    std::vector<ov::test::InputShape> inputShapes;
-    std::vector<size_t> activationShapes;
-    std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
-    ov::element::Type inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    bool enforceSnippets;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) =
-             this->GetParam();
+    const auto& [inputShapes, activationShapes, activationTypeAndConstValue, _netPrecision, inPrecision, outPrecision,
+                 cpuParams, enforceSnippets] = this->GetParam();
+    netPrecision = _netPrecision;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     activationType = activationTypeAndConstValue.first;
     auto constantsValue = activationTypeAndConstValue.second;
