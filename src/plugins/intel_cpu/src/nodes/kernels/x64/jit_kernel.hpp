@@ -185,7 +185,7 @@ private:
 template <typename T>
 class then_expression {
 public:
-    then_expression(if_expression<T>& expr);
+    explicit then_expression(if_expression<T>& expr);
 
     template <typename F>
     void _else(F&& fn);
@@ -197,7 +197,7 @@ private:
 template <typename T>
 class if_expression {
 public:
-    if_expression(const boolean_expression<T>& expr) : _expr(expr) {}
+    explicit if_expression(const boolean_expression<T>& expr) : _expr(expr) {}
 
     ~if_expression() {
         if (!_is_exit_valid) {
@@ -250,11 +250,12 @@ public:
         return _reg;
     }
 
-    operator reg_type&() const {
+    // XByak relies on implicit conversions
+    operator reg_type&() const {  // NOLINT(google-explicit-constructor)
         return reg();
     }
 
-    operator Xbyak::RegExp() const {
+    operator Xbyak::RegExp() const {  // NOLINT(google-explicit-constructor)
         return reg();
     }
 
@@ -298,7 +299,7 @@ public:
     using arithmetic_type = std::conditional_t<std::is_pointer_v<T>, size_t, T>;
 
     variable(variable&&) noexcept = default;
-    variable(jit_kernel& krnl);
+    explicit variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
     std::conditional_t<std::is_pointer_v<T> && !std::is_pointer_v<std::remove_pointer_t<T>>,
@@ -517,7 +518,7 @@ public:
     constexpr static size_t length = N;
 
     variable(variable&&) noexcept = default;
-    variable(jit_kernel& krnl);
+    explicit variable(jit_kernel& krnl);
     variable(jit_kernel& krnl, const shared_reg<reg_type>& reg);
 
     const variable& operator=(reg_type& rhs) const {
@@ -641,7 +642,7 @@ struct jit_kernel : public dnnl::impl::cpu::x64::jit_generator_t {
         return {*this, internal::make_shared(res, *this)};
     }
 
-    jit_kernel(const char* name);
+    explicit jit_kernel(const char* name);
 
     template <typename RegType>
     const RegType& reserve();

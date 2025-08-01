@@ -112,7 +112,7 @@ struct PlainTensor {
     ov::element::Type_t m_dt = ov::element::Type_t::dynamic;
     MemoryPtr m_mem;  // hold memory ptr reference
 
-    operator bool() const {
+    explicit operator bool() const {
         return m_ptr != nullptr;
     }
 
@@ -145,7 +145,7 @@ struct PlainTensor {
         return strides;
     }
 
-    PlainTensor(const MemoryPtr& mem) {
+    explicit PlainTensor(const MemoryPtr& mem) {
         reset(mem);
     }
 
@@ -201,7 +201,7 @@ struct PlainTensor {
         }
         // tensor_index(start)            : select 1 element (with squeeze)
         // tensor_index(start, end, step) : select a range w/o squeeze
-        tensor_index(int start, int end = INT_MIN, int step = 1) : start(start), end(end), step(step) {}
+        explicit tensor_index(int start, int end = INT_MIN, int step = 1) : start(start), end(end), step(step) {}
 
         void regularize(int size) {
             if (start < 0) {

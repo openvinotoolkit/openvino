@@ -46,7 +46,7 @@ class RuntimeConfigurator;
  */
 class TargetMachine {
 public:
-    TargetMachine(const std::shared_ptr<RuntimeConfigurator>& c) : configurator(c) {}
+    explicit TargetMachine(const std::shared_ptr<RuntimeConfigurator>& c) : configurator(c) {}
 
     virtual ~TargetMachine() = default;
 

@@ -31,7 +31,7 @@ class Load : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Load", "SnippetsOpset");
 
-    Load(const Output<Node>& x, size_t count = 1LU, size_t offset = 0LU);
+    explicit Load(const Output<Node>& x, size_t count = 1LU, size_t offset = 0LU);
     Load() = default;
 
     size_t get_offset() const {
@@ -66,7 +66,10 @@ protected:
 class LoadReorder : public Load {
 public:
     OPENVINO_OP("LoadReorder", "SnippetsOpset", Load);
-    LoadReorder(const Output<Node>& x, size_t count = 1LU, size_t offset = 0LU, std::vector<size_t> order = {});
+    explicit LoadReorder(const Output<Node>& x,
+                         size_t count = 1LU,
+                         size_t offset = 0LU,
+                         std::vector<size_t> order = {});
     LoadReorder() = default;
 
     void set_offset(size_t offset) {

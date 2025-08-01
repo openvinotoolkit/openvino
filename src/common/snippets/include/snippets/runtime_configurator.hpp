@@ -74,7 +74,7 @@ public:
  */
 class RuntimeConfigurator {
 public:
-    RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c);
+    explicit RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c);
     virtual ~RuntimeConfigurator() = default;
 
     /**

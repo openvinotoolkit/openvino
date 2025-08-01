@@ -18,7 +18,7 @@ class CommonOptimizations : public ov::pass::MatcherPass {
 
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::CommonOptimizations");
-    CommonOptimizations(const SnippetsTokenization::Config& config);
+    explicit CommonOptimizations(const SnippetsTokenization::Config& config);
 };
 
 }  // namespace ov::snippets::pass

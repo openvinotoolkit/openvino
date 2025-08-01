@@ -160,7 +160,7 @@ private:
         virtual bool parseAndSet(const std::string& str) = 0;
         [[nodiscard]] virtual std::string getPropertyValueDescription() const = 0;
 
-        PropertySetter(std::string name) : propertyName(std::move(name)) {}
+        explicit PropertySetter(std::string name) : propertyName(std::move(name)) {}
 
         virtual ~PropertySetter() = default;
 

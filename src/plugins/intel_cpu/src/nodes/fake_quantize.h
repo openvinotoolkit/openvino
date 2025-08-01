@@ -236,7 +236,7 @@ private:
     using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
     executorPtr execPtr = nullptr;
     struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
-        FakeQuantizeJitExecutor(const jit_quantize_params& _jqp);
+        explicit FakeQuantizeJitExecutor(const jit_quantize_params& _jqp);
         void exec(const FakeQuantize& node) override;
         std::unique_ptr<jit_uni_quantize_kernel> pKernel;
     };

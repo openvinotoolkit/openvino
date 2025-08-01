@@ -70,7 +70,7 @@ class Converter : public ColorConvert::Converter {
     using Base = ColorConvert::Converter;
 
 public:
-    Converter(Node* node);
+    explicit Converter(Node* node);
 
     [[nodiscard]] bool singlePlane() const;
 
@@ -325,7 +325,7 @@ class TwoPlaneConvert;
 
 class RefConverter : public Converter {
 public:
-    RefConverter(Node* node);
+    explicit RefConverter(Node* node);
 
 protected:
     template <typename T>
@@ -560,7 +560,7 @@ const jit_uni_converter& jit_converter_get() {
 template <typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    SinglePlaneConvert(Node* node) : Converter(node) {
+    explicit SinglePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
@@ -596,7 +596,7 @@ public:
 template <typename T>
 class TwoPlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    TwoPlaneConvert(Node* node) : Converter(node) {
+    explicit TwoPlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
@@ -657,7 +657,7 @@ class ThreePlaneConvert;
 
 class RefConverter : public Converter {
 public:
-    RefConverter(Node* node);
+    explicit RefConverter(Node* node);
 
 protected:
     template <typename T>
@@ -896,7 +896,7 @@ const jit_uni_converter& jit_converter_get() {
 template <typename T>
 class SinglePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    SinglePlaneConvert(Node* node) : Converter(node) {
+    explicit SinglePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
@@ -933,7 +933,7 @@ public:
 template <typename T>
 class ThreePlaneConvert<T, impl_desc_type::jit_uni> : public Converter {
 public:
-    ThreePlaneConvert(Node* node) : Converter(node) {
+    explicit ThreePlaneConvert(Node* node) : Converter(node) {
         jit_converter_create<T>();
     }
 
