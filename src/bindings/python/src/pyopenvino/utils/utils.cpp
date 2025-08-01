@@ -178,6 +178,10 @@ py::object from_ov_any(const ov::Any& any) {
     else if (any.is<std::map<std::string, std::string>>()) {
         return py::cast(any.as<std::map<std::string, std::string>>());
     }
+    // Check for std::map<std::string, unsigned>
+    else if (any.is<std::map<std::string, unsigned>>()) {
+        return py::cast(any.as<std::map<std::string, unsigned>>());
+    }
     // Check for std::map<std::string, int>
     else if (any.is<std::map<std::string, int>>()) {
         return py::cast(any.as<std::map<std::string, int>>());
@@ -323,11 +327,32 @@ std::map<std::string, ov::Any> properties_to_any_map(const std::map<std::string,
         } else if (property.first == ov::hint::model.name()) {
             auto model = Common::utils::convert_to_model(property.second);
             properties_to_cpp[property.first] = std::static_pointer_cast<const ov::Model>(model);
+        } else if (property.first == ov::intel_auto::devices_utilization_threshold.name() &&
+                   py::isinstance<py::dict>(property.second)) {
+            std::string value = convert_dict_to_string(property.second);
+            properties_to_cpp[property.first] = value;
         } else {
             properties_to_cpp[property.first] = Common::utils::py_object_to_any(property.second);
         }
     }
     return properties_to_cpp;
+}
+
+std::string convert_dict_to_string(const py::object& obj) {
+    if (!py::isinstance<py::dict>(obj)) {
+        OPENVINO_THROW("The passed Python object must be of type dict");
+    }
+    auto dict = py::cast<py::dict>(obj);
+    std::string result = "{";
+    bool first = true;
+    for (const auto& item : dict) {
+        if (!first)
+            result += ", ";
+        result += py::str(item.first).cast<std::string>() + ": " + py::str(item.second).cast<std::string>();
+        first = false;
+    }
+    result += "}";
+    return result;
 }
 
 std::string convert_path_to_string(const py::object& path) {
