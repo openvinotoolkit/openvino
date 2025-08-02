@@ -1136,7 +1136,7 @@ public:
             return false;
         }
 
-        if (desc->sliding_window || desc->has_alibi) {
+        if (desc->has_alibi) {
             return false;
         }
         return true;
@@ -1199,7 +1199,9 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             // Determine if sdpa_micro can be used based on sliding_window and aliged_seq_len
-            rt_params->use_micro_sdpa = supports_micro_sdpa(params);
+            bool support_sliding_window =
+                desc->sliding_window == 0 || (desc->sliding_window > 0 && rt_params->paged_attention_aligned_seq_len < desc->sliding_window);
+            rt_params->use_micro_sdpa = supports_micro_sdpa(params) && support_sliding_window;
 #else
             rt_params->use_micro_sdpa = false;
 #endif
