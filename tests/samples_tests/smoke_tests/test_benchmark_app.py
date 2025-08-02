@@ -223,3 +223,64 @@ def test_input_output_tensor_name_collision(sample_language, device, in_node_nam
             ).uniform(0, 256, data_shape).astype(np.int32)
         )
     verify(sample_language, device, iop=iop, model=model, inp=inp, cache=cache, tmp_path=tmp_path, batch=None, tm='1')
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+def test_benchmark_app_no_warmup_flag(sample_language, device, cache, tmp_path):
+    """Test that -no_warmup flag skips warmup inference and produces correct output"""
+    
+    # test with warmup (default behavior)
+    output_with_warmup = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '-niter', '1',
+        '-nireq', '1'
+    )
+    
+    # verify default behavior shows warmup message
+    assert 'FPS' in output_with_warmup
+    assert 'First inference took' in output_with_warmup
+    
+    # test without warmup
+    output_no_warmup = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '-niter', '1',
+        '-nireq', '1',
+        '-no_warmup'
+    )
+    
+    # verify -no_warmup behavior
+    assert 'FPS' in output_no_warmup
+    assert 'Skipping warmup inference due to -no_warmup flag' in output_no_warmup
+    assert 'First inference took' not in output_no_warmup
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+def test_benchmark_app_no_warmup_help(sample_language):
+    """Test that -no_warmup option appears in help output"""
+    output = get_cmd_output(get_executable(sample_language), '-h')
+    assert '-no_warmup' in output
+    assert 'Skip warmup inference' in output
+
+
+@pytest.mark.parametrize('sample_language', ['C++', 'Python'])
+@pytest.mark.parametrize('device', get_devices())
+@pytest.mark.parametrize('api', ['sync', 'async'])
+def test_benchmark_app_no_warmup_with_api_modes(sample_language, device, api, cache, tmp_path):
+    """Test -no_warmup flag works with different API modes"""
+    output = get_cmd_output(
+        get_executable(sample_language),
+        *prepend(cache, 'dog-224x224.bmp', 'bvlcalexnet-12.onnx', tmp_path),
+        '-d', device,
+        '-niter', '1',
+        '-nireq', '1',
+        '-api', api,
+        '-no_warmup'
+    )
+    
+    assert 'FPS' in output
+    assert 'Skipping warmup inference due to -no_warmup flag' in output
+    assert 'First inference took' not in output

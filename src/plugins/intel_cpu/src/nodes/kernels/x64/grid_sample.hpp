@@ -36,24 +36,24 @@ struct GridSampleKernelConfParams {
     GridSamplePaddingMode paddingMode = GridSamplePaddingMode::ZEROS;
     ov::element::Type inDataPrc;
     ov::element::Type gridPrc;
-    uint64_t batchNum = 1lu;
-    uint64_t cannelNum = 1lu;
-    uint64_t srcBatchStepB = 0lu;
+    uint64_t batchNum = 1LU;
+    uint64_t cannelNum = 1LU;
+    uint64_t srcBatchStepB = 0LU;
 };
 
 struct GridSamplesKernelExecArgs {
     const void* src = nullptr;
     const void* grid = nullptr;
     void* dst = nullptr;
-    uint64_t batchNum = 1lu;
-    uint64_t channelsNum = 1lu;
+    uint64_t batchNum = 1LU;
+    uint64_t channelsNum = 1LU;
     const float* srcWidthF = nullptr;
     const float* srcHeightF = nullptr;
-    uint64_t srcBatchStepB = 0lu;
-    uint64_t gridBatchStepB = 0lu;
-    uint64_t dstBatchStepB = 0lu;
-    uint64_t srcChannelStepB = 0lu;
-    uint64_t dstChannelStepB = 0lu;
+    uint64_t srcBatchStepB = 0LU;
+    uint64_t gridBatchStepB = 0LU;
+    uint64_t dstBatchStepB = 0LU;
+    uint64_t srcChannelStepB = 0LU;
+    uint64_t dstChannelStepB = 0LU;
     const void* wDenormCoefF = nullptr;
     const void* hDenormCoefF = nullptr;
     const void* srcWidthB = nullptr;
@@ -65,7 +65,7 @@ struct GridSamplesKernelExecArgs {
     const void* srcWidthSub1F = nullptr;
     const void* dataTypeSize = nullptr;
     const void* buffer = nullptr;
-    uint64_t workAmount = 0lu;
+    uint64_t workAmount = 0LU;
 };
 
 enum coord : uint8_t { w, h };
@@ -103,11 +103,11 @@ public:
 
 protected:
     GridSampleKernelConfParams jcp;
-    uint64_t vlen = 16lu;
-    uint64_t dataTypeSize = 1lu;
-    uint64_t gridTypeSize = 1lu;
-    uint64_t dataElPerVec = 1lu;
-    uint64_t gridElPerVec = 1lu;
+    uint64_t vlen = 16LU;
+    uint64_t dataTypeSize = 1LU;
+    uint64_t gridTypeSize = 1LU;
+    uint64_t dataElPerVec = 1LU;
+    uint64_t gridElPerVec = 1LU;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
