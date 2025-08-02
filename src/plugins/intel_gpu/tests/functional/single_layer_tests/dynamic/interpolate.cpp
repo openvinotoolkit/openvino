@@ -39,29 +39,12 @@ class InterpolateLayerGPUTest : public testing::WithParamInterface<InterpolateLa
                                 virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InterpolateLayerGPUTestParamsSet> obj) {
-        InterpolateSpecificParams specificParams;
-        ShapeParams shapeParams;
-        ov::element::Type prec;
-        bool useInterpolateV11;
         std::map<std::string, std::string> additionalConfig;
-        std::tie(specificParams, shapeParams, prec, useInterpolateV11) = obj.param;
+        const auto& [specificParams, shapeParams, prec, useInterpolateV11] = obj.param;
 
-        ov::op::v4::Interpolate::InterpolateMode mode;
-        ov::op::v4::Interpolate::CoordinateTransformMode transfMode;
-        ov::op::v4::Interpolate::NearestMode nearMode;
-        bool antiAlias;
-        std::vector<size_t> padBegin;
-        std::vector<size_t> padEnd;
-        double cubeCoef;
-        std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
+        const auto& [mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef] = specificParams;
 
-        ov::op::v4::Interpolate::ShapeCalcMode shapeCalcMode;
-        InputShape inputShapes;
-        ov::test::utils::InputLayerType sizesInputType;
-        ov::test::utils::InputLayerType scalesInputType;
-        std::vector<std::vector<float>> shapeDataForInput;
-        std::vector<int64_t> axes;
-        std::tie(shapeCalcMode, inputShapes, sizesInputType, scalesInputType, shapeDataForInput, axes) = shapeParams;
+        const auto& [shapeCalcMode, inputShapes, sizesInputType, scalesInputType, shapeDataForInput, axes] = shapeParams;
 
         std::ostringstream result;
         using ov::operator<<;
@@ -164,27 +147,12 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        InterpolateSpecificParams specificParams;
-        ShapeParams shapeParams;
-        ov::element::Type ngPrc;
-        bool useInterpolateV11;
-        std::tie(specificParams, shapeParams, ngPrc, useInterpolateV11) = this->GetParam();
+        const auto& [specificParams, shapeParams, ngPrc, useInterpolateV11] = this->GetParam();
 
-        ov::op::v4::Interpolate::InterpolateMode mode;
-        ov::op::v4::Interpolate::CoordinateTransformMode transfMode;
-        ov::op::v4::Interpolate::NearestMode nearMode;
-        bool antiAlias;
-        std::vector<size_t> padBegin;
-        std::vector<size_t> padEnd;
-        double cubeCoef;
-        std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
+        const auto& [mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef] = specificParams;
 
-        InputShape dataShape;
-        ov::test::utils::InputLayerType sizesInputType;
-        ov::test::utils::InputLayerType scalesInputType;
-        std::vector<std::vector<float>> shapeDataForInput;
-        std::vector<int64_t> axes;
-        std::tie(shapeCalcMode, dataShape, sizesInputType, scalesInputType, shapeDataForInput, axes) = shapeParams;
+        const auto& [_shapeCalcMode, dataShape, sizesInputType, scalesInputType, shapeDataForInput, axes] = shapeParams;
+        shapeCalcMode = _shapeCalcMode;
 
         if (shapeCalcMode == ov::op::v4::Interpolate::ShapeCalcMode::SCALES) {
             scales = shapeDataForInput;
