@@ -738,9 +738,9 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
 }
 
 // apply locData(offset) to priordata, generate decodedBox
-inline void DetectionOutput::decodeBBoxes(const float* priorData,
-                                          const float* locData,
-                                          const float* varianceData,
+inline void DetectionOutput::decodeBBoxes(const float* prior_coords,
+                                          const float* location_deltas,
+                                          const float* variances,
                                           float* decodedBboxes,
                                           float* decodedBboxSizes,
                                           const int* numPriorsActual,
@@ -766,15 +766,15 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
         float newXMax = 0.0F;
         float newYMax = 0.0F;
 
-        float priorXMin = priorData[p * priorSize + 0 + offs];
-        float priorYMin = priorData[p * priorSize + 1 + offs];
-        float priorXMax = priorData[p * priorSize + 2 + offs];
-        float priorYMax = priorData[p * priorSize + 3 + offs];
+        float priorXMin = prior_coords[p * priorSize + 0 + offs];
+        float priorYMin = prior_coords[p * priorSize + 1 + offs];
+        float priorXMax = prior_coords[p * priorSize + 2 + offs];
+        float priorYMax = prior_coords[p * priorSize + 3 + offs];
 
-        float locXMin = locData[4 * p * locNumForClasses + 0];
-        float locYMin = locData[4 * p * locNumForClasses + 1];
-        float locXMax = locData[4 * p * locNumForClasses + 2];
-        float locYMax = locData[4 * p * locNumForClasses + 3];
+        float locXMin = location_deltas[4 * p * locNumForClasses + 0];
+        float locYMin = location_deltas[4 * p * locNumForClasses + 1];
+        float locXMax = location_deltas[4 * p * locNumForClasses + 2];
+        float locYMax = location_deltas[4 * p * locNumForClasses + 3];
 
         if (!normalized) {
             priorXMin /= static_cast<float>(imgWidth);
@@ -791,10 +791,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
                 newXMax = priorXMax + locXMax;
                 newYMax = priorYMax + locYMax;
             } else {
-                newXMin = priorXMin + varianceData[p * 4 + 0] * locXMin;
-                newYMin = priorYMin + varianceData[p * 4 + 1] * locYMin;
-                newXMax = priorXMax + varianceData[p * 4 + 2] * locXMax;
-                newYMax = priorYMax + varianceData[p * 4 + 3] * locYMax;
+                newXMin = priorXMin + variances[p * 4 + 0] * locXMin;
+                newYMin = priorYMin + variances[p * 4 + 1] * locYMin;
+                newXMax = priorXMax + variances[p * 4 + 2] * locXMax;
+                newYMax = priorYMax + variances[p * 4 + 3] * locYMax;
             }
         } else if (codeType == CodeType::CENTER_SIZE) {
             float priorWidth = priorXMax - priorXMin;
@@ -811,10 +811,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
                                       std::exp(locYMax) * priorHeight};
                 }
                 // variance is encoded in bbox, we need to scale the offset accordingly.
-                return std::tuple{varianceData[p * 4 + 0] * locXMin * priorWidth + priorCenterX,
-                                  varianceData[p * 4 + 1] * locYMin * priorHeight + priorCenterY,
-                                  std::exp(varianceData[p * 4 + 2] * locXMax) * priorWidth,
-                                  std::exp(varianceData[p * 4 + 3] * locYMax) * priorHeight};
+                return std::tuple{variances[p * 4 + 0] * locXMin * priorWidth + priorCenterX,
+                                  variances[p * 4 + 1] * locYMin * priorHeight + priorCenterY,
+                                  std::exp(variances[p * 4 + 2] * locXMax) * priorWidth,
+                                  std::exp(variances[p * 4 + 3] * locYMax) * priorHeight};
             }();
 
             newXMin = decodeBboxCenterX - decodeBboxWidth / 2.0F;
@@ -843,16 +843,16 @@ inline void DetectionOutput::topk(const int* indicesIn, int* indicesOut, const f
     std::partial_sort_copy(indicesIn, indicesIn + n, indicesOut, indicesOut + k, ConfidenceComparatorDO(conf));
 }
 
-static inline float JaccardOverlap(const float* decodedBbox, const float* bboxSizes, const int idx1, const int idx2) {
-    const float xmin1 = decodedBbox[idx1 * 4 + 0];
-    const float ymin1 = decodedBbox[idx1 * 4 + 1];
-    const float xmax1 = decodedBbox[idx1 * 4 + 2];
-    const float ymax1 = decodedBbox[idx1 * 4 + 3];
+static inline float JaccardOverlap(const float* bbox_coords, const float* bbox_areas, const int idx1, const int idx2) {
+    const float xmin1 = bbox_coords[idx1 * 4 + 0];
+    const float ymin1 = bbox_coords[idx1 * 4 + 1];
+    const float xmax1 = bbox_coords[idx1 * 4 + 2];
+    const float ymax1 = bbox_coords[idx1 * 4 + 3];
 
-    const float xmin2 = decodedBbox[idx2 * 4 + 0];
-    const float ymin2 = decodedBbox[idx2 * 4 + 1];
-    const float xmax2 = decodedBbox[idx2 * 4 + 2];
-    const float ymax2 = decodedBbox[idx2 * 4 + 3];
+    const float xmin2 = bbox_coords[idx2 * 4 + 0];
+    const float ymin2 = bbox_coords[idx2 * 4 + 1];
+    const float xmax2 = bbox_coords[idx2 * 4 + 2];
+    const float ymax2 = bbox_coords[idx2 * 4 + 3];
 
     if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
         return 0.0F;
@@ -871,8 +871,8 @@ static inline float JaccardOverlap(const float* decodedBbox, const float* bboxSi
     }
 
     float intersectSize = intersectWidth * intersectHeight;
-    float bbox1Size = bboxSizes[idx1];
-    float bbox2Size = bboxSizes[idx2];
+    float bbox1Size = bbox_areas[idx1];
+    float bbox2Size = bbox_areas[idx2];
 
     return intersectSize / (bbox1Size + bbox2Size - intersectSize);
 }

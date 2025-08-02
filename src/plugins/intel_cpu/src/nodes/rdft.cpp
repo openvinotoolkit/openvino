@@ -784,9 +784,9 @@ void RDFTExecutor::irdftNd(float* inputPtr,
                   axis,
                   signalSizes[i],
                   inputShape,
-                  originalInputStrides,
-                  inputShape,
                   inputStrides,
+                  outputShape,
+                  outputStrides,
                   iterationRange);
         inputPtr = output;
     }

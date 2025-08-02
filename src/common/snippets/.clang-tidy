@@ -45,7 +45,6 @@
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
 # -readability-isolate-declaration
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
-# -readability-suspicious-call-argument
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
 # -modernize-use-constraints,
 # -modernize-use-std-numbers
@@ -100,7 +99,6 @@ Checks: >
   -readability-identifier-length,
   -readability-isolate-declaration,
   -readability-magic-numbers,
-  -readability-suspicious-call-argument,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes

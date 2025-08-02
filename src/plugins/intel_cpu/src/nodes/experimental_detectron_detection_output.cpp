@@ -150,20 +150,20 @@ struct ConfidenceComparator {
     const float* _conf_data;
 };
 
-static inline float JaccardOverlap(const float* decoded_bbox,
-                                   const float* bbox_sizes,
+static inline float JaccardOverlap(const float* bbox_coords,
+                                   const float* bbox_areas,
                                    const int idx1,
                                    const int idx2,
                                    const float coordinates_offset = 1) {
-    float xmin1 = decoded_bbox[idx1 * 4 + 0];
-    float ymin1 = decoded_bbox[idx1 * 4 + 1];
-    float xmax1 = decoded_bbox[idx1 * 4 + 2];
-    float ymax1 = decoded_bbox[idx1 * 4 + 3];
+    float xmin1 = bbox_coords[idx1 * 4 + 0];
+    float ymin1 = bbox_coords[idx1 * 4 + 1];
+    float xmax1 = bbox_coords[idx1 * 4 + 2];
+    float ymax1 = bbox_coords[idx1 * 4 + 3];
 
-    float xmin2 = decoded_bbox[idx2 * 4 + 0];
-    float ymin2 = decoded_bbox[idx2 * 4 + 1];
-    float ymax2 = decoded_bbox[idx2 * 4 + 3];
-    float xmax2 = decoded_bbox[idx2 * 4 + 2];
+    float xmin2 = bbox_coords[idx2 * 4 + 0];
+    float ymin2 = bbox_coords[idx2 * 4 + 1];
+    float ymax2 = bbox_coords[idx2 * 4 + 3];
+    float xmax2 = bbox_coords[idx2 * 4 + 2];
 
     if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
         return 0.0F;
@@ -182,8 +182,8 @@ static inline float JaccardOverlap(const float* decoded_bbox,
     }
 
     float intersect_size = intersect_width * intersect_height;
-    float bbox1_size = bbox_sizes[idx1];
-    float bbox2_size = bbox_sizes[idx2];
+    float bbox1_size = bbox_areas[idx1];
+    float bbox2_size = bbox_areas[idx2];
 
     return intersect_size / (bbox1_size + bbox2_size - intersect_size);
 }
