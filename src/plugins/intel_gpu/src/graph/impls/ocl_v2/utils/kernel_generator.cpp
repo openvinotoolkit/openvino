@@ -124,10 +124,10 @@ std::string KernelGenerator::get_build_options(const RuntimeParams& params) cons
         options = " -cl-mad-enable";
     }
 
-#if CL_TARGET_OPENCL_VERSION >= 200
-    options += " -cl-std=CL2.0";
-#endif
-
+    if (device_info.supports_work_group_collective_functions)
+        options += " -cl-std=CL3.0";
+    else
+        options += " -cl-std=CL2.0";
     return options;
 }
 
