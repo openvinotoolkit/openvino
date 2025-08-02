@@ -140,15 +140,7 @@ public:
     }
 
     static std::string get_test_case_name(testing::TestParamInfo<Params> obj) {
-        bool with_rearrange;
-        bool with_mask;
-        bool with_scale;
-        bool causal;
-        ov::Dimension batch;
-        ov::element::Type model_element_type;
-        size_t num_groups;
-        std::vector<int64_t> qkv_order;
-        std::tie(with_rearrange, with_mask, with_scale, causal, batch, model_element_type, num_groups, qkv_order) = obj.param;
+        const auto& [with_rearrange, with_mask, with_scale, causal, batch, model_element_type, num_groups, qkv_order] = obj.param;
         std::ostringstream result;
         result << "with_rearrange=" << with_rearrange << "_";
         result << "with_mask=" << with_mask << "_";
@@ -163,16 +155,7 @@ public:
 };
 
 TEST_P(SDPAOptimizationTestsP, PassesSequence) {
-    bool with_rearrange;
-    bool with_mask;
-    bool with_scale;
-    bool causal;
-    ov::Dimension batch;
-    ov::element::Type model_element_type;
-    size_t num_groups;
-    std::vector<int64_t> qkv_order;
-
-    std::tie(with_rearrange, with_mask, with_scale, causal, batch, model_element_type, num_groups, qkv_order) = GetParam();
+    const auto& [with_rearrange, with_mask, with_scale, causal, batch, model_element_type, num_groups, qkv_order] = GetParam();
     model = ov::test::utils::make_llm_kv_cache_sdpa_pattern(batch,
                                                             32,
                                                             128,

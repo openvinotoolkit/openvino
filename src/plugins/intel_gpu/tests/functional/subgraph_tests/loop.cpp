@@ -41,23 +41,8 @@ class DynamicShapeLoopTest : public testing::WithParamInterface<DynamicShapeLoop
                              virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopParams> &obj) {
-        bool static_iter_num;
-        bool static_continue_cond;
-        int64_t max_iter_num;
-        int64_t dynamic_exit;
-        int64_t axis;
-        int64_t start_value;
-        InputShape data_shapes;
-        ov::element::Type model_type;
-        std::string targetDevice;
-        auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            model_type,
-            targetDevice) = obj.param;
+        const auto& [static_continue_cond, args_pack, start_value, data_shapes, model_type, targetDevice] = obj.param;
+        const auto [static_iter_num, max_iter_num, dynamic_exit, axis] = args_pack;
 
         std::ostringstream result;
         result << "static_iter_num=" << std::to_string(static_iter_num) << "_";
@@ -95,14 +80,12 @@ private:
 
 protected:
     void SetUp() override {
-        auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            model_type,
-            targetDevice) = GetParam();
+        const auto& [_static_continue_cond, args_pack, _start_value, _data_shapes, _model_type, _targetDevice] = GetParam();
+        static_continue_cond = _static_continue_cond;
+        start_value = _start_value;
+        data_shapes = _data_shapes;
+        model_type = _model_type;
+        targetDevice = _targetDevice;
 
         const auto inputShape = data_shapes.first;
         const auto scalarShape = ov::Shape{};
@@ -318,27 +301,8 @@ class DynamicShapeLoopDynamicInputTest : public testing::WithParamInterface<Dyna
                                          virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicShapeLoopDynamicInputParams> &obj) {
-        bool static_iter_num;
-        bool static_continue_cond;
-        bool freeze_input;
-        int64_t max_iter_num;
-        int64_t dynamic_exit;
-        int64_t axis;
-        int64_t start_value;
-        InputShape data_shapes;
-        InputShape constant_shapes;
-        ov::element::Type model_type;
-        std::string targetDevice;
-        auto args_pack = std::tie(static_iter_num, max_iter_num, dynamic_exit, axis);
-        std::tie(
-            static_continue_cond,
-            args_pack,
-            start_value,
-            data_shapes,
-            constant_shapes,
-            model_type,
-            targetDevice,
-            freeze_input) = obj.param;
+        const auto& [static_continue_cond, args_pack, start_value, data_shapes, constant_shapes, model_type, targetDevice, freeze_input] = obj.param;
+        const auto [static_iter_num, max_iter_num, dynamic_exit, axis] = args_pack;
 
         std::ostringstream result;
         result << "static_iter_num=" << std::to_string(static_iter_num) << "_";

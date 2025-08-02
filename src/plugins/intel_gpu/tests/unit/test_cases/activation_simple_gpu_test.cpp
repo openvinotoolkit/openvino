@@ -1917,15 +1917,7 @@ struct activation_random_test : testing::TestWithParam<activation_random_test_pa
     void execute_compare(const activation_random_test_params& params, bool check_result) {
         auto& engine = get_test_engine();
 
-        data_types input_type;
-        format::type input_format;
-        tensor input_size;
-        activation_func func_type;
-        activation_additional_params additional_params;
-        padding padd;
-        impl_types impl_type;
-        bool is_caching_test;
-        std::tie(input_type, input_format, input_size, func_type, additional_params, padd, impl_type, is_caching_test) = params;
+        const auto& [input_type, input_format, input_size, func_type, additional_params, padd, impl_type, is_caching_test] = params;
         auto in_layout = layout(input_type, format::bfyx, input_size);
 
         auto in_mem = engine.allocate_memory(in_layout);

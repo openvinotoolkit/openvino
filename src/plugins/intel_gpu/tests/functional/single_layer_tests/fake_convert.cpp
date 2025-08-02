@@ -35,14 +35,7 @@ class FakeConvertTest : public testing::WithParamInterface<FakeConvertTestParams
                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FakeConvertTestParams> obj) {
-        ov::Shape input_shape;
-        ov::Shape scale_shape;
-        ov::Shape shift_shape;
-        ov::element::Type prec;
-        ov::element::Type destination_type;
-        std::string target_device;
-
-        std::tie(input_shape, scale_shape, shift_shape, prec, destination_type, target_device) = obj.param;
+        const auto& [input_shape, scale_shape, shift_shape, prec, destination_type, target_device] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -60,8 +53,12 @@ protected:
     ov::element::Type destination_type;
 
     void SetUp() override {
-        ov::element::Type prec;
-        std::tie(input_shape, scale_shape, shift_shape, prec, destination_type, targetDevice) = GetParam();
+        const auto& [_input_shape, _scale_shape, _shift_shape, prec, _destination_type, _targetDevice] = GetParam();
+        input_shape = _input_shape;
+        scale_shape = _scale_shape;
+        shift_shape = _shift_shape;
+        destination_type = _destination_type;
+        targetDevice = _targetDevice;
         const float MAX_FP8 = (destination_type == ov::element::f8e4m3) ? fp8::MAX_F8E4M3 : fp8::MAX_F8E5M2;
         if (shift_shape.empty()) {
             auto data = make_shared<op::v0::Parameter>(prec, input_shape);
