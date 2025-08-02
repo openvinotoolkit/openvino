@@ -17,6 +17,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
     INPUT0_TYPE grp_max = 0.001;
     INPUT0_TYPE max_value = INPUT0_VAL_MIN;
     INPUT0_TYPE min_value = INPUT0_VAL_MAX;
+
     unroll_for (uint i = 0; i < num_groups; i++) {
         input_data[i] = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + i * SUBGROUP_SIZE);
         max_value = fmax(max_value, input_data[i]);
