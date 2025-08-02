@@ -19,10 +19,7 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string netPrecision;
-        bool enableDevicePriority;
-        std::vector<PriorityParams> PriorityConfigs;
-        std::tie(netPrecision, enableDevicePriority, PriorityConfigs) = obj.param;
+        const auto& [netPrecision, enableDevicePriority, PriorityConfigs] = obj.param;
         std::ostringstream result;
         if (enableDevicePriority) {
             result << "_enableDevicePriority_true";
