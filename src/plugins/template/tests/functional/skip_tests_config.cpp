@@ -102,7 +102,8 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=\(\(2.17.5.1\)_\(1.17.1.4\)_\)_eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=dynamic_OutType=dynamic_.*)",
         R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*(2.200|10.200|1.10.100|4.4.16|1.2.4|1.4.4|1.4.4.1).*eltwise_op_type=Mod_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f16_InType=dynamic_OutType=dynamic.*)",
         R"(.*smoke_CompareWithRefs_static/EltwiseLayerTest.Inference/IS=.*_TS=.*2.*eltwise_op_type=Pow_secondary_input_type=PARAMETER_opType=VECTOR_model_type=f32_InType=dynamic_OutType=dynamic.*)",
-    };
+        // model import is not supported
+        R"(.*OVCompiledModelBaseTest.import_from_.*)"};
 #ifdef _WIN32
     // CVS-63989
     retVector.emplace_back(R"(.*ReferenceSigmoidLayerTest.*u64.*)");

@@ -228,7 +228,8 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
+    return std::make_shared<SyncInferRequest>(
+        CompiledModelHolder(std::static_pointer_cast<const CompiledModel>(shared_from_this())));
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {

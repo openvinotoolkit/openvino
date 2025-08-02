@@ -130,6 +130,7 @@ ov_option (ENABLE_SAMPLES "console samples are part of OpenVINO Runtime package"
 
 set(OPENVINO_EXTRA_MODULES "" CACHE STRING "Extra paths for extra modules to include into OpenVINO build")
 
+ov_option (ENABLE_GIL_PYTHON_API "Build Python API with Global Interpreter Lock" ON)
 find_host_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
     ov_option(ENABLE_OV_ONNX_FRONTEND "Enable ONNX FrontEnd" ON)

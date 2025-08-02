@@ -425,7 +425,7 @@ namespace {
  */
 class RnnShapeInfer : public IShapeInfer {
 public:
-    RnnShapeInfer(std::shared_ptr<ov::Node> op)
+    explicit RnnShapeInfer(std::shared_ptr<ov::Node> op)
         : is_sequence(!(RNN::isCell(op))),
           native_order(RNN::testNativeOrder(op)),
           m_shape_infer(make_shape_inference(std::move(op))) {}
@@ -465,7 +465,7 @@ private:
 
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
-    RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<RnnShapeInfer>(m_op);
     }
@@ -1009,15 +1009,15 @@ void RNN::fillWeights() {
         const std::string hash_w =
             getName() + "_0_" +
             std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*w_data_desc->getDnnlDesc().get()));
-        m_initial_weights[0] = *weight_cache->findOrCreate(hash_w, create_w);
+        m_initial_weights[0] = MemoryPtr(*weight_cache->findOrCreate(hash_w, create_w));
 
         const std::string hash_r =
             getName() + "_1_" +
             std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*w_state_desc->getDnnlDesc().get()));
-        m_initial_weights[1] = *weight_cache->findOrCreate(hash_r, create_r);
+        m_initial_weights[1] = MemoryPtr(*weight_cache->findOrCreate(hash_r, create_r));
     } else {
-        m_initial_weights[0] = create_w();
-        m_initial_weights[1] = create_r();
+        m_initial_weights[0] = MemoryPtr(create_w());
+        m_initial_weights[1] = MemoryPtr(create_r());
     }
 }
 
@@ -1076,9 +1076,9 @@ void RNN::fillBiases() {
         const std::string hash_str =
             getName() + "_2_" +
             std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*w_bias_data_desc->getDnnlDesc().get()));
-        m_initial_weights[2] = *weight_cache->findOrCreate(hash_str, create);
+        m_initial_weights[2] = MemoryPtr(*weight_cache->findOrCreate(hash_str, create));
     } else {
-        m_initial_weights[2] = create();
+        m_initial_weights[2] = MemoryPtr(create());
     }
 }
 
@@ -1097,10 +1097,10 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
         const std::string hash_str =
             getName() + "_" + std::to_string(idx) + "_" +
             std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*new_desc->getDnnlDesc().get()));
-        res_ptr = *weight_cache->findOrCreate(hash_str, create);
+        res_ptr = MemoryPtr(*weight_cache->findOrCreate(hash_str, create));
         m_weights_pull.insert(res_ptr);
     } else {
-        res_ptr = create();
+        res_ptr = MemoryPtr(create());
     }
 
     internalBlobMemory[idx] = std::move(res_ptr);

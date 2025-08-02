@@ -114,7 +114,7 @@ private:
 
 class ExecutorFactoryLegacy {
 public:
-    ExecutorFactoryLegacy(ExecutorContext::CPtr context) : context(std::move(context)) {}
+    explicit ExecutorFactoryLegacy(ExecutorContext::CPtr context) : context(std::move(context)) {}
     virtual ~ExecutorFactoryLegacy() = default;
 
     const ExecutorContext::CPtr context;
