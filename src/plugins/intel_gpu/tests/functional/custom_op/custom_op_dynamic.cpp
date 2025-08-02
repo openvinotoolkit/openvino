@@ -5,11 +5,10 @@
 #include <string>
 #include <vector>
 
+#include "openvino/op/constant.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/op/constant.hpp"
-
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using namespace ::testing;
@@ -132,7 +131,7 @@ public:
         }
     }
 
-private:
+protected:
     std::string config_cl;
     std::string config_xml;
 
@@ -184,18 +183,74 @@ private:
     }
 };
 
+class CustomOpStatic : public CustomOpDynamic {
+public:
+    void run() {
+        std::vector<ov::Shape> input_shapes;
+        std::vector<std::vector<float>> input_datas;
+        std::tie(input_shapes, input_datas) = GetParam();
+        ASSERT_EQ(input_shapes.size(), input_datas.size());
+        ASSERT_EQ(input_shapes.size(), 1u);
+
+        ov::Core core;
+        float alpha = 1.0, beta = 0.1;
+        auto model = generate_model_with_custom_add_op(alpha, beta, ov::PartialShape(input_shapes[0]));
+
+        ov::AnyMap config = {ov::hint::inference_precision(ov::element::f32), {"CONFIG_FILE", config_xml}};
+        auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, config);
+
+        auto runtime_graph = compiled_model.get_runtime_model();
+        auto ops = runtime_graph->get_ordered_ops();
+
+        bool found_custom_op = false;
+        for (auto op : ops) {
+            if (op->get_rt_info()[ov::exec_model_info::LAYER_TYPE].as<std::string>() == "CustomGPUPrimitive") {
+                found_custom_op = true;
+                break;
+            }
+        }
+        ASSERT_TRUE(found_custom_op);
+
+        auto ireq = compiled_model.create_infer_request();
+        auto input = ov::Tensor({ov::element::f32}, input_shapes[0], input_datas[0].data());
+        ireq.set_input_tensor(0, input);
+        ireq.infer();
+        auto output = ireq.get_output_tensor(0);
+        std::vector<float> actual(output.data<float>(), output.data<float>() + output.get_size());
+
+        ASSERT_EQ(output.get_element_type(), element::f32);
+
+        float* inp_data = input.data<float>();
+        for (size_t i = 0; i < output.get_size(); i++) {
+            ASSERT_FLOAT_EQ(actual[i], inp_data[i] * alpha + beta);
+        }
+    }
+};
+
 TEST_P(CustomOpDynamic, Accuracy) {
+    run();
+}
+
+TEST_P(CustomOpStatic, Accuracy) {
     run();
 }
 
 const std::vector<ov::Shape> input_shapes{{1, CustomOpDynamic::dim1, 2}, {2, CustomOpDynamic::dim1, 3}};
 const std::vector<std::vector<float>> input_datas{{0.2, 0.4}, {0.2, 0.4, 0.3, 0.5, 0.7, 0.9}};
 
-INSTANTIATE_TEST_SUITE_P(smoke_GPU_Accuracy, CustomOpDynamic,
-    ::testing::Combine(::testing::Values(input_shapes),
-                       ::testing::Values(input_datas)),
-    CustomOpDynamic::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_Accuracy,
+                         CustomOpDynamic,
+                         ::testing::Combine(::testing::Values(input_shapes), ::testing::Values(input_datas)),
+                         CustomOpDynamic::getTestCaseName);
 
-} // namespace intel_gpu
-} // namespace test
-} // namespace ov
+const std::vector<ov::Shape> input_static_shapes{{2, 2, 3}};
+const std::vector<std::vector<float>> input_static_datas{{0.2, 0.4, 0.3, 0.5, 0.7, 0.9, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_Accuracy,
+                         CustomOpStatic,
+                         ::testing::Combine(::testing::Values(input_static_shapes), ::testing::Values(input_static_datas)),
+                         CustomOpStatic::getTestCaseName);
+
+}  // namespace intel_gpu
+}  // namespace test
+}  // namespace ov
