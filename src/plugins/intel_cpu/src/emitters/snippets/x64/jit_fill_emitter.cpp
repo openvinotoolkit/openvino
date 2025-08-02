@@ -77,8 +77,6 @@ void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector
     auto src_vmm = Vmm(in[0]);
     auto dst_vmm = Vmm(out[0]);
 
-    const size_t supported_et_size = 4;
-    const auto register_capacity = (src_vmm.getBit() / 8) / supported_et_size;
     if (is_full_reg()) {
         fill_full<Vmm>(dst_vmm);
     } else {
