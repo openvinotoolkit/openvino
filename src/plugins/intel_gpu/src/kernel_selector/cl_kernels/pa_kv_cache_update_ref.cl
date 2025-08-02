@@ -17,7 +17,6 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
     INPUT0_TYPE grp_max = 0.001;
     INPUT0_TYPE max_value = INPUT0_VAL_MIN;
     INPUT0_TYPE min_value = INPUT0_VAL_MAX;
-
     unroll_for (uint i = 0; i < num_groups; i++) {
         input_data[i] = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + i * SUBGROUP_SIZE);
         max_value = fmax(max_value, input_data[i]);
@@ -51,6 +50,54 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
     }
 }
 
+inline void FUNC(quantize_and_save_per_token_generate)(__global const INPUT0_TYPE* in_data,
+                                    const uint in_data_offset,
+                                    __global OUTPUT_TYPE* out_data,
+                                    const uint out_data_offset,
+                                    const uint out_data_pitch,
+                                    const uint comp_offset,
+                                    const uint token_pos_in_block,
+                                    const uint sglid,
+                                    const uint num_groups,
+                                    INPUT0_TYPE* input_data) {
+    INPUT0_TYPE grp_max = 0.001;
+    INPUT0_TYPE max_value = INPUT0_VAL_MIN;
+    INPUT0_TYPE min_value = INPUT0_VAL_MAX;
+//    int head_size_offset = get_group_id(2) * SUBGROUP_SIZE;
+    int head_size_offset = 0;
+    unroll_for (uint i = 0; i < num_groups; i++) {
+//    unroll_for (uint i = 0; i < 256/16/16; i++) {
+        input_data[i] = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + head_size_offset + i * SUBGROUP_SIZE);
+        max_value = fmax(max_value, input_data[i]);
+        min_value = fmin(min_value, input_data[i]);
+    }
+
+    min_value = sub_group_reduce_min(min_value);
+    max_value = sub_group_reduce_max(max_value);
+
+    // If the range of input data is zero, it is adjusted to the minimum value(0.001).
+    #define ACCUMULATOR_TYPE float
+    ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
+    ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((CHAR_MAX - CHAR_MIN) / diff_value);
+    ACCUMULATOR_TYPE zp_tmp = (ACCUMULATOR_TYPE)(-min_value * scale_tmp) + CHAR_MIN;
+    INPUT0_TYPE scale = (INPUT1_TYPE)(scale_tmp);
+    INPUT0_TYPE zp = (INPUT1_TYPE)(zp_tmp);
+    #undef ACCUMULATOR_TYPE
+
+    unroll_for (uint i = 0; i < num_groups; i++) {
+        OUTPUT_TYPE res = convert_char_rte(input_data[i] * scale + zp);
+
+        uint offset = out_data_offset + (head_size_offset + i * SUBGROUP_SIZE + sglid) * out_data_pitch;
+        out_data[offset] = res;
+    }
+
+    INPUT0_TYPE* comp_ptr = out_data + comp_offset;
+
+    if (sglid == 0) {
+        comp_ptr[token_pos_in_block] = 1.0 / scale;
+        comp_ptr[PAGED_ATTENTION_BLOCK_SIZE + token_pos_in_block] = zp;
+    }
+}
 #ifdef IS_KEY_BY_CHANNEL
 #define COMP_K_OFFSET PAGED_ATTENTION_BLOCK_SIZE
 #define NUM_HEAD_SIZE_GROUPS K_HEAD_SIZE / SUBGROUP_SIZE
@@ -63,8 +110,11 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
                                     const uint token_pos_in_block,
                                     const uint new_tokens_num,
                                     const uint sglid) {
-    for (int h_sub = 0; h_sub < NUM_HEAD_SIZE_GROUPS; h_sub++) {
-        const int hidden_idx = h_sub * SUBGROUP_SIZE + sglid;
+    const int num_head_size_groups = NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS;
+    int head_size_offset = SUBGROUP_SIZE * get_group_id(2);
+//    printf("gid %d head_size_offset %d\n", get_global_id(2), head_size_offset);
+    for (int h_sub = 0; h_sub < num_head_size_groups; h_sub++) {
+        const int hidden_idx = head_size_offset + h_sub * SUBGROUP_SIZE + sglid;
         const uint out_offset_per_wi = out_data_offset + hidden_idx * out_data_pitch;
         // Read original scale and zp
         INPUT0_TYPE* comp_ptr = (INPUT0_TYPE*) (&out_data[out_offset_per_wi + COMP_K_OFFSET]);
@@ -79,7 +129,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
         #define VLOAD CAT(vload, READ_SIZE)
         IN_DATA_VEC cache_data_vec_decompressed;
         for (int j = 0; j < new_tokens_num; ++j) {
-            INPUT0_TYPE new_token = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + j * K_HEAD_SIZE * KV_HEADS_NUM + h_sub * SUBGROUP_SIZE);
+            INPUT0_TYPE new_token = BLOCK_READN(INPUT0_TYPE, 1, in_data, in_data_offset + j * K_HEAD_SIZE * KV_HEADS_NUM + hidden_idx);
             // Read a hidden dim of the previously quantized cache => decompress
             // TODO : current block size is 16 (same as PA block size),
             //        but when the block size becomes different, this part should be updated as well
@@ -202,7 +252,8 @@ KERNEL(pa_kv_cache_update)(
         // 2nd+ token
         const uint seq_idx = (uint)get_global_id(0);
         const uint head_idx = (uint)get_global_id(1);
-        const uint sglid = (uint)get_global_id(2);
+//        const uint sglid = (uint)get_global_id(2);
+        const uint sglid = (uint)get_local_id(2);
 
         const uint past_seq_len = past_lens[seq_idx];
         const uint current_token_pos_in_block = past_seq_len % PAGED_ATTENTION_BLOCK_SIZE;
@@ -275,13 +326,31 @@ KERNEL(pa_kv_cache_update)(
                 current_token_pos_in_block, sglid, K_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
         }
         #endif
+//        // value per token
+//        {
+//            const uint comp_v_offset = block_v_base_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+//            INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
+//            FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
+//                current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+//        }
         // value per token
         {
+        #ifdef IS_KEY_BY_CHANNEL
+            if (get_group_id(2) == 0) {
+                const uint comp_v_offset = block_v_base_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
+                INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
+                FUNC_CALL(quantize_and_save_per_token_generate)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
+//                FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
+                    current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+            }
+        #else
             const uint comp_v_offset = block_v_base_offset + V_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE input_data[V_HEAD_SIZE / SUBGROUP_SIZE];
             FUNC_CALL(quantize_and_save_per_token)(value_data, value_in_offset, value_cache_data, value_out_offset, 1, comp_v_offset,
                 current_token_pos_in_block, sglid, V_HEAD_SIZE / SUBGROUP_SIZE, &input_data[0]);
+        #endif
         }
+
 #endif // IS_KV_COMPRESSED
     } else {
 

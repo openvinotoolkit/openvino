@@ -24,6 +24,17 @@ static size_t get_generate_stage_block_size(size_t head_size) {
     return 1;
 }
 
+static size_t get_num_k_head_size_partitions(const kv_cache_update_params& params) {
+    size_t head_size_partition = 1;
+    if (getenv("ORIG") != nullptr)
+        return 1;
+    if (params.is_key_by_channel) {
+        if (params.conf.k_head_size % subgroup_size == 0)
+            head_size_partition = params.conf.k_head_size / subgroup_size;
+    }
+    return head_size_partition;
+}
+
 static std::string GetKernelName(std::string kernel_name, const kv_cache_update_params& params) {
     if (params.conf.is_kv_compressed)
         kernel_name += "_dq";
@@ -140,6 +151,7 @@ JitConstants KVCacheUpdateKernelRef::GetJitConstants(const kv_cache_update_param
             jit.AddConstant(MakeJitConstant("IS_KEY_BY_CHANNEL", 1));
             jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size));
             jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size));
+            jit.AddConstant(MakeJitConstant("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(params)));
         } else {
             jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size + scales_zp_size));
             jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
@@ -173,10 +185,10 @@ CommonDispatchData KVCacheUpdateKernelRef::SetDefault(const kv_cache_update_para
         } else {
             const auto& key_input = params.inputs[0];
             const auto sequences_number = key_input.Batch().v;
-
+            size_t head_size_partition = get_num_k_head_size_partitions(params);
             dispatch_data.gws = { sequences_number,
                                   heads_number,
-                                  subgroup_size };
+                                  subgroup_size * head_size_partition};
             dispatch_data.lws = { 1, 1, subgroup_size };
         }
     }
