@@ -432,6 +432,14 @@ static constexpr ov::Property<uint32_t> seq_len_dim{"NPUW_LLM_SEQ_LEN_DIM"};
 static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"};
 
 /**
++ * @brief
++ * Type: uint32_t.
++ * Desirable max input token length for generation.
++ * Default value: 1.
++ */
+static constexpr ov::Property<uint32_t> max_generation_token_len{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN"};
+
+/**
  * @brief
  * Type: uint32_t.
  * Desirable min response length.
