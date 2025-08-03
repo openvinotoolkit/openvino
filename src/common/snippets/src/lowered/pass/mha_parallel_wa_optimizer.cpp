@@ -69,14 +69,8 @@ bool MHAParallelWAOptimizer::run(const lowered::LinearIR& /*linear_ir*/) {
         return false;
     }
     auto& master_shape = config->master_shape;
-    for (size_t i = 0; i < master_shape.size(); i++) {
-        std::cout << "master_shape:" << master_shape[i] << std::endl;
-    }
     *++master_shape.rbegin() = new_kernel_dim;
     master_shape.insert(master_shape.cbegin() + master_shape.size() - 2, new_batch_dim);
-    for (size_t i = 0; i < master_shape.size(); i++) {
-        std::cout << "master_shape_split:" << master_shape[i] << std::endl;
-    }
     m_configurator->update_tensor_rank(master_shape);
 
     RuntimeConfigurator::LoopInfoRuntimeParamsMap initialized_info;

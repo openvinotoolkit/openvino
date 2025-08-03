@@ -886,11 +886,7 @@ bool Subgraph::created() const {
 
 void Subgraph::execute(const dnnl::stream& strm) {
     CPU_NODE_ASSERT(execPtr, "Can't execute Subgraph node. Primitive didn't created");
-    auto start = std::chrono::steady_clock::now();
     execPtr->execute(strm, srcMemPtrs, dstMemPtrs);
-    auto end = std::chrono::steady_clock::now();
-    auto t = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    std::cout << "time:" << t << std::endl;
 }
 
 void Subgraph::executeDynamicImpl(const dnnl::stream& strm) {

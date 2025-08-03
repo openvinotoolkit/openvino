@@ -14,17 +14,20 @@
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
-#include "transformations/snippets/x64/op/fa_utils.hpp"
 #include "transformations/snippets/x64/op/fa.hpp"
+#include "transformations/snippets/x64/op/fa_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -53,10 +56,8 @@ pass::MHAToFA::MHAToFA() {
             return false;
         }
 
-        const auto& fa_config = fa_utils::FAConfig(ov::element::f32,
-                                                   ov::element::f32,
-                                                   ov::element::f32,
-                                                   matmul0->get_transpose_b());
+        const auto& fa_config =
+            fa_utils::FAConfig(ov::element::f32, ov::element::f32, ov::element::f32, matmul0->get_transpose_b());
 
         const auto& brgemm_config = brgemm_utils::BrgemmConfig(fa_config.src_dt(),
                                                                fa_config.wei_dt(),
@@ -64,7 +65,8 @@ pass::MHAToFA::MHAToFA() {
                                                                false,
                                                                fa_config.transposed_b());
         auto mm0_in1 = matmul0->input_value(1);
-        std::vector<size_t> layout = snippets::utils::get_planar_layout(mm0_in1.get_partial_shape().rank().get_length());
+        std::vector<size_t> layout =
+            snippets::utils::get_planar_layout(mm0_in1.get_partial_shape().rank().get_length());
         if (matmul0->get_transpose_b()) {
             std::swap(*layout.rbegin(), *(layout.rbegin() + 1));
         }

@@ -2,24 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <xbyak/xbyak.h>
+
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
-
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/type/element_type.hpp"
-
-#include <xbyak/xbyak.h>
-
 #include <memory>
 #include <vector>
 
 #include "common/c_types_map.hpp"
 #include "common/utils.hpp"
+#include "cpu/x64/cpu_isa_traits.hpp"
 #include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu::x64 {
 
@@ -44,10 +43,10 @@ struct jit_params_online_softmax {
 };
 
 // online softmax accept data/max_past/denominator_past and get updated_data/max/denominator/
-// local max -> update max -> local denominator -> update denominator -> x/d
 // get max and denominator so far with local and past.
-// max and denominator is saved and become past in next iteration.
+// max and denominator are saved and become past in next iteration.
 // can not shared as both needed in future. copy new to past after pre ops.
+// output calibration could also be performed in this kernel depend on config
 struct jit_uni_online_softmax_kernel {
     void (*ker_)(const jit_args_online_softmax*) = nullptr;
 
@@ -74,12 +73,11 @@ struct jit_uni_online_softmax_kernel_f32 : public jit_uni_online_softmax_kernel,
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
     void generate() override;
 
 private:
-    // kernel has if? if yes need separate function
     void reduce_xmm(Xbyak::Xmm xmm_val, bool is_max);
     // reduce to lowerest of vmm_idx register
     void reduce_vmm(int vmm_idx, bool is_max);
@@ -134,18 +132,17 @@ private:
 
     std::shared_ptr<jit_uni_eltwise_injector_t<isa>> exp_injector;
 
-void prepare_table() {
-    auto broadcast_d = [&](int val) {
-        for (size_t d = 0; d < vlen / sizeof(int); ++d) {
-            dd(val);
-        }
-    };
+    void prepare_table() {
+        auto broadcast_d = [&](int val) {
+            for (size_t d = 0; d < vlen / sizeof(int); ++d) {
+                dd(val);
+            }
+        };
 
-    align(64);
-    L(l_table_constant);
-    broadcast_d(0xff7fffff);  // float minimum
-}
-
+        align(64);
+        L(l_table_constant);
+        broadcast_d(0xff7fffff);  // float minimum
+    }
 };
 
 }  // namespace ov::intel_cpu::x64

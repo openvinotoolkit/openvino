@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -17,22 +17,20 @@
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-
-namespace intel_cpu::fa_utils {
+namespace ov::intel_cpu::fa_utils {
 
 class FAConfig {
 public:
     FAConfig() = default;
     FAConfig(const ov::element::Type& src_dt,
-                 const ov::element::Type& wei_dt,
-                 const ov::element::Type& orig_wei_dt,
-                 bool transposed_b);
+             const ov::element::Type& wei_dt,
+             const ov::element::Type& orig_wei_dt,
+             bool transposed_b);
     FAConfig(const dnnl::impl::cpu::x64::cpu_isa_t& isa,
-                 const ov::element::Type& src_dt,
-                 const ov::element::Type& wei_dt,
-                 const ov::element::Type& orig_wei_dt,
-                 bool transposed_b);
+             const ov::element::Type& src_dt,
+             const ov::element::Type& wei_dt,
+             const ov::element::Type& orig_wei_dt,
+             bool transposed_b);
 
     [[nodiscard]] dnnl::impl::cpu::x64::cpu_isa_t isa() const {
         return m_isa;
@@ -69,10 +67,8 @@ private:
     ov::element::Type m_orig_wei_dt = ov::element::dynamic;
 
     bool m_transposed_b = false;
-    size_t m_q_len_blk = 0lu;
-    size_t m_kv_len_blk = 0lu;
+    size_t m_q_len_blk = 0LU;
+    size_t m_kv_len_blk = 0LU;
 };
 
-}  // namespace intel_cpu::fa_utils
-
-}  // namespace ov
+}  // namespace ov::intel_cpu::fa_utils

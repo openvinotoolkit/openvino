@@ -58,7 +58,6 @@ inline void parallelNd_repacking(const BrgemmCopyBKernel* ker,
                                  const VectorDims& out_str,
                                  const uint8_t* src,
                                  uint8_t* dst) {
-    // one core repack one image h*w, all otehr dim is batch
     const size_t batch = std::accumulate(dom.rbegin() + 2, dom.rend(), 1LU, std::multiplies<>());
     parallel_nt_static(0, [&](const int ithr, const int nthr) {
         BrgemmCopyBKernel::call_args args;
@@ -248,22 +247,8 @@ void SubgraphExecutor::execute(const dnnl::stream& strm,
                                const std::vector<MemoryPtr>& out_mem_ptrs) {
     switch (get_repacking_impl_type()) {
     case RepackingImplType::SEPARATE:
-    {
-        auto start = std::chrono::steady_clock::now();
-        auto packed = separately_repack_inputs(strm, in_mem_ptrs);  // repack
-        auto end = std::chrono::steady_clock::now();
-        auto t = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-        std::cout << "repack time:" << t << std::endl;
-
-        auto start1 = std::chrono::steady_clock::now();
-        exec_impl(packed, out_mem_ptrs);
-        auto end1 = std::chrono::steady_clock::now();
-        auto t1 = std::chrono::duration_cast<std::chrono::microseconds>(end1 - start1).count();
-        std::cout << "mha time:" << t1 << std::endl;
-
-        // exec_impl(separately_repack_inputs(strm, in_mem_ptrs), out_mem_ptrs);
+        exec_impl(separately_repack_inputs(strm, in_mem_ptrs), out_mem_ptrs);
         return;
-    }
     case RepackingImplType::IN_PARALLEL:
     case RepackingImplType::NONE:
         exec_impl(in_mem_ptrs, out_mem_ptrs);

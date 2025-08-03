@@ -5,16 +5,19 @@
 #include "fa.hpp"
 
 #include <cstddef>
-#include <cstdint>
 #include <memory>
-#include <string>
+#include <set>
+#include <vector>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
-#include "openvino/op/op.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::intel_cpu {
@@ -28,7 +31,8 @@ FACPU::FACPU(const ov::OutputVector& inputs,
              const std::vector<size_t>& layout_a,
              const std::vector<size_t>& layout_b,
              const std::vector<size_t>& layout_c,
-             const std::vector<size_t>& layout_d) : m_config(config) {
+             const std::vector<size_t>& layout_d)
+    : m_config(config) {
     set_arguments(inputs);
     set_output_size(1);
 
@@ -37,7 +41,7 @@ FACPU::FACPU(const ov::OutputVector& inputs,
         input_memory_access_ports.insert(i);
     }
     ctor_initialize(input_memory_access_ports, std::set<size_t>{0});
-  
+
     if (!input_descs.empty()) {
         OPENVINO_ASSERT(input_descs.size() == inputs.size(),
                         "Count of input descriptors must be equal to count of inputs");
@@ -50,7 +54,7 @@ FACPU::FACPU(const ov::OutputVector& inputs,
         }
     }
     set_output_port_descriptor(output_desc, 0);
-  
+
     custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c, layout_d);
 }
 
@@ -65,7 +69,7 @@ void FACPU::validate_and_infer_types() {
 void FACPU::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                         const std::vector<size_t>& layout_b,
                                                         const std::vector<size_t>& layout_c,
-                                                        const std::vector<size_t>& layout_d) {
+                                                        const std::vector<size_t>& /*layout_d*/) {
     INTERNAL_OP_SCOPE(FACPU_constructor_validate_and_infer_types);
 
     const std::vector<ov::PartialShape> planar_input_shapes{

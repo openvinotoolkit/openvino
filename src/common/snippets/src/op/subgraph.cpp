@@ -469,7 +469,6 @@ void Subgraph::data_flow_transformations(
     manager.register_pass<snippets::pass::AlignElementTypes>(input_precisions, output_precisions);
 
     if (config.m_has_domain_sensitive_ops) {
-        // manager.register_pass<snippets::pass::MHAToFA>();  // move to plugin callback
         manager.register_pass<snippets::pass::MatMulToBrgemm>();
         manager.register_pass<snippets::pass::FuseTransposeBrgemm>();
         manager.register_pass<snippets::pass::TransposeDecomposition>();

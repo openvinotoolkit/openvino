@@ -222,10 +222,7 @@ BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
     const auto n_stride =
         brgemm_utils::repacking::compute_N_blocked_stride(K, conf.get_wei_K_blk(), prc, conf.are_wei_blocked());
 
-    // address advance how many byte in each n_blk loop
-    // 64(wei_N_blk)
     stride_in = conf.is_transposed_B() ? conf.get_K() * wei_N_blk * orig_wei_data_size : wei_N_blk * orig_wei_data_size;
-    // 64(wei_N_blk) * 256(K)
     stride_out = wei_N_blk * n_stride * wei_data_size;
 
     init_brgemm_copy_b_kernel(dnnl_brgemm_copy_b_kernel, conf);
@@ -257,20 +254,6 @@ void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     if (brgCopyKernelConf.orig_wei_dt != brgCopyKernelConf.wei_dt && brgCopyKernelConf.wei_dt == dnnl_bf16) {
         brgCopyKernelConf.is_bf32 = true;
     }
-    // std::cout << "conf.is_transposed_B():" << conf.is_transposed_B() << std::endl;
-    // std::cout << "conf.get_N():" << conf.get_N() << std::endl;
-    // std::cout << "conf.get_N_blk():" << conf.get_N_blk() << std::endl;
-    // std::cout << "conf.get_wei_N_blk():" << conf.get_wei_N_blk() << std::endl;
-    // std::cout << "conf.get_wei_N_tail():" << conf.get_wei_N_tail() << std::endl;
-    // std::cout << "conf.get_copy_B_wei_stride():" << conf.get_copy_B_wei_stride() << std::endl;
-    // std::cout << "conf.get_LDB():" << conf.get_LDB() << std::endl;
-
-    // std::cout << "conf.get_K():" << conf.get_K() << std::endl;
-    // std::cout << "conf.get_K_blk():" << conf.get_K_blk() << std::endl;
-    // std::cout << "conf.get_wei_K_blk():" << conf.get_wei_K_blk() << std::endl;
-    // std::cout << "brgCopyKernelConf.N_blk:" << brgCopyKernelConf.N_blk << std::endl;
-
-
     brgCopyKernelConf.wei_n_blk = static_cast<int>(conf.get_wei_N_blk());
     // Note: 2D format tags are used just to force the needed OneDNN primitive creation.
     // However, the generated primitive can be also applied to tensors with other ranks
@@ -318,7 +301,6 @@ void BrgemmCopyBKernel::generate() {
     size_t start_out = 0;
     size_t start_comp = 0;
 
-    // call for each n block(64 in 24000)
     for (size_t nb = 0; nb < div_up(N_blk, wei_N_blk); nb++) {
         const auto current_N = N_blk - nb * wei_N_blk < wei_N_blk ? wei_N_tail : wei_N_blk;
         emit_brgemm_copy_b_kernel_call(current_N, K, start_in, start_out, start_comp);
@@ -398,7 +380,6 @@ void BrgemmCopyBKernel::execute(matmul::jit_brgemm_matmul_copy_b_t* kernel,
                                 const void* comp,
                                 size_t N,
                                 size_t K) {
-    // std::cout << "BrgemmCopyBKernel::execute" << std::endl;
     auto ctx = matmul::jit_brgemm_matmul_copy_b_t::ctx_t();
     ctx.current_N_blk = N;
     ctx.src = src;
@@ -483,7 +464,6 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
         dnnl_data_type_size(config.get_original_wei_dt());
 
     config.update(N_dim, N_blk, K_dim, K_blk, copy_B_wei_stride, LDB);
-    // N_dim == N_blk, K_dim == K_blk, as process full tensor outside, wei_blk is the real block
 }
 
 void BrgemmCopyBKernelExecutor::execute(const BrgemmCopyBKernelExecutor* executor, BrgemmCopyBKernel::call_args* args) {

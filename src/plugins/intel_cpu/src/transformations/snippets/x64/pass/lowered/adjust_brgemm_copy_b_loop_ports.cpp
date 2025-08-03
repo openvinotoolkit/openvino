@@ -64,7 +64,6 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
                  */
                 if (brgemm_config.with_wei_repacking() && loop_port.is_incremented()) {
                     int64_t blocked_shape_ptr_inc = 0;
-                    // check and apply fa k input pointer, round. ref allocation repacked memory.
                     if (loop_port.get_dim_idx() == 1) {
                         // Blocking loop by K dimension:
                         blocked_shape_ptr_inc =

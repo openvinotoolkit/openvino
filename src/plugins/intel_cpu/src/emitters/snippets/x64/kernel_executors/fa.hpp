@@ -140,11 +140,11 @@ struct FACompiledKernel {
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_qk_mN_ukernel = nullptr;
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_qk_Mn_ukernel = nullptr;
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_qk_mn_ukernel = nullptr;
-    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_MK_ukernel = nullptr;           // beta is 1
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_MK_ukernel = nullptr;  // beta is 1
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_mK_ukernel = nullptr;
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_Mk_ukernel = nullptr;
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_mk_ukernel = nullptr;
-    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_MK_ukernel_init = nullptr;     // beta is 0
+    std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_MK_ukernel_init = nullptr;  // beta is 0
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_mK_ukernel_init = nullptr;
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_Mk_ukernel_init = nullptr;
     std::shared_ptr<dnnl::impl::cpu::x64::brgemm_kernel_t> brgemm_sv_mk_ukernel_init = nullptr;
@@ -154,8 +154,7 @@ struct FACompiledKernel {
     std::shared_ptr<std::vector<uint8_t>> buffer = std::make_shared<std::vector<uint8_t>>();
 };
 
-class FAKernelExecutor : public BrgemmBaseKernelExecutor,
-                         public CPUKernelExecutor<FAKernelConfig, FACompiledKernel> {
+class FAKernelExecutor : public BrgemmBaseKernelExecutor, public CPUKernelExecutor<FAKernelConfig, FACompiledKernel> {
 public:
     FAKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, FAKernelConfig config);
 

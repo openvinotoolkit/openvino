@@ -47,7 +47,6 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
                               "Requested number of runtime arguments is not supported");
     // This regs will be corrupted, since we'll use them to pass runtime args
     for (size_t i = 0; i < num_binary_args; i++) {
-        // abi_param1 is abi_param_regs[0]
         m_regs_to_spill.emplace(snippets::RegType::gpr, abi_param_regs[i]);
     }
     // Note: aux_gpr idx must be non-empty because aux_gprs_count() returns 1 for this emitter

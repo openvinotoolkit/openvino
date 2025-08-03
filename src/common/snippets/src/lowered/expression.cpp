@@ -152,9 +152,7 @@ ExpressionPtr Expression::clone_with_new_inputs(const std::shared_ptr<Node>& new
     };
     const auto& cloned = clone();
     OPENVINO_ASSERT(m_source_node->get_type_info() == new_node->get_type_info(),
-                    "Can't clone expression for a new node with incompatible type",
-                    m_source_node->get_type_info(), new_node->get_type_info());
-
+                    "Can't clone expression for a new node with incompatible type");
     cloned->m_source_node = new_node;
 
     // Initialize Port Attributes: PortConnectors and PortDescriptors

@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "fa_utils.hpp"
-
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
@@ -24,7 +23,7 @@ namespace ov::intel_cpu {
 class FACPU : public snippets::op::FA {
 public:
     using FAConfig = fa_utils::FAConfig;
-    OPENVINO_OP("FACPU", "SnippetsOpset", snippets::op::FA);  // mark_loop check FACPU
+    OPENVINO_OP("FACPU", "SnippetsOpset", snippets::op::FA);
 
     FACPU(const ov::OutputVector& inputs,
           const FAConfig& config,

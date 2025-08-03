@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2023 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -6,24 +6,26 @@
 
 #include <xbyak/xbyak.h>
 
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <set>
 #include <vector>
 
+#include "cache/multi_cache.h"
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
+#include "emitters/snippets/x64/kernel_executors/fa.hpp"
 #include "emitters/snippets/x64/utils.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/op/fa.hpp"
-#include "utils/general_utils.h"
-#include "emitters/snippets/x64/kernel_executors/fa.hpp"
 #include "transformations/snippets/x64/op/fa.hpp"
 
 using namespace Xbyak;
@@ -44,7 +46,10 @@ jit_fa_emitter::jit_fa_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
     auto fa_config = fa_node->get_config();
     const FAKernelConfig kernel_config(fa_config);
     m_kernel_executor_fa = kernel_table->register_kernel<FAKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
-    m_memory_offsets = {fa_node->get_offset_a(), fa_node->get_offset_b(), fa_node->get_offset_c(), fa_node->get_offset_d()};
+    m_memory_offsets = {fa_node->get_offset_a(),
+                        fa_node->get_offset_b(),
+                        fa_node->get_offset_c(),
+                        fa_node->get_offset_d()};
 }
 
 std::set<std::vector<element::Type>> jit_fa_emitter::get_supported_precisions(
@@ -58,11 +63,11 @@ void jit_fa_emitter::validate_arguments(const std::vector<size_t>& in, const std
     OV_CPU_JIT_EMITTER_ASSERT(out.size() == 1, "Expects 1 output reg, got", out.size());
 }
 
-const uintptr_t jit_fa_emitter::get_compiled_kernel_ptr() const {
+uintptr_t jit_fa_emitter::get_compiled_kernel_ptr() const {
     return reinterpret_cast<const uintptr_t>(m_kernel_executor_fa.get());
 }
 
-const uintptr_t jit_fa_emitter::get_execute_function_ptr() {
+uintptr_t jit_fa_emitter::get_execute_function_ptr() {
     return reinterpret_cast<const uintptr_t>(ov::intel_cpu::x64::FAKernelExecutor::execute);
 }
 
@@ -87,8 +92,8 @@ void jit_fa_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<
         utils::push_ptr_with_static_offset_on_stack(h, i * 8, mem_ptrs[i], m_memory_offsets[i]);
     }
 
-    h->mov(aux_reg, reinterpret_cast<uintptr_t>(get_execute_function_ptr()));
-    h->mov(abi_param1, reinterpret_cast<uintptr_t>(get_compiled_kernel_ptr()));
+    h->mov(aux_reg, get_execute_function_ptr());
+    h->mov(abi_param1, get_compiled_kernel_ptr());
     // move from satck to abi_param2-5
     h->mov(abi_param2, h->ptr[h->rsp]);
     h->mov(abi_param3, h->ptr[h->rsp + 8]);

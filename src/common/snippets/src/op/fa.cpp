@@ -5,19 +5,41 @@
 #include "snippets/op/fa.hpp"
 
 #include <cstddef>
-#include <cstdint>
+#include <iterator>
 #include <memory>
-#include <string>
+#include <set>
+#include <vector>
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::op {
+
+namespace {
+std::vector<size_t> get_output_layout(const std::shared_ptr<const ov::Node>& n) {
+    const auto& key = lowered::PortDescriptorVectorAttribute::get_type_info_static();
+    const auto& rt_info = n->get_rt_info();
+    const auto& found = rt_info.find(key);
+    if (found != rt_info.end()) {
+        const auto& out_descs = found->second.as<lowered::PortDescriptorVectorAttribute>().outputs;
+        if (out_descs.size() != n->get_output_size()) {
+            OPENVINO_THROW("Get output port descriptor is failed: incorrect count");
+        }
+        const auto& port_desc = out_descs[0];
+        return port_desc->get_layout();
+    }
+    return {};
+}
+
+}  // namespace
 
 FA::FA(const Output<Node>& q, const Output<Node>& k, const Output<Node>& v)
     : MemoryAccess(std::set<size_t>{0, 1, 2}, std::set<size_t>{0}),
@@ -41,10 +63,10 @@ std::vector<ov::PartialShape> FA::get_planar_input_shapes(const std::vector<ov::
 
 ov::PartialShape FA::get_planar_output_shape(const ov::PartialShape& output_shape) const {
     // This method can be safely called from validate_and_infer_types() before output creation
-    // const auto& out_layout = get_output_layout(shared_from_this());
-    // if (!out_layout.empty()) {
-    //     return utils::get_planar_pshape(output_shape, {});
-    // }
+    const auto& out_layout = get_output_layout(shared_from_this());
+    if (!out_layout.empty()) {
+        return utils::get_planar_pshape(output_shape, {});
+    }
 
     return output_shape;
 }

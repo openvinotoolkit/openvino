@@ -27,7 +27,6 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
-#include "snippets/op/fa.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
@@ -122,12 +121,10 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
     const auto LDB =
         brgemm_utils::repacking::compute_K_blocked_stride(N, config->get_wei_N_blk(), config->are_wei_blocked());
     config->update(N, N, K, K, copy_wei_stride, LDB);
-
     executor->update_by_config(*config);
 }
 
 bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& linear_ir) {
-    std::cout << "BrgemmExternalRepackingAdjuster s" << std::endl;
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::BrgemmExternalRepackingAdjuster")
     const auto& cpu_config = ov::as_type_ptr<CPURuntimeConfig>(m_configurator->get_config());
 
@@ -175,7 +172,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
                                                      : CPURuntimeConfig::RepackingImplType::SEPARATE;
 
     const auto is_impl_parallel = cpu_config->repacking_impl_type == CPURuntimeConfig::RepackingImplType::IN_PARALLEL;
-    std::cout << "is_impl_parallel:" << is_impl_parallel << std::endl;
     for (const auto& p : m_executors) {
         const auto& i = p.first;
         const auto& executor = p.second;
@@ -231,7 +227,6 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
 
         input_repacker = InputRepacker(p.second->get_kernel(), desc, in_offsets, out_offsets);
     }
-    std::cout << "BrgemmExternalRepackingAdjuster e" << std::endl;
 
     return true;
 }

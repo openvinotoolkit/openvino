@@ -54,7 +54,7 @@ bool BrgemmCopyB::visit_attributes(AttributeVisitor& visitor) {
 
 void BrgemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input) {
     INTERNAL_OP_SCOPE(BrgemmRepack_ctor_validate_and_infer_types);
-    OPENVINO_ASSERT(m_config.with_wei_repacking(), "Unsupported Brgemm config value");  // check
+    OPENVINO_ASSERT(m_config.with_wei_repacking(), "Unsupported Brgemm config value");
     OPENVINO_ASSERT(m_config.orig_wei_dt() == get_input_element_type(0),
                     "The original weights data type must be equal to the input data type of BrgemmCopyB");
     // During ctor call, BrgemmCopyB doesn't know his port descriptors.

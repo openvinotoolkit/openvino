@@ -1,4 +1,4 @@
-// Copyright (C) 2024 Intel Corporation
+// Copyright (C) 2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <iterator>
-#include <set>
 #include <unordered_set>
 #include <vector>
 
@@ -48,9 +47,6 @@ FAParallelWAOptimizer::FAParallelWAOptimizer(const lowered::LinearIRCPtr& linear
 
     std::unordered_set<lowered::ExpressionPtr> fa = {*fa_it};
     m_unsqueezed_params = find_unsqueezed_params(linear_ir, fa);
-    for (auto pa : m_unsqueezed_params) {
-        std::cout << "m_unsqueezed_params:" << pa << std::endl;
-    }
 
     OPENVINO_ASSERT(!m_unsqueezed_params.empty(), "unsqueezed_params mustn't be empty after initialization");
 
@@ -105,14 +101,8 @@ bool FAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     }
 
     auto& master_shape = config->master_shape;
-    for (size_t i = 0; i < master_shape.size(); i++) {
-        std::cout << "master_shape:" << master_shape[i] << std::endl;
-    }
     *++master_shape.rbegin() = new_kernel_dim;
     master_shape.insert(master_shape.cbegin() + master_shape.size() - 2, new_batch_dim);
-    for (size_t i = 0; i < master_shape.size(); i++) {
-        std::cout << "master_shape_split:" << master_shape[i] << std::endl;
-    }
     m_configurator->update_tensor_rank(master_shape);
 
     for (size_t i = 0; i < m_configurator->get_io_num(); ++i) {

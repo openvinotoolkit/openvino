@@ -11,7 +11,6 @@
 #include "openvino/core/rtti.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/runtime_configurator.hpp"
 
@@ -24,7 +23,6 @@ namespace ov::snippets::lowered::pass {
  * set new_m to rt info.
  */
 class FAParallelWAOptimizer : public lowered::pass::RuntimeOptimizer {
-
 public:
     OPENVINO_RTTI("FAParallelWAOptimizer", "", RuntimeOptimizer)
     FAParallelWAOptimizer() = default;
