@@ -844,8 +844,8 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const VReg dst = VReg(out_vec_idxs[0]);
     const VReg tmp1 = VReg(aux_vec_idxs[0]);
     const VReg tmp2 = VReg(aux_vec_idxs[1]);
-    FReg fzero = FReg(aux_fp_gpr_idxs[0]);
-    FReg fone = FReg(aux_fp_gpr_idxs[1]);
+    auto fzero = FReg(aux_fp_gpr_idxs[0]);
+    auto fone = FReg(aux_fp_gpr_idxs[1]);
 
     h->fmv_w_x(fzero, zero);
     load_table_val("one", fone);
@@ -1233,16 +1233,16 @@ void jit_gelu_erf_emitter::emit_data() const {
         }
     }
 
-    template <cpu_isa_t isa>
-    void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                                          const std::vector<size_t>& out_vec_idxs) const {
-        OPENVINO_ASSERT(exec_prc_ == element::f32, "JIT Logical OR emitter supports only f32 precision");
-        const VReg src0 = VReg(in_vec_idxs[0]);
-        const VReg src1 = VReg(in_vec_idxs[1]);
-        const VReg aux0 = VReg(aux_vec_idxs[0]);
-        const VReg aux1 = VReg(aux_vec_idxs[1]);
-        const VReg dst = VReg(out_vec_idxs[0]);
-        Reg one_reg = Reg(aux_gpr_idxs[0]);
+template <cpu_isa_t isa>
+void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                      const std::vector<size_t>& out_vec_idxs) const {
+    OPENVINO_ASSERT(exec_prc_ == element::f32, "JIT Logical OR emitter supports only f32 precision");
+    const VReg src0 = VReg(in_vec_idxs[0]);
+    const VReg src1 = VReg(in_vec_idxs[1]);
+    const VReg aux0 = VReg(aux_vec_idxs[0]);
+    const VReg aux1 = VReg(aux_vec_idxs[1]);
+    const VReg dst = VReg(out_vec_idxs[0]);
+    auto one_reg = Reg(aux_gpr_idxs[0]);
 
         load_table_val("one", one_reg);
 
