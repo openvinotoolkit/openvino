@@ -244,7 +244,7 @@ std::shared_ptr<SnippetsFunctionBase> MHATransposedB::get_subgraph() const {
 
 void MHATransposedB::init_thresholds() {
     MHABase::init_thresholds();
-    abs_threshold = 1e-3;
+    abs_threshold = 6e-4;
 }
 
 std::shared_ptr<SnippetsFunctionBase> MHAWithExtractedReshape::get_subgraph() const {

@@ -26,6 +26,7 @@
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
+#include "snippets/lowered/pass/fa_parallel_wa_optimizer.hpp"
 #include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
@@ -91,6 +92,7 @@ void RuntimeConfigurator::initialization(const lowered::LinearIRCPtr& linear_ir)
     m_config->tile_rank = linear_ir->get_config().m_loop_depth;
 
     RuntimeOptimizer::register_if_applicable<MHAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
+    RuntimeOptimizer::register_if_applicable<FAParallelWAOptimizer>(m_intermediate_optimizers, linear_ir, this);
 }
 
 void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {

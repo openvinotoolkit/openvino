@@ -39,7 +39,7 @@ FAKernelConfig::FAKernelConfig(const fa_utils::FAConfig& fa_config)
       m_hash(compute_hash()) {}
 
 void FAKernelConfig::update(dnnl_dim_t q_len, dnnl_dim_t kv_len, dnnl_dim_t head_size_1, dnnl_dim_t head_size_2) {
-    if (snippets::utils::one_of(0, q_len, kv_len, head_size_1, head_size_2)) {
+    if (any_of(0, q_len, kv_len, head_size_1, head_size_2)) {
         m_q_seq_len = 0;
         m_kv_seq_len = 0;
         m_qk_head_size = 0;
@@ -72,10 +72,10 @@ bool FAKernelConfig::operator==(const FAKernelConfig& rhs) const {
 }
 
 [[nodiscard]] bool FAKernelConfig::is_completed() const {
-    return !ov::intel_cpu::one_of(0, m_q_seq_len, m_kv_seq_len, m_qk_head_size, m_v_head_size) || is_empty();
+    return none_of(0, m_q_seq_len, m_kv_seq_len, m_qk_head_size, m_v_head_size) || is_empty();
 }
 [[nodiscard]] bool FAKernelConfig::is_empty() const {
-    return ov::intel_cpu::everyone_is(0, m_q_seq_len, m_kv_seq_len, m_qk_head_size, m_v_head_size);
+    return all_of(0, m_q_seq_len, m_kv_seq_len, m_qk_head_size, m_v_head_size);
 }
 
 FAKernelConfig::StaticParams::StaticParams(const element::Type& src_type,
@@ -184,9 +184,10 @@ FAKernelExecutor::FAKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache
 }
 
 std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKernelConfig& config) const {
+    // auto start = std::chrono::steady_clock::now();
     std::shared_ptr<FACompiledKernel> compiled_kernel = std::make_shared<FACompiledKernel>();
 
-    // Brgemm is not executable - nothing to compile
+    // fa is not executable - nothing to compile
     if (config.is_empty()) {
         return compiled_kernel;
     }
@@ -198,19 +199,25 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
     const auto& q_len_blk = config.get_q_len_blk();
     const auto& kv_len_blk = config.get_kv_len_blk();
     const auto& q_len_tail = q_len % q_len_blk;
-    const auto& kv_len_tail = kv_len % q_len_blk;
+    const auto& kv_len_tail = kv_len % kv_len_blk;
+    // std::cout << "q_len:" << q_len << std::endl;
+    // std::cout << "kv_len:" << kv_len << std::endl;
+    // std::cout << "q_len_blk:" << q_len_blk << std::endl;
+    // std::cout << "kv_len_blk:" << kv_len_blk << std::endl;
+    // std::cout << "q_len_tail:" << q_len_tail << std::endl;
+    // std::cout << "kv_len_tail:" << kv_len_tail << std::endl;
     dnnl_post_ops post_ops;
     create_brgemm_kernel(compiled_kernel->brgemm_qk_MN_ukernel,
                          dnnl_data_type_t::dnnl_f32,
                          dnnl_data_type_t::dnnl_f32,
                          dnnl_data_type_t::dnnl_f32,
                          config.get_isa(),
-                         config.get_q_len_blk(),              // M
-                         config.get_kv_len_blk(),             // N
-                         config.get_qk_head_size(),           // K
-                         config.get_qk_head_size(),           // lda
-                         config.get_kv_len_blk(),             // ldb
-                         config.get_kv_len_blk(),             // ldc
+                         q_len_blk,                           // M
+                         kv_len_blk,                          // N
+                         qk_head_size,                        // K
+                         qk_head_size,                        // lda
+                         kv_len_blk,                          // ldb
+                         kv_len_blk,                          // ldc
                          0.0f,                                // beta
                          post_ops);
 
@@ -222,11 +229,11 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
                              q_len_tail,                          // M
-                             config.get_kv_len_blk(),             // N
-                             config.get_qk_head_size(),           // K
-                             config.get_qk_head_size(),           // lda
-                             config.get_kv_len_blk(),             // ldb
-                             config.get_kv_len_blk(),             // ldc
+                             kv_len_blk,                          // N
+                             qk_head_size,                        // K
+                             qk_head_size,                        // lda
+                             kv_len_blk,                          // ldb
+                             kv_len_blk,                          // ldc
                              0.0f,                                // beta
                              post_ops);
     }
@@ -236,11 +243,11 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
-                             config.get_q_len_blk(),              // M
+                             q_len_blk,                           // M
                              kv_len_tail,                         // N
-                             config.get_qk_head_size(),           // K
-                             config.get_qk_head_size(),           // lda
-                             config.get_kv_len_blk(),             // ldb
+                             qk_head_size,                        // K
+                             qk_head_size,                        // lda
+                             kv_len_blk,                          // ldb
                              kv_len_tail,                         // ldc
                              0.0f,                                // beta
                              post_ops);
@@ -253,9 +260,9 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              config.get_isa(),
                              q_len_tail,                          // M
                              kv_len_tail,                         // N
-                             config.get_qk_head_size(),           // K
-                             config.get_qk_head_size(),           // lda
-                             config.get_kv_len_blk(),             // ldb
+                             qk_head_size,                        // K
+                             qk_head_size,                        // lda
+                             kv_len_blk,                          // ldb
                              kv_len_tail,                         // ldc
                              0.0f,                                // beta
                              post_ops);
@@ -265,12 +272,12 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                          dnnl_data_type_t::dnnl_f32,
                          dnnl_data_type_t::dnnl_f32,
                          config.get_isa(),
-                         config.get_q_len_blk(),               // M
-                         config.get_v_head_size(),             // N
-                         config.get_kv_len_blk(),              // K
-                         config.get_kv_len_blk(),              // lda
-                         config.get_v_head_size(),             // ldb
-                         config.get_v_head_size(),             // ldc
+                         q_len_blk,                            // M
+                         v_head_size,                          // N
+                         kv_len_blk,                           // K
+                         kv_len_blk,                           // lda
+                         v_head_size,                          // ldb
+                         v_head_size,                          // ldc
                          0.0f,                                 // beta is 0
                          post_ops);
     create_brgemm_kernel(compiled_kernel->brgemm_sv_MK_ukernel,
@@ -278,12 +285,12 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                          dnnl_data_type_t::dnnl_f32,
                          dnnl_data_type_t::dnnl_f32,
                          config.get_isa(),
-                         config.get_q_len_blk(),               // M
-                         config.get_v_head_size(),             // N
-                         config.get_kv_len_blk(),              // K
-                         config.get_kv_len_blk(),              // lda
-                         config.get_v_head_size(),             // ldb
-                         config.get_v_head_size(),             // ldc
+                         q_len_blk,                            // M
+                         v_head_size,                          // N
+                         kv_len_blk,                           // K
+                         kv_len_blk,                           // lda
+                         v_head_size,                          // ldb
+                         v_head_size,                          // ldc
                          1.0f,                                 // beta is 1
                          post_ops);
     // SV tail kernels
@@ -294,11 +301,11 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
                              q_len_tail,                           // M
-                             config.get_v_head_size(),             // N
-                             config.get_kv_len_blk(),              // K
-                             config.get_kv_len_blk(),              // lda
-                             config.get_v_head_size(),             // ldb
-                             config.get_v_head_size(),             // ldc
+                             v_head_size,                          // N
+                             kv_len_blk,                           // K
+                             kv_len_blk,                           // lda
+                             v_head_size,                          // ldb
+                             v_head_size,                          // ldc
                              0.0f,                                 // beta is 0
                              post_ops);
         create_brgemm_kernel(compiled_kernel->brgemm_sv_mK_ukernel,
@@ -307,11 +314,11 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
                              q_len_tail,                           // M
-                             config.get_v_head_size(),             // N
-                             config.get_kv_len_blk(),              // K
-                             config.get_kv_len_blk(),              // lda
-                             config.get_v_head_size(),             // ldb
-                             config.get_v_head_size(),             // ldc
+                             v_head_size,                          // N
+                             kv_len_blk,                           // K
+                             kv_len_blk,                           // lda
+                             v_head_size,                          // ldb
+                             v_head_size,                          // ldc
                              1.0f,                                 // beta is 1
                              post_ops);
     }
@@ -321,12 +328,12 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
-                             config.get_q_len_blk(),               // M
-                             config.get_v_head_size(),             // N
+                             q_len_blk,                            // M
+                             v_head_size,                          // N
                              kv_len_tail,                          // K
                              kv_len_tail,                          // lda
-                             config.get_v_head_size(),             // ldb
-                             config.get_v_head_size(),             // ldc
+                             v_head_size,                          // ldb
+                             v_head_size,                          // ldc
                              0.0f,                                 // beta is 0
                              post_ops);
         create_brgemm_kernel(compiled_kernel->brgemm_sv_Mk_ukernel,
@@ -334,12 +341,12 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              dnnl_data_type_t::dnnl_f32,
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
-                             config.get_q_len_blk(),               // M
-                             config.get_v_head_size(),             // N
+                             q_len_blk,                            // M
+                             v_head_size,                          // N
                              kv_len_tail,                          // K
                              kv_len_tail,                          // lda
-                             config.get_v_head_size(),             // ldb
-                             config.get_v_head_size(),             // ldc
+                             v_head_size,                          // ldb
+                             v_head_size,                          // ldc
                              1.0f,                                 // beta is 1
                              post_ops);
     }
@@ -350,11 +357,11 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
                              q_len_tail,                           // M
-                             config.get_v_head_size(),             // N
+                             v_head_size,                          // N
                              kv_len_tail,                          // K
                              kv_len_tail,                          // lda
-                             config.get_v_head_size(),             // ldb
-                             config.get_v_head_size(),             // ldc
+                             v_head_size,                          // ldb
+                             v_head_size,                          // ldc
                              0.0f,                                 // beta is 0
                              post_ops);
         create_brgemm_kernel(compiled_kernel->brgemm_sv_mk_ukernel,
@@ -363,11 +370,11 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
                              dnnl_data_type_t::dnnl_f32,
                              config.get_isa(),
                              q_len_tail,                           // M
-                             config.get_v_head_size(),             // N
+                             v_head_size,                          // N
                              kv_len_tail,                          // K
                              kv_len_tail,                          // lda
-                             config.get_v_head_size(),             // ldb
-                             config.get_v_head_size(),             // ldc
+                             v_head_size,                          // ldb
+                             v_head_size,                          // ldc
                              1.0f,                                 // beta is 1
                              post_ops);
     }
@@ -376,10 +383,14 @@ std::shared_ptr<FACompiledKernel> FAKernelExecutor::compile_kernel(const FAKerne
     compiled_kernel->online_softmax_ukernel_init = m_online_softmax_ukernel_init;
 
     // buffer allocation
-    size_t qk_result_size = config.get_q_len_blk() * config.get_kv_len_blk();
-    size_t coefficient_size = config.get_q_seq_len() * 4;  // max_old, max_new, denominator_old, denominator_new
+    size_t qk_result_size = q_len_blk * kv_len_blk;
+    size_t coefficient_size = q_len * 4;  // max_old, max_new, denominator_old, denominator_new
     auto threads = parallel_get_max_threads();
     compiled_kernel->buffer->resize((qk_result_size + coefficient_size) * sizeof(float) * threads, 0);
+
+    // auto end = std::chrono::steady_clock::now();
+    // auto t = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    // std::cout << "FAKernelExecutor::compile_kernel:" << t << std::endl;
 
     return compiled_kernel;
 }
@@ -399,6 +410,13 @@ void FAKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr&
     auto qk_head_size = *in0_shape.rbegin();
     auto kv_len = *in1_shape.rbegin();
     auto v_head_size = *in2_shape.rbegin();
+    const auto& rt_info = expr->get_node()->get_rt_info();
+    // std::cout << "q_len:" << q_len << std::endl;
+    auto it = rt_info.find("splitm_kernel_dim");
+    if (it != rt_info.end()) {
+        q_len = it->second.as<std::size_t>();
+        // std::cout << "q_len from rt_info:" << q_len << std::endl;
+    }
     config.update(q_len, kv_len, qk_head_size, v_head_size);
 }
 
