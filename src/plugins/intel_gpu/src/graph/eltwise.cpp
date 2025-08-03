@@ -82,7 +82,6 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
 
     auto size = input_node_layout.get_tensor();
     auto format = input_node_layout.format;
-    auto small_pshape_idx = primary_input_idx;
     for (size_t i = 0; i < desc->input_size(); i++) {
         if (i == primary_input_idx)
             continue;
@@ -93,16 +92,12 @@ layout eltwise_inst::calc_output_layout(eltwise_node const& node, kernel_impl_pa
             format = format::b_fs_zyx_fsv16;
         else if (l.format == format::bs_fs_zyx_bsv16_fsv16)
             format = format::bs_fs_zyx_bsv16_fsv16;
-
-        if (l.get_rank() < input_node_layout.get_rank())
-            small_pshape_idx = i;
     }
 
     auto output_layout = layout(output_type, format, size);
 
-    auto input_layout = impl_param.get_non_padded_input_layout(small_pshape_idx);
-    if (node.need_align_for_numpy_broadcast(input_layout)) {
-        output_layout = get_eltwise_output_layout<ov::PartialShape>(input_layout, impl_param);
+    if (node.need_align_for_numpy_broadcast(input_node_layout)) {
+        output_layout = get_eltwise_output_layout<ov::PartialShape>(input_node_layout, impl_param);
     }
 
     auto mode = desc->mode;
