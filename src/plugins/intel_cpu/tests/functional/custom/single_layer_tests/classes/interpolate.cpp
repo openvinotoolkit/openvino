@@ -16,30 +16,9 @@ namespace ov {
 namespace test {
 
 std::string InterpolateLayerCPUTest::getTestCaseName(testing::TestParamInfo<InterpolateLayerCPUTestParamsSet> obj) {
-    InterpolateSpecificParams specificParams;
-    ShapeParams shapeParams;
-    ElementType prec;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(specificParams, shapeParams, prec, cpuParams, fusingParams, additionalConfig) = obj.param;
-
-    ov::op::v11::Interpolate::InterpolateMode mode;
-    ov::op::v11::Interpolate::CoordinateTransformMode transfMode;
-    ov::op::v11::Interpolate::NearestMode nearMode;
-    bool antiAlias;
-    std::vector<size_t> padBegin;
-    std::vector<size_t> padEnd;
-    double cubeCoef;
-    std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
-
-    ov::op::v11::Interpolate::ShapeCalcMode shapeCalcMode;
-    InputShape inputShapes;
-    ov::test::utils::InputLayerType shapeInputType;
-    std::vector<std::vector<float>> shapeDataForInput;
-    std::vector<int64_t> axes;
-    std::tie(shapeCalcMode, inputShapes, shapeInputType, shapeDataForInput, axes) = shapeParams;
-
+    const auto& [specificParams, shapeParams, prec, cpuParams, fusingParams, additionalConfig] = obj.param;
+    const auto& [mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef] = specificParams;
+    const auto& [shapeCalcMode, inputShapes, shapeInputType, shapeDataForInput, axes] = shapeParams;
     using ov::test::utils::operator<<;
     std::ostringstream result;
     result << "ShapeCalcMode=" << shapeCalcMode << "_";
@@ -133,34 +112,13 @@ void InterpolateLayerCPUTest::configure_model() {
 
 void InterpolateLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    InterpolateSpecificParams specificParams;
-    ShapeParams shapeParams;
-    ElementType ngPrc;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(specificParams, shapeParams, ngPrc, cpuParams, fusingParams, additionalConfig) = this->GetParam();
-
+    const auto& [specificParams, shapeParams, origPrc, cpuParams, fusingParams, additionalConfig] = this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
-
-    ov::op::v11::Interpolate::InterpolateMode mode;
-    ov::op::v11::Interpolate::CoordinateTransformMode transfMode;
-    ov::op::v11::Interpolate::NearestMode nearMode;
-    bool antiAlias;
-    std::vector<size_t> padBegin;
-    std::vector<size_t> padEnd;
-    double cubeCoef;
-    std::tie(mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef) = specificParams;
-
-    InputShape dataShape;
-    ov::test::utils::InputLayerType shapeInputType;
-    std::vector<std::vector<float>> shapeDataForInput;
-    std::vector<int64_t> axes;
-    std::tie(shapeCalcMode, dataShape, shapeInputType, shapeDataForInput, axes) = shapeParams;
-
+    const auto& [mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef] = specificParams;
+    const auto& [_shapeCalcMode, dataShape, shapeInputType, shapeDataForInput, axes] = shapeParams;
+    shapeCalcMode = _shapeCalcMode;
     if (shapeCalcMode == ov::op::v11::Interpolate::ShapeCalcMode::SCALES) {
         scales = shapeDataForInput;
     } else {
@@ -178,6 +136,7 @@ void InterpolateLayerCPUTest::SetUp() {
         inputShapes.push_back(InputShape({static_cast<int64_t>(axes.size())}, std::vector<ov::Shape>(dataShape.second.size(), {axes.size()})));
     }
 
+    auto ngPrc = origPrc;
     auto it = additionalConfig.find(ov::hint::inference_precision.name());
     if (it != additionalConfig.end() && it->second.as<ov::element::Type>() == ov::element::bf16) {
         inType = outType = ngPrc = ElementType::bf16;

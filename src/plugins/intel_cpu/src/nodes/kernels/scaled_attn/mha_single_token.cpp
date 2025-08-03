@@ -1429,7 +1429,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
     }
     auto nthr = parallel_get_max_threads();
     auto kv_len = present_key.size(2);
-    bool pastkv_is_int8 = past_k_scale_zp;
+    bool pastkv_is_int8 = static_cast<bool>(past_k_scale_zp);
 #if defined(HAVE_AVX2) && !defined(HAVE_AVX512F)
     // avx2 will pre-compute the zero point and try to save the sub instruction in the dot_product,
     //  but it seems not necessary for avx512. Possible reason may be that for avx2 the cost of dot_product

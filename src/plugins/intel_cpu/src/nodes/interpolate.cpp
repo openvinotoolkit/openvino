@@ -1902,7 +1902,7 @@ namespace {
  */
 class InterpolateShapeInferFactory : public ShapeInferFactory {
 public:
-    InterpolateShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit InterpolateShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         if (auto interp4 = ov::as_type_ptr<ov::op::v4::Interpolate>(m_op)) {
             const auto& attr = interp4->get_attrs();

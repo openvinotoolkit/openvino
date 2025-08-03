@@ -127,7 +127,7 @@ template <cpu_isa_t isa>
 struct jit_uni_normalize_modulo_kernel_f32 : public jit_uni_normalize_modulo_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_normalize_modulo_kernel_f32)
 
-    jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp)
+    explicit jit_uni_normalize_modulo_kernel_f32(jit_normalize_config_params jcp)
         : jit_uni_normalize_modulo_kernel(jcp),
           jit_generator_t(jit_name()) {}
 
@@ -1037,7 +1037,7 @@ void NormalizeL2::execute([[maybe_unused]] const dnnl::stream& strm) {
 template <typename in_data_t, typename out_data_t>
 class NormalizeL2::NormalizeL2CornerCaseExecutor : public NormalizeL2::NormalizeL2Executor {
 public:
-    NormalizeL2CornerCaseExecutor(const VectorDims& dims)
+    explicit NormalizeL2CornerCaseExecutor(const VectorDims& dims)
         : workAmount(std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>())) {}
 
     void exec(const uint8_t* src_ptr, uint8_t* dst_ptr, [[maybe_unused]] const void** post_ops_data) override {

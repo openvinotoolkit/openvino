@@ -81,10 +81,7 @@ class CustomOpScalarCPUTest : public testing::WithParamInterface<CustomOpScalarC
                                   public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<CustomOpScalarCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = obj.param;
-
+        const auto& [inType, inputShape] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
@@ -94,11 +91,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = utils::DEVICE_CPU;
-
-        ElementType inType;
-        InputShape inputShape;
-        std::tie(inType, inputShape) = this->GetParam();
-
+        const auto& [inType, inputShape] = this->GetParam();
         init_input_shapes({inputShape});
 
         auto in_0 = std::make_shared<ov::op::v0::Parameter>(inType, inputDynamicShapes[0]);
