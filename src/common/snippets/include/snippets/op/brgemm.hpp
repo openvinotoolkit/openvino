@@ -54,7 +54,6 @@ public:
     bool has_evaluate() const override {
         return false;
     }
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     virtual ov::element::Type get_output_type() const;

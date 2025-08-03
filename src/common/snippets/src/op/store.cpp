@@ -40,7 +40,4 @@ std::shared_ptr<Node> snippets::op::Store::clone_with_new_inputs(const OutputVec
     check_new_args_count(this, new_args);
     return std::make_shared<Store>(new_args.at(0), get_count(), get_offset());
 }
-bool snippets::op::Store::visit_attributes(AttributeVisitor& visitor) {
-    return MemoryAccess::visit_attributes(visitor);
-}
 }  // namespace ov::snippets::op
