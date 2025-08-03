@@ -856,7 +856,6 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     h->vfcvt_f_x_v(tmp2, tmp2);
     h->vmflt_vv(mask_vreg(), tmp1, tmp2);
     h->vfsub_vf(tmp2, tmp2, fone, VM::masked);
-
     h->vfmul_vv(tmp1, tmp2, src1);
     h->vfsub_vv(dst, src0, tmp1);
 }
