@@ -56,8 +56,12 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     void add_stage(Stage::Ptr& stage, const RuntimeParams& params) {
         for (size_t i = 0; i < _stages.size(); i++) {
             if (stage.get() == _stages[i]) {
-                _order.push_back(i);
-                stage->kd = stage->codegen->get_kernel_data(params);
+                try {
+                    stage->kd = stage->codegen->get_kernel_data(params);
+                    _order.push_back(i);
+                } catch (const std::exception& e) {
+                    GPU_DEBUG_TRACE_DETAIL << "Failed to get kernel data for stage: " << e.what();
+                }
                 break;
             }
         }

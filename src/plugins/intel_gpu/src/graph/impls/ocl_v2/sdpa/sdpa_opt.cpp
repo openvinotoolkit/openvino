@@ -235,7 +235,11 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 
 std::unique_ptr<primitive_impl> SDPAOpt::create_impl(const program_node& node, const RuntimeParams& params) const {
     assert(node.is_type<scaled_dot_product_attention>());
-    return std::make_unique<SDPAOptImpl>(params);
+    try {
+        return std::make_unique<SDPAOptImpl>(params);
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("Failed to create SDPAOptImpl: ", e.what());
+    }
 }
 
 }  // namespace ov::intel_gpu::ocl

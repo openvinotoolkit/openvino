@@ -1620,7 +1620,11 @@ public:
 
 std::unique_ptr<primitive_impl> PagedAttentionOpt::create_impl(const program_node& node, const kernel_impl_params& params) const {
     assert(node.is_type<paged_attention>());
-    return std::make_unique<PagedAttentionOptImpl>(params);
+    try {
+        return std::make_unique<PagedAttentionOptImpl>(params);
+    } catch (const std::exception& e) {
+        OPENVINO_THROW("Failed to create PagedAttentionOpt: ", e.what());
+    }
 }
 
 }  // namespace ov::intel_gpu::ocl
