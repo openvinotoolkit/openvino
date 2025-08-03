@@ -70,7 +70,7 @@ std::shared_ptr<Node> BrgemmTPP::clone_with_new_inputs(const OutputVector& new_a
 bool BrgemmTPP::visit_attributes(AttributeVisitor& visitor) {
     visitor.on_attribute("beta", m_beta);
     TensorProcessingPrimitive::visit_attributes(visitor);
-    return Brgemm::visit_attributes(visitor);
+    return MemoryAccess::visit_attributes(visitor);
 }
 
 }  // namespace ov::intel_cpu::tpp::op
