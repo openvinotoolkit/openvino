@@ -195,22 +195,12 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
 
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
             // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
-            // https://uxlfoundation.github.io/oneDNN/dev_guide_c_and_cpp_apis.html#intel-r-processor-graphics-and-xe-architecture-graphics
             if (!concat_node.is_dynamic() || is_runtime) {
                 if (onednn_byte_offset % 64 != 0)
                     return false;
 
-                size_t element_size = 1;
-                if (concat_axis == 1) {
-                    element_size *= pred_l.feature();
-                } else {
-                    return false;
-                }
-                for (size_t i = 0; i < pred_l.get_spatial_rank(); ++i) {
-                    element_size *= pred_l.spatial(i);
-                }
-                auto byte_size = element_size * ov::element::Type(pred_l.data_type).bitwidth() / 8;
-                onednn_byte_offset += byte_size;
+                // The assumption here is that onednn will support batch 1 case.
+                onednn_byte_offset += pred_l.bytes_count();
             }
 
             for (const auto& fused_op : pred_params[idx].fused_desc) {
