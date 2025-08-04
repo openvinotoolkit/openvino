@@ -496,11 +496,11 @@ void Reorder::reorderData(const IMemory& input, const IMemory& output, const Mul
         auto srcMemoryDesc = srcMemory.get_desc();
         auto dstMemoryDesc = dstMemory.get_desc();
 
-        auto srcfmt = srcMemoryDesc.get_format_kind();
-        auto srctype = srcMemoryDesc.get_data_type();
+        // auto srcfmt = srcMemoryDesc.get_format_kind();
+        // auto srctype = srcMemoryDesc.get_data_type();
 
-        auto dstfmt = dstMemoryDesc.get_format_kind();
-        auto dsttype = dstMemoryDesc.get_data_type();
+        // auto dstfmt = dstMemoryDesc.get_format_kind();
+        // auto dsttype = dstMemoryDesc.get_data_type();
 
         auto engine = dstMemory.get_engine();
 
