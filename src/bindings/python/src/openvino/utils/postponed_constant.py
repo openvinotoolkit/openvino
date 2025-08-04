@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from typing import Optional, Union
+from typing import Optional, Union, cast
 from collections.abc import Callable
 from openvino import Op, Type, Shape, Tensor, PartialShape, TensorVector
 
@@ -44,9 +44,11 @@ class PostponedConstant(Op):
     def evaluate(self, outputs: TensorVector, _: list[Tensor]) -> bool:  # type: ignore
         num_args = self.m_maker.__call__.__code__.co_argcount
         if num_args == 1:
-            outputs[0] = self.m_maker()
+            maker = cast(Callable[[], Tensor], self.m_maker)
+            outputs[0] = maker()
         else:
-            self.m_maker(outputs[0])
+            maker = cast(Callable[[Tensor], None], self.m_maker)
+            maker(outputs[0])
         return True
 
     def validate_and_infer_types(self) -> None:
