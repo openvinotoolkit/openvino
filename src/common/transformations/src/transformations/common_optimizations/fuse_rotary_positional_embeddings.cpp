@@ -75,9 +75,6 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
-    
-    symbolic_ctx_manager->register_pass<ov::pass::Serialize>("/home/rmikhail/models/ovc_tests/model_rope.xml",
-                                                             "/home/rmikhail/models/ovc_tests/model_rope.bin");
 
     return symbolic_optimizations.run_on_model(model);
 }
@@ -832,9 +829,6 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         } else {
             return false;
         }
-
-        std::cout << "RoPE Config: " << config.slice_start << " - " << config.slice_stop << std::endl;
-        std::cout << "RoPE total_size_q - total_size_k: " << total_size_q.i() << " - " << total_size_k.i() << std::endl;
 
         if (ov::is_type<opset1::Reshape>(root)) {
             if (config.rotary_ndims != config.head_size)
