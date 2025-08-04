@@ -771,7 +771,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 }
             }
 
-            bool should_fuse = input.is_type<convolution>() && 
+            bool should_fuse = input.is_type<convolution>() &&
                                 conv_supports_fusings(input.as<convolution>()) &&
                                 preferred_impl_type != impl_types::cm;
 
@@ -863,7 +863,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (lo.has_all_enabled_onednn_impls_optimization_attribute() && input.is_type<reorder>()) {
                 return;
             }
-            return; //prevent activation fusing for now
+
             p.fuse_nodes(input, activation_node, &fusing_history);
         };
 

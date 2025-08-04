@@ -286,14 +286,14 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
                 atomic_offset
                         += (coord_stat.y + n) * args.mem_desc_sumx.shape.x;
                 atomic_offset *= sizeof(dtype_accum);
-                xetla_atomic_global<atomic_op::fadd, dtype_accum, tile_size_x,
-                        data_size::default_size, cache_hint::uncached,
-                        cache_hint::write_back>(args.mem_desc_sumx.base.base,
-                        atomic_offset, sumx_grouped.reg, atomic_pred);
-                xetla_atomic_global<atomic_op::fadd, dtype_accum, tile_size_x,
-                        data_size::default_size, cache_hint::uncached,
-                        cache_hint::write_back>(args.mem_desc_sumxsq.base.base,
-                        atomic_offset, sumxsq_grouped.reg, atomic_pred);
+                // xetla_atomic_global<atomic_op::fadd, dtype_accum, tile_size_x,
+                //         data_size::default_size, cache_hint::uncached,
+                //         cache_hint::write_back>(args.mem_desc_sumx.base.base,
+                //         atomic_offset, sumx_grouped.reg, atomic_pred);
+                // xetla_atomic_global<atomic_op::fadd, dtype_accum, tile_size_x,
+                //         data_size::default_size, cache_hint::uncached,
+                //         cache_hint::write_back>(args.mem_desc_sumxsq.base.base,
+                //         atomic_offset, sumxsq_grouped.reg, atomic_pred);
             }
         }
     }

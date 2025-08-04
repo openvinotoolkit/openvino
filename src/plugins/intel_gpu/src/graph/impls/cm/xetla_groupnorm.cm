@@ -173,4 +173,5 @@ namespace KERNEL_NAME{
                 (data_type_acc *)sumxsq, (data_type_wei *)beta,
                 (data_type_wei *)gamma, (data_type_out *)dst);
         }
+        
 }
