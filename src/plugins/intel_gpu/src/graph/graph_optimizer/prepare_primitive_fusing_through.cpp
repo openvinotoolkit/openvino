@@ -16,7 +16,7 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing_through::run(program& p) {
-    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0)
+    GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions())
         return;
 
     auto try_fuse_through = [&](program_node& node) -> std::vector<program_node*> {
