@@ -94,7 +94,15 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         auto reshape_kv = wrap_type<ov::op::v1::Reshape>({kv, any_input()});
         auto unsqueeze_kv = wrap_type<ov::op::v0::Unsqueeze>({kv, any_input()});
 
-        auto constant_bcst = wrap_type<ov::op::v0::Constant>(value_matches("1") || value_matches("1.0"));
+        auto check_one = [](const Output<Node>& output) -> bool {
+            auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
+            if (!node) return false;
+            const auto& bcst_arg = node->cast_vector<float>();
+            return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
+                return i == 1.0F;
+            });
+        };
+        auto constant_bcst = wrap_type<ov::op::v0::Constant>(check_one);
 
         auto computed_bcst =
             wrap_type<ov::op::v1::Broadcast>({constant_bcst, any_input(), any_input()}, {{"mode", "numpy"}});
@@ -140,6 +148,13 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
+        // Check concat axes equality first
+        const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
+        const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
+        if (concat_k_node->get_axis() != concat_v_node->get_axis()) {
+            return false;
+        }
+
         auto find_assign =
             [&](const ov::Output<ov::Node>& out, ov::op::v6::Assign*& assign, ov::op::v0::Convert*& cvt) {
                 auto present_to = out.get_target_inputs();
@@ -178,13 +193,6 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         if (!check_valid_children_type(past_k_node) || !check_valid_children_type(past_v_node)) {
             return false;
         }
-        const auto concat_k_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_k).get_node_shared_ptr());
-        const auto concat_v_node = ov::as_type_ptr<ov::op::v0::Concat>(pattern_map.at(concat_v).get_node_shared_ptr());
-
-        if (concat_k_node->get_axis() != concat_v_node->get_axis()) {
-            return false;
-        }
-
         for (auto&& item : {concat_k_node, concat_v_node}) {
             auto&& children = item->get_output_target_inputs(0);
             switch (children.size()) {
@@ -359,8 +367,7 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     CPU_REGISTER_PASS_X64((*ctx_manager), ov::intel_cpu::SDPAFuseTransposeReshape);
 
     // Run symbolic optimizations but always return false to maintain old behavior
-    symbolic_optimizations.run_on_model(f);
-    return false;
+    return symbolic_optimizations.run_on_model(f);
 }
 
 }  // namespace ov::intel_cpu
