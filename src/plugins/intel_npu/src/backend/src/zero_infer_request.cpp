@@ -489,7 +489,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 void* data = nullptr;
 
                 if (remoteTensor == nullptr) {
-                    bool tensorHasSameL0Context = false;
+                    bool levelZeroTensorCreated = false;
 
                     OV_ITT_TASK_NEXT(SET_TENSORS, "check_data_allocation");
                     if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_initStructs->getContext(),
@@ -497,10 +497,28 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                         _logger.debug("ZeroInferRequest::set_tensors - tensor was created in the same L0 context");
 
                         get_level_zero_input(foundPort.idx, i) = tensors.at(i)._ptr;
-                        tensorHasSameL0Context = true;
+                        levelZeroTensorCreated = true;
+                    } else {
+                        if (_externalMemoryStandardAllocationSupported &&
+                            utils::memory_and_size_aligned_to_standard_page_size(tensors.at(i)->data(),
+                                                                                 tensors.at(i)->get_byte_size())) {
+                            _logger.debug("ZeroInferRequest::set_tensors - import memory from a system memory pointer");
+                            auto hostMemSharedAllocator =
+                                zeroMemory::HostMemSharedAllocator(_initStructs,
+                                                                   tensors.at(i)._ptr,
+                                                                   ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+                            get_level_zero_input(foundPort.idx, i) =
+                                std::make_shared<ZeroTensor>(_initStructs,
+                                                             _config,
+                                                             tensors.at(i)->get_element_type(),
+                                                             tensors.at(i)->get_shape(),
+                                                             hostMemSharedAllocator);
+
+                            levelZeroTensorCreated = true;
+                        }
                     }
 
-                    if (!tensorHasSameL0Context) {
+                    if (!levelZeroTensorCreated) {
                         _logger.debug("ZeroInferRequest::set_tensors - tensor wasn't created in the same L0 context, "
                                       "create a L0 tensor");
 
