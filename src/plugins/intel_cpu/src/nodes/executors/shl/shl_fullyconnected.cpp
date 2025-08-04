@@ -56,7 +56,7 @@ MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorConte
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("ShlFCExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("ShlFCExecutor: Weights cache is not available");

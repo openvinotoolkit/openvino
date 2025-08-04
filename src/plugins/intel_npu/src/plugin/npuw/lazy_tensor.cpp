@@ -13,6 +13,8 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "util.hpp"
 
 using ov::npuw::weights::LazyTensor;
@@ -53,6 +55,14 @@ ov::Tensor Const::eval() const {
         return ov::npuw::util::copy_tensor_from_const(m_node);
     }
 
+    // Weightless import case. Mmmap CPU weight on demand to avoid allocating all weights at once.
+    if (!m_weights_path.empty()) {
+        auto mapped_memory = ov::load_mmap_object(m_weights_path);
+        m_mmaped_weights =
+            std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(), mapped_memory->size(), mapped_memory);
+        return ov::Tensor(m_cached_type, m_cached_shape, m_mmaped_weights->get_ptr(m_offset));
+    }
+
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first! Or the tensor is already detached.");
     return m_read_from_bin;
 }
@@ -60,6 +70,11 @@ ov::Tensor Const::eval() const {
 LazyTensor::Meta Const::eval_meta() const {
     if (m_node) {
         return {m_node->get_shape(), m_node->get_element_type()};
+    }
+
+    // Weightless import case
+    if (!m_weights_path.empty()) {
+        return {m_cached_shape, m_cached_type};
     }
 
     NPUW_ASSERT(m_read_from_bin && "Underlying data should have been read first!");
@@ -85,13 +100,18 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
             auto dst_data = m_read_from_bin.data<dst_type>();
             ov::reference::convert_from_bf16_to_f16_with_clamp(src_data, dst_data, m_read_from_bin.get_size());
         } else {
-            m_read_from_bin = ov::Tensor(m_cached_type, m_cached_shape);
-            std::memcpy(m_read_from_bin.data(), ctx.weights->get_ptr(m_offset), m_byte_size);
+            // Each LazyTensor will mmap the whole weights file on demand (in eval()).
+            // It doesn't introduce extra allocation, however it allows to gradually 1 by 1
+            // read mmaped CPU weights and allocate them on device without loading all the weights first.
+            // Thus the memory consumption during import is greatly reduced but at the slight cost of performance.
+            NPUW_ASSERT(!ctx.weights_path.empty());
+            // Just save weights_path for the eval() to call the actual mmap.
+            m_weights_path = ctx.weights_path;
         }
     } else {
         auto it = ctx.consts_cache.find({m_offset, m_byte_size});
         NPUW_ASSERT(it != ctx.consts_cache.end() && "Couldn't find Constant in cache!");
-        m_read_from_bin = ov::npuw::util::copy_tensor_from_const(it->second);
+        m_read_from_bin = ov::npuw::util::tensor_from_const(it->second);
         NPUW_ASSERT(m_read_from_bin.get_byte_size() == m_byte_size && m_read_from_bin.get_shape() == m_cached_shape &&
                     m_read_from_bin.get_element_type() == m_cached_type);
     }
@@ -100,6 +120,7 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
 void Const::detach() {
     m_node.reset();
     m_read_from_bin = ov::Tensor();
+    m_mmaped_weights.reset();
 }
 
 void Const::serialize(std::ostream& stream) const {

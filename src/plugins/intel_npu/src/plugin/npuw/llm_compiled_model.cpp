@@ -1393,7 +1393,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             compiled->m_prefill_compiled->m_weights_bank = bank;
 
             compiled->m_kvcache_compiled->finalize_weights_bank();
+            compiled->m_kvcache_compiled->m_import_weights_ctx.reset();
             compiled->m_prefill_compiled->finalize_weights_bank();
+            compiled->m_prefill_compiled->m_import_weights_ctx.reset();
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);

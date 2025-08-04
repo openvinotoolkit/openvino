@@ -34,13 +34,7 @@ class Slice8LayerCPUTest : public testing::WithParamInterface<Slice8LayerTestCPU
                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<Slice8LayerTestCPUParam> obj) {
-        std::vector<InputShape> shapes;
-        Slice8SpecificParams params;
-        ov::test::utils::InputLayerType secondaryInputType;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, params, secondaryInputType, netPrecision, cpuParams) = obj.param;
-
+        const auto& [shapes, params, secondaryInputType, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (const auto& shape : shapes) {
@@ -89,11 +83,8 @@ protected:
         }
     }
     void SetUp() override {
-        std::vector<InputShape> shapes;
-        ov::test::utils::InputLayerType secondaryInputType;
-        ElementType netPrecision;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, sliceParams, secondaryInputType, netPrecision, cpuParams) = this->GetParam();
+        const auto& [shapes, _sliceParams, secondaryInputType, netPrecision, cpuParams] = this->GetParam();
+        sliceParams = _sliceParams;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
         selectedType = makeSelectedTypeStr(selectedType, netPrecision);
