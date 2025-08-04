@@ -128,7 +128,7 @@ uint8_t f32_to_f4e2m1_bits(float value) {
 }
 }  // namespace
 
-float4_e2m1::float4_e2m1(const float value) : m_value(f32_to_f4e2m1_bits(value)) {};
+float4_e2m1::float4_e2m1(const float value) : m_value(f32_to_f4e2m1_bits(value)){};
 
 float4_e2m1::operator float() const {
     return f4e2m1_to_f32_lut[m_value];

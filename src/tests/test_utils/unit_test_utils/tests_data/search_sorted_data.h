@@ -1,6 +1,7 @@
 #pragma once
 
-#define LIST(...) {__VA_ARGS__}
+#define LIST(...) \
+    { __VA_ARGS__ }
 
 // TEST_DATA(sorted_shape,
 //           values_shape,
