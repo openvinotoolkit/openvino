@@ -745,7 +745,6 @@ private:
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
 };
 
-/// Sub
 class jit_subtract_emitter : public jit_emitter {
 public:
     jit_subtract_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
