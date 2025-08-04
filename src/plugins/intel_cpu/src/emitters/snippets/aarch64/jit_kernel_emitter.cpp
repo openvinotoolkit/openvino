@@ -4,10 +4,32 @@
 
 #include "jit_kernel_emitter.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <algorithm>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <set>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/reg_spill.hpp"
 #include "snippets/utils/reg_utils.hpp"
-#include "snippets/utils/utils.hpp"
 
 using namespace Xbyak_aarch64;
 

@@ -15,11 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-    // LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(false),
-};
-
 const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> params = {
     // Actual:
     //
@@ -252,9 +247,10 @@ const std::vector<LayerTestsDefinitions::ConvolutionQDqTransformationParam> para
     },
 };
 
-const std::vector<ov::PartialShape> shapes = {
-    { 1, 3, 4, 4 },
-    { 4, 3, 4, 4 }
+const std::vector<ov::test::InputShape> shapes = {
+    {{}, {{ 1, 3, 4, 4 }}},
+    {{}, {{ 4, 3, 4, 4 }}},
+    {{-1, 3, -1, -1}, {{ 1, 3, 4, 4 }, { 4, 3, 8, 8 }, { 1, 3, 4, 4 }}}
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionQDqTransformation,
@@ -262,7 +258,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ConvolutionQDqTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ConvolutionQDqTransformation::getTestCaseName);
 }  // namespace

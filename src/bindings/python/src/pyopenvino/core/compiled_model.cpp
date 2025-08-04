@@ -30,7 +30,7 @@ void regclass_CompiledModel(py::module m) {
             // Create temporary ov::InferRequest and move it to actual wrapper class.
             ov::InferRequest request;
             {
-                py::gil_scoped_release release;
+                ConditionalGILScopedRelease release;
                 request = self.create_infer_request();
             }
             return std::make_shared<InferRequestWrapper>(std::move(request), self.inputs(), self.outputs());
@@ -135,7 +135,7 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Sets properties for current compiled model.
 
-            :param properties: Dict of pairs: (property name, property value)
+            :param properties: dict of pairs: (property name, property value)
             :type properties: dict
             :rtype: None
         )");
@@ -151,7 +151,7 @@ void regclass_CompiledModel(py::module m) {
         R"(
             Sets properties for current compiled model.
 
-            :param property: Tuple of (property name, matching property value).
+            :param property: tuple of (property name, matching property value).
             :type property: tuple
         )");
 
@@ -171,7 +171,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("get_runtime_model",
             &ov::CompiledModel::get_runtime_model,
-            py::call_guard<py::gil_scoped_release>(),
+            CallGuardConditionalGILRelease(),
             R"(
                 Gets runtime model information from a device.
 
@@ -186,7 +186,7 @@ void regclass_CompiledModel(py::module m) {
 
     cls.def("release_memory",
             &ov::CompiledModel::release_memory,
-            py::call_guard<py::gil_scoped_release>(),
+            CallGuardConditionalGILRelease(),
             R"(
                 Release intermediate memory.
 
@@ -200,7 +200,7 @@ void regclass_CompiledModel(py::module m) {
                                 Gets all inputs of a compiled model.
 
                                 :return: Inputs of a compiled model.
-                                :rtype: List[openvino.ConstOutput]
+                                :rtype: list[openvino.ConstOutput]
                               )");
 
     cls.def("input",
@@ -246,7 +246,7 @@ void regclass_CompiledModel(py::module m) {
                                 Gets all outputs of a compiled model.
 
                                 :return: Outputs of a compiled model.
-                                :rtype: List[openvino.ConstOutput]
+                                :rtype: list[openvino.ConstOutput]
                               )");
 
     cls.def("output",

@@ -97,7 +97,6 @@ public:
     std::string get_type_name() const;
     friend OPENVINO_API std::ostream& operator<<(std::ostream&, const Type&);
 
-    OPENVINO_DEPRECATED("This function is deprecated and will be removed in 2026.0.")
     static std::vector<const Type*> get_known_types();
 
     /// \brief Checks whether this element type is merge-compatible with `t`.

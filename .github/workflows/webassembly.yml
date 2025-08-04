@@ -1,6 +1,11 @@
 name: Webassembly
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -79,6 +84,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     defaults:
       run:
         shell: bash

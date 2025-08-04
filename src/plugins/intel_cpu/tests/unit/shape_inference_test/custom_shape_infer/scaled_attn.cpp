@@ -6,6 +6,7 @@
 
 #include "common_test_utils/test_assertions.hpp"
 #include "custom_shape_infer.hpp"
+#include "openvino/op/parameter.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 
 namespace ov {
@@ -27,11 +28,7 @@ class SDPACpuShapeInferenceTest
       public WithParamInterface<SDPATestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<SDPATestParams>& obj) {
-        unit_test::ShapeVector tmp_input_shapes;
-        std::vector<size_t> tmp_permute_axes;
-        unit_test::ShapeVector tmp_exp_shape;
-        bool tmp_causal = false;
-        std::tie(tmp_input_shapes, tmp_permute_axes, tmp_exp_shape, tmp_causal) = obj.param;
+        const auto& [tmp_input_shapes, tmp_permute_axes, tmp_exp_shape, tmp_causal] = obj.param;
         std::ostringstream result;
         result << "IS" << ov::test::utils::vec2str(tmp_input_shapes) << "_";
         result << "permute_axes" << ov::test::utils::vec2str(tmp_permute_axes) << "_";

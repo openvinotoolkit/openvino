@@ -58,6 +58,7 @@
 #include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
@@ -735,6 +736,10 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
                     if (lhs_layout.is_dynamic())
                         return false;
 
+                    if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
+                        return lhs->get_unique_id() < rhs->get_unique_id();
+                    }
+
                     return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
             });
 
@@ -949,16 +954,12 @@ void program::rename(program_node& node, primitive_id const& new_id) {
     nodes_map.emplace(new_id, node_ptr);
     nodes_map.erase(node.id());
 
-    const_cast<primitive_id&>(node.desc->id) = new_id;
+    node.desc->id = new_id;
 }
 
 void program::swap_names(program_node& node1, program_node& node2) {
-    const auto _extract_id = [](program_node& node) -> primitive_id& {
-        return const_cast<primitive_id&>(node.desc->id);
-    };
-
     nodes_map.at(node1.id()).swap(nodes_map.at(node2.id()));
-    std::swap(_extract_id(node1), _extract_id(node2));
+    std::swap(node1.desc->id, node2.desc->id);
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
@@ -1026,8 +1027,8 @@ void program::replace(program_node& old_node, program_node& new_node) {
     new_node.constant = old_node.constant;
     new_node.data_flow = old_node.data_flow;
     new_node.user_mark = old_node.user_mark;
-    const_cast<std::string&>(new_node.desc->origin_op_name) = old_node.desc->origin_op_name;
-    const_cast<std::string&>(new_node.desc->origin_op_type_name) = old_node.desc->origin_op_type_name;
+    new_node.desc->origin_op_name = old_node.desc->origin_op_name;
+    new_node.desc->origin_op_type_name = old_node.desc->origin_op_type_name;
 
     processing_order.insert(&old_node, &new_node);
     if (processing_order.get_processing_iterator(old_node) != processing_order.end())

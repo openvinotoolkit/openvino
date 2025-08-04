@@ -1,5 +1,6 @@
 # type: ignore
 from __future__ import annotations
+import collections.abc
 import openvino._pyopenvino.op
 import typing
 """
@@ -11,12 +12,12 @@ def apply_fused_names_cleanup(model: typing.Any) -> None:
 def apply_low_latency_transformation(model: typing.Any, use_const_initializer: bool = True) -> None:
     ...
 @typing.overload
-def apply_make_stateful_transformation(model: typing.Any, param_res_names: dict[str, str]) -> None:
+def apply_make_stateful_transformation(model: typing.Any, param_res_names: collections.abc.Mapping[str, str]) -> None:
     ...
 @typing.overload
-def apply_make_stateful_transformation(model: typing.Any, pairs_to_replace: list[tuple[openvino._pyopenvino.op.Parameter, openvino._pyopenvino.op.Result]]) -> None:
+def apply_make_stateful_transformation(model: typing.Any, pairs_to_replace: collections.abc.Sequence[tuple[openvino._pyopenvino.op.Parameter, openvino._pyopenvino.op.Result]]) -> None:
     ...
-def apply_moc_legacy_transformations(model: typing.Any, params_with_custom_types: list[str]) -> None:
+def apply_moc_legacy_transformations(model: typing.Any, params_with_custom_types: collections.abc.Sequence[str]) -> None:
     ...
 def apply_moc_transformations(model: typing.Any, cf: bool, smart_reshape: bool = False) -> None:
     ...
@@ -28,7 +29,7 @@ def compress_quantize_weights_transformation(model: typing.Any) -> None:
     ...
 def convert_sequence_to_tensor_iterator_transformation(model: typing.Any) -> None:
     ...
-def paged_attention_transformation(model: typing.Any, use_block_indices_inputs: bool = False, use_score_outputs: bool = False, allow_cache_rotation: bool = False) -> None:
+def paged_attention_transformation(model: typing.Any, use_block_indices_inputs: bool = False, use_score_outputs: bool = False, allow_score_aggregation: bool = False, allow_cache_rotation: bool = False) -> None:
     ...
 def stateful_to_stateless_transformation(model: typing.Any) -> None:
     ...

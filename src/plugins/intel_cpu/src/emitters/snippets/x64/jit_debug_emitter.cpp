@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
 #ifdef SNIPPETS_DEBUG_CAPS
-
-#    include "jit_debug_emitter.hpp"
 
 #    include <vector>
 
+#    include "jit_debug_emitter.hpp"
 #    include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu;
@@ -63,13 +63,13 @@ void jit_debug_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
                                        const std::vector<size_t>& out_idxs,
                                        const std::vector<size_t>& pool_vec_idxs,
                                        const std::vector<size_t>& pool_gpr_idxs) const {
-    if (m_decorator_emit_loc == EmissionLocation::preamble || m_decorator_emit_loc == EmissionLocation::both) {
+    if (any_of(m_decorator_emit_loc, EmissionLocation::preamble, EmissionLocation::both)) {
         m_decorator_emitter->emit_code(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
     }
 
     m_target_emitter->emit_code(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
 
-    if (m_decorator_emit_loc == EmissionLocation::postamble || m_decorator_emit_loc == EmissionLocation::both) {
+    if (any_of(m_decorator_emit_loc, EmissionLocation::postamble, EmissionLocation::both)) {
         m_decorator_emitter->emit_code(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
     }
 }

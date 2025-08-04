@@ -36,9 +36,7 @@ void TwoInputsAndOutputs::SetUp() {
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::TwoInputsAndOutputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
     abs_threshold = 5e-7;
 }
 
@@ -48,9 +46,7 @@ void TwoInputsAndOutputsWithReversedOutputs::SetUp() {
     init_input_shapes(inputShape);
     auto f = ov::test::snippets::TwoInputsAndOutputsWithReversedOutputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
     abs_threshold = 5e-7;
 }
 

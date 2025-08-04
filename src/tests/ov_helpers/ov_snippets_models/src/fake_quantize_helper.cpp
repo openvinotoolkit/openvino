@@ -3,8 +3,9 @@
 //
 
 #include "fake_quantize_helper.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include <snippets/snippets_isa.hpp>
+#include <snippets/op/convert_saturation.hpp>
 #include <snippets/op/subgraph.hpp>
 #include "function_helper.hpp"
 
@@ -189,6 +190,59 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithFakeQuantize(
     return function;
 }
 
+std::shared_ptr<ov::Node> FakeQuantizeFunction::getDecomposedFakeQuantizeOps(const ov::Output<ov::Node>& input,
+                                                                             const ov::element::Type outType,
+                                                                             float il, float ih, float scale,
+                                                                             bool doRounding,
+                                                                             bool doDequantize) {
+    auto inputShape = input.get_shape();
+    auto inputType = input.get_element_type();
+    auto rank = inputShape.size();
+    ov::Shape onesShape(rank, 1);
+
+    const auto input_low = ov::op::v0::Constant::create(ov::element::f32, onesShape, {il});
+    const auto input_high = ov::op::v0::Constant::create(ov::element::f32, onesShape, {ih});
+    const auto output_scale = ov::op::v0::Constant::create(ov::element::f32, onesShape, {scale});
+
+    std::shared_ptr<ov::Node> current = std::make_shared<ov::opset1::Maximum>(input, input_low);
+    current->set_friendly_name("inputLow");
+
+    current = std::make_shared<ov::opset1::Minimum>(current, input_high);
+    current->set_friendly_name("inputHigh");
+
+    current = std::make_shared<ov::opset1::Multiply>(current, output_scale);
+    current->set_friendly_name("multiply");
+
+    if (doDequantize) {
+        current = std::make_shared<ov::opset1::Subtract>(current, output_scale);
+        current->set_friendly_name("subtract");
+    }
+
+    if (doRounding) {
+        current = std::make_shared<ov::op::v5::Round>(current, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+        current->set_friendly_name("round");
+    }
+
+    if (doDequantize) {
+        current = std::make_shared<ov::opset1::Multiply>(
+            current,
+            std::make_shared<ov::opset1::Constant>(element::f32, onesShape, std::vector<float>{0.0745098f}));
+        current->set_friendly_name("divide");
+
+        current = std::make_shared<ov::opset1::Add>(
+            current,
+            std::make_shared<ov::opset1::Constant>(element::f32, onesShape, std::vector<float>{1.f}));
+        current->set_friendly_name("add");
+    }
+
+    if (outType != inputType) {
+        current = std::make_shared<ov::snippets::op::ConvertSaturation>(current, outType);
+        current->set_friendly_name("convertSaturation");
+    }
+
+    return current;
+}
+
 std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithDecomposedFakeQuantize(
     const ov::Shape& inputShape,
     const element::Type inputType,
@@ -204,40 +258,10 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getSubgraphWithDecomposedFakeQu
         const auto parameter = std::make_shared<ov::opset1::Parameter>(inputType, inputShape);
         parameter->set_friendly_name("parameter");
 
-        const auto maximum = std::make_shared<ov::opset1::Maximum>(
-            parameter,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{1.f}));
-        maximum->set_friendly_name("inputLow");
+        auto decomposed_fq_op_result = FakeQuantizeFunction::getDecomposedFakeQuantizeOps(
+            parameter->output(0), ov::element::f32, 1.f, 20.f, 13.4211f, true, true);
 
-        const auto minimum = std::make_shared<ov::opset1::Minimum>(
-            maximum,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{20.f}));
-        minimum->set_friendly_name("inputHigh");
-
-        const auto multiply = std::make_shared<ov::opset1::Multiply>(
-            minimum,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{13.4211f}));
-        multiply->set_friendly_name("multiply");
-
-        const auto subtract = std::make_shared<ov::opset1::Subtract>(
-            multiply,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{13.4211f}));
-        subtract->set_friendly_name("subtract");
-
-        const auto round = std::make_shared<ov::op::v5::Round>(subtract, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-        round->set_friendly_name("round");
-
-        const auto devide = std::make_shared<ov::opset1::Multiply>(
-            round,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{0.0745098f}));
-        devide->set_friendly_name("devide");
-
-        const auto add = std::make_shared<ov::opset1::Add>(
-            devide,
-            std::make_shared<ov::opset1::Constant>(element::f32, Shape{}, std::vector<float>{1.f}));
-        add->set_friendly_name("add");
-
-        const auto result = std::make_shared<ov::opset1::Result>(add);
+        const auto result = std::make_shared<ov::opset1::Result>(decomposed_fq_op_result);
         result->set_friendly_name("result");
 
         return std::make_shared<ov::Model>(

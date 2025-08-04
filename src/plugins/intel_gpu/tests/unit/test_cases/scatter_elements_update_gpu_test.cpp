@@ -561,8 +561,13 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_mixed_inputs,
                          ),
                          PrintToStringParamName());
 
+using scatter_elements_update_gpu_reduction_test_f16 = scatter_elements_update_gpu_reduction_test<ov::float16, int32_t>;
 using scatter_elements_update_gpu_reduction_test_f32 = scatter_elements_update_gpu_reduction_test<float, int32_t>;
 using scatter_elements_update_gpu_reduction_test_i32 = scatter_elements_update_gpu_reduction_test<int32_t, int32_t>;
+
+TEST_P(scatter_elements_update_gpu_reduction_test_f16, basic) {
+    ASSERT_NO_FATAL_FAILURE(test(false));
+}
 
 TEST_P(scatter_elements_update_gpu_reduction_test_f32, basic) {
     ASSERT_NO_FATAL_FAILURE(test(false));
@@ -580,6 +585,15 @@ const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduce_modes{
     ov::op::v12::ScatterElementsUpdate::Reduction::MEAN
 };
 
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f16_2d,
+                         scatter_elements_update_gpu_reduction_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<ov::float16, int32_t>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_2d,
                          scatter_elements_update_gpu_reduction_test_f32,
@@ -601,6 +615,16 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_i32_2d,
                          ),
                          PrintToStringParamName());
 
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f16_3d,
+                         scatter_elements_update_gpu_reduction_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams3D<ov::float16, int32_t>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfzyx)
+                         ),
+                         PrintToStringParamName());
+
 INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_3d,
                          scatter_elements_update_gpu_reduction_test_f32,
                          ::testing::Combine(
@@ -608,6 +632,16 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_3d,
                                  ::testing::ValuesIn(reduce_modes),
                                  ::testing::ValuesIn({true, false}),
                                  ::testing::Values(format::bfzyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f16_4d,
+                         scatter_elements_update_gpu_reduction_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams4D<ov::float16, int32_t>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfwzyx)
                          ),
                          PrintToStringParamName());
 
@@ -675,4 +709,55 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF_cached) {
 
 TEST_P(scatter_elements_update_gpu_reduction_test_f32, cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
+}
+
+TEST(scatter_elements_update_gpu_fp32, smoke_multiple_indices_mean_big_1d_dynamic) {
+    auto& engine = get_test_engine();
+    int num = 100;
+    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{num, 1, 1, 1 } }); // input
+    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{num, 1, 1, 1 } });  // indices
+    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{num, 1, 1, 1 } });  // updates
+    
+    std::vector<float> data(num, 0);
+    std::vector<int32_t> indices(num, 0);
+    std::vector<float> updates(num, 0);
+    updates[0] = num;
+    int32_t axis = 0;
+    ScatterElementsUpdateOp::Reduction mode = ov::op::v12::ScatterElementsUpdate::Reduction::MEAN;
+    bool use_init_value = false;
+
+    set_values(input1, data);
+    set_values(input2, indices);
+    set_values(input3, updates);
+
+    topology topology;
+    topology.add(input_layout("input", input1->get_layout()));
+    topology.add(input_layout("indices", { ov::PartialShape{ ov::Dimension(-1) }, data_types::i32, format::bfyx }));
+    topology.add(input_layout("updates", { ov::PartialShape{ ov::Dimension(-1) }, data_types::f32, format::bfyx }));
+    topology.add(
+        scatter_elements_update(
+            "scatter_elements_update",
+            input_info("input"),
+            input_info("indices"),
+            input_info("updates"),
+            axis,
+            mode,
+            use_init_value));
+
+    network network(engine, topology, get_test_default_config(engine));
+
+    network.set_input_data("input", input1);
+    network.set_input_data("indices", input2);
+    network.set_input_data("updates", input3);
+
+    auto outputs = network.execute();
+
+    auto output = outputs.at("scatter_elements_update").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+   std::vector<float> expected_results(num, 0);
+   expected_results.front() = 1;
+    for (size_t i = 0; i < expected_results.size(); ++i) {
+        ASSERT_EQ(expected_results[i], output_ptr[i]);
+    }
 }

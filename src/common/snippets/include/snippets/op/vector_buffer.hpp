@@ -4,12 +4,15 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
-#include "snippets/shape_inference/shape_inference.hpp"
+#include <memory>
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
+
+namespace ov::snippets::op {
 
 /**
  * @interface VectorBuffer
@@ -20,7 +23,7 @@ class VectorBuffer : public ov::op::Op {
 public:
     OPENVINO_OP("VectorBuffer", "SnippetsOpset");
 
-    VectorBuffer(const ov::element::Type element_type = ov::element::f32);
+    explicit VectorBuffer(ov::element::Type element_type = ov::element::f32);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -30,6 +33,4 @@ private:
     ov::element::Type m_element_type;
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

@@ -60,11 +60,11 @@ FullyConnected_fb_io_b8_f8::DispatchData FullyConnected_fb_io_b8_f8::SetDefault(
 
 bool FullyConnected_fb_io_b8_f8::Validate(const Params& p) const {
     if (!FullyConnectedBlockKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!IsSIMDSizeSupported(p.engineInfo, 8))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const fully_connected_params&>(p);
 
@@ -82,12 +82,12 @@ bool FullyConnected_fb_io_b8_f8::Validate(const Params& p) const {
     const bool bSupportedFeature = (x_size % 8) == 0;
 
     if (!bSupportedBatch || !bSupportedFeature || !proper_input_aligment || !proper_output_aligment) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!params.bias.empty()) {
         if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

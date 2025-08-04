@@ -22,9 +22,9 @@ class TemporaryOverrideOutputs {
     std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::PartialShape> orig_paramter_shapes_map;
 
 public:
-    TemporaryOverrideOutputs(std::shared_ptr<ov::Model>& model,
-                             const std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor>& tensor_map)
-        : model(model) {
+    TemporaryOverrideOutputs(std::shared_ptr<ov::Model>& model) : model(model) {}
+
+    void overide_outputs(const std::unordered_map<std::shared_ptr<ov::descriptor::Tensor>, ov::Tensor>& tensor_map) {
         for (const auto& param : model->get_parameters()) {
             auto output_tensor = param->output(0).get_tensor_ptr();
             orig_paramter_shapes_map.insert({output_tensor, param->get_partial_shape()});
@@ -33,7 +33,7 @@ public:
         model->validate_nodes_and_infer_types();
     }
 
-    ~TemporaryOverrideOutputs() {
+    void restore_outputs() {
         for (const auto& param : model->get_parameters()) {
             auto output_tensor = param->output(0).get_tensor_ptr();
             param->set_partial_shape(orig_paramter_shapes_map.at(output_tensor));
@@ -113,7 +113,8 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
             results_map.emplace(output, output_count);
     }
 
-    auto overrider = TemporaryOverrideOutputs(m_model, tensor_map);
+    auto overrider = TemporaryOverrideOutputs(m_model);
+    overrider.overide_outputs(tensor_map);
 
     // for each ordered op in the graph
     for (const auto& op : m_nodes) {
@@ -164,6 +165,7 @@ bool ov::runtime::interpreter::INTExecutable::call(std::vector<ov::Tensor>& outp
         }
     }
 
+    overrider.restore_outputs();
     return true;
 }
 

@@ -4,12 +4,30 @@
 
 #include "inverse.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/inverse.hpp"
-#include "utils/bfloat16.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -41,12 +59,8 @@ bool Inverse::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
 }
 
 void Inverse::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 1, "has incorrect number of input edges.");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges.");
 }
 
 void Inverse::initSupportedPrimitiveDescriptors() {
@@ -63,11 +77,10 @@ void Inverse::initSupportedPrimitiveDescriptors() {
 void Inverse::prepareParams() {
     const auto& input_shape = getParentEdgeAt(INPUT_PORT)->getMemory().getStaticDims();
 
-    if (input_shape.size() < 2) {
-        THROW_CPU_NODE_ERR("has incompatible 'data' shape ",
-                           PartialShape(input_shape),
-                           ". Only tensors of rank at least 2 are allowed.");
-    }
+    CPU_NODE_ASSERT(input_shape.size() >= 2,
+                    "has incompatible 'data' shape ",
+                    PartialShape(input_shape),
+                    ". Only tensors of rank at least 2 are allowed.");
 
     m_side = input_shape.back();
     m_side_squared = m_side * m_side;
@@ -108,13 +121,13 @@ void Inverse::lu_decomposition(const float* data,
                                std::vector<float>& L,
                                std::vector<float>& U,
                                std::vector<size_t>& P,
-                               size_t b) {
+                               size_t b) const {
     // Make L identity, U a copy of data and P a range(0, side)
     const auto batch_idx = b * m_side_squared;
 
-    std::fill(L.begin(), L.end(), 0.0f);
+    std::fill(L.begin(), L.end(), 0.0F);
     if (!m_adjoint) {
-        cpu_parallel_memcpy(&U[0], &data[batch_idx], sizeof(float) * m_side_squared);
+        cpu_parallel_memcpy(U.data(), &data[batch_idx], sizeof(float) * m_side_squared);
     } else {
         parallel_for2d(m_side, m_side, [&](size_t i, size_t j) {
             U[j * m_side + i] = data[batch_idx + i * m_side + j];
@@ -122,7 +135,7 @@ void Inverse::lu_decomposition(const float* data,
     }
 
     parallel_for(m_side, [&](size_t i) {
-        L[i * m_side + i] = 1.0f;
+        L[i * m_side + i] = 1.0F;
         P[i] = i;
     });
 
@@ -165,15 +178,19 @@ void Inverse::lu_decomposition(const float* data,
     }
 }
 
-void Inverse::lu_solve(float* output, std::vector<float>& L, std::vector<float>& U, std::vector<size_t>& P, size_t b) {
+void Inverse::lu_solve(float* output,
+                       std::vector<float>& L,
+                       std::vector<float>& U,
+                       std::vector<size_t>& P,
+                       size_t b) const {
     parallel_for(m_side, [&](size_t column) {
-        std::vector<float> X(m_side, 0.0f);
-        std::vector<float> Y(m_side, 0.0f);
+        std::vector<float> X(m_side, 0.0F);
+        std::vector<float> Y(m_side, 0.0F);
 
         // Forward substitution: Ly = Pb
         for (size_t i = 0; i < m_side; ++i) {
             if (P[i] == column) {
-                Y[i] = 1.0f;
+                Y[i] = 1.0F;
             }
             const auto i_idx = i * m_side;
             for (size_t j = 0; j < i; ++j) {

@@ -7,13 +7,93 @@
 #include <gtest/gtest.h>
 
 #include <fstream>
+#include <iterator>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/pass/serialize.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
+
+namespace ov::test {
+
+using op::v0::Parameter, op::v0::Constant, op::v1::Add;
+
+class SerializePassTest : public testing::Test {
+protected:
+    std::filesystem::path m_out_xml_path;
+    std::filesystem::path m_out_bin_path;
+    std::shared_ptr<Model> m_model;
+
+    void SetUp() override {
+        const auto filePrefix = ov::test::utils::generateTestFilePrefix();
+        m_out_xml_path = filePrefix + ".xml";
+        m_out_bin_path = filePrefix + ".bin";
+    }
+
+    void TearDown() override {
+        if (std::filesystem::exists(m_out_xml_path)) {
+            std::filesystem::remove(m_out_xml_path);
+        }
+
+        if (std::filesystem::exists(m_out_bin_path)) {
+            std::filesystem::remove(m_out_bin_path);
+        }
+    }
+
+    static FunctionsComparator model_comparator() {
+        return FunctionsComparator::with_default()
+            .enable(FunctionsComparator::ATTRIBUTES)
+            .enable(FunctionsComparator::CONST_VALUES);
+    }
+};
+
+class SerializePassTestP : public SerializePassTest, public testing::WithParamInterface<element::Type> {};
+
+INSTANTIATE_TEST_SUITE_P(numeric_types,
+                         SerializePassTestP,
+                         testing::Values(element::bf16,
+                                         element::f16,
+                                         element::f32,
+                                         element::f64,
+                                         element::i4,
+                                         element::i8,
+                                         element::i16,
+                                         element::i32,
+                                         element::i64,
+                                         element::u1,
+                                         element::u2,
+                                         element::u4,
+                                         element::u8,
+                                         element::u16,
+                                         element::u32,
+                                         element::u64,
+                                         element::nf4,
+                                         element::f8e4m3,
+                                         element::f8e5m2,
+                                         element::f4e2m1,
+                                         element::f8e8m0),
+                         testing::PrintToStringParamName());
+
+TEST_P(SerializePassTestP, serialize_simple_model_with_constant) {
+    const auto& precision = GetParam();
+    const auto p1 = std::make_shared<Parameter>(precision, PartialShape{5});
+    const auto c1 = std::make_shared<Constant>(precision, Shape{5}, std::vector{1, 0, 1, 1, 1});
+    const auto add = std::make_shared<Add>(p1, c1);
+    m_model = std::make_shared<Model>(OutputVector{add}, ParameterVector{p1}, "simple_model");
+
+    OV_ASSERT_NO_THROW(pass::Serialize(m_out_xml_path, m_out_bin_path).run_on_model(m_model));
+
+    const auto serialized_model = test::readModel(m_out_xml_path.string(), m_out_bin_path.string());
+    const auto& [is_valid, error_msg] = model_comparator().compare(serialized_model, m_model);
+    EXPECT_TRUE(is_valid) << error_msg;
+}
+}  // namespace ov::test
 
 using SerializationParams = std::tuple<std::string, std::string>;
 
@@ -509,4 +589,275 @@ TEST_F(MetaDataSerialize, set_complex_meta_information) {
         check_meta_info(s_model);
         check_rt_info(s_model);
     }
+}
+
+// After deprecating undefined type, test whether the serialization of replacing undefined type with dynamic type is
+// equivalent.
+class UndefinedTypeDynamicTypeSerializationTests : public ::testing::Test {
+public:
+    // Customize a model with a dynamic type
+    std::string dynamic_type_ir = R"V0G0N(<?xml version="1.0"?>
+<net name="custom_model" version="11">
+    <layers>
+        <layer id="0" name="Parameter_1" type="Parameter" version="opset1">
+            <data shape="1,1,128" element_type="f32" />
+            <output>
+                <port id="0" precision="FP32" names="Parameter_1">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="Relu_2" type="ReLU" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="ReadValue_3" type="ReadValue" version="opset6">
+            <data variable_id="my_var" variable_type="dynamic" variable_shape="..." />
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="Assign_4" type="Assign" version="opset6">
+            <data variable_id="my_var" />
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="Squeeze_5" type="Squeeze" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32" names="Output_5">
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="Result_6" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>128</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+        <edge from-layer="2" from-port="1" to-layer="3" to-port="0" />
+        <edge from-layer="3" from-port="1" to-layer="4" to-port="0" />
+        <edge from-layer="4" from-port="1" to-layer="5" to-port="0" />
+    </edges>
+    <rt_info />
+</net>
+)V0G0N";
+
+    // Customize a model with a undefined type
+    std::string undefined_type_ir = R"V0G0N(<?xml version="1.0"?>
+<net name="custom_model" version="11">
+    <layers>
+        <layer id="0" name="Parameter_1" type="Parameter" version="opset1">
+            <data shape="1,1,128" element_type="f32" />
+            <output>
+                <port id="0" precision="FP32" names="Parameter_1">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="Relu_2" type="ReLU" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="ReadValue_3" type="ReadValue" version="opset6">
+            <data variable_id="my_var" variable_type="undefined" variable_shape="..." />
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="3" name="Assign_4" type="Assign" version="opset6">
+            <data variable_id="my_var" />
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="4" name="Squeeze_5" type="Squeeze" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32" names="Output_5">
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="5" name="Result_6" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>128</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0" />
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0" />
+        <edge from-layer="2" from-port="1" to-layer="3" to-port="0" />
+        <edge from-layer="3" from-port="1" to-layer="4" to-port="0" />
+        <edge from-layer="4" from-port="1" to-layer="5" to-port="0" />
+    </edges>
+    <rt_info />
+</net>
+)V0G0N";
+
+    std::filesystem::path m_dynamic_type_out_xml_path;
+    std::filesystem::path m_dynamic_type_out_bin_path;
+    std::filesystem::path m_undefined_type_out_xml_path;
+    std::filesystem::path m_undefined_type_out_bin_path;
+
+    void SetUp() override {
+        std::string filePrefix = ov::test::utils::generateTestFilePrefix();
+        m_undefined_type_out_xml_path = filePrefix + "_undefined.xml";
+        m_undefined_type_out_bin_path = filePrefix + "_undefined.bin";
+        m_dynamic_type_out_xml_path = filePrefix + "_dynamic.xml";
+        m_dynamic_type_out_bin_path = filePrefix + "_dynamic.bin";
+    }
+
+    void TearDown() override {
+        if (std::filesystem::exists(m_undefined_type_out_xml_path)) {
+            std::filesystem::remove(m_undefined_type_out_xml_path);
+        }
+
+        if (std::filesystem::exists(m_undefined_type_out_bin_path)) {
+            std::filesystem::remove(m_undefined_type_out_bin_path);
+        }
+
+        if (std::filesystem::exists(m_dynamic_type_out_xml_path)) {
+            std::filesystem::remove(m_dynamic_type_out_xml_path);
+        }
+
+        if (std::filesystem::exists(m_dynamic_type_out_bin_path)) {
+            std::filesystem::remove(m_dynamic_type_out_bin_path);
+        }
+    }
+
+    bool files_equal(const std::filesystem::path& file_path1, const std::filesystem::path& file_path2) {
+        std::ifstream xml_dynamic(file_path1.string(), std::ios::binary);
+        std::ifstream xml_undefined(file_path2.string(), std::ios::binary);
+
+        if (!xml_dynamic.good() || !xml_undefined.good()) {
+            return false;
+        }
+
+        return std::equal(std::istreambuf_iterator<char>(xml_dynamic.rdbuf()),
+                          std::istreambuf_iterator<char>(),
+                          std::istreambuf_iterator<char>(xml_undefined.rdbuf()));
+    }
+};
+
+// check stringstream serialize
+TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefined_type_serialization_stringstream) {
+    std::stringstream dynamicXmlStream, undefinedXmlStream, dynamicBinStream, undefinedBinStream;
+
+    // Test whether the serialization results of the two models are the same
+    auto dynamicTypeModel = ov::test::readModel(dynamic_type_ir);
+    auto undefinedTypeModel = ov::test::readModel(undefined_type_ir);
+
+    // compile the serialized models with stringstream type
+    ov::pass::Serialize(dynamicXmlStream, dynamicBinStream).run_on_model(dynamicTypeModel);
+    ov::pass::Serialize(undefinedXmlStream, undefinedBinStream).run_on_model(undefinedTypeModel);
+
+    ASSERT_EQ(dynamicXmlStream.str(), undefinedXmlStream.str())
+        << "Serialized XML streams are different: dynamic type vs undefined type";
+}
+
+// check xml serialize
+TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefined_type_serialization_file) {
+    auto dynamicTypeModel = ov::test::readModel(dynamic_type_ir);
+    auto undefinedTypeModel = ov::test::readModel(undefined_type_ir);
+
+    ov::pass::Serialize(m_dynamic_type_out_xml_path, m_dynamic_type_out_bin_path).run_on_model(dynamicTypeModel);
+    ov::pass::Serialize(m_undefined_type_out_xml_path, m_undefined_type_out_bin_path).run_on_model(undefinedTypeModel);
+
+    ASSERT_TRUE(files_equal(m_dynamic_type_out_xml_path, m_undefined_type_out_xml_path))
+        << "Serialized XML files are different: dynamic type vs undefined type";
 }

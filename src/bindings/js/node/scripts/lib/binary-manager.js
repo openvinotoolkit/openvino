@@ -1,11 +1,11 @@
-const os = require('node:os');
-const tar = require('tar-fs');
-const path = require('node:path');
-const gunzip = require('gunzip-maybe');
-const fs = require('node:fs/promises');
-const { createReadStream, existsSync } = require('node:fs');
+const os = require("node:os");
+const tar = require("tar-fs");
+const path = require("node:path");
+const gunzip = require("gunzip-maybe");
+const fs = require("node:fs/promises");
+const { createReadStream, existsSync } = require("node:fs");
 
-const { downloadFile, checkIfPathExists, removeDirectory } = require('./utils');
+const { downloadFile, checkIfPathExists, removeDirectory } = require("./utils");
 
 class BinaryManager {
   constructor(packageRoot, version, binaryConfig) {
@@ -23,7 +23,7 @@ class BinaryManager {
   }
 
   getExtension() {
-    return 'tar.gz';
+    return "tar.gz";
   }
 
   getArchiveUrl() {
@@ -34,16 +34,16 @@ class BinaryManager {
     } = this.binaryConfig;
     const fullPathTemplate = `${remotePathTemplate}${packageNameTemplate}`;
     const fullPath = fullPathTemplate
-      .replace(new RegExp('{version}', 'g'), this.version)
-      .replace(new RegExp('{platform}', 'g'), this.getPlatformLabel())
-      .replace(new RegExp('{arch}', 'g'), this.getArchLabel())
-      .replace(new RegExp('{extension}', 'g'), this.getExtension());
+      .replace(new RegExp("{version}", "g"), this.version)
+      .replace(new RegExp("{platform}", "g"), this.getPlatformLabel())
+      .replace(new RegExp("{arch}", "g"), this.getArchLabel())
+      .replace(new RegExp("{extension}", "g"), this.getExtension());
 
     return new URL(fullPath, host).toString();
   }
 
   getDestinationPath() {
-    const modulePath = this.binaryConfig['module_path'];
+    const modulePath = this.binaryConfig["module_path"];
 
     return path.resolve(this.packageRoot, modulePath);
   }
@@ -76,8 +76,8 @@ class BinaryManager {
     if (isRuntimeDirectoryExists && !options.force) {
       if (options.ignoreIfExists) {
         console.warn(
-          `Directory '${destinationPath}' already exists. Skipping `
-          + 'runtime downloading because "ignoreIfExists" flag is passed.'
+          `Directory '${destinationPath}' already exists. Skipping ` +
+            'runtime downloading because "ignoreIfExists" flag is passed.',
         );
 
         return;
@@ -90,46 +90,46 @@ class BinaryManager {
     }
 
     // Install binaries from directories if possible
-    if (process.env.npm_package_resolved.startsWith('file:')) {
-      const binDir = path.join(
-        path.dirname(process.env.npm_package_resolved),
-        'bin'
-      ).replace('file:', '');
-      if (existsSync(path.join(binDir, 'libopenvino.so'))) {
+    if (process.env.npm_package_resolved?.startsWith("file:")) {
+      const binDir = path
+        .join(path.dirname(process.env.npm_package_resolved), "bin")
+        .replace("file:", "");
+      if (
+        existsSync(path.join(binDir, "libopenvino.so")) ||
+        existsSync(path.join(binDir, "openvino.dll"))
+      ) {
         try {
-          await fs.cp(binDir, destinationPath, {'recursive': true});
+          await fs.cp(binDir, destinationPath, { recursive: true });
 
           return;
-        } catch(error) {
+        } catch (error) {
           console.error(`Failed to copy bin directory: ${error}.`);
         }
       }
-      console.log('Do not find bin directory with openvino library.');
+      console.log("Do not find bin directory with openvino library.");
     }
 
     const archiveUrl = binaryManager.getArchiveUrl();
     let tempDirectoryPath = null;
 
     try {
-      tempDirectoryPath = await fs.mkdtemp(
-        path.join(os.tmpdir(), 'temp-ov-runtime-archive-')
-      );
+      tempDirectoryPath = await fs.mkdtemp(path.join(os.tmpdir(), "temp-ov-runtime-archive-"));
 
       const filename = path.basename(archiveUrl);
 
-      console.log('Downloading OpenVINO runtime archive...');
+      console.log("Downloading OpenVINO runtime archive...");
       const archiveFilePath = await downloadFile(
         archiveUrl,
         tempDirectoryPath,
         filename,
         options.proxy,
       );
-      console.log('OpenVINO runtime archive downloaded.');
+      console.log("OpenVINO runtime archive downloaded.");
 
       await removeDirectory(destinationPath);
       await this.unarchive(archiveFilePath, destinationPath);
-      console.log('The archive was successfully extracted.');
-    } catch(error) {
+      console.log("The archive was successfully extracted.");
+    } catch (error) {
       console.error(`Failed to download OpenVINO runtime: ${error}.`);
       throw error;
     } finally {
@@ -153,19 +153,19 @@ class BinaryManager {
     const missleadings = [];
     const platform = os.platform();
 
-    if (!['win32', 'linux', 'darwin'].includes(platform))
+    if (!["win32", "linux", "darwin"].includes(platform))
       missleadings.push(`Platform '${platform}' is not supported.`);
 
     const arch = os.arch();
 
-    if (!['arm64', 'armhf', 'x64'].includes(arch))
+    if (!["arm64", "armhf", "x64"].includes(arch))
       missleadings.push(`Architecture '${arch}' is not supported.`);
 
-    if (platform === 'win32' && arch !== 'x64')
+    if (platform === "win32" && arch !== "x64")
       missleadings.push(`Version for windows and '${arch}' is not supported.`);
 
     if (missleadings.length) {
-      console.error(missleadings.join(' '));
+      console.error(missleadings.join(" "));
 
       return false;
     }
@@ -185,12 +185,15 @@ class BinaryManager {
     return new Promise((resolve, reject) => {
       createReadStream(archivePath)
         .pipe(gunzip())
-        .pipe(tar.extract(dest)
-          .on('finish', () => {
-            resolve();
-          }).on('error', (err) => {
-            reject(err);
-          }),
+        .pipe(
+          tar
+            .extract(dest)
+            .on("finish", () => {
+              resolve();
+            })
+            .on("error", (err) => {
+              reject(err);
+            }),
         );
     });
   }

@@ -22,6 +22,11 @@ function(frontend_module TARGET FRAMEWORK INSTALL_COMPONENT)
     add_dependencies(${TARGET_NAME} pyopenvino)
     add_dependencies(py_ov_frontends ${TARGET_NAME})
 
+    if(NOT ENABLE_GIL_PYTHON_API)
+        # disable GIL for free-threaded python build
+        target_compile_definitions(${TARGET_NAME} PRIVATE Py_GIL_DISABLED=1)
+    endif()
+
     target_include_directories(${TARGET_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
                                                       "${OpenVINOPython_SOURCE_DIR}/src/pyopenvino/utils/")
     target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime openvino::core::dev openvino::frontend::${FRAMEWORK})

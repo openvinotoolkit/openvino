@@ -119,6 +119,7 @@ enum class onednn_post_op_type : uint32_t {
     binary_max,
     binary_min,
     binary_relu,
+    binary_div,
     scale,
     sum,
     optimized,
@@ -142,6 +143,7 @@ static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t
         case onednn_post_op_type::binary_max: os << "binary_max"; break;
         case onednn_post_op_type::binary_min: os << "binary_min"; break;
         case onednn_post_op_type::binary_relu: os << "binary_relu"; break;
+        case onednn_post_op_type::binary_div: os << "binary_div"; break;
         case onednn_post_op_type::scale: os << "scale"; break;
         case onednn_post_op_type::sum: os << "sum"; break;
         case onednn_post_op_type::optimized: os << "optimized"; break;

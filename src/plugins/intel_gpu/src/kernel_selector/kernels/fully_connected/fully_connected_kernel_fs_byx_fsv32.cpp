@@ -73,14 +73,14 @@ JitConstants FullyConnected_fs_byx_fsv32::GetJitConstants(const fully_connected_
 
 bool FullyConnected_fs_byx_fsv32::Validate(const Params& p) const {
     if (!FullyConnectedKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const fully_connected_params&>(p);
 
     if (!params.bias.empty()) {
         if (params.inputs[0].GetDType() != params.bias[0].GetDType()) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

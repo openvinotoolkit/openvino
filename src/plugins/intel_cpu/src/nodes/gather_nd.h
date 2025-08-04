@@ -4,20 +4,27 @@
 
 #pragma once
 
-#include "node.h"
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class GatherND : public Node {
 public:
     GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -27,17 +34,17 @@ protected:
 
 private:
     struct GatherNDAttributes {
-        size_t batchDims = 0lu;
-        size_t dataSize = 1lu;
-        size_t dstElementCount = 0lu;
-        size_t sliceRank = 0lu;
+        size_t batchDims = 0LU;
+        size_t dataSize = 1LU;
+        size_t dstElementCount = 0LU;
+        size_t sliceRank = 0LU;
 
         VectorDims srcDims;
         VectorDims srcStrides;
     } attrs;
 
     struct GatherNDExecutor {
-        GatherNDExecutor(const GatherNDAttributes& attrs);
+        explicit GatherNDExecutor(const GatherNDAttributes& attrs);
         ~GatherNDExecutor() = default;
         void exec(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
 
@@ -45,18 +52,22 @@ private:
         template <typename dataType>
         void gatherElementwise(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
         void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
+        int32_t HandleNegativeIndices(const int32_t* indices, size_t idx) const;
 
-        size_t batchSize = 1lu;
-        size_t dataSize = 1lu;
-        size_t sliceRank = 0lu;
-        size_t dataLength = 1lu;
-        size_t cycles = 1lu;
-        size_t workAmount = 0lu;
+        size_t batchSize = 1LU;
+        size_t dataSize = 1LU;
+        size_t sliceRank = 0LU;
+        size_t dataLength = 1LU;
+        size_t cycles = 1LU;
+        size_t workAmount = 0LU;
 
-        size_t srcBatchStride = 1lu;
-        size_t idxBatchStride = 1lu;
-        size_t dstBatchStride = 1lu;
+        size_t srcBatchStride = 1LU;
+        size_t idxBatchStride = 1LU;
+        size_t dstBatchStride = 1LU;
         VectorDims srcShifts;
+
+        size_t batchDims = 0LU;
+        VectorDims srcDims;
 
         struct GatherNDContext {
             GatherNDExecutor* executor;
@@ -73,13 +84,11 @@ private:
         };
     };
 
-    static constexpr size_t GATHERND_DATA = 0lu;
-    static constexpr size_t GATHERND_INDEXES = 1lu;
+    static constexpr size_t GATHERND_DATA = 0LU;
+    static constexpr size_t GATHERND_INDEXES = 1LU;
 
     using executorPtr = std::shared_ptr<GatherNDExecutor>;
     executorPtr execPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

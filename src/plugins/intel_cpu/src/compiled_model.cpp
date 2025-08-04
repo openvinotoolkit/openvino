@@ -4,31 +4,45 @@
 
 #include "compiled_model.h"
 
+#include <algorithm>
 #include <cstring>
+#include <exception>
+#include <memory>
+#include <mutex>
+#include <ostream>
 #include <utility>
+#include <vector>
 
 #include "async_infer_request.h"
 #include "config.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
 #include "graph.h"
+#include "graph_context.h"
 #include "infer_request.h"
-#include "itt.h"
+#include "internal_properties.hpp"
 #include "low_precision/low_precision.hpp"
-#include "memory_control.hpp"
-#include "memory_state.h"
-#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/iplugin.hpp"
+#include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/threading/cpu_message.hpp"
-#include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
-#include "openvino/runtime/threading/executor_manager.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
+#include "sub_memory_manager.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #include "utils/memory_stats_dump.hpp"
 #include "utils/serialize.hpp"
 
 #if defined(OV_CPU_WITH_ACL)
+#    include <arm_compute/runtime/IScheduler.h>
+#    include <arm_compute/runtime/Scheduler.h>
+
 #    include "nodes/executors/acl/acl_ie_scheduler.hpp"
 #endif
 
@@ -49,6 +63,10 @@ CompiledModel::~CompiledModel() {
         m_sub_compiled_models.clear();
         m_sub_memory_manager->_memorys_table.clear();
     }
+    auto streamsExecutor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(m_task_executor);
+    if (streamsExecutor) {
+        streamsExecutor->cpu_reset();
+    }
     CPU_DEBUG_CAP_ENABLE(dumpMemoryStats(m_cfg.debugCaps, m_name, m_graphs, m_socketWeights));
 }
 
@@ -66,9 +84,7 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_sub_memory_manager(std::move(sub_memory_manager)) {
     m_mutex = std::make_shared<std::mutex>();
     const auto& core = m_plugin->get_core();
-    if (!core) {
-        OPENVINO_THROW("Unable to get API version. Core is unavailable");
-    }
+    OPENVINO_ASSERT(core, "Unable to get API version. Core is unavailable");
 
     IStreamsExecutor::Config executor_config;
     if (m_cfg.exclusiveAsyncRequests) {
@@ -97,6 +113,8 @@ CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (m_callback_executor) {
         set_callback_executor(m_callback_executor);
     }
+
+    m_optimized_single_stream = all_of(1, executor_config.get_streams(), executor_config.get_threads());
 
     int streams = std::max(1, executor_config.get_streams());
     std::vector<Task> tasks;
@@ -177,7 +195,7 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
             try {
                 GraphContext::Ptr ctx;
                 {
-                    std::lock_guard<std::mutex> lock{*m_mutex.get()};
+                    std::lock_guard<std::mutex> lock{*m_mutex};
                     auto isQuantizedFlag = (m_cfg.lpTransformsMode == Config::On) &&
                                            ov::pass::low_precision::LowPrecision::isFunctionQuantized(m_model);
                     ctx = std::make_shared<GraphContext>(m_cfg,
@@ -207,7 +225,8 @@ CompiledModel::GraphGuard::Lock CompiledModel::get_graph() const {
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    return std::make_shared<SyncInferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
+    return std::make_shared<SyncInferRequest>(
+        CompiledModelHolder(std::static_pointer_cast<const CompiledModel>(shared_from_this())));
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
@@ -215,7 +234,8 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     auto async_infer_request =
         std::make_shared<AsyncInferRequest>(std::static_pointer_cast<SyncInferRequest>(internal_request),
                                             get_task_executor(),
-                                            get_callback_executor());
+                                            get_callback_executor(),
+                                            m_optimized_single_stream);
     if (m_has_sub_compiled_models) {
         std::vector<std::shared_ptr<IAsyncInferRequest>> requests;
         requests.reserve(m_sub_compiled_models.size());
@@ -229,17 +249,13 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
 }
 
 std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
-    if (m_graphs.empty()) {
-        OPENVINO_THROW("No graph was found");
-    }
+    OPENVINO_ASSERT(!m_graphs.empty(), "No graph was found");
 
     return get_graph()._graph.dump();
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
-    if (m_graphs.empty()) {
-        OPENVINO_THROW("No graph was found");
-    }
+    OPENVINO_ASSERT(!m_graphs.empty(), "No graph was found");
 
     if (name == ov::loaded_from_cache) {
         return m_loaded_from_cache;
@@ -281,6 +297,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::denormals_optimization.name()),
             RO_property(ov::log::level.name()),
             RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+            RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::key_cache_precision.name()),
@@ -293,8 +310,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     }
 
     if (name == ov::model_name) {
-        // @todo Does not seem ok to 'dump()' the whole graph everytime in order to get a name
-        const std::string modelName = graph.dump()->get_friendly_name();
+        std::string modelName = graph.GetName();
         return decltype(ov::model_name)::value_type(modelName);
     }
     if (name == ov::optimal_number_of_infer_requests) {
@@ -360,6 +376,10 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::intel_cpu::sparse_weights_decompression_rate) {
         return static_cast<decltype(ov::intel_cpu::sparse_weights_decompression_rate)::value_type>(
             config.fcSparseWeiDecompressionRate);
+    }
+    if (name == ov::intel_cpu::enable_tensor_parallel) {
+        const auto& enable_tensor_parallel = config.enableTensorParallel;
+        return enable_tensor_parallel;
     }
     if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(

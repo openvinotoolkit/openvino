@@ -281,6 +281,8 @@ TEST_P(smoke_shape_of_test, basic) {
         test_format = format::bfwzyx;
     } else if (dims_size == 7) {
         test_format = format::bfuwzyx;
+    } else if (dims_size == 8) {
+        test_format = format::bfvuwzyx;
     }
 
     layout in_layout = {ov::PartialShape::dynamic(dims_size), data_types::f32, test_format};
@@ -321,7 +323,8 @@ INSTANTIATE_TEST_SUITE_P(shape_of_gpu,
         shape_of_test_params({{1,2,3,4}, {3,2,4,1}, {5,8,2,1}, {4,6,2,1}}),
         shape_of_test_params({{5,4,3,2,1}, {2,3,6,3,1}, {8,2,1,1,3}, {9,4,3,7,8}}),
         shape_of_test_params({{8,1,3,4,5,2}, {9,2,4,3,6,8}, {2,5,3,7,8,1}, {9,4,7,2,8,1}}),
-        shape_of_test_params({{4,2,5,6,7,3,8}, {1,9,8,2,3,4,6}, {9,2,4,6,8,7,1}, {9,1,8,2,3,6,7}})
+        shape_of_test_params({{4,2,5,6,7,3,8}, {1,9,8,2,3,4,6}, {9,2,4,6,8,7,1}, {9,1,8,2,3,6,7}}),
+        shape_of_test_params({{4,2,5,6,7,3,8,2}, {1,9,8,2,3,4,6,8}, {9,2,4,6,8,7,1,2}, {9,1,8,2,3,6,7,3}})
     ));
 
 }  // namespace

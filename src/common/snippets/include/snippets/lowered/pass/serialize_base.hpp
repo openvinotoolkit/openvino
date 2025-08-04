@@ -6,10 +6,7 @@
 
 #include "pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 
 /**
  * @interface SerializeBase
@@ -19,16 +16,13 @@ namespace pass {
 class SerializeBase : public ConstPass {
 public:
     OPENVINO_RTTI("SerializeBase", "", ConstPass)
-    SerializeBase(const std::string& xml_path);
+    explicit SerializeBase(std::string xml_path);
 
 protected:
-    std::string get_bin_path_from_xml(const std::string& xml_path);
+    static std::string get_bin_path();
 
     const std::string m_xml_path;
     const std::string m_bin_path;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

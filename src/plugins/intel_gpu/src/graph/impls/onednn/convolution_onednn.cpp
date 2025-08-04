@@ -58,9 +58,7 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
         weights_layout.format = format::get_default_format(weights_layout.get_rank() + 1, true, true);
     }
 
-    auto input_md = onednn::layout_to_memory_desc(input_layout, tag_in_out);
-    auto weights_md = onednn::layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any);
-    auto output_md = onednn::layout_to_memory_desc(output_layout, tag_in_out);
+    auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(input_layout, weights_layout, output_layout, tag_in_out);
 
     // adjust_conv_dilation_pad(dilation, stride, pad_l, pad_r, input_md, output_md, weights_md, grouped_weights);
     for (size_t i = 0; i < dilation.size(); i++) {
@@ -82,8 +80,8 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
         pad_r.insert(pad_r.end(), insert_count, 0);
     }
 
-    if (!prim->bias.empty()) {
-        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, true);
+    if (prim->bias.is_valid()) {
+        auto bias_md = onednn::layout_to_memory_desc(impl_params.get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
         return std::make_shared<dnnl::convolution_forward::primitive_desc>(
             engine.get_onednn_engine(),
             dnnl::prop_kind::forward_inference,
@@ -154,7 +152,7 @@ protected:
                 a_zp = a_zp_node.get_attached_memory_ptr();
             }
 
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, true);
+            dnnl::memory::desc desc = onednn::layout_to_memory_desc(a_zp->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC, a_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_TRACE_DETAIL << instance.id() << " activations_zero_points: "
@@ -163,7 +161,7 @@ protected:
 
         if (instance.weights_zero_points_term()) {
             auto w_zp = instance.weights_zero_points_memory();
-            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, true);
+            dnnl::memory::desc desc = onednn::layout_to_memory_desc(w_zp->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
             args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, w_zp->get_onednn_memory(desc)});
 
             GPU_DEBUG_TRACE_DETAIL << instance.id() << " weights_zero_points: "
@@ -273,7 +271,7 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ob.getKernelImplParams());
         auto prim = impl_params->typed_desc<convolution>();
-        bool has_wzp = !prim->weights_zero_points.empty();
+        bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
             ob << make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
         }
@@ -295,9 +293,10 @@ public:
 
         const kernel_impl_params* impl_params = reinterpret_cast<kernel_impl_params*>(ib.getKernelImplParams());
 
-        auto input_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(0), dnnl::memory::format_tag::undef);
-        auto weights_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(1), dnnl::memory::format_tag::any);
-        auto output_md = onednn::layout_to_memory_desc(impl_params->get_output_layout(), dnnl::memory::format_tag::undef);
+        auto [input_md, weights_md, output_md] = onednn::get_conv_memory_descs(impl_params->get_input_layout(0),
+                                                                                impl_params->get_input_layout(1),
+                                                                                impl_params->get_output_layout(),
+                                                                                dnnl::memory::format_tag::undef);
 
         dnnl::memory::dims strides;
         dnnl::memory::dims dilates;
@@ -312,7 +311,7 @@ public:
         ib >> zero_bias;
 
         auto prim = impl_params->typed_desc<convolution>();
-        bool has_wzp = !prim->weights_zero_points.empty();
+        bool has_wzp = prim->weights_zero_points.is_valid();
         if (has_wzp) {
             ib >> make_data(&_wzp_data_type, sizeof(dnnl::memory::data_type));
             _attrs->set_zero_points(DNNL_ARG_WEIGHTS, 0, dnnl::memory::dims{}, _wzp_data_type);
@@ -327,7 +326,7 @@ public:
                                     *_attrs.get());
             _pd = *prim_desc;
         } else {
-            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, true);
+            auto bias_md = onednn::layout_to_memory_desc(impl_params->get_input_layout(2), dnnl::memory::format_tag::any, onednn::mem_flags::flatten);
             auto prim_desc = std::make_shared<dnnl::convolution_forward::primitive_desc>(
                                     ib.get_engine().get_onednn_engine(),
                                     dnnl::prop_kind::forward_inference, dnnl::algorithm::convolution_direct,

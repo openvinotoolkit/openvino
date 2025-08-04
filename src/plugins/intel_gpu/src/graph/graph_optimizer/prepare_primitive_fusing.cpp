@@ -42,6 +42,7 @@
 #include "extract_image_patches_inst.h"
 #include "reduce_inst.h"
 #include "group_normalization_inst.h"
+#include "lora_inst.h"
 #include <vector>
 #include <map>
 #include <list>
@@ -253,10 +254,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
             return node.as<fully_connected>().get_primitive()->input_size == 3;
         };
 
-
+        auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
         if (node->get_output_layout().is_dynamic()) {
             if (eltw_node.get_dependency(non_const_dep_idx).is_type<fully_connected>()) {
-                auto broadcast_type = eltw_node.get_primitive()->broadcast_spec.m_type;
                 if (broadcast_type != ov::op::AutoBroadcastType::NUMPY && broadcast_type != ov::op::AutoBroadcastType::NONE)
                     continue;
 
@@ -282,7 +282,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
         } else {
-            cldnn::tensor::value_type out_features = node->get_output_layout().feature();
+            ov::Dimension::value_type out_features = node->get_output_layout().feature();
             bool is_3d_fc = false;
 
             // Change out_features value to proper dimension for 3D FC case
@@ -298,6 +298,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 const_dep.get_output_layout().count() != static_cast<size_t>(out_features)) {
                 continue;
             }
+            // Handle eltw as a bias only when eltw's shape is to be broadcasted to parent node
+            if (const_dep.get_output_layout().count() > node->get_dependency(non_const_dep_idx).get_output_layout().count())
+                continue;
         }
         auto& bias_node = eltw_node.get_dependency(const_dep_idx);
         primitive_id bias_name = bias_node.id();
@@ -392,11 +395,11 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             auto conv_with_bias_prim = std::make_shared<convolution>(desc->id + "_tmp",
                                                                      desc->input[0],
-                                                                     desc->weights,
+                                                                     desc->weights.pid,
                                                                      biases,
-                                                                     desc->weights_zero_points,
-                                                                     desc->activations_zero_points,
-                                                                     desc->compensation,
+                                                                     desc->weights_zero_points.pid,
+                                                                     desc->activations_zero_points.pid,
+                                                                     desc->compensation.pid,
                                                                      desc->groups,
                                                                      desc->stride,
                                                                      desc->dilation,
@@ -414,7 +417,6 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         } else if (replace_candidate.is_type<deconvolution>()) {
             auto& deconv = replace_candidate.as<deconvolution>();
             auto desc = deconv.get_primitive();
-            std::vector<primitive_id> biases = {bias_name};
 
             // If the primitive has biases, then we try to combine the values, or do nothing and keep as fused sum.
             if (deconv.bias_term()) {
@@ -431,8 +433,8 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
 
             auto deconv_with_bias_prim = std::make_shared<deconvolution>(desc->id + "_tmp",
                                                                          desc->input[0],
-                                                                         desc->weights,
-                                                                         biases,
+                                                                         desc->weights.pid,
+                                                                         bias_name,
                                                                          desc->groups,
                                                                          desc->stride,
                                                                          desc->pad,
@@ -462,25 +464,11 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
 
-            auto fc_with_bias_prim = std::make_shared<fully_connected>(desc->id + "_tmp",
-                                                                       desc->input[0],
-                                                                       desc->weights,
-                                                                       bias_name,
-                                                                       fc.get_output_layout().data_type,
-                                                                       desc->input_size,
-                                                                       desc->weights_rank);
+            auto fc_with_bias_prim = desc->typed_clone();
+            fc_with_bias_prim->id = desc->id + "_tmp";
+            fc_with_bias_prim->bias = bias_name;
+            fc_with_bias_prim->output_data_types = {optional_data_type{fc.get_output_layout().data_type}};
 
-            if (desc->compressed_weights) {
-                fc_with_bias_prim->compressed_weights = true;
-                fc_with_bias_prim->decompression_scale = desc->decompression_scale;
-                fc_with_bias_prim->decompression_zero_point = desc->decompression_zero_point;
-                if (desc->decompression_zero_point_scalar.has_value())
-                    fc_with_bias_prim->decompression_zero_point_scalar = desc->decompression_zero_point_scalar.value();
-                fc_with_bias_prim->activation_scale = desc->activation_scale;
-                fc_with_bias_prim->activation_zero_point = desc->activation_zero_point;
-                fc_with_bias_prim->dynamic_quantized_activation = desc->dynamic_quantized_activation;
-                fc_with_bias_prim->dynamic_quantized_activation_zp = desc->dynamic_quantized_activation_zp;
-            }
             auto& new_fc_node = p.get_or_create(fc_with_bias_prim);
             fuse_bias_f(fc, new_fc_node, bias_node, eltw_node);
         }
@@ -725,6 +713,16 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             return true;
         };
 
+        auto lora_supports_fusings = [&](lora_node& node) -> bool {
+            const auto& lora_dep = node.get_dependency(0);
+            bool lora_is_single_user = lora_dep.get_users().size() == 1;
+
+            size_t lora_count = (node.get_kernel_impl_params()->desc->input_size() - 2) / 3;
+            bool is_simple_lora = lora_count == 1;
+
+            return lora_is_single_user && is_simple_lora;
+        };
+
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto activation_func = activation_node.get_primitive()->activation_function;
             if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
@@ -745,7 +743,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (input.is_type<reshape>() || input.is_type<concatenation>())
                     return;
                 auto additional_params_input = activation_node.get_primitive()->additional_params_input;
-                if (activation_func == cldnn::activation_func::relu_negative_slope && !additional_params_input.empty() &&
+                if (activation_func == cldnn::activation_func::relu_negative_slope && additional_params_input.is_valid() &&
                     (input.is_type<fully_connected>() || input.is_type<gemm>())) {
                     // prelu fusion is not implemented in oneDNN3.1 (CVS-108233)
                     return;
@@ -815,6 +813,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<strided_slice>();
 
+            should_fuse |= input.is_type<lora>() && lora_supports_fusings(input.as<lora>());
+
             bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
@@ -864,7 +864,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
-            if (in_layout.is_dynamic() || out_layout.is_dynamic())
+
+            // In dynamic shape, quantize-fusion is enabled in only onednn convolution.
+            if ((in_layout.is_dynamic() || out_layout.is_dynamic()) &&
+                (!input_data.is_type<convolution>() || (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute())))
                 return;
 
             auto out_dt = out_layout.data_type;
@@ -885,11 +888,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            ((out_dt == data_types::f32 || out_dt == data_types::f16)  ||
                             in_layout.format == format::b_fs_yx_fsv16 ||
                             in_layout.format == format::bs_fs_yx_bsv32_fsv16 ||
-                            (lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
-                             !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
                            (lo.has_all_enabled_onednn_impls_optimization_attribute()) ||
-                           (in_dt_is_i8_u8 && out_dt_is_i8_u8));
+                           (in_dt_is_i8_u8 && out_dt_is_i8_u8) ||
+                           (lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
+                            !is_grouped_conv(input_data.as<convolution>())));
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
@@ -1008,7 +1011,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                                       (parents[i].first->is_type<gather>()) ||
                                       (parents[i].first->is_type<reduce>() &&
                                        reduce_supports_fusings(parents[i].first->as<reduce>())) ||
-                                      (parents[i].first->is_type<lrn>());
+                                      (parents[i].first->is_type<lrn>()) ||
+                                      (parents[i].first->is_type<lora>() &&
+                                       lora_supports_fusings(parents[i].first->as<lora>()));
             }
 
             // Disable fusion to a node on constant path when second input is in data flow
@@ -1159,7 +1164,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 auto eltw_in_size = peer_node->get_output_layout();
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
-                    && !fused_node->is_type<fully_connected>())
+                    && !fused_node->is_type<fully_connected>()
+                    && !fused_node->is_type<convolution>()
+                    && !fused_node->is_type<gemm>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
@@ -1298,7 +1305,7 @@ void prepare_primitive_fusing::fuse_constant_transposes(program& p) {
                 if (desc->compressed_weights) {
                     size_t scale_idx = weights_offset + (fc.bias_term() ? 2 : 1);
                     valid_weights_indices.push_back(scale_idx);
-                    if (!desc->decompression_zero_point.empty()) {
+                    if (desc->decompression_zero_point.is_valid()) {
                         valid_weights_indices.push_back(scale_idx + 1);
                     }
                 }

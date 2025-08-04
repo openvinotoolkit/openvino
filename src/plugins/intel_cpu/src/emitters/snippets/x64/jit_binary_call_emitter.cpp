@@ -4,7 +4,18 @@
 
 #include "jit_binary_call_emitter.hpp"
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
+#include "emitters/utils.hpp"
+#include "snippets/emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 using namespace Xbyak;
 using namespace dnnl::impl;
@@ -12,11 +23,11 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-using jit_generator = dnnl::impl::cpu::x64::jit_generator;
+using jit_generator_t = dnnl::impl::cpu::x64::jit_generator_t;
 using cpu_isa_t = dnnl::impl::cpu::x64::cpu_isa_t;
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
-jit_binary_call_emitter::jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_binary_call_emitter::jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                  dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                  std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),

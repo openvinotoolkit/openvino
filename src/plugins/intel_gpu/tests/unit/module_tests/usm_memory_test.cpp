@@ -45,7 +45,7 @@ static void init_device_and_engine(std::shared_ptr<ocl::ocl_device>& device,
                                    std::shared_ptr<ocl::ocl_engine>& engine,
                                    bool& supports_usm) {
     // Find device, which supports USMs.
-    device_query query(engine_types::ocl, runtime_types::ocl);
+    device_query query(engine_types::ocl, runtime_types::ocl, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
     for (const auto& d : devices) {
         if (d.second->get_mem_caps().supports_usm()) {

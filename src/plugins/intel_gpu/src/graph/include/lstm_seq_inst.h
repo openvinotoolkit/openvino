@@ -16,6 +16,7 @@ struct typed_program_node<lstm_seq> : public typed_program_node_base<lstm_seq> {
 public:
     using parent::parent;
     ov::op::RecurrentSequenceDirection direction() const { return get_primitive()->direction; }
+    std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
 };
 
 using lstm_seq_node = typed_program_node<lstm_seq>;

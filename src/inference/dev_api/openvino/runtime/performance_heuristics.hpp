@@ -31,9 +31,10 @@ struct MemBandwidthPressure {
     static constexpr float LIMITED = 0.5f;  // conservatively assume 1/2 utilization of the cache
 };
 
-OPENVINO_RUNTIME_API MemBandwidthPressure mem_bandwidth_pressure_tolerance(
-    const std::shared_ptr<ov::Model> model,
-    const float cache_size,
-    const float memThresholdAssumeLimited = MemBandwidthPressure::LIMITED);
+OPENVINO_RUNTIME_API MemBandwidthPressure
+mem_bandwidth_pressure_tolerance(const std::shared_ptr<ov::Model> model,
+                                 const float cache_size,
+                                 const float mem_threshold_assume_limited = MemBandwidthPressure::LIMITED,
+                                 const ov::element::Type& target_type = ov::element::f32);
 
 }  // namespace ov

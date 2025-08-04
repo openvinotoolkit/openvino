@@ -48,8 +48,8 @@ JitConstants SDPAKernelRef::GetJitConstants(const sdpa_params& params) const {
         jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", params.conf.scale_val));
         jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", 1.0f / params.conf.scale_val));
     } else {
-        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.head_size))));
-        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(params.conf.head_size))));
+        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE_INV", std::sqrt(static_cast<float>(params.conf.k_head_size))));
+        jit.AddConstant(MakeJitConstant("STATIC_SCALE_VALUE", 1.0f / std::sqrt(static_cast<float>(params.conf.k_head_size))));
     }
 
     return jit;

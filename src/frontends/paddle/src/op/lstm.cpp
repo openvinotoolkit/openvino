@@ -142,9 +142,7 @@ struct LSTMAttributes {
         : m_direction(node.get_attribute<bool>("is_bidirec") ? ov::op::RecurrentSequenceDirection::BIDIRECTIONAL
                                                              : ov::op::RecurrentSequenceDirection::FORWARD),
           m_hidden_size(node.get_attribute<int32_t>("hidden_size")),
-          m_layers(node.get_attribute<int32_t>("num_layers"))
-
-              {};
+          m_layers(node.get_attribute<int32_t>("num_layers")) {};
 
     ov::op::RecurrentSequenceDirection m_direction;
     int32_t m_hidden_size;

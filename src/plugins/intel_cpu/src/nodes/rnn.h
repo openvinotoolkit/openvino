@@ -4,13 +4,28 @@
 
 #pragma once
 
-#include "common/dnnl_executor.h"
-#include "memory_desc/dnnl_blocked_memory_desc.h"
-#include "node.h"
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "common/dnnl_executor.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+
+namespace ov::intel_cpu::node {
 
 class RNN : public Node {
 public:
@@ -29,13 +44,13 @@ public:
 
     void execute(const dnnl::stream& strm) override;
 
-    inline bool hasNativeOrder() const {
+    bool hasNativeOrder() const {
         return nativeOrder;
     }
 
     void cleanup() override;
 
-    enum InOutKind { Layer = 0, HiddenState = 1, CellState = 2, Attention = 2 };
+    enum InOutKind : uint8_t { Layer = 0, HiddenState = 1, CellState = 2, Attention = 2 };
 
 protected:
     void prepareParams() override;
@@ -57,10 +72,10 @@ private:
 
     void copyWeightsData();
 
-    void prepareMemory(const DnnlMemoryDescPtr& intDesc, size_t indx) override;
+    void prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) override;
     class RnnDnnlExecutor : public DnnlExecutorLegacy {
     public:
-        RnnDnnlExecutor(const dnnl::primitive_desc& pd);
+        explicit RnnDnnlExecutor(const dnnl::primitive_desc& pd);
 
         DnnlMemoryDescPtr getWeightIterDesc() const {
             return wghts_iter_md;
@@ -100,7 +115,7 @@ private:
 
         Interval(Dim min, Dim max) : minVal(min), maxVal(max) {}
 
-        bool isStatic() {
+        [[nodiscard]] bool isStatic() const {
             return minVal == maxVal;
         }
 
@@ -142,11 +157,11 @@ private:
 
     static const std::map<dnnl::memory::data_type, dnnl::memory::data_type> weightsByinputDataType;
 
-    static constexpr size_t optimalBatchSize = 16lu;
-    static constexpr size_t batchDimDummyValue = 64lu;
+    static constexpr size_t optimalBatchSize = 16LU;
+    static constexpr size_t batchDimDummyValue = 64LU;
 
-    float inputScale = 0.f;
-    float inputShift = 0.f;
+    float inputScale = 0.F;
+    float inputShift = 0.F;
     std::vector<float> weightsScales;
 
     const uint64_t* m_gate_map = nullptr;
@@ -156,6 +171,4 @@ private:
     std::unordered_set<MemoryPtr> m_weights_pull;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -154,8 +154,8 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
             return input_padding;
         }
 
-        std::vector<int32_t> pad_low(input_padding._lower_size.begin(), input_padding._lower_size.begin() + input_rank);
-        std::vector<int32_t> pad_up(input_padding._upper_size.begin(), input_padding._upper_size.begin() + input_rank);
+        std::vector<ov::Dimension::value_type> pad_low(input_padding._lower_size.begin(), input_padding._lower_size.begin() + input_rank);
+        std::vector<ov::Dimension::value_type> pad_up(input_padding._upper_size.begin(), input_padding._upper_size.begin() + input_rank);
 
         if (input_rank == 1) {
             if (first_input) {
@@ -314,13 +314,13 @@ std::string gemm_inst::to_string(gemm_node const& node) {
     gemm_info.add("beam_table", (desc->beam_table.is_valid() ? desc->beam_table.pid : "N/A"));
     gemm_info.add("alpha", alpha);
     gemm_info.add("beta", beta);
-    gemm_info.add("trasnpose_input0", transpose_input0);
+    gemm_info.add("transpose_input0", transpose_input0);
     gemm_info.add("transpose_input1", transpose_input1);
     gemm_info.add("indirect_input0", indirect_input0);
     gemm_info.add("indirect_input1", indirect_input1);
-    gemm_info.add("trasnpose_order_input0", desc->input0_transpose_order);
-    gemm_info.add("trasnpose_order_input1", desc->input1_transpose_order);
-    gemm_info.add("trasnpose_order_output", desc->output_transpose_order);
+    gemm_info.add("transpose_order_input0", desc->input0_transpose_order);
+    gemm_info.add("transpose_order_input1", desc->input1_transpose_order);
+    gemm_info.add("transpose_order_output", desc->output_transpose_order);
     node_info->add("gemm info", gemm_info);
     node_info->dump(primitive_description);
 

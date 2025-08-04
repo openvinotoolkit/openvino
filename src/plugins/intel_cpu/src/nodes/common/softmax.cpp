@@ -1,20 +1,31 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "softmax.h"
 
-#include <algorithm>
 #include <cassert>
-#include <memory>
-#include <vector>
+#include <cstddef>
+#include <cstdint>
 
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
-#include "onednn/dnnl.h"
+#include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "utils/bfloat16.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <memory>
+#    include <vector>
+
+#    include "common/c_types_map.hpp"
+#    include "common/utils.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -40,9 +51,9 @@ struct jit_softmax_config_params {
 };
 
 struct jit_uni_softmax_kernel {
-    void (*ker_)(const jit_args_softmax*){nullptr};
+    void (*ker_)(const jit_args_softmax*) = nullptr;
 
-    void operator()(const jit_args_softmax* args) {
+    void operator()(const jit_args_softmax* args) const {
         assert(ker_);
         ker_(args);
     }
@@ -54,22 +65,26 @@ struct jit_uni_softmax_kernel {
 };
 #if defined(OPENVINO_ARCH_X86_64)
 template <cpu_isa_t isa>
-struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_generator {
+struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_softmax_kernel_f32)
 
-    jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp)
+    explicit jit_uni_softmax_kernel_f32(jit_softmax_config_params jcp)
         : jit_uni_softmax_kernel(),
-          jit_generator(jit_name()),
+          jit_generator_t(jit_name()),
           jcp_(jcp) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
-        exp_injector.reset(
-            new jit_uni_eltwise_injector<isa>(this, dnnl::impl::alg_kind::eltwise_exp, 0.f, 0.f, 1.0f, data_type::f32));
+        exp_injector.reset(new jit_uni_eltwise_injector_t<isa>(this,
+                                                               dnnl::impl::alg_kind::eltwise_exp,
+                                                               0.F,
+                                                               0.F,
+                                                               1.0F,
+                                                               data_type::f32));
 
         if (mayiuse(avx512_core)) {
             uni_vcvtneps2bf16 = std::make_unique<jit_uni_vcvtneps2bf16>(this, isa);
@@ -182,7 +197,7 @@ struct jit_uni_softmax_kernel_f32 : public jit_uni_softmax_kernel, public jit_ge
 
 private:
     using Vmm = typename conditional3<isa == x64::sse41, Xbyak::Xmm, isa == x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_src = r8;
     Xbyak::Reg64 aux_reg_src = r13;
@@ -203,11 +218,11 @@ private:
 
     std::unique_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
 
-    std::shared_ptr<jit_uni_eltwise_injector<isa>> exp_injector;
+    std::shared_ptr<jit_uni_eltwise_injector_t<isa>> exp_injector;
 
     jit_softmax_config_params jcp_;
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
+    void load_vector(Vmm vmm_src, const Xbyak::Address& op, ov::element::Type src_dt) {
         switch (src_dt) {
         case ov::element::f32:
             uni_vmovups(vmm_src, op);
@@ -220,7 +235,7 @@ private:
             assert(!"unknown src_dt");
         }
     }
-    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
+    void store_vector(const Xbyak::Address& op, Vmm vmm_dst, ov::element::Type dst_dt) {
         auto ymm_dst = Xbyak::Ymm(vmm_dst.getIdx());
 
         switch (dst_dt) {
@@ -317,23 +332,23 @@ void SoftmaxGeneric::calculate(const in_data_t* src_data, out_data_t* dst_data, 
 
 void SoftmaxGeneric::execute(const uint8_t* src_data, uint8_t* dst_data, int B, int C, int H, int W) {
     if (ov::element::f32 == input_prec) {
-        auto float_src_data = reinterpret_cast<const float*>(src_data);
+        const auto* float_src_data = reinterpret_cast<const float*>(src_data);
         if (ov::element::f32 == output_prec) {
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
+            auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             calculate(float_src_data, float_dst_data, B, C, H, W);
         } else if (ov::element::bf16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(float_src_data, bf16_dst_data, B, C, H, W);
         } else {
             OPENVINO_THROW("Unsupported output precision: ", output_prec.get_type_name());
         }
     } else if (ov::element::bf16 == input_prec) {
-        auto bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
+        const auto* bf16_src_data = reinterpret_cast<const bfloat16_t*>(src_data);
         if (ov::element::f32 == output_prec) {
-            auto float_dst_data = reinterpret_cast<float*>(dst_data);
+            auto* float_dst_data = reinterpret_cast<float*>(dst_data);
             calculate(bf16_src_data, float_dst_data, B, C, H, W);
         } else if (ov::element::bf16 == output_prec) {
-            auto bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
+            auto* bf16_dst_data = reinterpret_cast<bfloat16_t*>(dst_data);
             calculate(bf16_dst_data, bf16_dst_data, B, C, H, W);
         } else {
             OPENVINO_THROW("Unsupported output precision: ", output_prec.get_type_name());

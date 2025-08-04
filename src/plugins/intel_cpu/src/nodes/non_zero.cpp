@@ -6,11 +6,33 @@
 
 #include <nodes/common/cpu_memcpy.h>
 
+#include <cpu/platform.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utils/bfloat16.hpp>
+#include <vector>
 
+#include "cpu_shape.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/cc/selective_build.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/non_zero.hpp"
+#include "selective_build.h"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -35,18 +57,12 @@ NonZero::NonZero(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (op->get_output_element_type(0) != ov::element::i32) {
-        THROW_CPU_NODE_ERR("doesn't support demanded output precision");
-    }
+    CPU_NODE_ASSERT(op->get_output_element_type(0) == ov::element::i32, "doesn't support demanded output precision");
 }
 
 void NonZero::getSupportedDescriptors() {
-    if (getParentEdges().size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 1, "has incorrect number of input edges: ", getParentEdges().size());
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges: ", getChildEdges().size());
 }
 
 void NonZero::initSupportedPrimitiveDescriptors() {
@@ -55,19 +71,22 @@ void NonZero::initSupportedPrimitiveDescriptors() {
     }
 
     const auto& inPrc = getOriginalInputPrecisionAtPort(0);
-    if (!one_of(inPrc,
-                ov::element::f32,
-                ov::element::f16,
-                ov::element::bf16,
-                ov::element::f32,
-                ov::element::i32,
-                ov::element::u32,
-                ov::element::i8,
-                ov::element::u8)) {
-        THROW_CPU_NODE_ERR("doesn't support ", inPrc.get_type_name(), " precision on 0 port");
-    }
+    CPU_NODE_ASSERT(any_of(inPrc,
+                           ov::element::f32,
+                           ov::element::f16,
+                           ov::element::bf16,
+                           ov::element::f32,
+                           ov::element::i32,
+                           ov::element::u32,
+                           ov::element::i8,
+                           ov::element::u8),
+                    "doesn't support ",
+                    inPrc.get_type_name(),
+                    " precision on 0 port");
 
-    addSupportedPrimDesc({{LayoutType::ncsp}}, {{LayoutType::ncsp, ov::element::i32}}, impl_desc_type::ref);
+    addSupportedPrimDesc({{LayoutType::ncsp, ov::element::dynamic}},
+                         {{LayoutType::ncsp, ov::element::i32}},
+                         impl_desc_type::ref);
 }
 
 template <typename T>

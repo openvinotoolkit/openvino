@@ -4,12 +4,24 @@
 
 #include "permute_slice_n_interpolation.hpp"
 
-#include "itt.hpp"
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/rank.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils/general_utils.h"
 
@@ -46,12 +58,12 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
         if (axes[0] < 0L) {
             axes[0] += in_rank.get_length();
         }
-        if (!one_of(in_rank.get_length(), 3L, 4L, 5L) || axes.size() != 1L || axes[0] != (in_rank.get_length() - 1L)) {
+        if (none_of(in_rank.get_length(), 3L, 4L, 5L) || axes.size() != 1L || axes[0] != (in_rank.get_length() - 1L)) {
             return false;
         }
         // Check Transpose order
         auto order = (as_type<op::v0::Constant>(transpose->get_input_node_ptr(1)))->cast_vector<int64_t>();
-        if (!one_of(order,
+        if (none_of(order,
                     std::vector<int64_t>{0, 2, 1},
                     std::vector<int64_t>{0, 3, 1, 2},
                     std::vector<int64_t>{0, 4, 1, 2, 3})) {
@@ -69,7 +81,7 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
         copy_runtime_info(interpolate, new_interpolate);
 
         auto slice_inputs = slice->input_values();
-        auto new_slice_axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{1}, 1lu);
+        auto new_slice_axes = std::make_shared<op::v0::Constant>(element::i64, ov::Shape{1}, 1LU);
 
         slice_inputs[0] = new_interpolate;
         slice_inputs[4] = new_slice_axes;

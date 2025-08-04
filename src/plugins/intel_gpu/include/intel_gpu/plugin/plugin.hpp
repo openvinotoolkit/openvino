@@ -32,7 +32,7 @@ private:
     void register_primitives() const;
     std::string get_device_id_from_config(const ov::AnyMap& config) const;
     std::string get_device_id(const ov::AnyMap& config) const;
-    std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id) const;
+    std::shared_ptr<RemoteContextImpl> get_default_context(const std::string& device_id, bool initialize = true) const;
 
     std::vector<ov::PropertyName> get_caching_properties() const;
     std::vector<ov::PropertyName> get_supported_properties() const;
@@ -57,6 +57,10 @@ public:
     ov::Any get_property(const std::string& name, const ov::AnyMap& arguments) const override;
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model, const ov::AnyMap& properties) const override;
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model, const ov::AnyMap& properties) const override;
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                      const ov::SoPtr<ov::IRemoteContext>& context,
                                                      const ov::AnyMap& properties) const override;
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,

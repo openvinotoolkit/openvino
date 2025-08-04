@@ -4,13 +4,26 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+#include "openvino/core/type.hpp"
 #include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 /**
  * @interface RuntimeConfig
@@ -24,35 +37,35 @@ public:
     // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
     // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
     _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static {"RuntimeConfig"};
+        static ::ov::DiscreteTypeInfo type_info_static{"RuntimeConfig"};
         type_info_static.hash();
         return type_info_static;
     }
 
-    virtual const DiscreteTypeInfo& get_type_info() const {
+    [[nodiscard]] virtual const DiscreteTypeInfo& get_type_info() const {
         return get_type_info_static();
     }
 
-    const char* get_type_name() const {
+    [[nodiscard]] const char* get_type_name() const {
         return get_type_info().name;
     }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    virtual std::string to_string() const;
+    [[nodiscard]] virtual std::string to_string() const;
 #endif
 
     size_t tensor_rank = 0;
     size_t tile_rank = 0;
 
-    std::vector<ov::snippets::VectorDims> io_shapes = {};
-    std::vector<ov::snippets::VectorDims> io_layouts = {};
-    std::vector<ov::snippets::VectorDims> io_data_offsets = {};
-    ov::snippets::VectorDims master_shape = {};
+    std::vector<ov::snippets::VectorDims> io_shapes;
+    std::vector<ov::snippets::VectorDims> io_layouts;
+    std::vector<ov::snippets::VectorDims> io_data_offsets;
+    ov::snippets::VectorDims master_shape;
 
     size_t buffer_scratchpad_size = 0;
-    std::vector<size_t> buffer_cluster_offsets {};
+    std::vector<size_t> buffer_cluster_offsets;
     KernelExecutorTablePtr kernel_executor_table = std::make_shared<ov::snippets::KernelExecutorTable>();
-    std::vector<ov::snippets::VectorDims> latest_shapes = {};
+    std::vector<ov::snippets::VectorDims> latest_shapes;
 };
 
 /**
@@ -61,7 +74,7 @@ public:
  */
 class RuntimeConfigurator {
 public:
-    RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c);
+    explicit RuntimeConfigurator(std::shared_ptr<RuntimeConfig> c);
     virtual ~RuntimeConfigurator() = default;
 
     /**
@@ -74,7 +87,9 @@ public:
      * @brief Returns pointer to KernelExecutorTable owned by the config
      * @return updated KernelExecutorTable
      */
-    const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const { return m_config->kernel_executor_table; }
+    [[nodiscard]] const std::shared_ptr<KernelExecutorTable>& get_kernel_executor_table() const {
+        return m_config->kernel_executor_table;
+    }
     /**
      * @brief Set new KernelExecutorTable to the config
      * @param table new KernelExecutorTable
@@ -87,12 +102,24 @@ public:
     void reset_kernel_executor_table() const;
 
     // Getters for private members
-    std::shared_ptr<RuntimeConfig> get_config() const { return m_config; }
-    size_t get_io_num() const { return m_io_num; }
-    size_t get_in_num() const { return m_in_num; }
-    const std::vector<snippets::lowered::PortDescriptorPtr>& get_io_descs() const { return m_io_descs; }
-    const std::vector<size_t>& get_io_data_sizes() const { return m_io_data_sizes; }
-    const std::map<size_t, std::set<lowered::BufferExpressionPtr>>& get_dynamic_buffer_clusters() const { return m_dynamic_buffer_clusters; }
+    [[nodiscard]] std::shared_ptr<RuntimeConfig> get_config() const {
+        return m_config;
+    }
+    [[nodiscard]] size_t get_io_num() const {
+        return m_io_num;
+    }
+    [[nodiscard]] size_t get_in_num() const {
+        return m_in_num;
+    }
+    [[nodiscard]] const std::vector<snippets::lowered::PortDescriptorPtr>& get_io_descs() const {
+        return m_io_descs;
+    }
+    [[nodiscard]] const std::vector<size_t>& get_io_data_sizes() const {
+        return m_io_data_sizes;
+    }
+    [[nodiscard]] const std::map<size_t, std::set<lowered::BufferExpressionPtr>>& get_dynamic_buffer_clusters() const {
+        return m_dynamic_buffer_clusters;
+    }
 
     /**
      * @brief Computes the offsets for each dimension of a tensor shape.
@@ -128,7 +155,7 @@ public:
      * @param initialized_info_map A map containing the initialized runtime parameters for UnifiedLoopInfo.
      */
     static void update_expanded_loop_info(const lowered::ExpandedLoopInfoPtr& expanded_loop_info,
-                                          LoopInfoRuntimeParamsMap& initializated_info_map);
+                                          LoopInfoRuntimeParamsMap& initialized_info);
     /**
      * @brief Update tensor rank based on master shape
      * @param master_shape Master shape
@@ -182,20 +209,20 @@ protected:
     /**
      * @brief Extract shapes from m_io_descs
      */
-    std::vector<ov::snippets::VectorDims> extract_shapes() const;
+    [[nodiscard]] std::vector<ov::snippets::VectorDims> extract_shapes() const;
     /**
      * @brief Extract layouts from m_io_descs
      */
-    std::vector<std::vector<size_t>> extract_layouts() const;
+    [[nodiscard]] std::vector<std::vector<size_t>> extract_layouts() const;
 
     std::shared_ptr<RuntimeConfig> m_config = nullptr;
 
     size_t m_io_num = 0;
     size_t m_in_num = 0;
-    std::vector<snippets::lowered::PortDescriptorPtr> m_io_descs = {};
-    std::vector<size_t> m_io_data_sizes = {};
+    std::vector<snippets::lowered::PortDescriptorPtr> m_io_descs;
+    std::vector<size_t> m_io_data_sizes;
     // [cluster_id -> buffer expressions ]
-    std::map<size_t, std::set<lowered::BufferExpressionPtr>> m_dynamic_buffer_clusters = {};
+    std::map<size_t, std::set<lowered::BufferExpressionPtr>> m_dynamic_buffer_clusters;
 
     // WA: until ticket 148891 is not implemented, 2 pass pipelines for runtime optimizers are necessary since different
     // optimizers must be called at different pipeline stages.
@@ -207,5 +234,4 @@ protected:
     lowered::pass::PassPipeline m_final_optimizers;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets

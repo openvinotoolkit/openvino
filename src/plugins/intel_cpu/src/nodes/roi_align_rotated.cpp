@@ -4,17 +4,32 @@
 
 #include "roi_align_rotated.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <openvino/op/roi_align_rotated.hpp>
+#include <vector>
+
 #include "common/cpu_convert.h"
-#include "openvino/op/roi_align_rotated.hpp"
-#include "openvino/opsets/opset14_decl.hpp"
-#include "openvino/opsets/opset15_decl.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/op/roi_align.hpp"
 #include "openvino/reference/roi_align.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
 ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)) {
-    const auto roiAlign = ov::as_type_ptr<const ov::opset15::ROIAlignRotated>(op);
+    const auto roiAlign = ov::as_type_ptr<const ov::op::v15::ROIAlignRotated>(op);
     pooledH = roiAlign->get_pooled_h();
     pooledW = roiAlign->get_pooled_w();
     spatialScale = roiAlign->get_spatial_scale();
@@ -23,7 +38,7 @@ ROIAlignRotated::ROIAlignRotated(const std::shared_ptr<ov::Node>& op, const Grap
 }
 
 void ROIAlignRotated::getSupportedDescriptors() {
-    // Validation is already done in the ov::opset14::ROIAlignRotated.
+    // Validation is already done in the ov::op::v15::ROIAlignRotated.
 }
 
 void ROIAlignRotated::initSupportedPrimitiveDescriptors() {
@@ -83,7 +98,7 @@ void ROIAlignRotated::executeImpl() {
         clockwiseMode);
 }
 
-void ROIAlignRotated::execute(const dnnl::stream&) {
+void ROIAlignRotated::execute([[maybe_unused]] const dnnl::stream& strm) {
     const ov::element::Type type = getOriginalInputPrecisionAtPort(0);
     executeImpl<ov::element::f32>();
 
@@ -98,7 +113,7 @@ void ROIAlignRotated::execute(const dnnl::stream&) {
         CASE(f32);
         CASE(f64);
     default:
-        THROW_CPU_NODE_ERR("Unhandled data type ", type, " in execute()");
+        CPU_NODE_THROW("Unhandled data type ", type, " in execute()");
     }
 #undef CASE
 }

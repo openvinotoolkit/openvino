@@ -15,20 +15,9 @@ namespace ov {
 namespace test {
 
 std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj) {
-    basicCpuMvnParams basicParamsSet;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ElementType inputPrecision, outputPrecision;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision, additionalConfig) = obj.param;
-
-    InputShape inputShapes;
-    ElementType netPrecision;
-    ov::AxisSet axes;
-    bool acrossChanels, normalizeVariance;
-    double eps;
-    std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
-
+    const auto& [basicParamsSet, cpuParams, fusingParams, inputPrecision, outputPrecision, additionalConfig] =
+        obj.param;
+    const auto& [inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps] = basicParamsSet;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
     result << "TS=";
@@ -64,25 +53,11 @@ std::string MvnLayerCPUTest::getTestCaseName(testing::TestParamInfo<MvnLayerCPUT
 
 void MvnLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    basicCpuMvnParams basicParamsSet;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ElementType inPrc;
-    ElementType outPrc;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, cpuParams, fusingParams, inPrc, outPrc, additionalConfig) = this->GetParam();
-
+    const auto& [basicParamsSet, cpuParams, fusingParams, inPrc, outPrc, additionalConfig] = this->GetParam();
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     std::tie(postOpMgrPtr, fusedOps) = fusingParams;
-
-    InputShape inputShapes;
-    ElementType netPrecision;
-    ov::AxisSet axes;
-    bool normalizeVariance;
-    double eps;
-    std::tie(inputShapes, netPrecision, axes, acrossChanels, normalizeVariance, eps) = basicParamsSet;
-
+    const auto& [inputShapes, netPrecision, axes, _acrossChanels, normalizeVariance, eps] = basicParamsSet;
+    acrossChanels = _acrossChanels;
     init_input_shapes({inputShapes});
 
     ov::ParameterVector params;
@@ -105,7 +80,8 @@ void MvnLayerCPUTest::SetUp() {
     }
 
     rel_threshold = 5e-4;
-    if (one_of(additionalConfig[ov::hint::inference_precision.name()], ov::element::f16, ov::element::bf16)) {
+    if (auto it = additionalConfig.find(ov::hint::inference_precision.name()); it != additionalConfig.end()
+        && any_of(it->second, ov::element::f16, ov::element::bf16)) {
         rel_threshold = 1e-2;
         abs_threshold = .03f;
     }

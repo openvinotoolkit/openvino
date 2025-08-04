@@ -1,0 +1,70 @@
+[project]
+name = "openvino"
+dynamic = ["version", "entry-points", "scripts"]
+description = "OpenVINO(TM) Runtime"
+readme = {file = "README.md", content-type="text/markdown"}
+license = {text = "OSI Approved :: Apache Software License"}
+authors = [
+    { name = "OpenVINO Developers", email = "openvino@intel.com" },
+]
+classifiers = [
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.9"
+
+dependencies = [
+    "numpy>=1.16.6,<2.3.0",
+    "openvino-telemetry>=2023.2.1",
+    "packaging"
+]
+
+[build-system]
+requires = [
+    "setuptools>=70,<=80.9.0", 
+    "wheel<=0.45.1",
+    "cmake<=3.31.6", 
+    "patchelf<=0.17.2.2; sys_platform == 'linux' and platform_machine == 'x86_64'"
+]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+license-files = [
+    "LICENSE",
+    "licensing/runtime-third-party-programs.txt",
+    "licensing/onetbb_third-party-programs.txt",
+    "licensing/onednn_third-party-programs.txt",
+]
+[tool.setuptools.packages.find]
+where = ["./src/bindings/python"]
+include = ["pyopenvino"] 
+
+[tool.black]
+line-length = 160
+include = '\.pyi?$'
+
+[tool.pyright]
+include = ["src/bindings/python/src"]
+exclude = ["src/bindings/python/src/pyopenvino"]
+ignore = [
+    "**/ops.py",
+    "**/utils/data_helpers/data_dispatcher.py",
+    "**/utils/types.py",
+    "**/utils/decorators.py",
+    "**/frontend/frontend.py",
+    "**/_ov_api.py",
+    "**/_op_base.py",
+    "**/utils/node_factory.py",
+    "**/frontend/tensorflow",
+    "**/frontend/pytorch",
+    "**/frontend/jax"
+]
+reportInvalidTypeForm = false
+reportMissingModuleSource = false
+reportFunctionMemberAccess = false
+reportAttributeAccessIssue = false
+reportMissingImports = false
+reportIncompatibleMethodOverride = false

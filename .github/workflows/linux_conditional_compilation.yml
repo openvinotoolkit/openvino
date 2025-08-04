@@ -1,6 +1,11 @@
 name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -18,7 +23,7 @@ permissions: read-all
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
   PYTHON_VERSION: '3.11'
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -85,6 +90,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: ${{ github.event_name != 'merge_group' && needs.smart_ci.outputs.skip_workflow != 'True' }}
     timeout-minutes: 150
     defaults:
       run:
@@ -157,9 +163,7 @@ jobs:
       # Build
       #
 
-      - name: CMake configure - CC COLLECT with clang-tidy
-         # clang-tidy static analysis check is enabled as part of collection
-         # to avoid an additional separate build execution
+      - name: CMake configure
         run: |
           cmake \
             -G "${{ env.CMAKE_GENERATOR }}" \
@@ -167,11 +171,11 @@ jobs:
             -DBUILD_SHARED_LIBS=OFF \
             -DENABLE_TESTS=ON \
             -DENABLE_CPPLINT=OFF \
-            -DENABLE_CLANG_TIDY=ON \
             -DENABLE_NCC_STYLE=OFF \
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_FASTER_BUILD=ON \
+            -DENABLE_UNITY_BUILD=ON \
             -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -219,7 +223,7 @@ jobs:
             tar -cvf - install_dependencies/install_openvino_dependencies.sh | pigz > ${BUILD_DIR}/openvino_package.tar.gz
           popd
 
-          cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
+          cp -v ${OPENVINO_REPO}/temp/Linux_x86_64/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
           pushd ${INSTALL_TEST_DIR}
             tar -cvf - \
               tests/ov_cpu_func_tests \

@@ -4,10 +4,21 @@
 
 #include "matmul.hpp"
 
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/shape_inference.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -48,14 +59,13 @@ Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
                 m_shapeY[i] = shapeA[i];
                 continue;
             }
-            if (shapeA[i] != 1) {
-                OPENVINO_THROW("Incompatible MatMul batch dimension. Cant merge the first input dimension=",
-                               shapeA[i],
-                               " with second input dimension=",
-                               shapeB[i],
-                               " at index=",
-                               i);
-            }
+            OPENVINO_ASSERT(shapeA[i] == 1,
+                            "Incompatible MatMul batch dimension. Cant merge the first input dimension=",
+                            shapeA[i],
+                            " with second input dimension=",
+                            shapeB[i],
+                            " at index=",
+                            i);
         }
         m_shapeY[i] = shapeB[i];
     }
@@ -64,7 +74,7 @@ Result MMShapeInfer::infer(const std::vector<std::reference_wrapper<const Vector
 }
 
 ShapeInferPtr MMShapeInferFactory::makeShapeInfer() const {
-    if (const auto matmul = ov::as_type_ptr<const ov::opset1::MatMul>(m_op)) {
+    if (const auto matmul = ov::as_type_ptr<const ov::op::v0::MatMul>(m_op)) {
         const auto input_rank0 = matmul->get_input_partial_shape(0).rank().get_length();
         const auto input_rank1 = matmul->get_input_partial_shape(1).rank().get_length();
 

@@ -9,8 +9,7 @@
 #include <openvino/runtime/device_id_parser.hpp>
 #include <string>
 
-#include "base/ov_behavior_test_utils.hpp"
-#include "common/utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 
 using namespace ov::test::behavior;
@@ -26,7 +25,7 @@ public:
     std::string IE_NPU_TESTS_DUMP_PATH;
     std::string IE_NPU_TESTS_LOG_LEVEL;
     std::string IE_NPU_TESTS_PLATFORM;
-    std::string OV_NPU_TESTS_SKIP_CONFIG_FILE;
+    std::string OV_NPU_TESTS_SKIP_CONFIG_FILE = "npu_skip_func_tests.xml";
     mutable std::string OV_NPU_TESTS_BLOBS_PATH;  // mutable because it may have a default value set in main.cpp
 
     bool IE_NPU_TESTS_RUN_COMPILER = true;
@@ -55,17 +54,6 @@ std::string getTestsPlatformFromEnvironmentOr(const std::string& instead);
 std::string getDeviceNameTestCase(const std::string& str);
 std::string getDeviceName();
 std::string getDeviceNameID(const std::string& str);
-
-// Current version of gtest seems to fail when parsing template functions for getTestCaseName
-// To overcome this issue, programmer must make sure to wrap in paratheses this function when
-// it is given at INSTANTIATE_TEST_SUITE_P macros
-// e.g. INSTANTIATE_TEST_SUITE_P(TEST_SUITE_NAME, TEST_SUITE_CLASS, params,
-// (appendPlatformTypeTestName<TEST_SUITE_CLASS>))
-template <typename T>
-std::string appendPlatformTypeTestName(testing::TestParamInfo<typename T::ParamType> obj) {
-    const std::string& test_name = GenericTestCaseNameClass::getTestCaseName<T>(obj);
-    return test_name + "_targetPlatform=" + getTestsPlatformFromEnvironmentOr(ov::test::utils::DEVICE_NPU);
-}
 
 }  // namespace ov::test::utils
 

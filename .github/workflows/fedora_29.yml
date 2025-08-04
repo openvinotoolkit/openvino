@@ -1,6 +1,11 @@
 name: Fedora 29 (RHEL 8.4), Python 3.9
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   pull_request:
   merge_group:
   push:
@@ -80,10 +85,11 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
-      container: '{"image": "${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}", "volumes": ["/mount:/mount"], "options": "-e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING"}'
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.fedora_29 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'fedora_29'
@@ -92,6 +98,7 @@ jobs:
       build-js: false
       build-rpm-packages: true
       build-additional-python-packages: true
+      target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
         -G 'Ninja'
         -DENABLE_CPPLINT=OFF 

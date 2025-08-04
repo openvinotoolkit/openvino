@@ -5,26 +5,77 @@
 #include "reduce.h"
 
 #include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <common/c_types_map.hpp>
+#include <common/primitive_attr.hpp>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <limits>
+#include <map>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <set>
 #include <string>
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "cpu/x64/jit_uni_eltwise.hpp"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
-#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #include "fake_quantize.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
-#include "openvino/opsets/opset4_decl.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/logical_reduction_keep_dims.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/bfloat16.hpp"
+#include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
+#endif
+
+#if defined(OV_CPU_WITH_ACL)
+#    include "cpu_memory.h"
+#    include "nodes/executors/executor.hpp"
+#    include "nodes/executors/reduce_list.hpp"
+#endif
 
 using namespace dnnl;
 
@@ -127,26 +178,26 @@ static inline bool isFloatCompatible(memory::data_type type) {
 #if defined(OPENVINO_ARCH_X86_64)
 
 template <cpu_isa_t isa>
-struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator {
+struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_kernel_f32)
 
     explicit jit_uni_reduce_kernel_f32(jit_reduce_config_params jcp)
         : jit_uni_reduce_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
         if (jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            exp_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this,
-                                                                           alg_kind::eltwise_exp,
-                                                                           0.f,
-                                                                           0.f,
-                                                                           1.f,
-                                                                           data_type::f32);
+            exp_injector = std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
+                                                                             alg_kind::eltwise_exp,
+                                                                             0.F,
+                                                                             0.F,
+                                                                             1.F,
+                                                                             data_type::f32);
         }
 
         uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
@@ -199,7 +250,7 @@ struct jit_uni_reduce_kernel_f32 : public jit_uni_reduce_kernel, public jit_gene
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
     bool planar_layout = false;
     bool support_intermediate_int = false;
 
@@ -247,9 +298,9 @@ private:
     Xbyak::Label l_table;
 
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
-    std::shared_ptr<jit_uni_eltwise_injector<isa>> exp_injector;
+    std::shared_ptr<jit_uni_eltwise_injector_t<isa>> exp_injector;
 
-    inline void reduce_main() {
+    void reduce_main() {
         // ================================================================
         // ***isa: AVX512***
         // ReduceAnd (Logical And)
@@ -463,7 +514,7 @@ private:
         L(reduce_main_end_label);
     }
 
-    inline void reduce_tail() {
+    void reduce_tail() {
         if (jcp_.reduce_mode == Algorithm::ReduceL1) {
             uni_vmovups(xmm_aux, table_val(1));
         }
@@ -524,12 +575,12 @@ private:
         L(reduce_tail_end_label);
     }
 
-    inline void init_reg_reduce_stride() {
+    void init_reg_reduce_stride() {
         mov(reg_reduce_stride, ptr[reg_params + GET_OFF(reduce_stride)]);
         mul_by_const(reg_reduce_stride, reg_tmp_64, jcp_.src_data_size);
     }
 
-    inline void reduce_kernel() {
+    void reduce_kernel() {
         Xbyak::Label reduce_label;
         Xbyak::Label reduce_end_label;
         Xbyak::Label reduce_batch_label;
@@ -568,7 +619,7 @@ private:
         L(reduce_end_label);
     }
 
-    inline void reduce_once() {
+    void reduce_once() {
         load_vector(vmm_src, ptr[reg_src], jcp_.src_dt);
         reduce_kernel(vmm_src, vmm_dst);
 
@@ -578,7 +629,7 @@ private:
         }
     }
 
-    inline void reduce_batch() {
+    void reduce_batch() {
         mov(reg_src_aux, reg_src);
         mov(reg_work_batch_aux, reg_work_batch);
 
@@ -603,7 +654,7 @@ private:
         L(reduce_batch_loop_end_label);
     }
 
-    inline void reduce_gather(Vmm vmm_dst, int offset) {
+    void reduce_gather(Vmm vmm_dst, int offset) {
         switch (jcp_.src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -643,7 +694,7 @@ private:
         reduce_kernel(vmm_src, vmm_dst);
     }
 
-    inline void pack_gathered_vector(Vmm vmm_val, Vmm vmm_index, int offset, memory::data_type src_dt) {
+    void pack_gathered_vector(Vmm vmm_val, Vmm vmm_index, int offset, memory::data_type src_dt) {
         sub(rsp, vlen);
         uni_vmovdqu(ptr[rsp], vmm_index);
         size_t repeats = vlen / sizeof(float);
@@ -699,7 +750,7 @@ private:
         add(rsp, vlen);
     }
 
-    inline void reduce_kernel_tail() {
+    void reduce_kernel_tail() {
         Xbyak::Label reduce_label;
         Xbyak::Label reduce_end_label;
         Xbyak::Label reduce_batch_label;
@@ -756,7 +807,7 @@ private:
         L(reduce_end_label);
     }
 
-    inline void reduce_once_tail() {
+    void reduce_once_tail() {
         load_scalar(xmm_src, ptr[reg_src], jcp_.src_dt);
         reduce_kernel_scalar(xmm_src, xmm_dst);
         if (jcp_.reduce_mode == Algorithm::ReduceOr) {
@@ -765,7 +816,7 @@ private:
         }
     }
 
-    inline void reduce_batch_tail() {
+    void reduce_batch_tail() {
         mov(reg_src_aux, reg_src);
         mov(reg_work_batch_aux, reg_work_batch);
 
@@ -790,7 +841,7 @@ private:
         L(reduce_batch_loop_end_label);
     }
 
-    inline void reduce_main_loop() {
+    void reduce_main_loop() {
         Xbyak::Label reduce_loop_label;
         Xbyak::Label reduce_loop_end_label;
 
@@ -816,7 +867,7 @@ private:
         L(reduce_loop_end_label);
     }
 
-    inline void reduce_kernel(Vmm vmm_src, Vmm vmm_dst) {
+    void reduce_kernel(Vmm vmm_src, Vmm vmm_dst) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             if (isa == cpu::x64::avx512_core) {
@@ -870,7 +921,7 @@ private:
         }
     }
 
-    inline void reduce_kernel_scalar(Xmm xmm_src, Xmm xmm_dst) {
+    void reduce_kernel_scalar(Xmm xmm_src, Xmm xmm_dst) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             uni_cmpneqps(xmm_src, xmm_src, xmm_zero);
@@ -915,14 +966,14 @@ private:
         }
     }
 
-    inline void load_dst_vector() {
+    void load_dst_vector() {
         load_vector(vmm_dst, ptr[reg_dst], jcp_.dst_dt);
         if (isa == cpu::x64::sse41) {
             load_vector(vmm_dst_aux, ptr[reg_dst + 4 * jcp_.dst_data_size], jcp_.dst_dt);
         }
     }
 
-    inline void store_dst_vector() {
+    void store_dst_vector() {
         if (jcp_.reduce_mode == Algorithm::ReduceOr && isa != cpu::x64::avx512_core) {
             uni_cmpneqps(vmm_dst, vmm_dst, vmm_zero);
             uni_vandps(vmm_dst, vmm_dst, vmm_aux);
@@ -938,7 +989,7 @@ private:
         }
     }
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
+    void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -966,7 +1017,7 @@ private:
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
+    void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -996,7 +1047,7 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
+    void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
         auto xmm_dst = Xmm(vmm_dst.getIdx());
         auto ymm_dst = Ymm(vmm_dst.getIdx());
         if (jcp_.round_to_zero && !support_intermediate_int) {
@@ -1063,7 +1114,7 @@ private:
         }
     }
 
-    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
+    void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
         if (jcp_.round_to_zero && !support_intermediate_int) {
             uni_vroundps(xmm_dst, xmm_dst, 3);
         }
@@ -1102,7 +1153,7 @@ private:
         }
     }
 
-    inline void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
+    void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
         if (isa == cpu::x64::sse41) {
             horiz_store(vmm_dst, dst_dt, load_embedded);
         } else if (isa == cpu::x64::avx2) {
@@ -1124,7 +1175,7 @@ private:
         }
     }
 
-    inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
+    void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
         uni_vmovshdup(xmm_aux3, xmm_dst);           // dst:1,2,3,4; aux3:2,2,4,4
         horiz_ps(xmm_dst, xmm_aux3);                // dst:f(1,2),f(2,2),f(3,4),f(4,4)
         uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
@@ -1136,7 +1187,7 @@ private:
         store_scalar(ptr[reg_dst], xmm_dst, dst_dt);
     }
 
-    inline void horiz_ps(const Xmm& xmm, const Operand& op) {
+    void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             uni_vandps(xmm, xmm, op);
@@ -1171,11 +1222,11 @@ private:
         }
     }
 
-    inline bool convert_i32_to_f32(memory::data_type src_dt) {
+    bool convert_i32_to_f32(memory::data_type src_dt) {
         return !isFloatCompatible(src_dt) && !support_intermediate_int;
     }
 
-    inline bool convert_f32_to_i32(memory::data_type dst_dt) {
+    bool convert_f32_to_i32(memory::data_type dst_dt) {
         return !isFloatCompatible(dst_dt) && !support_intermediate_int;
     }
 
@@ -1210,16 +1261,16 @@ private:
 };
 
 template <cpu_isa_t isa>
-struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, public jit_generator {
+struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_reduce_post_kernel_f32)
 
     explicit jit_uni_reduce_post_kernel_f32(jit_reduce_config_params jcp, const dnnl_primitive_attr& attr)
         : jit_uni_reduce_post_kernel(jcp, attr),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1227,12 +1278,12 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         for (int i = 0; i < p.len(); i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
-                                                                                            post_op.eltwise.alg,
-                                                                                            post_op.eltwise.alpha,
-                                                                                            post_op.eltwise.beta,
-                                                                                            post_op.eltwise.scale,
-                                                                                            data_type::f32));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
+                                                                                              post_op.eltwise.alg,
+                                                                                              post_op.eltwise.alpha,
+                                                                                              post_op.eltwise.beta,
+                                                                                              post_op.eltwise.scale,
+                                                                                              data_type::f32));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op));
             } else if (post_op.is_quantization()) {
@@ -1246,12 +1297,12 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
         }
 
         if (jcp_.reduce_mode == Algorithm::ReduceLogSum || jcp_.reduce_mode == Algorithm::ReduceLogSumExp) {
-            log_injector = std::make_shared<jit_uni_eltwise_injector<isa>>(this,
-                                                                           alg_kind::eltwise_log,
-                                                                           0.f,
-                                                                           0.f,
-                                                                           1.f,
-                                                                           data_type::f32);
+            log_injector = std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
+                                                                             alg_kind::eltwise_log,
+                                                                             0.F,
+                                                                             0.F,
+                                                                             1.F,
+                                                                             data_type::f32);
         }
 
         uni_vcvtneps2bf16 = std::make_shared<jit_uni_vcvtneps2bf16>(this, isa);
@@ -1325,7 +1376,7 @@ struct jit_uni_reduce_post_kernel_f32 : public jit_uni_reduce_post_kernel, publi
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
     bool planar_layout = false;
     bool post_reduce = true;
     bool post_ops_fusing = false;
@@ -1364,13 +1415,13 @@ private:
     Vmm vmm_d_bias = Vmm(8);
 
     std::shared_ptr<jit_uni_vcvtneps2bf16> uni_vcvtneps2bf16;
-    std::shared_ptr<jit_uni_eltwise_injector<isa>> log_injector;
+    std::shared_ptr<jit_uni_eltwise_injector_t<isa>> log_injector;
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_t<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 
-    inline void reduce_post_main() {
+    void reduce_post_main() {
         Xbyak::Label reduce_channel_label;
         Xbyak::Label reduce_map_label;
         if (planar_layout) {
@@ -1521,7 +1572,7 @@ private:
         }
     }
 
-    inline void reduce_post_tail() {
+    void reduce_post_tail() {
         // reduce map for tail in dst memory
         // cases: [ReduceL2] [ReduceLogSum] [ReduceLogSumExp] [ReduceMean] in planar layout
         if (post_reduce) {
@@ -1656,7 +1707,7 @@ private:
         }
     }
 
-    inline void reduce_map_kernel(Vmm vmm_dst) {
+    void reduce_map_kernel(Vmm vmm_dst) {
         if (jcp_.reduce_mode == Algorithm::ReduceMean) {
             uni_vdivps(vmm_dst, vmm_dst, vmm_aux);
         } else if (jcp_.reduce_mode == Algorithm::ReduceL2) {
@@ -1666,7 +1717,7 @@ private:
         }
     }
 
-    inline void reduce_map_kernel_scalar(Xmm xmm_dst) {
+    void reduce_map_kernel_scalar(Xmm xmm_dst) {
         if (jcp_.reduce_mode == Algorithm::ReduceMean) {
             uni_vdivps(xmm_dst, xmm_dst, xmm_aux);
         } else if (jcp_.reduce_mode == Algorithm::ReduceL2) {
@@ -1676,7 +1727,7 @@ private:
         }
     }
 
-    inline void wrap_load_vector(Vmm vmm_val, size_t offset) {
+    void wrap_load_vector(Vmm vmm_val, size_t offset) {
         if (jcp_.fuse_low_precision) {
             load_vector(vmm_val, ptr[reg_src + offset * sizeof(float)], memory::data_type::f32);
         } else {
@@ -1684,7 +1735,7 @@ private:
         }
     }
 
-    inline void wrap_load_scalar(Xmm xmm_val, size_t offset) {
+    void wrap_load_scalar(Xmm xmm_val, size_t offset) {
         if (jcp_.fuse_low_precision) {
             load_scalar(xmm_val, ptr[reg_src + offset * sizeof(float)], memory::data_type::f32);
         } else {
@@ -1692,7 +1743,7 @@ private:
         }
     }
 
-    inline void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
+    void load_vector(Vmm vmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -1720,7 +1771,7 @@ private:
         }
     }
 
-    inline void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
+    void load_scalar(Xmm xmm_src, const Xbyak::Address& op, memory::data_type src_dt) {
         switch (src_dt) {
         case memory::data_type::f32:
         case memory::data_type::s32:
@@ -1750,7 +1801,7 @@ private:
         }
     }
 
-    inline void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
+    void store_vector(const Xbyak::Address& op, Vmm vmm_dst, memory::data_type dst_dt) {
         auto xmm_dst = Xmm(vmm_dst.getIdx());
         auto ymm_dst = Ymm(vmm_dst.getIdx());
         // If there is post ops fusing, necessary rounding has ready been done, no need to do it again.
@@ -1818,7 +1869,7 @@ private:
         }
     }
 
-    inline void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
+    void store_scalar(const Xbyak::Address& op, Xmm xmm_dst, memory::data_type dst_dt) {
         if (!post_ops_fusing && jcp_.round_to_zero) {
             uni_vroundps(xmm_dst, xmm_dst, 3);
         }
@@ -1857,7 +1908,7 @@ private:
         }
     }
 
-    inline void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
+    void horiz_reduce_store(Vmm vmm_dst, memory::data_type dst_dt, bool load_embedded = false) {
         if (isa == cpu::x64::sse41) {
             horiz_store(vmm_dst, dst_dt, load_embedded);
         } else if (isa == cpu::x64::avx2) {
@@ -1879,7 +1930,7 @@ private:
         }
     }
 
-    inline void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
+    void horiz_store(Xbyak::Xmm xmm_dst, memory::data_type dst_dt, bool load_embedded) {
         uni_vmovshdup(xmm_aux3, xmm_dst);           // dst:1,2,3,4; aux3:2,2,4,4
         horiz_ps(xmm_dst, xmm_aux3);                // dst:f(1,2),f(2,2),f(3,4),f(4,4)
         uni_vmovhlps(xmm_aux3, xmm_aux3, xmm_dst);  // aux3:f(3,4),f(4,4),4,4
@@ -1899,7 +1950,7 @@ private:
         }
     }
 
-    inline void horiz_ps(const Xmm& xmm, const Operand& op) {
+    void horiz_ps(const Xmm& xmm, const Operand& op) {
         switch (jcp_.reduce_mode) {
         case Algorithm::ReduceAnd:
             uni_vandps(xmm, xmm, op);
@@ -1936,39 +1987,39 @@ private:
 const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>& op, Reduce& node)>>&
 Reduce::getInitializers() {
     static const std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Reduce&)>>
-        initializers = {{ov::opset4::ReduceL1::get_type_info_static(),
+        initializers = {{ov::op::v4::ReduceL1::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceL1;
                          }},
-                        {ov::opset4::ReduceL2::get_type_info_static(),
+                        {ov::op::v4::ReduceL2::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceL2;
                          }},
-                        {ov::opset1::ReduceLogicalAnd::get_type_info_static(),
+                        {ov::op::v1::ReduceLogicalAnd::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceAnd;
                          }},
-                        {ov::opset1::ReduceLogicalOr::get_type_info_static(),
+                        {ov::op::v1::ReduceLogicalOr::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceOr;
                          }},
-                        {ov::opset1::ReduceMax::get_type_info_static(),
+                        {ov::op::v1::ReduceMax::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceMax;
                          }},
-                        {ov::opset1::ReduceMean::get_type_info_static(),
+                        {ov::op::v1::ReduceMean::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceMean;
                          }},
-                        {ov::opset1::ReduceMin::get_type_info_static(),
+                        {ov::op::v1::ReduceMin::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceMin;
                          }},
-                        {ov::opset1::ReduceProd::get_type_info_static(),
+                        {ov::op::v1::ReduceProd::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceProd;
                          }},
-                        {ov::opset1::ReduceSum::get_type_info_static(),
+                        {ov::op::v1::ReduceSum::get_type_info_static(),
                          []([[maybe_unused]] const std::shared_ptr<ov::Node>& op, Reduce& node) {
                              node.algorithm = Algorithm::ReduceSum;
                          }}};
@@ -1985,7 +2036,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         }
         if (const auto reduce = ov::as_type_ptr<const ov::op::util::ArithmeticReductionKeepDims>(op)) {
             auto reduceConst =
-                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+                ov::as_type_ptr<const ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
@@ -1993,7 +2044,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
         }
         if (const auto reduce = ov::as_type_ptr<const ov::op::util::LogicalReductionKeepDims>(op)) {
             auto reduceConst =
-                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+                ov::as_type_ptr<const ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
             if (!reduceConst) {
                 errorMessage = "Second tensor is not constant";
                 return false;
@@ -2003,7 +2054,7 @@ bool Reduce::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
             errorMessage = "Doesn't support Reduce algorithm: " + std::string(op->get_type_info().name);
             return false;
         }
-        if (ov::as_type_ptr<ov::opset1::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
+        if (ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(REDUCE_INDEXES)) == nullptr) {
             errorMessage = "Only const 'reduce_indexes' input is supported";
             return false;
         }
@@ -2021,18 +2072,14 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         if (const auto reduce = ov::as_type_ptr<ov::op::util::ArithmeticReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst =
-                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
-            if (!reduceConst) {
-                THROW_CPU_NODE_ERR("second tensor is not constant!");
-            }
+                ov::as_type_ptr<const ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            CPU_NODE_ASSERT(reduceConst, "second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         } else if (const auto reduce = ov::as_type_ptr<ov::op::util::LogicalReductionKeepDims>(op)) {
             keep_dims = reduce->get_keep_dims();
             auto reduceConst =
-                ov::as_type_ptr<const ov::opset1::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
-            if (!reduceConst) {
-                THROW_CPU_NODE_ERR("second tensor is not constant!");
-            }
+                ov::as_type_ptr<const ov::op::v0::Constant>(reduce->get_input_node_shared_ptr(REDUCE_INDEXES));
+            CPU_NODE_ASSERT(reduceConst, "second tensor is not constant!");
             raw_axes = reduceConst->cast_vector<int>();
         }
         set_use_aux_kernel = false;
@@ -2047,29 +2094,23 @@ Reduce::Reduce(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 }
 
 void Reduce::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("gets incorrect number of input edges!");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("gets incorrect number of output edges!");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 2, "gets incorrect number of input edges!");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "gets incorrect number of output edges!");
 
-    if (getInputShapeAtPort(REDUCE_INDEXES).getRank() != 1) {
-        THROW_CPU_NODE_ERR("gets incorrect index vector dimension! Index vector should be 1 dimension.");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(REDUCE_INDEXES).getRank() == 1,
+                    "gets incorrect index vector dimension! Index vector should be 1 dimension.");
 
     if (keep_dims) {
-        if (getInputShapeAtPort(REDUCE_DATA).getRank() != getOutputShapeAtPort(0).getRank()) {
-            THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
-        }
+        CPU_NODE_ASSERT(getInputShapeAtPort(REDUCE_DATA).getRank() == getOutputShapeAtPort(0).getRank(),
+                        "gets incorrect number of input/output dimensions!");
     } else {
         // In fact, after the Reduce operation, the shape must be a scalar if the previous one was 1d.
         // But for now, 0d tensor (scalar) is emulated as 1d tensor. Skip checking in such cases.
         bool is_emulated_0d_as_1d =
             getInputShapeAtPort(REDUCE_DATA).getRank() == 1 && getOutputShapeAtPort(0).getRank() == 1;
-        if (getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank() && !is_emulated_0d_as_1d) {
-            THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
-        }
+        const bool rank_condition = getInputShapeAtPort(REDUCE_DATA).getRank() <= getOutputShapeAtPort(0).getRank();
+        const bool invalid_config = rank_condition && !is_emulated_0d_as_1d;
+        CPU_NODE_ASSERT(!invalid_config, "gets incorrect number of input/output dimensions!");
     }
 }
 
@@ -2141,7 +2182,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
     config.inConfs[REDUCE_INDEXES].inPlace(-1);
     config.outConfs[0].inPlace(-1);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
     auto pushDesc = [&](LayoutType inFormat,
                         LayoutType outFormat,
@@ -2159,12 +2200,14 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         if (useAclExecutor) {
 #if defined(OV_CPU_WITH_ACL)
             std::vector<MemoryDescPtr> srcMemoryDescs;
-            for (size_t i = 0; i < config.inConfs.size(); i++) {
-                srcMemoryDescs.push_back(config.inConfs[i].getMemDesc());
+            srcMemoryDescs.reserve(config.inConfs.size());
+            for (const auto& inConf : config.inConfs) {
+                srcMemoryDescs.push_back(inConf.getMemDesc());
             }
             std::vector<MemoryDescPtr> dstMemoryDescs;
-            for (size_t i = 0; i < config.outConfs.size(); i++) {
-                dstMemoryDescs.push_back(config.outConfs[i].getMemDesc());
+            dstMemoryDescs.reserve(config.outConfs.size());
+            for (const auto& outConf : config.outConfs) {
+                dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
             auto factory =
@@ -2173,7 +2216,7 @@ void Reduce::initSupportedPrimitiveDescriptors() {
                                                         dstMemoryDescs,
                                                         std::make_shared<ExecutorContext>(context, getImplPriority()));
             if (!factory->isEmpty()) {
-                supportedPrimitiveDescriptors.push_back({config, impl_type, factory});
+                supportedPrimitiveDescriptors.emplace_back(config, impl_type, factory);
             }
 #endif
         } else {
@@ -2190,16 +2233,18 @@ void Reduce::initSupportedPrimitiveDescriptors() {
         reduceAttrs.keepDims = keep_dims;
         reduceAttrs.axes = raw_axes;
         for (auto& axis : reduceAttrs.axes) {
-            if (axis < 0)
+            if (axis < 0) {
                 axis += static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
+            }
         }
         pushDesc(LayoutType::nspc, LayoutType::nspc, input_prec, output_prec, impl_desc_type::undef, true);
         pushDesc(LayoutType::ncsp, LayoutType::ncsp, input_prec, output_prec, impl_desc_type::undef, true);
         canUseAclExecutor = !supportedPrimitiveDescriptors.empty();
     }
 
-    if (canUseAclExecutor)
+    if (canUseAclExecutor) {
         return;
+    }
 #endif
 
     if (jit_mode) {
@@ -2259,7 +2304,7 @@ void Reduce::prepareParams() {
         std::vector<MemoryDescPtr> dstMemoryDescs;
         dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
 
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         if (!empty_input) {
             aclExecPtr = selectedPD->getExecutorFactoryAs<ReduceExecutorFactory>()->makeExecutor(reduceAttrs,
                                                                                                  srcMemoryDescs,
@@ -2290,7 +2335,7 @@ void Reduce::prepareParams() {
     apply_post_kernel = true;
     apply_division = false;
 
-    auto builder = [&](const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
+    auto builder = [&]([[maybe_unused]] const ReduceKey& key) -> std::shared_ptr<jit_uni_reduce_post_kernel> {
         std::shared_ptr<jit_uni_reduce_post_kernel> post_kernel;
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
@@ -2318,9 +2363,7 @@ void Reduce::prepareParams() {
         ReduceKey key = {reduce_post_jcp, attr.get_post_ops()};
         auto cache = context->getParamsCache();
         auto result = cache->getOrCreate(key, builder);
-        if (!result.first) {
-            THROW_CPU_NODE_ERR("has not found jit_uni_reduce_post_kernel_f32.");
-        }
+        CPU_NODE_ASSERT(result.first, "has not found jit_uni_reduce_post_kernel_f32.");
 
         reduce_post_kernel = result.first;
         jit_mode = jit_mode && reduce_post_kernel;
@@ -2337,15 +2380,9 @@ void Reduce::createPrimitive() {
     }
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(REDUCE_DATA);
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("has null destination memory.");
-    }
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("has null input memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dstMemPtr, "has null destination memory.");
+    CPU_NODE_ASSERT(srcMemPtr, "has null input memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has nullable preferable primitive descriptor");
 
     if (srcMemPtr->getDesc().hasLayoutType(LayoutType::ncsp)) {
         layout = ReduceLayoutType::reduce_ncsp;
@@ -2361,7 +2398,7 @@ void Reduce::createPrimitive() {
         is_hybrid_layout = dstMemPtr->getDesc().hasLayoutType(LayoutType::ncsp);
     }
 
-    auto selectedPD = getSelectedPrimitiveDescriptor();
+    auto* selectedPD = getSelectedPrimitiveDescriptor();
     jcp = jit_reduce_config_params();
     jcp.src_dt = DnnlExtensionUtils::ElementTypeToDataType(
         selectedPD->getConfig().inConfs[REDUCE_DATA].getMemDesc()->getPrecision());
@@ -2419,7 +2456,8 @@ void Reduce::createPrimitive() {
     }
 }
 
-void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel, const jit_reduce_config_params& jcp) {
+void Reduce::create_reduce_kernel(std::shared_ptr<jit_uni_reduce_kernel>& kernel,
+                                  [[maybe_unused]] const jit_reduce_config_params& jcp) {
 #if defined(OPENVINO_ARCH_X86_64)
     if (mayiuse(cpu::x64::avx512_core)) {
         kernel = std::make_shared<jit_uni_reduce_kernel_f32<cpu::x64::avx512_core>>(jcp);
@@ -2474,15 +2512,15 @@ void Reduce::execute([[maybe_unused]] const dnnl::stream& strm) {
         std::vector<MemoryPtr> dstMemory;
         dstMemory.push_back(getDstMemoryAtPort(0));
 
-        aclExecPtr->exec(srcMemory, dstMemory, postOpsDataPtrs.data());
+        aclExecPtr->exec(srcMemory, dstMemory, reinterpret_cast<const void*>(postOpsDataPtrs.data()));
 #endif
     } else {
         if (layout == ReduceLayoutType::reduce_ncsp) {
-            auto in_ptr = reinterpret_cast<const float*>(src_data);
-            auto out_ptr = reinterpret_cast<float*>(dst_data);
+            const auto* in_ptr = reinterpret_cast<const float*>(src_data);
+            auto* out_ptr = reinterpret_cast<float*>(dst_data);
             reduce_ref(in_ptr, out_ptr);
         } else {
-            THROW_CPU_NODE_ERR("supports only plain layout on machine w/o sse42.");
+            CPU_NODE_THROW("supports only plain layout on machine w/o sse42.");
         }
     }
 }
@@ -2556,7 +2594,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                                               work_amount,
                                               1,
                                               0,
-                                              static_cast<int*>(&index_buf[0]));
+                                              static_cast<int*>(index_buf.data()));
                     });
                     size_t tail_start = IK * blk_size;
                     size_t IT = outer_size - tail_start;
@@ -2570,13 +2608,15 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 } else {
                     if (ReduceH) {
                         parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
-                            size_t oc = ic, od = id;
+                            size_t oc = ic;
+                            size_t od = id;
                             GET_PTR_NCD_BASE_PTR_N_PLN;
                             reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, work_amount, 1);
                         });
                     } else {
                         parallel_for3d(IC, ID, IH, [&](size_t ic, size_t id, size_t ih) {
-                            size_t oc = ic, od = id;
+                            size_t oc = ic;
+                            size_t od = id;
                             GET_PTR_NCD_BASE_PTR_N_PLN;
                             size_t oh = ih;
                             GET_PTR_NCDH_PLN;
@@ -2598,7 +2638,7 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 if (ReduceCDW_opt) {
                     // reduce parallelly in HW dimensions
                     // step1: ReduceC && ReduceD && !ReduceH && !ReduceW
-                    uint8_t* prc_ptr_n = &vec_reduceCDW_prc[0];
+                    uint8_t* prc_ptr_n = vec_reduceCDW_prc.data();
                     init_dst_data(prc_ptr_n, prc_size);
                     size_t IS = IH * IW;
                     reduce_stride = IS;
@@ -2657,7 +2697,8 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 }
             } else if (!ReduceC && !ReduceD && ReduceH && !ReduceW) {
                 parallel_for2d(IC, ID, [&](size_t ic, size_t id) {
-                    size_t oc = ic, od = id;
+                    size_t oc = ic;
+                    size_t od = id;
                     GET_PTR_NCD_BASE_PTR_N_PLN;
                     parallel_for(IW / blk_size, [&](size_t ibw) {
                         size_t obw = ibw;
@@ -2680,10 +2721,11 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                     if (IWB > 0) {
                         // reduce parallelly in D dimension
                         // step1: !ReduceD && ReduceH && !ReduceW
-                        uint8_t* prc_ptr_n = &vec_reduceDH_prc[0];
+                        uint8_t* prc_ptr_n = vec_reduceDH_prc.data();
                         init_dst_data(prc_ptr_n, prc_size);
                         parallel_for2d(ID, IWB, [&](size_t id, size_t iwb) {
-                            size_t pd = id, pwb = iwb;
+                            size_t pd = id;
+                            size_t pwb = iwb;
                             reduce_kernel_process(in_ptr_n + (id * IH * IW + iwb * blk_size) * src_data_size,
                                                   prc_ptr_n + (pd * PW + pwb * blk_size) * prc_data_size,
                                                   blk_size,
@@ -2694,7 +2736,8 @@ void Reduce::reduce_PLN(const uint8_t* in_ptr, uint8_t* out_ptr) {
                         reduce_stride = PW;
                         reduce_kernel_reassign();
                         parallel_for(IWB, [&](size_t iwb) {
-                            size_t pwb = iwb, owb = iwb;
+                            size_t pwb = iwb;
+                            size_t owb = iwb;
                             reduce_kernel_process(prc_ptr_n + pwb * blk_size * prc_data_size,
                                                   out_ptr_n + owb * blk_size * dst_data_size,
                                                   blk_size,
@@ -2817,7 +2860,8 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
                 apply_post_kernel = !apply_division;
             }
             parallel_for2d(ICB, ID, [&](size_t icb, size_t id) {
-                size_t ocb = icb, od = id;
+                size_t ocb = icb;
+                size_t od = id;
                 GET_PTR_NCD_BASE_PTR_N_BLK;
                 reduce_kernel_process(in_ptr_ncd, out_ptr_ncd, IH * IW * blk_size);
             });
@@ -2859,7 +2903,8 @@ void Reduce::reduce_BLK(const uint8_t* in_ptr, uint8_t* out_ptr) {
         } else if (ReduceC && !ReduceD && !ReduceH && !ReduceW) {
             reduce_stride = ID * IH * IW * blk_size;
             parallel_for3d(ID, IH, IW, [&](size_t id, size_t ih, size_t iw) {
-                size_t icb = 0, ocb = 0;
+                size_t icb = 0;
+                size_t ocb = 0;
                 GET_PTR_NC_BLK;
                 size_t od = id;
                 GET_PTR_NCD_BLK;
@@ -3019,7 +3064,7 @@ inline void Reduce::reduce_kernel_process(const uint8_t* in_p,
 }
 
 inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
-    const uint8_t* in_ptr = fuse_low_precision ? static_cast<uint8_t*>(&intermediate_buf[0]) : nullptr;
+    const uint8_t* in_ptr = fuse_low_precision ? static_cast<uint8_t*>(intermediate_buf.data()) : nullptr;
     const size_t integerDivisor = empty_input ? 1 : IB * IC * ID * IH * IW / (OB * OC * OD * OH * OW);
     const auto divisor = static_cast<float>(integerDivisor);
     if (layout == ReduceLayoutType::reduce_ncsp) {
@@ -3033,7 +3078,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             arg.channel_size = OC;
             arg.work_amount = OD * OH * OW;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void**>(postOpsDataPtrs.data());
+            arg.post_op_data = postOpsDataPtrs.data();
             (*reduce_post_kernel)(&arg);
         });
     } else if (layout == ReduceLayoutType::reduce_nspc) {
@@ -3053,7 +3098,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             arg.channel_size = OW;  // OW is related to nspc-ncsp dimension reinterpret
             arg.work_amount = work_amount;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void**>(postOpsDataPtrs.data());
+            arg.post_op_data = postOpsDataPtrs.data();
             (*reduce_post_kernel)(&arg);
         };
 
@@ -3072,7 +3117,7 @@ inline void Reduce::reduce_kernel_post_process(uint8_t* out_ptr) {
             arg.oc_off = ocb * blk_size * sizeof(float);
             arg.work_amount = OD * OH * OW * blk_size;
             arg.divisor = &divisor;
-            arg.post_op_data = static_cast<const void**>(postOpsDataPtrs.data());
+            arg.post_op_data = postOpsDataPtrs.data();
             (*reduce_post_kernel)(&arg);
         });
     }
@@ -3093,7 +3138,7 @@ inline void Reduce::reduce_kernel_restore() {
 inline void Reduce::output_info_reassign(uint8_t** out_ptr) {
     if (fuse_low_precision) {
         tmp_ptr = *out_ptr;
-        *out_ptr = static_cast<uint8_t*>(&intermediate_buf[0]);
+        *out_ptr = static_cast<uint8_t*>(intermediate_buf.data());
         tmp_prec = output_prec;
         output_prec = intermediate_prec;
         tmp_data_size = dst_data_size;
@@ -3111,7 +3156,7 @@ inline void Reduce::output_info_restore(uint8_t** out_ptr) {
     }
 }
 
-void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
+void Reduce::nspc2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const {
     // dimension reinterpret after nspc reusing routine reduce_PLN
     // demote -- nspc -- ncsp
     //  DIM0  --   B  --  B
@@ -3128,8 +3173,8 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     const size_t stride0 = stride1 * DIM1;
 
     if (dst_data_size == 4) {
-        auto src_data = reinterpret_cast<const float*>(proc_ptr);
-        auto dst_data = reinterpret_cast<float*>(out_ptr);
+        const auto* src_data = reinterpret_cast<const float*>(proc_ptr);
+        auto* dst_data = reinterpret_cast<float*>(out_ptr);
         parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * stride0 + j * DIM1;
             auto dst_off = b * stride0 + j;
@@ -3140,8 +3185,8 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
             }
         });
     } else if (dst_data_size == 2) {
-        auto src_data = reinterpret_cast<const uint16_t*>(proc_ptr);
-        auto dst_data = reinterpret_cast<uint16_t*>(out_ptr);
+        const auto* src_data = reinterpret_cast<const uint16_t*>(proc_ptr);
+        auto* dst_data = reinterpret_cast<uint16_t*>(out_ptr);
         parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * stride0 + j * DIM1;
             auto dst_off = b * stride0 + j;
@@ -3152,8 +3197,8 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
             }
         });
     } else {
-        auto src_data = reinterpret_cast<const uint8_t*>(proc_ptr);
-        auto dst_data = reinterpret_cast<uint8_t*>(out_ptr);
+        const auto* src_data = proc_ptr;
+        auto* dst_data = out_ptr;
         parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * stride0 + j * DIM1;
             auto dst_off = b * stride0 + j;
@@ -3166,7 +3211,7 @@ void Reduce::nspc2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     }
 }
 
-void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
+void Reduce::blocked2ncsp(const uint8_t* proc_ptr, uint8_t* out_ptr) const {
     const size_t DIM0 = OB;
     const size_t DIM1 = OC;
     const size_t DIM2 = OD;
@@ -3177,8 +3222,8 @@ void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
     const size_t dst_stride0 = stride1 * DIM1;
 
     if (dst_data_size == 4) {
-        auto src_data = reinterpret_cast<const float*>(proc_ptr);
-        auto dst_data = reinterpret_cast<float*>(out_ptr);
+        const auto* src_data = reinterpret_cast<const float*>(proc_ptr);
+        auto* dst_data = reinterpret_cast<float*>(out_ptr);
         parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * src_stride0 + j * blk_size;
             auto dst_off = b * dst_stride0 + j;
@@ -3198,8 +3243,8 @@ void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
             }
         });
     } else if (dst_data_size == 2) {
-        auto src_data = reinterpret_cast<const uint16_t*>(proc_ptr);
-        auto dst_data = reinterpret_cast<uint16_t*>(out_ptr);
+        const auto* src_data = reinterpret_cast<const uint16_t*>(proc_ptr);
+        auto* dst_data = reinterpret_cast<uint16_t*>(out_ptr);
         parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * src_stride0 + j * blk_size;
             auto dst_off = b * dst_stride0 + j;
@@ -3219,8 +3264,8 @@ void Reduce::blocked2ncsp(uint8_t* proc_ptr, uint8_t* out_ptr) {
             }
         });
     } else {
-        auto src_data = reinterpret_cast<const uint8_t*>(proc_ptr);
-        auto dst_data = reinterpret_cast<uint8_t*>(out_ptr);
+        const auto* src_data = proc_ptr;
+        auto* dst_data = out_ptr;
         parallel_for2d(DIM0, stride1, [&](size_t b, size_t j) {
             auto src_off = b * src_stride0 + j * blk_size;
             auto dst_off = b * dst_stride0 + j;
@@ -3257,32 +3302,32 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
     case Algorithm::ReduceAnd:
     case Algorithm::ReduceProd:
         if (output_prec == ov::element::f32) {
-            auto out_p = reinterpret_cast<float*>(out_ptr);
+            auto* out_p = reinterpret_cast<float*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<float>(1);
             });
         } else if (output_prec == ov::element::i32) {
-            auto out_p = reinterpret_cast<int32_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<int32_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<int32_t>(1);
             });
         } else if (output_prec == ov::element::bf16) {
-            auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<bfloat16_t>(1);
             });
         } else if (output_prec == ov::element::f16) {
-            auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
+            auto* out_p = reinterpret_cast<ov::float16*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<ov::float16>(1);
             });
         } else if (output_prec == ov::element::u8) {
-            auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            auto* out_p = out_ptr;
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<uint8_t>(1);
             });
         } else if (output_prec == ov::element::i8) {
-            auto out_p = reinterpret_cast<int8_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<int8_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = static_cast<int8_t>(1);
             });
@@ -3290,32 +3335,32 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
         break;
     case Algorithm::ReduceMax:
         if (output_prec == ov::element::f32) {
-            auto out_p = reinterpret_cast<float*>(out_ptr);
+            auto* out_p = reinterpret_cast<float*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<float>::lowest();
             });
         } else if (output_prec == ov::element::i32) {
-            auto out_p = reinterpret_cast<int32_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<int32_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<int32_t>::min();
             });
         } else if (output_prec == ov::element::bf16) {
-            auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<bfloat16_t>::lowest();
             });
         } else if (output_prec == ov::element::f16) {
-            auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
+            auto* out_p = reinterpret_cast<ov::float16*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<ov::float16>::lowest();
             });
         } else if (output_prec == ov::element::u8) {
-            auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            auto* out_p = out_ptr;
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<uint8_t>::min();
             });
         } else if (output_prec == ov::element::i8) {
-            auto out_p = reinterpret_cast<int8_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<int8_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<int8_t>::min();
             });
@@ -3323,50 +3368,53 @@ inline void Reduce::init_dst_data(uint8_t* out_ptr, size_t dst_size) {
         break;
     case Algorithm::ReduceMin:
         if (output_prec == ov::element::f32) {
-            auto out_p = reinterpret_cast<float*>(out_ptr);
+            auto* out_p = reinterpret_cast<float*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<float>::max();
             });
         } else if (output_prec == ov::element::i32) {
-            auto out_p = reinterpret_cast<int32_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<int32_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<int32_t>::max();
             });
         } else if (output_prec == ov::element::bf16) {
-            auto out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<bfloat16_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<bfloat16_t>::max();
             });
         } else if (output_prec == ov::element::f16) {
-            auto out_p = reinterpret_cast<ov::float16*>(out_ptr);
+            auto* out_p = reinterpret_cast<ov::float16*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<ov::float16>::max();
             });
         } else if (output_prec == ov::element::u8) {
-            auto out_p = reinterpret_cast<uint8_t*>(out_ptr);
+            auto* out_p = out_ptr;
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<uint8_t>::max();
             });
         } else if (output_prec == ov::element::i8) {
-            auto out_p = reinterpret_cast<int8_t*>(out_ptr);
+            auto* out_p = reinterpret_cast<int8_t*>(out_ptr);
             parallel_for(dst_size / dst_data_size, [&](size_t i) {
                 out_p[i] = std::numeric_limits<int8_t>::max();
             });
         }
         break;
     default:
-        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
+        CPU_NODE_THROW("gets unsupported reduce mode.");
     }
 }
 
 inline void Reduce::create_hybrid_working_memory() {
     auto rank = getInputShapeAtPort(REDUCE_DATA).getRank();
-    memory::format_tag format =
-        (layout == ReduceLayoutType::reduce_nspc)
-            ? (rank == 4 ? memory::format_tag::nhwc : memory::format_tag::ndhwc)
-            : (rank == 4
-                   ? (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c)
-                   : (mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c));
+    memory::format_tag format = [&]() {
+        if (layout == ReduceLayoutType::reduce_nspc) {
+            return (rank == 4) ? memory::format_tag::nhwc : memory::format_tag::ndhwc;
+        }
+        if (rank == 4) {
+            return mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nChw16c : memory::format_tag::nChw8c;
+        }
+        return mayiuse(cpu::x64::avx512_core) ? memory::format_tag::nCdhw16c : memory::format_tag::nCdhw8c;
+    }();
     auto prc_dims = rank == 4 ? std::vector<size_t>{OB, OC, OH, OW} : std::vector<size_t>{OB, OC, OD, OH, OW};
     auto desc = dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(prc_dims),
                                    DnnlExtensionUtils::ElementTypeToDataType(output_prec),
@@ -3418,9 +3466,8 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
         if (axis < 0) {
             axis += src_dims.size();
         }
-        if (static_cast<size_t>(axis) > src_dims.size()) {
-            THROW_CPU_NODE_ERR("exceeds data tensor dimension on index to reduce");
-        }
+        CPU_NODE_ASSERT(static_cast<size_t>(axis) <= src_dims.size(),
+                        "exceeds data tensor dimension on index to reduce");
         axes.insert(static_cast<size_t>(axis));
     }
     for (size_t i = 0; i < src_dims.size(); i++) {
@@ -3443,15 +3490,13 @@ inline void Reduce::calc_process_dst_dims(std::vector<int>& reduce_axes, const V
         }
     }
     if (jit_mode && jit_beyond_5D) {
-        if (std::accumulate(out_dims.begin(), out_dims.end(), static_cast<size_t>(1), std::multiplies<>()) !=
-            std::accumulate(dst_dims.begin(), dst_dims.end(), static_cast<size_t>(1), std::multiplies<>())) {
-            THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
-        }
+        CPU_NODE_ASSERT(
+            std::accumulate(out_dims.begin(), out_dims.end(), static_cast<size_t>(1), std::multiplies<>()) ==
+                std::accumulate(dst_dims.begin(), dst_dims.end(), static_cast<size_t>(1), std::multiplies<>()),
+            "gets incorrect number of output dimensions!");
     } else {
         for (size_t i = 0; i < std::min(out_dims.size(), dst_dims.size()); i++) {
-            if (out_dims[i] != dst_dims[i]) {
-                THROW_CPU_NODE_ERR("gets incorrect number of output dimensions!");
-            }
+            CPU_NODE_ASSERT(out_dims[i] == dst_dims[i], "gets incorrect number of output dimensions!");
         }
     }
 }
@@ -3537,7 +3582,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
     switch (algorithm) {
     case Algorithm::ReduceAnd:
         reduce_ref_process(in_ptr, out_ptr, 1, [](float x, float y) -> float {
-            return static_cast<float>((x != 0.0f) && (y) != 0.0f);
+            return static_cast<float>((x != 0.0F) && (y) != 0.0F);
         });
         break;
     case Algorithm::ReduceL1:
@@ -3577,7 +3622,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         break;
     case Algorithm::ReduceOr:
         reduce_ref_process(in_ptr, out_ptr, 0, [](float x, float y) -> float {
-            return static_cast<float>((x != 0.0f) || (y) != 0.0f);
+            return static_cast<float>((x != 0.0F) || (y) != 0.0F);
         });
         break;
     case Algorithm::ReduceProd:
@@ -3596,7 +3641,7 @@ inline void Reduce::reduce_ref(const float* in_ptr, float* out_ptr) {
         });
         break;
     default:
-        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
+        CPU_NODE_THROW("gets unsupported reduce mode.");
     }
 }
 
@@ -3604,7 +3649,8 @@ void Reduce::reduce_ref_process(const float* in_ptr,
                                 float* out_ptr,
                                 float init_value,
                                 std::function<float(float, float)> func) {
-    size_t work_amount_dst = 1, reduced_dims_work_amount = 1;
+    size_t work_amount_dst = 1;
+    size_t reduced_dims_work_amount = 1;
     for (size_t process_dst_dim : process_dst_dims) {
         work_amount_dst *= process_dst_dim;
     }
@@ -3616,8 +3662,10 @@ void Reduce::reduce_ref_process(const float* in_ptr,
     VectorDims src_strides =
         getParentEdgeAt(REDUCE_DATA)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        int j;
-        size_t i, start = 0, end = 0;
+        int j = 0;
+        size_t i = 0;
+        size_t start = 0;
+        size_t end = 0;
         VectorDims dst_counters(process_dst_dims.size(), 0);
         splitter(work_amount_dst, nthr, ithr, start, end);
         for (j = process_dst_dims.size() - 1, i = start; j >= 0; j--) {
@@ -3689,7 +3737,7 @@ inline void Reduce::reduce_ref_map(float* out_ptr, size_t work_amount_dst, size_
         });
         break;
     default:
-        THROW_CPU_NODE_ERR("gets unsupported reduce mode.");
+        CPU_NODE_THROW("gets unsupported reduce mode.");
     }
 }
 
@@ -3710,11 +3758,11 @@ void Reduce::setPostOps(dnnl::primitive_attr& attr, const VectorDims& postOpDims
             eltwiseNode->appendPostOps(ops, postOpDims, postOpsDataPtrs, getFusingAxis());
             continue;
         }
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -3790,7 +3838,7 @@ bool Reduce::canApplyJIT(const ov::element::Type& input_prec, const ov::element:
 int Reduce::getFusingAxis() const {
     int channelAxis = 1;
     if (!keep_dims) {
-        for (auto& raw_axis : raw_axes) {
+        for (const auto& raw_axis : raw_axes) {
             int axis =
                 raw_axis >= 0 ? raw_axis : raw_axis + static_cast<int>(getInputShapeAtPort(REDUCE_DATA).getRank());
             if (axis == 1) {

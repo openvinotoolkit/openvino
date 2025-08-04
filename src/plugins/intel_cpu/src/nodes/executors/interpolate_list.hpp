@@ -4,14 +4,17 @@
 
 #pragma once
 
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
 #include "executor.hpp"
 #include "interpolate.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
 #if defined(OV_CPU_WITH_ACL)
 #    include "acl/acl_interpolate.hpp"
 #endif
-
-#include "common/primitive_cache.hpp"
-#include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
 
@@ -29,7 +32,7 @@ public:
                                const std::vector<MemoryDescPtr>& dstDescs,
                                const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getInterpolateExecutorsList()) {
+        for (const auto& desc : getInterpolateExecutorsList()) {
             if (desc.builder->isSupported(InterpolateAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }

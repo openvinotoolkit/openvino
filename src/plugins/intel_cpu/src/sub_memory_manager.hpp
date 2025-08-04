@@ -5,12 +5,8 @@
 #pragma once
 
 #include <cassert>
-#include <memory>
 #include <mutex>
-#include <string>
 #include <vector>
-
-#include "cpu_memory.h"
 
 namespace ov::intel_cpu {
 class SubMemoryManager {
@@ -21,7 +17,7 @@ public:
         bool last_used = false;
     };
 
-    SubMemoryManager(int num_sub_streams) {
+    explicit SubMemoryManager(int num_sub_streams) {
         assert(num_sub_streams);
         _num_sub_streams = num_sub_streams;
         MemoryInfo memory_info;

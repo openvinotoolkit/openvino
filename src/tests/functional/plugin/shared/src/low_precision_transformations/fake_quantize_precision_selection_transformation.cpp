@@ -15,24 +15,15 @@
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizePrecisionSelectionTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    FakeQuantizePrecisionSelectionTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = obj.param;
-
+    auto [netPrecision, inputShape, device, testValues] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << "_" << testValues;
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << "_" << testValues;
     return result.str();
 }
 
 void FakeQuantizePrecisionSelectionTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    FakeQuantizePrecisionSelectionTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
+    auto [netPrecision, inputShape, device, testValues] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 

@@ -22,6 +22,7 @@
 #include "openvino/pass/pattern/op/any.hpp"
 #include "transformations/utils/utils.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "graph/include/gemm_inst.h"
 
 using namespace ov::pass::pattern;
 using ov::pass::pattern::op::Or;
@@ -30,7 +31,17 @@ namespace ov::intel_gpu {
 
 namespace {
 
-bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_immad) {
+bool is_valid_order(const std::vector<size_t>& target_order, bool is_output_transpose) {
+    // Check valid input/output transpose order for onednn gemm primitive
+    cldnn::format fmt_dummy = cldnn::format::bfyx;
+    if (is_output_transpose) {
+        return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_output_order_onednn(target_order, fmt_dummy);
+    } else {
+        return cldnn::typed_primitive_inst<cldnn::gemm>::is_fusable_permute_input_order_onednn(target_order, fmt_dummy);
+    }
+}
+
+bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_immad, bool is_output_transpose = false) {
     if (!output.get_element_type().is_real())
         return false;
 
@@ -42,27 +53,18 @@ bool has_optimized_version(const ov::Output<ov::Node>& output, bool supports_imm
         return false;
 
     auto transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(order_node)->cast_vector<int64_t>();
-    static const std::vector<std::vector<int64_t>> allowed_orders = {
-        {0, 1, 2, 3},
-        {0, 1, 3, 2},
-        {0, 2, 1, 3},
-        {0, 3, 1, 2},
-        {1, 2, 0, 3},
-        {2, 0, 1, 3},
-        {3, 0, 1, 2},
-    };
-
     const auto expected_dims_num = 4;
-    const auto original_dims_num = transpose_order.size();
-    if (original_dims_num < expected_dims_num) {
-        transpose_order.resize(expected_dims_num);
-        std::iota(transpose_order.begin() + original_dims_num, transpose_order.end(), original_dims_num);
+
+    std::vector<size_t> order(std::begin(transpose_order), std::end(transpose_order));
+    if (expected_dims_num > order.size()) {
+        size_t orders_to_add = expected_dims_num - order.size();
+        for (size_t i = 0; i < orders_to_add; ++i)
+            order.insert(order.begin(), i);
+        for (size_t i = orders_to_add; i < order.size(); ++i)
+            order[i] = order[i] + orders_to_add;
     }
 
-    if (!cldnn::one_of(transpose_order, allowed_orders))
-        return false;
-
-    return true;
+    return is_valid_order(order, is_output_transpose);
 }
 }  // namespace
 
@@ -283,22 +285,25 @@ TransposeMatMulTransposeMatcher::TransposeMatMulTransposeMatcher(bool supports_i
         return ov::as_type_ptr<ov::op::v1::Transpose>(output.get_node_shared_ptr()) == nullptr
                && output.get_element_type().is_real();
     };
-    auto transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
-        return has_optimized_version(output, supports_immad);
+    auto input_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
+        return has_optimized_version(output, supports_immad, false);
+    };
+    auto output_transpose_predicate = [supports_immad](const ov::Output<ov::Node>& output) -> bool {
+        return has_optimized_version(output, supports_immad, true);
     };
     auto input_a_m = any_input(not_transpose);
     auto input_b_m = any_input(not_transpose);
     auto transpose_a_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
     auto transpose_b_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, transpose_predicate);
-    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, transpose_predicate);
+    auto transpose_a_m = wrap_type<ov::op::v1::Transpose>({input_a_m, transpose_a_order_m}, input_transpose_predicate);
+    auto transpose_b_m = wrap_type<ov::op::v1::Transpose>({input_b_m, transpose_b_order_m}, input_transpose_predicate);
 
     auto matmul_in_a = std::make_shared<Or>(OutputVector{input_a_m, transpose_a_m});
     auto matmul_in_b = std::make_shared<Or>(OutputVector{input_b_m, transpose_b_m});
 
-    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b });
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({ matmul_in_a, matmul_in_b }, consumers_count(1));
     auto transpose_c_order_m = wrap_type<ov::op::v0::Constant>(consumers_count(1));
-    auto transpose_c_m = wrap_type<ov::op::v1::Transpose>({matmul_m, transpose_c_order_m}, transpose_predicate);
+    auto transpose_c_m = wrap_type<ov::op::v1::Transpose>({matmul_m, transpose_c_order_m}, output_transpose_predicate);
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();

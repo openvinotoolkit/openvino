@@ -6,6 +6,7 @@
 #include "shared_test_classes/single_op/convolution.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
+#include "utils/fusing_test_utils.hpp"
 
 using namespace CPUTestUtils;
 
@@ -29,7 +30,7 @@ std::vector<CPUSpecificParams> filterCPUInfoForDevice_BF16(std::vector<CPUSpecif
     return filterCPUInfoForDevice(specificParams);
 }
 
-const std::vector<fusingSpecificParams> fusingParamsSetWithoutEmpty{
+const std::vector<ExtraOperationsParams> fusingParamsSetWithoutEmpty{
         // eltwise
         fusingPRelu1DScaleShift,
         // depthwise
@@ -45,7 +46,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetWithoutEmpty{
         fusingAddPerChannel
 };
 
-const std::vector<fusingSpecificParams> fusingParamsSetBF16{
+const std::vector<ExtraOperationsParams> fusingParamsSetBF16{
         emptyFusingSpec,
         // eltwise
         fusingRelu,
@@ -57,7 +58,7 @@ const std::vector<fusingSpecificParams> fusingParamsSetBF16{
         fusingAddPerChannel
 };
 
-const std::vector<fusingSpecificParams> fusingParamsSetFP16 = fusingParamsSetBF16;
+const std::vector<ExtraOperationsParams> fusingParamsSetFP16 = fusingParamsSetBF16;
 /* ============= Convolution (Gemm 1D) ============= */
 INSTANTIATE_TEST_SUITE_P(smoke_Conv_1D_GEMM_FP32,
                          ConvolutionLayerCPUTest,
@@ -190,7 +191,7 @@ INSTANTIATE_TEST_SUITE_P(Conv_2D_GEMM_FP32_dilated_fusing,
                                             ::testing::Values(empty_plugin_config)),
                          ConvolutionLayerCPUTest::getTestCaseName);
 
-const std::vector<fusingSpecificParams> fusingParamsSet_dynBatch{
+const std::vector<ExtraOperationsParams> fusingParamsSet_dynBatch{
         emptyFusingSpec,
         fusingSum,
         fusingAddPerChannel,

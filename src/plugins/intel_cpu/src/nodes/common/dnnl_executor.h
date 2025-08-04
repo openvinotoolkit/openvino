@@ -4,8 +4,12 @@
 
 #pragma once
 
-#include <cpu_memory.h>
+#include <oneapi/dnnl/dnnl_types.h>
 #include <onednn/iml_type_mapper.h>
+
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <unordered_map>
 
 #include "memory_desc/dnnl_memory_desc.h"
 
@@ -68,7 +72,6 @@ public:
 protected:
     virtual void reorder_exec(std::unordered_map<int, dnnl::memory> primArgs, const dnnl::stream& strm);
 
-protected:
     dnnl::primitive execPrim;
     // key is the port number for the primitive that needs memory reordering
     std::unordered_map<int, IntermReorder> inputReorders;

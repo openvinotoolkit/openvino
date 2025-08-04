@@ -118,7 +118,7 @@ KernelsPriority ConvolutionKernel_Winograd_2x3_s1_fused::GetKernelsPriority(cons
 
 bool ConvolutionKernel_Winograd_2x3_s1_fused::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& params = static_cast<const convolution_params&>(p);

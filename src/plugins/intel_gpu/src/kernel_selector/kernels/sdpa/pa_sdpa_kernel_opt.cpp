@@ -89,6 +89,8 @@ KernelsData PagedAttentionSDPAKernelOpt::GetKernelsData(const Params& p) const {
                                                KernelsTypes::FINALIZATION_MULTI_TOKENS };
 
     const auto has_scores_output = params.outputs.size() > 1;
+    const auto has_score_aggregation = params.conf.has_score_aggregation;
+
     if (has_scores_output) {
         kernels_type.push_back(KernelsTypes::SCORES_CALCULATION);
     }
@@ -149,6 +151,11 @@ KernelsData PagedAttentionSDPAKernelOpt::GetKernelsData(const Params& p) const {
             // Intermediate softmax results for scores output calculation and precalculated accumulated
             // sequence length offsets for each subsequence
             internal_buffers_num += 2;
+
+            if (has_score_aggregation) {
+               // Precalculated cumulative sum of aggregation score windows
+               internal_buffers_num += 1;
+            }
         }
 
         // Softmax's exp_sums, max_logits and intermediate output
@@ -214,21 +221,24 @@ ParamsKey PagedAttentionSDPAKernelOpt::GetSupportedKey() const {
 
 bool PagedAttentionSDPAKernelOpt::Validate(const Params& p) const {
     if (p.GetType() != KernelType::PA_SDPA)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     const auto& params = static_cast<const pa_sdpa_params&>(p);
     if (!params.conf.is_paged_attention)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (seq_len_partition_size % params.conf.paged_attention_block_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    if (params.conf.head_size % subgroup_size != 0)
-        return false;
+    if (params.conf.k_head_size % subgroup_size != 0)
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    const auto subgroups_per_wg = params.conf.head_size / subgroup_size;
+    if (params.conf.v_head_size % subgroup_size != 0)
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+
+    const auto subgroups_per_wg = params.conf.v_head_size / subgroup_size;
     if (subgroups_per_wg > subgroup_size)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
@@ -237,7 +247,8 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto& config = params.conf;
-    jit.AddConstant(MakeJitConstant("HEAD_SIZE", config.head_size));
+    jit.AddConstant(MakeJitConstant("K_HEAD_SIZE", config.k_head_size));
+    jit.AddConstant(MakeJitConstant("V_HEAD_SIZE", config.v_head_size));
     jit.AddConstant(MakeJitConstant("HEADS_NUM", config.heads_num));
     jit.AddConstant(MakeJitConstant("KV_HEADS_NUM", config.kv_heads_num));
     jit.AddConstant(MakeJitConstant("KV_HEADS_GROUP_SIZE", config.kv_group_size));
@@ -246,15 +257,24 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SLIDING_WINDOW_SIZE", config.paged_attention_sliding_window));
     jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
-    jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, config.head_size, kernel_idx)));
+    jit.AddConstant(MakeJitConstant("SG_SCALE_FACTOR", get_sg_number_scale_factor(params, config.v_head_size, kernel_idx)));
     jit.AddConstant(MakeJitConstant("XE2_QK_MULTIPLICATION", params.engineInfo.arch == gpu_arch::xe2));
 
     if (params.conf.is_kv_compressed) {
         auto scales_zp_size = params.inputs[0].ElementSize() * 2; // scale + zp
-        jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
-        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size + scales_zp_size));
+        if (params.conf.is_key_by_channel) {
+            jit.AddConstant(MakeJitConstant("IS_KEY_BY_CHANNEL", 1));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size));
+        } else {
+            jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size + scales_zp_size));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
+        }
+        jit.AddConstant(MakeJitConstant("ADJUSTED_V_HEAD_SIZE", params.conf.v_head_size + scales_zp_size));
     } else {
-        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_V_HEAD_SIZE", params.conf.v_head_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
     }
 
     if (kernel_idx == KernelsTypes::SINGLE_TOKEN_GQA) {
@@ -290,7 +310,13 @@ JitConstants PagedAttentionSDPAKernelOpt::GetJitConstants(const pa_sdpa_params& 
 
     if (params.outputs.size() > 1) {
         jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_SCORES_OUTPUT", 1));
+        if (params.conf.has_score_aggregation) {
+            jit.AddConstant(MakeJitConstant("HAS_SCORE_AGGREGATION", 1));
+        }
     }
+
+    const size_t score_aggregation_idx = 13;
+    jit.Merge(MakeTypeJitConstants(params.inputs[score_aggregation_idx].GetDType(), "SCORE_AGGREGATION_INPUT"));
 
     if (params.conf.has_rotated_blocks)
         jit.AddConstant(MakeJitConstant("HAS_ROTATED_BLOCKS", 1));
@@ -311,7 +337,7 @@ CommonDispatchData PagedAttentionSDPAKernelOpt::SetDefault(const pa_sdpa_params&
         const size_t total_tokens = input.Batch().v;
         const size_t num_of_partitions = CeilDiv(params.conf.paged_attention_max_len, seq_len_partition_size);
         const size_t heads_num = static_cast<size_t>(params.conf.heads_num);
-        const size_t head_size = static_cast<size_t>(params.conf.head_size);
+        const size_t head_size = static_cast<size_t>(params.conf.v_head_size);
 
         if (kernel_idx == KernelsTypes::SINGLE_TOKEN || kernel_idx == KernelsTypes::MULTI_TOKENS) {
             auto sg_scale = get_sg_number_scale_factor(params, head_size, kernel_idx);
@@ -336,7 +362,7 @@ CommonDispatchData PagedAttentionSDPAKernelOpt::SetDefault(const pa_sdpa_params&
             size_t partition_size = 0;
             size_t num_of_partitions = 0;
             if (params.stage == PagedAttentionStage::PREFILL) {
-                partition_size = SDPAKernelOpt::get_seq_len_partition_size(params, params.conf.head_size, 1);
+                partition_size = SDPAKernelOpt::get_seq_len_partition_size(params, params.conf.v_head_size, 1);
             } else {
                 partition_size = seq_len_partition_size;
             }
@@ -398,7 +424,7 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
 
         size_t partition_size = 0;
         if (prim_params.stage == PagedAttentionStage::PREFILL) {
-            partition_size = SDPAKernelOpt::get_seq_len_partition_size(params, prim_params.conf.head_size, 1);
+            partition_size = SDPAKernelOpt::get_seq_len_partition_size(params, prim_params.conf.v_head_size, 1);
         } else {
             partition_size = seq_len_partition_size;
         }
@@ -442,7 +468,7 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
         auto buf_size = buf_elements_count * buf_dt_size;
 
         auto tmp_out_dt_size = BytesPerElement(softmax_acc_dt);
-        auto tmp_out_elements_count = total_tokens * prim_params.conf.heads_num * prim_params.conf.head_size * num_of_partitions;
+        auto tmp_out_elements_count = total_tokens * prim_params.conf.heads_num * prim_params.conf.v_head_size * num_of_partitions;
         auto tmp_out_size = tmp_out_elements_count * tmp_out_dt_size;
 
         const bool lockable = true;
@@ -453,7 +479,8 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
             auto subsequences_number = past_lens.Batch().v;
             auto softmax_buf_dt_size = BytesPerElement(softmax_acc_dt);
 
-            auto softmax_buf_elements_count = subsequences_number * prim_params.conf.heads_num * num_of_partitions * partition_size;
+            auto tokens_number = prim_params.conf.has_score_aggregation ? prim_params.conf.paged_attention_snap_kv_tokens : subsequences_number;
+            auto softmax_buf_elements_count = tokens_number * prim_params.conf.heads_num * num_of_partitions * partition_size;
             auto softmax_buf_size = softmax_buf_elements_count * softmax_buf_dt_size;
 
             // Softmax intermediate output
@@ -461,9 +488,14 @@ void PagedAttentionSDPAKernelOpt::GetUpdateDispatchDataFunc(KernelData& kd) cons
             // Precalculated accumulated sequence length offsets for each subsequence
             kd.internalBuffers.emplace_back(subsequences_number * BytesPerElement(Datatype::INT32), lockable);
 
+            if (prim_params.conf.has_score_aggregation) {
+                // Cumulative window size sum buffer
+                kd.internalBuffers.emplace_back((subsequences_number + 1) * BytesPerElement(Datatype::INT32), lockable);
+            }
+
             if (prim_params.stage == PagedAttentionStage::PREFILL) {
                 // Recalculate buf_size as in case of PREFILL stage it's not needed to allocate buffer per each input token
-                buf_elements_count = subsequences_number * prim_params.conf.heads_num * num_of_partitions;
+                buf_elements_count = tokens_number * prim_params.conf.heads_num * num_of_partitions;
                 buf_size = buf_elements_count * buf_dt_size;
 
                 // Intermediate tmp output buffer is not used for PREFILL stage

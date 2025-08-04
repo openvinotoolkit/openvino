@@ -4,12 +4,16 @@
 
 #pragma once
 
-#include "openvino/op/op.hpp"
-#include <snippets/snippets_isa.hpp>
+#include <memory>
 
-namespace ov {
-namespace snippets {
-namespace op {
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/util/unary_elementwise_arithmetic.hpp"
+
+namespace ov::snippets::op {
 
 /**
  * @interface PowerStatic
@@ -21,23 +25,23 @@ public:
     OPENVINO_OP("PowerStatic", "SnippetsOpset", ov::op::util::UnaryElementwiseArithmetic);
 
     PowerStatic() = default;
-    PowerStatic(const Output <Node> &arg, float power) : UnaryElementwiseArithmetic(arg), power(power) {
+    PowerStatic(const Output<Node>& arg, float power) : UnaryElementwiseArithmetic(arg), power(power) {
         constructor_validate_and_infer_types();
     }
 
-    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector &new_args) const override {
+    std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override {
         check_new_args_count(this, new_args);
         return std::make_shared<PowerStatic>(new_args.at(0), power);
     }
-    bool visit_attributes(AttributeVisitor &visitor) override {
+    bool visit_attributes(AttributeVisitor& visitor) override {
         visitor.on_attribute("power", power);
         return true;
     }
-    float get_power() const {  return power; }
+    float get_power() const {
+        return power;
+    }
 
 private:
     float power = 0;
 };
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

@@ -4,16 +4,35 @@
 
 #include "roll.h"
 
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <openvino/op/roll.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "onednn/dnnl.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
-#include "openvino/op/roll.hpp"
-#include "openvino/opsets/opset7_decl.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
 using namespace dnnl;
@@ -22,9 +41,9 @@ namespace ov::intel_cpu::node {
 
 bool Roll::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto interp = ov::as_type_ptr<const ov::opset7::Roll>(op);
+        const auto interp = ov::as_type_ptr<const ov::op::v7::Roll>(op);
         if (!interp) {
-            errorMessage = "Only opset7 Roll operation is supported";
+            errorMessage = "Only v7 Roll operation is supported";
             return false;
         }
     } catch (...) {
@@ -37,47 +56,38 @@ Roll::Roll(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     : Node(op, context, NgraphShapeInferFactory(op)) {
     std::string errorMessage;
     if (isSupportedOperation(op, errorMessage)) {
-        if (inputShapes.size() != 3 || outputShapes.size() != 1) {
-            THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-        }
+        CPU_NODE_ASSERT(inputShapes.size() == 3 && outputShapes.size() == 1,
+                        "has incorrect number of input/output edges!");
 
         const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
 
         if (std::find(supportedPrecisionSizes.begin(), supportedPrecisionSizes.end(), dataPrecision.size()) ==
             supportedPrecisionSizes.end()) {
-            THROW_CPU_NODE_ERR("as unsupported precision: ", dataPrecision.get_type_name());
+            CPU_NODE_THROW("as unsupported precision: ", dataPrecision.get_type_name());
         }
 
         const auto dataRank = getInputShapeAtPort(DATA_INDEX).getRank();
-        if (dataRank < 1) {
-            THROW_CPU_NODE_ERR("doesn't support 'data' input tensor with rank: ", dataRank);
-        }
+        CPU_NODE_ASSERT(dataRank >= 1, "doesn't support 'data' input tensor with rank: ", dataRank);
 
-        if (dataRank != getOutputShapeAtPort(0).getRank()) {
-            THROW_CPU_NODE_ERR("has input/output rank mismatch");
-        }
+        CPU_NODE_ASSERT(dataRank == getOutputShapeAtPort(0).getRank(), "has input/output rank mismatch");
 
         /* Axes */
         const auto& axesTensorPrec = getOriginalInputPrecisionAtPort(AXES_INDEX);
-        if (axesTensorPrec != ov::element::i32 && axesTensorPrec != ov::element::i64) {
-            THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesTensorPrec.get_type_name());
+        if (none_of(axesTensorPrec, ov::element::i32, ov::element::i64)) {
+            CPU_NODE_THROW("has unsupported 'axes' input precision: ", axesTensorPrec.get_type_name());
         }
 
         const auto axesTensorRank = getInputShapeAtPort(AXES_INDEX).getRank();
-        if (axesTensorRank > 1) {
-            THROW_CPU_NODE_ERR("doesn't support 'axes' input tensor with rank: ", axesTensorRank);
-        }
+        CPU_NODE_ASSERT(axesTensorRank <= 1, "doesn't support 'axes' input tensor with rank: ", axesTensorRank);
 
         /* Shift */
         const auto& shiftTensorPrec = getOriginalInputPrecisionAtPort(SHIFT_INDEX);
-        if (shiftTensorPrec != ov::element::i32 && shiftTensorPrec != ov::element::i64) {
-            THROW_CPU_NODE_ERR("has unsupported 'shift' input precision: ", shiftTensorPrec.get_type_name());
+        if (none_of(shiftTensorPrec, ov::element::i32, ov::element::i64)) {
+            CPU_NODE_THROW("has unsupported 'shift' input precision: ", shiftTensorPrec.get_type_name());
         }
 
         const auto shiftTensorRank = getInputShapeAtPort(SHIFT_INDEX).getRank();
-        if (shiftTensorRank > 1) {
-            THROW_CPU_NODE_ERR("doesn't support 'shift' input tensor with rank: ", shiftTensorRank);
-        }
+        CPU_NODE_ASSERT(shiftTensorRank <= 1, "doesn't support 'shift' input tensor with rank: ", shiftTensorRank);
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
@@ -104,21 +114,11 @@ void Roll::prepareParams() {
     const auto& axesMemPtr = getSrcMemoryAtPort(AXES_INDEX);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!dataMemPtr || !dataMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'data'");
-    }
-    if (!shiftMemPtr || !shiftMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'shift'");
-    }
-    if (!axesMemPtr || !axesMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'axes'");
-    }
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined output memory");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input memory of 'data'");
+    CPU_NODE_ASSERT(shiftMemPtr && shiftMemPtr->isDefined(), "has undefined input memory of 'shift'");
+    CPU_NODE_ASSERT(axesMemPtr && axesMemPtr->isDefined(), "has undefined input memory of 'axes'");
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
     const VectorDims& shiftDims = shiftMemPtr->getStaticDims();
@@ -133,9 +133,7 @@ void Roll::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void Roll::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("has no compiled executor");
-    }
+    CPU_NODE_ASSERT(execPtr, "has no compiled executor");
 
     const auto dataPrecision = getParentEdgeAt(DATA_INDEX)->getMemory().getDesc().getPrecision();
     const auto& dataTypeSize = dataPrecision.size();
@@ -162,7 +160,7 @@ void Roll::execute([[maybe_unused]] const dnnl::stream& strm) {
         break;
     }
     default:
-        THROW_CPU_NODE_ERR("as unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        CPU_NODE_THROW("as unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 }
 
@@ -172,17 +170,13 @@ Roll::RollExecutor::RollExecutor(const VectorDims& dataDims,
                                  const VectorDims& dstDims)
     : numOfDims{dataDims.size()},
       blockSize{dataDims.back()},
-      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1ul, std::multiplies<>()) / blockSize},
+      numOfIterations{std::accumulate(dataDims.cbegin(), dataDims.cend(), 1UL, std::multiplies<>()) / blockSize},
       axesLength{axesDims[0]} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
-        if (dataDims[i] != dstDims[i]) {
-            OPENVINO_THROW("Input/output tensors dimensions mismatch");
-        }
+        OPENVINO_ASSERT(dataDims[i] == dstDims[i], "Input/output tensors dimensions mismatch");
     }
 
-    if (shiftDims[0] != axesDims[0]) {
-        OPENVINO_THROW("'shift' and 'axes' dimensions mismatch");
-    }
+    OPENVINO_ASSERT(shiftDims[0] == axesDims[0], "'shift' and 'axes' dimensions mismatch");
 }
 
 template <typename T>
@@ -195,7 +189,7 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
     const auto* axes = axesMemPtr->getDataAs<const int32_t>();
     auto* dst = dstMemPtr->getDataAs<T>();
 
-    std::vector<size_t> shiftsVector(numOfDims, 0ul);
+    std::vector<size_t> shiftsVector(numOfDims, 0UL);
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
 
     for (size_t dim = 0; dim < axesLength; ++dim) {
@@ -242,7 +236,5 @@ void Roll::RollExecutor::exec(const MemoryPtr& dataMemPtr,
 bool Roll::created() const {
     return getType() == Type::Roll;
 }
-
-constexpr std::array<size_t, 3> Roll::supportedPrecisionSizes;
 
 }  // namespace ov::intel_cpu::node

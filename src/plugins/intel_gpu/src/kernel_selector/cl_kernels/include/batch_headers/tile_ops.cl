@@ -275,7 +275,7 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
         ptr += ld * offset_r + offset_c; \
         _Pragma("unroll") for (int i0 = 0; i0 < br * nbr; i0 += sg, ptr += ld*sg) { \
             int i = i0 + get_sub_group_local_id(); \
-            if (offset_r + i < m) \
+            if (m == 1 || offset_r + i < m) \
                 _Pragma("unroll") for (int j = 0; j < bc * nbc; j++) { \
                     if (offset_c + j < n) { \
                         tile_access(*t, i0, j, sg, br, bc, nbr) = ptr[get_sub_group_local_id() * ld + j]; \
@@ -286,7 +286,7 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
     __attribute__((overloadable)) void tile_load_t(tile_type *t, \
             const global element_type *ptr, int m, int n, int offset_r, \
             int offset_c) { \
-        tile_load(t, ptr, m, n, n, offset_r, offset_c); \
+        tile_load_t(t, ptr, m, n, n, offset_r, offset_c); \
     } \
     __attribute__((overloadable)) void tile_store_full(tile_type t, \
             local element_type *ptr, int ld, int offset_r, int offset_c) { \
@@ -551,7 +551,7 @@ DEF_BLOCK2D_LOAD_STORE(half, ushort, 16, 16, u16_m8k32v1, 32, 8)
         tile_load_block2d(t, ptr, m, n, m, offset_r, offset_c); \
     } \
     __attribute__((overloadable)) void tile_store_block2d(tile_type t, \
-            global element_type *ptr, int m, int n, int ld, int offset_r, \
+            const global element_type *ptr, int m, int n, int ld, int offset_r, \
             int offset_c) { \
         const int e = sizeof(element_type); \
         _Pragma("unroll") for (int jj = 0; jj < nbc; jj++) { \
@@ -627,7 +627,7 @@ __attribute__((overloadable)) void cooperative_prefetch_2d_internal(
     const uint cl_iters = (cl_per_sg + sg_size - 1) / sg_size;
 #pragma unroll
     for (uint ii_cl = 0; ii_cl < cl_iters; ii_cl++) {
-        uint i_cl = ii_cl + (sg_id * cl_per_sg) + get_sub_group_local_id();
+        uint i_cl = (ii_cl * cl_per_sg + sg_id) * sg_size + get_sub_group_local_id();
         uint r_cl = i_cl % cl_per_col;
         uint c_cl = i_cl / cl_per_col;
         if (i_cl < cl) {
@@ -649,7 +649,7 @@ __attribute__((overloadable)) void cooperative_prefetch_2d_internal(
     const uint max_off = rbytes - 1 + (c - 1) * ld_bytes;
 #pragma unroll
     for (uint ii_cl = 0; ii_cl < cl_iters; ii_cl++) {
-        uint i_cl = ii_cl + (sg_id * cl_per_sg) + get_sub_group_local_id();
+        uint i_cl = (ii_cl * cl_per_sg + sg_id) * sg_size + get_sub_group_local_id();
         uint r_cl = i_cl % cl_per_col;
         uint c_cl = i_cl / cl_per_col;
         uint pf_off = min(r_cl * 64 + c_cl * ld_bytes, max_off);

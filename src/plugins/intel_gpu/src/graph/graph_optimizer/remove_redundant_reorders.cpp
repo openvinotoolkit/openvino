@@ -20,6 +20,7 @@
 #include "concatenation_inst.h"
 #include "region_yolo_inst.h"
 #include "fully_connected_inst.h"
+#include "group_normalization_inst.h"
 #include "mvn_inst.h"
 
 #include <vector>
@@ -279,13 +280,29 @@ void remove_redundant_reorders::run(program& p) {
             continue;
 
         auto& r_node = node->as<reorder>();
+        auto& dep_node = r_node.get_dependency(0);
 
         bool no_output_optimization = remove_output_reorders ?
-            r_node.is_output() && (r_node.get_dependency(0).is_output() || r_node.get_dependency(0).is_type<input_layout>() ||
-                r_node.get_dependency(0).can_be_optimized() || r_node.get_dependency(0).get_users().size() != 1) : r_node.is_output();
+            r_node.is_output() && (dep_node.is_output() || dep_node.is_type<input_layout>() ||
+                dep_node.can_be_optimized() || dep_node.get_users().size() != 1) : r_node.is_output();
 
         // Do not opt out result reorder of Loop body network
         no_output_optimization |= (r_node.get_program().is_body_program() && r_node.is_output());
+
+        // Prevent optimizing out reorder when a sum post-op is used, as it relies on replacing the
+        // original primitive's output buffer with a dependency input. If the output reorder is removed,
+        // it may result in reading from an incorrect memory buffer during infer request output processing.
+        if (dep_node.get_preferred_impl_type() == impl_types::onednn && !no_output_optimization) {
+            for (auto& fused_op : dep_node.get_fused_primitives()) {
+                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
+                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(dep_node, fused_op);
+                    if (fusing_type == add_fusing_type::sum) {
+                        no_output_optimization |= true;
+                        break;
+                    }
+                }
+            }
+        }
 
         if (!r_node.is_simple_reorder() ||
             no_output_optimization ||
@@ -295,10 +312,10 @@ void remove_redundant_reorders::run(program& p) {
         auto o_layout = r_node.get_output_layout();
         const auto& i_layout = r_node.get_input_layout(0);
 
-        auto is_r_node_rank_changed = r_node.get_output_layout().get_rank() != r_node.get_dependency(0).get_output_layout().get_rank();
+        auto is_r_node_rank_changed = r_node.get_output_layout().get_rank() != dep_node.get_output_layout().get_rank();
         if (is_r_node_rank_changed &&
-            ((!update_implementations && r_node.get_dependency(0).is_type<crop>()) ||
-             (r_node.get_dependency(0).is_type<crop>() && r_node.get_dependency(0).can_be_optimized())))
+            ((!update_implementations && dep_node.is_type<crop>()) ||
+             (dep_node.is_type<crop>() && dep_node.can_be_optimized())))
             continue;
 
         // Optimize reorder b_fs_yx_fsv16 -> bfyx when spatials are equal to 1. In this case we can reinterpret buffer,
@@ -317,10 +334,10 @@ void remove_redundant_reorders::run(program& p) {
                 r_node.can_be_optimized(true);
                 r_node.requires_reinterpret(true);
 
-                std::vector<int32_t> pad_lo(o_layout.data_padding._lower_size.begin(),
-                                            o_layout.data_padding._lower_size.begin() + o_layout.get_rank());
-                std::vector<int32_t> pad_hi(o_layout.data_padding._upper_size.begin(),
-                                            o_layout.data_padding._upper_size.begin() + o_layout.get_rank());
+                std::vector<ov::Dimension::value_type> pad_lo(o_layout.data_padding._lower_size.begin(),
+                                                       o_layout.data_padding._lower_size.begin() + o_layout.get_rank());
+                std::vector<ov::Dimension::value_type> pad_hi(o_layout.data_padding._upper_size.begin(),
+                                                       o_layout.data_padding._upper_size.begin() + o_layout.get_rank());
 
                 pad_lo[0] = i_layout.data_padding._lower_size[0];
                 pad_hi[0] = i_layout.data_padding._upper_size[0];
@@ -458,7 +475,9 @@ void remove_redundant_reorders::run(program& p) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
                 if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
-                    input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>()) {
+                    input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>() ||
+                    (input.is_dynamic() &&
+                    (input.is_type<group_normalization>() || input.is_type<permute>()))) {
                     fused_primitive_desc local_desc(node.get_primitive());
                     local_desc.f_param = node.get_fuse_params();
                     local_desc.total_num_deps = node.get_dependencies().size();

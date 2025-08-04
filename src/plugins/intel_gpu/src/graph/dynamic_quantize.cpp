@@ -20,10 +20,6 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
         || !act_layout.is_static())
         return false;
 
-    GPU_DEBUG_IF(node.get_program().get_config().get_apply_dynamic_quantization_b1()) {
-        return false;
-    }
-
     // Do not skip dynamic quantization if next node is not fully connected.(such as SDPA)
     OPENVINO_ASSERT(node.get_users().size() == node.get_outputs_count(),
                     "Dynamic quantization is supposed to have only one user-node with duplicated connection: ", node.id());
@@ -32,14 +28,17 @@ static bool should_skip_execution(dynamic_quantize_node const& node, const layou
 
     // If batch size is 1, dynamic_quantize is disabled for performance reason
     size_t input_batch = act_layout.batch();
-    if (act_layout.format == format::bfyx) {
+    if (act_layout.format == format::bfyx && act_layout.get_partial_shape().size() != 2) {
         // 3D input
         input_batch = act_layout.batch() * act_layout.feature();
     }
 
-    if (input_batch <= 1) {
+    if (node.get_program().get_config().get_dynamic_quantization_threshold() >= input_batch) {
+        GPU_DEBUG_TRACE << node.id() << "  dyn_quan is turned off: input batch size is too small - " << input_batch << " / "
+                        << node.get_program().get_config().get_dynamic_quantization_threshold() << std::endl;
         return true;
     }
+
     return false;
 }
 
@@ -73,12 +72,21 @@ std::vector<layout> dynamic_quantize_inst::__calc_output_layouts(const dynamic_q
     auto flag_skip_execution = should_skip_execution(node, act_layout);
 
     GPU_DEBUG_TRACE_DETAIL << node.id() << "  should_skip_execution " << flag_skip_execution << std::endl;
-    if (flag_skip_execution)
-        output_layouts[0] = act_layout; // When execution is skipped, output data type is same as input data type
 
     if (attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
         attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
         output_layouts.emplace_back(layout(output_shapes[2], attrs.zp_dt, output_format));
+    }
+
+    if (flag_skip_execution) {
+        // When execution is skipped, output data type is same as input data type
+        output_layouts[0] = act_layout;
+
+        // size of other dyn_quan outputs should be 0
+        for (size_t i = 1; i < output_layouts.size(); i++) {
+            *output_shapes[i].begin() = 0;
+            output_layouts[i].set_partial_shape(output_shapes[i]);
+        }
     }
 
     return output_layouts;

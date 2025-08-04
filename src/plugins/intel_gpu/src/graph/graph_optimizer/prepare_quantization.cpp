@@ -52,12 +52,31 @@ void prepare_quantization::prepare_scale_shift_opt(program &p, quantize_node& qu
     auto mem_output_high = output_high.get_attached_memory_ptr();
 
     auto scales_layout = mem_input_low->get_layout();
+
     auto max_size = tensor(0);
     max_size = tensor::max(max_size, mem_input_high->get_layout().get_tensor());
     max_size = tensor::max(max_size, mem_output_low->get_layout().get_tensor());
     max_size = tensor::max(max_size, mem_output_high->get_layout().get_tensor());
 
     scales_layout.set_tensor(max_size);
+
+    // cldnn::layout::set_tensor() internally uses cldnn::format::dimension()
+    // to determine the tensor rank according to the format set.
+    // Because cldnn::format requires at least 4 dimensions, scales_layout is treated as a 4D tensor.
+    // If scales_layout was promoted from 3D to 4D due to format constraints, revert it back to its original 3D shape.
+    if (p.get_engine().get_device_info().supports_immad) {
+        auto input_max_rank = std::max({
+            mem_input_low->get_layout().get_partial_shape().rank().get_length(),
+            mem_input_high->get_layout().get_partial_shape().rank().get_length(),
+            mem_output_low->get_layout().get_partial_shape().rank().get_length(),
+            mem_output_high->get_layout().get_partial_shape().rank().get_length()
+        });
+
+        if (input_max_rank == 3 && scales_layout.get_partial_shape().rank().get_length() == 4) {
+            scales_layout.set_partial_shape({scales_layout.batch(), scales_layout.feature(),
+                std::max(scales_layout.spatial(0), scales_layout.spatial(1))});
+        }
+    }
 
     auto mem_input_scale  = p.get_engine().allocate_memory(scales_layout, false);
     auto mem_input_shift  = p.get_engine().allocate_memory(scales_layout, false);
@@ -303,7 +322,7 @@ void prepare_quantization::handle_quantize_node(program& p, quantize_node& quant
         return;
 
     auto l = quantize_node.get_primitive()->levels;
-    if (l > 2 && l <= 256 && !quantize_node.get_scale_shift_opt() && !quantize_node.is_constant()) {
+    if (l > 2 && l <= 256 && !quantize_node.get_scale_shift_opt()) {
         prepare_scale_shift_opt(p, quantize_node);
     }
 }
@@ -364,6 +383,12 @@ void prepare_quantization::prepare_dequantize_merge(program& p, eltwise_node& el
                     same_params = false;
                     break;
                 }
+            }
+
+            // Avoid mem0 and mem1's memory are inplace, but they have different layout.
+            if (!mem0->get_layout().get_partial_shape().compatible(mem1->get_layout().get_partial_shape())) {
+                same_params = false;
+                break;
             }
         }
 
@@ -511,6 +536,11 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     auto need_reorder = [&](size_t dep_id) {
         auto dep_layout = fc_node.get_input_layout(dep_id);
         auto dep_pshape = dep_layout.get_partial_shape();
+        if (dep_pshape.size() == 0) {
+            // ConvertU4WeightsZeroPointToScalar pass generates scalar const layer
+            return false;
+        }
+
         // Group for scale_idx is always 1, whereas zero_point_idx is 0.
         auto groups_idx = (dep_pshape.size() > 1) ? 1 : 0;
         auto groups_count = dep_pshape[groups_idx].get_length();
@@ -523,7 +553,7 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
         reorder_bfyx_to_fbyx(decompression_scale_idx);
     }
 
-    if (!fc_prim->decompression_zero_point.empty()) {
+    if (fc_prim->decompression_zero_point.is_valid()) {
         auto decompression_zp_idx = decompression_scale_idx + 1;
         if (need_reorder(decompression_zp_idx)) {
             reorder_bfyx_to_fbyx(decompression_zp_idx);

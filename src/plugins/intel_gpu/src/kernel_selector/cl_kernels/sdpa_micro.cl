@@ -201,9 +201,11 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
 #if KEY_SCALES || KEY_ZERO_POINTS
     uint ldkq = DIV_UP(d, KEY_GROUP_SIZE);
+    uint num_key_groups = d / KEY_GROUP_SIZE;
 #endif
 #if VAL_SCALES || VAL_ZERO_POINTS
     uint ldvq = DIV_UP(d, VAL_GROUP_SIZE);
+    uint num_val_groups = d / VAL_GROUP_SIZE;
 #endif
 
     /* Subgroup IDs for each GEMM */
@@ -250,6 +252,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     V += (VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET) / VAL_ELEMENTS_PER_BYTE;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #if WITH_ATTN_MASK
+    uint ldmsk = MSK_S2;
     msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
 #endif
 #endif
@@ -322,8 +325,44 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
 #ifdef PREFETCH_K0
     /* Prefetch first K tile. */
-    cooperative_prefetch_2d_k(K, d, k, ugemm_kq_wg_tile_m, PREFETCH_D_MAX, ldk,
-            sg_ij, sg_per_wg, SUBGROUP_SIZE, LSC_LDCC_L1C_L3C);
+    cooperative_prefetch_2d_k(
+            /* ptr */ K,
+            /* r */ d,
+            /* c */ k,
+            /* rmax */ ugemm_kq_wg_tile_m,
+            /* cmax */ PREFETCH_D_MAX,
+            /* ld */ ldk,
+            /* sg_id */ sg_ij,
+            /* n_sg */ sg_per_wg,
+            /* sg_size */ SUBGROUP_SIZE,
+            /* cache */ LSC_LDCC_L1C_L3C);
+
+#if KEY_SCALES == QUANTIZE_2D
+    cooperative_prefetch_2d_maybe_rem(
+            /* ptr */ K_scales,
+            /* r */ k,
+            /* c */ num_key_groups,
+            /* rmax */ ugemm_kq_wg_tile_m,
+            /* cmax */ D_MAX / KEY_GROUP_SIZE,
+            /* ld */ ldkq,
+            /* sg_id */ sg_ij,
+            /* n_sg */ sg_per_wg,
+            /* sg_size */ SUBGROUP_SIZE,
+            /* cache */ LSC_LDCC_L1C_L3C);
+#endif
+#if KEY_ZERO_POINTS == QUANTIZE_2D
+    cooperative_prefetch_2d_maybe_rem(
+            /* ptr */ K_zp,
+            /* r */ k,
+            /* c */ num_key_groups,
+            /* rmax */ ugemm_kq_wg_tile_m,
+            /* cmax */ D_MAX / KEY_GROUP_SIZE,
+            /* ld */ ldkq,
+            /* sg_id */ sg_ij,
+            /* n_sg */ sg_per_wg,
+            /* sg_size */ SUBGROUP_SIZE,
+            /* cache */ LSC_LDCC_L1C_L3C);
+#endif
 #endif
 
     /* Initialize S column sums in SLM to -inf */
@@ -363,8 +402,16 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint sg_j0_kq = sg_j_kq * ugemm_kq_sg_tile_n;
 
 #if WITH_ATTN_MASK
+        /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
-        tile_load_t(&mask_tile, msk, q, k, q, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+        if (MSK_D2 == 1 && MSK_D3 > 1) {
+            // Check if attention mask has a single Query dimension (e.g., [batch, num_heads, 1, sequence_length])
+            // In the case of single query dimension, set ld and offset_r to zero
+            // to avoid exceeding bounds for single dimension.
+            tile_load_t(&mask_tile, msk, MSK_D2, MSK_D3, 0, 0, k0 + sg_i0_kq);
+        } else {
+            tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+        }
 #endif
 
 #if REMAINDER_K
@@ -419,7 +466,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_hbroadcast_min(&S_tile, k_mask);
 #endif
 
-#if WITH_CAUSAL_MASK
+#if IS_CAUSAL
 #define greater_than(offset_k, offset_q) (offset_k > offset_q)
         /* Apply causal mask */
         tile_predicated_assignment_t(S_tile, k0 + sg_i0_kq, wg_j0 + sg_j0_kq,
@@ -436,11 +483,49 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
                 S_max_tile, S_max_slm, ugemm_kq_wg_tile_n, sg_j0_kq, 0);
         intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
 
+        int k_chunk = min(k - k0, ugemm_kq_wg_tile_m);
 #ifdef PREFETCH_V
         /* Prefetch V tile. */
-        cooperative_prefetch_2d_maybe_rem(V, d, k - k0, D_MAX,
-                (ugemm_kq_wg_tile_m * PREFETCH_D_MAX) / D_MAX, ldv, sg_ij,
-                sg_per_wg, SUBGROUP_SIZE, LSC_LDCC_L1C_L3C);
+        cooperative_prefetch_2d_maybe_rem(
+                /* ptr */ V,
+                /* r */ d,
+                /* c */ k - k0,
+                /* rmax */ PREFETCH_D_MAX,
+                /* cmax */ ugemm_kq_wg_tile_m,
+                /* ld */ ldv,
+                /* sg_id */ sg_ij,
+                /* n_sg */ sg_per_wg,
+                /* sg_size */ SUBGROUP_SIZE,
+                /* cache */ LSC_LDCC_L1C_L3C);
+
+#if VAL_SCALES == QUANTIZE_2D
+        /* Prefetch V scales. */
+        cooperative_prefetch_2d_maybe_rem(
+                /* ptr */ V_scales,
+                /* r */ num_val_groups,
+                /* c */ k - k0,
+                /* rmax */ PREFETCH_D_MAX / VAL_GROUP_SIZE,
+                /* cmax */ k_chunk,
+                /* ld */ ldvq,
+                /* sg_id */ sg_ij,
+                /* n_sg */ sg_per_wg,
+                /* sg_size */ SUBGROUP_SIZE,
+                /* cache */ LSC_LDCC_L1C_L3C);
+#endif
+#if VAL_ZERO_POINTS == QUANTIZE_2D
+        /* Prefetch V zero points. */
+        cooperative_prefetch_2d_maybe_rem(
+                /* ptr */ V_zp,
+                /* r */ num_val_groups,
+                /* c */ k - k0,
+                /* rmax */ PREFETCH_D_MAX / VAL_GROUP_SIZE,
+                /* cmax */ k_chunk,
+                /* ld */ ldvq,
+                /* sg_id */ sg_ij,
+                /* n_sg */ sg_per_wg,
+                /* sg_size */ SUBGROUP_SIZE,
+                /* cache */ LSC_LDCC_L1C_L3C);
+#endif
 #endif
 
 #ifndef ALT_MAX
@@ -504,7 +589,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             tile_hbroadcast_mul(&A_tile, A_scale_tile);
         }
 
-/* Accumulate sums */
+        /* Accumulate sums */
         tile_binary(S_sum_tile, S_sum_tile1, binary_add);
 
         /* Save maxima */
@@ -524,18 +609,60 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
             const uint stride_k = 1;
 #endif
-            cooperative_prefetch_2d_k(K + (k0 + ugemm_kq_wg_tile_m) * stride_k,
-                    k - k0 - ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_m,
-                    PREFETCH_D_MAX, ldk, sg_ij, sg_per_wg, SUBGROUP_SIZE,
-                    LSC_LDCC_L1C_L3C);
+
+            cooperative_prefetch_2d_k(
+                    /* ptr */ K + (k0 + ugemm_kq_wg_tile_m) * stride_k,
+                    /* r */ k - k0 - ugemm_kq_wg_tile_m,
+                    /* c */ d,
+                    /* rmax */ ugemm_kq_wg_tile_m,
+                    /* cmax */ D_MAX,
+                    /* ld*/ ldk,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache*/ LSC_LDCC_L1C_L3C);
+#if KEY_SCALES == QUANTIZE_2D
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K_scales + (k0 + ugemm_kq_wg_tile_m),
+                    /* r */ k - k0 - ugemm_kq_wg_tile_m,
+                    /* c */ num_key_groups,
+                    /* rmax */ ugemm_kq_wg_tile_m,
+                    /* cmax */ D_MAX / KEY_GROUP_SIZE,
+                    /* ld */ ldkq,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1C_L3C);
+#endif
+#if KEY_ZERO_POINTS == QUANTIZE_2D
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ K_zp + (k0 + ugemm_kq_wg_tile_m),
+                    /* r */ k - k0 - ugemm_kq_wg_tile_m,
+                    /* c */ num_key_groups,
+                    /* rmax */ ugemm_kq_wg_tile_m,
+                    /* cmax */ D_MAX / KEY_GROUP_SIZE,
+                    /* ld */ ldkq,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1C_L3C);
+#endif
         }
 #endif
 #if WITH_ATTN_MASK && defined(PREFETCH_MASK)
         /* Prefetch next mask tile. */
         if (!last) {
-            cooperative_prefetch_2d(msk + k0 + ugemm_kq_wg_tile_m + sg_i0_kq + (sg_j0_kq + wg_j0) * q,
-                    ugemm_kq_sg_tile_m, ugemm_kq_sg_tile_n, 0, 0, 1, SUBGROUP_SIZE,
-                    LSC_LDCC_L1UC_L3C);
+            cooperative_prefetch_2d_maybe_rem(
+                    /* ptr */ msk + k0 + ugemm_kq_sg_tile_m + (wg_j0)*ldmsk,
+                    /* r */ k - k0 - ugemm_kq_wg_tile_m,
+                    /* c */ q - wg_j0,
+                    /* rmax */ ugemm_kq_wg_tile_m,
+                    /* cmax */ (ugemm_kq_wg_tile_n * PREFETCH_D_MAX) / D_MAX,
+                    /* ld */ ldmsk,
+                    /* sg_id */ sg_ij,
+                    /* n_sg */ sg_per_wg,
+                    /* sg_size */ SUBGROUP_SIZE,
+                    /* cache */ LSC_LDCC_L1UC_L3C);
         }
 #endif
 
@@ -547,8 +674,6 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
 
         /* Accumulate A += V * S */
-        int k_chunk = min(k - k0, ugemm_kq_wg_tile_m);
-
         a_tile_type A_tile1 = ugemm_vs(
                 V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
                 k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm

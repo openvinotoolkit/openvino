@@ -4,7 +4,11 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include <cstddef>
+#include <vector>
+
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov::intel_cpu::tpp::pass {
 

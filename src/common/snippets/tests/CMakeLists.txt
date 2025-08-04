@@ -24,14 +24,16 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
-    PCH PRIVATE "src/precomp.hpp"
+    PCH_HEADER "src/precomp.hpp"
 )
 
 add_library(snippets_test_utils STATIC ${CMAKE_CURRENT_SOURCE_DIR}/include/lowering_utils.hpp
                                        ${CMAKE_CURRENT_SOURCE_DIR}/include/lir_test_utils.hpp
                                        ${CMAKE_CURRENT_SOURCE_DIR}/include/lir_comparator.hpp
+                                       ${CMAKE_CURRENT_SOURCE_DIR}/include/lowered/pass/buffer_allocation.hpp
                                        ${CMAKE_CURRENT_SOURCE_DIR}/src/lowering_utils.cpp
                                        ${CMAKE_CURRENT_SOURCE_DIR}/src/lir_test_utils.cpp
-                                       ${CMAKE_CURRENT_SOURCE_DIR}/src/lir_comparator.cpp)
+                                       ${CMAKE_CURRENT_SOURCE_DIR}/src/lir_comparator.cpp
+                                       ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/buffer_allocation.cpp)
 target_include_directories(snippets_test_utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(snippets_test_utils PRIVATE common_test_utils ov_snippets_models)

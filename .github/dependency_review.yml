@@ -3,6 +3,7 @@ allow-licenses:
   - 'BSD-2-Clause'
   - 'BSD-3-Clause'
   - 'BSD-3-Clause-Clear'
+  - 'BSD-2-Clause-Views'
   - 'MIT'
   - 'Apache-2.0'
   - 'ISC'

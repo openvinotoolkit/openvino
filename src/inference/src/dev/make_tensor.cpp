@@ -8,6 +8,7 @@
 #include <mutex>
 
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -57,13 +58,29 @@ public:
         OPENVINO_ASSERT(m_element_type.is_static());
     }
 
+    void* data() override {
+        return m_ptr;
+    }
+
+    void* data(const element::Type& element_type) override {
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
+        return m_ptr;
+    }
+
+    const void* data() const override {
+        return m_ptr;
+    }
+
     const void* data(const element::Type& element_type) const override {
-        if (!is_pointer_representable(element_type)) {
-            OPENVINO_THROW("Tensor data with element type ",
-                           get_element_type(),
-                           ", is not representable as pointer to ",
-                           element_type);
-        }
+        OPENVINO_ASSERT(is_pointer_representable(element_type),
+                        "Tensor data with element type ",
+                        get_element_type(),
+                        ", is not representable as pointer to ",
+                        element_type);
         return m_ptr;
     }
 
@@ -92,11 +109,17 @@ public:
 
 protected:
     bool is_pointer_representable(const element::Type& element_type) const {
-        return element_type.is_dynamic() ||
-               ((get_element_type() != element::string && element_type != element::string &&
-                 element_type.bitwidth() == get_element_type().bitwidth() &&
-                 element_type.is_real() == get_element_type().is_real()) ||
-                (element_type == element::string && element::string == get_element_type()));
+        if (element_type.is_dynamic()) {
+            return true;
+        } else {
+            // gets type info to reduce validation to access speed, due to performance issues
+            const auto& other_type_info = element::get_type_info(element_type);
+            const auto& this_type_info = element::get_type_info(get_element_type());
+            return (get_element_type() != element::string && element_type != element::string &&
+                    other_type_info.m_bitwidth == this_type_info.m_bitwidth &&
+                    other_type_info.m_is_real == this_type_info.m_is_real) ||
+                   (element_type == element::string && element::string == get_element_type());
+        }
     }
 
     void update_strides() const {
@@ -134,8 +157,12 @@ public:
 
     using ViewTensor::data;
 
-    [[noreturn]] void* data(const element::Type& element_type) override {
+    [[noreturn]] void* data() override {
         OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data()'");
+    }
+
+    [[noreturn]] void* data(const element::Type& element_type) override {
+        OPENVINO_THROW("Can not access non-const pointer use e.g. 'static_cast<const ov::Tensor&>.data(element_type)'");
     }
 };
 
@@ -416,9 +443,20 @@ public:
         BaseRoiTensor::set_shape(new_shape);
     }
 
+    void* data() override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    void* data(const element::Type& element_type) override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
+    const void* data() const override {
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
+    }
+
     const void* data(const element::Type& element_type) const override {
-        auto owner_data = m_owner->data(element_type);
-        return static_cast<uint8_t*>(owner_data) + m_offset;
+        return static_cast<uint8_t*>(m_owner->data()) + m_offset;
     }
 };
 

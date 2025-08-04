@@ -1,5 +1,11 @@
 name: OVC
 on:
+  workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   merge_group:
   push:
     branches:

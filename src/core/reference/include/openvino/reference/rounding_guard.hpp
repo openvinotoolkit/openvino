@@ -23,6 +23,9 @@ public:
     RoundingGuard(int mode);
     ~RoundingGuard();
 
+    RoundingGuard(const RoundingGuard&) = delete;
+    RoundingGuard& operator=(const RoundingGuard&) = delete;
+
 private:
     int m_prev_round_mode;
 };

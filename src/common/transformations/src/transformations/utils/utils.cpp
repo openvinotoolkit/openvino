@@ -141,7 +141,7 @@ bool has_f16_constants(const std::shared_ptr<const ov::Model>& function) {
     return false;
 }
 
-bool is_large_language_model(const ov::Model& model) {
+bool is_large_language_model(const ov::Model& model, std::function<bool(std::shared_ptr<ov::Node>)> func) {
     using namespace ov::pass::pattern;
 
     const auto past = wrap_type<ov::op::v6::ReadValue>();
@@ -157,6 +157,9 @@ bool is_large_language_model(const ov::Model& model) {
     const auto kvcache_matcher = std::make_shared<ov::pass::pattern::Matcher>(present, "KVCacheMatcher");
 
     for (const auto& op : model.get_ops()) {
+        if (func(op))
+            return true;
+
         if (kvcache_matcher->match(op->output(0)) || ov::is_type<ov::op::PagedAttentionExtension>(op))
             return true;
     }

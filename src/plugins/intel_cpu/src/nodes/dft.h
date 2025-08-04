@@ -4,14 +4,21 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+
+#include "cpu_types.h"
+#include "graph_context.h"
 #include "kernels/x64/dft_uni_kernel.hpp"
 #include "node.h"
+#include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-class DFT : public Node {
+class DFT : public ov::intel_cpu::Node {
 public:
     DFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
     ~DFT() override = default;
@@ -20,15 +27,15 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
     void createPrimitive() override;
-    bool needShapeInfer() const override;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    std::vector<int32_t> getAxes() const;
+    [[nodiscard]] std::vector<int32_t> getAxes() const;
     void createJITKernels(bool hasDFT, bool hasFFT);
     void dftNd(float* output,
                const VectorDims& outputShape,
@@ -44,7 +51,7 @@ private:
              const float** resultBuf) const;
     void naiveDFT(float* data, size_t dataLength, bool inverse) const;
 
-    std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse) const;
+    static std::vector<float> generateTwiddlesDFT(size_t n_complex, bool inverse);
     void updateTwiddlesFFT(size_t n_complex, bool inverse);
 
     std::unique_ptr<jit_uni_dft_kernel> dftKernel = nullptr;
@@ -57,7 +64,7 @@ private:
     const size_t DATA_INDEX = 0;
     const size_t AXES_INDEX = 1;
     const size_t SIGNAL_SIZE_INDEX = 2;
-    static constexpr float PI = 3.141592653589793238462643f;
+    static constexpr float PI = 3.141592653589793238462643F;
 
     bool inverse;
     bool lastInverse;
@@ -66,6 +73,4 @@ private:
     bool m_is_signal_size_const = false;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

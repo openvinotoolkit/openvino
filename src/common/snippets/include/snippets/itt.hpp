@@ -11,15 +11,9 @@
 
 #include <openvino/cc/pass/itt.hpp>
 
-namespace ov {
-namespace pass {
-namespace itt {
-namespace domains {
+namespace ov::pass::itt::domains {
 OV_ITT_DOMAIN(SnippetsTransform);
-}   // namespace domains
-}   // namespace itt
-}   // namespace pass
-}   // namespace ov
+}  // namespace ov::pass::itt::domains
 
 OV_CC_DOMAINS(internal_op);
 
@@ -30,14 +24,14 @@ OV_CC_DOMAINS(internal_op);
  */
 #if defined(SELECTIVE_BUILD_ANALYZER)
 
-#define INTERNAL_OP_SCOPE(region) OV_SCOPE(internal_op, region)
+#    define INTERNAL_OP_SCOPE(region) OV_SCOPE(internal_op, region)
 
 #elif defined(SELECTIVE_BUILD)
 
-#define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(internal_op, region)
+#    define INTERNAL_OP_SCOPE(region) MATCHER_SCOPE_(internal_op, region)
 
 #else
 
-#define INTERNAL_OP_SCOPE(region)
+#    define INTERNAL_OP_SCOPE(region)
 
 #endif

@@ -50,7 +50,6 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginalWithMaxPool(
 }
 
 std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginal(
-    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
     const FakeQuantizeOnDataWithConstant& fakeQuantizeOnData,
@@ -80,7 +79,6 @@ std::shared_ptr<ov::Model> FakeQuantizeFunction::getOriginal(
 }
 
 std::shared_ptr<ov::Model> FakeQuantizeFunction::getReference(
-    const ov::pass::low_precision::LayerTransformation::Params& params,
     const ov::element::Type precision,
     const ov::PartialShape& inputShape,
     const bool updatePrecisions,

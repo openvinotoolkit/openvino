@@ -12,7 +12,6 @@ namespace {
     const std::vector<FuseMultiplyToFakeQuantizeTransformationTestValues> testValues = {
         {
             {1, 3, 16, 16},
-            LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
             {
                 { 256ul, {}, { 0.f }, { 2.55f }, { 0.f }, { 2.55f } },
                 { {}, {}, {} },
@@ -20,7 +19,6 @@ namespace {
         },
         {
             {1, 3, 16, 16},
-            LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
             {
                 { 256ul, {}, { -1.28f }, { 1.27f }, { 10.f }, { 2.55f } },
                 { {}, {}, {} },

@@ -5,18 +5,43 @@
 #include "extract_image_patches.h"
 
 #include <cmath>
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
+#include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/extractimagepatches.hpp"
-#include "openvino/opsets/opset3_decl.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
-using namespace dnnl::impl::cpu;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "utils/cpu_utils.hpp"
+#endif
+
 using namespace dnnl::impl::cpu::x64;
+using namespace dnnl::impl::cpu;
 using namespace dnnl::impl::utils;
 using namespace Xbyak;
 
@@ -25,16 +50,16 @@ namespace ov::intel_cpu::node {
 #    define GET_OFF(field) offsetof(jit_extract_image_patches_args, field)
 
 template <cpu_isa_t isa>
-struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator {
+struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_extract_image_patches_kernel)
 
     explicit jit_extract_image_patches_kernel(jit_extract_image_patches_params jpp)
         : jit_uni_extract_image_patches_kernel(jpp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -79,7 +104,7 @@ private:
     using reg64_t = const Xbyak::Reg64;
     using reg32_t = const Xbyak::Reg32;
     bool mayiuse_gather = (mayiuse(x64::avx2) || mayiuse(x64::avx512_core)) && (jpp.dtype_size == 4);
-    uint32_t vlen = cpu_isa_traits<isa>::vlen;
+    uint32_t vlen = cpu_isa_traits_t<isa>::vlen;
     reg64_t reg_src = r8;
     reg64_t reg_dst = r9;
     reg64_t reg_oh_count = r10;
@@ -103,7 +128,7 @@ private:
     Opmask k_mask = Xbyak::Opmask(1);
     Xbyak::Label gather_index_table;
 
-    inline void load_scalar(Vmm vmm_arg, const Xbyak::Address& op) {
+    void load_scalar(Vmm vmm_arg, const Xbyak::Address& op) {
         auto xmm_src = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
         case 4:
@@ -119,7 +144,7 @@ private:
             OPENVINO_THROW("The data type of size '", jpp.dtype_size, "' is not supported.");
         }
     }
-    inline void store_scalar(const Xbyak::Address& op, Vmm vmm_arg) {
+    void store_scalar(const Xbyak::Address& op, Vmm vmm_arg) {
         auto xmm_dst = Xmm(vmm_arg.getIdx());
         switch (jpp.dtype_size) {
         case 4:
@@ -136,8 +161,10 @@ private:
         }
     }
 
-    inline void pad_with_zeros(reg64_t& reg_num_pads_arg, reg64_t& reg_dst_arg) {
-        Xbyak::Label main, tail, exit;
+    void pad_with_zeros(reg64_t& reg_num_pads_arg, reg64_t& reg_dst_arg) {
+        Xbyak::Label main;
+        Xbyak::Label tail;
+        Xbyak::Label exit;
         L(main);
         {
             cmp(reg_num_pads_arg, jpp.block_size);
@@ -159,7 +186,7 @@ private:
         L(exit);
     }
 
-    inline void custom_uni_vgatherdps(const Vmm& vmm_arg, reg64_t& mem_base, const Vmm& mem_offset, Vmm& vmm_mask) {
+    void custom_uni_vgatherdps(const Vmm& vmm_arg, reg64_t& mem_base, const Vmm& mem_offset, Vmm& vmm_mask) {
         switch (isa) {
         case x64::avx2:
             uni_vpcmpeqd(vmm_mask, vmm_mask, vmm_mask);
@@ -177,7 +204,7 @@ private:
         }
     }
 
-    inline void gather_src2vmm(const Vmm& vmm_arg, reg64_t& mem_base) {
+    void gather_src2vmm(const Vmm& vmm_arg, reg64_t& mem_base) {
         switch (jpp.dtype_size) {
         case 4:
             custom_uni_vgatherdps(vmm, mem_base, vmm_gather_index, vmm_gather_mask);
@@ -191,7 +218,7 @@ private:
         }
     }
 
-    inline void emulate_gather(const Xbyak::Xmm& xmm_arg, reg64_t& mem_base, int xmm_offset = 0) {
+    void emulate_gather(const Xbyak::Xmm& xmm_arg, reg64_t& mem_base, int xmm_offset = 0) {
         const int xmm_size = 16;  // bytes
         const int xmm_block_size = xmm_size / jpp.dtype_size;
         const int offset = xmm_offset * jpp.SW * jpp.dtype_size * xmm_block_size;
@@ -212,14 +239,14 @@ private:
             }
         }
     }
-    inline void emulate_gather(const Xbyak::Ymm& ymm_arg, reg64_t& mem_base) {
+    void emulate_gather(const Xbyak::Ymm& ymm_arg, reg64_t& mem_base) {
         auto low_xmm = Xbyak::Xmm(ymm_arg.getIdx());
         emulate_gather(low_xmm, mem_base, 0);
         emulate_gather(xmm_aux, mem_base, 1);
         vinserti128(ymm_arg, ymm_arg, xmm_aux, 1);
     }
 
-    inline void emulate_gather(const Xbyak::Zmm& zmm_arg, reg64_t& mem_base) {
+    void emulate_gather(const Xbyak::Zmm& zmm_arg, reg64_t& mem_base) {
         auto low_xmm = Xbyak::Xmm(zmm_arg.getIdx());
         emulate_gather(low_xmm, mem_base, 0);
         for (int i = 1; i < 4; i++) {
@@ -233,8 +260,12 @@ private:
         // reg_num_pads contains h_lo_pad at this point
         sub(reg_oh_count, reg_num_pads);
 
-        Xbyak::Label ih_loop, ih_tail, ih_exit;
-        Xbyak::Label iw_loop, iw_tail, iw_exit;
+        Xbyak::Label ih_loop;
+        Xbyak::Label ih_tail;
+        Xbyak::Label ih_exit;
+        Xbyak::Label iw_loop;
+        Xbyak::Label iw_tail;
+        Xbyak::Label iw_exit;
         if (jpp.need_padding) {
             mul_by_const(reg_num_pads, reg_aux64, jpp.OW);
             pad_with_zeros(reg_num_pads, reg_dst);
@@ -302,20 +333,20 @@ private:
 bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                std::string& errorMessage) noexcept {
     try {
-        auto extImgPatcher = ov::as_type_ptr<const ov::opset3::ExtractImagePatches>(op);
+        auto extImgPatcher = ov::as_type_ptr<const ov::op::v3::ExtractImagePatches>(op);
         if (!extImgPatcher) {
-            errorMessage = "Only opset3 ExtractImagePatches operation is supported";
+            errorMessage = "Only v3 ExtractImagePatches operation is supported";
             return false;
         }
         const auto padValue = extImgPatcher->get_auto_pad();
-        if (!one_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
+        if (none_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
             errorMessage = "Does not support pad type: " + ov::as_string(padValue);
             return false;
         }
-        if (!everyone_is(2u,
-                         extImgPatcher->get_sizes().size(),
-                         extImgPatcher->get_strides().size(),
-                         extImgPatcher->get_rates().size())) {
+        if (!all_of(2U,
+                    extImgPatcher->get_sizes().size(),
+                    extImgPatcher->get_strides().size(),
+                    extImgPatcher->get_rates().size())) {
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }
@@ -366,22 +397,22 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    auto extImgPatcher = ov::as_type_ptr<const ov::opset3::ExtractImagePatches>(op);
+    auto extImgPatcher = ov::as_type_ptr<const ov::op::v3::ExtractImagePatches>(op);
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input or output edges!",
-                           " Input: ",
-                           inputShapes.size(),
-                           "); Output: ",
-                           outputShapes.size());
+        CPU_NODE_THROW("has incorrect number of input or output edges!",
+                       " Input: ",
+                       inputShapes.size(),
+                       "); Output: ",
+                       outputShapes.size());
     }
 
     if (getInputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("must have 4D input tensor. Actual: ", getInputShapeAtPort(0).getRank());
+        CPU_NODE_THROW("must have 4D input tensor. Actual: ", getInputShapeAtPort(0).getRank());
     }
 
     if (getOutputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
+        CPU_NODE_THROW("must have 4D output tensor. Actual: ", getOutputShapeAtPort(0).getRank());
     }
 
     if (extImgPatcher->get_auto_pad() == ov::op::PadType::VALID) {
@@ -391,7 +422,7 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     } else if (extImgPatcher->get_auto_pad() == ov::op::PadType::SAME_UPPER) {
         _auto_pad = ExtImgPatcherPadType::SAME_UPPER;
     } else {
-        THROW_CPU_NODE_ERR("has unsupported pad type: ", extImgPatcher->get_auto_pad());
+        CPU_NODE_THROW("has unsupported pad type: ", extImgPatcher->get_auto_pad());
     }
 
     _ksizes = extImgPatcher->get_sizes();
@@ -399,7 +430,7 @@ ExtractImagePatches::ExtractImagePatches(const std::shared_ptr<ov::Node>& op, co
     _strides = extImgPatcher->get_strides();
     _rates = extImgPatcher->get_rates();
     if (_ksizes.size() != 2 || _strides.size() != 2 || _rates.size() != 2) {
-        THROW_CPU_NODE_ERR("must have the following attributes with shape {2}: sizes, strides, rates.");
+        CPU_NODE_THROW("must have the following attributes with shape {2}: sizes, strides, rates.");
     }
 }
 
@@ -407,13 +438,13 @@ void ExtractImagePatches::prepareParams() {
     const auto& srcMemPtr0 = getSrcMemoryAtPort(0);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
     if (!srcMemPtr0 || !srcMemPtr0->isDefined()) {
-        THROW_CPU_NODE_ERR("Input memory is undefined.");
+        CPU_NODE_THROW("Input memory is undefined.");
     }
     if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("Destination memory is undefined.");
+        CPU_NODE_THROW("Destination memory is undefined.");
     }
     if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor is not set.");
+        CPU_NODE_THROW("Preferable primitive descriptor is not set.");
     }
 
     const auto& in_dims = getParentEdgeAt(0)->getMemory().getStaticDims();
@@ -451,7 +482,7 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
     const auto precision = getOriginalInputPrecisionAtPort(0);
     if (_supported_precisions_sizes.find(precision.size()) == _supported_precisions_sizes.end()) {
-        THROW_CPU_NODE_ERR("has unsupported precision: ", precision.get_type_name());
+        CPU_NODE_THROW("has unsupported precision: ", precision.get_type_name());
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, precision}}, {{LayoutType::ncsp, precision}}, impl_desc_type::ref_any);
@@ -459,13 +490,13 @@ void ExtractImagePatches::initSupportedPrimitiveDescriptors() {
 
 void ExtractImagePatches::execute([[maybe_unused]] const dnnl::stream& strm) {
     if (execPtr) {
-        auto src = getSrcDataAtPort(0);
-        auto dst = getDstDataAtPort(0);
+        auto* src = getSrcDataAtPort(0);
+        auto* dst = getDstDataAtPort(0);
         const auto inStrides = getParentEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         const auto outStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
         execPtr->exec(src, dst, inStrides, outStrides);
     } else {
-        THROW_CPU_NODE_ERR("Primitive wasn't created");
+        CPU_NODE_THROW("Primitive wasn't created");
     }
 }
 
@@ -488,14 +519,27 @@ void ExtractImagePatches::ExtractImagePatchesRefExecutor::executeReference(void*
     parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
         const int64_t iw_start = static_cast<int64_t>(kw * RW) - PL;
         const int64_t ih_start = static_cast<int64_t>(kh * RH) - PT;
-        const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / jpp.SH);
-        const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / jpp.SW);
+        const size_t ih_lpad =
+            ih_start >= 0
+                ? 0
+                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
+        const size_t iw_lpad =
+            iw_start >= 0
+                ? 0
+                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
 
         const size_t ih_hpad =
-            std::ceil((IH - 1.f * ih_start) / jpp.SH) > jpp.OH ? jpp.OH : std::ceil((IH + -1.f * ih_start) / jpp.SH);
-        const size_t iw_hpad = std::ceil((jpp.IW - 1.f * iw_start) / jpp.SW) > jpp.OW
-                                   ? jpp.OW
-                                   : std::ceil((jpp.IW - 1.f * iw_start) / jpp.SW);
+            static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                          static_cast<float>(jpp.SH))) > jpp.OH
+                ? jpp.OH
+                : static_cast<size_t>(std::ceil((static_cast<float>(IH) + -1.F * static_cast<float>(ih_start)) /
+                                                static_cast<float>(jpp.SH)));
+        const size_t iw_hpad =
+            static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                          static_cast<float>(jpp.SW))) > jpp.OW
+                ? jpp.OW
+                : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                                static_cast<float>(jpp.SW)));
 
         char* my_dst_ptr = dst_data + (ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] +
                                        ic * ostrides_partial[3]) *
@@ -548,13 +592,26 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::executeOptimizedGeneri
     parallel_for4d(OB, jpp.KH, jpp.KW, IC, [&](const size_t ob, const size_t kh, const size_t kw, const size_t ic) {
         const int64_t ih_start = kh * RH - PT;
         const int64_t iw_start = kw * RW - PL;
-        const size_t ih_lpad = ih_start >= 0 ? 0 : std::ceil(-1.f * ih_start / jpp.SH);
-        const size_t iw_lpad = iw_start >= 0 ? 0 : std::ceil(-1.f * iw_start / jpp.SW);
+        const size_t ih_lpad =
+            ih_start >= 0
+                ? 0
+                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(ih_start) / static_cast<float>(jpp.SH)));
+        const size_t iw_lpad =
+            iw_start >= 0
+                ? 0
+                : static_cast<size_t>(std::ceil(-1.F * static_cast<float>(iw_start) / static_cast<float>(jpp.SW)));
         const size_t ih_hpad =
-            std::ceil((IH - 1.f * ih_start) / jpp.SH) > jpp.OH ? jpp.OH : std::ceil((IH - 1.f * ih_start) / jpp.SH);
-        const size_t iw_hpad = std::ceil((jpp.IW - 1.f * iw_start) / jpp.SW) > jpp.OW
-                                   ? jpp.OW
-                                   : std::ceil((jpp.IW - 1.f * iw_start) / jpp.SW);
+            static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                          static_cast<float>(jpp.SH))) > jpp.OH
+                ? jpp.OH
+                : static_cast<size_t>(std::ceil((static_cast<float>(IH) - 1.F * static_cast<float>(ih_start)) /
+                                                static_cast<float>(jpp.SH)));
+        const size_t iw_hpad =
+            static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                          static_cast<float>(jpp.SW))) > jpp.OW
+                ? jpp.OW
+                : static_cast<size_t>(std::ceil((static_cast<float>(jpp.IW) - 1.F * static_cast<float>(iw_start)) /
+                                                static_cast<float>(jpp.SW)));
 
         size_t dst_offset =
             ob * ostrides_partial[0] + kh * ostrides_partial[1] + kw * ostrides_partial[2] + ic * ostrides_partial[3];
@@ -607,8 +664,14 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
         const int64_t ihStep = kSizes[0] + (rates[0] - 1) * (kSizes[0] - 1);
         const int64_t iwStep = kSizes[1] + (rates[1] - 1) * (kSizes[1] - 1);
 
-        int64_t PW = (std::ceil(1.f * jpp.IW / strides[1]) - 1) * strides[1] + iwStep - jpp.IW;
-        int64_t PH = (std::ceil(1.f * IH / strides[0]) - 1) * strides[0] + ihStep - IH;
+        int64_t PW =
+            (static_cast<int64_t>(std::ceil(1.F * static_cast<float>(jpp.IW) / static_cast<float>(strides[1]))) - 1) *
+                strides[1] +
+            iwStep - jpp.IW;
+        int64_t PH =
+            (static_cast<int64_t>(std::ceil(1.F * static_cast<float>(IH) / static_cast<float>(strides[0]))) - 1) *
+                strides[0] +
+            ihStep - IH;
 
         int64_t increment_sign = 0;
         if (padType == ExtImgPatcherPadType::SAME_LOWER) {
@@ -629,11 +692,11 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
 
     jpp.dtype_size = prcSize;
     if (mayiuse(x64::avx512_core)) {
-        jpp.block_size = cpu_isa_traits<x64::avx512_core>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::avx512_core>::vlen / prcSize;
     } else if (mayiuse(x64::avx2)) {
-        jpp.block_size = cpu_isa_traits<x64::avx2>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::avx2>::vlen / prcSize;
     } else if (mayiuse(x64::sse41)) {
-        jpp.block_size = cpu_isa_traits<x64::sse41>::vlen / prcSize;
+        jpp.block_size = dnnl::impl::cpu::x64::cpu_isa_traits_t<x64::sse41>::vlen / prcSize;
     } else {
         jpp.block_size = 1;
     }
@@ -641,13 +704,14 @@ jit_extract_image_patches_params ExtractImagePatches::ExtractImagePatchesExecuto
     return jpp;
 }
 
-ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecutor(const VectorDims& inDims,
-                                                                                    const VectorDims& outDims,
-                                                                                    const VectorDims& kSizes,
-                                                                                    const VectorDims& strides,
-                                                                                    const VectorDims& rates,
-                                                                                    const ExtImgPatcherPadType& padType,
-                                                                                    const size_t prcSize) {
+ExtractImagePatches::ExtractImagePatchesJitExecutor::ExtractImagePatchesJitExecutor(
+    [[maybe_unused]] const VectorDims& inDims,
+    [[maybe_unused]] const VectorDims& outDims,
+    [[maybe_unused]] const VectorDims& kSizes,
+    [[maybe_unused]] const VectorDims& strides,
+    [[maybe_unused]] const VectorDims& rates,
+    [[maybe_unused]] const ExtImgPatcherPadType& padType,
+    [[maybe_unused]] const size_t prcSize) {
 #if defined(OPENVINO_ARCH_X86_64)
     auto jpp = fillJpp(inDims, outDims, kSizes, strides, rates, padType, prcSize);
     if (mayiuse(x64::avx512_core)) {
@@ -670,9 +734,7 @@ void ExtractImagePatches::ExtractImagePatchesJitExecutor::exec(void* src,
                                                                void* dst,
                                                                const VectorDims& istrides,
                                                                const VectorDims& ostrides) {
-    if (!pKernel) {
-        OPENVINO_THROW("Can't execute, kernel for extract image patches node is not compiled");
-    }
+    OPENVINO_ASSERT(pKernel, "Can't execute, kernel for extract image patches node is not compiled");
     executeOptimizedGeneric(src, dst, istrides, ostrides);
 }
 

@@ -4,9 +4,26 @@
 
 #include "tile.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/tile.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/ngraph_utils.hpp"
 
 namespace ov::intel_cpu::node {
@@ -43,7 +60,7 @@ Tile::Tile(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         repeats = originRepeats =
             ov::as_type<const ov::op::v0::Constant>(op->get_input_node_ptr(TILE_REPEATS))->cast_vector<size_t>();
         while (repeats.size() < getInputShapeAtPort(TILE_INPUT).getRank()) {
-            repeats.insert(repeats.begin(), 1lu);
+            repeats.insert(repeats.begin(), 1LU);
         }
     }
 }
@@ -60,37 +77,37 @@ void Tile::getSupportedDescriptors() {
         return result;
     };
     if (getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges. "
-                           "Expected: 2, Actual: ",
-                           getParentEdges().size());
+        CPU_NODE_THROW("has incorrect number of input edges. "
+                       "Expected: 2, Actual: ",
+                       getParentEdges().size());
     }
     if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has no output edges.");
+        CPU_NODE_THROW("has no output edges.");
     }
     const auto& dstDims0 = getOutputShapeAtPort(0).getDims();
-    for (size_t i = 1lu; i < outputShapes.size(); i++) {
+    for (size_t i = 1LU; i < outputShapes.size(); i++) {
         const auto& dstDims = getOutputShapeAtPort(i).getDims();
         if (dstDims.size() != dstDims0.size()) {
-            THROW_CPU_NODE_ERR("has output edges 0 and ",
-                               i,
-                               " with different ranks: ",
-                               dstDims0.size(),
-                               " and ",
-                               dstDims.size());
+            CPU_NODE_THROW("has output edges 0 and ",
+                           i,
+                           " with different ranks: ",
+                           dstDims0.size(),
+                           " and ",
+                           dstDims.size());
         }
         for (size_t j = 0; j < dstDims0.size(); j++) {
             if (dstDims0[j] != dstDims[j]) {
-                THROW_CPU_NODE_ERR("has output edges 0 and ",
-                                   i,
-                                   " with different dims: ",
-                                   vec_to_string(dstDims0),
-                                   " and ",
-                                   vec_to_string(dstDims));
+                CPU_NODE_THROW("has output edges 0 and ",
+                               i,
+                               " with different dims: ",
+                               vec_to_string(dstDims0),
+                               " and ",
+                               vec_to_string(dstDims));
             }
         }
     }
     if (constMap[TILE_REPEATS] && getInputShapeAtPort(TILE_INPUT).getRank() > getOutputShapeAtPort(0).getRank()) {
-        THROW_CPU_NODE_ERR(
+        CPU_NODE_THROW(
             " has incorrect input/output data shape rank. Input shape rank cannot be more than output shape rank. "
             "Actual input shape size: ",
             getInputShapeAtPort(TILE_INPUT).getRank(),
@@ -122,9 +139,9 @@ void Tile::prepareParams() {
         const auto* repeatsData = repeatsMem.getDataAs<const int32_t>();
         originRepeats.assign(repeatsData, repeatsData + repeatsMem.getStaticDims()[0]);
 
-        repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1lu);
+        repeats.assign(std::max(originRepeats.size(), getInputShapeAtPort(TILE_INPUT).getRank()), 1LU);
         const size_t offset = repeats.size() - originRepeats.size();
-        for (size_t i = 0lu; i < originRepeats.size(); i++) {
+        for (size_t i = 0LU; i < originRepeats.size(); i++) {
             repeats[i + offset] = originRepeats[i];
         }
     }
@@ -145,7 +162,7 @@ bool Tile::needShapeInfer() const {
             return true;
         }
         const auto* repeatsData = getSrcDataAtPortAs<const int32_t>(TILE_REPEATS);
-        for (size_t i = 0lu; i < originRepeats.size(); i++) {
+        for (size_t i = 0LU; i < originRepeats.size(); i++) {
             if (originRepeats[i] != static_cast<size_t>(repeatsData[i])) {
                 return true;
             }
@@ -172,7 +189,7 @@ void Tile::plainExecute([[maybe_unused]] const dnnl::stream& strm) {
         return;
     }
 
-    auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
+    const auto& srcMemory = getParentEdgeAt(TILE_INPUT)->getMemory();
 
     const auto* src_ptr = srcMemory.getDataAs<const uint8_t>();
     auto* dst_ptr = getDstDataAtPortAs<uint8_t>(0);

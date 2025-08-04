@@ -62,7 +62,7 @@ Tensor::NDims normalize_dims(const DataTensor& qkv) {
 
 Tensor::Dim get_num_heads(const sdpa_params& params, const DataTensor& qkv, const std::vector<int64_t>& order) {
     if (params.conf.is_paged_attention)
-        return normalize_dims(qkv)[1].v / params.conf.head_size;
+        return normalize_dims(qkv)[1].v / params.conf.k_head_size;
 
     return normalize_dims(qkv)[order[1]];
 }
@@ -99,24 +99,51 @@ sdpa_config_t xehpg_h64_s128 = {16, 16, 16, 16, 4, 8, 4, 8};
 sdpa_config_t xehpg_h64_s64 = {32, 16, 16, 8, 8, 4, 4, 8};
 sdpa_config_t xehpg_h64_2nd = {8, 16, 16, 8, 8, 1, 4, 2};
 
-sdpa_config_t xehpg_q_h64 = {32, 16, 16, 16, 4, 4, 4, 4};
-sdpa_config_t xehpg_q_h64_2nd = {16, 16, 8, 8, 16, 1, 8, 2};
+sdpa_config_t xehpg_q_h64 = {32, 16, 16, 16, 4, 8, 4, 8};
+sdpa_config_t xehpg_q_h64_s128 = {16, 16, 16, 8, 8, 4, 4, 8};
+sdpa_config_t xehpg_q_h64_s64 = {32, 8, 32, 8, 2, 8, 2, 8};
+sdpa_config_t xehpg_q_h64_s32 = {8, 8, 16, 8, 4, 8, 4, 8};
+
+sdpa_config_t xehpg_q_h64_s64_2nd = {8, 8, 8, 8, 8, 2, 8, 2};
+sdpa_config_t xehpg_q_h64_s128_2nd = {16, 8, 8, 8, 8, 4, 8, 4};
+sdpa_config_t xehpg_q_h64_2nd = {16, 16, 8, 8, 16, 2, 8, 4};
 
 sdpa_config_t xehpg_h128 = {16, 16, 32, 8, 8, 4, 4, 8};
 sdpa_config_t xehpg_h128_s32 = {16, 16, 16, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h128_2nd = {8, 16, 16, 8, 16, 1, 8, 2};
-sdpa_config_t xehpg_h128_s256_2nd = {8, 16, 32, 8, 8, 1, 4, 2};
 
-sdpa_config_t xehpg_q_h128 = {32, 16, 16, 16, 8, 4, 8, 4};
+sdpa_config_t xehpg_q_h128 = {8, 32, 16, 32, 8, 2, 8, 2};
+sdpa_config_t xehpg_q_h128_s64 = {8, 8, 16, 8, 8, 4, 8, 4};
+sdpa_config_t xehpg_q_h128_s512 = {16, 16, 16, 16, 8, 4, 8, 4};
 sdpa_config_t xehpg_q_h128_2nd = {32, 16, 16, 8, 16, 1, 8, 2};
-sdpa_config_t xehpg_q_h128_s64_2nd = {16, 16, 16, 8, 16, 1, 8, 2};
+sdpa_config_t xehpg_q_h128_s96_2nd = {8, 8, 8, 8, 16, 2, 16, 2};
 
 sdpa_config_t xehpg_h256 = {16, 16, 32, 8, 16, 2, 8, 4};
 sdpa_config_t xehpg_h256_s128 = {8, 16, 32, 16, 8, 4, 8, 4};
 sdpa_config_t xehpg_h256_s32 = {8, 16, 32, 8, 16, 2, 8, 4};
+
+sdpa_config_t xehpg_q_h256 = {16, 16, 64, 8, 8, 4, 4, 8};
+sdpa_config_t xehpg_q_h256_s512 = {16, 16, 32, 16, 8, 4, 8, 4};
+sdpa_config_t xehpg_q_h256_s64 = {8, 8, 32, 8, 8, 4, 8, 4};
+
 sdpa_config_t xehpg_h256_2nd = {8, 8, 16, 8, 16, 1, 16, 1};
 sdpa_config_t xehpg_h256_s64_2nd = {16, 8, 16, 8, 16, 1, 16, 1};
 sdpa_config_t xehpg_h256_s32_2nd = {16, 16, 32, 8, 16, 1, 8, 2};
+
+sdpa_config_t xehpg_q_h256_2nd = {32, 8, 32, 8, 8, 4, 8, 4};
+sdpa_config_t xehpg_q_h256_s96_2nd = {8, 8, 16, 8, 16, 2, 16, 2};
+
+sdpa_config_t xehpg_q_h512_s64 = {8, 8, 64, 8, 8, 4, 8, 4};
+sdpa_config_t xehpg_q_h512_s128 = {8, 16, 32, 16, 16, 2, 16, 2};
+sdpa_config_t xehpg_q_h512_s256 = {16, 8, 64, 8, 8, 4, 8, 4};
+sdpa_config_t xehpg_q_h512 = {8, 16, 64, 8, 16, 2, 8, 4};
+
+sdpa_config_t xehpg_q_h512_s64_2nd = {8, 16, 32, 8, 32, 1, 16, 2};
+sdpa_config_t xehpg_q_h512_s256_2nd = {16, 8, 32, 8, 16, 2, 16, 2};
+sdpa_config_t xehpg_q_h512_2nd = {16, 8, 16, 8, 32, 1, 32, 1};
+
+sdpa_config_t xehpg_h512 = {8, 16, 32, 16, 16, 2, 16, 2};
+sdpa_config_t xehpg_h512_2nd = {8, 8, 32, 8, 16, 1, 16, 1};
 
 sdpa_config_t xehpc_h32 = {16, 64, 32, 16, 4, 2, 1, 8};
 sdpa_config_t xehpc_h32_s32 = {16, 16, 16, 16, 2, 4, 2, 4};
@@ -128,113 +155,338 @@ sdpa_config_t xehpc_h64_s32 = {16, 16, 16, 16, 4, 2, 4, 2};
 sdpa_config_t xehpc_h64_2nd = {32, 32, 32, 16, 4, 1, 2, 2};
 sdpa_config_t xehpc_h64_s64_2nd = {16, 16, 16, 16, 4, 1, 4, 1};
 
-sdpa_config_t xehpc_q_h64 = {16, 64, 32, 16, 8, 4, 2, 16};
+sdpa_config_t xehpc_q_h64_s64 = {16, 16, 16, 16, 4, 4, 4, 4};
+sdpa_config_t xehpc_q_h64_s384 = {16, 64, 16, 32, 8, 2, 4, 4};
+sdpa_config_t xehpc_q_h64_s1024 = {16, 64, 16, 16, 16, 1, 4, 4};
+sdpa_config_t xehpc_q_h64 = {16, 64, 16, 32, 8, 1, 4, 2};
+
+sdpa_config_t xehpc_q_h64_s96_2nd = {16, 16, 16, 16, 8, 1, 4, 1};
+sdpa_config_t xehpc_q_h64_s256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
+sdpa_config_t xehpc_q_h64_s1152_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
+sdpa_config_t xehpc_q_h64_2nd = {64, 16, 16, 16, 16, 2, 16, 2};
 
 sdpa_config_t xehpc_h128 = {16, 64, 32, 16, 16, 2, 4, 8};
 sdpa_config_t xehpc_h128_s64 = {16, 32, 32, 32, 4, 2, 4, 2};
 sdpa_config_t xehpc_h128_s32 = {16, 16, 16, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h128_2nd = {32, 32, 32, 16, 8, 1, 4, 2};
 
-sdpa_config_t xehpc_q_h128 = {16, 64, 16, 32, 16, 2, 8, 4};
-sdpa_config_t xehpc_q_h128_s64 = {16, 16, 32, 16, 4, 4, 4, 4};
-sdpa_config_t xehpc_q_h128_s32 = {16, 16, 32, 16, 4, 2, 4, 2};
-sdpa_config_t xehpc_q_h128_2nd = {32, 32, 16, 32, 4, 1, 4, 1};
-sdpa_config_t xehpc_q_h128_s32_2nd = {16, 32, 16, 16, 8, 1, 4, 2};
+sdpa_config_t xehpc_q_h128 = {16, 64, 16, 32, 16, 1, 8, 2};
+sdpa_config_t xehpc_q_h128_s32 = {16, 16, 16, 16, 8, 2, 8, 2};
+sdpa_config_t xehpc_q_h128_s128 = {16, 16, 16, 16, 8, 4, 8, 4};
+sdpa_config_t xehpc_q_h128_s128_integrated = {16, 16, 16, 16, 8, 2, 8, 2};
+
+sdpa_config_t xehpc_q_h128_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
+sdpa_config_t xehpc_q_h128_2nd_integrated = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xehpc_q_h128_s96_2nd = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xehpc_q_h128_s512_2nd = {16, 16, 16, 16, 16, 2, 8, 2};
 
 sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
+sdpa_config_t xehpc_h512 = {32, 16, 64, 16, 8, 4, 8, 4};
+sdpa_config_t xehpc_h512_s64 = {16, 16, 64, 16, 8, 2, 8, 2};
+sdpa_config_t xehpc_h512_s128_2nd = {16, 16, 64, 16, 8, 1, 8, 1};
+sdpa_config_t xehpc_h512_s512_2nd = {32, 16, 64, 16, 16, 1, 16, 1};
+sdpa_config_t xehpc_h512_s1024_2nd = {64, 16, 32, 16, 16, 2, 16, 2};
+sdpa_config_t xehpc_h512_2nd = {32, 16, 64, 16, 16, 1, 16, 1};
+
+sdpa_config_t xehpc_h512_integrated = {16, 16, 32, 16, 16, 1, 16, 1};
+sdpa_config_t xehpc_h512_s128_integrated = {16, 16, 64, 16, 8, 2, 8, 2};
+sdpa_config_t xehpc_h512_s256_2nd_integrated = {16, 16, 64, 16, 8, 1, 8, 1};
+sdpa_config_t xehpc_h512_s1024_2nd_integrated = {16, 16, 64, 16, 8, 2, 8, 2};
+sdpa_config_t xehpc_h512_2nd_integrated = {16, 16, 64, 16, 16, 2, 16, 2};
+
+sdpa_config_t xehpc_q_h512_s64_2nd_integrated = {16, 32, 64, 32, 16, 2, 8, 2};
+sdpa_config_t xehpc_q_h512_s128_2nd_integrated = {16, 16, 64, 16, 8, 1, 32, 1};
+sdpa_config_t xehpc_q_h512_s256_2nd_integrated = {16, 32, 64, 32, 16, 2, 8, 2};
+sdpa_config_t xehpc_q_h512_s512_2nd_integrated = {16, 16, 64, 16, 4, 4, 8, 4};
+sdpa_config_t xehpc_q_h512_s1024_2nd_integrated
+        = {16, 16, 64, 16, 16, 1, 16, 1};
+sdpa_config_t xehpc_q_h512_2nd_integrated = {32, 16, 64, 16, 8, 1, 16, 1};
+
+sdpa_config_t xehpc_q_h512_integrated = {16, 32, 32, 32, 16, 1, 16, 1};
+
+sdpa_config_t xehpc_q_h512 = {16, 32, 64, 16, 16, 2, 8, 4};
+sdpa_config_t xehpc_q_h512_s128 = {16, 16, 64, 16, 8, 2, 8, 2};
+
+sdpa_config_t xehpc_q_h512_s512_2nd = {16, 16, 64, 16, 8, 2, 8, 2};
+sdpa_config_t xehpc_q_h512_s1024_2nd = {64, 16, 64, 16, 16, 2, 16, 2};
+sdpa_config_t xehpc_q_h512_2nd = {16, 16, 64, 16, 16, 2, 16, 2};
+
+sdpa_config_t xe2_q_h64 = {16, 64, 16, 32, 16, 1, 8, 2};
+sdpa_config_t xe2_q_h64_s1024_integrated = {16, 64, 16, 32, 8, 4, 4, 8};
+sdpa_config_t xe2_q_h64_s512 = {16, 64, 16, 32, 8, 4, 4, 8};
+sdpa_config_t xe2_q_h64_s384 = {16, 64, 16, 16, 16, 1, 4, 4};
+sdpa_config_t xe2_q_h64_s128 = {16, 64, 16, 32, 8, 1, 4, 2};
+sdpa_config_t xe2_q_h64_s128_integrated = {16, 16, 16, 16, 4, 4, 4, 4};
+sdpa_config_t xe2_q_h64_s32 = {16, 16, 16, 16, 4, 4, 4, 4};
+
+sdpa_config_t xe2_q_h64_2nd = {16, 16, 16, 16, 16, 1, 8, 1};
+sdpa_config_t xe2_q_h64_2nd_integrated = {16, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xe2_q_h64_s96_2nd_integrated = {16, 16, 16, 16, 8, 1, 4, 1};
+sdpa_config_t xe2_q_h64_s384_2nd_integrated = {64, 16, 16, 16, 4, 1, 4, 1};
+sdpa_config_t xe2_q_h64_s64_2nd = {16, 16, 16, 16, 4, 2, 4, 2};
+sdpa_config_t xe2_q_h64_s128_2nd = {16, 16, 16, 16, 8, 2, 8, 2};
+sdpa_config_t xe2_q_h64_s384_2nd = {16, 16, 16, 16, 16, 1, 4, 1};
+sdpa_config_t xe2_q_h64_s512_2nd = {64, 16, 16, 16, 8, 1, 8, 1};
+sdpa_config_t xe2_q_h64_s768_2nd = {64, 16, 16, 16, 16, 1, 8, 1};
+
+sdpa_config_t xe2_q_h256 = {16, 64, 16, 32, 32, 1, 16, 2};
+sdpa_config_t xe2_q_h256_s384 = {16, 32, 32, 32, 8, 2, 8, 2};
+sdpa_config_t xe2_q_h256_s128 = {16, 32, 32, 32, 8, 1, 8, 1};
+sdpa_config_t xe2_q_h256_s128_integrated = {16, 32, 32, 32, 8, 2, 8, 2};
+sdpa_config_t xe2_q_h256_s64_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
+sdpa_config_t xe2_q_h256_s64 = {16, 32, 64, 16, 8, 2, 4, 4};
+
+sdpa_config_t xe2_q_h256_2nd_integrated = {32, 16, 64, 16, 4, 1, 4, 1};
+sdpa_config_t xe2_q_h256_s1152_2nd_integrated = {16, 16, 64, 16, 4, 1, 4, 1};
+sdpa_config_t xe2_q_h256_s768_2nd_integrated = {64, 16, 16, 16, 16, 1, 16, 1};
+sdpa_config_t xe2_q_h256_s512_2nd_integrated = {32, 32, 32, 16, 16, 1, 8, 2};
+sdpa_config_t xe2_q_h256_s384_2nd_integrated = {16, 16, 16, 16, 16, 1, 16, 1};
+
 sdpa_config_t *choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa) {
     if (head_size <= 32) {
+        if (seq <= 0 && is_pa) return &xehpg_h32;
         if (quantized && seq >= 128) {
             if (thin_q) return &xehpg_q_h32_2nd;
             return &xehpg_q_h32;
         }
         if (thin_q) return &xehpg_h32_2nd;
-        if (seq <= 0 && is_pa) return &xehpg_h32;
         if (seq <= 32) return &xehpg_h32_s32;
         if (seq <= 64) return &xehpg_h32_s64;
         if (seq <= 256) return &xehpg_h32_s256;
         return &xehpg_h32;
     } else if (head_size <= 64) {
+        if (seq <= 0 && is_pa) return &xehpg_h64;
         if (quantized) {
-            if (thin_q) return &xehpg_q_h64_2nd;
-            return &xehpg_q_h64;
+            if (thin_q) {
+                if (seq <= 64) return &xehpg_q_h64_s64_2nd;
+                if (seq <= 128) return &xehpg_q_h64_s128_2nd;
+                return &xehpg_q_h64_2nd;
+            } else {
+                if (seq <= 32) return &xehpg_q_h64_s32;
+                if (seq <= 64) return &xehpg_q_h64_s64;
+                if (seq <= 128) return &xehpg_q_h64_s128;
+                return &xehpg_q_h64;
+            }
         }
         if (thin_q) return &xehpg_h64_2nd;
-        if (seq <= 0 && is_pa) return &xehpg_h64;
         if (seq <= 64) return &xehpg_h64_s64;
         if (seq <= 128) return &xehpg_h64_s128;
         return &xehpg_h64;
     } else if (head_size <= 128) {
+        if (seq <= 0 && is_pa) return &xehpg_h128;
         if (quantized) {
             if (thin_q) {
-                if (seq <= 64) return &xehpg_q_h128_s64_2nd;
+                if (seq <= 1) return &xehpg_q_h128_2nd;
+                if (seq <= 96) return &xehpg_q_h128_s96_2nd;
                 return &xehpg_q_h128_2nd;
             }
-            if (seq <= 32) return &xehpg_h128_s32;
+            if (seq <= 64) return &xehpg_q_h128_s64;
+            if (seq <= 512) return &xehpg_q_h128_s512;
             return &xehpg_q_h128;
         }
         if (thin_q) {
-            if (seq <= 256) return &xehpg_h128_s256_2nd;
+            if (seq <= 256) return &xehpg_q_h128_2nd;
             return &xehpg_h128_2nd;
         }
-        if (seq <= 0 && is_pa) return &xehpg_h128;
         if (seq <= 32) return &xehpg_h128_s32;
         return &xehpg_h128;
     } else if (head_size <= 256) {
+        if (seq <= 0 && is_pa) return &xehpg_h256;
         if (thin_q) {
+            if (quantized) {
+                if (seq <= 96) return &xehpg_q_h256_s96_2nd;
+                return &xehpg_q_h256_2nd;
+            }
             if (seq <= 32) return &xehpg_h256_s32_2nd;
             if (seq <= 64) return &xehpg_h256_s64_2nd;
             return &xehpg_h256_2nd;
         }
-        if (seq <= 0 && is_pa) return &xehpg_h256;
+        if (quantized) {
+            if (seq <= 64) return &xehpg_q_h256_s64;
+            if (seq <= 512) return &xehpg_q_h256_s512;
+            return &xehpg_q_h256;
+        }
         if (seq <= 32) return &xehpg_h256_s32;
         if (seq <= 128) return &xehpg_h256_s128;
         return &xehpg_h256;
+    } else if (head_size <= 512) {
+        if (seq <= 0 && is_pa) return &xehpg_h512;
+        if (quantized) {
+            if (thin_q) {
+                if (seq <= 64) return &xehpg_q_h512_s64_2nd;
+                if (seq <= 256) return &xehpg_q_h512_s256_2nd;
+                return &xehpg_q_h512_2nd;
+            }
+            if (seq <= 64) return &xehpg_q_h512_s64;
+            if (seq <= 128) return &xehpg_q_h512_s128;
+            if (seq <= 256) return &xehpg_q_h512_s256;
+            return &xehpg_q_h512;
+        }
+        if (thin_q) { return &xehpg_h512_2nd; }
+        return &xehpg_h512;
     }
     return nullptr;
 }
 
-sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_pa) {
+sdpa_config_t *choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa) {
     if (head_size <= 32) {
-        if (thin_q) return &xehpc_h32_2nd;
         if (seq <= 0 && is_pa) return &xehpc_h32;
+        if (thin_q) return &xehpc_h32_2nd;
         if (seq <= 32) return &xehpc_h32_s32;
         return &xehpc_h32;
     } else if (head_size <= 64) {
+        if (seq <= 0 && is_pa) return &xehpc_h64;
         if (thin_q) {
+            if (quantized) {
+                if (seq <= 96) return &xehpc_q_h64_s96_2nd;
+                if (seq <= 256) return &xehpc_q_h64_s256_2nd;
+                if (seq <= 1152) return &xehpc_q_h64_s1152_2nd;
+                return &xehpc_q_h64_2nd;
+            }
+
             if (seq <= 64) return &xehpc_h64_s64_2nd;
             return &xehpc_h64_2nd;
         }
-        if (quantized && seq >= 256) return &xehpc_q_h64;
-        if (seq <= 0 && is_pa) return &xehpc_h64;
+        if (quantized) {
+            if (seq <= 64) return &xehpc_q_h64_s64;
+            if (seq <= 384) return &xehpc_q_h64_s384;
+            if (seq <= 1024) return &xehpc_q_h64_s1024;
+            return &xehpc_q_h64;
+        }
         if (seq <= 32) return &xehpc_h64_s32;
         if (seq <= 64) return &xehpc_h64_s64;
         return &xehpc_h64;
     } else if (head_size <= 128) {
+        if (seq <= 0 && is_pa) return &xehpc_h128;
         if (quantized) {
             if (thin_q) {
-                if (seq <= 32) return &xehpc_q_h128_s32_2nd;
+                if (is_integrated) { return &xehpc_q_h128_2nd_integrated; }
+                if (seq <= 96) return &xehpc_q_h128_s96_2nd;
+                if (seq <= 512) return &xehpc_q_h128_s512_2nd;
                 return &xehpc_q_h128_2nd;
             }
+            if (is_integrated) {
+                if (seq <= 128) { return &xehpc_q_h128_s128_integrated; }
+            }
             if (seq <= 32) return &xehpc_q_h128_s32;
-            if (seq <= 64) return &xehpc_q_h128_s64;
+            if (seq <= 128) return &xehpc_q_h128_s128;
             return &xehpc_q_h128;
         }
+        if (is_integrated) return &xehpc_q_h128_2nd_integrated;
         if (thin_q) return &xehpc_h128_2nd;
-        if (seq <= 0 && is_pa) return &xehpc_h128;
         if (seq <= 32) return &xehpc_h128_s32;
         if (seq <= 64) return &xehpc_h128_s64;
         return &xehpc_h128;
     } else if (head_size <= 256) {
-        if (thin_q) return &xehpc_h256_2nd;
         if (seq <= 0 && is_pa) return &xehpc_h256;
+        if (thin_q) return &xehpc_h256_2nd;
         if (seq <= 64) return &xehpc_h256_s64;
         return &xehpc_h256;
+    } else if (head_size <= 512) {
+        if (seq <= 0 && is_pa) return &xehpc_h512;
+        if (thin_q) {
+            if (quantized) {
+                if (is_integrated) {
+                    if (seq <= 64) return &xehpc_q_h512_s64_2nd_integrated;
+                    if (seq <= 128) return &xehpc_q_h512_s128_2nd_integrated;
+                    if (seq <= 256) return &xehpc_q_h512_s256_2nd_integrated;
+                    if (seq <= 512) return &xehpc_q_h512_s512_2nd_integrated;
+                    if (seq <= 1024) return &xehpc_q_h512_s1024_2nd_integrated;
+                    return &xehpc_q_h512_2nd_integrated;
+                }
+                if (seq <= 512) return &xehpc_q_h512_s512_2nd;
+                if (seq <= 1024) return &xehpc_q_h512_s1024_2nd;
+                return &xehpc_q_h512_2nd;
+            }
+
+            if (is_integrated) {
+                if (seq <= 256) return &xehpc_h512_s256_2nd_integrated;
+                if (seq <= 1024) return &xehpc_h512_s1024_2nd_integrated;
+                return &xehpc_h512_2nd_integrated;
+            }
+            if (seq <= 128) return &xehpc_h512_s128_2nd;
+            if (seq <= 512) return &xehpc_h512_s512_2nd;
+            if (seq <= 1024) return &xehpc_h512_s1024_2nd;
+            return &xehpc_h512_2nd;
+        }
+
+        if (quantized) {
+            if (is_integrated) return &xehpc_q_h512_integrated;
+            if (seq <= 128) return &xehpc_q_h512_s128;
+            return &xehpc_q_h512;
+        }
+        if (is_integrated) {
+            if (seq <= 128) return &xehpc_h512_s128_integrated;
+            return &xehpc_h512_integrated;
+        }
+        if (seq <= 64) return &xehpc_h512_s64;
+        return &xehpc_h512;
     }
     return nullptr;
+}
+
+sdpa_config_t *choose_config_xe2(int head_size, int seq, bool thin_q,
+    bool quantized, bool is_integrated, bool is_pa) {
+    if (head_size <= 64) {
+        if (quantized) {
+            if (thin_q) {
+                if (is_integrated) {
+                    if (seq <= 96) return &xe2_q_h64_s96_2nd_integrated;
+                    if (seq <= 384) return &xe2_q_h64_s384_2nd_integrated;
+                    return &xe2_q_h64_2nd_integrated;
+                }
+                if (seq <= 64) return &xe2_q_h64_s64_2nd;
+                if (seq <= 128) return &xe2_q_h64_s128_2nd;
+                if (seq <= 384) return &xe2_q_h64_s384_2nd;
+                if (seq <= 512) return &xe2_q_h64_s512_2nd;
+                if (seq <= 768) return &xe2_q_h64_s768_2nd;
+                return &xe2_q_h64_2nd;
+            }
+            if (seq <= 32) return &xe2_q_h64_s32;
+            if (is_integrated) {
+                if (seq <= 128) return &xe2_q_h64_s128_integrated;
+            }
+            if (seq <= 128) return &xe2_q_h64_s128;
+            if (seq <= 384) return &xe2_q_h64_s384;
+            if (seq <= 512) return &xe2_q_h64_s512;
+            if (is_integrated) {
+                if (seq <= 1024) return &xe2_q_h64_s1024_integrated;
+            }
+            return &xe2_q_h64;
+        }
+    }
+
+    if (head_size <= 128) {
+        return choose_config_xehpc(
+                head_size, seq, thin_q, quantized, is_integrated, is_pa);
+    }
+
+    if (head_size <= 256) {
+        if (quantized) {
+            if (is_integrated) {
+                if (thin_q) {
+                    if (seq < 384) return &xe2_q_h256_s384_2nd_integrated;
+                    if (seq < 512) return &xe2_q_h256_s512_2nd_integrated;
+                    if (seq < 768) return &xe2_q_h256_s768_2nd_integrated;
+                    if (seq < 1152) return &xe2_q_h256_s1152_2nd_integrated;
+                    return &xe2_q_h256_2nd_integrated;
+                }
+                if (seq <= 64) return &xe2_q_h256_s64_integrated;
+                if (seq <= 128) return &xe2_q_h256_s128_integrated;
+            }
+            if (!thin_q) {
+                if (seq <= 64) return &xe2_q_h256_s64;
+                if (seq <= 128) return &xe2_q_h256_s128;
+                if (seq <= 384) return &xe2_q_h256_s384;
+                return &xe2_q_h256;
+            }
+        }
+    }
+    return choose_config_xehpc(
+            head_size, seq, thin_q, quantized, is_integrated, is_pa);
 }
 
 }  // namespace
@@ -254,28 +506,35 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     const auto& V = params.inputs[2];
 
     auto& out = params.outputs[0];
-    const auto head_size = params.conf.head_size;
-    const auto d_max = get_d_max(head_size);
+    const auto k_head_size = params.conf.k_head_size;
+    const auto v_head_size = params.conf.v_head_size;
+    const auto d_max = get_d_max(k_head_size);
     const Tensor::Dim n_keys = get_seq_length(params, K, params.input1_order);
     const Tensor::Dim n_queries = get_seq_length(params, Q, params.input0_order);
-    const Tensor::Dim n_values = Tensor::Dim(head_size);
+    const Tensor::Dim n_values = Tensor::Dim(v_head_size);
     const auto batch = out.Batch().v * out.Feature().v;
 
     /* Retrieve pre-tuned kernel configuration */
     sdpa_config_t *config = nullptr;
     bool thin_q = (!n_queries.is_dynamic && (n_queries.v <= 16)) || !is_prefill;
+    bool is_integrated = params.engineInfo.deviceType == dev_type::integrated_gpu;
 
     bool is_quantized = (K.GetDType() == Datatype::UINT8 || K.GetDType() == Datatype::INT8) ||
                         (V.GetDType() == Datatype::UINT8 || V.GetDType() == Datatype::INT8);
     switch (params.engineInfo.arch) {
         case gpu_arch::xe_hpg: {
-            config = choose_config_xehpg(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
+            config = choose_config_xehpg(static_cast<int32_t>(k_head_size), static_cast<int32_t>(n_keys.v), thin_q,
+                is_quantized, params.conf.is_paged_attention);
             break;
         }
         case gpu_arch::xe_hpc:
+            config = choose_config_xehpc(static_cast<int32_t>(k_head_size), static_cast<int32_t>(n_keys.v), thin_q,
+                is_quantized, is_integrated, params.conf.is_paged_attention);
+            break;
         case gpu_arch::xe2:
         case gpu_arch::xe3: {
-            config = choose_config_xehpc(static_cast<int32_t>(head_size), static_cast<int32_t>(n_keys.v), thin_q, is_quantized, params.conf.is_paged_attention);
+            config = choose_config_xe2(static_cast<int32_t>(k_head_size), static_cast<int32_t>(n_keys.v), thin_q,
+                is_quantized, is_integrated, params.conf.is_paged_attention);
             break;
         }
         default: break;
@@ -309,24 +568,23 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && !kq_common_scales) {
         const auto scale_dt = convert_type(params.key_cache_comp_scale.GetDType());
         problem_kq.Ta_scale = scale_dt;
-        problem_kq.A_scale.alignment = micro::data_type_size(scale_dt);
-
-        problem_kq.A_scale.layout = micro::MatrixLayout::T;
-        problem_kq.aScale2D = true;
+        problem_kq.A_scale.setAlignment(scale_dt.size());
+        problem_kq.A_scale.layout = micro::MatrixLayout::N;
+        problem_kq.asPtrDims = 2;
     }
 
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
         const auto zp_dt = convert_type(params.key_cache_comp_zp.GetDType());
         problem_kq.Tao = zp_dt;
-        problem_kq.AO.alignment = micro::data_type_size(zp_dt);
-        problem_kq.AO.layout = micro::MatrixLayout::T;
+        problem_kq.AO.setAlignment(zp_dt.size());
+        problem_kq.AO.layout = micro::MatrixLayout::N;
         problem_kq.aoPtrDims = kq_common_zp ? 0 : 2;
         problem_kq.aOffset = micro::ABOffset::Calc;
     }
 
     if (params.conf.is_kv_compressed) {
         problem_kq.aqGroupM = 1;
-        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : params.conf.head_size;
+        problem_kq.aqGroupK = (kq_common_scales || kq_common_zp) ? 1 : params.conf.k_head_size;
     }
 
     opts_kq.scaleA = params.conf.is_kv_compressed && !kq_common_scales;
@@ -334,7 +592,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     problem_kq.B.layout = micro::MatrixLayout::Pr;
     problem_kq.C.layout = micro::MatrixLayout::T;
-    problem_kq.A.setAlignment(micro::alignment_for_ld(head_size * problem.Ta));
+    problem_kq.A.setAlignment(micro::alignment_for_ld(k_head_size * problem.Ta));
     problem_kq.B.setAlignment(64); // Q is packed in VNNI format in SLM
     problem_kq.B.crosspack = 2;
     problem_kq.B.tileR = d_max;
@@ -344,7 +602,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     micro::SizeParams sizes;
     sizes.m = static_cast<int64_t>(n_keys.v);
     sizes.n = static_cast<int64_t>(n_queries.v);
-    sizes.k = static_cast<int64_t>(head_size);
+    sizes.k = static_cast<int64_t>(k_head_size);
     sizes.batch = static_cast<int64_t>(batch);
 
     /* Set up microkernel requirements */
@@ -375,22 +633,22 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
     if (params.conf.is_kv_compressed && !vs_common_scales) {
         auto scale_dt = convert_type(params.value_cache_comp_scale.GetDType());
         problem_vs.Ta_scale = scale_dt;
-        problem_vs.A_scale.alignment = micro::data_type_size(scale_dt);
+        problem_vs.A_scale.setAlignment(scale_dt.size());
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
-        problem_vs.aScale2D = true;
+        problem_vs.asPtrDims = 2;
     }
 
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
         auto zp_dt = convert_type(params.value_cache_comp_zp.GetDType());
         problem_vs.Tao = zp_dt;
-        problem_vs.AO.alignment = micro::data_type_size(zp_dt);
+        problem_vs.AO.setAlignment(zp_dt.size());
         problem_vs.AO.layout = micro::MatrixLayout::N;
         problem_vs.aoPtrDims = vs_common_zp ? 0 : 2;
         problem_vs.aOffset = micro::ABOffset::Calc;
     }
 
     if (params.conf.is_kv_compressed) {
-        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : micro::rnd_up_pow2(params.conf.head_size);
+        problem_vs.aqGroupM = (vs_common_scales || vs_common_zp) ? 1 : micro::rnd_up_pow2(v_head_size);
         problem_vs.aqGroupK = 1;
     }
 
@@ -399,7 +657,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
 
     problem_vs.B.layout = micro::MatrixLayout::Pr;
     problem_vs.C.layout = micro::MatrixLayout::N;
-    problem_vs.A.setAlignment(micro::alignment_for_ld(head_size * problem.Ta));
+    problem_vs.A.setAlignment(micro::alignment_for_ld(v_head_size * problem.Ta));
     problem_vs.B.setAlignment(64); // S is packed in SLM
     problem_vs.B.crosspack = 16;
     sizes.m = static_cast<int64_t>(n_values.v);
@@ -448,17 +706,18 @@ ParamsKey SDPAKernelMicro::GetSupportedKey() const {
 
 bool SDPAKernelMicro::Validate(const Params& p) const {
     if (!Parent::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+
     const sdpa_params& params = static_cast<const sdpa_params&>(p);
 
     if (params.should_use_sdpa_opt)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.engineInfo.arch < gpu_arch::xe_hpg || !params.engineInfo.supports_microkernels)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.indirect_axis != -1)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto Q_num_heads_dim = params.conf.is_paged_attention ? params.conf.heads_num
                                                           : get_num_heads(params, params.inputs[0], params.input0_order);
@@ -466,40 +725,46 @@ bool SDPAKernelMicro::Validate(const Params& p) const {
     auto V_num_heads_dim = get_num_heads(params, params.inputs[2], params.input2_order);
 
     if (params.input0_order[3] != 3 || params.input1_order[3] != 3 || params.input2_order[3] != 3)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (Q_num_heads_dim.is_dynamic || K_num_heads_dim.is_dynamic || V_num_heads_dim.is_dynamic || K_num_heads_dim.v != V_num_heads_dim.v)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    if (params.conf.head_size > 256)
-        return false;
+    if (params.conf.k_head_size != params.conf.v_head_size)
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+
+    if (params.conf.k_head_size > 256)
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+
+    if (params.conf.v_head_size > 256)
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
     if (!params.conf.is_paged_attention) {
         const auto mask_idx = 3lu;
         if (!params.conf.has_const_attn_mask_val && params.inputs.size() > mask_idx && !params.inputs[mask_idx].is_dynamic() &&
             params.inputs[mask_idx].LogicalSize() == 1) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 
     const auto scale_idx = params.conf.is_paged_attention || params.conf.has_const_attn_mask_val ? 4lu : 3lu;
     if (!params.conf.has_const_scale_val && params.inputs.size() > scale_idx && !params.inputs[scale_idx].is_dynamic() &&
         params.inputs[scale_idx].LogicalSize() == 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Scores output is not supported
-    if (params.conf.is_paged_attention && params.outputs.size() > 1)
-        return false;
+    if (params.conf.is_paged_attention && (params.outputs.size() > 1 || params.conf.has_score_aggregation))
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (params.conf.is_paged_attention && params.conf.paged_attention_sliding_window != 0) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Alibi is not supported
     if (params.conf.is_paged_attention && params.conf.has_alibi_input)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
@@ -512,17 +777,18 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     const auto& K = prim_params.inputs[1];
     const auto& V = prim_params.inputs[2];
 
-    const auto head_size = prim_params.conf.head_size;
+    const auto k_head_size = prim_params.conf.k_head_size;
+    const auto v_head_size = prim_params.conf.v_head_size;
 
-    auto ldq = head_size * Q.ElementSize();
-    auto ldk = head_size * K.ElementSize();
-    auto ldv = head_size * V.ElementSize();
-    auto lda = head_size * prim_params.outputs[0].ElementSize();
+    auto ldq = k_head_size * Q.ElementSize();
+    auto ldk = k_head_size * K.ElementSize();
+    auto ldv = v_head_size * V.ElementSize();
+    auto lda = v_head_size * prim_params.outputs[0].ElementSize();
 
-    const auto d_max = get_d_max(head_size);
+    const auto d_max = get_d_max(k_head_size);
     const auto n_keys = get_seq_length(params, K, prim_params.input1_order);
     const auto n_queries = get_seq_length(params, Q, prim_params.input0_order);
-    const auto n_values = Tensor::Dim(head_size);
+    const auto n_values = Tensor::Dim(v_head_size);
 
     auto data_inputs = params.inputs.size();
     if (params.conf.is_paged_attention)
@@ -532,10 +798,11 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size(prim_params.engineInfo.arch)));
     jit.AddConstant(MakeJitConstant("INVERT_SCALE", false));
     jit.AddConstant(MakeJitConstant("SCALE_DATA_T", "half"));
-    jit.AddConstant(MakeJitConstant("HEAD_SIZE", head_size));
+    jit.AddConstant(MakeJitConstant("HEAD_SIZE", k_head_size));
 
     size_t attn_input_idx = 3;
     size_t scale_input_idx = 4;
+    jit.AddConstant(MakeJitConstant("IS_CAUSAL", params.conf.is_causal));
     if (!params.conf.is_paged_attention) {
         if (params.conf.has_const_attn_mask_val) {
             jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
@@ -545,7 +812,6 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
             jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", data_inputs > attn_input_idx));
         }
     } else {
-        jit.AddConstant(MakeJitConstant("WITH_CAUSAL_MASK", params.conf.is_causal));
         jit.AddConstant(MakeJitConstant("WITH_ATTN_MASK", 0));
     }
 
@@ -598,8 +864,8 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
         int vs_scale_mask = (static_cast<int>(params.conf.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
         jit.AddConstant(MakeJitConstant("KEY_SCALES", kq_scale_mask));
         jit.AddConstant(MakeJitConstant("VAL_SCALES", vs_scale_mask));
-        jit.AddConstant(MakeJitConstant("KEY_GROUP_SIZE", params.conf.head_size));
-        jit.AddConstant(MakeJitConstant("VAL_GROUP_SIZE", params.conf.head_size));
+        jit.AddConstant(MakeJitConstant("KEY_GROUP_SIZE", params.conf.k_head_size));
+        jit.AddConstant(MakeJitConstant("VAL_GROUP_SIZE", params.conf.k_head_size));
 
         if (params.conf.use_asymmetric_quantization) {
             int kq_zp_mask = (static_cast<int>(params.conf.use_asymmetric_quantization) << 1) | static_cast<int>(kq_common_zp);
@@ -615,8 +881,8 @@ JitConstants SDPAKernelMicro::GetJitConstants(const sdpa_params& params, const m
     int tile_q = gemm_kq.getSetting("wg_tile_n");
     int tile_v = gemm_vs.getSetting("wg_tile_m");
 
-    bool d_full = (head_size == d_max);
-    bool v_full = (head_size == tile_v);
+    bool d_full = (k_head_size == d_max);
+    bool v_full = (v_head_size == tile_v);
     bool k_full = !n_keys.is_dynamic && (n_keys.v % tile_k) == 0;
     bool q_full = !n_queries.is_dynamic && (n_queries.v % tile_q) == 0;
 
@@ -813,11 +1079,11 @@ clKernelData SDPAKernelMicro::get_kernel_data(const sdpa_params& params, bool is
     const auto n_queries = get_seq_length(params, Q, params.input0_order);
     const auto n_keys = get_seq_length(params, K, params.input1_order);
 
-    auto head_size = params.conf.head_size;
+    auto v_head_size = params.conf.v_head_size;
 
     ScalarDescriptor s_d;
     s_d.t = ScalarDescriptor::Types::INT32;
-    s_d.v.s32 = static_cast<uint32_t>(head_size);
+    s_d.v.s32 = static_cast<uint32_t>(v_head_size);
 
     ScalarDescriptor s_k;
     s_k.t = ScalarDescriptor::Types::INT32;
@@ -883,17 +1149,18 @@ KernelsData SDPAKernelMicro::GetKernelsData(const Params& params) const {
 void SDPAKernelMicro::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kernel_data) {
         const auto& prim_params = static_cast<const sdpa_params&>(params);
+
         const auto& Q = prim_params.inputs[0];
         const auto& K = prim_params.inputs[1];
 
         const auto n_queries = get_seq_length(prim_params, Q, prim_params.input0_order);
         const auto n_keys = get_seq_length(prim_params, K, prim_params.input1_order);
 
-        auto head_size = prim_params.conf.head_size;
+        auto v_head_size = prim_params.conf.v_head_size;
 
         ScalarDescriptor s_d;
         s_d.t = ScalarDescriptor::Types::INT32;
-        s_d.v.s32 = static_cast<uint32_t>(head_size);
+        s_d.v.s32 = static_cast<uint32_t>(v_head_size);
 
         ScalarDescriptor s_k;
         s_k.t = ScalarDescriptor::Types::INT32;
@@ -903,15 +1170,14 @@ void SDPAKernelMicro::GetUpdateDispatchDataFunc(KernelData& kd) const {
         s_q.t = ScalarDescriptor::Types::INT32;
         s_q.v.s32 = static_cast<uint32_t>(n_queries.v);
 
-        // TODO: Currently 2nd token version works slower than prefill version
-        const bool is_prefill = true;//n_queries.v > 1;
+        const bool is_prefill = true; //n_queries.v > 1;
 
         OPENVINO_ASSERT(kernel_data.kernels.size() == 2, "[GPU] Invalid kernels size for update dispatch data func");
 
         size_t target_kernel = is_prefill ? prefill_id : generate_id;
 
-        kernel_data.kernels[prefill_id].skip_execution = true;
         kernel_data.kernels[generate_id].skip_execution = true;
+        kernel_data.kernels[prefill_id].skip_execution = true;
 
         const auto& gemms = kernel_data.kernels[target_kernel].micro_kernels;
         auto dispatchData = SetDefault(prim_params, gemms[kq_id]->p, gemms[vs_id]->p);

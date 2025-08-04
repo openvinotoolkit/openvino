@@ -255,7 +255,7 @@ public:
                 x = idx[7];
                 break;
             default:
-                throw std::runtime_error("More than 8 dimenstions is not supported in fused op generator");
+                throw std::runtime_error("More than 8 dimensions is not supported in fused op generator");
             }
 
             const std::map<ChannelName, std::string*> channels_map{
@@ -270,7 +270,7 @@ public:
             };
 
             for (const auto& [channel_name, dim] : channels_map) {
-                if (extract_channel(channel_name, t) == 1) {
+                if (extract_dim(channel_name, t) == 1) {
                     *dim = "0";
                 }
             }

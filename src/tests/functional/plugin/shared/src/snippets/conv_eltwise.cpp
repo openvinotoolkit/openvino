@@ -3,6 +3,8 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "snippets/conv_eltwise.hpp"
 #include "subgraph_customizable.hpp"
 

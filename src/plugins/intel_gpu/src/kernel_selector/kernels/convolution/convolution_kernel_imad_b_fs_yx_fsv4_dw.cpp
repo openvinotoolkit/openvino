@@ -94,17 +94,17 @@ DeviceFeaturesKey ConvolutionKernel_imad_b_fs_yx_fsv4_dw::get_required_device_fe
 
 bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::Validate(const Params& params) const {
     if (!Parent::Validate(params)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
     if (newParams.inputs[0].Feature().v != newParams.groups || newParams.outputs[0].Feature().v != newParams.groups)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (newParams.outputs[0].Feature().pad.before % fsv != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }
@@ -116,17 +116,17 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
     if (tune_params.tiled) {
         bool tiled_x_once = tune_params.tiled_simd >= (weights.X().v - 1) * params.dilation.x + 1;
         if (!tiled_x_once)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 
         auto max_tile_x = (tune_params.tiled_simd - 1 - (weights.X().v - 1) * params.dilation.x) / params.stride.x + 1;
         if (tune_params.block_x > max_tile_x)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 
         if (tune_params.block_y != 1 && params.stride.y != params.dilation.y)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 
         if (tune_params.block_y > params.outputs[0].Y().v)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else if (tune_params.preload_input) {
         auto line_size = (tune_params.block_x - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x + 1;
 
@@ -134,17 +134,17 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
                          + line_size * weights.Y().v
                          + Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
         if (reg_usage > max_reg_usage)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 
         if (tune_params.block_y != 1 && params.stride.y != params.dilation.y)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 
         if (tune_params.block_y > params.outputs[0].Y().v)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     } else {
         size_t block_size = tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4) * tune_params.preload_weights;
         if (block_size > max_reg_usage)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

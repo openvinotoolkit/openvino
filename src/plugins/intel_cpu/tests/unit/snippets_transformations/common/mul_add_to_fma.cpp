@@ -3,11 +3,12 @@
 //
 
 #include <gtest/gtest.h>
+#include <openvino/opsets/opset1.hpp>
 #include <subgraph_simple.hpp>
 #include <transformations/snippets/common/pass/mul_add_to_fma.hpp>
-#include <transformations/snippets/x64/shape_inference.hpp>
+#include <transformations/snippets/common/shape_inference.hpp>
 #include <transformations/snippets/common/op/fused_mul_add.hpp>
-#include <transformations/snippets/x64/shape_inference.hpp>
+#include <transformations/snippets/common/shape_inference.hpp>
 #include "snippets/op/scalar.hpp"
 #include "lowering_utils.hpp"
 #include "common_test_utils/common_utils.hpp"
@@ -106,9 +107,10 @@ class MulAddToFMATests : public LoweringTests, public testing::WithParamInterfac
 public:
     static std::string getTestCaseName(testing::TestParamInfo<MulAddToFMAParams> obj) {
         std::vector<PartialShape> inputShapes(3);
-        size_t add_input_idx;
-        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], add_input_idx) = obj.param;
-
+        const auto& [_tmp, _tmp1, _tmp2, add_input_idx] = obj.param;
+        inputShapes[0] = _tmp;
+        inputShapes[1] = _tmp1;
+        inputShapes[2] = _tmp2;
         std::ostringstream result;
         for (size_t i = 0; i < inputShapes.size(); i++)
             result << "IS[" << i << "]=" <<  ov::test::utils::partialShape2str({inputShapes[i]}) << "_";
@@ -121,8 +123,10 @@ protected:
         using PassPosition = ov::snippets::pass::PassPosition;
         LoweringTests::SetUp();
         std::vector<PartialShape> inputShapes(3);
-        size_t add_input_idx;
-        std::tie(inputShapes[0], inputShapes[1], inputShapes[2], add_input_idx) = this->GetParam();
+        const auto& [_tmp, _tmp1, _tmp2, add_input_idx] = this->GetParam();
+        inputShapes[0] = _tmp;
+        inputShapes[1] = _tmp1;
+        inputShapes[2] = _tmp2;
         const bool scalar_input = ov::shape_size(inputShapes[2].to_shape()) == 1;
         snippets_model = std::make_shared<EltwiseWithMulAddFunction>(inputShapes, add_input_idx, scalar_input);
 

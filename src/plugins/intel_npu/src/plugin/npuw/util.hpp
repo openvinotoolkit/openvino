@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -155,6 +156,14 @@ void non_parallel_for(std::size_t count, F&& f) {
         f(idx);
     }
 }
+
+template <class CountedType>
+struct Unique {
+    static std::string name() {
+        static std::size_t counter = 0u;
+        return std::string(CountedType::name) + "_" + std::to_string(counter++);
+    }
+};
 
 }  // namespace util
 }  // namespace npuw

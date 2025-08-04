@@ -1,7 +1,5 @@
 --extra-index-url https://download.pytorch.org/whl/cpu
 networkx<=3.2.1; python_version <= '3.9'
-torch<=2.5.1; python_version <= '3.9'
-torch>=1.13; python_version > '3.9'
-torchvision<=0.20.1; python_version <= '3.9'
-torchvision; python_version > '3.9'
+torch>=2.7.0
+torchvision
 pillow>=9.0

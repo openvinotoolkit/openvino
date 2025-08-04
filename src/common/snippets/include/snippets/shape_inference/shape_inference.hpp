@@ -4,15 +4,22 @@
 
 #pragma once
 
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <openvino/core/core.hpp>
+#include <unordered_map>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
-enum class ShapeInferStatus {
-    success, ///< shapes were successfully calculated
-    skip     ///< shape inference was skipped.
+enum class ShapeInferStatus : uint8_t {
+    success,  ///< shapes were successfully calculated
+    skip      ///< shape inference was skipped.
 };
 /**
  * This is Snippets specific shape inference interface.
@@ -22,7 +29,7 @@ class IShapeInferSnippets {
 public:
     struct Result {
         std::vector<VectorDims> dims;
-        ShapeInferStatus status;
+        ShapeInferStatus status{};
     };
 
     virtual ~IShapeInferSnippets() = default;
@@ -31,7 +38,8 @@ public:
      * @brief This method actually performs all the necessary shape inference computations
      *
      * @param input_shapes are the input tensors shapes
-     * @return Result instance that contains an array of calculated shapes (per each output port) and a status of the shape infer call
+     * @return Result instance that contains an array of calculated shapes (per each output port) and a status of the
+     * shape infer call
      */
     virtual Result infer(const std::vector<VectorDimsRef>& input_shapes) = 0;
 };
@@ -43,7 +51,10 @@ public:
  */
 class ShapeInferSnippetsNode : public IShapeInferSnippets {
 public:
-    const Result& get_last_result() {return m_last_result; }
+    const Result& get_last_result() {
+        return m_last_result;
+    }
+
 protected:
     Result m_last_result{{}, ShapeInferStatus::success};
 };
@@ -53,7 +64,7 @@ public:
     // Helper type to define specific Makers map values.
     using ShapeInferPtr = std::shared_ptr<IShapeInferSnippets>;
     // Helper type to define specific Makers map type.
-    using TRegistry = std::unordered_map<ov::DiscreteTypeInfo, std::function<ShapeInferPtr (std::shared_ptr<ov::Node>)>>;
+    using TRegistry = std::unordered_map<ov::DiscreteTypeInfo, std::function<ShapeInferPtr(std::shared_ptr<ov::Node>)>>;
 
     /**
      * \brief  Creates the shape inference object.
@@ -72,12 +83,13 @@ private:
 
 protected:
     /**
-    * @brief get shape infer instances for operations from backend-specific opset
-    * @return Pointer to shape inference object or nullptr if failed to construct the object.
-    */
-    virtual ShapeInferPtr get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key, const std::shared_ptr<ov::Node>& op) const;
+     * @brief get shape infer instances for operations from backend-specific opset
+     * @return Pointer to shape inference object or nullptr if failed to construct the object.
+     */
+    [[nodiscard]] virtual ShapeInferPtr get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
+                                                                    const std::shared_ptr<ov::Node>& op) const;
 };
 std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<ov::Node>& op,
                                                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory);
-} // namespace snippets
-} // namespace ov
+
+}  // namespace ov::snippets

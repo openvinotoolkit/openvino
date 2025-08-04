@@ -4,20 +4,40 @@
 
 #include "dft.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iterator>
 #include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/dft_uni_kernel.hpp"
 #include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
-#include "openvino/opsets/opset7_decl.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
-#include "utils/ngraph_utils.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -27,7 +47,7 @@ namespace ov::intel_cpu::node {
 bool DFT::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
         if (!ov::is_type_any_of<const op::v7::DFT, const op::v7::IDFT>(op)) {
-            errorMessage = "Only opset7 DFT/IDFT operation is supported";
+            errorMessage = "Only v7 DFT/IDFT operation is supported";
             return false;
         }
     } catch (...) {
@@ -61,18 +81,18 @@ void DFT::initSupportedPrimitiveDescriptors() {
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!dataPrecision.is_real()) {
-        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        CPU_NODE_THROW("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
-        THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
+    if (none_of(axesPrecision, ov::element::i32, ov::element::i64)) {
+        CPU_NODE_THROW("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        if (signalSizeTensorPrec != ov::element::i32 && signalSizeTensorPrec != ov::element::i64) {
-            THROW_CPU_NODE_ERR("has unsupported 'signal_size' input precision: ", signalSizeTensorPrec.get_type_name());
+        if (none_of(signalSizeTensorPrec, ov::element::i32, ov::element::i64)) {
+            CPU_NODE_THROW("has unsupported 'signal_size' input precision: ", signalSizeTensorPrec.get_type_name());
         }
     }
 
@@ -187,7 +207,7 @@ void copyDataToOutputWithSignalSize(const float* input,
         std::accumulate(inputShape.begin(), inputShape.end(), static_cast<size_t>(1), std::multiplies<>());
     auto totalOutput =
         std::accumulate(outputShape.begin(), outputShape.end(), static_cast<size_t>(1), std::multiplies<>());
-    std::fill_n(output, totalOutput, 0.f);
+    std::fill_n(output, totalOutput, 0.F);
     size_t lastChangedDim = 0;
     for (size_t index = inputShape.size() - 1; index > 0; --index) {
         if (inputShape[index] != outputShape[index]) {
@@ -238,8 +258,8 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         axes = getAxes();
     }
 
-    const auto src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
-    auto dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
+    const auto* const src = inputDataEdge->getMemoryPtr()->getDataAs<const float>();
+    auto* dst = outputDataEdge->getMemoryPtr()->getDataAs<float>();
 
     const auto inputRank = inputDataEdge->getMemory().getShape().getRank();
 
@@ -278,7 +298,7 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             std::vector<float> outputData(nComplex * 2);
-            const float* resultBufPtr;
+            const float* resultBufPtr = nullptr;
 
             fft(dst, outputData.data(), nComplex * 2, inverse, true, &resultBufPtr);
 
@@ -320,7 +340,7 @@ void DFT::dftNd(float* output,
                                      parallelIterationCounter,
                                      outputShape,
                                      outputStrides);
-                    const float* resultBufPtr;
+                    const float* resultBufPtr = nullptr;
                     fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
                     applyBufferND(resultBufPtr,
                                   output,
@@ -402,7 +422,7 @@ void DFT::fft(float* inBuffer,
         };
     }
 
-    size_t blockSize;
+    size_t blockSize = 0;
     size_t nextIterationBlockSize = dataLength;
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         blockSize = nextIterationBlockSize;
@@ -429,10 +449,10 @@ void DFT::fft(float* inBuffer,
 void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     std::vector<float> outputBuffer(dataLength);
     const size_t nComplex = dataLength / 2;
-    const float reciprocalNComplex = 1.0f / nComplex;
+    const float reciprocalNComplex = 1.0F / nComplex;
     auto twiddlesIter = twiddlesMapDFT.find(nComplex);
     if (twiddlesIter == twiddlesMapDFT.end()) {
-        THROW_CPU_NODE_ERR("Twiddles for nComplex=", nComplex, " not found");
+        CPU_NODE_THROW("Twiddles for nComplex=", nComplex, " not found");
     }
     const auto& twiddles = twiddlesIter->second;
 
@@ -456,10 +476,10 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
         };
     } else {
         blockIteration = [&](size_t k) {
-            float sumReal = 0.0f;
-            float sumImag = 0.0f;
+            float sumReal = 0.0F;
+            float sumImag = 0.0F;
             for (size_t n = 0; n < nComplex; ++n) {
-                auto complexRef = &twiddles[2 * (k * nComplex + n)];
+                const auto* complexRef = &twiddles[2 * (k * nComplex + n)];
                 float complexReal = *complexRef;
                 float complexImag = *(complexRef + 1);
 
@@ -484,12 +504,12 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     cpu_memcpy(data, outputBuffer.data(), dataLength * sizeof(float));
 }
 
-std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) const {
+std::vector<float> DFT::generateTwiddlesDFT(size_t n_complex, bool inverse) {
     std::vector<float> twiddles(n_complex * n_complex * 2);
     const float inverseMultiplier = inverse ? 1 : -1;
     parallel_for(n_complex, [&](const size_t k) {
         for (size_t n = 0; n < n_complex; ++n) {
-            float phase = 2.0f * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
+            float phase = 2.0F * PI * static_cast<float>(n * k) / static_cast<float>(n_complex);
             auto complexReal = std::cos(phase);
             auto complexImag = std::sin(phase) * inverseMultiplier;
             twiddles[2 * (k * n_complex + n)] = complexReal;
@@ -505,8 +525,8 @@ void DFT::updateTwiddlesFFT(size_t n_complex, bool inverse) {
 
     twiddlesFFT.reserve((n_complex - 1) * 2);
     if (twiddlesFFT.empty()) {
-        twiddlesFFT.emplace_back(1.0f);   //  cos(0)
-        twiddlesFFT.emplace_back(-0.0f);  // -sin(0)
+        twiddlesFFT.emplace_back(1.0F);   //  cos(0)
+        twiddlesFFT.emplace_back(-0.0F);  // -sin(0)
     } else {
         for (size_t i = numBlocks; i < twiddlesFFT.size() / 2; i += numBlocks) {
             numBlocks *= 2;
@@ -564,7 +584,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::sse41>>();
         } else {
-            THROW_CPU_NODE_ERR("Can't create jit DFT kernel");
+            CPU_NODE_THROW("Can't create jit DFT kernel");
         }
 
         if (dftKernel) {
@@ -580,7 +600,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::sse41>>();
         } else {
-            THROW_CPU_NODE_ERR("Can't create jit FFT kernel");
+            CPU_NODE_THROW("Can't create jit FFT kernel");
         }
 
         if (fftKernel) {
@@ -599,25 +619,18 @@ bool DFT::needPrepareParams() const {
 }
 
 void DFT::createPrimitive() {
-    if (!outputShapesDefined() || !m_is_axes_size_const) {
-        if (mayiuse(cpu::x64::sse41)) {
-            createJITKernels(true, true);
-        }
-        return;
-    }
-
-    bool hasDFT = false;
-    bool hasFFT = false;
-
-    axes = getAxes();
-    const auto outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
-
-    for (auto axis : axes) {
-        size_t nComplex = outputShape[axis];
-        if (!IsPowerOfTwo(nComplex)) {
-            hasDFT = true;
-        } else {
-            hasFFT = true;
+    bool hasDFT = true;
+    bool hasFFT = true;
+    if (m_is_axes_size_const && outputShapesDefined()) {
+        axes = getAxes();
+        const auto& outputShape = getChildEdgeAt(0)->getMemory().getStaticDims();
+        hasDFT = hasFFT = false;
+        for (auto axis : axes) {
+            if (IsPowerOfTwo(outputShape[axis])) {
+                hasFFT = true;
+            } else {
+                hasDFT = true;
+            }
         }
     }
     if (mayiuse(cpu::x64::sse41)) {

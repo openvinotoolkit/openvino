@@ -4,7 +4,16 @@
 
 #include "eltwise.hpp"
 
-#include "utils.hpp"
+#include <cstddef>
+#include <functional>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -31,19 +40,19 @@ Result EltwiseShapeInfer::infer(const std::vector<std::reference_wrapper<const V
             continue;
         }
 
-        auto& input_shape = input_shapes[i].get();
-        if (input_shape.size() > output_shape.size()) {
-            OPENVINO_THROW("Eltwise shape infer input and output shapes rank mismatch");
-        }
+        const auto& input_shape = input_shapes[i].get();
+        OPENVINO_ASSERT(input_shape.size() <= output_shape.size(),
+                        "Eltwise shape infer input and output shapes rank mismatch");
         size_t offset = output_shape.size() - input_shape.size();
         for (size_t j = 0; j < input_shape.size(); ++j) {
             if (input_shape[j] != output_shape[offset + j]) {
                 if (output_shape[offset + j] == 1) {
                     output_shape[offset + j] = input_shape[j];
                 } else {
-                    if (input_shape[j] != 1) {
-                        OPENVINO_THROW("Eltwise shape infer input shapes dim index: ", j, " mismatch");
-                    }
+                    OPENVINO_ASSERT(input_shape[j] == 1,
+                                    "Eltwise shape infer input shapes dim index: ",
+                                    j,
+                                    " mismatch");
                 }
             }
         }

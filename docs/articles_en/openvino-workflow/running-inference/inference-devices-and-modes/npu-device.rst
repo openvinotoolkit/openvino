@@ -167,6 +167,7 @@ offer a limited set of supported OpenVINO features.
          ov::device::capabilities
          ov::device::full_name
          ov::device::uuid
+         ov::device::luid (windows only)
          ov::device::pci_info
          ov::device::gops
          ov::device::type
@@ -251,6 +252,11 @@ or
 .. code-block::
 
    core.compile_model(ov_model, "NPU", {ov::intel_npu::turbo(true)});
+
+.. note::
+
+   NPU_TURBO usage may cause higher compile time, memory footprint,
+   affect workload latency and compatibility issues with older NPU drivers
 
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 

@@ -4,19 +4,35 @@
 
 #include "log_softmax.h"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/log_softmax.hpp"
-#include "openvino/opsets/opset5_decl.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
 bool LogSoftmax::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
+        const auto logSoftMax = ov::as_type_ptr<const ov::op::v5::LogSoftmax>(op);
         if (!logSoftMax) {
-            errorMessage = "Only opset5 LogSoftmax operation is supported";
+            errorMessage = "Only v5 LogSoftmax operation is supported";
             return false;
         }
     } catch (...) {
@@ -32,27 +48,22 @@ LogSoftmax::LogSoftmax(const std::shared_ptr<ov::Node>& op, const GraphContext::
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto logSoftMax = ov::as_type_ptr<const ov::opset5::LogSoftmax>(op);
-    if (logSoftMax == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of LogSoftmax from opset5.");
-    }
+    const auto logSoftMax = ov::as_type_ptr<const ov::op::v5::LogSoftmax>(op);
+    CPU_NODE_ASSERT(logSoftMax, "is not an instance of v5 LogSoftmax.");
 
-    if (inputShapes.size() != 1 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(all_of(1U, inputShapes.size(), outputShapes.size()), "has incorrect number of input/output edges!");
 
     auto dimsSize = getInputShapeAtPort(0).getDims().size();
     if (dimsSize == 0) {
         dimsSize += 1;
     }
-    axis = logSoftMax->get_axis();
+    axis = static_cast<int>(logSoftMax->get_axis());
     if (axis < 0) {
         axis += dimsSize;
     }
 
-    if (dimsSize < static_cast<size_t>(static_cast<size_t>(1) + axis)) {
-        THROW_CPU_NODE_ERR("has incorrect input parameters dimensions and axis number!");
-    }
+    CPU_NODE_ASSERT(dimsSize >= static_cast<size_t>(1) + axis,
+                    "has incorrect input parameters dimensions and axis number!");
 }
 
 void LogSoftmax::initSupportedPrimitiveDescriptors() {
@@ -103,7 +114,7 @@ void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
             const float* srcDataPtr = &srcData[i * reducedAxisSize];
             float* dstDataPtr = &dstData[i * reducedAxisSize];
 
-            float reduceProd = 0.0f;
+            float reduceProd = 0.0F;
             const float max = *std::max_element(srcDataPtr, srcDataPtr + reducedAxisSize);
             for (size_t j = 0; j < reducedAxisSize; ++j) {
                 reduceProd += expf(srcDataPtr[j] - max);
@@ -119,7 +130,7 @@ void LogSoftmax::execute([[maybe_unused]] const dnnl::stream& strm) {
             const float* srcDataPtr = &srcData[k * reducedAxisStride * reducedAxisSize + i];
             float* dstDataPtr = &dstData[k * reducedAxisStride * reducedAxisSize + i];
 
-            float reduceProd = 0.0f;
+            float reduceProd = 0.0F;
             float max = std::numeric_limits<float>::min();
             for (size_t j = 0; j < reducedAxisSize; ++j) {
                 if (srcDataPtr[j * reducedAxisStride] > max) {

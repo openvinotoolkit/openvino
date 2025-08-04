@@ -103,20 +103,20 @@ ParamsKey KVCacheUpdateKernelRef::GetSupportedKey() const {
 
 bool KVCacheUpdateKernelRef::Validate(const Params& params) const {
     if (params.GetType() != KernelType::PA_KV_CACHE_UPDATE)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& kernel_params = dynamic_cast<const kv_cache_update_params&>(params);
     if (kernel_params.inputs.size() != 6)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (kernel_params.outputs.size() != 2)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (!kernel_params.conf.is_paged_attention)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     if (kernel_params.conf.paged_attention_block_size != static_cast<int64_t>(paged_attention_block_size))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }
@@ -124,20 +124,31 @@ bool KVCacheUpdateKernelRef::Validate(const Params& params) const {
 JitConstants KVCacheUpdateKernelRef::GetJitConstants(const kv_cache_update_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
-    jit.AddConstant(MakeJitConstant("HEAD_SIZE", params.conf.head_size));
+    jit.AddConstant(MakeJitConstant("K_HEAD_SIZE", params.conf.k_head_size));
+    jit.AddConstant(MakeJitConstant("V_HEAD_SIZE", params.conf.v_head_size));
     jit.AddConstant(MakeJitConstant("HEADS_NUM", params.conf.heads_num));
     jit.AddConstant(MakeJitConstant("KV_HEADS_NUM", params.conf.kv_heads_num));
     jit.AddConstant(MakeJitConstant("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_SIZE", subgroup_size));
-    jit.AddConstant(MakeJitConstant("GENERATE_STAGE_BLOCK_SIZE", get_generate_stage_block_size(params.conf.head_size)));
+    jit.AddConstant(MakeJitConstant("GENERATE_STAGE_K_BLOCK_SIZE", get_generate_stage_block_size(params.conf.k_head_size)));
+    jit.AddConstant(MakeJitConstant("GENERATE_STAGE_V_BLOCK_SIZE", get_generate_stage_block_size(params.conf.v_head_size)));
     jit.AddConstant(MakeJitConstant("IS_KV_COMPRESSED", params.conf.is_kv_compressed));
 
     if (params.conf.is_kv_compressed) {
         auto scales_zp_size = params.inputs[0].ElementSize() * 2; // scale + zp
-        jit.AddConstant(MakeJitConstant("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size));
-        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size + scales_zp_size));
+        if (params.is_key_by_channel) {
+            jit.AddConstant(MakeJitConstant("IS_KEY_BY_CHANNEL", 1));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size));
+        } else {
+            jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size + scales_zp_size));
+            jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
+        }
+        jit.AddConstant(MakeJitConstant("ADJUSTED_V_HEAD_SIZE", params.conf.v_head_size + scales_zp_size));
     } else {
-        jit.AddConstant(MakeJitConstant("ADJUSTED_HEAD_SIZE", params.conf.head_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_K_HEAD_SIZE", params.conf.k_head_size));
+        jit.AddConstant(MakeJitConstant("ADJUSTED_V_HEAD_SIZE", params.conf.v_head_size));
     }
 
     return jit;

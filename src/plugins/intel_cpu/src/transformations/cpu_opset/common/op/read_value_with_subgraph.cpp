@@ -3,7 +3,19 @@
 //
 #include "read_value_with_subgraph.hpp"
 
-#include "itt.hpp"
+#include <cstddef>
+#include <memory>
+#include <string>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/variable.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::ReadValueWithSubgraph::ReadValueWithSubgraph(const std::shared_ptr<ov::op::util::Variable>& variable,
@@ -26,7 +38,7 @@ std::string ov::intel_cpu::ReadValueWithSubgraph::get_variable_id() const {
 
 void ov::intel_cpu::ReadValueWithSubgraph::set_input(const Output<Node>& value,
                                                      const std::shared_ptr<op::v0::Parameter>& body_parameter) {
-    OPENVINO_ASSERT(body_parameter != nullptr, "Missing parameter! parameter is is nullptr!");
+    OPENVINO_ASSERT(body_parameter, "Missing parameter! parameter is is nullptr!");
     auto param_index = m_bodies[0]->get_parameter_index(body_parameter);
 
     OPENVINO_ASSERT(param_index != -1, "Missing parameter ", body_parameter->get_friendly_name(), " for \'body\'!");
@@ -36,7 +48,7 @@ void ov::intel_cpu::ReadValueWithSubgraph::set_input(const Output<Node>& value,
 
 ov::Output<ov::Node> ov::intel_cpu::ReadValueWithSubgraph::set_output(
     const std::shared_ptr<op::v0::Result>& body_result) {
-    OPENVINO_ASSERT(body_result != nullptr, "Incorrect result in \"body\"! Result cant be \'nullptr\'");
+    OPENVINO_ASSERT(body_result, "Incorrect result in \"body\"! Result cant be \'nullptr\'");
     auto result_id = m_bodies[0]->get_result_index(body_result);
 
     OPENVINO_ASSERT(result_id != -1, "Missing result ", body_result->get_friendly_name(), "in \'body\'!");

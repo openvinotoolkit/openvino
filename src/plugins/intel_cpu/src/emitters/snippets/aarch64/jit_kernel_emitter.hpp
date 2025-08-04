@@ -4,8 +4,18 @@
 
 #pragma once
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 

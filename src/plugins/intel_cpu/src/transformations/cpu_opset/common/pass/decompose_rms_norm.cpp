@@ -3,18 +3,24 @@
 
 #include "decompose_rms_norm.hpp"
 
-#include "itt.hpp"
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
-#include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/sqrt.hpp"
-#include "openvino/opsets/opset10_decl.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/rms.hpp"
-#include "transformations/utils/utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -29,21 +35,21 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         if (node == nullptr || transformation_callback(node)) {
             return false;
         }
-        auto data = node->get_input_node_shared_ptr(0);
+        auto data = node->input_value(0);
         auto data_precision = node->get_input_element_type(0);
-        auto scale = node->get_input_node_shared_ptr(1);
+        auto scale = node->input_value(1);
 
-        auto power_const = ov::opset10::Constant::create(data_precision, {}, std::vector<float>{2.f});
-        auto power = std::make_shared<ov::opset10::Power>(data, power_const);
-        auto mean_axes = ov::opset10::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
-        auto mean = std::make_shared<ov::opset10::ReduceMean>(power, mean_axes, true);
-        auto eps = ov::opset10::Constant::create(data_precision, {}, {node->get_epsilon()});
-        auto add_eps = std::make_shared<ov::opset10::Add>(mean, eps);
-        auto sqrt = std::make_shared<ov::opset10::Sqrt>(add_eps);
-        auto div_const = ov::opset10::Constant::create(data_precision, {}, {-1});
-        auto div = std::make_shared<ov::opset10::Power>(sqrt, div_const);
-        auto mul1 = std::make_shared<ov::opset10::Multiply>(data, div);
-        auto mul2 = std::make_shared<ov::opset10::Multiply>(scale, mul1);
+        auto power_const = ov::op::v0::Constant::create(data_precision, {}, std::vector<float>{2.F});
+        auto power = std::make_shared<ov::op::v1::Power>(data, power_const);
+        auto mean_axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+        auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
+        auto eps = ov::op::v0::Constant::create(data_precision, {}, {node->get_epsilon()});
+        auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
+        auto sqrt = std::make_shared<ov::op::v0::Sqrt>(add_eps);
+        auto div_const = ov::op::v0::Constant::create(data_precision, {}, {-1});
+        auto div = std::make_shared<ov::op::v1::Power>(sqrt, div_const);
+        auto mul1 = std::make_shared<ov::op::v1::Multiply>(data, div);
+        auto mul2 = std::make_shared<ov::op::v1::Multiply>(scale, mul1);
 
         ov::replace_node(node, mul2);
         return true;

@@ -6,6 +6,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
+#include "common_test_utils/subgraph_builders/llm_builders.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/kv_cache.hpp"
 #include "intel_gpu/op/read_value.hpp"
@@ -64,7 +65,7 @@ std::shared_ptr<ov::Model> make_ref_model(ov::Dimension batch = ov::Dimension::d
     ov::op::util::VariableInfo vi2 = {kv_cache_size, element_type, "v2"};
     auto v1 = std::make_shared<ov::op::util::Variable>(vi1);
     auto v2 = std::make_shared<ov::op::util::Variable>(vi2);
-    auto state_initializer = ::tests::make_state_initializer(in_v_token, element_type, kv_cache_size, qkv_order);
+    auto state_initializer = ov::test::utils::make_state_initializer(in_v_token, element_type, kv_cache_size, qkv_order);
     auto past_k = std::make_shared<ov::intel_gpu::op::ReadValue>(state_initializer, v1);
     auto past_v = std::make_shared<ov::intel_gpu::op::ReadValue>(state_initializer, v2);
 
@@ -87,7 +88,7 @@ std::shared_ptr<ov::Model> make_ref_model(ov::Dimension batch = ov::Dimension::d
     }
 
     if (with_mask) {
-        mask = ::tests::make_attention_mask(q, k, element_type, qkv_order);
+        mask = ov::test::utils::make_attention_mask(q, k, element_type, qkv_order);
     }
 
     if (with_mask && with_scale) {
@@ -172,17 +173,18 @@ TEST_P(SDPAOptimizationTestsP, PassesSequence) {
     std::vector<int64_t> qkv_order;
 
     std::tie(with_rearrange, with_mask, with_scale, causal, batch, model_element_type, num_groups, qkv_order) = GetParam();
-    model = tests::make_llm_kv_cache_sdpa_pattern(batch,
-                                                  32,
-                                                  128,
-                                                  model_element_type,
-                                                  qkv_order,
-                                                  causal,
-                                                  with_mask,
-                                                  with_scale,
-                                                  true,
-                                                  with_rearrange,
-                                                  num_groups);
+    model = ov::test::utils::make_llm_kv_cache_sdpa_pattern(batch,
+                                                            32,
+                                                            128,
+                                                            128,
+                                                            model_element_type,
+                                                            qkv_order,
+                                                            causal,
+                                                            with_mask,
+                                                            with_scale,
+                                                            true,
+                                                            with_rearrange,
+                                                            num_groups);
 
     manager.register_pass<KVCacheFusion>();
     manager.register_pass<TransposeFusion>(false);

@@ -1,6 +1,11 @@
 name: macOS ARM64 (Python 3.11)
 on:
   workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
   schedule:
     # at 00:00 on workdays
     - cron: '0 0 * * 1,2,3,4,5'
@@ -33,6 +38,7 @@ permissions: read-all
 env:
   PYTHON_VERSION: '3.11'
   NODEJS_VERSION: '21'
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
   Smart_CI:
@@ -95,6 +101,7 @@ jobs:
         with:
           repository: 'openvinotoolkit/openvino_contrib'
           path: 'openvino_contrib'
+          ref: ${{ env.TARGET_BRANCH }}
 
       #
       # Print system info
@@ -163,6 +170,7 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
+            -DENABLE_FASTER_BUILD=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -S ${{ env.OPENVINO_REPO }} \
@@ -214,10 +222,10 @@ jobs:
       - name: Build additional Python wheels
         run: |
           for py_version in "3.9" "3.10" "3.11" "3.12"
-          do            
+          do
             python_exec_path=$(python$py_version -c "import sys; print(sys.executable)")
             $python_exec_path -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
-            
+
             cmake -DPython3_EXECUTABLE=$python_exec_path -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${{ github.workspace }}/py$py_version
             cmake --build ${{ github.workspace }}/py$py_version --parallel
             cmake --install ${{ github.workspace }}/py$py_version --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
@@ -256,12 +264,11 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR_JS }}
 
       - name: Pack openvino_node_npm_package
-        id: openvino_node_npm_package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run: |
           npm i
-          ARCHIVE_NAME=$(npm pack --silent --pack-destination ${{ env.BUILD_DIR }})
-          echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+          npm pack
+          tar -czvf ${BUILD_DIR}/openvino_node_npm_package.tar.gz bin openvino-node-*
         working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       #
@@ -275,7 +282,7 @@ jobs:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
           if-no-files-found: 'error'
-          
+
       - name: Upload OpenVINO wheels
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -304,7 +311,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_node_npm_package
-          path: ${{ env.BUILD_DIR }}/${{ steps.openvino_node_npm_package.outputs.archive_name }}
+          path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
           if-no-files-found: 'error'
 
   Samples:
@@ -331,6 +338,7 @@ jobs:
       shell: bash
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: '3.11'
+      target-branch: ${{ inputs.target-branch }}
     if: fromJSON(needs.smart_ci.outputs.affected_components).TOKENIZERS
 
   CXX_Unit_Tests:
@@ -377,6 +385,15 @@ jobs:
     name: Pytorch Layer Tests
     needs: [ Build, Smart_CI ]
     uses: ./.github/workflows/job_pytorch_layer_tests.yml
+    with:
+      runner: 'macos-13-xlarge'
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.11'
+
+  Pytorch_FX_Layer_Tests:
+    name: Pytorch FX Layer Tests
+    needs: [ Build, Smart_CI ]
+    uses: ./.github/workflows/job_pytorch_fx_layer_tests.yml
     with:
       runner: 'macos-13-xlarge'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}

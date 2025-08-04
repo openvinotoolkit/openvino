@@ -4,14 +4,28 @@
 
 #include "causal_mask_preprocess.h"
 
-#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
+#include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/plain_tensor.hpp"
 
 namespace ov::intel_cpu::node {
@@ -145,7 +159,7 @@ void CausalMaskPreprocess::initSupportedPrimitiveDescriptors() {
             prec = ov::element::i32;
         }
     } else {
-        THROW_CPU_NODE_ERR("type not supported : " + m_config.type);
+        CPU_NODE_THROW("type not supported : " + m_config.type);
     }
 
     std::vector<PortConfigurator> inPortConfigs;

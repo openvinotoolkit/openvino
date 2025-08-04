@@ -5,13 +5,12 @@
 #pragma once
 
 #include <memory>
-#include <utility>
 
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "openvino/core/except.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class PortDescBase {
 public:
@@ -24,13 +23,13 @@ public:
      *
      * @return True if the port desc may be accepted false otherwise
      */
-    bool isCompatible(const PortDescBase& rhs) const {
+    [[nodiscard]] bool isCompatible(const PortDescBase& rhs) const {
         return typeid(*this) == typeid(rhs) && this->compareImpl(rhs);
     }
-    virtual MemoryDescPtr getMemDesc() const = 0;
+    [[nodiscard]] virtual MemoryDescPtr getMemDesc() const = 0;
 
 protected:
-    virtual bool compareImpl(const PortDescBase& rhs) const = 0;
+    [[nodiscard]] virtual bool compareImpl(const PortDescBase& rhs) const = 0;
 };
 
 using PortDescBasePtr = std::shared_ptr<PortDescBase>;
@@ -40,7 +39,7 @@ template <class T>
 class PortDescBase_ : public PortDescBase {
 protected:
     PortDescBase_() = default;
-    bool compareImpl(const PortDescBase& rhs) const override /*final*/ {
+    [[nodiscard]] bool compareImpl(const PortDescBase& rhs) const override /*final*/ {
         return static_cast<const T&>(*this).isCompatible(static_cast<const T&>(rhs));
     }
 };
@@ -48,14 +47,12 @@ protected:
 class PortDescGeneric : public PortDescBase_<PortDescGeneric> {
 public:
     explicit PortDescGeneric(MemoryDescPtr memDesc) : _memDesc(std::move(memDesc)) {
-        if (nullptr == _memDesc) {
-            OPENVINO_THROW("ParameterMismatch: PortDescGeneric constructor got nullptr");
-        }
+        OPENVINO_ASSERT(_memDesc, "ParameterMismatch: PortDescGeneric constructor got nullptr");
     }
-    bool isCompatible(const PortDescGeneric& rhs) const {
+    [[nodiscard]] bool isCompatible(const PortDescGeneric& rhs) const {
         return _memDesc->isCompatible(*rhs._memDesc);
     }
-    MemoryDescPtr getMemDesc() const override {
+    [[nodiscard]] MemoryDescPtr getMemDesc() const override {
         return _memDesc;
     }
 
@@ -67,16 +64,13 @@ class PortDescBlocked : public PortDescBase_<PortDescBlocked> {
 public:
     using CmpMask = BlockedMemoryDesc::CmpMask;
 
-public:
     PortDescBlocked(BlockedMemoryDescPtr memDesc, CmpMask cmpMask) : _memDesc(std::move(memDesc)), _cmpMask(cmpMask) {
-        if (nullptr == _memDesc) {
-            OPENVINO_THROW("ParameterMismatch: PortDescBlocked constructor got nullptr");
-        }
+        OPENVINO_ASSERT(_memDesc, "ParameterMismatch: PortDescBlocked constructor got nullptr");
     }
-    bool isCompatible(const PortDescBlocked& rhs) const {
+    [[nodiscard]] bool isCompatible(const PortDescBlocked& rhs) const {
         return _memDesc->isCompatible(*rhs._memDesc, _cmpMask) && (((~_cmpMask) | rhs._cmpMask).all());
     }
-    MemoryDescPtr getMemDesc() const override {
+    [[nodiscard]] MemoryDescPtr getMemDesc() const override {
         return _memDesc;
     }
 
@@ -89,10 +83,10 @@ class PortConfig {
 public:
     PortConfig() = default;
 
-    PortConfig(const MemoryDescPtr& desc,
-               BlockedMemoryDesc::CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK,
-               int inPlacePort = -1,
-               bool isConstant = false)
+    explicit PortConfig(const MemoryDescPtr& desc,
+                        BlockedMemoryDesc::CmpMask cmpMask = BlockedMemoryDesc::FULL_MASK,
+                        int inPlacePort = -1,
+                        bool isConstant = false)
         : _desc(createPortDesc(desc, cmpMask)),
           _inPlacePort(inPlacePort),
           _constant(isConstant) {}
@@ -107,7 +101,7 @@ public:
     PortConfig(PortConfig&& rhs) = default;
     PortConfig& operator=(PortConfig&& rhs) = default;
 
-    int inPlace() const {
+    [[nodiscard]] int inPlace() const {
         return _inPlacePort;
     }
 
@@ -115,7 +109,7 @@ public:
         _inPlacePort = port;
     }
 
-    bool constant() const {
+    [[nodiscard]] bool constant() const {
         return _constant;
     }
 
@@ -123,11 +117,11 @@ public:
         _constant = constant;
     }
 
-    MemoryDescPtr getMemDesc() const {
+    [[nodiscard]] MemoryDescPtr getMemDesc() const {
         return _desc->getMemDesc();
     }
 
-    PortDescBasePtr getPortDesc() const {
+    [[nodiscard]] PortDescBasePtr getPortDesc() const {
         return _desc;
     }
 
@@ -139,20 +133,21 @@ public:
         _desc = createPortDesc(desc, cmpMask);
     }
 
-    bool hasZeroDims() const {
+    [[nodiscard]] bool hasZeroDims() const {
         const auto desc = getMemDesc();
         return desc->getShape().hasZeroDims() && !desc->empty();
     }
 
 private:
-    PortDescBasePtr createPortDesc(const MemoryDescPtr& desc, BlockedMemoryDesc::CmpMask cmpMask) {
-        if (desc->getType() & Blocked)
+    static PortDescBasePtr createPortDesc(const MemoryDescPtr& desc, BlockedMemoryDesc::CmpMask cmpMask) {
+        if (desc->getType() & Blocked) {
             return createPortDesc(std::dynamic_pointer_cast<BlockedMemoryDesc>(desc), cmpMask);
+        }
 
         return std::make_shared<PortDescGeneric>(desc);
     }
 
-    PortDescBasePtr createPortDesc(const BlockedMemoryDescPtr& desc, BlockedMemoryDesc::CmpMask cmpMask) {
+    static PortDescBasePtr createPortDesc(const BlockedMemoryDescPtr& desc, BlockedMemoryDesc::CmpMask cmpMask) {
         return std::make_shared<PortDescBlocked>(desc, cmpMask);
     }
 
@@ -172,5 +167,4 @@ struct NodeConfig {
     std::vector<PortConfig> outConfs;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

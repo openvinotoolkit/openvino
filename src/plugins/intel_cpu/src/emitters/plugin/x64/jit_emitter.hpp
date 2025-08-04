@@ -4,14 +4,23 @@
 
 #pragma once
 
-#include <node.h>
+#include <xbyak/xbyak.h>
 
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
 #include <set>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "cpu/x64/jit_generator.hpp"
 #include "emitters/utils.hpp"
-#include "snippets/generator.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/emitter.hpp"
 
 #ifdef SNIPPETS_DEBUG_CAPS
 #    include "emitters/snippets/x64/verbose.hpp"
@@ -19,7 +28,7 @@
 
 namespace ov::intel_cpu {
 
-enum emitter_in_out_map {
+enum emitter_in_out_map : uint8_t {
     vec_to_vec,
     vec_to_gpr,
     gpr_to_vec,
@@ -29,16 +38,16 @@ enum emitter_in_out_map {
 // structure for storage of emitter parameters to hash in map
 struct emitter_params {
     [[nodiscard]] virtual size_t hash() const = 0;
+    virtual ~emitter_params() = default;
 };
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
-    jit_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                 dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,
                 emitter_in_out_map in_out_type = emitter_in_out_map::vec_to_vec)
-        : Emitter(),
-          h(host),
+        : h(host),
           host_isa_(host_isa),
           exec_prc_(exec_prc),
           l_table(new Xbyak::Label()),
@@ -75,7 +84,7 @@ protected:
     size_t get_max_vecs_count() const;
     size_t get_vec_length() const;
 
-    dnnl::impl::cpu::x64::jit_generator* h;
+    dnnl::impl::cpu::x64::jit_generator_t* h;
     dnnl::impl::cpu::x64::cpu_isa_t host_isa_;
     ov::element::Type exec_prc_;
     Xbyak::Opmask k_mask;
@@ -89,7 +98,7 @@ protected:
     virtual void register_table_entries() {}
 
     void load_table_addr() const {
-        h->mov(p_table, *l_table.get());
+        h->mov(p_table, *l_table);
     }
 
     // we accept only 32bit hexadecimal table values to avoid any rounding
@@ -110,13 +119,13 @@ protected:
     mutable Xbyak::Reg64 p_table;
     mutable std::shared_ptr<Xbyak::Label> l_table;
 
-    enum {
-        _cmp_eq_oq = dnnl::impl::cpu::x64::jit_generator::_cmp_eq_oq,
-        _cmp_neq_uq = dnnl::impl::cpu::x64::jit_generator::_cmp_neq_uq,
-        _cmp_lt_os = dnnl::impl::cpu::x64::jit_generator::_cmp_lt_os,
-        _cmp_le_os = dnnl::impl::cpu::x64::jit_generator::_cmp_le_os,
-        _cmp_ge_os = dnnl::impl::cpu::x64::jit_generator::_cmp_nlt_us,
-        _cmp_gt_os = dnnl::impl::cpu::x64::jit_generator::_cmp_nle_us,
+    enum : uint8_t {
+        _cmp_eq_oq = dnnl::impl::cpu::x64::jit_generator_t::_cmp_eq_oq,
+        _cmp_neq_uq = dnnl::impl::cpu::x64::jit_generator_t::_cmp_neq_uq,
+        _cmp_lt_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_lt_os,
+        _cmp_le_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_le_os,
+        _cmp_ge_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_nlt_us,
+        _cmp_gt_os = dnnl::impl::cpu::x64::jit_generator_t::_cmp_nle_us,
     };
 
     virtual void emit_impl(const std::vector<size_t>& in_idxs, const std::vector<size_t>& out_idxs) const = 0;
@@ -159,7 +168,8 @@ protected:
         }
     }
 
-    virtual void validate_arguments(const std::vector<size_t>&, const std::vector<size_t>&) const {}
+    virtual void validate_arguments([[maybe_unused]] const std::vector<size_t>& in,
+                                    [[maybe_unused]] const std::vector<size_t>& out) const {}
 
 #ifdef SNIPPETS_DEBUG_CAPS
     mutable jit_emitter_info_t info_;

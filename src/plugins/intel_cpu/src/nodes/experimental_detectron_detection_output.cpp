@@ -4,12 +4,29 @@
 
 #include "openvino/op/experimental_detectron_detection_output.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "cpu_types.h"
 #include "experimental_detectron_detection_output.h"
-#include "openvino/core/parallel.hpp"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
@@ -67,8 +84,8 @@ static void refine_boxes(const float* boxes,
         const float ww = x1 - x0 + coordinates_offset;
         const float hh = y1 - y0 + coordinates_offset;
         // center location of box
-        const float ctr_x = x0 + 0.5f * ww;
-        const float ctr_y = y0 + 0.5f * hh;
+        const float ctr_x = x0 + 0.5F * ww;
+        const float ctr_y = y0 + 0.5F * hh;
 
         for (int class_idx = 1; class_idx < classes_num; ++class_idx) {
             const float dx = deltas[delta_idx({roi_idx, class_idx, 0})] / weights[0];
@@ -84,17 +101,17 @@ static void refine_boxes(const float* boxes,
             const float pred_h = std::exp((std::min)(d_log_h, max_delta_log_wh)) * hh;
 
             // update upper-left corner location
-            float x0_new = pred_ctr_x - 0.5f * pred_w;
-            float y0_new = pred_ctr_y - 0.5f * pred_h;
+            float x0_new = pred_ctr_x - 0.5F * pred_w;
+            float y0_new = pred_ctr_y - 0.5F * pred_h;
             // update lower-right corner location
-            float x1_new = pred_ctr_x + 0.5f * pred_w - coordinates_offset;
-            float y1_new = pred_ctr_y + 0.5f * pred_h - coordinates_offset;
+            float x1_new = pred_ctr_x + 0.5F * pred_w - coordinates_offset;
+            float y1_new = pred_ctr_y + 0.5F * pred_h - coordinates_offset;
 
             // adjust new corner locations to be within the image region,
-            x0_new = std::max<float>(0.0f, x0_new);
-            y0_new = std::max<float>(0.0f, y0_new);
-            x1_new = std::max<float>(0.0f, x1_new);
-            y1_new = std::max<float>(0.0f, y1_new);
+            x0_new = std::max<float>(0.0F, x0_new);
+            y0_new = std::max<float>(0.0F, y0_new);
+            x1_new = std::max<float>(0.0F, x1_new);
+            y1_new = std::max<float>(0.0F, y1_new);
 
             // recompute new width & height
             const float box_w = x1_new - x0_new + coordinates_offset;
@@ -120,7 +137,7 @@ static bool SortScorePairDescend(const std::pair<float, std::pair<int, int>>& pa
 struct ConfidenceComparator {
     explicit ConfidenceComparator(const float* conf_data) : _conf_data(conf_data) {}
 
-    bool operator()(int idx1, int idx2) {
+    bool operator()(int idx1, int idx2) const {
         if (_conf_data[idx1] > _conf_data[idx2]) {
             return true;
         }
@@ -149,7 +166,7 @@ static inline float JaccardOverlap(const float* decoded_bbox,
     float xmax2 = decoded_bbox[idx2 * 4 + 2];
 
     if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
-        return 0.0f;
+        return 0.0F;
     }
 
     float intersect_xmin = (std::max)(xmin1, xmin2);
@@ -161,7 +178,7 @@ static inline float JaccardOverlap(const float* decoded_bbox,
     float intersect_height = intersect_ymax - intersect_ymin + coordinates_offset;
 
     if (intersect_width <= 0 || intersect_height <= 0) {
-        return 0.0f;
+        return 0.0F;
     }
 
     float intersect_size = intersect_width * intersect_height;
@@ -298,20 +315,20 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
     std::vector<float> refined_boxes(classes_num_ * rois_num * 4, 0);
     std::vector<float> refined_scores(classes_num_ * rois_num, 0);
     std::vector<float> refined_boxes_areas(classes_num_ * rois_num, 0);
-    Indexer refined_box_idx({classes_num_, rois_num, 4});
-    Indexer refined_score_idx({classes_num_, rois_num});
+    Indexer refined_box_idx({static_cast<int>(classes_num_), rois_num, 4});
+    Indexer refined_score_idx({static_cast<int>(classes_num_), rois_num});
 
     refine_boxes(boxes,
                  deltas,
-                 &deltas_weights_[0],
+                 deltas_weights_.data(),
                  scores,
-                 &refined_boxes[0],
-                 &refined_boxes_areas[0],
-                 &refined_scores[0],
+                 refined_boxes.data(),
+                 refined_boxes_areas.data(),
+                 refined_scores.data(),
                  rois_num,
-                 classes_num_,
+                 static_cast<int>(classes_num_),
                  max_delta_log_wh_,
-                 1.0f);
+                 1.0F);
 
     // Apply NMS class-wise.
     std::vector<int> buffer(rois_num, 0);
@@ -323,12 +340,12 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
         nms_cf(&refined_scores[refined_score_idx({class_idx, 0})],
                &refined_boxes[refined_box_idx({class_idx, 0, 0})],
                &refined_boxes_areas[refined_score_idx({class_idx, 0})],
-               &buffer[0],
+               buffer.data(),
                &indices[total_detections_num],
                detections_per_class[class_idx],
                rois_num,
                -1,
-               max_detections_per_class_,
+               static_cast<int>(max_detections_per_class_),
                score_threshold_,
                nms_threshold_);
         total_detections_num += detections_per_class[class_idx];

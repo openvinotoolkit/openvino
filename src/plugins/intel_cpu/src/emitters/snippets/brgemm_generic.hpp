@@ -4,11 +4,16 @@
 
 #pragma once
 
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
-#include "emitters/utils.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <tuple>
+
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -16,8 +21,8 @@ struct BrgemmGenericKernelConfig : public snippets::KernelExecutorBase::GenericC
 public:
     BrgemmGenericKernelConfig() = default;
 
-    bool is_completed() const override;
-    bool is_empty() const;
+    [[nodiscard]] bool is_completed() const override;
+    [[nodiscard]] bool is_empty() const;
 
     virtual void update(int64_t M, int64_t N, int64_t K, int64_t LDA, int64_t LDB, int64_t LDC, float beta);
 
@@ -26,34 +31,34 @@ public:
         return !(*this == rhs);
     }
 
-    int64_t get_M() const {
+    [[nodiscard]] int64_t get_M() const {
         return m_M;
     }
-    int64_t get_N() const {
+    [[nodiscard]] int64_t get_N() const {
         return m_N;
     }
-    int64_t get_K() const {
+    [[nodiscard]] int64_t get_K() const {
         return m_K;
     }
-    float get_beta() const {
+    [[nodiscard]] float get_beta() const {
         return m_beta;
     }
-    int64_t get_LDA() const {
+    [[nodiscard]] int64_t get_LDA() const {
         return m_LDA;
     }
-    int64_t get_LDB() const {
+    [[nodiscard]] int64_t get_LDB() const {
         return m_LDB;
     }
-    int64_t get_LDC() const {
+    [[nodiscard]] int64_t get_LDC() const {
         return m_LDC;
     }
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    virtual std::string to_string() const override;
+    [[nodiscard]] std::string to_string() const override;
 #endif
 
 protected:
-    size_t compute_hash() const;
+    [[nodiscard]] size_t compute_hash() const;
 
     int64_t m_M{0}, m_N{0}, m_K{0}, m_LDA{0}, m_LDB{0}, m_LDC{0};
     float m_beta{0};

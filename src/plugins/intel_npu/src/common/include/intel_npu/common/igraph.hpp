@@ -8,22 +8,39 @@
 #include <mutex>
 #include <vector>
 
-#include "intel_npu/common/blob_container.hpp"
 #include "intel_npu/network_metadata.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
 
+struct IONodeMetadata {
+    IONodeMetadata() = default;
+    IONodeMetadata(const ArgumentDescriptor& d);
+    std::optional<ArgumentDescriptor> descriptor;
+    std::optional<size_t> extract_batch(const ov::Shape& shape) const;
+    std::optional<size_t> extract_batch(const ov::Shape& shape, std::optional<ov::PartialShape> partial_shape) const;
+    std::optional<size_t> extract_batch_impl(const ov::Shape& shape,
+                                             std::optional<ov::PartialShape> partial_shape,
+                                             size_t index) const;
+};
+
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
-    IGraph(ze_graph_handle_t handle,
-           NetworkMetadata metadata,
-           const Config& config,
-           std::unique_ptr<BlobContainer> blobPtr);
+    IGraph(NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
 
-    virtual size_t export_blob(std::ostream& stream) const = 0;
+    /**
+     * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
+     * later be used for importing the model.
+     *
+     * @param stream Where the content is placed
+     * @return A pair made of the size of the main binary object and an optional variable. The optional variable
+     * constitues the size of each init binary object if weights separation is enabled.
+     */
+    virtual std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const = 0;
 
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const Config& config) const = 0;
@@ -35,7 +52,7 @@ public:
     virtual ~IGraph() = default;
 
     const NetworkMetadata& get_metadata() const;
-    ze_graph_handle_t get_handle() const;
+    virtual ze_graph_handle_t get_handle() const = 0;
 
     void update_network_name(std::string_view name);
 
@@ -50,12 +67,22 @@ public:
 
     void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const;
+    void resize_last_submitted_event(size_t batch);
+    void set_batch_size(std::size_t batch);
+    void reset_last_batch_size();
 
     uint32_t get_unique_id();
     void set_last_submitted_id(uint32_t id_index);
     uint32_t get_last_submitted_id() const;
 
     const std::optional<std::size_t> get_batch_size() const;
+    std::optional<size_t> determine_batch_size(const NetworkMetadata& metadata,
+                                               const std::vector<ov::SoPtr<ov::ITensor>>& input_tensors,
+                                               const IONodeMetadata& input_output_info) const;
+
+    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata,
+                                         const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                         const IONodeMetadata& input_output_info);
 
 protected:
     /**
@@ -75,9 +102,7 @@ protected:
      * @returns The batch size deduced by the algorithm or the default value of 1 if batching cannot be performed inside
      * the plugin.
      */
-    std::optional<size_t> get_batch_size(const NetworkMetadata& metadata);
 
-    ze_graph_handle_t _handle = nullptr;
     NetworkMetadata _metadata;
 
     std::vector<ArgumentDescriptor> _input_descriptors;
@@ -91,7 +116,7 @@ protected:
     // first inference starts running
     std::mutex _mutex;
 
-    std::unique_ptr<BlobContainer> _blobPtr;
+    std::optional<ov::Tensor> _blob;
 
     uint32_t _unique_id = 0;
     uint32_t _last_submitted_id = 0;

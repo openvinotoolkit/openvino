@@ -30,7 +30,6 @@ std::string MultiplyWithOneParentTransformation::getTestCaseName(const testing::
 void MultiplyWithOneParentTransformation::SetUp() {
     ov::element::Type netPrecision;
     ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
     MultiplyWithOneParentTransformationValues values;
     std::tie(netPrecision, inputShape, targetDevice, values) = this->GetParam();
 

@@ -2,12 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node.h>
-
+#include <cstddef>
+#include <functional>
+#include <map>
+#include <memory>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
 #pragma once
 
@@ -21,7 +32,7 @@ public:
         m_status_map[snippets::ShapeInferStatus::skip] = ov::intel_cpu::ShapeInferStatus::skip;
     }
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+                 [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         const auto& snippets_result = m_subgraph->shape_infer(input_shapes);
         OPENVINO_ASSERT(m_status_map.count(snippets_result.status) != 0,
                         "Failed to map snippets shapeInfer status to the plugin one");

@@ -153,6 +153,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_no_gather) {
                                                        {"config.is_chatglm", false},
                                                        {"config.support_2d_rope", false},
                                                        {"config.is_qwen", false},
+                                                       {"config.use_rope_cache", false},
                                                        {"config.head_cnt", 0},
                                                        {"config.head_size", 0},
                                                        {"config.rotary_ndims", static_cast<int>(ndims)},
@@ -190,6 +191,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_LLama2_with_gather) {
                                                        {"config.is_chatglm", false},
                                                        {"config.support_2d_rope", false},
                                                        {"config.is_qwen", false},
+                                                       {"config.use_rope_cache", false},
                                                        {"config.head_cnt", 0},
                                                        {"config.head_size", 0},
                                                        {"config.rotary_ndims", static_cast<int>(ndims)},
@@ -330,6 +332,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_no_gather) {
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -367,6 +370,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTNEOX_with_gather) {
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -484,6 +488,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -492,7 +497,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM) {
     disable_rt_info_check();
     const int batch = 2;
     const int seq_len = 7;
@@ -595,6 +600,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
@@ -603,7 +609,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGML_Slice) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_Slice) {
     using namespace ov;
     disable_rt_info_check();
     const int batch = 2;
@@ -674,6 +680,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_Slice) {
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
@@ -756,6 +763,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
@@ -764,7 +772,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_2d_rope) {
     disable_rt_info_check();
     const int batch = 2;
     const int seq_len = 7;
@@ -873,6 +881,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
@@ -881,7 +890,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_2d_rope) {
     }
 }
 
-TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_nano_2d_rope) {
     disable_rt_info_check();
     const int batch = 2;
     const int seq_len = 7;
@@ -982,12 +991,105 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGML_nano_2d_rope) {
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope},
                                                 ov::ParameterVector{input, cos_sin_cache, position_ids});
     }
+}
+
+TEST_F(TransformationTestsF, ConvertToROPE_chatGLMHF_2d_rope) {
+    disable_rt_info_check();
+    const int seq_len = 7;
+    const int num_heads = 32;
+    const int ndims = 128;
+    const int rotary_ndims = 64;
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 4096});
+        auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+
+        auto transpose = makeOP<ov::opset1::Reshape>({input, {-1, num_heads, 1, ndims}}, {{"special_zero", false}});
+        auto slice_1 =
+            makeOP<ov::opset1::StridedSlice>({transpose, {0, 0, 0, 0}, {0, 0, 0, rotary_ndims}, {1, 1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+
+        std::vector<int32_t> rpi_idx(rotary_ndims);
+        for (int i = 0, index = 0; i < rotary_ndims; i += 2, index++) {
+            rpi_idx[i] = index;
+            rpi_idx[i + 1] = index;
+        }
+        auto repeat_interleave_index = makeConst(ov::element::i32, ov::Shape({rotary_ndims}), rpi_idx);
+        auto repeat_interleave_cos =
+            makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
+        auto repeat_interleave_sin =
+            makeOP<ov::opset8::Gather>({cos, repeat_interleave_index, -1}, {{"batch_dims", 0}});
+
+        auto multiply = makeOP<ov::opset1::Multiply>({slice_1, repeat_interleave_cos}, {{"auto_broadcast", "numpy"}});
+        auto slice_2 = makeOP<ov::opset1::StridedSlice>({slice_1, {0, 0, 0, 1}, {0, 0, 0, INT_MAX}, {1, 1, 1, 2}},
+                                                        {{"begin_mask", {1, 1, 1, 0}},
+                                                         {"end_mask", {1, 1, 1, 0}},
+                                                         {"new_axis_mask", {}},
+                                                         {"shrink_axis_mask", {}},
+                                                         {"ellipsis_mask", {}}});
+        auto neg = makeOP<ov::opset1::Multiply>({slice_2, -1.000000f}, {{"auto_broadcast", "numpy"}});
+        auto unsqueeze_1 =
+            makeOP<ov::opset1::Reshape>({neg, {-1, num_heads, 1, (rotary_ndims / 2), 1}}, {{"special_zero", false}});
+        auto slice_3 = makeOP<ov::opset1::StridedSlice>({slice_1, {0, 0, 0, 0}, {0, 0, 0, INT_MAX}, {1, 1, 1, 2}},
+                                                        {{"begin_mask", {1, 1, 1, 0}},
+                                                         {"end_mask", {1, 1, 1, 0}},
+                                                         {"new_axis_mask", {}},
+                                                         {"shrink_axis_mask", {}},
+                                                         {"ellipsis_mask", {}}});
+        auto unsqueeze_2 = makeOP<ov::opset1::Reshape>({slice_3, {-1, num_heads, 1, (rotary_ndims / 2), 1}},
+                                                       {{"special_zero", false}});
+        auto stack = makeOP<ov::opset1::Concat>({unsqueeze_1, unsqueeze_2}, {{"axis", -1}});
+        auto flatten = makeOP<ov::opset1::Reshape>({stack, {0, num_heads, 0, rotary_ndims}}, {{"special_zero", true}});
+        auto multiply_1 = makeOP<ov::opset1::Multiply>({flatten, repeat_interleave_sin}, {{"auto_broadcast", "numpy"}});
+        auto add = makeOP<ov::opset1::Add>({multiply, multiply_1}, {{"auto_broadcast", "numpy"}});
+
+        auto slice_5 =
+            makeOP<ov::opset1::StridedSlice>({transpose, {0, 0, 0, rotary_ndims}, {0, 0, 0, INT_MAX}, {1, 1, 1, 1}},
+                                             {{"begin_mask", {1, 1, 1, 0}},
+                                              {"end_mask", {1, 1, 1, 0}},
+                                              {"new_axis_mask", {}},
+                                              {"shrink_axis_mask", {}},
+                                              {"ellipsis_mask", {}}});
+        auto concat = makeOP<ov::opset1::Concat>({add, slice_5}, {{"axis", -1}});
+        model = std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input, cos, sin});
+    }
+    manager.register_pass<ov::pass::RoPEFusion>(true);
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::PartialShape{seq_len, 1, 4096});
+        auto cos = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto sin = std::make_shared<ov::opset1::Parameter>(ov::element::f32,
+                                                           ov::PartialShape{seq_len, 1, 1, (rotary_ndims / 2)});
+        auto rope = makeOP<ov::op::internal::RoPE>({input, cos, sin},
+                                                   {{"config.slice_start", 0},
+                                                    {"config.slice_stop", 0},
+                                                    {"config.input_trans0213", false},
+                                                    {"config.output_trans0213", false},
+                                                    {"config.is_interleaved", false},
+                                                    {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.is_chatglm", true},
+                                                    {"config.support_2d_rope", true},
+                                                    {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
+                                                    {"config.head_cnt", num_heads},
+                                                    {"config.head_size", ndims},
+                                                    {"config.gather_position_arg_id", 0}});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos, sin});
+    }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
@@ -1224,6 +1326,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM3_PagedAttention) {
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.head_cnt", num_heads},
                                                     {"config.head_size", ndims},
                                                     {"config.gather_position_arg_id", 0}});
@@ -1304,6 +1407,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Qwen_PagedAttention) {
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", true},
+                                                    {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 32},
                                                     {"config.head_size", 128},
                                                     {"config.gather_position_arg_id", 3}});
@@ -1386,6 +1490,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", false},
                                                     {"config.head_cnt", 0},
                                                     {"config.head_size", 0},
                                                     {"config.gather_position_arg_id", 0}});
@@ -1459,6 +1564,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.head_cnt", 32},
                                                     {"config.head_size", 128},
                                                     {"config.gather_position_arg_id", 0}});
@@ -1544,6 +1650,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention_GPU) {
                                                     {"config.is_chatglm", true},
                                                     {"config.support_2d_rope", true},
                                                     {"config.is_qwen", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.head_cnt", 32},
                                                     {"config.head_size", 128},
                                                     {"config.gather_position_arg_id", 0}});

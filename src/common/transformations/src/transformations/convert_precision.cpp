@@ -481,7 +481,10 @@ bool ov::pass::ConvertPrecision::run_on_model(const std::shared_ptr<ov::Model>& 
         {ov::op::v8::PriorBox::get_type_info_static(), fuse_type_to_prior_box<ov::op::v8::PriorBox>},
         {ov::op::v0::PriorBoxClustered::get_type_info_static(), fuse_type_to_prior_box<ov::op::v0::PriorBoxClustered>},
         {ov::op::v15::SearchSorted::get_type_info_static(), fuse_type_to_search_sorted_v15},
-        {ov::op::internal::RMS::get_type_info_static(), fuse_type_to_rms}};
+        {ov::op::internal::RMS::get_type_info_static(), fuse_type_to_rms},
+        // This is operation representing inline_extension from
+        // src/bindings/python/src/openvino/frontend/pytorch/inlined_extension.py
+        {ov::DiscreteTypeInfo("InlinedCustomOp", "extension"), wrap_into_original_type}};
 
     for (const auto& it : m_additional_type_to_fuse_map) {
         type_to_fuse[it.first] = it.second;
@@ -609,6 +612,10 @@ bool fuse_type_to_eye_v9(const std::shared_ptr<ov::Node>& node, const precisions
 bool fuse_type_to_parameter(const std::shared_ptr<ov::Node>& node,
                             const precisions_map& precisions,
                             bool convert_input_precision) {
+    // Parameter marked with is_keep_const_precision should be kept in their own precision until they reach the plugin
+    if (is_keep_const_precision(node))
+        return false;
+
     auto it = precisions.find(node->get_output_element_type(0));
     if (it == precisions.end())
         return false;

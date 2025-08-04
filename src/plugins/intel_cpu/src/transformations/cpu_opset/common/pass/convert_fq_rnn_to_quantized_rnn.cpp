@@ -4,17 +4,30 @@
 
 #include "convert_fq_rnn_to_quantized_rnn.hpp"
 
-#include "itt.hpp"
+#include <algorithm>
+#include <memory>
+#include <vector>
+
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 
@@ -181,9 +194,7 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
         }
 
         const auto* input_scale_ptr = input_scale_constant->get_data_ptr<float>();
-        if (*input_scale_ptr == 0.f) {
-            OPENVINO_THROW("Cannot handle zero input scale");
-        }
+        OPENVINO_ASSERT(*input_scale_ptr != 0.F, "Cannot handle zero input scale");
 
         const float input_scale = 1 / *input_scale_ptr;
         std::vector<float> weights_scales = weights_scale_constant->get_vector<float>();
@@ -229,10 +240,10 @@ ov::intel_cpu::ConvertFqRnnToQuantizedRnn::ConvertFqRnnToQuantizedRnn() {
             // dequantize with subtract
             if (subtract_it != pattern_map.end()) {
                 const auto subtract = ov::as_type_ptr<op::v1::Subtract>(subtract_it->second.get_node_shared_ptr());
-                multiply_input = subtract->clone_with_new_inputs({multiply_input, subtract->input_value(1)});
+                multiply_input = subtract->clone_with_new_inputs({multiply_input->output(0), subtract->input_value(1)});
             }
 
-            auto new_multiply = multiply->clone_with_new_inputs({multiply_input, multiply->input_value(1)});
+            auto new_multiply = multiply->clone_with_new_inputs({multiply_input->output(0), multiply->input_value(1)});
             new_multiply->set_friendly_name(rnn_quantized->get_friendly_name() + ".1");
 
             for (auto output : H_outputs) {

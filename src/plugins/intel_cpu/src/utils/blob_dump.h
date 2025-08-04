@@ -6,13 +6,18 @@
 
 #include <cpu_memory.h>
 
+#include <cstdint>
+#include <istream>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <ostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * Utility class to dump blob contant in plain format.
@@ -25,11 +30,11 @@ namespace intel_cpu {
 class BlobDumper {
     MemoryPtr memory;
 
-    void prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data) const;
+    static void prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t>& data);
 
 public:
     BlobDumper() = default;
-    BlobDumper(const DnnlBlockedMemoryDesc& desc) {
+    explicit BlobDumper(const DnnlBlockedMemoryDesc& desc) {
         dnnl::engine eng(dnnl::engine::kind::cpu, 0);
         memory = std::make_shared<Memory>(eng, desc);
     }
@@ -41,16 +46,15 @@ public:
     static BlobDumper read(const std::string& file_path);
     static BlobDumper read(std::istream& stream);
 
-    void dump(const std::string& file_path) const;
+    void dump(const std::string& dump_path) const;
     void dump(std::ostream& stream) const;
 
-    void dumpAsTxt(const std::string& file_path) const;
+    void dumpAsTxt(const std::string& dump_path) const;
     void dumpAsTxt(std::ostream& stream) const;
 
-    void* getDataPtr() const {
+    [[nodiscard]] void* getDataPtr() const {
         return memory->getData();
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

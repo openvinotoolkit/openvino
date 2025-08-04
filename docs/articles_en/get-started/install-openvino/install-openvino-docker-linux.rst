@@ -24,10 +24,12 @@ You can get started easily with pre-built and published docker images, which are
 You can use the `available Dockerfiles on GitHub <https://github.com/openvinotoolkit/docker_ci/tree/master/dockerfiles>`__
 or generate a Dockerfile with your settings via `DockerHub CI framework <https://github.com/openvinotoolkit/docker_ci/>`__,
 which can generate a Dockerfile, build, test, and deploy an image using the Intel® Distribution of OpenVINO™ toolkit.
+
 You can reuse available Dockerfiles, add your layer and customize the OpenVINO™ image to your needs.
-The Docker CI repository includes guides on how to
-`get started with docker images <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__ and how to use
-`OpenVINO™ Toolkit containers with GPU accelerators. <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__
+The Docker CI repository includes the following guides:
+
+* `Get started with docker images <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__ 
+*  How to use OpenVINO™ Toolkit containers with `GPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/accelerators.md>`__ and `NPU accelerators <https://github.com/openvinotoolkit/docker_ci/blob/master/docs/npu_accelerator.md>`__.
 
 To start using Dockerfiles, install Docker Engine or a compatible container
 engine on your system:

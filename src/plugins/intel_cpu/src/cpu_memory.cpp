@@ -4,15 +4,40 @@
 
 #include "cpu_memory.h"
 
-#include <common/memory_desc_wrapper.hpp>
+#include <oneapi/dnnl/dnnl_common_types.h>
 
+#include <algorithm>
+#include <cassert>
+#include <cerrno>
+#include <cmath>
+#include <common/memory_desc_wrapper.hpp>
+#include <common/nstl.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <exception>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <vector>
+
+#include "cpu_types.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/dnnl_memory_desc.h"
 #include "nodes/common/cpu_memcpy.h"
 #include "nodes/reorder.h"
-#include "utils/bfloat16.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/system_conf.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 #if defined(__linux__)
-#    include <sys/syscall.h> /* Definition of SYS_* constants */
 #    include <unistd.h>
 
 #    include <cstring> /* strerror(errno) */
@@ -33,17 +58,15 @@ BlockedMemoryDescPtr IMemory::getDescWithType<BlockedMemoryDesc, 0, 0>() const {
 namespace {
 inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool ftz, bool bf16saturation) {
     auto* u32data = reinterpret_cast<uint32_t*>(data);
-    auto* floatdata = reinterpret_cast<float*>(data);
+    auto* floatdata = data;
     if (ftz && bf16saturation) {
         for (size_t i = 0; i < size; ++i) {
             if ((u32data[i] & (0xFF << 23)) == 0) {
                 u32data[i] = 0;
             } else if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
-                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
-                                   : floatdata[i];
+                floatdata[i] =
+                    std::min(std::max(floatdata[i], static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())),
+                             static_cast<float>(std::numeric_limits<ov::bfloat16>::max()));
             }
         }
     } else if (ftz) {
@@ -55,11 +78,9 @@ inline void setSubnormalsToZeroAndbf16Saturation(float* data, size_t size, bool 
     } else if (bf16saturation) {
         for (size_t i = 0; i < size; ++i) {
             if (!std::isnan(floatdata[i]) && !std::isinf(floatdata[i])) {
-                floatdata[i] = (floatdata[i] < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())
-                               : (floatdata[i] > static_cast<float>(std::numeric_limits<ov::bfloat16>::max()))
-                                   ? static_cast<float>(std::numeric_limits<ov::bfloat16>::max())
-                                   : floatdata[i];
+                floatdata[i] =
+                    std::min(std::max(floatdata[i], static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())),
+                             static_cast<float>(std::numeric_limits<ov::bfloat16>::max()));
             }
         }
     }
@@ -98,9 +119,8 @@ Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, const void* data, bool pads
       m_pMemDesc(std::move(desc)),
       m_blockHandle(std::make_shared<DnnlMemoryBlock>(make_unique<MemoryBlockWithReuse>()), this),
       dnnlMemHandle(this) {
-    if (m_pMemDesc->getPrecision() == element::string) {
-        OPENVINO_THROW("[CPU] Memory object cannot be created for string data.");
-    }
+    OPENVINO_ASSERT(m_pMemDesc->getPrecision() != element::string,
+                    "[CPU] Memory object cannot be created for string data.");
     create(m_pMemDesc, data, pads_zeroing);
 }
 
@@ -112,9 +132,8 @@ Memory::Memory(dnnl::engine eng, MemoryDescPtr desc, MemoryBlockPtr block)
       m_pMemDesc(std::move(desc)),
       m_blockHandle(std::move(block), this),
       dnnlMemHandle(this) {
-    if (m_pMemDesc->getPrecision() == element::string) {
-        OPENVINO_THROW("[CPU] Memory object can't be created for string data.");
-    }
+    OPENVINO_ASSERT(m_pMemDesc->getPrecision() != element::string,
+                    "[CPU] Memory object can't be created for string data.");
     bool memAllocated = m_blockHandle->getRawPtr() != nullptr;
 
     create(m_pMemDesc, nullptr, !memAllocated);
@@ -125,9 +144,7 @@ Memory::Memory(dnnl::engine eng, const MemoryDesc& desc, MemoryBlockPtr block)
 
 size_t Memory::getSize() const {
     auto size = getDesc().getCurrentMemSize();
-    if (size == MemoryDesc::UNDEFINED_SIZE) {
-        OPENVINO_THROW("Can't get memory size for undefined shape");
-    }
+    OPENVINO_ASSERT(size != MemoryDesc::UNDEFINED_SIZE, "Can't get memory size for undefined shape");
     return size;
 }
 
@@ -152,9 +169,7 @@ void Memory::create(MemoryDescPtr desc, const void* data, bool pads_zeroing) {
 }
 
 void Memory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
-    if (src.getDesc().getPrecision() == element::string) {
-        OPENVINO_THROW("[CPU] Memory object cannot load string data.");
-    }
+    OPENVINO_ASSERT(src.getDesc().getPrecision() != element::string, "[CPU] Memory object cannot load string data.");
     transferData(src, *this, ftz, bf16saturation);
 }
 
@@ -169,12 +184,9 @@ void Memory::nullify() {
 }
 
 void Memory::redefineDesc(MemoryDescPtr desc) {
-    if (desc->getPrecision() == element::string) {
-        OPENVINO_THROW("[CPU] Memory object cannot accept a descriptor with a string type.");
-    }
-    if (!desc->hasDefinedMaxSize()) {
-        OPENVINO_THROW("Can not reset descriptor, memory upper bound is unknown.");
-    }
+    OPENVINO_ASSERT(desc->getPrecision() != element::string,
+                    "[CPU] Memory object cannot accept a descriptor with a string type.");
+    OPENVINO_ASSERT(desc->hasDefinedMaxSize(), "Can not reset descriptor, memory upper bound is unknown.");
 
     this->create(desc, nullptr, false);
 }
@@ -202,10 +214,8 @@ bool Memory::DnnlMemPrimHandle::isInit() const {
 dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
     std::lock_guard<std::mutex> guard(m_primCachingLock);
     if (!m_prim) {
-        if (!m_memObjPtr->getDesc().isDefined()) {
-            OPENVINO_THROW("Can not create oneDNN memory from undefined memory descriptor");
-        }
-
+        OPENVINO_ASSERT(m_memObjPtr->getDesc().isDefined(),
+                        "Can not create oneDNN memory from undefined memory descriptor");
         // ========================
         // Equivalent of constructor memory(const primitive_desc &desc, void *hdl)
         // but with ability to skip pads zeroing.
@@ -213,7 +223,7 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
         m_prim = dnnl::memory(desc->getDnnlDesc(), m_memObjPtr->getEngine(), DNNL_MEMORY_NONE);
         //
         // ========================
-        auto data = m_memObjPtr->getDataNoThrow();
+        auto* data = m_memObjPtr->getDataNoThrow();
         if (data != nullptr) {
             m_prim.set_data_handle(data);
         }
@@ -223,9 +233,9 @@ dnnl::memory Memory::DnnlMemPrimHandle::getPrim() const {
 
 void* Memory::getData() const {
     void* data = getDataNoThrow();
-    if (data == nullptr && m_pMemDesc->getShape().isStatic() && m_pMemDesc->getShape().getElementsCount() != 0) {
-        OPENVINO_THROW("Memory has not been allocated");
-    }
+    OPENVINO_ASSERT(
+        data != nullptr || !m_pMemDesc->getShape().isStatic() || m_pMemDesc->getShape().getElementsCount() == 0,
+        "Memory has not been allocated");
     return data;
 }
 
@@ -244,9 +254,7 @@ bool MemoryBlockWithReuse::resize(size_t size) {
     bool sizeChanged = false;
     if (size > m_memUpperBound) {
         void* ptr = dnnl::impl::malloc(size, cacheLineSize);
-        if (!ptr) {
-            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
-        }
+        OPENVINO_ASSERT(ptr, "Failed to allocate ", size, " bytes of memory");
         m_memUpperBound = size;
         m_useExternalStorage = false;
         m_data = decltype(m_data)(ptr, destroy);
@@ -267,7 +275,7 @@ bool MemoryBlockWithReuse::hasExtBuffer() const noexcept {
 
 void MemoryBlockWithReuse::free() {
     m_data = decltype(m_data)(nullptr, release);
-    m_memUpperBound = 0ul;
+    m_memUpperBound = 0UL;
     m_useExternalStorage = false;
 }
 
@@ -286,9 +294,7 @@ void MemoryBlockWithReuse::destroy(void* ptr) {
 StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* data)
     : m_engine(std::move(engine)),
       m_mem_desc(std::move(desc)) {
-    if (m_mem_desc->getPrecision() != element::string) {
-        OPENVINO_THROW("[CPU] StringMemory supports String type only.");
-    }
+    OPENVINO_ASSERT(m_mem_desc->getPrecision() == element::string, "[CPU] StringMemory supports String type only.");
 
     m_memoryBlock = std::make_shared<StringMemoryBlock>();
 
@@ -299,7 +305,7 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
     const auto string_size = m_mem_desc->getShape().getElementsCount();
 
     if (data != nullptr) {
-        auto not_const_data = const_cast<void*>(data);
+        auto* not_const_data = const_cast<void*>(data);
         m_memoryBlock->setExtBuff(reinterpret_cast<OvString*>(not_const_data), string_size);
     } else {
         m_memoryBlock->resize(string_size);
@@ -307,9 +313,8 @@ StringMemory::StringMemory(dnnl::engine engine, MemoryDescPtr desc, const void* 
 }
 
 void StringMemory::load(const IMemory& src, [[maybe_unused]] bool ftz, [[maybe_unused]] bool bf16saturation) const {
-    if (src.getDesc().getPrecision() != element::string) {
-        OPENVINO_THROW("[CPU] String memory cannot load a non-string object.");
-    }
+    OPENVINO_ASSERT(src.getDesc().getPrecision() == element::string,
+                    "[CPU] String memory cannot load a non-string object.");
 
     transferData(src, *this, false, false);
 }
@@ -319,12 +324,9 @@ void* StringMemory::getData() const {
 }
 
 void StringMemory::redefineDesc(MemoryDescPtr desc) {
-    if (desc->getPrecision() != element::string) {
-        OPENVINO_THROW("[CPU] StringMemory supports String type only.");
-    }
-    if (!desc->hasDefinedMaxSize()) {
-        OPENVINO_THROW("[CPU] StringMemory cannot reset descriptor. Memory upper bound is unknown.");
-    }
+    OPENVINO_ASSERT(desc->getPrecision() == element::string, "[CPU] StringMemory supports String type only.");
+    OPENVINO_ASSERT(desc->hasDefinedMaxSize(),
+                    "[CPU] StringMemory cannot reset descriptor. Memory upper bound is unknown.");
 
     m_mem_desc = desc;
     const auto string_size = m_mem_desc->getShape().getElementsCount();
@@ -332,7 +334,7 @@ void StringMemory::redefineDesc(MemoryDescPtr desc) {
 }
 
 void StringMemory::nullify() {
-    auto data_ptr = m_memoryBlock->getStringPtr();
+    auto* data_ptr = m_memoryBlock->getStringPtr();
     if (data_ptr != nullptr) {
         std::fill(data_ptr, data_ptr + m_memoryBlock->getStrLen(), OvString());
     }
@@ -340,9 +342,7 @@ void StringMemory::nullify() {
 
 size_t StringMemory::getSize() const {  // In bytes
     auto size = getDesc().getCurrentMemSize();
-    if (size == MemoryDesc::UNDEFINED_SIZE) {
-        OPENVINO_THROW("Can't get memory size for undefined shape.");
-    }
+    OPENVINO_ASSERT(size != MemoryDesc::UNDEFINED_SIZE, "Can't get memory size for undefined shape.");
     return size;
 }
 
@@ -367,14 +367,10 @@ StringMemory::OvString* StringMemory::StringMemoryBlock::getStringPtr() const no
 bool StringMemory::StringMemoryBlock::resize(size_t size) {
     bool sizeChanged = false;
     if (size > m_str_upper_bound) {
-        if (size > PTRDIFF_MAX) {
-            OPENVINO_THROW("Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
-        }
+        OPENVINO_ASSERT(size <= PTRDIFF_MAX, "Requested allocation size { ", size, " } exceeds PTRDIFF_MAX.");
         auto ptr_size = static_cast<ptrdiff_t>(size);  // WA for warning alloc-size-larger-than
-        auto ptr = new OvString[ptr_size];
-        if (!ptr) {
-            OPENVINO_THROW("Failed to allocate ", size, " bytes of memory");
-        }
+        auto* ptr = new OvString[ptr_size];
+        OPENVINO_ASSERT(ptr, "Failed to allocate ", size, " bytes of memory");
         m_str_upper_bound = size;
         m_use_external_storage = false;
         m_data = decltype(m_data)(ptr, destroy);
@@ -435,7 +431,7 @@ void DnnlMemoryBlock::unregisterMemory(Memory* memPtr) {
 }
 
 void DnnlMemoryBlock::notifyUpdate() {
-    for (auto& item : m_setMemPtrs) {
+    for (const auto& item : m_setMemPtrs) {
         if (item) {
             item->update();
         }
@@ -445,12 +441,9 @@ void DnnlMemoryBlock::notifyUpdate() {
 StaticMemory::StaticMemory(dnnl::engine eng, MemoryDescPtr desc, const void* data, [[maybe_unused]] bool pads_zeroing)
     : m_eng(std::move(eng)),
       m_pMemDesc(std::move(desc)) {
-    if (m_pMemDesc->getPrecision() == element::string) {
-        OPENVINO_THROW("[CPU] StaticMemory object cannot be created for string data.");
-    }
-    if (!m_pMemDesc->isDefined()) {
-        OPENVINO_THROW("Can not create StaticMemory object. The memory desc is undefined");
-    }
+    OPENVINO_ASSERT(m_pMemDesc->getPrecision() != element::string,
+                    "[CPU] StaticMemory object cannot be created for string data.");
+    OPENVINO_ASSERT(m_pMemDesc->isDefined(), "Can not create StaticMemory object. The memory desc is undefined");
 
     m_size = m_pMemDesc->getCurrentMemSize();
 
@@ -509,9 +502,7 @@ void StaticMemory::redefineDesc([[maybe_unused]] MemoryDescPtr desc) {
 }
 
 void StaticMemory::load(const IMemory& src, bool ftz, bool bf16saturation) const {
-    if (src.getDesc().getPrecision() == element::string) {
-        OPENVINO_THROW("[CPU] StaticMemory cannot load string data.");
-    }
+    OPENVINO_ASSERT(src.getDesc().getPrecision() != element::string, "[CPU] StaticMemory cannot load string data.");
     transferData(src, *this, ftz, bf16saturation);
 }
 
@@ -549,9 +540,7 @@ void StaticMemory::StaticMemoryBlock::setExtBuff([[maybe_unused]] void* ptr, [[m
 }
 
 bool StaticMemory::StaticMemoryBlock::resize(size_t size) {
-    if (size != m_size) {
-        OPENVINO_THROW("Unexpected: StaticMemoryBlock may not resize the memory");
-    }
+    OPENVINO_ASSERT(size == m_size, "Unexpected: StaticMemoryBlock may not resize the memory");
     return false;
 }
 
@@ -572,11 +561,13 @@ void StaticMemory::StaticMemoryBlock::unregisterMemory(Memory* memPtr) {
 #    define MPOL_BIND      2
 #    define MPOL_MF_STRICT (1 << 0)
 #    define MPOL_MF_MOVE   (1 << 1)
-#    if !defined(__NR_mbind) && defined(__x86_64__)
-#        define __NR_mbind 237
+#    if !defined(__NR_mbind)
+#        define NR_mbind 237
+#    else
+#        define NR_mbind __NR_mbind
 #    endif
 static int64_t mbind(void* start, uint64_t len, int mode, const uint64_t* nmask, uint64_t maxnode, unsigned flags) {
-    return syscall(__NR_mbind,
+    return syscall(NR_mbind,
                    reinterpret_cast<uint64_t>(start),
                    len,
                    mode,
@@ -600,7 +591,7 @@ bool mbind_move(void* data, size_t size, int targetNode) {
         mask = -1;
         flags = 0;
     } else {
-        mask = 1ul << realNode;
+        mask = 1UL << realNode;
         flags = MPOL_MF_MOVE | MPOL_MF_STRICT;
     }
 
@@ -688,8 +679,8 @@ MemoryPtr split_horizontal(const dnnl::engine& eng,
         return ptr;
     }
 
-    auto srcPtr = static_cast<uint8_t*>(src->getData());
-    if (prec == ov::element::u4 || prec == ov::element::i4) {
+    auto* srcPtr = static_cast<uint8_t*>(src->getData());
+    if (any_of(prec, ov::element::u4, ov::element::i4)) {
         stride /= 2;
     }
 
@@ -718,9 +709,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     };
     if (shape.isDynamic()) {
         const auto& pshape = shape.toPartialShape();
-        if (pshape[dim].is_dynamic()) {
-            OPENVINO_THROW("Can't split data with dynamic shapes");
-        }
+        OPENVINO_ASSERT(!pshape[dim].is_dynamic(), "Can't split data with dynamic shapes");
         auto new_pshape = pshape;
         auto splited_dim_vec = split_parts(new_pshape[dim].get_length(), w_size);
         new_pshape[dim] = splited_dim_vec[w_rank];
@@ -743,8 +732,8 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
         return ptr;
     }
     // copy
-    auto srcPtr = static_cast<uint8_t*>(src->getData());
-    auto dstPtr = static_cast<uint8_t*>(ptr->getData());
+    auto* srcPtr = static_cast<uint8_t*>(src->getData());
+    auto* dstPtr = static_cast<uint8_t*>(ptr->getData());
     // selected dim bytes
     auto channel_size = dims[dim] * element_size;
     // total bytes
@@ -754,7 +743,7 @@ MemoryPtr split_vertical(const dnnl::engine& eng,
     // bytes of selected dim.
     auto strideSize = splited_dim_vec[0] * element_size;
     auto copySize = splited_dim_vec[w_rank] * element_size;
-    if (prec == ov::element::u4 || prec == ov::element::i4) {
+    if (any_of(prec, ov::element::u4, ov::element::i4)) {
         strideSize /= 2;
         copySize /= 2;
     }

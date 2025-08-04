@@ -104,7 +104,7 @@ public:
 
     layout get_input_layout(deconv_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
@@ -154,7 +154,7 @@ public:
 
     layout get_input_layout(deconv_new_shape_infer_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
@@ -196,7 +196,7 @@ public:
 
     layout get_input_layout(deconv_eltw_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.data_type, p.input_format, p.in_shape, padding{ pad_ } };
     }
 
@@ -314,7 +314,7 @@ TEST_P(deconv_actv, basic) {
     create_topologies(
         input_layout("input", get_input_layout(p)),
         data("weights", get_mem(get_weights_layout(p))),
-        deconvolution("deconv", input_info("input"), { "weights" }, p.groups, p.stride, p.pad),
+        deconvolution("deconv", input_info("input"), "weights", p.groups, p.stride, p.pad),
         activation("act", input_info("deconv"), activation_func::relu),
         reorder("out", input_info("act"), p.default_format, data_types::f32)
     );

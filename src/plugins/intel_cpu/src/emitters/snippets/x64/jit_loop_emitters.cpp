@@ -4,8 +4,25 @@
 
 #include "jit_loop_emitters.hpp"
 
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/x64/utils.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 
 using namespace Xbyak;
@@ -17,7 +34,7 @@ namespace ov::intel_cpu {
 namespace {
 class jit_aux_gpr_holder {
 public:
-    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator_t* host,
                        std::vector<size_t>& pool_gpr_idxs,
                        const std::vector<size_t>& used_gpr_idxs)
         : m_h(host),
@@ -46,16 +63,16 @@ public:
     }
 
 private:
-    dnnl::impl::cpu::x64::jit_generator* m_h;
+    dnnl::impl::cpu::x64::jit_generator_t* m_h;
     std::vector<size_t>& m_pool_gpr_idxs;
-    Reg64 m_aux_gpr_idx{};
+    Reg64 m_aux_gpr_idx;
     bool m_is_preserved = false;
 };
 }  // namespace
 
 /* ================== jit_loop_begin_emitter ====================== */
 
-jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_loop_begin_emitter::jit_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                                const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa),
@@ -125,7 +142,7 @@ void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t
 
 /* ================== jit_loop_end_emitter ====================== */
 
-jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                                            const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_emitter(h, isa),

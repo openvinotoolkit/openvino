@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 #include <functional>
 #include <type_traits>
 #include <vector>
@@ -45,7 +44,7 @@ struct Builder {
         return *this;
     }
 
-    size_t generate() {
+    [[nodiscard]] size_t generate() const {
         return m_seed;
     }
 

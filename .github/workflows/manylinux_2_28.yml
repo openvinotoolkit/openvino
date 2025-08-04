@@ -1,0 +1,269 @@
+name: Manylinux 2_28
+on:
+  workflow_dispatch:
+    inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+      - 'releases/**'
+
+concurrency:
+  # github.ref is not unique in post-commit
+  group: ${{ github.event_name == 'push' && github.run_id || github.ref }}-manylinux-2-28
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH: /mount/caches/pip/linux
+
+jobs:
+  Smart_CI:
+    runs-on: ubuntu-latest
+    outputs:
+      affected_components: "${{ steps.smart_ci.outputs.affected_components }}"
+      changed_components: "${{ steps.smart_ci.outputs.changed_components }}"
+      skip_workflow: "${{ steps.smart_ci.outputs.skip_workflow }}"
+    steps:
+      - name: checkout action
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: .github/actions/smart-ci
+
+      - name: Get affected components
+        id: smart_ci
+        uses: ./.github/actions/smart-ci
+        with:
+          repository: ${{ github.repository }}
+          pr: ${{ github.event.number }}
+          commit_sha: ${{ github.sha }}
+          ref_name: ${{ github.ref_name }}
+          component_pattern: "category: (.*)"
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          skip_when_only_listed_labels_set: 'docs'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
+
+      - name: Show affected components
+        run: |
+          echo "${{ toJSON(steps.smart_ci.outputs.affected_components) }}"
+        shell: bash
+
+  Docker:
+    needs: Smart_CI
+    runs-on: aks-linux-4-cores-16gb-docker-build
+    container:
+      image: openvinogithubactions.azurecr.io/docker_build:0.2
+      volumes:
+        - /mount:/mount
+    outputs:
+      images: "${{ steps.handle_docker.outputs.images && steps.handle_docker.outputs.images || steps.mock_image.outputs.images }}"
+    steps:
+      - name: Set mock output images if pipeline should be skipped
+        if: ${{ needs.smart_ci.outputs.skip_workflow == 'True' }}
+        id: mock_image
+        run: echo "images={\"ov_test\":{\"ubuntu_20_04_x64_py313\":\"mock\"},\"ov_test\":{\"ubuntu_22_04_x64\":\"mock\"},\"ov_test\":{\"ubuntu_24_04_x64\":\"mock\"},\"ov_test\":{\"fedora_33\":\"mock\"},\"ov_test\":{\"debian_10_py310\":\"mock\"},\"ov_build\":{\"manylinux_2_28\":\"mock\"}}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+
+      - uses: ./.github/actions/handle_docker
+        if: ${{ needs.smart_ci.outputs.skip_workflow != 'True' }}
+        id: handle_docker
+        with:
+          images: |
+            ov_build/manylinux_2_28
+            ov_test/ubuntu_20_04_x64_py313
+            ov_test/ubuntu_22_04_x64
+            ov_test/ubuntu_24_04_x64
+            ov_test/fedora_33
+            ov_test/debian_10_py310
+          registry: 'openvinogithubactions.azurecr.io'
+          dockerfiles_root_dir: '.github/dockerfiles'
+          changed_components: ${{ needs.smart_ci.outputs.changed_components }}
+
+  Build:
+    needs: [Docker, Smart_CI]
+    if: "!needs.smart_ci.outputs.skip_workflow"
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    runs-on: aks-linux-16-cores-32gb
+    container:
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.manylinux_2_28 }}
+      volumes:
+        - /mount:/mount
+      options: -e SCCACHE_AZURE_BLOB_CONTAINER -e SCCACHE_AZURE_CONNECTION_STRING -v ${{ github.workspace }}:${{ github.workspace }}
+    env:
+      CMAKE_BUILD_TYPE: 'Release'
+      ARCH: 'x86_64'
+      OPENVINO_REPO: ${{ github.workspace }}/src
+      INSTALL_DIR: ${{ github.workspace }}/install/openvino
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      BUILD_DIR: ${{ github.workspace }}/build
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_CACHE_SIZE: 50G
+      SCCACHE_AZURE_KEY_PREFIX: manylinux_2_28
+      ARTIFACTS_SHARE: "/mount/build-artifacts"
+      MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
+      PRODUCT_TYPE: public_manylinux_2_28_x86_64_release
+      
+    steps:
+      - name: Clone OpenVINO
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          path: ${{ env.OPENVINO_REPO }}
+          submodules: 'true'
+
+      - name: System info
+        uses: ./src/.github/actions/system_info
+        
+      - name: Generate product manifest and set CI_BUILD_NUMBER & CI_BUILD_DEV_TAG
+        id: create_manifest
+        uses: ./src/.github/actions/create_manifest
+        with:
+          repos: |
+            ${{ env.OPENVINO_REPO }}
+          product_type: ${{ env.PRODUCT_TYPE }}
+          target_arch: ${{ env.ARCH }}
+          build_type: ${{ env.CMAKE_BUILD_TYPE }}
+          save_to: ${{ env.MANIFEST_PATH }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
+
+      - name: Build OpenVINO
+        run: |
+          python3.12 -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+          /usr/bin/cmake -DPython3_EXECUTABLE=/usr/local/bin/python3.12 \
+                         -DENABLE_CPPLINT=OFF \
+                         -DENABLE_NCC_STYLE=OFF \
+                         -DENABLE_TESTS=ON \
+                         -DCMAKE_VERBOSE_MAKEFILE=ON \
+                         -DENABLE_OV_JAX_FRONTEND=OFF \
+                         -DENABLE_PYTHON=ON \
+                         -DENABLE_WHEEL=ON \
+                         -S ${{ env.OPENVINO_REPO }} \
+                         -B ${{ env.BUILD_DIR }}
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }}
+          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_TEST_DIR }} --component tests
+        env:
+          CXXFLAGS: "-Wno-dangling-reference" # bug in gcc-14: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107532
+            
+      - name: Build Python API (Python 3.9-3.13)
+        run: |
+          SUPPORTED_PYTHON_VERSIONS=("3.9" "3.10" "3.11" "3.12" "3.13")
+          for PY_VER in "${SUPPORTED_PYTHON_VERSIONS[@]}"; do
+
+            py_build_dir=${{ github.workspace }}/build_py${PY_VER}
+            simpler_python_version=$(echo $PY_VER | sed -e 's/\.//g')
+            python_path=/opt/python/cp${simpler_python_version}-cp${simpler_python_version}/bin/python3
+            PIP_VER=$(${python_path} -c "import pip; print(pip.__version__)")
+            export "PIP_CACHE_DIR=${{ env.PIP_CACHE_PATH }}/${PIP_VER}"
+            ${python_path} -m pip install -r ${{ env.OPENVINO_REPO }}/src/bindings/python/wheel/requirements-dev.txt
+            /usr/bin/cmake -DPython3_EXECUTABLE=${python_path} -DOpenVINODeveloperPackage_DIR=${{ env.BUILD_DIR }} -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -S ${{ env.OPENVINO_REPO }}/src/bindings/python -B ${py_build_dir}
+            /usr/bin/cmake --build ${py_build_dir} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }}
+            /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_WHEELS_DIR }} --component python_wheels
+            /usr/bin/cmake --install ${py_build_dir} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component pyopenvino_python${PY_VER}
+          
+          done
+
+      - name: Pack Artifacts
+        run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Pack openvino_tests
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+        working-directory: ${{ env.INSTALL_TEST_DIR }}
+
+      #
+      # Upload build artifacts
+      #
+      - name: Upload OpenVINO package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+      
+      - name: Upload OpenVINO wheels
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_wheels
+          path: ${{ env.INSTALL_WHEELS_DIR }}/wheels/*.whl
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO tests package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_tests
+          path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Store artifacts to a shared drive
+        id: store_artifacts
+        if: ${{ always() }}
+        uses: ./src/.github/actions/store_artifacts
+        with:
+          artifacts: |
+            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.MANIFEST_PATH }}
+            ${{ env.INSTALL_WHEELS_DIR }}/wheels
+          storage_dir: ${{ env.PRODUCT_TYPE }}
+          storage_root: ${{ env.ARTIFACTS_SHARE }}
+          branch_name: ${{ inputs.target-branch }}
+
+  Python_API_Tests:
+    name: Python API tests
+    needs: [ Docker, Build, Smart_CI ]
+    uses: ./.github/workflows/job_python_api_tests.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.9"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.fedora_33 }}
+          - python-version: "3.10"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_py310 }}
+          - python-version: "3.11"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+          - python-version: "3.12"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64 }}
+          - python-version: "3.13"
+            image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      image: ${{ matrix.image }}
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: ${{ matrix.python-version }}
+
+  Overall_Status:
+    name: ci/gha_overall_status_manylinux_2_28
+    needs: [Smart_CI, Build, Python_API_Tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check status of all jobs
+        if: >-
+          ${{
+            contains(needs.*.result, 'failure') ||
+            contains(needs.*.result, 'cancelled')
+          }}
+        run: exit 1

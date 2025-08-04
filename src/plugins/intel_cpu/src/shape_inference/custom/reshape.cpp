@@ -4,11 +4,26 @@
 
 #include "reshape.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "shape_infer_type_utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 #include "utils.hpp"
 #include "utils/general_utils.h"
 
@@ -16,11 +31,12 @@ namespace ov::intel_cpu::node {
 
 Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    static constexpr size_t RESHAPE_SRC = 0, RESHAPE_PATTERN = 1;
+    static constexpr size_t RESHAPE_SRC = 0;
+    static constexpr size_t RESHAPE_PATTERN = 1;
     const auto& inputShape = input_shapes[RESHAPE_SRC].get();
     const size_t inputShapeSize = inputShape.size();
     const auto& memPtr = data_dependency.at(RESHAPE_PATTERN);
-    const auto data = memPtr->getData();
+    auto* const data = memPtr->getData();
     const auto& dims = memPtr->getStaticDims();
     const auto outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>());
     std::vector<int64_t> outPattern = ov::get_raw_data_as<int64_t>(memPtr->getDesc().getPrecision(),
@@ -59,18 +75,18 @@ Result ReshapeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     }
     inputProduct = std::accumulate(inputShape.begin(), inputShape.end(), 1, std::multiplies<>());
     outputProduct = std::accumulate(outputShape.begin(), outputShape.end(), 1, std::multiplies<>());
-    if (minusOneCount > 1 || inputProduct != outputProduct) {
-        OPENVINO_THROW("[cpu]reshape: the shape of input data ",
-                       ov::intel_cpu::vec2str(inputShape),
-                       " conflicts with the reshape pattern ",
-                       ov::intel_cpu::vec2str(outPattern));
-    }
+    OPENVINO_ASSERT(minusOneCount <= 1 && inputProduct == outputProduct,
+                    "[cpu]reshape: the shape of input data ",
+                    ov::intel_cpu::vec2str(inputShape),
+                    " conflicts with the reshape pattern ",
+                    ov::intel_cpu::vec2str(outPattern));
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
 
 Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    static constexpr size_t SQUEEZE_SRC = 0, SQUEEZE_PATTERN = 1;
+    static constexpr size_t SQUEEZE_SRC = 0;
+    static constexpr size_t SQUEEZE_PATTERN = 1;
     const auto& inputShape = input_shapes[SQUEEZE_SRC].get();
     const size_t inputShapeSize = inputShape.size();
     auto itr = data_dependency.find(SQUEEZE_PATTERN);
@@ -78,7 +94,7 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
     outputShape.reserve(inputShapeSize);
     if (itr != data_dependency.end()) {
         const auto& memPtr = data_dependency.at(SQUEEZE_PATTERN);
-        const auto data = memPtr->getData();
+        auto* const data = memPtr->getData();
         const auto& dims = memPtr->getStaticDims();
         if (!dims.empty()) {
             const size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>());
@@ -121,11 +137,12 @@ Result SqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const V
 
 Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                                   const std::unordered_map<size_t, MemoryPtr>& data_dependency) {
-    static constexpr size_t UNSQUEEZE_SRC = 0, UNSQUEEZE_PATTERN = 1;
+    static constexpr size_t UNSQUEEZE_SRC = 0;
+    static constexpr size_t UNSQUEEZE_PATTERN = 1;
     const auto& inputShape = input_shapes[UNSQUEEZE_SRC].get();
     const size_t inputShapeSize = inputShape.size();
     const auto& memPtr = data_dependency.at(UNSQUEEZE_PATTERN);
-    const auto data = memPtr->getData();
+    auto* const data = memPtr->getData();
     const auto& dims = memPtr->getStaticDims();
     size_t outputPatternSize = std::accumulate(dims.begin(), dims.end(), 1, std::multiplies<>());
     std::vector<int64_t> originOutPattern = ov::get_raw_data_as<int64_t>(memPtr->getDesc().getPrecision(),
@@ -161,12 +178,11 @@ Result UnsqueezeShapeInfer::infer(const std::vector<std::reference_wrapper<const
             }
         }
     }
-    if (existError) {
-        OPENVINO_THROW("[cpu]unsqueeze: the shape of input data ",
-                       ov::intel_cpu::vec2str(inputShape),
-                       " conflicts with the unsqueeze pattern ",
-                       ov::intel_cpu::vec2str(originOutPattern));
-    }
+    OPENVINO_ASSERT(!existError,
+                    "[cpu]unsqueeze: the shape of input data ",
+                    ov::intel_cpu::vec2str(inputShape),
+                    " conflicts with the unsqueeze pattern ",
+                    ov::intel_cpu::vec2str(originOutPattern));
     return {{std::move(outputShape)}, ShapeInferStatus::success};
 }
 

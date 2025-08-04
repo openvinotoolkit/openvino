@@ -322,6 +322,7 @@ protected:
 };
 
 TEST_P(MatmulWeightsDecompression, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED(); // This is necessary because of check_results
     run();
     check_results();
 }
@@ -427,6 +428,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan,
                                             ::testing::Values(false),
                                             ::testing::Values(true),  // per_tensor_zp
                                             ::testing::ValuesIn(group_size),
+                                            ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
+                         MatmulWeightsDecompression::get_test_case_name);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_dyn_quan_unaligned,     // dyn_quan is turned off because of innermost-shape
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn({ShapeParams{{{-1, -1, 1008}, {{1, 1, 1008}}},
+                                                                            {1008, 1024}, 1008}
+                                                                            }),  // shape
+                                            ::testing::Values(ov::element::u4),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(true),  // per_tensor_zp
+                                            ::testing::Values(std::numeric_limits<int64_t>::max()),
                                             ::testing::Values(2.0f)),   // Note: this is because of potential cldnn accuracy issue
                          MatmulWeightsDecompression::get_test_case_name);
 

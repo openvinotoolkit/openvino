@@ -48,9 +48,7 @@ void ThreeInputsEltwise::SetUp() {
 
     auto f = ov::test::snippets::EltwiseThreeInputsFunction(inputDynamicShapes);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(ThreeInputsEltwise, CompareWithRefImpl) {

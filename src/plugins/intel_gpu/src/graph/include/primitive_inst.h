@@ -42,6 +42,7 @@ class primitive_inst;
 template <class PType>
 class typed_primitive_inst;
 
+class PrimitiveInstTestHelper;
 struct ImplementationManager;
 
 struct BufferDescriptor {
@@ -167,6 +168,7 @@ struct ImplementationsFactory {
 class primitive_inst {
     template <class PType>
     friend class typed_primitive_inst;
+    friend class PrimitiveInstTestHelper;
 
 public:
     primitive_inst(network& network);
@@ -214,7 +216,16 @@ public:
     const ExecutionConfig& get_config() const { return get_network().get_config(); }
 
     virtual event::ptr set_output_memory(memory::ptr mem, bool check = true, size_t idx = 0);
-    void check_memory_to_set(const memory& mem, const layout& layout) const;
+    /**
+    * Validates whether the provided memory object can be set for a primitive.
+    * This function checks that:
+    * - The memory layout matches the layout.
+    * - The memory is allocated by the same engine as the network.
+    * - Shared memory types (e.g., image, buffer, DX buffer, USM) are correctly matched with layout formats
+    *
+    * Throws an assertion or exception if any of these conditions are not met.
+    */
+    void check_memory_compatibility(const memory& mem, const layout& layout) const;
     const std::list<const cldnn::program_node *>& get_users() const { return get_node().get_users(); }
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
@@ -246,7 +257,7 @@ public:
     }
 
     memory::ptr shape_info_memory_ptr() const { return _shape_info_memory; }
-    void set_shape_info_memory_subbuffer(memory::ptr addr);
+    void set_shape_info_memory(memory::ptr addr);
 
     void add_dep_events(const std::vector<event::ptr>& events);
     void add_dep_event(event::ptr ev);
@@ -273,16 +284,6 @@ public:
 
     void build_deps();
 
-    void update_paddings();
-    void do_runtime_skip_reorder();
-    void do_runtime_skip_gather();
-    void do_runtime_skip_permute();
-    void do_runtime_skip_strided_slice();
-    void do_runtime_skip_broadcast();
-    void do_runtime_in_place_concat();
-    void do_runtime_in_place_kv_cache();
-    void do_runtime_in_place_crop();
-    void do_runtime_skip_scatter_update();
     void configure_shape_of_dependencies();
 
     memory::ptr fused_memory(size_t dep_id) const {
@@ -328,8 +329,8 @@ public:
     const std::unordered_map<size_t, std::tuple<int64_t, size_t>>& get_profiling_data() const { return _profiling_data; }
     const std::unordered_map<size_t, instrumentation::perf_counter_key>& get_profiling_info() const { return _profiling_info; }
 
-    layout get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
-    layout get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
+    const layout& get_input_layout(size_t idx = 0) const { return _impl_params->get_input_layout(idx); }
+    const layout& get_output_layout(size_t idx = 0) const { return _impl_params->get_output_layout(idx); }
     layout get_node_output_layout() const { return _node_output_layout; }
     void set_output_layout(const layout& new_out_lay, size_t idx = 0) {
         _impl_params->output_layouts[idx] = new_out_lay;
@@ -357,8 +358,8 @@ protected:
     program_node const* _node;
     layout _node_output_layout;
 
-    bool update_shape_done_by_other = false;
-    bool allocation_done_by_other = false;
+    bool _update_shape_done_by_other = false;
+    bool _allocation_done_by_other = false;
     bool _use_shared_kernels = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::shared_ptr<primitive_impl> _impl;
@@ -369,7 +370,7 @@ protected:
     std::vector<std::pair<primitive_inst*, int32_t>> _deps;
 
     // List of dependant shape_of primitives for shape_of subgraphs
-    std::vector<primitive_inst*> dependant_shape_of_insts;
+    std::vector<primitive_inst*> _dependant_shape_of_insts;
 
     std::vector<primitive_inst*> _users;
     // this is a set of dependencies in terms of execution
@@ -401,8 +402,7 @@ protected:
     // Buffer to store actual shapes of dynamic tensor which is automatically asigned as 1st argument to shape agnostic kernels
     memory::ptr _shape_info_memory = nullptr;
 
-    bool _has_valid_input =
-        true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
+    bool _has_valid_input = true;  // by default all primitives has valid inputs, exception is input_layout (see input_layout_inst)
     bool _has_mutable_input = false;
     bool _mem_allocated = false;
     bool _is_dynamic = false;
@@ -421,7 +421,7 @@ protected:
     bool _needs_completion_event = false;
 
     std::vector<size_t> _max_output_layout_count;
-    std::vector<size_t> max_intermediates_memory_sizes;
+    std::vector<size_t> _max_intermediates_memory_sizes;
 
     std::vector<memory::ptr> allocate_outputs(kernel_impl_params* updated_params = nullptr,
                                               bool reset_mem = true,
@@ -504,6 +504,19 @@ protected:
     // and store mapping onto original perf_clounter_key for further data analysis and dumps
     std::unordered_map<size_t, std::tuple<int64_t, size_t>> _profiling_data;
     std::unordered_map<size_t, instrumentation::perf_counter_key> _profiling_info;
+
+private:
+    void update_paddings();
+    void do_runtime_skip_reorder();
+    void do_runtime_skip_gather();
+    void do_runtime_skip_permute();
+    void do_runtime_skip_strided_slice();
+    void do_runtime_skip_broadcast();
+    void do_runtime_in_place_concat();
+    void do_runtime_in_place_kv_cache();
+    void do_runtime_in_place_crop();
+    void do_runtime_skip_scatter_update();
+    void do_runtime_skip_lora();
 };
 
 /*

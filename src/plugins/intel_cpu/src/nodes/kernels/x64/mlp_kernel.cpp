@@ -4,9 +4,25 @@
 
 #include "mlp_kernel.hpp"
 
-#include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
+#include <xbyak/xbyak.h>
+
+#include <algorithm>
+#include <cassert>
+#include <common/c_types_map.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/injectors/jit_uni_eltwise_injector.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <type_traits>
+
 #include "mlp_utils.hpp"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -278,10 +294,10 @@ void MKernel::generate_1x2() {
     ret();
 }
 
-class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator {
+class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(FP16ToBF16Kernel)
-    FP16ToBF16Kernel() : jit_generator("FP16ToBF16Kernel") {
+    FP16ToBF16Kernel() : jit_generator_t("FP16ToBF16Kernel") {
         create_kernel();
     }
 
@@ -316,7 +332,7 @@ repackB(Tdst* dst, ov::float16* src, int N_stride, int N, int K) {
     assert(K <= 32);
     assert(N <= 16);
     int k = 0;
-    Tdst zero(0.0f);
+    Tdst zero(0.0F);
     for (; k < 32; k += 2) {
         int n = 0;
         bool is_k0_valid = (k) < K;
@@ -350,10 +366,10 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         auto* psrc = src + k;
         int n = 0;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? psrc[0] : 0;
-            *dst++ = is_k1_valid ? psrc[1] : 0;
-            *dst++ = is_k2_valid ? psrc[2] : 0;
-            *dst++ = is_k3_valid ? psrc[3] : 0;
+            *dst++ = is_k0_valid ? psrc[0] : static_cast<int8_t>(0);
+            *dst++ = is_k1_valid ? psrc[1] : static_cast<int8_t>(0);
+            *dst++ = is_k2_valid ? psrc[2] : static_cast<int8_t>(0);
+            *dst++ = is_k3_valid ? psrc[3] : static_cast<int8_t>(0);
         }
         for (; n < 16; n++) {
             *dst++ = 0;
@@ -404,7 +420,7 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
 
     const int k_step = 64;
     auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
-    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    auto* pdst = ext_buff;
     for (int n = 0; n < N; n += 32) {
         auto* src0 = p_weight + n * N_stride;
         auto* src1 = p_weight + (n + 16) * N_stride;
@@ -412,9 +428,9 @@ void MKernel::BMatrix::setup(int8_t* ext_buff, int8_t* p_weight, int weight_stri
         auto valid_n1 = std::min((N - (n + 16)), 16);
         for (int k = 0, blkk = 0; k < K; k += k_step, blkk++) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<int8_t*>(pdst), src0 + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, src0 + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<int8_t*>(pdst), src1 + k, N_stride, valid_n1, valid_k);
+            repackB(pdst, src1 + k, N_stride, valid_n1, valid_k);
             pdst += 1024;
         }
     }
@@ -469,14 +485,14 @@ void MKernel::BMatrix::setup(int8_t* ext_buff,
     const int k_step = 64;
     auto N_stride = weight_stride_in_bytes / sizeof(int8_t);
     auto N2 = N / 2;
-    auto* pdst = reinterpret_cast<int8_t*>(ext_buff);
+    auto* pdst = ext_buff;
     for (int n = 0; n < N2; n += 16) {
         auto valid_n0 = std::min((N2 - n), 16);
         for (int k = 0; k < K; k += k_step) {
             auto valid_k = std::min((K - k), k_step);
-            repackB(reinterpret_cast<int8_t*>(pdst), p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B0 + n * N_stride + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
-            repackB(reinterpret_cast<int8_t*>(pdst), p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
+            repackB(pdst, p_weight_B1 + n * N_stride + k, N_stride, valid_n0, valid_k);
             pdst += 1024;
         }
     }
@@ -490,14 +506,14 @@ void MKernel::BMatrix::setup(int8_t* ext_buff,
 // but prefetch of next B must be specified by caller.
 //
 void MKernel::run(int M,  // actual M
-                  uint8_t* pA,
+                  const uint8_t* pA,
                   int strideA,          // A [M, K]
                   BMatrix& repacked_B,  // B [N/32, K*32] ov::bfloat16
-                  uint8_t* pC,
-                  int strideC,          // C [M, N]
-                  uint8_t* prefetch_B,  // prefetch B
+                  const uint8_t* pC,
+                  int strideC,                // C [M, N]
+                  const uint8_t* prefetch_B,  // prefetch B
                   bool do_accumulation) {
-    call_args args;
+    call_args args{};
 
     auto* pB = repacked_B.ptr;
     auto strideB = repacked_B.Bpair_rows * repacked_B.Bpair_size;
@@ -523,10 +539,11 @@ void MKernel::run(int M,  // actual M
     }
 }
 
-void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) {
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_stride) const {
     assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(BM, nthr, ithr, start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_bf16_i8(psrc + start * src_stride,
                                                              src_stride,
@@ -540,10 +557,11 @@ void MatrixDynQuantPerRow::quantize(size_t BM, ov::bfloat16* psrc, int src_strid
     });
 }
 
-void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) {
+void MatrixDynQuantPerRow::quantize(size_t BM, ov::float16* psrc, int src_stride) const {
     assert(static_cast<int64_t>(BM) <= M);
     parallel_nt_static(0, [&](const size_t ithr, const size_t nthr) {
-        size_t start{0}, end{0};
+        size_t start{0};
+        size_t end{0};
         splitter(BM, nthr, ithr, start, end);
         ov::Extensions::Cpu::XARCH::llm_mlp_quantize_f16_i8(psrc + start * src_stride,
                                                             src_stride,
@@ -571,12 +589,12 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
+    auto injector = std::make_shared<jit_uni_eltwise_injector_t<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
-        1.f,
-        1.0f,
-        1.f,
+        1.F,
+        1.0F,
+        1.F,
         data_type::f32,
         true,                               // save_state, true due to additional r15 is used.
         Xbyak::Reg64(Xbyak::Operand::R10),  // p_table

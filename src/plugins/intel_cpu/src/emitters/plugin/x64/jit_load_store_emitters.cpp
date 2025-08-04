@@ -4,10 +4,24 @@
 
 #include "jit_load_store_emitters.hpp"
 
-#include <memory>
-#include <utility>
+#include <xbyak/xbyak.h>
 
-#include "utils/bfloat16.hpp"
+#include <common/utils.hpp>
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_bf16_emitters.hpp"
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::utils;
@@ -84,19 +98,19 @@ static int get_aux_regs_as_temp(const int elem_count,
     // vector:  4 * f32 ->  4 * bf16 ->       64bit  -> masked instruction with aux_gpr needed f32<->i32 is on full vmm,
     // so aux_gpr is not needed.
     const int byte_size = elem_count * data_size;
-    if ((is_pure_move && one_of(byte_size, 16, 32, 64)) ||
-        (!is_pure_move && one_of(elem_count, 4, 8, 16) && !is_store_as_real16)) {
+    if ((is_pure_move && any_of(byte_size, 16, 32, 64)) ||
+        (!is_pure_move && any_of(elem_count, 4, 8, 16) && !is_store_as_real16)) {
         return 0;
     }
     if ((mayiuse(cpu::x64::avx512_core) && (byte_size > avx512_threshold_for_mask)) ||
-        (one_of(byte_size % 16, 1, 2, 3))) {
+        (any_of(byte_size % 16, 1, 2, 3))) {
         return 1;
     }
     return 0;
 }
 
 /// LOAD ///
-jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+jit_load_emitter::jit_load_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                    dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                    ov::element::Type src_prc,
                                    ov::element::Type dst_prc,
@@ -123,8 +137,8 @@ size_t jit_load_emitter::get_inputs_num() const {
 
 size_t jit_load_emitter::aux_gprs_count() const {
     // 0 for temp reg for mask load in avx512 if needed
-    const auto is_pure_load = (src_prc_ == dst_prc_) || (one_of(src_prc_, ov::element::f32, ov::element::i32) &&
-                                                         one_of(dst_prc_, ov::element::f32, ov::element::i32));
+    const auto is_pure_load = (src_prc_ == dst_prc_) || (any_of(src_prc_, ov::element::f32, ov::element::i32) &&
+                                                         any_of(dst_prc_, ov::element::f32, ov::element::i32));
     int count = get_aux_regs_as_temp(load_num_,
                                      static_cast<int>(src_prc_.size()),
                                      is_pure_load,
@@ -291,7 +305,7 @@ void jit_load_emitter::load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int o
         // WAR(write after read) relationship.
         //    CPU can identify this scenario and assign another physical vector register(register renameing) in next
         //    loop to eliminate RAW.
-        if (!one_of(bytes_to_load, 0, 1, 2, 3, 4, 8, 16)) {
+        if (none_of(bytes_to_load, 0, 1, 2, 3, 4, 8, 16)) {
             h->uni_vpxor(vmm, vmm, vmm);
         }
         if (bytes_to_load >= 8 && bytes_to_load < 16) {
@@ -690,7 +704,7 @@ void jit_load_emitter::register_table_entries() {
 }
 
 /// STORE ///
-jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+jit_store_emitter::jit_store_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                      ov::element::Type src_prc,
                                      ov::element::Type dst_prc,
@@ -717,14 +731,14 @@ inline bool jit_store_emitter::is_saturation() const {
 // case for SSE and AVX2 when we should use AND to truncate values
 inline bool jit_store_emitter::is_truncation_emulation() const {
     return !mayiuse(cpu::x64::avx512_core) && !is_saturation() && src_prc_ != dst_prc_ &&
-           one_of(dst_prc_, ov::element::u16, ov::element::i16, ov::element::u8, ov::element::i8);
+           any_of(dst_prc_, ov::element::u16, ov::element::i16, ov::element::u8, ov::element::i8);
 }
 
 size_t jit_store_emitter::aux_gprs_count() const {
     // for temp reg for store(mask version or special number cases)
-    const auto is_pure_store = (src_prc_ == dst_prc_) || (one_of(src_prc_, ov::element::f32, ov::element::i32) &&
-                                                          one_of(dst_prc_, ov::element::f32, ov::element::i32));
-    const auto is_store_as_real16 = one_of(dst_prc_, ov::element::bf16, ov::element::f16);
+    const auto is_pure_store = (src_prc_ == dst_prc_) || (any_of(src_prc_, ov::element::f32, ov::element::i32) &&
+                                                          any_of(dst_prc_, ov::element::f32, ov::element::i32));
+    const auto is_store_as_real16 = any_of(dst_prc_, ov::element::bf16, ov::element::f16);
     int count = get_aux_regs_as_temp(store_num_,
                                      static_cast<int>(dst_prc_.size()),
                                      is_pure_store,
@@ -744,7 +758,7 @@ size_t jit_store_emitter::aux_vecs_count() const {
 
     // to avoid src vmm pollution for data type conversion
     // and other vmm data pollution instructions
-    if (src_prc_ != dst_prc_ || !one_of(store_size_, 64, 32, 16)) {
+    if (src_prc_ != dst_prc_ || none_of(store_size_, 64, 32, 16)) {
         count++;
     }
 
@@ -755,7 +769,7 @@ size_t jit_store_emitter::aux_vecs_count() const {
 
     // zero value, zeroed and passed from caller from performance standpoint(zeroed one time and not need preserve and
     // restore status)
-    if (mayiuse(cpu::x64::avx512_core) && one_of(dst_prc_, ov::element::u8, ov::element::u16)) {
+    if (mayiuse(cpu::x64::avx512_core) && any_of(dst_prc_, ov::element::u8, ov::element::u16)) {
         count++;
     }
 
@@ -931,7 +945,7 @@ void jit_store_emitter::store_bytes(const Xbyak::Reg64& reg, int offset, int sto
         // tail 7 bytes for lower or upper xmm
         auto store_one_byte = [&](int bytes_offset, int gpr_idx) {
             bool ext8bit = false;
-            if (one_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI)) {
+            if (any_of(gpr_idx, Operand::RSP, Operand::RBP, Operand::RSI, Operand::RDI)) {
                 ext8bit = true;
             }
             h->mov(addr(start_bytes + bytes_offset), Reg8(gpr_idx, ext8bit));
@@ -1279,7 +1293,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);
             } else {
-                data_idx = static_cast<int>(ymm.getIdx());
+                data_idx = ymm.getIdx();
                 store_bytes<Vmm>(reg, offset, store_num * 2);
             }
         } else {
@@ -1300,7 +1314,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
                 uni_vcvtneps2bf16_->emit_code({static_cast<size_t>(vmm.getIdx())}, {static_cast<size_t>(xmm.getIdx())});
             }
 
-            data_idx = static_cast<int>(xmm.getIdx());
+            data_idx = xmm.getIdx();
             store_bytes<Vmm>(reg, offset, store_num * 2);
         }
     } else if (is_f16) {
@@ -1315,7 +1329,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (store_num == 16) {
                 h->vmovdqu16(ptr[reg + offset], ymm);
             } else {
-                data_idx = static_cast<int>(ymm.getIdx());
+                data_idx = ymm.getIdx();
                 store_bytes<Vmm>(reg, offset, store_num * 2);
             }
         } else if (mayiuse(cpu::x64::avx2)) {
@@ -1327,7 +1341,7 @@ void jit_store_emitter::store_dword_to_word_extension(const Xbyak::Reg64& reg,
             if (store_num == 8) {
                 h->uni_vmovdqu16(ptr[reg + offset], xmm);
             } else {
-                data_idx = static_cast<int>(xmm.getIdx());
+                data_idx = xmm.getIdx();
                 store_bytes<Vmm>(reg, offset, store_num * 2);
             }
         } else {

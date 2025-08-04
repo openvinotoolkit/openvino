@@ -4,22 +4,27 @@
 
 #pragma once
 
-#include "node.h"
-#include "utils/plain_tensor.hpp"
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class RMSNorm : public Node {
 public:
     RMSNorm(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     void getSupportedDescriptors() override {}
-    bool created() const override {
+    [[nodiscard]] bool created() const override {
         return getType() == Type::RMS;
     }
-    bool needPrepareParams() const override {
+    [[nodiscard]] bool needPrepareParams() const override {
         return false;
     }
     void executeDynamicImpl(const dnnl::stream& strm) override {
@@ -32,7 +37,7 @@ public:
 
 private:
     struct Executor {
-        virtual void execute(const std::vector<MemoryPtr>& inputs, const MemoryPtr output) = 0;
+        virtual void execute(const std::vector<MemoryPtr>& inputs, MemoryPtr output) = 0;
         virtual ~Executor() = default;
     };
 
@@ -40,9 +45,7 @@ private:
     struct RMSNormExecutor;
     friend struct RMSNormKey;
 
-    float m_eps = 0.0f;
+    float m_eps = 0.0F;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

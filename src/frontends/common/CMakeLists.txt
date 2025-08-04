@@ -75,6 +75,8 @@ ov_ncc_naming_style(FOR_TARGET ${TARGET_NAME}_obj
                     ADDITIONAL_INCLUDE_DIRECTORIES
                         $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
+ov_build_target_faster(${TARGET_NAME}_obj PCH)
+
 # Installation rules header files
 
 install(DIRECTORY ${FRONTEND_INCLUDE_DIR}/openvino

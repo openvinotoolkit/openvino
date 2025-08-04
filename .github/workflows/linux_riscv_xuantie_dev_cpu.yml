@@ -2,6 +2,10 @@ name: Linux RISC-V with Xuantie (Ubuntu 22.04, Python 3.10)
 on:
   workflow_dispatch:
     inputs:
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
       testFilterType:
         description: 'Filter for google tests {SMOKE | CONCISE}'
         required: true
@@ -26,7 +30,7 @@ concurrency:
 permissions: read-all
 
 env:
-  TARGET_BRANCH: ${{ github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   RISCV_TOOLCHAIN_ROOT: /opt/riscv
 
 jobs:
@@ -156,7 +160,7 @@ jobs:
           -DENABLE_CPPLINT=OFF
           -DENABLE_INTEL_GPU=OFF
           -DENABLE_INTEL_NPU=OFF
-          -DENABLE_SAMPLES=OF
+          -DENABLE_SAMPLES=OFF
           -DENABLE_NCC_STYLE=OFF
           -DENABLE_PYTHON=OFF
           -DENABLE_TESTS=ON
@@ -221,7 +225,7 @@ jobs:
     env:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*' }}
+      GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*' }}
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)

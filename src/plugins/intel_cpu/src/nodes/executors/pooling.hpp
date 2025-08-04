@@ -4,9 +4,18 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <unordered_map>
+#include <vector>
+
 #include "cpu_memory.h"
+#include "cpu_types.h"
 #include "executor.hpp"
+#include "memory_desc/cpu_memory_desc.h"
 #include "onednn/iml_type_mapper.h"
+#include "openvino/op/util/attr_types.hpp"
 
 namespace ov::intel_cpu {
 
@@ -14,10 +23,10 @@ struct PoolingAttrs {
     bool exclude_pad = false;
     bool auto_pad = false;
 
-    op::PadType pad_type;
-    Algorithm algorithm;
+    op::PadType pad_type = op::PadType::EXPLICIT;
+    Algorithm algorithm = Algorithm::PoolingMax;
 
-    op::RoundingType rounding;
+    op::RoundingType rounding = op::RoundingType::FLOOR;
 
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> kernel;
@@ -39,7 +48,7 @@ struct PoolingAttrs {
 
 class PoolingExecutor {
 public:
-    PoolingExecutor(ExecutorContext::CPtr context);
+    explicit PoolingExecutor(ExecutorContext::CPtr context);
     virtual bool init(const PoolingAttrs& poolingAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,
@@ -66,7 +75,7 @@ public:
     [[nodiscard]] virtual bool isSupported(const PoolingAttrs& poolingAttrs,
                                            const std::vector<MemoryDescPtr>& srcDescs,
                                            const std::vector<MemoryDescPtr>& dstDescs) const = 0;
-    [[nodiscard]] virtual PoolingExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const = 0;
+    [[nodiscard]] virtual PoolingExecutorPtr makeExecutor(ExecutorContext::CPtr context) const = 0;
 };
 
 using PoolingExecutorBuilderPtr = std::shared_ptr<PoolingExecutorBuilder>;

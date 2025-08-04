@@ -19,7 +19,9 @@
         type_info_static.hash();                                                          \
         return type_info_static;                                                          \
     }                                                                                     \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override { return get_type_info_static(); }
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {                        \
+        return get_type_info_static();                                                    \
+    }
 
 #define _OPENVINO_RTTI_WITH_TYPE_VERSION_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS) \
     _OPENVINO_RTTI_WITH_TYPE_VERSIONS_PARENT(TYPE_NAME, VERSION_NAME, PARENT_CLASS)
@@ -32,7 +34,9 @@
         type_info_static.hash();                                                               \
         return type_info_static;                                                               \
     }                                                                                          \
-    const ::ov::DiscreteTypeInfo& get_type_info() const override { return get_type_info_static(); }
+    const ::ov::DiscreteTypeInfo& get_type_info() const override {                             \
+        return get_type_info_static();                                                         \
+    }
 
 /// Helper macro that puts necessary declarations of RTTI block inside a class definition.
 /// Should be used in the scope of class that requires type identification besides one provided by
@@ -100,7 +104,9 @@
         type_info_static.hash();                                                          \
         return type_info_static;                                                          \
     }                                                                                     \
-    virtual const ::ov::DiscreteTypeInfo& get_type_info() const { return get_type_info_static(); }
+    virtual const ::ov::DiscreteTypeInfo& get_type_info() const {                         \
+        return get_type_info_static();                                                    \
+    }
 
 /// Helper macro for base (without rtti parrent) class that provides RTTI block definition.
 /// It's a two parameter version of OPENVINO_RTTI macro, without PARENT_CLASS.

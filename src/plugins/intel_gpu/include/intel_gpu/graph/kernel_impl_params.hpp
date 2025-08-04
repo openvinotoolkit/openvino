@@ -123,7 +123,7 @@ struct kernel_impl_params final {
     const layout& get_output_layout(size_t idx = 0) const {
         OPENVINO_ASSERT(output_layouts.size() > idx,
                         "The size of output layouts must be greater than the requested index: ",
-                        "Requested index is ", idx, ",",
+                        "Requested index is ", idx, ", ",
                         "but the size of output layouts is ", output_layouts.size());
         return output_layouts[idx];
     }
@@ -131,11 +131,14 @@ struct kernel_impl_params final {
     layout& get_output_layout(size_t idx = 0) {
         OPENVINO_ASSERT(output_layouts.size() > idx,
                         "The size of output layouts must be greater than the requested index: ",
-                        "Requested index is ", idx, ",",
+                        "Requested index is ", idx, ", ",
                         "but the size of output layouts is ", output_layouts.size());
         return output_layouts[idx];
     }
 
+    size_t get_input_layout_size() const {
+        return input_layouts.size();
+    }
 
     bool has_fused_primitives() const { return !fused_desc.empty(); }
 

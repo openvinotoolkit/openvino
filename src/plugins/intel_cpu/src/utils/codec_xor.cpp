@@ -4,6 +4,9 @@
 
 #include "utils/codec_xor.hpp"
 
+#include <cstddef>
+#include <string>
+
 #include "openvino/core/parallel.hpp"
 
 namespace ov::intel_cpu {
@@ -14,18 +17,18 @@ void codec_xor(char* dst_str, const char* src_str, size_t len) {
 
     if (dst_str == src_str) {
         parallel_for(len, [&](size_t key_idx) {
-            dst_str[key_idx] ^= codec_key[key_idx % key_size];
+            dst_str[key_idx] = static_cast<char>(dst_str[key_idx] ^ codec_key[key_idx % key_size]);
         });
     } else {
         parallel_for(len, [&](size_t key_idx) {
-            dst_str[key_idx] = src_str[key_idx] ^ codec_key[key_idx % key_size];
+            dst_str[key_idx] = static_cast<char>(src_str[key_idx] ^ codec_key[key_idx % key_size]);
         });
     }
 }
 
 std::string codec_xor_str(const std::string& source_str) {
     std::string new_str(source_str);
-    codec_xor(&new_str[0], &new_str[0], new_str.size());
+    codec_xor(new_str.data(), new_str.data(), new_str.size());
     return new_str;
 }
 

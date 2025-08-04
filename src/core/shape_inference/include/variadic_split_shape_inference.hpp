@@ -89,14 +89,11 @@ std::vector<TRShape> shape_infer(const Node* op,
                 }
 
                 for (uint64_t output = 0; output < static_cast<uint64_t>(num_outputs); ++output) {
+                    auto& out_shape = output_shapes.emplace_back(data_shape);
                     if (split_lengths->at(output) == -1) {
-                        TRShape out_shape = data_shape;
                         out_shape[axis] = Dimension::dynamic();
-                        output_shapes.push_back(out_shape);
                     } else {
-                        TRShape out_shape = data_shape;
                         out_shape[axis] = split_lengths->at(output);
-                        output_shapes.push_back(out_shape);
                     }
                 }
             } else {

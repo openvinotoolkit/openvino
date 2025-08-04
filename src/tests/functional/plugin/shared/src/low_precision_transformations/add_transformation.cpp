@@ -15,15 +15,9 @@
 namespace LayerTestsDefinitions {
 
 std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< AddTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    AddTestValues param;
-    std::tie(netPrecision, inputShapes, targetDevice, param) = obj.param;
-
+    auto [netPrecision, inputShapes, targetDevice, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice) <<
            (param.broadcast ? "_broadcast" : "");
     for (const auto& elem : param.precisionOnActivations) {
         result << "_" << elem << "_";
@@ -51,10 +45,8 @@ std::string AddTransformation::getTestCaseName(const testing::TestParamInfo< Add
 }
 
 void AddTransformation::SetUp() {
-    ov::element::Type precision;
-    ov::PartialShape inputShape;
-    AddTestValues param;
-    std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
+    auto [precision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     ov::PartialShape inputShape2 = inputShape;
     if (param.broadcast) {

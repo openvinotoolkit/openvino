@@ -25,6 +25,7 @@
 #include "experimental_detectron_roi_feature_extractor_inst.hpp"
 #include "lstm_seq_inst.h"
 #include "border_inst.h"
+#include "lora_inst.h"
 
 #include "pass_manager.h"
 #include "program_helpers.h"
@@ -303,7 +304,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
         padd = padding::max(padd, inputPadding);
     }
 
-    std::vector<tensor::value_type> lower_padd, upper_padd;
+    std::vector<ov::Dimension::value_type> lower_padd, upper_padd;
     for (size_t i = 0; i < concat_out_layout.get_rank(); i++) {
         lower_padd.push_back(padd._lower_size[i]);
         upper_padd.push_back(padd._upper_size[i]);
@@ -372,6 +373,24 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
         input_layout.data_padding._lower_size[2] != 0 || input_layout.data_padding._upper_size[2] != 0 ||
         input_layout.data_padding._lower_size[3] != 0 || input_layout.data_padding._upper_size[3] != 0)
         return false;
+
+    // For static shape, gemm ref kernel is selected if there is padding on the feature, x, or y axes.
+    // In such cases, do not optimize out this crop to use the opt kernel.
+    // TODO: Modify gemm_tiled_opt kernel to support padding even in static shape.
+    auto output_layout = node.get_output_layout();
+    bool is_input_lower_pad = offsets.feature[0] != 0 || offsets.spatial[0] != 0 || offsets.spatial[1] != 0;
+    bool is_input_upper_pad = (output_layout.is_static() &&
+        ((input_layout.feature() - offsets.feature[0] - output_layout.get_tensor().feature[0]) != 0 ||
+        (input_layout.spatial(0) - offsets.spatial[0] - output_layout.get_tensor().spatial[0]) != 0 ||
+        (input_layout.spatial(1) - offsets.spatial[1] - output_layout.get_tensor().spatial[1]) != 0));
+
+    if (is_input_lower_pad || is_input_upper_pad) {
+        for (auto user : node.get_users()) {
+            if (user->is_type<gemm>() && user->get_dependency_index(node) < 2) {
+                return false;
+            }
+        }
+    }
 
     auto opt_lower_pad = offsets.feature[0];
     auto opt_upper_pad = input_layout.feature() - offsets.feature[0] - crop_layout.get_tensor().feature[0];
@@ -487,17 +506,6 @@ bool crop_in_place_optimization::match(const program_node& node,
         // TODO: Need to allow optimization for gemm user
         if (node.is_dynamic() && (user->is_type<convolution>() || user->is_type<gemm>()))
             return false;
-        // For static shape, gemm ref kernel is selected if there is padding on the feature, x, or y axes.
-        // In such cases, do not optimize out this crop to use the opt kernel.
-        // TODO: Modify gemm_tiled_opt kernel to support padding even in static shape.
-        if ((!node.is_dynamic() || is_runtime) && user->is_type<gemm>() &&
-            (user->get_dependency_index(node) == 0 || user->get_dependency_index(node) == 1)) {
-            if (crop_params.input_offsets[0].feature[0] != 0 ||
-                crop_params.input_offsets[0].spatial[0] != 0 ||
-                crop_params.input_offsets[0].spatial[1] != 0) {
-                return false;
-            }
-        }
         if (user->is_type<reshape>()) {
             // runtime buffer fusing is only handled when there is only one reshape user
             if (node.is_dynamic() && node.get_users().size() != 1)
@@ -511,6 +519,9 @@ bool crop_in_place_optimization::match(const program_node& node,
             return false;
         if (user->is_type<lstm_seq>() || user->is_type<lstm_cell>())
             return false;
+        if (user->is_type<lora>()) {
+            return false;
+        }
     }
 
     // do not optimize crop, that must be calculated in propagate_constants
@@ -626,12 +637,12 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
         opt_lower_pad += dep_pad._lower_size[1];
         opt_upper_pad += dep_pad._upper_size[1];
     }
-    std::vector<int32_t> lower_sizes;
+    std::vector<ov::Dimension::value_type> lower_sizes;
     lower_sizes.push_back(out_pad._lower_size[0]);
     lower_sizes.push_back(opt_lower_pad);
     lower_sizes.push_back(out_pad._lower_size[2]);
     lower_sizes.push_back(out_pad._lower_size[3]);
-    std::vector<int32_t> upper_sizes;
+    std::vector<ov::Dimension::value_type> upper_sizes;
     upper_sizes.push_back(out_pad._upper_size[0]);
     upper_sizes.push_back(opt_upper_pad);
     upper_sizes.push_back(out_pad._upper_size[2]);
@@ -696,13 +707,13 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
     const auto& crop_size = crop_layout.get_tensor();
 
-    std::vector<int32_t> lower_sizes;
+    std::vector<ov::Dimension::value_type> lower_sizes;
     lower_sizes.push_back(offsets.batch[0]);
     lower_sizes.push_back(offsets.feature[0]);
     for (int32_t i = static_cast<int32_t>(input_layout.get_spatial_rank() - 1); i >= 0; i--) {
         lower_sizes.push_back(offsets.spatial[i]);
     }
-    std::vector<int32_t> upper_sizes;
+    std::vector<ov::Dimension::value_type> upper_sizes;
     upper_sizes.push_back(input_layout.batch() - offsets.batch[0] - crop_size.batch[0]);
     upper_sizes.push_back(input_layout.feature() - offsets.feature[0] - crop_size.feature[0]);
     for (int32_t i = static_cast<int32_t>(input_layout.get_spatial_rank() - 1); i >= 0; i--) {
@@ -733,8 +744,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 reshape_axis -= 1;
 
                 const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
-                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
-                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
@@ -759,8 +770,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 }
 
                 const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
-                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
-                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
@@ -832,7 +843,6 @@ void prepare_buffer_fusing::run(program& p) {
                                                                                        false);
             } else if (crop_in_place_optimization::can_crop_be_optimized_simple_data_format(crop_layout, pred_layout)) {
                 std::pair<const program_node*, layout> user_info;
-                std::vector<layout> reshape_layouts;
                 if (node.get_users().front()->is_type<reshape>()) {
                     auto& reshape_node = node.get_users().front()->as<reshape>();
                     if (reshape_node.is_runtime_propagatable_padding()) {
@@ -859,8 +869,8 @@ void prepare_buffer_fusing::run(program& p) {
                 if (!allow_new_shape_infer && user->is_type<gemm>() && user->get_dependency(1).id().compare(node.id()) == 0) {
                     auto input_rank = user->get_kernel_impl_params()->typed_desc<gemm>()->weight_rank;
                     if (input_rank < TDIM) {
-                        std::vector<int32_t> l_pad = {0, 0, 0, 0};
-                        std::vector<int32_t> u_pad = {0, 0, 0, 0};
+                        std::vector<ov::Dimension::value_type> l_pad = {0, 0, 0, 0};
+                        std::vector<ov::Dimension::value_type> u_pad = {0, 0, 0, 0};
 
                         //shift right
                         size_t shift_right = TDIM - input_rank;

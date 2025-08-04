@@ -4,17 +4,31 @@
 
 #include "acl_lowp_fullyconnected.hpp"
 
+#include <arm_compute/core/CoreTypes.h>
+#include <arm_compute/core/Error.h>
+#include <arm_compute/core/QuantizationInfo.h>
+#include <arm_compute/core/TensorInfo.h>
+#include <arm_compute/core/TensorShape.h>
+#include <arm_compute/function_info/GEMMInfo.h>
+
+#include <any>
+#include <memory>
+
 #include "acl_fullyconnected_utils.hpp"
 #include "arm_compute/runtime/NEON/functions/NEGEMMLowpMatrixMultiplyCore.h"
-#include "memory_desc/cpu_memory_desc_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "nodes/common/cpu_convert.h"
+#include "nodes/executors/acl/acl_common_executor.hpp"
 #include "nodes/executors/acl/acl_utils.hpp"
 #include "nodes/executors/common/common_utils.hpp"
 #include "nodes/executors/debug_messages.hpp"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
-#include "utils/debug_capabilities.h"
+#include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -27,8 +41,8 @@ static bool checkPostOps(const PostOps& postOps) {
         return false;
     }
 
-    const auto activation = std::dynamic_pointer_cast<ActivationPostOp>(postOps[0]);
-    return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()));
+    const auto& activation = std::any_cast<const ActivationPostOp&>(postOps[0]);
+    return checkActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()));
 }
 
 static void initFCAttrs(const FCAttrs& attrs,
@@ -41,12 +55,11 @@ static void initFCAttrs(const FCAttrs& attrs,
     aclfcAttrs.weightsNonTransposed = attrs.weightsNonTransposed;
 
     if (!attrs.postOps.empty()) {
-        auto activation = std::dynamic_pointer_cast<ActivationPostOp>(attrs.postOps[0]);
-        fullyConnectedLayerInfo.set_activation_info(
-            getActivationLayerInfo(convertToEltwiseAlgorithm(activation->type()),
-                                   activation->alpha(),
-                                   activation->beta(),
-                                   activation->gamma()));
+        const auto& activation = std::any_cast<const ActivationPostOp&>(attrs.postOps[0]);
+        fullyConnectedLayerInfo.set_activation_info(getActivationLayerInfo(convertToEltwiseAlgorithm(activation.type()),
+                                                                           activation.alpha(),
+                                                                           activation.beta(),
+                                                                           activation.gamma()));
     }
 
     if (memory.at(ARG_SRC)->getPrecision() != memory.at(ARG_WEI)->getPrecision()) {
@@ -72,8 +85,8 @@ bool ACLLowpFullyConnectedExecutor::supports(const FCConfig& config) {
     }
 
     VERIFY(checkPostOps(config.attrs.postOps), UNSUPPORTED_TYPE_OF_POSTOPS);
-    VERIFY(one_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
-    VERIFY(one_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
+    VERIFY(any_of(srcRank(config), 2U, 3U, 4U), UNSUPPORTED_SRC_RANK);
+    VERIFY(any_of(weiRank(config), 2U, 3U, 4U), UNSUPPORTED_WEI_RANK);
     return true;
 }
 
@@ -82,15 +95,15 @@ void ACLLowpFullyConnectedExecutor::updateTensorsShapes(ACLShapes& aclMemoryShap
 }
 
 arm_compute::Status ACLLowpFullyConnectedExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
-    auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
+    const auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
     if (dequantizationScales.empty()) {
-        tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.f));
+        tensor_info->set_quantization_info(arm_compute::QuantizationInfo(1.F));
     } else {
         tensor_info->set_quantization_info(arm_compute::QuantizationInfo(dequantizationScales[0]));
     }
 
-    auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
-    tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1.f));
+    const auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
+    tensor_info_weights->set_quantization_info(arm_compute::QuantizationInfo(1.F));
 
     auto matMulValid = arm_compute::NEGEMMLowpMatrixMultiplyCore::validate(aclMemoryInfos[ACLArgs::ACL_SRC_0].get(),
                                                                            aclMemoryInfos[ACLArgs::ACL_WEI].get(),
@@ -119,21 +132,16 @@ std::shared_ptr<arm_compute::TensorInfo> ACLLowpFullyConnectedExecutor::initTens
     const arm_compute::TensorShape& tensorShape,
     const arm_compute::DataType& dataType,
     const arm_compute::DataLayout& dataLayout) {
-    arm_compute::DataType result;
-    switch (dataType) {
-    case arm_compute::DataType::S8: {
-        result = arm_compute::DataType::QASYMM8_SIGNED;
-        break;
-    }
-    case arm_compute::DataType::U8: {
-        result = arm_compute::DataType::QASYMM8;
-        break;
-    }
-    default: {
-        result = dataType;
-        break;
-    }
-    }
+    const auto result = [&]() {
+        switch (dataType) {
+        case arm_compute::DataType::S8:
+            return arm_compute::DataType::QASYMM8_SIGNED;
+        case arm_compute::DataType::U8:
+            return arm_compute::DataType::QASYMM8;
+        default:
+            return dataType;
+        }
+    }();
 
     return ACLCommonExecutor::initTensorInfo(tensorShape, result, dataLayout);
 }

@@ -129,7 +129,7 @@ public:
 
     layout get_input_layout(convolution_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
@@ -183,7 +183,7 @@ public:
 
     layout get_input_layout(convolution_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
@@ -236,7 +236,7 @@ public:
 
     layout get_input_layout(conv_eltw_test_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
@@ -284,7 +284,7 @@ class ConvFusingForceKernelTest : public BaseFusingTest<bc_force_kernel_params> 
 
     layout get_input_layout(bc_force_kernel_params& p) {
         auto pad = p.pad;
-        std::vector<int> pad_ = { 0, 0, static_cast<int>(pad[1]), static_cast<int>(pad[0]) };
+        std::vector<ov::Dimension::value_type> pad_ = { 0, 0, pad[1], pad[0] };
         return layout{ p.in_shape, p.data_type, p.input_format, padding{ pad_ } };
     }
 
@@ -466,6 +466,7 @@ public:
 #define CASE_CONV_FP16_14 { 1, 32, 55, 1 }, { 1, 32, 55, 1 }, { 32, 1, 1, 3, 1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 32, data_types::f16, format::b_fs_yx_fsv16, data_types::f16,  format::gs_oiyx_gsv16, data_types::f16, format::bfyx
 #define CASE_CONV_FP16_15 { 1, 39, 55, 1 }, { 1, 39, 55, 1 }, { 39, 1, 1, 3, 1 }, { 1, 1 }, { 1, 1 }, { 1, 1 }, 39, data_types::f16, format::b_fs_yx_fsv16, data_types::f16,  format::gs_oiyx_gsv16, data_types::f16, format::bfyx
 #define CASE_CONV_FP16_16 { 1, 3, 112, 112, 8 }, { 1, 32, 56, 56, 8 }, { 32, 3, 3, 3, 1 }, { 2, 2, 1 }, { 1, 1, 0 }, { 1, 1, 1 }, 1, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx, data_types::f16, format::bfzyx
+#define CASE_CONV_FP16_17 { 1, 512, 1, 1}, { 1, 1, 1, 1}, { 1, 512, 1, 1 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::f16, format::bfyx, data_types::f16, format::bfyx, data_types::f16, format::bfyx
 
 #define CASE_CONV_U8S8_1 { 1, 15, 4, 5 }, { 1, 30, 2, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONV_U8S8_2 { 1, 15, 5, 5 }, { 1, 30, 3, 3 }, { 30, 15, 3, 3 }, { 1, 1 }, { 0, 0 }, { 1, 1 }, 1, data_types::u8, format::bfyx, data_types::i8, format::bfyx, data_types::f32, format::bfyx
@@ -788,6 +789,32 @@ TEST_P(conv_fp32_wrong_bias, basic) {
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
     convolution_test_params{ CASE_CONV_FP32_15, 3, 3, 3 },
+}));
+
+class conv_fp16_wrong_bias : public ConvFusingTest {};
+TEST_P(conv_fp16_wrong_bias, basic) {
+    // Check case when eltwise add dependency has shape [1, 1, X, Y] and X*Y == CONV_OUT_FEATURES
+    auto p = GetParam();
+    ov::PartialShape eltw_data_shape = get_input_layout(p).get_partial_shape();
+    eltw_data_shape[1] *= 128;
+
+    auto eltw_data_layout = layout{eltw_data_shape, p.default_type, format::bfyx};
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("non-bias", get_mem(eltw_data_layout)),
+        convolution("conv_prim", input_info("input"), "weights", "", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        eltwise("add", { input_info("conv_prim"), input_info("non-bias") }, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("add"), p.default_format, data_types::f32)
+    );
+
+    tolerance = default_tolerance(p.default_type);
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp16_wrong_bias, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_17, 3, 3, 3 },
 }));
 
 class conv_fp32_add_per_element_planar_const : public ConvFusingTest {};
@@ -4345,6 +4372,30 @@ TEST_P(onednn_replace_full_tensor_sum_to_binary_add, basic) {
 
 INSTANTIATE_TEST_SUITE_P(eltwise_sum_fusings_gpu, onednn_replace_full_tensor_sum_to_binary_add, ::testing::ValuesIn(std::vector<convolution_eltw_sum_test_params>{
     convolution_eltw_sum_test_params{ CASE_CONV_ELTW_SUM_TO_BINARY_ADD, 2, 2, 3 },
+}));
+
+class conv_elt_fp16_onednn : public WeightsPrimitiveFusingTestOneDNN {};
+TEST_P(conv_elt_fp16_onednn, basic_activation_eltwise_div) {
+    auto p = GetParam();
+
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        data("bias", get_mem(get_per_channel_layout(p))),
+        data("slope_data", get_mem(get_prelu_slope_layout(p))),
+        data("eltwise_data", get_mem(get_output_layout(p), 1.0f)),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        activation("activation", input_info("conv_prim"), "slope_data", activation_func::relu_negative_slope),
+        eltwise("eltwise", input_info("activation"), input_info("eltwise_data"), eltwise_mode::div),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32)
+    );
+
+    tolerance = 0.002f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_elt_fp16_onednn, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP16_1, 2, 2, 4 },
 }));
 
 #endif  // ENABLE_ONEDNN_FOR_GPU

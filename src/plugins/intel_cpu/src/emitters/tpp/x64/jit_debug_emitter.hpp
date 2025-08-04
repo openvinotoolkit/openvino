@@ -3,9 +3,17 @@
 //
 
 #pragma once
+#include <cstddef>
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <ostream>
 #include <utility>
+#include <vector>
 
+#include "emitters/utils.hpp"
 #include "jit_tpp_emitter.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu {
 

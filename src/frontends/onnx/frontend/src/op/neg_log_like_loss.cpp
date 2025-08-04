@@ -22,6 +22,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "utils/common.hpp"
 
@@ -79,38 +80,39 @@ ov::OutputVector negative_log_likelihood_loss(const ov::OutputVector inputs,
             const auto& weights = inputs[2];
             const auto gather_weights = std::make_shared<v8::Gather>(weights, target, const_zero);
             const auto loss_unweighted = std::make_shared<v0::Squeeze>(loss_N1dd, axes);
-            const auto reduction_axes = get_dynamic_all_axes_range(loss_unweighted);
 
             loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
             if (reduction == "mean") {
-                const auto loss_sum = std::make_shared<v1::ReduceSum>(loss, reduction_axes);
-                const auto wg_sum = std::make_shared<v1::ReduceSum>(gather_weights, reduction_axes);
+                const auto loss_sum = std::make_shared<v1::ReduceSum>(loss, get_dynamic_all_axes_range(loss));
+                const auto wg_sum =
+                    std::make_shared<v1::ReduceSum>(gather_weights, get_dynamic_all_axes_range(gather_weights));
                 loss = std::make_shared<v1::Divide>(loss_sum, wg_sum);
             } else if (reduction == "sum") {
-                loss = std::make_shared<v1::ReduceSum>(loss, reduction_axes);
+                loss = std::make_shared<v1::ReduceSum>(loss, get_dynamic_all_axes_range(loss));
             }
         }
     } else {
         const auto const_ii =
             std::make_shared<v0::Constant>(ov::element::i64, Shape{1}, std::vector<int64_t>{ignore_index_value});
 
-        const auto zero_target =
-            std::make_shared<v3::Broadcast>(const_zero, std::make_shared<v0::ShapeOf>(expanded_target));
+        const auto sub = std::make_shared<v1::Subtract>(expanded_target, expanded_target);
+
         const auto expanded_target_i64 = std::make_shared<v0::Convert>(expanded_target, ov::element::i64);
         const auto mask = std::make_shared<v1::Equal>(expanded_target_i64, const_ii);
-        const auto transform_targets = std::make_shared<v1::Select>(mask, zero_target, expanded_target);
+        const auto transform_targets = std::make_shared<v1::Select>(mask, sub, expanded_target);
 
-        const auto gather_element = std::make_shared<v6::GatherElements>(data, expanded_target, 1);
+        const auto gather_element = std::make_shared<v6::GatherElements>(data, transform_targets, 1);
 
         ov::Output<ov::Node> input_gather_element_transform;
 
-        const auto const_zero_converted = std::make_shared<v1::ConvertLike>(const_zero, data);
-        const auto const_one_converted = std::make_shared<v1::ConvertLike>(const_one, data);
+        const auto const_zero_converted = std::make_shared<v0::Convert>(const_zero, data.get_element_type());
+        const auto const_one_converted = std::make_shared<v0::Convert>(const_one, data.get_element_type());
 
         input_gather_element_transform = std::make_shared<v1::Select>(mask, const_zero_converted, gather_element);
 
+        const auto one_target = std::make_shared<v3::Broadcast>(const_one, std::make_shared<v0::ShapeOf>(const_one));
         const auto loss_NCdd = std::make_shared<v0::Negative>(input_gather_element_transform);
-        const auto loss_N1dd = std::make_shared<v8::Slice>(loss_NCdd, const_zero, const_one, const_one, const_one);
+        const auto loss_N1dd = std::make_shared<v8::Slice>(loss_NCdd, const_zero, const_one, one_target, const_one);
 
         ov::Output<ov::Node> gather_weights;
 
@@ -126,15 +128,15 @@ ov::OutputVector negative_log_likelihood_loss(const ov::OutputVector inputs,
         }
 
         const auto loss_unweighted = std::make_shared<v0::Squeeze>(loss_N1dd, axes);
-        const auto reduction_axes = get_dynamic_all_axes_range(loss_unweighted);
 
         loss = std::make_shared<v1::Multiply>(loss_unweighted, gather_weights);
         if (reduction == "mean") {
-            const auto loss_sum = std::make_shared<v1::ReduceSum>(loss, reduction_axes);
-            const auto wg_sum = std::make_shared<v1::ReduceSum>(gather_weights, reduction_axes);
+            const auto loss_sum = std::make_shared<v1::ReduceSum>(loss, get_dynamic_all_axes_range(loss));
+            const auto wg_sum =
+                std::make_shared<v1::ReduceSum>(gather_weights, get_dynamic_all_axes_range(gather_weights));
             loss = std::make_shared<v1::Divide>(loss_sum, wg_sum);
         } else if (reduction == "sum") {
-            loss = std::make_shared<v1::ReduceSum>(loss, reduction_axes);
+            loss = std::make_shared<v1::ReduceSum>(loss, get_dynamic_all_axes_range(loss));
         }
     }
 

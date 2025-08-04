@@ -1,6 +1,18 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "emitters/plugin/x64/jit_emitter.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    include "jit_perf_count_rdtsc_emitters.hpp"
@@ -14,7 +26,7 @@ using namespace Xbyak::util;
 
 namespace ov::intel_cpu {
 
-jit_perf_count_rdtsc_start_emitter::jit_perf_count_rdtsc_start_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+jit_perf_count_rdtsc_start_emitter::jit_perf_count_rdtsc_start_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                                                        dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                                                        const std::shared_ptr<ov::Node>& n)
     : jit_emitter(host, host_isa) {
@@ -46,7 +58,7 @@ void jit_perf_count_rdtsc_start_emitter::emit_impl([[maybe_unused]] const std::v
 }
 
 ///////////////////jit_perf_count_rdtsc_end_emitter////////////////////////////////////
-jit_perf_count_rdtsc_end_emitter::jit_perf_count_rdtsc_end_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+jit_perf_count_rdtsc_end_emitter::jit_perf_count_rdtsc_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                                                                    dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                                                                    const std::shared_ptr<ov::Node>& n)
     : jit_emitter(host, host_isa) {

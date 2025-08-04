@@ -4,6 +4,14 @@
 
 #include "ngram.hpp"
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::NgramNode::NgramNode(const ov::Output<Node>& embeddings,

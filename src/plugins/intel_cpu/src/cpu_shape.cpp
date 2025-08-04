@@ -4,6 +4,13 @@
 
 #include "cpu_shape.h"
 
+#include <algorithm>
+#include <cstddef>
+#include <sstream>
+#include <string>
+
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
 #include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
@@ -14,7 +21,7 @@ bool Shape::isCompatible(const VectorDims& vecDims) const {
     }
 
     auto comparator = [](Dim lhs, Dim rhs) {
-        return (lhs == rhs) || (lhs == Shape::UNDEFINED_DIM);
+        return any_of(lhs, rhs, Shape::UNDEFINED_DIM);
     };
 
     if (!std::equal(getDims().begin(), getDims().end(), vecDims.begin(), comparator)) {
@@ -27,12 +34,9 @@ bool Shape::isCompatible(const VectorDims& vecDims) const {
         return false;
     }
 
-    if (!std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
-            return lhs <= rhs;
-        })) {
-        return false;
-    }
-    return true;
+    return std::equal(getMinDims().begin(), getMinDims().end(), vecDims.begin(), [](Dim lhs, Dim rhs) {
+        return lhs <= rhs;
+    });
 }
 
 std::string Shape::toString() const {

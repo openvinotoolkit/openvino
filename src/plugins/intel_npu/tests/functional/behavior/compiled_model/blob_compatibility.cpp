@@ -9,6 +9,8 @@
 #include <map>
 #include <string>
 
+#include "common/utils.hpp"
+
 using namespace ov::test::behavior;
 
 const auto all_models = []() -> std::vector<std::string> {
