@@ -76,7 +76,8 @@ std::shared_ptr<ov::Node> grid_sample_block(const std::shared_ptr<ov::Node>& inp
 
     auto attn_Gather_9 = wrap_type<Gather>({input_attn_offsets, any_input(), any_input()});
     // auto attn_squeeze_optional = optional<Squeeze, Reshape>({attn_Gather_9, any_input()});
-    auto attn_squeeze_optional = wrap_type<Squeeze>({attn_Gather_9, any_input()}) | wrap_type<Reshape>({attn_Gather_9, any_input()});
+    auto attn_squeeze_optional =
+        wrap_type<Squeeze>({attn_Gather_9, any_input()}) | wrap_type<Reshape>({attn_Gather_9, any_input()});
     auto attn_Transpose_1 = wrap_type<Transpose>({attn_squeeze_optional, any_input()});
     auto attn_Reshape_6 = wrap_type<Reshape>({attn_Transpose_1, any_input()});
 
