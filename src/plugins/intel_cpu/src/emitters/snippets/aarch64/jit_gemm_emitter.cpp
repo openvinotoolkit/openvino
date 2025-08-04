@@ -102,10 +102,8 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
-        const bool has_memory_offset = i < m_memory_offsets.size();
-        const bool has_buffer_id = i < m_buffer_ids.size();
-        const bool is_dynamic_offset = has_memory_offset && ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]);
-        const bool is_valid_buffer_id = has_buffer_id && !ov::snippets::utils::is_dynamic_value(m_buffer_ids[i]);
+        const bool is_dynamic_offset = ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]);
+        const bool is_valid_buffer_id = !ov::snippets::utils::is_dynamic_value(m_buffer_ids[i]);
 
         std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg, h->X_TMP_1};
 
@@ -118,7 +116,7 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
                                                          aux_regs,
                                                          runtime_offset);
         } else {
-            size_t offset = (is_dynamic_offset || !has_memory_offset) ? 0 : m_memory_offsets[i];
+            size_t offset = is_dynamic_offset ? 0 : m_memory_offsets[i];
             utils::push_ptr_with_static_offset_on_stack(h, gemm_args_offsets[i], mem_ptrs[i], aux_regs, offset);
         }
     }
