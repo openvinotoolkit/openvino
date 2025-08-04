@@ -1260,12 +1260,12 @@ size_t jit_logical_and_emitter::get_inputs_num() const {
     return 2;
 }
 
-size_t jit_logical_and_emitter::aux_gprs_count() const {
+size_t jit_logical_and_emitter::aux_fp_gprs_count() const {
     return 2;
 }
 
 size_t jit_logical_and_emitter::aux_vecs_count() const {
-    return 1;
+    return 2;
 }
 
 void jit_logical_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1280,21 +1280,29 @@ void jit_logical_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_logical_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
-    auto mask0 = VReg(aux_vec_idxs[0]);
-    auto mask1 = Reg(aux_gpr_idxs[0]);
-    load_table_val("one", mask1);
+    auto aux0 = VReg(aux_vec_idxs[0]);
+    auto aux1 = VReg(aux_vec_idxs[1]);
 
-    switch (exec_prc_) {
-    case ov::element::f32:
-        h->vand_vv(mask0, src0, src1);
-        h->vand_vx(dst, mask0, mask1);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
-    }
+    auto fzero = FReg(aux_fp_gpr_idxs[0]);
+    h->fmv_w_x(fzero, zero);
+
+    auto fone = FReg(aux_fp_gpr_idxs[1]);
+    load_table_val("one", fone);
+
+    h->vmv_v_x(aux0, zero);
+    h->vmfne_vf(mask_vreg(), src0, fzero);
+    h->vfadd_vf(aux0, aux0, fone, VM::masked);
+
+    h->vmv_v_x(aux1, zero);
+    h->vmfne_vf(mask_vreg(), src1, fzero);
+    h->vfadd_vf(aux1, aux1, fone, VM::masked);
+
+    h->vand_vv(dst, aux0, aux1);
 }
 
 std::set<std::vector<element::Type>> jit_logical_and_emitter::get_supported_precisions(
@@ -1399,28 +1407,29 @@ void jit_logical_xor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_logical_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
     auto aux0 = VReg(aux_vec_idxs[0]);
     auto aux1 = VReg(aux_vec_idxs[1]);
-    auto dst = VReg(out_vec_idxs[0]);
+
     auto fzero = FReg(aux_fp_gpr_idxs[0]);
+    h->fmv_w_x(fzero, zero);
+
     auto fone = FReg(aux_fp_gpr_idxs[1]);
     load_table_val("one", fone);
-    h->fmv_w_x(fzero, zero);
+
     h->vmv_v_x(aux0, zero);
+    h->vmfne_vf(mask_vreg(), src0, fzero);
+    h->vfadd_vf(aux0, aux0, fone, VM::masked);
+
     h->vmv_v_x(aux1, zero);
-    switch (exec_prc_) {
-    case ov::element::f32:
-        h->vmfne_vf(mask_vreg(), src0, fzero);
-        h->vfadd_vf(aux0, aux0, fone, VM::masked);
-        h->vmfne_vf(mask_vreg(), src1, fzero);
-        h->vfadd_vf(aux1, aux1, fone, VM::masked);
-        h->vxor_vv(dst, aux0, aux1);
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
-    }
+    h->vmfne_vf(mask_vreg(), src1, fzero);
+    h->vfadd_vf(aux1, aux1, fone, VM::masked);
+
+    h->vxor_vv(dst, aux0, aux1);
 }
 
 std::set<std::vector<element::Type>> jit_logical_xor_emitter::get_supported_precisions(
