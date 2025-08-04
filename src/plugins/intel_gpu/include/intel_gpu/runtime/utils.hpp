@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "openvino/core/except.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace cldnn {
 
@@ -231,7 +232,7 @@ inline std::string to_string(const T& v) {
 // Overload << operator for vectors
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
-    os << "[" << ov::util::join(vec) << "];
+    os << "[" << ov::util::join(vec) << "]";
     return os;
 }
 
