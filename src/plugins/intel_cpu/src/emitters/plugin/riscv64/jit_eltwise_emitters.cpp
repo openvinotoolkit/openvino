@@ -377,8 +377,8 @@ void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto one = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("one", one);
 
-    h->vmv_v_x(dst, zero);                   // set dst to 0
     h->vmfeq_vv(mask_vreg(), src0, src1);    // compare, result in mask
+    h->vmv_v_x(dst, zero);                   // set dst to 0
     h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
 }
 
@@ -936,8 +936,8 @@ void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto one = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("one", one);
 
-    h->vmv_v_x(dst, zero);
     h->vmfge_vv(mask_vreg(), src0, src1);
+    h->vmv_v_x(dst, zero);
     h->vfadd_vf(dst, dst, one, VM::masked);
 }
 
@@ -1130,8 +1130,8 @@ void jit_less_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto one = FReg(aux_fp_gpr_idxs[0]);
     load_table_val("one", one);
 
-    h->vmv_v_x(dst, zero);                   // set dst to 0
     h->vmfle_vv(mask_vreg(), src0, src1);    // compare "less than or equal", result in mask
+    h->vmv_v_x(dst, zero);                   // set dst to 0
     h->vfadd_vf(dst, dst, one, VM::masked);  // set 1.0 where mask is true
 }
 
@@ -1311,15 +1311,17 @@ void jit_logical_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
-    auto src0 = VReg(in_vec_idxs[0]);
+    OPENVINO_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision");
+
+    auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
     auto fzero = FReg(aux_fp_gpr_idxs[0]);
     auto fone = FReg(aux_fp_gpr_idxs[1]);
+
     load_table_val("one", fone);
     h->fmv_w_x(fzero, zero);
+    h->vmfne_vf(mask_vreg(), src, fzero);
     h->vfmv_v_f(dst, fone);
-    OPENVINO_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision");
-    h->vmfne_vf(mask_vreg(), src0, fzero);
     h->vfsub_vf(dst, dst, fone, VM::masked);
 }
 
