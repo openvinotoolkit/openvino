@@ -123,7 +123,6 @@ MultiScaleDeformableAttnFusion::MultiScaleDeformableAttnFusion() : MultiMatcher(
 
     auto callback = [OV_CAPTURE_CPY_AND_THIS](
                         const std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>>& matches) {
-        std::cout << "wzx debug matches.size()" << matches.size() << std::endl;
         if (matches.size() != 2) {
             return;
         }
@@ -218,7 +217,6 @@ MultiScaleDeformableAttnFusion::MultiScaleDeformableAttnFusion() : MultiMatcher(
             }
         }
     };
-    std::cout << "wzx debug register" << std::endl;
 
     register_patterns({grid_sampler_block, attn_output_proj_MatMul_transpose_a}, callback, true);
 }
