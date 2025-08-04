@@ -1003,6 +1003,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.new_full.default", op::translate_new_full_fx},
         {"aten.new_ones.default", op::translate_new_ones_fx},
         {"aten.new_zeros.default", op::translate_new_zeros_fx},
+        {"aten.nonzero.default", op::translate_nonzero},
         {"aten.ones.default", op::translate_ones_fx},
         {"aten.ones.names", op::translate_ones_fx},
         {"aten.ones_like.default", op::translate_ones_like_fx},
