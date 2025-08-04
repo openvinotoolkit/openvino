@@ -111,7 +111,7 @@ void jit_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
         h->vadd_vv(dst, src0, src1);
         break;
     default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
     }
 }
 
@@ -699,7 +699,7 @@ size_t jit_mod_emitter::aux_vecs_count() const {
     if (exec_prc_ == ov::element::i32) {
         return 0;
     }
-    OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
 }
 size_t jit_mod_emitter::aux_fp_gprs_count() const {
     if (exec_prc_ == ov::element::f32) {
@@ -708,7 +708,7 @@ size_t jit_mod_emitter::aux_fp_gprs_count() const {
     if (exec_prc_ == ov::element::i32) {
         return 0;
     }
-    OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+    OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
 }
 void jit_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
