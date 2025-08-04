@@ -119,32 +119,6 @@ void ZeGraphExtWrappers::initializeGraph(ze_graph_handle_t graphHandle, uint32_t
         _logger.debug("Use initialize_graph_through_command_list for ext version smaller than 1.8");
         initialize_graph_through_command_list(graphHandle, commandQueueGroupOrdinal);
     } else {
-
-        std::cout << "===== ZeGraphExtWrappers pfnGetProperties3\n";
-        ze_graph_properties_3_t properties3 = {};
-        properties3.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-        _logger.debug("initializeGraph - perform pfnGetProperties3");
-        _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphHandle, &properties3);
-        std::cout << "properties3.flags: " << properties3.flags << "\n";
-
-        switch (properties3.flags){
-            case ZE_GRAPH_PROPERTIES_FLAG_LOADED_FROM_CACHE:
-                std::cout << "properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_LOADED_FROM_CACHE\n";
-                break;
-            case ZE_GRAPH_PROPERTIES_FLAG_COMPILED:
-                std::cout << "properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_COMPILED\n";
-                break;
-            case ZE_GRAPH_PROPERTIES_FLAG_PRE_COMPILED:
-                std::cout << "properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_PRE_COMPILED\n";
-                break;
-            case ZE_GRAPH_PROPERTIES_FLAG_FORCE_UINT32:
-                std::cout << "properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_FORCE_UINT32\n";
-                break;
-            default:
-                std::cout << "properties3.flags: default\n";
-                break;
-        }
- 
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
         properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
@@ -503,6 +477,41 @@ void ZeGraphExtWrappers::getMetadata(ze_graph_handle_t graphHandle,
 NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(ze_graph_handle_t graphHandle) const {
     ze_graph_properties_t graphProperties = {};
     graphProperties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 12)) {
+        //TODO add fallback to properties1
+        _logger.info("pfnGetProperties3 not supported");
+    } else {
+        ze_graph_properties_3_t properties3 = {};
+        properties3.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+
+        _logger.debug("getNetworkMeta - perform pfnGetProperties3");
+        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties3(graphHandle, &properties3);
+        THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties3", result, _zeroInitStruct->getGraphDdiTable());
+        _logger.info("pfnGetProperties3 flags: %d", properties3.flags);
+
+        //delete this
+        std::cout << "===================================\n getNetworkMeta pfnGetProperties3\n";
+        switch (properties3.flags){
+            case ZE_GRAPH_PROPERTIES_FLAG_LOADED_FROM_CACHE:
+                std::cout << "===========getNetworkMeta properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_LOADED_FROM_CACHE\n";
+                break;
+            case ZE_GRAPH_PROPERTIES_FLAG_COMPILED:
+                std::cout << "===========getNetworkMeta properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_COMPILED\n";
+                break;
+            case ZE_GRAPH_PROPERTIES_FLAG_PRE_COMPILED:
+                std::cout << "===========getNetworkMeta properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_PRE_COMPILED\n";
+                break;
+            case ZE_GRAPH_PROPERTIES_FLAG_FORCE_UINT32:
+                std::cout << "===========getNetworkMeta properties3.flags: ZE_GRAPH_PROPERTIES_FLAG_FORCE_UINT32\n";
+                break;
+            default:
+                std::cout << "===========getNetworkMeta properties3.flags: default\n";
+                break;
+            }
+        std::cout << "===================================\n";
+        //delete this
+    }
 
     _logger.debug("getNetworkMeta - perform pfnGetProperties");
     auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(graphHandle, &graphProperties);
