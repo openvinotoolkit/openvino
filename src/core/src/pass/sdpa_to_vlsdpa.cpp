@@ -64,26 +64,12 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     };
 
     // change "attention_mask" to "cu_seq_lens", and "window_attention_mask" to "cu_window_seqlens"
-    const std::map<std::string, std::string> mask_2_seqlens_mapping{{"attention_mask", "cu_seq_lens"},
-                                                                    {"window_attention_mask", "cu_window_seqlens"}};
+    constexpr std::array<std::pair<std::string_view, std::string_view>, 2> mask_2_seqlens_mapping = {{
+        {"attention_mask", "cu_seq_lens"},
+        {"window_attention_mask", "cu_window_seqlens"}
+    }};
     for (const auto& [param_name, param_new] : mask_2_seqlens_mapping) {
-        if (auto param = get_parameter(model, param_name)) {
-            //
-            if (param->output(0).get_target_inputs().size() == 0) {
-                std::stringstream consumers;
-                consumers << std::endl;
-                for (auto& input : param->output(0).get_target_inputs()) {
-                    consumers << *input.get_node() << std::endl;
-                }
-                OPENVINO_ASSERT(param->output(0).get_target_inputs().size() == 0,
-                                "VLSDPA transformation failed: couldn't remove ",
-                                param->output(0).get_target_inputs().size(),
-                                " inputs of ",
-                                param_name,
-                                " input: ",
-                                consumers.str());
-            }
-
+        if (auto param = get_parameter(model, std::string(param_name))) {
             // all consumers should be SDPA
             bool consumers_are_sdpa = true;
             for (auto target : param->get_output_target_inputs(0)) {
@@ -105,7 +91,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
             model->remove_parameter(param);
             auto cu_seqlens_param =
-                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), param_new.c_str());
+                setName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}), std::string(param_new).c_str());
             model->add_parameters({cu_seqlens_param});
             for (auto target : param->get_output_target_inputs(0)) {
                 auto sdpa =

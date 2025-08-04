@@ -273,10 +273,6 @@ void ov::ISyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                     "The tensor element type is not corresponding with output element type (",
                     tensor->get_element_type(),
                     " != ",
-                    port.get_element_type(),
-                    " type ",
-                    tensor_type,
-                    " port ",
                     port.get_any_name());
     bool is_dynamic = port.get_partial_shape().is_dynamic();
     OPENVINO_ASSERT(is_dynamic || port.get_shape() == tensor->get_shape(),
