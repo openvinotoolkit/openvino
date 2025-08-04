@@ -614,7 +614,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                                               ),
                                         explicit_transpose_3d(1,    // B (batch)
                                                               5,    // S_q (query len)
-                                                              32,   // S_kv (kv len)
+                                                              3,   // S_kv (kv len)
                                                               32,   // E (embedding)
                                                               32,   // Ev (V embedding)
                                                               {},   // mask_shape
