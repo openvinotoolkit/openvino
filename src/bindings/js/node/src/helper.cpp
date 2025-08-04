@@ -594,16 +594,16 @@ std::string buffer_to_string(const Napi::Value& value) {
 
 uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
     try {
-        auto supported_properties = actual.get_property(ov::supported_properties);
+        const auto supported_properties = actual.get_property(ov::supported_properties);
+        const auto has_optimal_num_of_requests = std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
+                supported_properties.end();
         OPENVINO_ASSERT(
-            std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
-                supported_properties.end(),
+            has_optimal_num_of_requests,
             "Can't load network: ",
             ov::optimal_number_of_infer_requests.name(),
-            " is not supported!",
-            " Please specify number of infer requests directly!");
+            " is not supported! Please specify number of infer requests directly!");
         return actual.get_property(ov::optimal_number_of_infer_requests);
     } catch (const std::exception& ex) {
-        OPENVINO_THROW("Can't load network: ", ex.what(), " Please specify number of infer requests directly!");
+        OPENVINO_THROW("Can't load network: ", ex.what(), ". Please specify number of infer requests directly!");
     }
 }
