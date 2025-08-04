@@ -96,41 +96,38 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     const size_t A_offset = offsetof(GemmKaiKernelExecutor::call_args, A);
     const size_t B_offset = offsetof(GemmKaiKernelExecutor::call_args, B);
     const size_t C_offset = offsetof(GemmKaiKernelExecutor::call_args, C);
-    const size_t scratch_offset = offsetof(GemmKaiKernelExecutor::call_args, scratch);
 
-    const std::vector<size_t> gemm_args_offsets = {A_offset, B_offset, C_offset, scratch_offset};
+    const std::vector<size_t> gemm_args_offsets = {A_offset, B_offset, C_offset};
 
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
-        if (i < m_memory_offsets.size() && ov::snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
-            if (i < m_buffer_ids.size() && !ov::snippets::utils::is_dynamic_value(m_buffer_ids[i]) &&
-                m_buffer_ids[i] < 24) {
-                size_t runtime_offset = GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t);
+        const bool has_memory_offset = i < m_memory_offsets.size();
+        const bool has_buffer_id = i < m_buffer_ids.size();
+        const bool is_dynamic_offset = has_memory_offset && ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]);
+        const bool is_valid_buffer_id = has_buffer_id && !ov::snippets::utils::is_dynamic_value(m_buffer_ids[i]);
 
-                // Create auxiliary register vector for the utility function
-                std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg,
-                                                             callee_saved_reg,
-                                                             Xbyak_aarch64::XReg(10)};
-                utils::push_ptr_with_runtime_offset_on_stack(h,
-                                                             gemm_args_offsets[i],
-                                                             mem_ptrs[i],
-                                                             aux_regs,
-                                                             runtime_offset);
-            } else {
-                std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg};
-                utils::push_ptr_with_static_offset_on_stack(h, gemm_args_offsets[i], mem_ptrs[i], aux_regs, 0);
-            }
+        std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg};
+
+        if (is_dynamic_offset && is_valid_buffer_id) {
+            aux_regs.emplace_back(h->X_TMP_0);
+            size_t runtime_offset = GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t);
+            utils::push_ptr_with_runtime_offset_on_stack(h,
+                                                         gemm_args_offsets[i],
+                                                         mem_ptrs[i],
+                                                         aux_regs,
+                                                         runtime_offset);
         } else {
-            size_t offset = (i < m_memory_offsets.size()) ? m_memory_offsets[i] : 0;
-            std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg};
+            size_t offset = (is_dynamic_offset || !has_memory_offset) ? 0 : m_memory_offsets[i];
             utils::push_ptr_with_static_offset_on_stack(h, gemm_args_offsets[i], mem_ptrs[i], aux_regs, offset);
         }
     }
 
     if (mem_ptrs.size() < 4) {
         h->mov(call_address_reg, 0);
-        h->str(call_address_reg, Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(scratch_offset)));
+        h->str(
+            call_address_reg,
+            Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(ov::intel_cpu::rnd_up(reserved_stack_size, sp_alignment))));
     }
 
     Xbyak_aarch64::XReg x0(0);

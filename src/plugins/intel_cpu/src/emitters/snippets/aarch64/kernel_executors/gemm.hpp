@@ -58,7 +58,6 @@ public:
         const void* A;
         const void* B;
         void* C;
-        void* scratch;
     };
 
     GemmKaiKernelExecutor(GemmKernelKaiConfig config);
