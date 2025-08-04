@@ -96,7 +96,8 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
         auto check_one = [](const Output<Node>& output) -> bool {
             auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
-            if (!node) return false;
+            if (!node)
+                return false;
             const auto& bcst_arg = node->cast_vector<float>();
             return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
                 return i == 1.0F;
