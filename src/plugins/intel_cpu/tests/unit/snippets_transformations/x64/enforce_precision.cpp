@@ -117,7 +117,7 @@ typedef std::tuple<
 class EnforcePrecisionTest : public TransformationTestsF,
                              public testing::WithParamInterface<EnforcePrecisionParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<EnforcePrecisionParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<EnforcePrecisionParams>& obj) {
         const auto& [shapes, test_values] = obj.param;
         auto to_string = [](const std::set<std::vector<element::Type>>& precisions_pack) noexcept {
             std::ostringstream result;

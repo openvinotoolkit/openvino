@@ -15,7 +15,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string ReduceCPULayerTest::getTestCaseName(testing::TestParamInfo<ReduceLayerCPUTestParamSet> obj) {
+std::string ReduceCPULayerTest::getTestCaseName(const testing::TestParamInfo<ReduceLayerCPUTestParamSet>& obj) {
     const auto& [basicParams, cpuParams, fusingParams, additionalConfig] = obj.param;
     const auto& [axes, opType, keepDims, reductionType, netPrecision, inPrc, outPrc, inputShapes] = basicParams;
     std::ostringstream result;

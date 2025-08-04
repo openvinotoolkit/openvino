@@ -21,7 +21,7 @@ class TileLayerCPUTest : public testing::WithParamInterface<TileLayerCPUTestPara
                          virtual public ov::test::SubgraphBaseTest,
                          public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TileLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TileLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [inputShapes, repeats, netPrecision, isRepeatsConst, deviceName] = basicParamsSet;
         std::ostringstream result;
