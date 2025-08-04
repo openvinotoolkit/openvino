@@ -245,8 +245,7 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
 
         _cached_lstm_weights_reorder[ckey] = &permute_node;
     } else {
-        p.remove_connection(prev, node);
-        p.add_connection(*itr->second, node, 0, i);
+        node.replace_dependency(i, *itr->second, false);
     }
 }
 
@@ -295,8 +294,7 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
 
         _cached_lstm_bias_reorder[ckey] = &con_node;
     } else {
-        p.remove_connection(prev, node);
-        p.add_connection(*itr->second, node, 0, i);
+        node.replace_dependency(i, *itr->second, false);
     }
 }
 

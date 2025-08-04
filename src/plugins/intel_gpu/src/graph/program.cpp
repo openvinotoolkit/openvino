@@ -908,22 +908,13 @@ void program::add_intermediate(program_node& node,
     add_intermediate(node, next, idx, connect_int_node_with_old_dep, move_usrs_of_prev_to_node);
 }
 
-void program::add_connection(program_node& prev, program_node& next, int32_t port_idx, size_t dependency_idx) {
+void program::add_connection(program_node& prev, program_node& next, int32_t port_idx) {
     prev.users.push_back(&next);
     // When this function is called from program::replace, we need to keep the port number as it was
     if (port_idx < 0)
         port_idx = next.get_port_from_deps(prev.id());
 
-    if (dependency_idx < 0) {
-        // If dependency_idx is not specified, we add it to the end of the dependencies list
-        next.dependencies.push_back({&prev, port_idx});
-    } else {
-        // If dependency_idx is specified, we insert it at the specified position
-        if (dependency_idx >= next.dependencies.size())
-            next.dependencies.push_back({&prev, port_idx});
-        else
-            next.dependencies.insert(next.dependencies.begin() + dependency_idx, {&prev, port_idx});
-    }
+    next.dependencies.push_back({&prev, port_idx});
 }
 
 void program::remove_connection(program_node& prev, program_node& next) {
