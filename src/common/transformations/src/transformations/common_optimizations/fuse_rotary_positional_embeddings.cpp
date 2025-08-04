@@ -24,9 +24,9 @@
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
-#include "openvino/op/slice.hpp"
 #include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -75,7 +75,7 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
-    
+
     symbolic_ctx_manager->register_pass<ov::pass::Serialize>("/home/rmikhail/models/ovc_tests/model_rope.xml",
                                                              "/home/rmikhail/models/ovc_tests/model_rope.bin");
 
@@ -672,9 +672,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         pattern::wrap_type<v1::VariadicSplit>({qkv_linear, -1, {"total_size_q", "total_size_k", "total_size_v"}});
     qkv_proj->set_output_size(3);
     auto reshape_pattern_const = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, head_size"));
-    auto cur_key =
-        pattern::wrap_type<v1::Reshape>({qkv_proj, reshape_pattern_const},
-                                        {{"special_zero", true}});
+    auto cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj, reshape_pattern_const}, {{"special_zero", true}});
     std::shared_ptr<ov::Node> input_key = nullptr;
     // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
     // Calculate positional embedding independent of batch and each head
@@ -683,9 +681,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         // For Models, where SDPA to PagedAttention transformation was applied,
         // all sequences have the size == 1, we move sequences to the batch, this is the PagedAttention specific,
         // so seq_length dim will be always 1, this means that Transpose is unnecessary and Reshape op can be used.
-        auto transposed_cur_key =
-            pattern::wrap_type<v1::Reshape>({qkv_proj, {"-1", "head_cnt", "1", "head_size"}},
-                                            {{"special_zero", false}});
+        auto transposed_cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj, {"-1", "head_cnt", "1", "head_size"}},
+                                                                  {{"special_zero", false}});
         // Transpose for SDPA version:
         input_key = pattern::wrap_type<v1::Transpose>({cur_key, {0, 2, 1, 3}}) | transposed_cur_key;
     } else {
@@ -797,7 +794,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
         auto symbols = m.get_symbols();
-        
+
         auto ndims_over_2 = symbols["ndims/2"];
         auto ndims = symbols["ndims"];
         auto head_cnt = symbols["head_cnt"];
@@ -809,7 +806,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
             !total_size_q.is_integer() || !total_size_k.is_integer() || ndims_over_2.i() * 2 != ndims.i()) {
             return false;
         }
-        
+
         op::internal::RoPE::Config config;
         OutputVector new_args;
         config.rotary_ndims = static_cast<size_t>(ndims.i());
