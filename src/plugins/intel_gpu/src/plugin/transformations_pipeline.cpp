@@ -1293,9 +1293,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::EliminatePad>();
 
         manager.register_pass<ov::pass::ConstantsReduce>();
-        std::cout << "wzx debug hit1" << std::endl;
         manager.register_pass<ov::pass::MultiScaleDeformableAttnFusion>();
-        std::cout << "wzx debug hit2" << std::endl;
 
         // This is supposed to be the last pass to ensure that we don't have name collisions until
         // GPU plugin stops using friendly names for program creation
