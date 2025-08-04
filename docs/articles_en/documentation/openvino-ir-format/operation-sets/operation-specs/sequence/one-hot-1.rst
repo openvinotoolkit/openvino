@@ -39,10 +39,13 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
 
 **Inputs**:
 
-* **1**: ``indices``: input tensor of type *T1* with non-negative indices, behavior for negative indices is undefined. Can be 0D. **Required.**
+* **1**: ``indices``: input tensor of type *T1* with indices. Negative indices in the range ``[-depth, -1]`` are mapped to ``depth + index``; values outside the range ``[-depth, depth-1]`` result in all ``off_value``. Can be 0D. **Required.**
 * **2**: ``depth``: positive scalar (0D tensor) of type *T1* that specifies the number of classes and thus the size of the one-hot dimension. **Required.**
 * **3**: ``on_value``: scalar (0D tensor) of type *T2* that fills the locations in output tensor specified in ``indices``. **Required.**
 * **4**: ``off_value``: scalar (0D tensor) of type *T2* that fills the locations not represented in ``indices``. **Required.**
+
+.. note::
+    Behavior before 2025.4 OpenVINO release: Negative indices were not supported.
 
 **Outputs**:
 
