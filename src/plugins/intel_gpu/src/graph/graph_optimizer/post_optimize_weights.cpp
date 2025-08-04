@@ -188,7 +188,7 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
                                                      cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    cache_key_lstm ckey{prev.id(), reorder_params->get_output_layout()};
+    cache_key ckey{prev.id(), reorder_params->get_output_layout()};
     auto itr = _cached_lstm_weights_reorder.find(ckey);
     if (itr == _cached_lstm_weights_reorder.end()) {
         std::string reorder_id = input_id + "_reo_" + std::to_string(i);
@@ -254,7 +254,7 @@ void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::sh
                                                   cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    cache_key_lstm ckey{prev.id(), reorder_params->get_output_layout()};
+    cache_key ckey{prev.id(), reorder_params->get_output_layout()};
     auto itr = _cached_lstm_bias_reorder.find(ckey);
     if (itr == _cached_lstm_bias_reorder.end()) {
         const auto dir_num = static_cast<int>(reorder_params->get_input_layout().get_shape()[0]);
