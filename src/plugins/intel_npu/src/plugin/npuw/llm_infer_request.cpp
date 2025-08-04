@@ -220,7 +220,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         m_kvcache_out_ports.emplace(output_port.get_any_name(), output_port);
     }
 
-    const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         clear_chunk_prefill_kv_cache();
@@ -548,7 +547,6 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
 
     prepare_for_new_conversation();
 
-    const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         infer_chunked_prefill(input_ids, attention_mask, position_ids);
