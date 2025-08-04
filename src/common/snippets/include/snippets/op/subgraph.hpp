@@ -90,9 +90,9 @@ public:
 
     Subgraph() = default;
 
-    Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
+    explicit Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 
-    Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
+    explicit Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 

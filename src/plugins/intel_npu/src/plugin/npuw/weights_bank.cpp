@@ -110,7 +110,10 @@ void Bank::evaluate_cpu(Bank::DeviceBank& device_bank, const std::vector<LazyTen
         NPUW_ASSERT(iter_device_registered != device_bank.registered_tensors.end() &&
                     "Tensor should be registered first!");
         auto uid = iter_device_registered->second;
-        device_bank.storage.at(uid).tensor = lt.eval();
+        auto t = lt.eval();
+        device_bank.storage.at(uid).tensor = ov::Tensor(t.get_element_type(), t.get_shape());
+        // Get ownership of the weights, might be a mmaped object during import
+        t.copy_to(device_bank.storage.at(uid).tensor);
         const_cast<LazyTensor&>(lt).detach();
     });
 }

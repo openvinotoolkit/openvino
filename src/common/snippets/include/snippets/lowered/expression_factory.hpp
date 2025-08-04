@@ -23,7 +23,7 @@ namespace ov::snippets::lowered {
 
 class ExpressionFactory {
 public:
-    ExpressionFactory(std::shared_ptr<IShapeInferSnippetsFactory> shape_infer_factory)
+    explicit ExpressionFactory(std::shared_ptr<IShapeInferSnippetsFactory> shape_infer_factory)
         : m_shape_infer_factory(std::move(shape_infer_factory)) {}
 
     template <typename T = Expression,

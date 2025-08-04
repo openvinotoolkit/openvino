@@ -16,10 +16,7 @@ namespace test {
 
 std::string FuseMulAddAndEwSimpleTest::getTestCaseName(testing::TestParamInfo<FuseMulAddAndEwSimpleParams> obj) {
     std::ostringstream result;
-    ov::Shape inputShape;
-    ov::element::Type inPrec;
-    std::tie(inputShape, inPrec) = obj.param;
-
+    const auto& [inputShape, inPrec] = obj.param;
     result << "IS=" << inputShape << "_";
     result << "Precision=" << inPrec.get_type_name();
 
