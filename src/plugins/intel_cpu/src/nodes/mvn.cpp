@@ -54,6 +54,7 @@
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -141,7 +142,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1003,7 +1004,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {

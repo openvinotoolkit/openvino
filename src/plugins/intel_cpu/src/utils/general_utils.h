@@ -203,4 +203,21 @@ inline bool all_of_values(const Container& container, const T& value) {
     });
 }
 
+template <typename T>
+inline bool contains(const std::vector<T>& v, const T& value) {
+    return std::any_of(v.begin(), v.end(), [&](const auto& elem) {
+        return elem == value;
+    });
+}
+
+template <class Map>
+bool contains_key_value(const Map& m, const typename Map::value_type& kv) {
+    const auto& [k, v] = kv;
+    if (auto it = m.find(k); it != m.end()) {
+        return it->second == v;
+    }
+
+    return false;
+}
+
 }  // namespace ov::intel_cpu

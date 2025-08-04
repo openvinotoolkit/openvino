@@ -47,8 +47,8 @@ private:
     dnnl::algorithm alg;
     size_t size = 1;
     int k = 1;
-    float alpha = 1.0f;
-    float beta = 1.0f;
+    float alpha = 1.0F;
+    float beta = 1.0F;
 };
 
 }  // namespace ov::intel_cpu::node

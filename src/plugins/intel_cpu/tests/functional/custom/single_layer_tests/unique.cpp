@@ -5,10 +5,13 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/general_utils.h"
 #include "openvino/op/unique.hpp"
 
 using namespace CPUTestUtils;
-using namespace ov::test;
+
+namespace ov {
+namespace test {
 
 typedef std::tuple<std::vector<InputShape>,  // Input shapes
                    std::tuple<bool, int>,    // Is flattened and axis
@@ -24,15 +27,7 @@ class UniqueLayerTestCPU : public testing::WithParamInterface<UniqueLayerTestCPU
                            public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<UniqueLayerTestCPUParams> obj) {
-        std::vector<InputShape> inputShapes;
-        std::tuple<bool, int> flatOrAxis;
-        bool sorted;
-        ElementType dataPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig) = obj.param;
-
+        const auto &[inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=(";
         for (size_t i = 0lu; i < inputShapes.size(); i++) {
@@ -72,47 +67,39 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> inputShapes;
-        std::tuple<bool, int> flatOrAxis;
-        bool sorted, flattened;
-        int axis;
-        ElementType dataPrecision;
-        CPUSpecificParams cpuParams;
-        ov::AnyMap additionalConfig;
-
-        std::tie(inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig) = this->GetParam();
+        const auto &[inputShapes, flatOrAxis, sorted, dataPrecision, cpuParams, additionalConfig] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         targetDevice = ov::test::utils::DEVICE_CPU;
         init_input_shapes(inputShapes);
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
-        flattened = std::get<0>(flatOrAxis);
+        const auto [flattened, axis] = flatOrAxis;
 
-        if (additionalConfig[ov::hint::inference_precision.name()] == ov::element::bf16) {
+        auto modelPrecision = dataPrecision;
+        if (intel_cpu::contains_key_value(additionalConfig, {ov::hint::inference_precision.name(), ov::element::bf16})) {
             selectedType = makeSelectedTypeStr(selectedType, ElementType::bf16);
         } else {
-            if (dataPrecision == ElementType::bf16) {
-                dataPrecision = ElementType::f32;
+            if (modelPrecision == ElementType::bf16) {
+                modelPrecision = ElementType::f32;
             }
-            selectedType = makeSelectedTypeStr(selectedType, dataPrecision);
+            selectedType = makeSelectedTypeStr(selectedType, modelPrecision);
         }
 
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes) {
-            params.push_back(std::make_shared<ov::op::v0::Parameter>(dataPrecision, shape));
+            params.push_back(std::make_shared<ov::op::v0::Parameter>(modelPrecision, shape));
         }
         params[0]->set_friendly_name("data");
         std::shared_ptr<ov::Node> uniqueNode;
         if (flattened) {
             uniqueNode = std::make_shared<ov::op::v10::Unique>(params[0], sorted);
         } else {
-            axis = std::get<1>(flatOrAxis);
             uniqueNode = std::make_shared<ov::op::v10::Unique>(
                 params[0],
                 ov::op::v0::Constant::create(ov::element::i64, ov::Shape({1}), {axis}),
                 sorted);
         }
 
-        function = makeNgraphFunction(dataPrecision, params, uniqueNode, "UniqueCPU");
+        function = makeNgraphFunction(modelPrecision, params, uniqueNode, "UniqueCPU");
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
@@ -136,8 +123,6 @@ protected:
 };
 
 TEST_P(UniqueLayerTestCPU, CompareWithRefs) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
-
     run();
     CheckPluginRelatedResults(compiledModel, "Unique");
 }
@@ -279,3 +264,5 @@ INSTANTIATE_TEST_SUITE_P(nightly_dynamic,
                                             ::testing::Values(additionalConfig[0])),
                          UniqueLayerTestCPU::getTestCaseName);
 }  // namespace
+}  // namespace test
+}  // namespace ov
