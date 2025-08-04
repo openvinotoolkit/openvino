@@ -37,22 +37,9 @@ class ROIAlignLayerCPUTest : public testing::WithParamInterface<ROIAlignLayerCPU
                              public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ROIAlignLayerCPUTestParamsSet> obj) {
-        ROIAlignLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        std::string td;
-        ElementType netPrecision;
-        ROIAlignSpecificParams roiPar;
-        std::tie(roiPar, netPrecision, td) = basicParamsSet;
-
-        int pooledH;
-        int pooledW;
-        float spatialScale;
-        int samplingRatio;
-        std::string mode;
-        std::string alignedMode;
-        ROIAlignShapes inputShapes;
-        std::tie(pooledH, pooledW, spatialScale, samplingRatio, mode, alignedMode, inputShapes) = roiPar;
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [roiPar, netPrecision, td] = basicParamsSet;
+        const auto& [pooledH, pooledW, spatialScale, samplingRatio, mode, alignedMode, inputShapes] = roiPar;
         std::ostringstream result;
 
         result << netPrecision << "_IS=";
@@ -128,24 +115,11 @@ protected:
     }
 
     void SetUp() override {
-        ROIAlignLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        ROIAlignSpecificParams roiAlignParams;
-        ElementType inputPrecision;
-        std::tie(roiAlignParams, inputPrecision, targetDevice) = basicParamsSet;
-
-        int pooledH;
-        int pooledW;
-        float spatialScale;
-        int samplingRatio;
-        std::string mode;
-        std::string alignedMode;
-        ROIAlignShapes inputShapes;
-        std::tie(pooledH, pooledW, spatialScale, samplingRatio, mode, alignedMode, inputShapes) = roiAlignParams;
-
+        const auto& [roiAlignParams, inputPrecision, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
+        const auto& [pooledH, pooledW, spatialScale, samplingRatio, mode, alignedMode, inputShapes] = roiAlignParams;
         init_input_shapes(inputShapes);
 
         ov::ParameterVector float_params;
