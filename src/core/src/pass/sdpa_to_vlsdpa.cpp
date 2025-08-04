@@ -17,7 +17,7 @@
 using namespace ov::op;
 using namespace ov::pass;
 
-SDPAToVLSDPA::SDPAToVLSDPA() {}
+SDPAToVLSDPA::SDPAToVLSDPA() = default;
 
 static std::shared_ptr<v0::Parameter> setName(std::shared_ptr<v0::Parameter> node, const char* name) {
     // Set name for both node and output tensor (should be only one tensor, and any other names will be overriden by a
