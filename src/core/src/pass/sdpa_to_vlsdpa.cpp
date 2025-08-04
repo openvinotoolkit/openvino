@@ -4,7 +4,9 @@
 
 #include "openvino/pass/sdpa_to_vlsdpa.hpp"
 
-#include <map>
+#include <array>
+#include <string_view>
+#include <utility>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
