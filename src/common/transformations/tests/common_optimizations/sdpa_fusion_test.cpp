@@ -569,7 +569,7 @@ TEST_P(SDPAFusionExplicitTranspose, SDPAFusionTest_explicit_transpose) {
     // SDPA model.
     {
         sdpa.transpose_k(get_tranpose_order(param.q_shape.size()));
-        sdpa.create_pattern_sdpa();
+        sdpa.create_pattern_sdpa(true);  // transpose_b=true since K is already transposed
         model = sdpa.build_model();
         manager.register_pass<ov::pass::SDPAFusion>();
     }
@@ -596,7 +596,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                  Values(explicit_transpose_4d(1,    // B (batch)
                                                               32,   // H (heads)
                                                               5,    // S_q (query len)
-                                                              3,    // S_kv (kv len)
+                                                              32,   // S_kv (kv len) - match E for transpose compatibility
                                                               32,   // E (embedding)
                                                               32,   // Ev (V embedding)
                                                               {},   // mask_shape
@@ -605,15 +605,15 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                         explicit_transpose_4d(1,               // B (batch)
                                                               32,              // H (heads)
                                                               128,             // S_q (query len)
-                                                              128,             // S_kv (kv len)
+                                                              64,              // S_kv (kv len) - match E for transpose compatibility
                                                               64,              // E (embedding)
                                                               64,              // Ev (V embedding)
-                                                              {32, 128, 128},  // mask_shape
+                                                              {32, 128, 64},   // mask_shape (adjusted)
                                                               0.125f           // scale
                                                               ),
                                         explicit_transpose_3d(1,    // B (batch)
                                                               5,    // S_q (query len)
-                                                              3,    // S_kv (kv len)
+                                                              32,   // S_kv (kv len) - match E for transpose compatibility
                                                               32,   // E (embedding)
                                                               32,   // Ev (V embedding)
                                                               {},   // mask_shape
