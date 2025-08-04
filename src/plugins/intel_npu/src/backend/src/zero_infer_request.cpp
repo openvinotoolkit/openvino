@@ -326,25 +326,25 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
             return;
         }
-        // Check if batch has been changed
-        if (get_user_input(foundPort.idx) != nullptr) {
-            _logger.debug(
-                "ZeroInferRequest::set_tensor - check if input tensors may have their sizes changed, existing: %zu and "
-                "count: %zu, new: %zu - to determine whether we need for pipeline reallocation",
-                get_user_input(foundPort.idx)->get_byte_size(),
-                get_user_inputs(foundPort.idx).size(),
-                tensor->get_byte_size());
-            if (get_user_input(foundPort.idx)->get_byte_size() * get_user_inputs(foundPort.idx).size() !=
-                tensor->get_byte_size()) {
-                _pipelineNeedsReallocation = true;
-            }
-        }
-
         std::vector<ov::SoPtr<ov::ITensor>> tensorVector = {tensor};
         _graph->reset_last_batch_size();
         auto batchSizeCandidate =
             _graph->get_batch_size(_metadata, tensorVector, _graphInputDescriptors.at(foundPort.idx));
         if (is_batched_input(foundPort.idx) || batchSizeCandidate.has_value()) {
+            // Check if batch has been changed
+            if (get_user_input(foundPort.idx) != nullptr) {
+                _logger.debug("ZeroInferRequest::set_tensor - check if input tensors may have their sizes changed, "
+                              "existing: %zu and "
+                              "count: %zu, new: %zu - to determine whether we need for pipeline reallocation",
+                              get_user_input(foundPort.idx)->get_byte_size(),
+                              get_user_inputs(foundPort.idx).size(),
+                              tensor->get_byte_size());
+                if (get_user_input(foundPort.idx)->get_byte_size() * get_user_inputs(foundPort.idx).size() !=
+                    tensor->get_byte_size()) {
+                    _pipelineNeedsReallocation = true;
+                }
+            }
+
             // resize vector size to 1 if set_tensor is called after set_tensors
             get_level_zero_inputs(foundPort.idx).resize(1);
             get_level_zero_inputs(foundPort.idx).shrink_to_fit();
@@ -709,7 +709,7 @@ void ZeroInferRequest::infer_async() {
                                 OPENVINO_THROW("Empty buffer");
                             }
 
-                            _logger.info(
+                            _logger.debug(
                                 "Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
                                 "context, copy bytes from user tensor: %zu, into L0 with expected size: %zu",
                                 inputIndex,
@@ -723,11 +723,11 @@ void ZeroInferRequest::infer_async() {
             } else {
                 void* levelZeroBuffer = get_level_zero_input(inputIndex)->data();
 
-                _logger.info("Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
-                             "context or must be "
-                             "in a continued memory space, copy into L0 with size: %zu",
-                             inputIndex,
-                             get_level_zero_input(inputIndex)->get_byte_size());
+                _logger.debug("Batched Tensors - Tensor by index: %zu is not allocated in the current Level Zero "
+                              "context or must be "
+                              "in a continued memory space, copy into L0 with size: %zu",
+                              inputIndex,
+                              get_level_zero_input(inputIndex)->get_byte_size());
                 size_t copied_bytes_from_user = 0;
                 for (size_t i = 0; i < userTensor.size(); i++) {
                     auto userBatchRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor.at(i)._ptr);
