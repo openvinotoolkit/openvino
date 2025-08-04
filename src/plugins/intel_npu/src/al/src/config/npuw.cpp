@@ -64,8 +64,10 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_MAX_PROMPT_LEN>();
     desc.add<NPUW_LLM_MIN_RESPONSE_LEN>();
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
+    desc.add<NPUW_LLM_PREFILL_CHUNK_SIZE>();
     desc.add<NPUW_LLM_PREFILL_HINT>();
     desc.add<NPUW_LLM_GENERATE_HINT>();
+    desc.add<NPUW_LLM_SHARED_HEAD>();
 }
 
 std::string ov::npuw::s11n::anyToString(const ov::Any& var) {

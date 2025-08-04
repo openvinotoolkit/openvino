@@ -40,10 +40,10 @@ public:
                 import_model,
                 (std::istream&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
                 (const));
-    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model, (ov::Tensor&, const ov::AnyMap&), (const));
+    MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>, import_model, (const ov::Tensor&, const ov::AnyMap&), (const));
     MOCK_METHOD(std::shared_ptr<ov::ICompiledModel>,
                 import_model,
-                (ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
+                (const ov::Tensor&, const ov::SoPtr<ov::IRemoteContext>&, const ov::AnyMap&),
                 (const));
     MOCK_METHOD(ov::SupportedOpsMap,
                 query_model,

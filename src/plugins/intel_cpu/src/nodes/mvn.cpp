@@ -54,6 +54,7 @@
 #    include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -110,7 +111,7 @@ bool MVNKey::operator==(const MVNKey& rhs) const {
 
 // some utility functions
 static inline bool isFloatCompatible(ov::element::Type prc) {
-    return one_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16);
+    return any_of(prc, ov::element::f32, ov::element::bf16, ov::element::f16);
 }
 
 // 8/4/2/1 tile
@@ -141,7 +142,7 @@ struct jit_uni_mvn_mean_variance_kernel_f32 : public jit_uni_mvn_mean_variance_k
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1003,7 +1004,7 @@ struct jit_uni_mvn_kernel_f32 : public jit_uni_mvn_kernel, public jit_generator_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1973,7 +1974,7 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
         }
     } else if (auto mvnOp = ov::as_type_ptr<ov::op::v0::MVN>(op)) {
         mvnAttrs.normalizeVariance_ = mvnOp->get_normalize_variance();
-        mvnAttrs.epsValue_ = mvnOp->get_eps();
+        mvnAttrs.epsValue_ = static_cast<float>(mvnOp->get_eps());
         mvnAttrs.initAcrossChannels_ = mvnOp->get_across_channels();
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED("Node is not an instance of MVN from the operation set v0 or v6");
@@ -1984,7 +1985,7 @@ MVN::MVN(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
 void MVN::getSupportedDescriptors() {}
 
 static inline bool isUnaryEltwise(const NodePtr& node) {
-    return one_of(node->getAlgorithm(),
+    return any_of(node->getAlgorithm(),
                   Algorithm::EltwiseRelu,
                   Algorithm::EltwiseGeluErf,
                   Algorithm::EltwiseGeluTanh,

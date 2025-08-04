@@ -27,15 +27,7 @@ class OneHotLayerCPUTest : public testing::WithParamInterface<oneHotCPUTestParam
                            virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<oneHotCPUTestParams>& obj) {
-        InputShape inputShape;
-        int axis;
-        std::pair<utils::InputLayerType, bool> inputType;
-        size_t depth;
-        float onValue, offValue;
-        ov::element::Type outPrc;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShape, axis, inputType, depth, onValue, offValue, outPrc, cpuParams) = obj.param;
-
+        const auto& [inputShape, axis, inputType, depth, onValue, offValue, outPrc, cpuParams] = obj.param;
         std::ostringstream result;
         if (inputShape.first.size() != 0) {
             result << "IS=(" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
@@ -85,12 +77,12 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        InputShape inputShape;
-        std::pair<utils::InputLayerType, bool> inputType;
-        CPUSpecificParams cpuParams;
-        std::tie(inputShape, Axis, inputType, Depth, OnValue, OffValue, outType, cpuParams) = this->GetParam();
-
+        const auto& [inputShape, _Axis, inputType, _Depth, _OnValue, _OffValue, _outType, cpuParams] = this->GetParam();
+        Axis = _Axis;
+        Depth = _Depth;
+        OnValue = _OnValue;
+        OffValue = _OffValue;
+        outType = _outType;
         if (inputType.second && inputType.first == utils::InputLayerType::CONSTANT) {
             generateDepth();
         }

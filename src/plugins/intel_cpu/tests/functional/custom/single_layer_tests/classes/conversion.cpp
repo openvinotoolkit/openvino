@@ -51,14 +51,8 @@ static void modify_value(ov::Tensor& tensor, const ov::test::SpecialValue& speci
 }
 
 std::string ConvertCPULayerTest::getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj) {
-    InputShape inputShape;
-    ov::element::Type inPrc, outPrc;
-    ov::test::SpecialValue special_value;
-    CPUSpecificParams cpuParams;
-    std::tie(inputShape, inPrc, outPrc, special_value, cpuParams) = obj.param;
-
+    const auto& [inputShape, inPrc, outPrc, special_value, cpuParams] = obj.param;
     std::ostringstream result;
-
     result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";
     result << "TS=";
     for (const auto& shape : inputShape.second) {
@@ -93,11 +87,10 @@ bool ConvertCPULayerTest::isInOutPrecisionSupported(ov::element::Type inPrc, ov:
 
 void ConvertCPULayerTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    InputShape shapes;
-    CPUSpecificParams cpuParams;
-    std::tie(shapes, inPrc, outPrc, special_value, cpuParams) = GetParam();
-
+    const auto& [shapes, _inPrc, _outPrc, _special_value, cpuParams] = GetParam();
+    inPrc = _inPrc;
+    outPrc = _outPrc;
+    special_value = _special_value;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     auto primitive = selectedType;
     if (primitive.empty())

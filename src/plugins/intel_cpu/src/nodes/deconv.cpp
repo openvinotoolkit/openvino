@@ -158,7 +158,7 @@ bool DeconvKey::operator==(const DeconvKey& rhs) const {
  */
 class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<DeconvolutionShapeInfer>(m_op);
@@ -167,7 +167,7 @@ public:
 private:
     class DeconvolutionShapeInfer : public IShapeInfer {
     public:
-        DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
+        explicit DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
             : m_shape_infer(make_shape_inference(op)),
               m_port_mask((op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK) {}
 
@@ -251,7 +251,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 
         deconvAttrs.outputPadding = convBackprop->get_output_padding();
 
-        autoPad = one_of(convBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
+        autoPad = any_of(convBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
     } else if (auto groupConvBackprop = ov::as_type_ptr<const ov::op::v1::GroupConvolutionBackpropData>(op)) {
         algorithm = Algorithm::DeconvolutionGrouped;
 
@@ -273,7 +273,7 @@ Deconvolution::Deconvolution(const std::shared_ptr<ov::Node>& op, const GraphCon
 
         deconvAttrs.outputPadding = groupConvBackprop->get_output_padding();
 
-        autoPad = one_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
+        autoPad = any_of(groupConvBackprop->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER);
     }
     for (size_t i = 0; i < deconvAttrs.dilation.size(); i++) {
         deconvAttrs.kernel.push_back(weightDims[static_cast<int>(withGroups) + 2 + i]);
@@ -350,7 +350,7 @@ bool Deconvolution::canBeExecutedInInt8() const {
     if (std::dynamic_pointer_cast<Input>(getParentEdgeAt(1)->getParent()) == nullptr) {
         return false;
     }
-    if (!one_of(getInputShapeAtPort(0).getRank(), 3UL, 4UL, 5UL)) {
+    if (none_of(getInputShapeAtPort(0).getRank(), 3UL, 4UL, 5UL)) {
         return false;
     }
 
@@ -575,10 +575,10 @@ void Deconvolution::getSupportedDescriptors() {
     }
     auto inputDataType = DnnlExtensionUtils::ElementTypeToDataType(inPrecision);
     outputDataType = DnnlExtensionUtils::ElementTypeToDataType(outPrecision);
-    if (inputDataType == memory::data_type::bf16 || outputDataType == memory::data_type::bf16) {
+    if (any_of(memory::data_type::bf16, inputDataType, outputDataType)) {
         inputDataType = outputDataType = memory::data_type::bf16;
     }
-    if (inputDataType == memory::data_type::f16 || outputDataType == memory::data_type::f16) {
+    if (any_of(memory::data_type::f16, inputDataType, outputDataType)) {
         inputDataType = outputDataType = memory::data_type::f16;
     }
     if (!fusedWith.empty()) {
@@ -1045,7 +1045,7 @@ void Deconvolution::prepareParams() {
         const auto& weiDims = key.inp1->getShape().getStaticDims();
         const auto srcDataType = key.inp0->getDataType();
         const auto weiDataType =
-            (one_of(srcDataType, memory::data_type::s8, memory::data_type::u8)) ? memory::data_type::s8 : srcDataType;
+            (any_of(srcDataType, memory::data_type::s8, memory::data_type::u8)) ? memory::data_type::s8 : srcDataType;
         auto wghDescAny =
             dnnl::memory::desc(DnnlExtensionUtils::convertToDnnlDims(weiDims), weiDataType, memory::format_tag::any);
         if (key.bias) {
