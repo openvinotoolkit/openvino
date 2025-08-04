@@ -7,6 +7,7 @@
 #include "behavior/ov_plugin/life_time.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "intel_npu/utils/zero/zero_init.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 using CompilationParams = std::tuple<std::string,  // Device name
@@ -247,7 +248,8 @@ TEST_P(OVHoldersTestOnImportedNetworkNPU, CanInferAfterTensorIsDestroyed) {
         {
             std::ostringstream sstream;
             ov::InferRequest infer_request;
-            if (i == 0) {
+            if (i == 0 && std::make_shared<::intel_npu::ZeroInitStructsHolder>()->getGraphDdiTable().version() >=
+                              ZE_MAKE_VERSION(1, 8)) {  // older drivers will own the blob and not deallocate
                 ASSERT_THROW(compiled_model.export_model(sstream), ov::Exception);  // model was imported, not compiled
             } else {
                 OV_ASSERT_NO_THROW(
