@@ -40,8 +40,6 @@ protected:
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams* rt_params) {
             assert(!params.is_dynamic());
-            const auto& desc = params.typed_desc<msda>();
-
             auto& wgs = kd.params.workGroups;
             const auto batch_size = params.get_input_layout(0).get_shape()[0];
             const auto num_queries = params.get_input_layout(3).get_shape()[1];
