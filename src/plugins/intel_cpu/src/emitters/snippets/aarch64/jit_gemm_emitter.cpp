@@ -133,10 +133,7 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
 
-    auto execute_func_ptr =
-        static_cast<void (*)(const GemmKaiKernelExecutor*, const GemmKaiKernelExecutor::call_args*)>(
-            GemmKaiKernelExecutor::execute);
-    h->mov(call_address_reg, reinterpret_cast<uintptr_t>(execute_func_ptr));
+    h->mov(call_address_reg, reinterpret_cast<uintptr_t>(GemmKaiKernelExecutor::execute));
 
     h->mov(x0, reinterpret_cast<uintptr_t>(m_kernel_executor_kai.get()));
     h->mov(x1, h->sp);
@@ -153,10 +150,7 @@ uintptr_t jit_gemm_emitter::get_compiled_kernel_ptr() const {
 }
 
 uintptr_t jit_gemm_emitter::get_execute_function_ptr() {
-    auto execute_func_ptr =
-        static_cast<void (*)(const GemmKaiKernelExecutor*, const GemmKaiKernelExecutor::call_args*)>(
-            GemmKaiKernelExecutor::execute);
-    return reinterpret_cast<const uintptr_t>(execute_func_ptr);
+    return reinterpret_cast<const uintptr_t>(GemmKaiKernelExecutor::execute);
 }
 
 }  // namespace ov::intel_cpu::aarch64

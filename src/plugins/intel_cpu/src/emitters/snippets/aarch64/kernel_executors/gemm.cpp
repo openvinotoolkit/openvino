@@ -54,9 +54,10 @@ void GemmKaiKernelExecutor::update_config(const ov::snippets::lowered::Expressio
     config.update(M, N, K, LDA, LDB, LDC, beta);
 }
 
-void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void* in0, void* in1, void* out0) {
+void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const call_args* args) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
-    // matmul for input1 and slices of repacked input2
+    OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr args");
+
     const auto& config = static_cast<const GemmKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
     const auto& ukernel = *kernel->gemm_ukernel;
@@ -80,12 +81,12 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
         const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
         // in0, in1, out is point to current block memory, based on block loop info, and shift done in loop begin and
         // end emitters(adjusted copyb loop info as repack outside block loops).
-        float* rhs_ptr = static_cast<float*>(in1) + rhs_packed_offset / sizeof(float);
-        float* dst_ptr = (static_cast<float*>(out0) + dst_offset / (sizeof(float)));
+        float* rhs_ptr = const_cast<float*>(static_cast<const float*>(args->B)) + rhs_packed_offset / sizeof(float);
+        float* dst_ptr = const_cast<float*>(static_cast<const float*>(args->C)) + dst_offset / (sizeof(float));
         ukernel.run_matmul(M,
                            n_block_size,
                            K,
-                           in0,
+                           const_cast<void*>(args->A),
                            lhs_stride,
                            rhs_ptr,
                            dst_ptr,
@@ -94,13 +95,6 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
                            std::numeric_limits<float>::min(),
                            std::numeric_limits<float>::max());
     }
-}
-
-void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const call_args* args) {
-    OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
-    OV_CPU_JIT_EMITTER_ASSERT(args, "has nullptr args");
-
-    execute(executor, const_cast<void*>(args->A), const_cast<void*>(args->B), args->C);
 }
 
 }  // namespace ov::intel_cpu::aarch64
