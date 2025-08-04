@@ -63,7 +63,6 @@ public:
         m_preprocessing_callback = cb;
     }
 
-
     void scale_qk_inputs(float scale) {
         multiply_q(scale);
         multiply_k(scale);
@@ -597,7 +596,7 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                  Values(explicit_transpose_4d(1,    // B (batch)
                                                               32,   // H (heads)
                                                               5,    // S_q (query len)
-                                                              3,   // S_kv (kv len)
+                                                              3,    // S_kv (kv len)
                                                               32,   // E (embedding)
                                                               32,   // Ev (V embedding)
                                                               {},   // mask_shape
@@ -606,15 +605,15 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusion,
                                         explicit_transpose_4d(1,               // B (batch)
                                                               32,              // H (heads)
                                                               128,             // S_q (query len)
-                                                              128,              // S_kv (kv len)
+                                                              128,             // S_kv (kv len)
                                                               64,              // E (embedding)
                                                               64,              // Ev (V embedding)
-                                                              {32, 128, 128},   // mask_shape
+                                                              {32, 128, 128},  // mask_shape
                                                               0.125f           // scale
                                                               ),
                                         explicit_transpose_3d(1,    // B (batch)
                                                               5,    // S_q (query len)
-                                                              3,   // S_kv (kv len)
+                                                              3,    // S_kv (kv len)
                                                               32,   // E (embedding)
                                                               32,   // Ev (V embedding)
                                                               {},   // mask_shape
@@ -975,7 +974,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
 }
 
 TEST_F(TransformationTestsF, SDPAFusionTest_KScaledInput) {
-    // Init.  
+    // Init.
     const PartialShape query_shape{1, 1, 4096, 512};
     const PartialShape key_shape{1, 1, 4096, 512};
     const PartialShape value_shape{1, 1, 4096, 512};
