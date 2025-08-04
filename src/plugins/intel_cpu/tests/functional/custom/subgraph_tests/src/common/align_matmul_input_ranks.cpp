@@ -23,9 +23,7 @@ class AlignMatMulInputRanksTest : public testing::WithParamInterface<AlignMatMul
                                   virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<AlignMatMulInputRanksTestParams> obj) {
-        std::pair<ov::Shape, ov::Shape> supportedInputShapes;
-        fusingSpecificParams fusingParams;
-        std::tie(supportedInputShapes, fusingParams) = obj.param;
+        const auto& [supportedInputShapes, fusingParams] = obj.param;
         ov::Shape inputShapeA = supportedInputShapes.first;
         ov::Shape inputShapeB = supportedInputShapes.second;
 
@@ -40,10 +38,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        std::pair<ov::Shape, ov::Shape> inShapes;
-        fusingSpecificParams fusingParams;
-        std::tie(inShapes, fusingParams) = this->GetParam();
-
+        const auto& [inShapes, fusingParams] = this->GetParam();
         if (inShapes.first.size() != inShapes.second.size())
             expectedNumOfReshapes++;  // one input will be unsqueezed
         if (inShapes.first.size() == 1 || inShapes.second.size() == 1)

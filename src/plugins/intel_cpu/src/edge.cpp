@@ -356,7 +356,7 @@ void Edge::externalAllocate(const WeightsSharing::Ptr& weightsCache) {
         };
 
         auto ptr = weightsCache->findOrCreate(hash(), alloc, false);
-        memoryPtr = *ptr;
+        memoryPtr = static_cast<MemoryPtr>(*ptr);
         DEBUG_LOG(*this, " memoryPtr=", memoryPtr);
         useExternalMemory = true;
         status = Status::Allocated;
