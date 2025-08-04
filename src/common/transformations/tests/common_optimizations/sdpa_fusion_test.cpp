@@ -63,10 +63,6 @@ public:
         m_preprocessing_callback = cb;
     }
 
-    void scale_q_input(float scale) {
-        auto c = op::v0::Constant::create(m_type, {}, {scale});
-        nodes[InputType::Q] = std::make_shared<op::v1::Multiply>(nodes[InputType::Q], c);
-    }
 
     void scale_qk_inputs(float scale) {
         auto c = op::v0::Constant::create(m_type, {}, {scale});
