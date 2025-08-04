@@ -553,10 +553,6 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
     }
 
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
-                                           ov::snippets::pass::MatMulToBrgemm,
-                                           ov::intel_cpu::pass::MHAToFA);
-
-    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
                                            ov::snippets::pass::PropagatePrecision,
                                            ov::intel_cpu::pass::BrgemmToBrgemmCPU,
                                            getConstantInputIndexes());
@@ -579,6 +575,9 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                                context,
                                                cpu_config->input_repackers,
                                                srcMemPtrs);
+        SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::Before,
+                                               ov::snippets::pass::MatMulToBrgemm,
+                                               ov::intel_cpu::pass::MHAToFA);
     }
     SNIPPETS_REGISTER_PASS_ABSOLUTE_X86_64(Place::PipelineEnd, ov::intel_cpu::pass::RemoveConverts);
     SNIPPETS_REGISTER_PASS_RELATIVE_ARM64(Place::Before,

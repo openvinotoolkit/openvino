@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/pass/pass.hpp"
 
 namespace ov::intel_cpu::pass {
 
@@ -13,10 +14,12 @@ namespace ov::intel_cpu::pass {
  * @brief Replaces MHA with snippets::op::Flash_Attention operation
  * @ingroup snippets
  */
-class MHAToFA : public ov::pass::MatcherPass {
+class MHAToFA : public ov::pass::ModelPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("snippets::pass::MHAToFA");
-    MHAToFA();
+    OPENVINO_MODEL_PASS_RTTI("MHAToFA");
+    MHAToFA() = default;
+
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace ov::intel_cpu::pass

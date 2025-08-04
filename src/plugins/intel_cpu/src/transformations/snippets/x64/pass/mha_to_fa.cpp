@@ -31,9 +31,11 @@
 
 namespace ov::intel_cpu {
 
-pass::MHAToFA::MHAToFA() {
+bool pass::MHAToFA::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(MHAToFA);
+    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::MHAToFA")
+
     using namespace ov::pass::pattern;
-    MATCHER_SCOPE(MHAToFA);
     auto input_0 = any_input(type_matches(ov::element::f32));
     auto input_1 = any_input(type_matches(ov::element::f32));
     auto input_2 = any_input(type_matches(ov::element::f32));
@@ -43,10 +45,15 @@ pass::MHAToFA::MHAToFA() {
     const auto matmul0_m = wrap_type<opset1::MatMul>({input_0, input_1}, single_consumer_f32);
     const auto softmax_m = wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({matmul0_m}, single_consumer_f32);
     const auto matmul1_m = wrap_type<opset1::MatMul>({softmax_m, input_2});
+    auto matcher = std::make_shared<Matcher>(matmul1_m);
 
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::MHAToFA")
-        const auto& pm = m.get_pattern_value_map();
+    bool status = false;
+    for (const auto& n : model->get_ordered_ops()) {
+        if (!matcher->match(n)) {
+            continue;
+        }
+
+        const auto& pm = matcher->get_pattern_value_map();
         const auto matmul0 = as_type_ptr<ov::opset1::MatMul>(pm.at(matmul0_m).get_node_shared_ptr());
         if (matmul0->get_transpose_a()) {
             return false;
@@ -85,11 +92,9 @@ pass::MHAToFA::MHAToFA() {
         snippets_fa->set_friendly_name(matmul1->get_friendly_name());
         ov::copy_runtime_info(matmul1, snippets_fa);
 
-        return true;
-    };
+        status = true;
+    }
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(matmul1_m, matcher_name);
-    register_matcher(m, callback);
+    return status;
 }
-
 }  // namespace ov::intel_cpu

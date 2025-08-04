@@ -265,11 +265,12 @@ Result FAShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 3, "Unexpected input_shapes count");
 
     const auto& arg_q_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_io_layouts[0]);
+    const auto& arg_k_shape = ov::snippets::utils::get_planar_vdims(input_shapes[1].get(), m_io_layouts[1]);
     const auto& arg_v_shape = ov::snippets::utils::get_planar_vdims(input_shapes[2].get(), m_io_layouts[2]);
-    size_t arg_q_rank = arg_q_shape.size(), arg_v_rank = arg_v_shape.size();
+    size_t arg_q_rank = arg_q_shape.size(), arg_k_rank = arg_k_shape.size(), arg_v_rank = arg_v_shape.size();
 
     // temporary shapes to calculate output shape
-    VectorDims arg_q_shape_tmp(arg_q_shape), arg_v_shape_tmp(arg_v_shape);
+    VectorDims arg_q_shape_tmp(arg_q_shape), arg_k_shape_tmp(arg_k_shape), arg_v_shape_tmp(arg_v_shape);
 
     // one-dimensional tensors unsqueezing is applied to each input independently.
     if (arg_q_rank == 1) {
@@ -278,6 +279,13 @@ Result FAShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
         // For example {S} will be reshaped to {1, S}.
         arg_q_shape_tmp.insert(arg_q_shape_tmp.begin(), 1);
         arg_q_rank = arg_q_shape_tmp.size();
+    }
+    if (arg_k_rank == 1) {
+        // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
+        // by adding axes with size 1 at COL_INDEX_DIM, to the right of the shape.
+        // For example {S} will be reshaped to {S, 1}.
+        arg_k_shape_tmp.insert(arg_k_shape_tmp.end(), 1);
+        arg_k_rank = arg_k_shape_tmp.size();
     }
     if (arg_v_rank == 1) {
         // If the second input is 1D tensor, it is unsqueezed to 2D tensor (column vector)
@@ -288,18 +296,36 @@ Result FAShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     }
 
     // add 1 to begin to align shape ranks if needed
-    if (arg_q_rank < arg_v_rank) {
-        arg_q_shape_tmp.insert(arg_q_shape_tmp.begin(), arg_v_rank - arg_q_rank, 1);
-    } else if (arg_q_rank > arg_v_rank) {
-        arg_v_shape_tmp.insert(arg_v_shape_tmp.begin(), arg_q_rank - arg_v_rank, 1);
+    auto max_rank = arg_q_rank;
+    if (arg_k_rank > max_rank) {
+        max_rank = arg_k_rank;
+    }
+    if (arg_v_rank > max_rank) {
+        max_rank = arg_v_rank;
+    }
+    if (arg_q_rank < max_rank) {
+        arg_q_shape_tmp.insert(arg_q_shape_tmp.begin(), max_rank - arg_q_rank, 1);
+    }
+    if (arg_k_rank < max_rank) {
+        arg_k_shape_tmp.insert(arg_k_shape_tmp.begin(), max_rank - arg_k_rank, 1);
+    }
+    if (arg_v_rank < max_rank) {
+        arg_v_shape_tmp.insert(arg_v_shape_tmp.begin(), max_rank - arg_v_rank, 1);
     }
 
-    size_t max_rank = arg_q_shape_tmp.size();
     VectorDims output_shape(max_rank);
     for (size_t i = 0; i < max_rank - 2; ++i) {
-        if (!utils::broadcast_merge_dim(output_shape[i], arg_q_shape_tmp[i], arg_v_shape_tmp[i])) {
+        if (!utils::broadcast_merge_dim(output_shape[i], arg_q_shape_tmp[i], arg_k_shape_tmp[i])) {
             OPENVINO_THROW("Incompatible MatMul batch dimension. Can't merge dim ",
                            arg_q_shape_tmp[i],
+                           " with dim ",
+                           arg_k_shape_tmp[i],
+                           " at index=",
+                           i);
+        }
+        if (!utils::broadcast_merge_dim(output_shape[i], output_shape[i], arg_v_shape_tmp[i])) {
+            OPENVINO_THROW("Incompatible MatMul batch dimension. Can't merge dim ",
+                           output_shape[i],
                            " with dim ",
                            arg_v_shape_tmp[i],
                            " at index=",
@@ -312,6 +338,9 @@ Result FAShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     // removing the temporary axes from originally 1D tensors.
     if (arg_q_shape.size() == 1) {
         output_shape.erase(output_shape.begin() + output_shape.size() - 2);
+    }
+    if (arg_k_shape.size() == 1) {
+        output_shape.erase(output_shape.begin() + output_shape.size() - 1);
     }
     if (arg_v_shape.size() == 1) {
         output_shape.erase(output_shape.begin() + output_shape.size() - 1);
