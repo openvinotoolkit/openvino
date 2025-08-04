@@ -975,7 +975,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest_4dAttentionMaskWithBatch2) {
 }
 
 TEST_F(TransformationTestsF, SDPAFusionTest_KScaledInput) {
-    // Init.
+    // Init.  
     const PartialShape query_shape{1, 1, 4096, 512};
     const PartialShape key_shape{1, 1, 4096, 512};
     const PartialShape value_shape{1, 1, 4096, 512};
@@ -992,8 +992,7 @@ TEST_F(TransformationTestsF, SDPAFusionTest_KScaledInput) {
     // SDPA model.
     {
         sdpa.set_preprocessing_callback(callback);
-        sdpa.transpose_k(get_tranpose_order(query_shape.size()));
-        sdpa.create_pattern_sdpa();
+        sdpa.create_pattern_sdpa(true);
 
         model = sdpa.build_model();
 
@@ -1003,7 +1002,6 @@ TEST_F(TransformationTestsF, SDPAFusionTest_KScaledInput) {
     // SDPA reference model.
     {
         sdpa_ref.set_scale(1.f);
-        sdpa_ref.transpose_k(get_tranpose_order(query_shape.size()));
         sdpa_ref.create_reference_sdpa();
 
         model_ref = sdpa_ref.build_model();
