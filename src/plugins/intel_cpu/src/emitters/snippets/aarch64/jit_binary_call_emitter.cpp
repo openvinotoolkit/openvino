@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
 #include "snippets/emitter.hpp"
 #include "utils/general_utils.h"
 
@@ -26,6 +27,12 @@ namespace ov::intel_cpu::aarch64 {
 jit_binary_call_emitter::jit_binary_call_emitter(jit_generator* h, cpu_isa_t isa, std::set<snippets::Reg> live_regs)
     : jit_emitter(h, isa),
       m_regs_to_spill(std::move(live_regs)) {}
+
+jit_binary_call_emitter::~jit_binary_call_emitter() {
+    OPENVINO_DEBUG_ASSERT(
+        !m_stack_preserved,
+        "Stack preservation mismatch: emit_stack_preserve was called but emit_stack_restore was not called");
+}
 
 const std::set<snippets::Reg>& jit_binary_call_emitter::get_regs_to_spill() const {
     OV_CPU_JIT_EMITTER_ASSERT(m_regs_initialized, "Binary call registers must be initialized first");
@@ -106,15 +113,21 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
 }
 
 void jit_binary_call_emitter::emit_stack_preserve(size_t stack_size) const {
+    OV_CPU_JIT_EMITTER_ASSERT(!m_stack_preserved, "emit_stack_preserve called twice without emit_stack_restore");
+
     // ARM64 requires 16-byte stack alignment
     stack_size = ov::intel_cpu::rnd_up(stack_size, sp_alignment);
 
     if (stack_size > 0) {
         h->sub(h->sp, h->sp, stack_size);
     }
+
+    m_stack_preserved = true;
 }
 
 void jit_binary_call_emitter::emit_stack_restore(size_t stack_size) const {
+    OV_CPU_JIT_EMITTER_ASSERT(m_stack_preserved, "emit_stack_restore called without corresponding emit_stack_preserve");
+
     // ARM64 requires 16-byte stack alignment
     const size_t alignment = 16;
     stack_size = ov::intel_cpu::rnd_up(stack_size, alignment);
@@ -122,6 +135,8 @@ void jit_binary_call_emitter::emit_stack_restore(size_t stack_size) const {
     if (stack_size > 0) {
         h->add(h->sp, h->sp, stack_size);
     }
+
+    m_stack_preserved = false;
 }
 
 }  // namespace ov::intel_cpu::aarch64

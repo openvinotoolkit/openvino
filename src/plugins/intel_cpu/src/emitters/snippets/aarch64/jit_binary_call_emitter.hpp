@@ -28,6 +28,8 @@ public:
                             dnnl::impl::cpu::aarch64::cpu_isa_t isa,
                             std::set<snippets::Reg> live_regs);
 
+    ~jit_binary_call_emitter() override;
+
 protected:
     /**
      * @brief Returns a set of snippets::Reg that should be spilled in the derived emitter.
@@ -77,6 +79,7 @@ private:
     mutable Xbyak_aarch64::XReg m_callee_saved_reg{31};  // Initialize to invalid reg
     mutable Xbyak_aarch64::XReg m_call_address_reg{31};  // Initialize to invalid reg
     mutable bool m_regs_initialized = false;
+    mutable bool m_stack_preserved = false;  // Tracks if emit_stack_preserve was called
 };
 
 }  // namespace ov::intel_cpu::aarch64
