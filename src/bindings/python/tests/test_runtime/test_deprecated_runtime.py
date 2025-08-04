@@ -8,6 +8,7 @@ from pathlib import Path
 from contextlib import nullcontext as does_not_raise
 import warnings
 import operator
+import sysconfig
 
 with pytest.warns(DeprecationWarning, match="The `openvino.runtime` module is deprecated and will be removed in the 2026.0 release."):
     import openvino.runtime as ov
@@ -167,6 +168,7 @@ def test_output_replace():
     assert res.input_value(0).get_node() == exp
 
 
+@pytest.mark.skipif(sysconfig.get_config_var("Py_GIL_DISABLED"), reason="Ticket: 171534")
 @pytest.mark.parametrize("share_inputs", [True, False])
 def test_infer_queue(device, share_inputs):
     jobs = 8
