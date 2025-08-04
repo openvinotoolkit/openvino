@@ -5,6 +5,7 @@
 #pragma once
 #include "primitive.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "intel_gpu/plugin/simple_math.hpp"
 #include <vector>
 #include <string>
 
@@ -47,6 +48,51 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
         }
     };
 
+    static void update_work_group_size(const ov::PartialShape& dims,
+                                       int calcWgDimInputIdx,
+                                       const ov::PartialShape& inputDims,
+                                       const std::vector<std::string>& globalSizeRules,
+                                       const std::vector<std::string>& localSizeRules,
+                                       std::vector<size_t>& gws,
+                                       std::vector<size_t>& lws) {
+#define GetDim(DIM) DIM.is_dynamic() ? -1 : DIM.get_length()
+
+        gws.clear();
+        lws.clear();
+
+        int batchDim = 0, featureDim = 0, yDim = 0, xDim = 0;
+        // if calcWgDimInputIdx is greater than -1, take dimension from input
+        if (calcWgDimInputIdx >= 0) {
+            xDim = static_cast<int>(GetDim(inputDims[inputDims.size() - 1]));
+            yDim = dims.size() > 1 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 2])) : 0;
+            featureDim = dims.size() > 2 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 3])) : 0;
+            batchDim = dims.size() > 3 ? static_cast<int>(GetDim(inputDims[inputDims.size() - 4])) : 0;
+        } else {
+            batchDim = (dims.size() > 0) ? GetDim(dims[0]) : 1;
+            featureDim = (dims.size() > 1) ? GetDim(dims[1]) : 1;
+            yDim = (dims.size() > 2) ? GetDim(dims[2]) : 1;
+            xDim = (dims.size() > 3) ? GetDim(dims[3]) : 1;
+        }
+        const std::map<char, int> vars = {
+            {'b', batchDim},    {'B', batchDim},
+            {'f', featureDim},  {'F', featureDim},
+            {'y', yDim},        {'Y', yDim},
+            {'x', xDim},        {'X', xDim},
+        };
+        for (const auto& rule : globalSizeRules) {
+            SimpleMathExpression expr;
+            expr.SetVariables(vars);
+            expr.SetExpression(rule);
+            gws.push_back(expr.Evaluate());
+        }
+        for (const auto& rule : localSizeRules) {
+            SimpleMathExpression expr;
+            expr.SetVariables(vars);
+            expr.SetExpression(rule);
+            lws.push_back(expr.Evaluate());
+        }
+    }
+
     /// @brief Constructs custom_gpu_primitive primitive
     /// @param id This primitive id.
     /// @param input Input primitive ids.
@@ -65,7 +111,11 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
                          const std::string& build_options,
                          const layout& output_layout,
                          const std::vector<size_t>& gws = {},
-                         const std::vector<size_t>& lws = {})
+                         const std::vector<size_t>& lws = {},
+                         const std::shared_ptr<ov::Node>& op = nullptr,
+                         const int calcWgDimInputIdx = -1,
+                         const std::vector<std::string> globalSizeRules = {},
+                         const std::vector<std::string> localSizeRules = {})
         : primitive_base(id, inputs, 1, {optional_data_type()}, {output_layout.data_padding}),
           kernel_entry_point(kernel_entry_point),
           kernel_arguments(kernel_arguments),
@@ -73,7 +123,11 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
           output_layout(output_layout),
           gws(gws.size() ? gws : std::vector<size_t>{output_layout.count()}),
           lws(lws),
-          kernels_code(kernels_code) {}
+          kernels_code(kernels_code),
+          op(op),
+          calcWgDimInputIdx(calcWgDimInputIdx),
+          globalSizeRules(globalSizeRules),
+          localSizeRules(localSizeRules) {}
 
     /// @brief The name of the entry point function in the kernel
     const std::string kernel_entry_point;
@@ -89,6 +143,13 @@ struct custom_gpu_primitive : public primitive_base<custom_gpu_primitive> {
     const std::vector<size_t> lws;
     /// @brief Source code for the kernel
     const primitive_id_arr kernels_code;
+    /// @brief Original IR op
+    const std::shared_ptr<ov::Node> op;
+    /// @brief -1: mean calc gws via output, else calc gws via inputs
+    const int calcWgDimInputIdx = -1;
+    /// @brief Custom provided rules for calc work sizes.
+    const std::vector<std::string> globalSizeRules;
+    const std::vector<std::string> localSizeRules;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
