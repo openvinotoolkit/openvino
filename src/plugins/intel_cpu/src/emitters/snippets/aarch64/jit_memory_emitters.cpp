@@ -4,11 +4,14 @@
 
 #include "jit_memory_emitters.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
 #include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
+#include <common/utils.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -19,9 +22,11 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/load.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
@@ -177,7 +182,7 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
                               src_prc.get_type_name(),
                               " and ",
                               dst_prc.get_type_name());
-    OV_CPU_JIT_EMITTER_ASSERT(any_of(src_prc.size(), 1u, 2u, 4u), "Unsupported element type: ", src_prc);
+    OV_CPU_JIT_EMITTER_ASSERT(any_of(src_prc.size(), 1U, 2U, 4U), "Unsupported element type: ", src_prc);
 
     byte_size = src_prc.size();
 

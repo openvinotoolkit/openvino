@@ -21,7 +21,7 @@ public:
 
 class DnnlMatmulExecutor : public IMatmulExecutor {
 public:
-    DnnlMatmulExecutor(const dnnl::primitive_desc& pd) : m_executor(pd) {}
+    explicit DnnlMatmulExecutor(const dnnl::primitive_desc& pd) : m_executor(pd) {}
     void exec(const std::unordered_map<int, dnnl::memory>& primArgs, const dnnl::stream& strm) override {
         m_executor.exec(primArgs, strm);
     }

@@ -118,10 +118,7 @@ class EnforcePrecisionTest : public TransformationTestsF,
                              public testing::WithParamInterface<EnforcePrecisionParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<EnforcePrecisionParams> obj) {
-        std::pair<PartialShape, PartialShape> shapes;
-        EnforcePrecisionParamsValues test_values;
-        std::tie(shapes, test_values) = obj.param;
-
+        const auto& [shapes, test_values] = obj.param;
         auto to_string = [](const std::set<std::vector<element::Type>>& precisions_pack) noexcept {
             std::ostringstream result;
             result << "{";

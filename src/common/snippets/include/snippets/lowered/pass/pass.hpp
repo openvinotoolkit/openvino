@@ -111,7 +111,7 @@ public:
     using PositionedPassLowered = snippets::pass::PositionedPass<lowered::pass::PassBase>;
 
     PassPipeline();
-    PassPipeline(const std::shared_ptr<PassConfig>& pass_config);
+    explicit PassPipeline(const std::shared_ptr<PassConfig>& pass_config);
 
     [[nodiscard]] const std::vector<std::shared_ptr<PassBase>>& get_passes() const {
         return m_passes;
