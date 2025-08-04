@@ -31,7 +31,7 @@ class GroupDeconvolutionLayerCPUTest : public testing::WithParamInterface<GroupD
                                        virtual public SubgraphBaseTest,
                                        public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GroupDeconvLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GroupDeconvLayerCPUTestParamsSet>& obj) {
         const auto &[basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig] = obj.param;
         const auto &[kernel, stride, padBegin, padEnd, dilation, convOutChannels, groupNum, padType, outPadding] =
             basicParamsSet;
