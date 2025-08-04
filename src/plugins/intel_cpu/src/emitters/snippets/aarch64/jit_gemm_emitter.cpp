@@ -107,7 +107,7 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
         const bool is_dynamic_offset = has_memory_offset && ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]);
         const bool is_valid_buffer_id = has_buffer_id && !ov::snippets::utils::is_dynamic_value(m_buffer_ids[i]);
 
-        std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg};
+        std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg, h->X_TMP_1};
 
         if (is_dynamic_offset && is_valid_buffer_id) {
             aux_regs.emplace_back(h->X_TMP_0);
