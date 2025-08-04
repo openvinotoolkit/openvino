@@ -6,17 +6,12 @@
 
 #include <ze_api.h>
 
+#include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 
 using namespace ov::intel_npu;
-
-namespace {
-
-constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
-
-}  // namespace
 
 namespace intel_npu {
 
@@ -151,7 +146,7 @@ bool ZeroRemoteTensor::deallocate() noexcept {
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF: {
-        size_t size = (bytes + STANDARD_PAGE_SIZE - 1) & ~(STANDARD_PAGE_SIZE - 1);
+        size_t size = (bytes + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
 
         ze_host_mem_alloc_desc_t desc = {};
         if (_tensor_type == TensorType::INPUT) {
@@ -162,7 +157,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         }
         THROW_ON_FAIL_FOR_LEVELZERO(
             "zeMemAllocHost",
-            zeMemAllocHost(_init_structs->getContext(), &desc, size, STANDARD_PAGE_SIZE, &_data));
+            zeMemAllocHost(_init_structs->getContext(), &desc, size, utils::STANDARD_PAGE_SIZE, &_data));
         break;
     }
     case MemType::SHARED_BUF: {
@@ -184,7 +179,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                     zeMemAllocDevice(_init_structs->getContext(),
                                                      &desc,
                                                      bytes,
-                                                     STANDARD_PAGE_SIZE,
+                                                     utils::STANDARD_PAGE_SIZE,
                                                      _init_structs->getDevice(),
                                                      &_data));
 #else
@@ -197,7 +192,7 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, 0};
         THROW_ON_FAIL_FOR_LEVELZERO(
             "zeMemAllocHost",
-            zeMemAllocHost(_init_structs->getContext(), &desc, bytes, STANDARD_PAGE_SIZE, &_data));
+            zeMemAllocHost(_init_structs->getContext(), &desc, bytes, utils::STANDARD_PAGE_SIZE, &_data));
 #endif
         break;
     }

@@ -292,6 +292,10 @@ extern const ov::intel_cpu::caseless_unordered_map<std::string, Type> type_to_na
 Type TypeFromName(const std::string& type);
 
 std::string NameFromType(Type type);
+inline std::ostream& operator<<(std::ostream& os, const Type& type) {
+    os << NameFromType(type);
+    return os;
+}
 
 std::string algToString(Algorithm alg);
 

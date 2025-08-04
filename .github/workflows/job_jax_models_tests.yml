@@ -92,7 +92,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' || inputs.model_scope == 'nightly' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/jax/ -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-jax_model_"${TYPE}"_tests.html --self-contained-html -v
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/jax/ -v -m ${TYPE} --html=${INSTALL_TEST_DIR}/TEST-jax_model_"${TYPE}"_tests.html --self-contained-html -v
         env:
           TYPE: ${{ inputs.model_scope == 'precommit' && 'precommit' || 'nightly' }}
           TEST_DEVICE: CPU

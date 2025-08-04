@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <common/utils.hpp>
@@ -17,6 +17,7 @@
 #include "cpu/x64/injectors/jit_uni_quantization_injector.hpp"
 #include "cpu/x64/jit_generator.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -59,16 +60,16 @@ struct jit_uni_matmul_small_kernel {
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_uni_matmul_small_kernel_f32 : public jit_uni_matmul_small_kernel,
-                                         public dnnl::impl::cpu::x64::jit_generator {
+                                         public dnnl::impl::cpu::x64::jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_matmul_small_kernel_f32)
 
     explicit jit_uni_matmul_small_kernel_f32(jit_matmul_small_config_params jcp, const dnnl_primitive_attr& attr)
         : jit_uni_matmul_small_kernel(jcp, attr),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override;
@@ -81,7 +82,7 @@ private:
                                                          Xbyak::Ymm,
                                                          Xbyak::Zmm>::type;
 
-    const int vlen = dnnl::impl::cpu::x64::cpu_isa_traits<isa>::vlen;
+    const int vlen = dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Reg64 reg_input1 = r8;
     Xbyak::Reg64 reg_input2 = r9;
@@ -100,7 +101,7 @@ private:
     Vmm vmm_d_weights = Vmm(12);
     Vmm vmm_d_bias = Vmm(13);
 
-    std::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
+    std::vector<std::shared_ptr<jit_uni_eltwise_injector_t<isa>>> eltwise_injectors;
     std::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
     std::vector<std::shared_ptr<jit_uni_quantization_injector_f32<isa>>> quantization_injectors;
 };

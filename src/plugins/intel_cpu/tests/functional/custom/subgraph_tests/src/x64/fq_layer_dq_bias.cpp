@@ -32,11 +32,7 @@ class FQLayerDQBias : virtual public SubgraphBaseTest,
                       public testing::WithParamInterface<FQLayerDQBiasParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<FQLayerDQBiasParams> obj) {
-        InputShape input_shape;
-        std::string layer_type;
-        bool extra_multiply;
-        std::tie(input_shape, layer_type, extra_multiply) = obj.param;
-
+        const auto& [input_shape, layer_type, extra_multiply] = obj.param;
         std::ostringstream result;
         result << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
         for (const auto& item : input_shape.second) {
@@ -49,11 +45,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape input_shape;
-        std::string layer_type;
-        bool extra_multiply;
-        std::tie(input_shape, layer_type, extra_multiply) = GetParam();
-
+        const auto& [input_shape, layer_type, extra_multiply] = GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         static const std::unordered_map<std::string, std::string> ngraph_type_to_plugin_type{

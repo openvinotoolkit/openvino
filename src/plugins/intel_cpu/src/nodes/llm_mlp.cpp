@@ -24,6 +24,7 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <oneapi/dnnl/dnnl_types.h>
@@ -560,9 +561,7 @@ void LLMMLP::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    OPENVINO_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
-                    "Unexpected rtPrecision:",
-                    rtPrecision);
+    OPENVINO_ASSERT(any_of(rtPrecision, ov::element::bf16, ov::element::f16), "Unexpected rtPrecision:", rtPrecision);
 
     if (m_mlp_config.gate_up_quantized) {
         auto weightPrecision = ov::element::i8;
@@ -621,7 +620,7 @@ void LLMMLP::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        THROW_CPU_NODE_ERR("Executor creation fails with precision " + rtPrecision.to_string());
+        CPU_NODE_THROW("Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 

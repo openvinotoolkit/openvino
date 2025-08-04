@@ -4,7 +4,7 @@
 
 #include "cpu_generator.hpp"
 
-#include <cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
@@ -40,6 +40,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/elu.hpp"
 #include "openvino/op/equal.hpp"
+#include "openvino/op/erf.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/floor.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -47,6 +48,7 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/hswish.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_not.hpp"
@@ -57,6 +59,8 @@
 #include "openvino/op/mish.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"
@@ -66,6 +70,7 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/op/xor.hpp"
@@ -86,6 +91,8 @@
 #include "snippets/op/powerstatic.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reduce.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/op/reshape.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
@@ -231,6 +238,8 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
+    jitters[snippets::op::Reshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
+    jitters[snippets::op::Reorder::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_broadcast_move_emitter);
     jitters[snippets::op::ConvertTruncation::get_type_info_static()] =
         CREATE_CPU_EMITTER(jit_convert_truncation_emitter);
@@ -239,6 +248,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
 
     // memory access
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_memory_emitter);
+    jitters[snippets::op::LoadReorder::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_memory_emitter);
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_broadcast_emitter);
     jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_store_memory_emitter);
 
@@ -255,6 +265,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v1::Multiply::get_type_info_static()] = CREATE_CPU_EMITTER(jit_multiply_emitter);
     jitters[snippets::op::PowerStatic::get_type_info_static()] = CREATE_CPU_EMITTER(jit_power_static_emitter);
     jitters[op::v1::Power::get_type_info_static()] = CREATE_CPU_EMITTER(jit_power_dynamic_emitter);
+    jitters[op::v0::SquaredDifference::get_type_info_static()] = CREATE_CPU_EMITTER(jit_squared_difference_emitter);
     jitters[op::v1::Subtract::get_type_info_static()] = CREATE_CPU_EMITTER(jit_subtract_emitter);
     jitters[op::v0::Xor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_xor_emitter);
 
@@ -262,7 +273,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v1::Equal::get_type_info_static()] = CREATE_CPU_EMITTER(jit_equal_emitter);
     jitters[op::v1::Greater::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_emitter);
     jitters[op::v1::GreaterEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_equal_emitter);
+    jitters[op::v1::Less::get_type_info_static()] = CREATE_CPU_EMITTER(jit_less_emitter);
     jitters[op::v1::LessEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_less_equal_emitter);
+    jitters[op::v1::NotEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_not_equal_emitter);
 
     // Logical ops
     jitters[op::v1::LogicalAnd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_and_emitter);
@@ -275,6 +288,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v0::Ceiling::get_type_info_static()] = CREATE_CPU_EMITTER(jit_ceiling_emitter);
     jitters[ov::op::v0::Clamp::get_type_info_static()] = CREATE_CPU_EMITTER(jit_clamp_emitter);
     jitters[ov::op::v0::Elu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_elu_emitter);
+    jitters[ov::op::v0::Erf::get_type_info_static()] = CREATE_CPU_EMITTER(jit_erf_emitter);
     jitters[ov::op::v0::Exp::get_type_info_static()] = CREATE_CPU_EMITTER(jit_exp_emitter);
     jitters[ov::op::v0::Floor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_floor_emitter);
     jitters[ov::op::v1::FloorMod::get_type_info_static()] = CREATE_CPU_EMITTER(jit_floor_mod_emitter);
@@ -283,6 +297,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
         CREATE_GELU_V7_EMITTER(jit_gelu_erf_emitter, jit_gelu_tanh_emitter);
     jitters[ov::op::v4::HSwish::get_type_info_static()] = CREATE_CPU_EMITTER(jit_hswish_emitter);
     jitters[ov::op::v4::Mish::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mish_emitter);
+    jitters[ov::op::v0::Negative::get_type_info_static()] = CREATE_CPU_EMITTER(jit_negative_emitter);
     jitters[ov::op::v0::PRelu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_prelu_emitter);
     jitters[ov::op::v0::Relu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_relu_emitter);
     jitters[ov::op::v5::Round::get_type_info_static()] =
@@ -362,7 +377,7 @@ std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
         // Note: more details on the usage of reserved registers in aarch64/jit_kernel_emitter.cpp
-        if (!one_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
+        if (none_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }

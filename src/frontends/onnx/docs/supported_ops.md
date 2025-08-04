@@ -132,7 +132,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Pow                                                     |1                       |15, 13, 12, 7, 1                |                                |
 |                        |QLinearConv                                             |10                      |10                              |                                |
 |                        |QLinearMatMul                                           |10                      |21, 10                          |                                |
-|                        |QuantizeLinear                                          |13, 10                  |21, 19, 13, 10                  |                                |
+|                        |QuantizeLinear                                          |21, 13, 10              |21, 19, 13, 10                  |                                |
 |                        |RNN                                                     |1                       |22, 14, 7, 1                    |                                |
 |                        |RandomNormal                                            |1                       |22, 1                           |                                |
 |                        |RandomNormalLike                                        |1                       |22, 1                           |                                |

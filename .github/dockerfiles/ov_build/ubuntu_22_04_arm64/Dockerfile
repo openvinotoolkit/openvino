@@ -1,5 +1,5 @@
 ARG REGISTRY="docker.io"
-FROM ${REGISTRY}/library/ubuntu:20.04
+FROM ${REGISTRY}/library/ubuntu:22.04
 
 USER root
 
@@ -13,9 +13,11 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt-get update && \
-    apt-get install software-properties-common && \
+    apt-get install software-properties-common wget && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
+    add-apt-repository --yes --no-update "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" && \
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     apt-get update && \
     apt-get install \
         curl \
@@ -43,15 +45,19 @@ RUN apt-get update && \
         # For Java API
         default-jdk \
         # Compiler, required for multi-isa build
-        gcc-10 \
-        g++-10 \
+        gcc-11 \
+        g++-11 \
         # JS API
         xvfb \
         libgtk-3-0 \
         libgbm1 \
         # ONNX Runtime
         language-pack-en \
+        # For clang-tidy validation
+        clang-format-18 \
+        clang-tidy-18 \
         && \
+    # Remove apt cache
     rm -rf /var/lib/apt/lists/*
 
 # Install build dependencies
@@ -60,9 +66,9 @@ RUN chmod +x /install_build_dependencies.sh && \
     bash -e /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
-# Set gcc-10 as a default compiler
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 30 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-10 30
+# Set gcc-11 as a default compiler
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 30 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 30
 
 # Install sccache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -86,7 +92,7 @@ RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     rm -f get-pip.py
 
-# Use Python 3.11 as default instead of Python 3.8
+# Use Python 3.11 as default instead of Python 3.10
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build
 RUN python3.11 -m venv venv
 ENV PATH="/venv/bin:$SCCACHE_HOME:$PATH"

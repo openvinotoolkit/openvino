@@ -305,7 +305,7 @@ void concat_in_place_optimization::update_in_place_concat_paddings(
         padd = padding::max(padd, inputPadding);
     }
 
-    std::vector<tensor::value_type> lower_padd, upper_padd;
+    std::vector<ov::Dimension::value_type> lower_padd, upper_padd;
     for (size_t i = 0; i < concat_out_layout.get_rank(); i++) {
         lower_padd.push_back(padd._lower_size[i]);
         upper_padd.push_back(padd._upper_size[i]);
@@ -638,12 +638,12 @@ void crop_in_place_optimization::update_in_place_crop_padding_along_feature(cons
         opt_lower_pad += dep_pad._lower_size[1];
         opt_upper_pad += dep_pad._upper_size[1];
     }
-    std::vector<int32_t> lower_sizes;
+    std::vector<ov::Dimension::value_type> lower_sizes;
     lower_sizes.push_back(out_pad._lower_size[0]);
     lower_sizes.push_back(opt_lower_pad);
     lower_sizes.push_back(out_pad._lower_size[2]);
     lower_sizes.push_back(out_pad._lower_size[3]);
-    std::vector<int32_t> upper_sizes;
+    std::vector<ov::Dimension::value_type> upper_sizes;
     upper_sizes.push_back(out_pad._upper_size[0]);
     upper_sizes.push_back(opt_upper_pad);
     upper_sizes.push_back(out_pad._upper_size[2]);
@@ -708,13 +708,13 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
 
     const auto& crop_size = crop_layout.get_tensor();
 
-    std::vector<int32_t> lower_sizes;
+    std::vector<ov::Dimension::value_type> lower_sizes;
     lower_sizes.push_back(offsets.batch[0]);
     lower_sizes.push_back(offsets.feature[0]);
     for (int32_t i = static_cast<int32_t>(input_layout.get_spatial_rank() - 1); i >= 0; i--) {
         lower_sizes.push_back(offsets.spatial[i]);
     }
-    std::vector<int32_t> upper_sizes;
+    std::vector<ov::Dimension::value_type> upper_sizes;
     upper_sizes.push_back(input_layout.batch() - offsets.batch[0] - crop_size.batch[0]);
     upper_sizes.push_back(input_layout.feature() - offsets.feature[0] - crop_size.feature[0]);
     for (int32_t i = static_cast<int32_t>(input_layout.get_spatial_rank() - 1); i >= 0; i--) {
@@ -745,8 +745,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 reshape_axis -= 1;
 
                 const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
-                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
-                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
@@ -771,8 +771,8 @@ void crop_in_place_optimization::update_in_place_crop_padding_simple_data_format
                 }
 
                 const auto output_rank = std::max(reshape_ps.size(), static_cast<size_t>(4));
-                std::vector<int32_t> reshape_lower_sizes(output_rank, 0);
-                std::vector<int32_t> reshape_upper_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_lower_sizes(output_rank, 0);
+                std::vector<ov::Dimension::value_type> reshape_upper_sizes(output_rank, 0);
                 padding::DynamicDimsMask reshape_dyn_pad_mask;
 
                 reshape_lower_sizes[reshape_axis] = lower_sizes[crop_axis];
@@ -870,8 +870,8 @@ void prepare_buffer_fusing::run(program& p) {
                 if (!allow_new_shape_infer && user->is_type<gemm>() && user->get_dependency(1).id().compare(node.id()) == 0) {
                     auto input_rank = user->get_kernel_impl_params()->typed_desc<gemm>()->weight_rank;
                     if (input_rank < TDIM) {
-                        std::vector<int32_t> l_pad = {0, 0, 0, 0};
-                        std::vector<int32_t> u_pad = {0, 0, 0, 0};
+                        std::vector<ov::Dimension::value_type> l_pad = {0, 0, 0, 0};
+                        std::vector<ov::Dimension::value_type> u_pad = {0, 0, 0, 0};
 
                         //shift right
                         size_t shift_right = TDIM - input_rank;

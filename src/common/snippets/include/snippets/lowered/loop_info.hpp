@@ -226,7 +226,7 @@ public:
     // The structure describes data pointer shift parameters:
     // pointer increment, finalization offset, element size of the port
     struct LoopPortDesc {
-        LoopPortDesc(int64_t inc = 0, int64_t fo = 0, int64_t ds = 0)
+        explicit LoopPortDesc(int64_t inc = 0, int64_t fo = 0, int64_t ds = 0)
             : ptr_increment(inc),
               finalization_offset(fo),
               data_size(ds) {}

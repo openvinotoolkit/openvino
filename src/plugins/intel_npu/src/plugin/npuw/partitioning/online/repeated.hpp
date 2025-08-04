@@ -43,10 +43,12 @@ struct MetaInterconnect {
     std::string input_meta;
     detail::Reptrack input_reptrack;
     size_t input_port;
+    size_t input_g_output_size;
 
     std::string output_meta;
     detail::Reptrack output_reptrack;
     size_t output_port;
+    size_t output_g_output_size;
 
     bool operator==(const MetaInterconnect& other) const;
     bool operator<(const MetaInterconnect& other) const;
@@ -125,6 +127,8 @@ struct hash<ov::npuw::online::MetaInterconnect> {
                (std::hash<std::string>()(mic.output_meta) + 0x9e3779b9) ^
                (std::hash<size_t>()(mic.input_port) + 0x9e3779b9) ^
                (std::hash<size_t>()(mic.output_port) + 0x9e3779b9) ^
+               (std::hash<size_t>()(mic.input_g_output_size) + 0x9e3779b9) ^
+               (std::hash<size_t>()(mic.output_g_output_size) + 0x9e3779b9) ^
                (std::hash<ov::npuw::online::detail::Reptrack>()(mic.input_reptrack) + 0x9e3779b9) ^
                (std::hash<ov::npuw::online::detail::Reptrack>()(mic.output_reptrack) + 0x9e3779b9);
     }

@@ -570,7 +570,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
         problem_kq.Ta_scale = scale_dt;
         problem_kq.A_scale.setAlignment(scale_dt.size());
         problem_kq.A_scale.layout = micro::MatrixLayout::N;
-        problem_kq.aScale2D = true;
+        problem_kq.asPtrDims = 2;
     }
 
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {
@@ -635,7 +635,7 @@ void SDPAKernelMicro::init_microkernels(const sdpa_params& params, micro::Packag
         problem_vs.Ta_scale = scale_dt;
         problem_vs.A_scale.setAlignment(scale_dt.size());
         problem_vs.A_scale.layout = micro::MatrixLayout::N;
-        problem_vs.aScale2D = true;
+        problem_vs.asPtrDims = 2;
     }
 
     if (params.conf.is_kv_compressed && params.conf.use_asymmetric_quantization) {

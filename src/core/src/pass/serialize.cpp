@@ -1349,6 +1349,10 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
     }
 }
 
+bool pass::StreamSerialize::use_absolute_offset() {
+    return true;
+}
+
 bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(StreamSerialize);
     /*
@@ -1377,17 +1381,18 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     }
 
     // Header
-    const size_t header_offset = m_stream.tellp();
+    const size_t header_offset = use_absolute_offset() ? 0 : static_cast<size_t>(m_stream.tellp());
+    const size_t absolute_header_offset = static_cast<size_t>(m_stream.tellp());
     writeHeader(hdr);
 
     // Custom data
-    hdr.custom_data_offset = m_stream.tellp();
+    hdr.custom_data_offset = static_cast<size_t>(m_stream.tellp()) - header_offset;
     if (m_custom_data_serializer) {
         m_custom_data_serializer(m_stream);
     }
 
     // Blobs
-    hdr.consts_offset = m_stream.tellp();
+    hdr.consts_offset = static_cast<size_t>(m_stream.tellp()) - header_offset;
     std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
@@ -1397,7 +1402,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     visitor.on_attribute(name, fun);
 
     // IR
-    hdr.model_offset = m_stream.tellp();
+    hdr.model_offset = static_cast<size_t>(m_stream.tellp()) - header_offset;
     if (m_cache_encrypt) {
         std::stringstream ss;
         xml_doc.save(ss);
@@ -1408,13 +1413,13 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     }
     m_stream.flush();
 
-    const size_t file_size = m_stream.tellp();
+    const size_t file_size = static_cast<size_t>(m_stream.tellp()) - header_offset;
 
     hdr.custom_data_size = hdr.consts_offset - hdr.custom_data_offset;
     hdr.consts_size = hdr.model_offset - hdr.consts_offset;
     hdr.model_size = file_size - hdr.model_offset;
 
-    m_stream.seekp(header_offset);
+    m_stream.seekp(absolute_header_offset);
     writeHeader(hdr);
 
     m_stream.seekp(file_size);

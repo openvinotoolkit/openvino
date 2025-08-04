@@ -80,6 +80,14 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         seed = hash_range(seed, input_k_transpose_order.begin(), input_k_transpose_order.end());
         seed = hash_range(seed, input_v_transpose_order.begin(), input_v_transpose_order.end());
         seed = hash_range(seed, output_transpose_order.begin(), output_transpose_order.end());
+        seed = hash_combine(seed, attn_mask_val.has_value());
+        if (attn_mask_val) {
+            seed = hash_combine(seed, attn_mask_val.value());
+        }
+        seed = hash_combine(seed, scale_val.has_value());
+        if (scale_val) {
+            seed = hash_combine(seed, scale_val.value());
+        }
         seed = hash_combine(seed, is_kv_compressed);
         seed = hash_range(seed, quantization_attributes.scales_zp_output_order.begin(), quantization_attributes.scales_zp_output_order.end());
         seed = hash_range(seed, quantization_attributes.group_sizes.begin(), quantization_attributes.group_sizes.end());
@@ -106,6 +114,8 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
                input_k_transpose_order == rhs_casted.input_k_transpose_order &&
                input_v_transpose_order == rhs_casted.input_v_transpose_order &&
                output_transpose_order == rhs_casted.output_transpose_order &&
+               attn_mask_val == rhs_casted.attn_mask_val &&
+               scale_val == rhs_casted.scale_val &&
                is_kv_compressed == rhs_casted.is_kv_compressed &&
                quantization_attributes.scales_zp_output_order == rhs_casted.quantization_attributes.scales_zp_output_order &&
                quantization_attributes.output_storage_type == rhs_casted.quantization_attributes.output_storage_type &&
@@ -127,6 +137,14 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ob << input_k_transpose_order;
         ob << input_v_transpose_order;
         ob << output_transpose_order;
+        ob << attn_mask_val.has_value();
+        if (attn_mask_val) {
+            ob << make_data(&attn_mask_val.value(), sizeof(attn_mask_val.value()));
+        }
+        ob << scale_val.has_value();
+        if (scale_val) {
+            ob << make_data(&scale_val.value(), sizeof(scale_val.value()));
+        }
         ob << make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));
         ob << make_data(&quantization_attributes.quantization_dt, sizeof(quantization_attributes.quantization_dt));
         ob << make_data(&quantization_attributes.scale_dt, sizeof(quantization_attributes.scale_dt));
@@ -147,6 +165,16 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ib >> input_k_transpose_order;
         ib >> input_v_transpose_order;
         ib >> output_transpose_order;
+        bool has_attn_mask_val;
+        ib >> has_attn_mask_val;
+        if (has_attn_mask_val) {
+            ib >> make_data(&attn_mask_val.emplace(), sizeof(attn_mask_val.value()));
+        }
+        bool has_scale_val;
+        ib >> has_scale_val;
+        if (has_scale_val) {
+            ib >> make_data(&scale_val.emplace(), sizeof(scale_val.value()));
+        }
         ib >> make_data(&quantization_attributes.quantization_type, sizeof(quantization_attributes.quantization_type));
         ib >> make_data(&quantization_attributes.quantization_dt, sizeof(quantization_attributes.quantization_dt));
         ib >> make_data(&quantization_attributes.scale_dt, sizeof(quantization_attributes.scale_dt));
