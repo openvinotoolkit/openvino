@@ -739,6 +739,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             auto& input = activation_node.get_dependency(0);
+            auto preferred_impl_type = lo.get_preferred_impl_type(input, format::byxf /*dummy value to disable format checking*/);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
 
@@ -770,7 +771,9 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 }
             }
 
-            bool should_fuse = input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
+            bool should_fuse = input.is_type<convolution>() && 
+                                conv_supports_fusings(input.as<convolution>()) &&
+                                preferred_impl_type != impl_types::cm;
 
             should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
 
@@ -824,7 +827,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<lora>() && lora_supports_fusings(input.as<lora>());
 
-            bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
+            bool legacy_fusion = preferred_impl_type != impl_types::cm &&
+                                  activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
                                  !activation_node.has_fused_primitives() &&
