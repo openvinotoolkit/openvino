@@ -176,6 +176,6 @@ bool evaluate_node<ov::op::v16::AvgPool>(std::shared_ptr<ov::Node> node,
     case ov::element::u64:
         return evaluate<ov::element::u64>(ov::as_type_ptr<ov::op::v16::AvgPool>(node), outputs, inputs);
     default:
-        OPENVINO_THROW("Unhandled data type ", node->get_element_type().get_type_name(), " in evaluate_node()");
+        OPENVINO_THROW("Unhandled data type ", node->get_element_type(), " in evaluate_node()");
     }
 }
