@@ -7,9 +7,9 @@
 #include <memory>
 #include <utility>
 
+#include "msda_inst.h"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
-#include "msda_inst.h"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 

@@ -118,20 +118,25 @@ std::shared_ptr<ov::Node> build_concated_grid_samplers(const std::shared_ptr<ov:
 
 std::shared_ptr<ov::Node> build_attn_aggregate(const std::shared_ptr<ov::Node>& input_attn_weight,
                                                const std::shared_ptr<ov::Node>& grid_sample) {
-    auto attn_Transpose_8 =
-        std::make_shared<Transpose>(input_attn_weight,
-                                    Constant::create(element::i64, Shape{5}, {0, 2, 1, 3, 4}));  //  tensor_array<f16[?,8,22223,4,4]>
-                                                                                                 //  /encoder/layers.1/self_attn/Transpose_8(/encoder/layers.1/self_attn/Reshape_3,
-                                                                                                 //  Constant_51230)
+    auto attn_Transpose_8 = std::make_shared<Transpose>(
+        input_attn_weight,
+        Constant::create(
+            element::i64,
+            Shape{5},
+            {0, 2, 1, 3, 4}));  //  tensor_array<f16[?,8,22223,4,4]>
+                                //  /encoder/layers.1/self_attn/Transpose_8(/encoder/layers.1/self_attn/Reshape_3,
+                                //  Constant_51230)
     auto attn_Reshape_16 = std::make_shared<Reshape>(
         attn_Transpose_8,
         Constant::create(element::i64, Shape{4}, {-1, 1, 0, 16}),
         true);  //  tensor_array<f16[?,1,22223,16]>
                 //  /encoder/layers.1/self_attn/Reshape_16(/encoder/layers.1/self_attn/Transpose_8, Constant_650344)
-    auto attn_Mul_3 =
-        std::make_shared<Multiply>(grid_sample, attn_Reshape_16, "numpy");  //  tensor_array<f16[?,32,22223,16]>
-                                                                            //  /encoder/layers.1/self_attn/Mul_3(/encoder/layers.1/self_attn/Reshape_17,
-                                                                            //  /encoder/layers.1/self_attn/Reshape_16)
+    auto attn_Mul_3 = std::make_shared<Multiply>(
+        grid_sample,
+        attn_Reshape_16,
+        "numpy");  //  tensor_array<f16[?,32,22223,16]>
+                   //  /encoder/layers.1/self_attn/Mul_3(/encoder/layers.1/self_attn/Reshape_17,
+                   //  /encoder/layers.1/self_attn/Reshape_16)
     auto attn_ReduceSum = std::make_shared<ReduceSum>(
         attn_Mul_3,
         Constant::create(element::i64, Shape{1}, {-1}),
@@ -142,11 +147,16 @@ std::shared_ptr<ov::Node> build_attn_aggregate(const std::shared_ptr<ov::Node>& 
         Constant::create(element::i64, Shape{3}, {-1, 256, 0}),
         true);  //  tensor_array<f16[?,256,22223]>
                 //  /encoder/layers.1/self_attn/Reshape_18(/encoder/layers.1/self_attn/ReduceSum, Constant_650345)
-    auto attn_output_proj_MatMul_transpose_a =
-        std::make_shared<Transpose>(attn_Reshape_18,
-                                    Constant::create(element::i64, Shape{3}, {0, 2, 1}));  //  tensor_array<f16[?,22223,256]>
-                                                                                           //  /encoder/layers.1/self_attn/output_proj/MatMul/transpose_a(/encoder/layers.1/self_attn/Reshape_18,
-                                                                                           //  Constant_48800)
+    auto attn_output_proj_MatMul_transpose_a = std::make_shared<Transpose>(
+        attn_Reshape_18,
+        Constant::create(
+            element::i64,
+            Shape{3},
+            {0,
+             2,
+             1}));  //  tensor_array<f16[?,22223,256]>
+                    //  /encoder/layers.1/self_attn/output_proj/MatMul/transpose_a(/encoder/layers.1/self_attn/Reshape_18,
+                    //  Constant_48800)
     return attn_output_proj_MatMul_transpose_a;
 }
 
