@@ -21,7 +21,7 @@ using RollCPUTestParams = typename std::tuple<
 class RollLayerCPUTest : public testing::WithParamInterface<RollCPUTestParams>,
                          virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<RollCPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<RollCPUTestParams>& obj) {
         const auto& [inputShape, inputPrecision, shift, axes, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";

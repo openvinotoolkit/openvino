@@ -15,7 +15,7 @@ using namespace ov::intel_cpu;
 namespace ov {
 namespace test {
 
-std::string InterpolateLayerCPUTest::getTestCaseName(testing::TestParamInfo<InterpolateLayerCPUTestParamsSet> obj) {
+std::string InterpolateLayerCPUTest::getTestCaseName(const testing::TestParamInfo<InterpolateLayerCPUTestParamsSet>& obj) {
     const auto& [specificParams, shapeParams, prec, cpuParams, fusingParams, additionalConfig] = obj.param;
     const auto& [mode, transfMode, nearMode, antiAlias, padBegin, padEnd, cubeCoef] = specificParams;
     const auto& [shapeCalcMode, inputShapes, shapeInputType, shapeDataForInput, axes] = shapeParams;

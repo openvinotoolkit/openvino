@@ -13,7 +13,7 @@ using namespace CPUTestUtils;
 
 namespace ov::test::SparseFillEmptyRows {
 
-std::string SparseFillEmptyRowsLayerCPUTest::getTestCaseName(testing::TestParamInfo<SparseFillEmptyRowsLayerCPUTestParamsSet> obj) {
+std::string SparseFillEmptyRowsLayerCPUTest::getTestCaseName(const testing::TestParamInfo<SparseFillEmptyRowsLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, cpuParams] = obj.param;
     const auto& [sparseFillEmptyRowsPar, valuesPrecision, indicesPrecision, secondaryInputType, td] = basicParamsSet;
     const auto& [valuesShape, indicesShape, denseShapeValues, defaultValue] = sparseFillEmptyRowsPar;

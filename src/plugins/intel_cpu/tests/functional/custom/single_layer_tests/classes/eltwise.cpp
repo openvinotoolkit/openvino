@@ -21,7 +21,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj) {
+std::string EltwiseLayerCPUTest::getTestCaseName(const testing::TestParamInfo<EltwiseLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets] = obj.param;
     std::ostringstream result;
     result << EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams>(

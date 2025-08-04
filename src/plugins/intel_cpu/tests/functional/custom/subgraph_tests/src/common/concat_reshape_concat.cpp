@@ -48,8 +48,8 @@ using VectorShapes = std::vector<InputShape>;
 class ConcatReshapeConcatSubgraphTest : public testing::WithParamInterface<VectorShapes>,
                                         virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<VectorShapes> obj) {
-        VectorShapes& inputShapes = obj.param;
+    static std::string getTestCaseName(const testing::TestParamInfo<VectorShapes>& obj) {
+        const VectorShapes& inputShapes = obj.param;
 
         std::ostringstream result;
         result << "IS=";

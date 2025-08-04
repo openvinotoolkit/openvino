@@ -17,7 +17,7 @@ class FQScaleshiftWithConstantShiftTest : public testing::WithParamInterface<ov:
                                           public CPUTestsBase,
                                           virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::element::Type> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::element::Type>& obj) {
         ov::element::Type netPrecision;
         netPrecision = obj.param;
         std::ostringstream result;

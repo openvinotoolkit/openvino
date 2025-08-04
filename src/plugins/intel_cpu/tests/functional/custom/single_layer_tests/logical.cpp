@@ -20,7 +20,7 @@ class LogicalLayerCPUTest : public testing::WithParamInterface<LogicalLayerCPUTe
                             virtual public ov::test::SubgraphBaseTest,
                             public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LogicalLayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<LogicalLayerCPUTestParamSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         std::ostringstream result;
         result << ov::test::LogicalLayerTest::getTestCaseName(

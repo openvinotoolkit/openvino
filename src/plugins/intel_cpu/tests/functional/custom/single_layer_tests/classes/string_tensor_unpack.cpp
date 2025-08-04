@@ -14,7 +14,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace StringTensorUnpack {
-std::string StringTensorUnpackLayerCPUTest::getTestCaseName(testing::TestParamInfo<StringTensorUnpackLayerCPUTestParamsSet> obj) {
+std::string StringTensorUnpackLayerCPUTest::getTestCaseName(const testing::TestParamInfo<StringTensorUnpackLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, cpuParams] = obj.param;
     const auto& [StringTensorUnpackPar, td] = basicParamsSet;
     const auto& [inputShape] = StringTensorUnpackPar;

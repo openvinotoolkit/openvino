@@ -23,7 +23,7 @@ using ConvertToPluginSpecificNodeParams = std::tuple<ov::Shape,                 
 class ConvertToPluginSpecificNode : public testing::WithParamInterface<ConvertToPluginSpecificNodeParams>,
                                     public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConvertToPluginSpecificNodeParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConvertToPluginSpecificNodeParams>& obj) {
         const auto& [nonConstShape, constShape, prc, nodeType, port, constNodeNum] = obj.param;
         std::ostringstream result;
         result << "IS_NON_CONST=" << nonConstShape << "_";

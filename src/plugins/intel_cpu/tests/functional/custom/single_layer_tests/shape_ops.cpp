@@ -54,7 +54,7 @@ class ShapeOpsCPUTest : public testing::WithParamInterface<shapeOpsParams>,
                         virtual public SubgraphBaseTest,
                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<shapeOpsParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<shapeOpsParams>& obj) {
         const auto& [inpDesc, secondType, nodeType, prc, tmpSecondInPrc, specialZero] = obj.param;
         std::ostringstream result;
         result << nodeType << "_";

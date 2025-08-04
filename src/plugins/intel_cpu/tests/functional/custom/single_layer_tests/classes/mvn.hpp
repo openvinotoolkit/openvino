@@ -34,7 +34,7 @@ using MvnLayerCPUTestParamSet = std::tuple<
 class MvnLayerCPUTest : public testing::WithParamInterface<MvnLayerCPUTestParamSet>,
                        virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<MvnLayerCPUTestParamSet> obj);
+   static std::string getTestCaseName(const testing::TestParamInfo<MvnLayerCPUTestParamSet>& obj);
 protected:
    void SetUp() override;
 private:

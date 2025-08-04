@@ -21,7 +21,7 @@ class GRNLayerCPUTest : public testing::WithParamInterface<GRNCPUTestParams>,
                         virtual public SubgraphBaseTest,
                         public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GRNCPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GRNCPUTestParams>& obj) {
         const auto& [netPrecision, inPrc, outPrc, inputShape, bias, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({inputShape.first}) << "_";

@@ -7,7 +7,7 @@
 using namespace CPUTestUtils;
 using namespace ov::test;
 
-std::string DeconvolutionLayerCPUTest::getTestCaseName(testing::TestParamInfo<DeconvLayerCPUTestParamsSet> obj) {
+std::string DeconvolutionLayerCPUTest::getTestCaseName(const testing::TestParamInfo<DeconvLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, inputData, prec, fusingParams, cpuParams, additionalConfig] = obj.param;
     const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding] = basicParamsSet;
     const auto& [inputShape, outShapeType, outShapeData] = inputData;

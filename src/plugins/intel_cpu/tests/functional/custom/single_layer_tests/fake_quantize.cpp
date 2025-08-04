@@ -32,7 +32,7 @@ class FakeQuantizeLayerCPUTest : public testing::WithParamInterface<fqLayerTestP
                                  virtual public SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<fqLayerTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSet>& obj) {
         const auto& [fqParams, testShapes, inPrec, inputRangesValues, shouldBeDecomposed, cpuParams] = obj.param;
         const auto& [shapes, ranges] = testShapes;
         const auto &[inputLow, inputHigh] = inputRangesValues;

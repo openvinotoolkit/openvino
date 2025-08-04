@@ -44,7 +44,7 @@ using SplitMatMulConcatParams = std::tuple<
 class SplitMatMulConcatTest : public testing::WithParamInterface<SplitMatMulConcatParams>,
                                     virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SplitMatMulConcatParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<SplitMatMulConcatParams>& obj) {
         const auto& [inputShapes, transpose] = obj.param;
         std::ostringstream result;
         for (const auto& shape : inputShapes) {

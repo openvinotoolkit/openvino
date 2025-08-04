@@ -35,7 +35,7 @@ using LoopParams = typename std::tuple<
 class LoopLayerCPUTest : public testing::WithParamInterface<LoopParams>,
                          virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LoopParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<LoopParams>& obj) {
         const auto& [trip_count_type, trip_count, exec_cond, shapes, types, netType] = obj.param;
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {

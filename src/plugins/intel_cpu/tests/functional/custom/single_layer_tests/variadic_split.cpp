@@ -25,7 +25,7 @@ class VariadicSplitLayerCPUTest : public testing::WithParamInterface<varSplitCPU
                                   virtual public SubgraphBaseTest,
                                   public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<varSplitCPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<varSplitCPUTestParams>& obj) {
         const auto& [shapes, axis, splitLengths, lengthsType, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=";

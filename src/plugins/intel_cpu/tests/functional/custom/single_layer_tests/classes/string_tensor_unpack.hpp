@@ -29,7 +29,7 @@ using StringTensorUnpackLayerCPUTestParamsSet = std::tuple<
 class StringTensorUnpackLayerCPUTest : public testing::WithParamInterface<StringTensorUnpackLayerCPUTestParamsSet>,
                              public SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<StringTensorUnpackLayerCPUTestParamsSet> obj);
+   static std::string getTestCaseName(const testing::TestParamInfo<StringTensorUnpackLayerCPUTestParamsSet>& obj);
 protected:
    void SetUp() override;
    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

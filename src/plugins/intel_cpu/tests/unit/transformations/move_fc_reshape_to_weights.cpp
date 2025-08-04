@@ -64,7 +64,7 @@ using MoveFCReshapeToWeightsParams = std::tuple<std::pair<ov::PartialShape, ov::
 
 class MoveFCReshapeToWeightsTests : public TransformationTestsF, public WithParamInterface<MoveFCReshapeToWeightsParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MoveFCReshapeToWeightsParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MoveFCReshapeToWeightsParams>& obj) {
         const auto& [input_shapes, add_transpose, zp_type, zp_shape] = obj.param;
         std::ostringstream result;
         result << "Input_shape=(" << input_shapes.first << ")_Weights_shape=(" << input_shapes.second

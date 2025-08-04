@@ -14,7 +14,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace SegmentMax {
-std::string SegmentMaxLayerCPUTest::getTestCaseName(testing::TestParamInfo<SegmentMaxLayerCPUTestParamsSet> obj) {
+std::string SegmentMaxLayerCPUTest::getTestCaseName(const testing::TestParamInfo<SegmentMaxLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, cpuParams] = obj.param;
     const auto& [SegmentMaxPar, dataPrecision, useNumSegments, secondaryInputType, td] = basicParamsSet;
     const auto& [dataShape, segmentIdsValues, numSegments, fillMode] = SegmentMaxPar;

@@ -22,7 +22,7 @@ typedef std::tuple<std::vector<int>,                // Axis to reduce order
 class reduceTransformationCPUTest: public testing::WithParamInterface<reduceConvertCPUTestParamsSet>,
                                             virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<reduceConvertCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<reduceConvertCPUTestParamsSet>& obj) {
         const auto& [axes, reductionType, inputShapes] = obj.param;
         std::ostringstream result;
         result << "type=" << reductionType << "_";

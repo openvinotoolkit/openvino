@@ -33,7 +33,7 @@ class GroupConvolutionLayerCPUTest : public testing::WithParamInterface<groupCon
                                      virtual public SubgraphBaseTest,
                                      public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<groupConvLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams, fusingParams, additionalConfig] = obj.param;
         const auto& [groupConvParams, netType, inType, outType, inputShape, targetDevice] = basicParamsSet;
         const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType] = groupConvParams;

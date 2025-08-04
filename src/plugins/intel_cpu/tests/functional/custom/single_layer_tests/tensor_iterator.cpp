@@ -18,7 +18,7 @@ using TensorIteratorParams = typename std::tuple<std::vector<InputShape>,       
 class TensorIteratorCPUTest : public testing::WithParamInterface<TensorIteratorParams>,
                               virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TensorIteratorParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorParams>& obj) {
         const auto& [shapes, direction, inType] = obj.param;
         std::ostringstream result;
         for (size_t i = 0; i < shapes.size(); i++) {

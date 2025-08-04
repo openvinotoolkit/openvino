@@ -35,7 +35,7 @@ using SegmentMaxLayerCPUTestParamsSet = std::tuple<
 class SegmentMaxLayerCPUTest : public testing::WithParamInterface<SegmentMaxLayerCPUTestParamsSet>,
                              public SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<SegmentMaxLayerCPUTestParamsSet> obj);
+   static std::string getTestCaseName(const testing::TestParamInfo<SegmentMaxLayerCPUTestParamsSet>& obj);
 protected:
    void SetUp() override;
    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

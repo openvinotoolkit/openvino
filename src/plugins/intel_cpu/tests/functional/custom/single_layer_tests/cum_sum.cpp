@@ -20,7 +20,7 @@ class CumSumLayerCPUTest : public testing::WithParamInterface<cumSumParams>,
                            public SubgraphBaseTest,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<cumSumParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<cumSumParams>& obj) {
         const auto& [inputPrecision, shapes, axis, exclusive, reverse] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";

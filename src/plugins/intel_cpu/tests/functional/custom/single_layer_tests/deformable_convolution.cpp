@@ -41,7 +41,7 @@ class DefConvLayerCPUTest : public testing::WithParamInterface<DefConvLayerCPUTe
                             public CPUTestsBase {
 public:
     OffsetType offsetType;
-    static std::string getTestCaseName(testing::TestParamInfo<DefConvLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DefConvLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [addSpParams, inputShape, dcSpecificParams, netPrecision, td] = basicParamsSet;
         const auto& [padType, padBegin, padEnd, stride, dilation] = addSpParams;

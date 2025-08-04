@@ -55,7 +55,7 @@ class IndexAddTest : public testing::WithParamInterface<IndexAddTestParams>,
                      virtual public ov::test::SubgraphBaseTest,
                      public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<IndexAddTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<IndexAddTestParams>& obj) {
         auto shapes_ss = [](const InputShape& shape) {
             std::stringstream ss;
             ss << "_IS=(" << ov::test::utils::partialShape2str({shape.first}) << ")_TS=";

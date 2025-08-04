@@ -18,7 +18,7 @@ using GatherNDLayerCPUTestParamSet = std::tuple<InputShape,                     
 class GatherNDLayerCPUTest : public testing::WithParamInterface<GatherNDLayerCPUTestParamSet>,
                              virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherNDLayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDLayerCPUTestParamSet>& obj) {
         const auto& [shapes, indexes, dataElementType, idxElementType, batchDims] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -54,7 +54,7 @@ protected:
 class GatherND8LayerCPUTest : public testing::WithParamInterface<GatherNDLayerCPUTestParamSet>,
                               virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GatherNDLayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GatherNDLayerCPUTestParamSet>& obj) {
         return GatherNDLayerCPUTest::getTestCaseName(obj);
     }
 

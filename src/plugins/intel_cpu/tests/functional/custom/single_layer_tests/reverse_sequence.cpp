@@ -27,7 +27,7 @@ using ReverseSequenceCPUTestParams =
 class ReverseSequenceLayerCPUTest : public testing::WithParamInterface<ReverseSequenceCPUTestParams>,
                                     virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReverseSequenceCPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ReverseSequenceCPUTestParams>& obj) {
         const auto& [batchAxisIndex, seqAxisIndex, dataInputShape, seqLengthsShape, secondaryInputType, netPrecision,
                      targetName] = obj.param;
         std::ostringstream result;

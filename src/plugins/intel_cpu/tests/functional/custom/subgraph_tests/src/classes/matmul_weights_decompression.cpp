@@ -10,7 +10,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string MatmulWeightsDecompression::getTestCaseName(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj) {
+std::string MatmulWeightsDecompression::getTestCaseName(const testing::TestParamInfo<MatmulWeightsDecompressionParams>& obj) {
     const auto& [shape_params, weights_precision, decompression_precision, scale_precision, transpose,
                  decompression_multiply_type, decompression_subtract_type, reshape_on_decompression, additional_config,
                  fusing_params, should_fuse] = obj.param;

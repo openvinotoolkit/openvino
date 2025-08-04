@@ -35,7 +35,7 @@ class TopKLayerCPUTest : public testing::WithParamInterface<TopKLayerCPUTestPara
                          virtual public SubgraphBaseTest,
                          public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<TopKLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<TopKLayerCPUTestParamsSet>& obj) {
         const auto &[basicParamsSet, cpuParams, additionalConfig] = obj.param;
         const auto &[keepK, axis, mode, sortTypeStable, netPrecision, inPrc, outPrc, inputShape] = basicParamsSet;
         SortType sort = std::get<0>(sortTypeStable);

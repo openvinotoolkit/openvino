@@ -33,7 +33,7 @@ using DisableGatherCompressedForQuantizedModelParams = std::tuple<element::Type,
 class DisableGatherCompressedForQuantizedModel : public testing::WithParamInterface<DisableGatherCompressedForQuantizedModelParams>,
                                                  virtual public SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DisableGatherCompressedForQuantizedModelParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DisableGatherCompressedForQuantizedModelParams>& obj) {
         const auto& [weight_prec, inputShape1, inputShape2] = obj.param;
         std::ostringstream result;
         result << "weight_prec=" << weight_prec << "_" << "inputShape1=" << inputShape1 << "_"

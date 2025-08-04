@@ -34,7 +34,7 @@ using SparseFillEmptyRowsLayerCPUTestParamsSet = std::tuple<
 class SparseFillEmptyRowsLayerCPUTest : public testing::WithParamInterface<SparseFillEmptyRowsLayerCPUTestParamsSet>,
                              public SubgraphBaseTest, public CPUTestUtils::CPUTestsBase {
 public:
-   static std::string getTestCaseName(testing::TestParamInfo<SparseFillEmptyRowsLayerCPUTestParamsSet> obj);
+   static std::string getTestCaseName(const testing::TestParamInfo<SparseFillEmptyRowsLayerCPUTestParamsSet>& obj);
 protected:
    void SetUp() override;
    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;

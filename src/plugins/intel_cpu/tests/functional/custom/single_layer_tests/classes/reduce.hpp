@@ -35,7 +35,7 @@ typedef std::tuple<
 class ReduceCPULayerTest : public testing::WithParamInterface<ReduceLayerCPUTestParamSet>,
                            virtual public SubgraphBaseTest, public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReduceLayerCPUTestParamSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ReduceLayerCPUTestParamSet>& obj);
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
