@@ -5,7 +5,12 @@ namespace {
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> Config = {{}};
+const std::vector<ov::AnyMap> Config = {
+                                        {}
+                                        // {ov::cache_dir("deadbeef"), ov::log::level(ov::log::Level::DEBUG)},
+                                        // {ov::intel_npu::bypass_umd_caching(false)},
+                                        // {ov::intel_npu::bypass_umd_caching(true)}
+                                    };
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          CompileAndDriverCaching,

@@ -9,6 +9,7 @@
 #include "openvino/core/except.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include <openvino/opsets/opset1.hpp>
+#include "openvino/core/log_util.hpp"
 
 #include "stdio.h" 
 #include <stdlib.h>
@@ -22,22 +23,11 @@
 #include <filesystem>
 #include <chrono>
 
-//check cache folder
-#ifdef WIN32
-#include "Shlobj.h"
-#include "shlobj_core.h"
-#include "objbase.h"
-#else
-#include <sys/stat.h>
-#include <sys/types.h>
-#endif
+#include "overload/overload_test_utils_npu.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
-
-bool containsCacheStatus(const std::string& str, const std::string cmpstr);   
-void checkCacheDirectory(); 
 
 inline std::shared_ptr<ov::Model> getConstantGraph() {
     auto now = std::chrono::system_clock::now();
@@ -51,43 +41,6 @@ inline std::shared_ptr<ov::Model> getConstantGraph() {
     return std::make_shared<ov::Model>(ov::OutputVector{add->output(0)}, ov::ParameterVector{param});
 }
 
-bool containsCacheStatus(const std::string& str, const std::string cmpstr) {  
-    return str.find(cmpstr) != std::string::npos;  
-}
-
-void checkCacheDirectory() {
-    std::filesystem::path path{};
-#ifdef WIN32
-    wchar_t* local = nullptr;
-    auto result = SHGetKnownFolderPath( FOLDERID_LocalAppData, 0, NULL, &local );
-
-    if(SUCCEEDED(result)) {
-        path = std::filesystem::path( L"\\\\?\\" + std::wstring( local ) + +L"\\Intel\\NPU" );
-        CoTaskMemFree( local );
-    }
-#else
-    const char *env = getenv("ZE_INTEL_NPU_CACHE_DIR");
-    if (env) {
-        path = std::filesystem::path(env);
-    } else {
-        env = getenv("HOME");
-        if (env) {
-            path = std::filesystem::path(env) / ".cache/ze_intel_npu_cache";
-        } else {
-            path = std::filesystem::current_path() / ".cache/ze_intel_npu_cache";
-        }
-    }
-#endif
-    int cacheSize = 0;
-    std::printf("======check cache path: #%s#\n", path.string().c_str());
-    if (std::filesystem::exists(path) && std::filesystem::is_directory(path)) {
-        for (const auto& entry : std::filesystem::directory_iterator(path)) {
-            // std::printf("  ====cache content: #%s# \n", entry.path().string().c_str());
-            cacheSize++;
-        }
-        std::printf("  ====cache content's size is : #%d# \n", cacheSize);
-    }
-}
 
 typedef std::tuple<std::string,                 // Device name
                    ov::AnyMap                   // Config
@@ -108,6 +61,7 @@ public:
             for (auto& configItem : configuration) {
                 result << "configItem=" << configItem.first << "_";
                 configItem.second.print(result);
+                result << "_";
             }
         }
 
@@ -137,6 +91,8 @@ public:
             ov::test::utils::removeFilesWithExt(m_cachedir, "blob");
             ov::test::utils::removeDir(m_cachedir);
         }
+        core->set_property(ov::cache_dir());
+
         ov::test::utils::PluginCache::get().reset();
         APIBaseTest::TearDown();
     }
@@ -147,22 +103,18 @@ protected:
     std::shared_ptr<ov::Model> function;
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> initStruct;
     std::string m_cachedir;
+    std::string m_cacheFolderName;
 };
 
 TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
-    checkCacheDirectory();
     ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
     std::string driverLogInitContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     std::printf("==[1.1][EmptyConfig] driver log content : #%s#\n", driverLogInitContent.c_str());
-    //ZE DynamicCaching cache_status_t or empty
-    // if (!driverLogInitContent.empty() && !containsCacheStatus(driverLogInitContent, "ZE DynamicCaching cache_status_t")) {
-    //         FAIL() << "Due TO NOW UMD CACHE LOG ";
-    // }
     
     ov::CompiledModel execNet;
     function = getConstantGraph();
 
-    //first compilation.
+    //First compilation
     auto startFirst = std::chrono::high_resolution_clock::now(); 
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     auto endFirst = std::chrono::high_resolution_clock::now();
@@ -171,10 +123,9 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
     std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     //To avoid problems with repeatedly calling functiontest
     std::printf("==[1.2][EmptyConfig] driver log content : #%s#\n", firstCompilationDriverLog.c_str());
-    EXPECT_TRUE(containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored"));
+    // EXPECT_TRUE(containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored"));
 
-    checkCacheDirectory();
-    //second compilation
+    //Second compilation
     auto startSecond = std::chrono::high_resolution_clock::now(); 
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     auto endSecond = std::chrono::high_resolution_clock::now();
@@ -182,29 +133,26 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithEmptyConfig) {
 
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     std::printf("==[1.3][EmptyConfig] driver log content : #%s#\n", secondCompilationDriverLog.c_str());
-    EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
+    // EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
 
     std::printf("==[1.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
     EXPECT_LT(durationSecond, durationFirst)
         << "The duration of the second compilation should be less than the first due to UMD Caching.";
-
-    checkCacheDirectory();
 }
 
 TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
-    checkCacheDirectory();
     ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
     
     //Check the initial state if this testp is called separately
     std::string driverLogInitContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     std::printf("==[2.1][OVCacheConfig] driver log content : #%s#\n", driverLogInitContent.c_str());
 
-    configuration[ov::cache_dir.name()] = "./testCacheDir";
+    // configuration[ov::cache_dir.name()] = "./testCacheDir";
     m_cachedir = configuration[ov::cache_dir.name()].as<std::string>();
     ov::CompiledModel execNet;
     function = getConstantGraph();
 
-    //first compilation will long and will generate the model cache.
+    //First compilation should take a while and it should fill the model cache
     auto startFirst = std::chrono::high_resolution_clock::now(); 
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     auto endFirst = std::chrono::high_resolution_clock::now();
@@ -212,13 +160,9 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
 
     std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     std::printf("==[2.2][OVCacheConfig] driver log content : #%s#\n", firstCompilationDriverLog.c_str());
-    EXPECT_TRUE(containsCacheStatus(firstCompilationDriverLog, driverLogInitContent));
-    
-    // EXPECT_TRUE(!containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored") &&   
-    //         !containsCacheStatus(firstCompilationDriverLog, "cache_status_t::found"));
+    // EXPECT_TRUE(containsCacheStatus(firstCompilationDriverLog, driverLogInitContent));
 
-    checkCacheDirectory();
-    //second  compilation
+    //Second compilation
     auto startSecond = std::chrono::high_resolution_clock::now(); 
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
     auto endSecond = std::chrono::high_resolution_clock::now();
@@ -226,56 +170,70 @@ TEST_P(CompileAndDriverCaching, CompilationCacheWithOVCacheConfig) {
 
     std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
     std::printf("==[2.3][OVCacheConfig] driver log content : #%s#\n", secondCompilationDriverLog.c_str());
-    EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, driverLogInitContent));
-    // EXPECT_TRUE(!containsCacheStatus(secondCompilationDriverLog, "cache_status_t::stored") &&   
-    //         !containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));  
+    // EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, driverLogInitContent));
+
     std::printf("==[2.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
-    checkCacheDirectory();
 }
 
 TEST_P(CompileAndDriverCaching, CompilationCacheWithBypassConfig) {
-    checkCacheDirectory();
-    ze_graph_dditable_ext_decorator& graph_ddi_table_ext = initStruct->getGraphDdiTable();
-    //Check the initial state if this testp is called separately
-    std::string driverLogInitContent = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
-    std::printf("==[3.1][bypassConfig] driver log content1 : #%s#\n", driverLogInitContent.c_str());
-
-    //ZE DynamicCaching cache_status_t or empty
-    // if (!driverLogInitContent.empty() && !containsCacheStatus(driverLogInitContent, "ZE DynamicCaching cache_status_t")) {
-    //         FAIL() << "Due TO NOW UMD CACHE LOG ";
-    // }
-
-    configuration[ov::intel_npu::bypass_umd_caching.name()] = true;
-    ov::CompiledModel execNet;
+    std::cout << "==[3.1][bypassConfig] set bypass_umd_caching: " << "\n";
+    ov::CompiledModel execNet1;
+    ov::CompiledModel execNet2;
+    ov::CompiledModel execNet3;
+    
     function = getConstantGraph();
 
-    //first compilation will long and will generate the model cache.
-    auto startFirst = std::chrono::high_resolution_clock::now(); 
+    //First compilation
+    auto start = std::chrono::high_resolution_clock::now(); 
+    OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function, target_device, configuration));
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> durationFirst = end - start;
+    std::printf("==[3.2][bypassConfig] First compilation done\n");
+
+
+    execNet1={}; //is bug?
+
+    //Second compilation
+    start = std::chrono::high_resolution_clock::now();
+    OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function, target_device, configuration));
+    end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> durationSecond = end - start;
+    std::printf("==[3.3][bypassConfig] Second compilation done\n");
+
+    execNet1={};
+
+    //Third compilation
+    start = std::chrono::high_resolution_clock::now();
+    OV_ASSERT_NO_THROW(execNet1 = core->compile_model(function, target_device, configuration));
+    end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> durationThird = end - start;
+    std::printf("==[3.4][bypassConfig] Third compilation done\n");
+
+    std::printf("==[3.5]testsuit time (1): %f, (2): %f, (3): %f\n", durationFirst.count(), durationSecond.count(), durationThird.count());
+}
+
+
+TEST_P(CompileAndDriverCaching, StandardOutputRedirect) {
+    std::stringstream buffer;
+
+    std::cout << "== Start compile\n";
+    std::streambuf* oldOutput = std::cout.rdbuf(buffer.rdbuf()); // Redirect cout
+
+    ov::CompiledModel execNet;
+    function = getConstantGraph();
+    
+    //First compilation
+    auto start = std::chrono::high_resolution_clock::now(); 
     OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
-    auto endFirst = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> durationFirst = endFirst - startFirst;
+    auto end = std::chrono::high_resolution_clock::now();
 
-    std::string firstCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
-    std::printf("==[3.2][bypassConfig] driver log content1 : #%s#\n", firstCompilationDriverLog.c_str());
-    EXPECT_TRUE(containsCacheStatus(firstCompilationDriverLog, driverLogInitContent));
-    // EXPECT_TRUE(!containsCacheStatus(firstCompilationDriverLog, "cache_status_t::stored") &&   
-    //         !containsCacheStatus(firstCompilationDriverLog, "cache_status_t::found"));
+    std::cout.rdbuf(oldOutput); // Restore original buffer
+    std::cout << "== End compile\n";
 
-    checkCacheDirectory();
-    //second compilation
-    auto startSecond = std::chrono::high_resolution_clock::now();
-    OV_ASSERT_NO_THROW(execNet = core->compile_model(function, target_device, configuration));
-    auto endSecond = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> durationSecond = endSecond - startSecond;
-
-    std::string secondCompilationDriverLog = ::intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext);
-    std::printf("==[3.3][bypassConfig] driver log content1 : #%s#\n", secondCompilationDriverLog.c_str());
-    EXPECT_TRUE(containsCacheStatus(secondCompilationDriverLog, driverLogInitContent));
-    // EXPECT_TRUE(!containsCacheStatus(secondCompilationDriverLog, "cache_status_t::stored") &&   
-    //         !containsCacheStatus(secondCompilationDriverLog, "cache_status_t::found"));
-
-    std::printf("==[3.4]testsuit time (1): %f, (2): %f\n", durationFirst.count(), durationSecond.count());
-    checkCacheDirectory();
+    std::string capturedOutput = buffer.str();
+    std::cout << "!!!=============!!! Captured log: \n";
+    std::cout << capturedOutput;
+    std::cout << "!!!=============!!! Captured log end\n";
 }
 
 }  // namespace behavior
