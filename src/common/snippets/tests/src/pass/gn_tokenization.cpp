@@ -12,10 +12,7 @@ namespace test {
 namespace snippets {
 
 std::string TokenizeGNSnippetsTests::getTestCaseName(testing::TestParamInfo<GroupNormalizationParams> obj) {
-    PartialShape input_shape;
-    size_t num_group;
-    float eps;
-    std::tie(input_shape, num_group, eps) = obj.param;
+    const auto& [input_shape, num_group, eps] = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({input_shape}) << "_";
     result << "num_group=" << num_group << "_";
@@ -25,10 +22,8 @@ std::string TokenizeGNSnippetsTests::getTestCaseName(testing::TestParamInfo<Grou
 
 void TokenizeGNSnippetsTests::SetUp() {
     TransformationTestsF::SetUp();
-    PartialShape data_shape;
-    size_t num_group;
-    float eps;
-    std::tie(data_shape, num_group, eps) = this->GetParam();
+
+    const auto& [data_shape, num_group, eps] = this->GetParam();
     OPENVINO_ASSERT(data_shape.size() >= 2, "First input rank for group normalization op should be greater than 1");
     PartialShape scaleShiftShape = PartialShape{data_shape[1]};
     std::vector<PartialShape> input_shapes = { data_shape, scaleShiftShape, scaleShiftShape};

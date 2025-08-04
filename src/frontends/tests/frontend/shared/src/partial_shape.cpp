@@ -9,9 +9,7 @@
 using namespace ov::frontend;
 
 std::string FrontEndPartialShapeTest::getTestCaseName(const testing::TestParamInfo<PartialShapeParam>& obj) {
-    BaseFEParam base;
-    PartShape part;
-    std::tie(base, part) = obj.param;
+    const auto& [base, part] = obj.param;
     std::string res = base.m_frontEndName + "_" + part.m_modelName + "_" + part.m_tensorName;
     for (auto s : part.m_newPartialShape) {
         res += "_" + (s.is_dynamic() ? "dyn" : std::to_string(s.get_length()));

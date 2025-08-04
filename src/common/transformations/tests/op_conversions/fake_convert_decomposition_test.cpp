@@ -43,10 +43,7 @@ public:
     static std::string getTestCaseName(::testing::TestParamInfo<FakeConvertDecompositionParams> obj) {
         FakeConvertDecompositionParams params = obj.param;
 
-        Shape data_shape, scale_shape, shift_shape;
-        element::Type_t data_prec, dst_prec;
-        bool default_shift;
-        std::tie(data_shape, scale_shape, shift_shape, data_prec, dst_prec, default_shift) = params;
+        const auto& [data_shape, scale_shape, shift_shape, data_prec, dst_prec, default_shift] = params;
 
         std::ostringstream result;
         result << "dataShape=" << ov::test::utils::vec2str(data_shape) << "_";

@@ -50,11 +50,9 @@ class AvgPoolWithChildTransformation : public LayerTransformation,
                                        public testing::WithParamInterface<AvgPoolWithChildTransformationParams> {
 public:
     void SetUp() override {
-        ov::element::Type precision;
-        ov::PartialShape shape;
         std::string additionalLayer;
-        AvgPoolWithChildTransformationTestValues testValues;
-        std::tie(precision, shape, testValues) = GetParam();
+
+        const auto& [precision, shape, testValues] = GetParam();
         actualFunction = ov::builder::subgraph::AvgPoolFunction::getOriginal(precision,
                                                                                  testValues.actual.inputPrecision,
                                                                                  shape,
@@ -81,11 +79,9 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<AvgPoolWithChildTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::PartialShape shape;
         std::string additionalLayer;
-        AvgPoolWithChildTransformationTestValues testValues;
-        std::tie(precision, shape, testValues) = obj.param;
+
+        const auto& [precision, shape, testValues] = obj.param;
 
         std::ostringstream result;
         result << precision << "_"

@@ -210,14 +210,7 @@ class TransposeSinkingBinaryTwoTransposeInputsTestFixture
       public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryTwoTransposeInputsParams>& obj) {
-        FactoryPtr binary_factory;
-        PassFactoryPtr pass_factory;
-        size_t num_binary_ops;
-        CreateGraphBinaryTwoTransposeInputsF model_factory;
-        CreateGraphBinaryTwoTransposeInputsF reference_model_factory;
-        element::Type input_type;
-
-        std::tie(binary_factory, pass_factory, num_binary_ops, model_factory, reference_model_factory, input_type) =
+        const auto& [binary_factory, pass_factory, num_binary_ops, model_factory, reference_model_factory, input_type] =
             obj.param;
 
         std::ostringstream test_name;
@@ -231,14 +224,7 @@ public:
 };
 
 TEST_P(TransposeSinkingBinaryTwoTransposeInputsTestFixture, CompareFunctions) {
-    FactoryPtr binary_factory;
-    PassFactoryPtr pass_factory;
-    size_t num_binary_ops;
-    CreateGraphBinaryTwoTransposeInputsF model_factory;
-    CreateGraphBinaryTwoTransposeInputsF reference_model_factory;
-    element::Type input_type;
-
-    std::tie(binary_factory, pass_factory, num_binary_ops, model_factory, reference_model_factory, input_type) =
+    const auto& [binary_factory, pass_factory, num_binary_ops, model_factory, reference_model_factory, input_type] =
         this->GetParam();
 
     model = model_factory(binary_factory, num_binary_ops, input_type);
@@ -330,21 +316,13 @@ class TransposeSinkingBinaryTestFixture : public ::testing::WithParamInterface<T
                                           public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryParams>& obj) {
-        FactoryPtr binary_factory;
-        PassFactoryPtr pass_factory;
-        size_t num_binary_ops;
-        CreateGraphBinaryF model_factory;
-        CreateGraphBinaryF reference_model_factory;
-        element::Type input_type;
-        size_t binary_transpose_input_idx;
-
-        std::tie(binary_factory,
-                 pass_factory,
-                 num_binary_ops,
-                 model_factory,
-                 reference_model_factory,
-                 input_type,
-                 binary_transpose_input_idx) = obj.param;
+        const auto& [binary_factory,
+                     pass_factory,
+                     num_binary_ops,
+                     model_factory,
+                     reference_model_factory,
+                     input_type,
+                     binary_transpose_input_idx] = obj.param;
 
         std::ostringstream test_name;
         test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
@@ -358,20 +336,13 @@ public:
 };
 
 TEST_P(TransposeSinkingBinaryTestFixture, CompareFunctions) {
-    FactoryPtr binary_factory;
-    PassFactoryPtr pass_factory;
-    size_t num_binary_ops;
-    CreateGraphBinaryF model_factory;
-    CreateGraphBinaryF reference_model_factory;
-    element::Type input_type;
-    size_t binary_transpose_input_idx;
-    std::tie(binary_factory,
-             pass_factory,
-             num_binary_ops,
-             model_factory,
-             reference_model_factory,
-             input_type,
-             binary_transpose_input_idx) = this->GetParam();
+    const auto& [binary_factory,
+                 pass_factory,
+                 num_binary_ops,
+                 model_factory,
+                 reference_model_factory,
+                 input_type,
+                 binary_transpose_input_idx] = this->GetParam();
 
     model = model_factory(binary_factory, num_binary_ops, input_type, binary_transpose_input_idx);
     model_ref = reference_model_factory(binary_factory, num_binary_ops, input_type, binary_transpose_input_idx);
@@ -424,22 +395,14 @@ class TransposeSinkingBinaryIncompatShapesTestFixture
       public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryIncompatShapesParams>& obj) {
-        FactoryPtr binary_factory;
-        PassFactoryPtr pass_factory;
-        Shape input_shape;
-        Shape constant_shape;
-        CreateGraphBinaryIncompatShapesF model_factory;
-        CreateGraphBinaryIncompatShapesF reference_model_factory;
-        element::Type input_type;
-        size_t binary_transpose_input_idx;
-        std::tie(binary_factory,
-                 pass_factory,
-                 input_shape,
-                 constant_shape,
-                 model_factory,
-                 reference_model_factory,
-                 input_type,
-                 binary_transpose_input_idx) = obj.param;
+        const auto& [binary_factory,
+                     pass_factory,
+                     input_shape,
+                     constant_shape,
+                     model_factory,
+                     reference_model_factory,
+                     input_type,
+                     binary_transpose_input_idx] = obj.param;
 
         std::ostringstream test_name;
         test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
@@ -454,22 +417,14 @@ public:
 };
 
 TEST_P(TransposeSinkingBinaryIncompatShapesTestFixture, CompareFunctions) {
-    FactoryPtr binary_factory;
-    PassFactoryPtr pass_factory;
-    Shape input_shape;
-    Shape constant_shape;
-    CreateGraphBinaryIncompatShapesF model_factory;
-    CreateGraphBinaryIncompatShapesF reference_model_factory;
-    element::Type input_type;
-    size_t binary_transpose_input_idx;
-    std::tie(binary_factory,
-             pass_factory,
-             input_shape,
-             constant_shape,
-             model_factory,
-             reference_model_factory,
-             input_type,
-             binary_transpose_input_idx) = this->GetParam();
+    const auto& [binary_factory,
+                 pass_factory,
+                 input_shape,
+                 constant_shape,
+                 model_factory,
+                 reference_model_factory,
+                 input_type,
+                 binary_transpose_input_idx] = this->GetParam();
 
     model = model_factory(binary_factory, input_type, input_shape, constant_shape, binary_transpose_input_idx);
     model_ref =
@@ -1080,13 +1035,7 @@ class TransposeBinaryMultiSinkingFixture : public ::testing::WithParamInterface<
                                            public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryParams>& obj) {
-        FactoryPtr binary_factory;
-        PassFactoryPtr pass_factory;
-        CreateGraphFunctionDesc function_desc;
-        element::Type input_type;
-        size_t binary_transpose_input_idx;
-
-        std::tie(binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx) = obj.param;
+        const auto& [binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx] = obj.param;
 
         std::ostringstream test_name;
         test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
@@ -1100,13 +1049,8 @@ public:
 };
 
 TEST_P(TransposeBinaryMultiSinkingFixture, CompareFunctions) {
-    FactoryPtr binary_factory;
-    PassFactoryPtr pass_factory;
-    CreateGraphFunctionDesc function_desc;
-    element::Type input_type;
-    size_t binary_transpose_input_idx;
-
-    std::tie(binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx) = this->GetParam();
+    const auto& [binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx] =
+        this->GetParam();
 
     model = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
     model_ref = function_desc.reference_model_factory(binary_factory, input_type, binary_transpose_input_idx);
@@ -1167,13 +1111,7 @@ class TransposeBinaryMultiSinkingBinaryMultiConsumersFixture : public ::testing:
                                                                public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestBinaryParams>& obj) {
-        FactoryPtr binary_factory;
-        PassFactoryPtr pass_factory;
-        CreateGraphFunctionDesc function_desc;
-        element::Type input_type;
-        size_t binary_transpose_input_idx;
-
-        std::tie(binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx) = obj.param;
+        const auto& [binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx] = obj.param;
 
         std::ostringstream test_name;
         test_name << "binaryFactory=" << binary_factory->getTypeName() << "/";
@@ -1187,13 +1125,8 @@ public:
 };
 
 TEST_P(TransposeBinaryMultiSinkingBinaryMultiConsumersFixture, CompareFunctions) {
-    FactoryPtr binary_factory;
-    PassFactoryPtr pass_factory;
-    CreateGraphFunctionDesc function_desc;
-    element::Type input_type;
-    size_t binary_transpose_input_idx;
-
-    std::tie(binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx) = this->GetParam();
+    const auto& [binary_factory, pass_factory, function_desc, input_type, binary_transpose_input_idx] =
+        this->GetParam();
 
     model = function_desc.model_factory(binary_factory, input_type, binary_transpose_input_idx);
     model_ref = model->clone();

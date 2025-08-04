@@ -44,15 +44,9 @@ class FakeQuantizeDecompositionTest : public ov::test::TestsCommon,
                                       public ::testing::WithParamInterface<FakeQuantizeDecompositionParamsSet> {
 public:
     static std::string getTestCaseName(::testing::TestParamInfo<FakeQuantizeDecompositionParamsSet> obj) {
-        FakeQuantizeDecompositionBasicParams basic_params;
-        std::pair<float, float> input_ranges_values;
-        bool should_be_decompos;
-        std::tie(basic_params, input_ranges_values, should_be_decompos) = obj.param;
+        const auto& [basic_params, input_ranges_values, should_be_decompos] = obj.param;
 
-        Shape data_shape, il_shape, ih_shape, ol_shape, oh_shape;
-        element::Type_t data_prec, ranges_prec;
-        size_t levels;
-        std::tie(data_prec, data_shape, ranges_prec, il_shape, ih_shape, ol_shape, oh_shape, levels) = basic_params;
+        const auto& [data_prec, data_shape, ranges_prec, il_shape, ih_shape, ol_shape, oh_shape, levels] = basic_params;
 
         std::ostringstream result;
         result << "DATA=" << ov::test::utils::vec2str(data_shape) << "_";
@@ -68,15 +62,9 @@ public:
 
 protected:
     void SetUp() override {
-        FakeQuantizeDecompositionBasicParams basic_params;
-        std::pair<float, float> input_ranges_values;
-        bool should_be_decompos;
-        std::tie(basic_params, input_ranges_values, should_be_decompos) = this->GetParam();
+        const auto& [basic_params, input_ranges_values, should_be_decompos] = this->GetParam();
 
-        Shape data_shape, il_shape, ih_shape, ol_shape, oh_shape;
-        element::Type_t data_prec, ranges_prec;
-        size_t levels;
-        std::tie(data_prec, data_shape, ranges_prec, il_shape, ih_shape, ol_shape, oh_shape, levels) = basic_params;
+        const auto& [data_prec, data_shape, ranges_prec, il_shape, ih_shape, ol_shape, oh_shape, levels] = basic_params;
 
         bool need_convert = data_prec != ranges_prec;
 
