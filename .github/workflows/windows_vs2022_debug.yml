@@ -71,7 +71,6 @@ jobs:
         -DCMAKE_COMPILE_WARNING_AS_ERROR=ON
         -DENABLE_STRICT_DEPENDENCIES=OFF
         -DCMAKE_DISABLE_FIND_PACKAGE_PkgConfig=ON
-        -DENABLE_FASTER_BUILD=ON
 
   CXX_Unit_Tests:
     name: C++ unit tests

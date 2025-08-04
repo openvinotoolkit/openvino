@@ -1,4 +1,4 @@
-const { testModels, downloadTestModel } = require('./utils.js');
+const { testModels, downloadTestModel } = require("./utils.js");
 
 if (require.main === module) {
   main();

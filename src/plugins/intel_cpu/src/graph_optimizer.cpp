@@ -248,8 +248,7 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
         }
         auto parentNode = node->getParentEdgeAt(0)->getParent();
         auto scaleNode = node->getParentEdgeAt(1)->getParent();
-        if (parentNode->getType() != Type::Convolution && parentNode->getType() != Type::MatMul &&
-            parentNode->getType() != Type::Deconvolution) {
+        if (none_of(parentNode->getType(), Type::Convolution, Type::MatMul, Type::Deconvolution)) {
             return false;
         }
         if (!scaleNode->isConstant()) {
@@ -298,19 +297,12 @@ void GraphOptimizer::FuseConvMatmulFCDeconvAndDQScales(Graph& graph) {
 
     auto initializeDeQuantizedScales = [](const NodePtr& node, const NodePtr& scales) {
         auto* scalesConstant = dynamic_cast<node::Input*>(scales.get());
-        if (scalesConstant == nullptr) {
-            OPENVINO_THROW("Cannot cast to Input node");
-        }
+        OPENVINO_ASSERT(scalesConstant, "Cannot cast to Input node");
 
         auto scalesBlob = scalesConstant->getMemoryPtr();
-        if (scalesBlob == nullptr) {
-            OPENVINO_THROW("Cannot cast to TBlob internal scales blob");
-        }
-
+        OPENVINO_ASSERT(scalesBlob, "Cannot cast to TBlob internal scales blob");
         const auto* scalesData = static_cast<const float*>(scalesBlob->getData());
-        if (scalesData == nullptr) {
-            OPENVINO_THROW("scalesBlob has not allocated buffer");
-        }
+        OPENVINO_ASSERT(scalesData, "scalesBlob has not allocated buffer");
         auto scalesDims = getNormalizedDimsBySize(scales->getOutputShapeAtPort(0).getDims(),
                                                   node->getOutputShapeAtPort(0).getDims().size());
         auto scaleSize = std::accumulate(scalesDims.begin(), scalesDims.end(), 1, std::multiplies<>());
@@ -359,7 +351,7 @@ void GraphOptimizer::FuseConvolutionMatMulDeconvAndBias(Graph& graph) {
         }
 
         if (!deconv) {
-            return (one_of(node->getType(), Type::Convolution, Type::MatMul) && node->getParentEdges().size() == 2);
+            return (any_of(node->getType(), Type::Convolution, Type::MatMul) && node->getParentEdges().size() == 2);
         }
         return deconv->canFuseBias();
     };
@@ -530,9 +522,7 @@ void GraphOptimizer::FuseDeconvolutionAndSimpleOperation(Graph& graph) {
             return false;
         }
         const auto deconv = std::dynamic_pointer_cast<Deconvolution>(node);
-        if (deconv == nullptr) {
-            OPENVINO_THROW("Cannot cast to deconvolution node ", node->getName());
-        }
+        OPENVINO_ASSERT(deconv, "Cannot cast to deconvolution node ", node->getName());
 
         if (deconv->getAlgorithm() != Algorithm::DeconvolutionCommon) {
             return true;
@@ -615,11 +605,7 @@ void GraphOptimizer::FuseMultiplyAndAdd(Graph& graph) {
             return false;
         }
 
-        if (secondInputDims[0] != 1 || !dimsEqualWeak(secondInputDims[channelAxis], dataDims[channelAxis])) {
-            return false;
-        }
-
-        return true;
+        return secondInputDims[0] == 1 && dimsEqualWeak(secondInputDims[channelAxis], dataDims[channelAxis]);
     };
 
     auto isSuitableParentNode = [&](const NodePtr& node) {
@@ -853,8 +839,8 @@ void GraphOptimizer::FuseFCAndConvertOnWeights(Graph& graph) {
     };
     auto isSuitableConvert = [&](const NodePtr& node) {
         return node->getType() == Type::Convert && node->isConstant() &&
-               one_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) &&
-               one_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16);
+               any_of(node->getOriginalInputPrecisionAtPort(0), ov::element::f16, ov::element::bf16) &&
+               any_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::f32, ov::element::bf16);
     };
 
     const auto& graphNodes = graph.GetNodes();
@@ -944,14 +930,12 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 
     auto initializeInputZeroPoints = [](const NodePtr& node, const NodePtr& parent0, const NodePtr& parent1) {
         auto* convNode = dynamic_cast<Convolution*>(node.get());
-        if (convNode == nullptr) {
-            OPENVINO_THROW("Cannot get convolution node ", node->getName());
-        }
+        OPENVINO_ASSERT(convNode, "Cannot get convolution node ", node->getName());
 
         auto IC = node->getInputShapeAtPort(0).getDims()[1];
         auto OC = node->getOutputShapeAtPort(0).getDims()[1];
 
-        if (Shape::UNDEFINED_DIM == IC || Shape::UNDEFINED_DIM == OC) {
+        if (any_of(Shape::UNDEFINED_DIM, IC, OC)) {
             return false;
         }
         if (parent0->getType() != Type::Eltwise) {
@@ -1009,20 +993,12 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
 
         auto* zeroPointsConstant = dynamic_cast<node::Input*>(subtractArg1.get());
-        if (zeroPointsConstant == nullptr) {
-            OPENVINO_THROW("Cannot cast to Input node");
-        }
+        OPENVINO_ASSERT(zeroPointsConstant, "Cannot cast to Input node");
 
         auto zeroPointsBlob = zeroPointsConstant->getMemoryPtr();
-        if (zeroPointsBlob == nullptr) {
-            OPENVINO_THROW("Cannot cast to TBlob internal zero points blob");
-        }
-
+        OPENVINO_ASSERT(zeroPointsBlob, "Cannot cast to TBlob internal zero points blob");
         const auto* zeroPointsData = static_cast<const uint8_t*>(zeroPointsBlob->getData());
-        if (zeroPointsData == nullptr) {
-            OPENVINO_THROW("zeroPointsBlob has not allocated buffer");
-        }
-
+        OPENVINO_ASSERT(zeroPointsData, "zeroPointsBlob has not allocated buffer");
         auto zeroPointDataSize = parent0->getInputShapeAtPort(1).getDims()[1];
         if (Shape::UNDEFINED_DIM == zeroPointDataSize) {
             return false;
@@ -1033,9 +1009,7 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
 
     auto initializeOutputCompensation = [](const NodePtr& node) {
         auto* convNode = dynamic_cast<Convolution*>(node.get());
-        if (convNode == nullptr) {
-            OPENVINO_THROW("Cannot get convolution node ", node->getName());
-        }
+        OPENVINO_ASSERT(convNode, "Cannot get convolution node ", node->getName());
 
         if (convNode->legacyInputZeroPoints.empty()) {
             return;
@@ -1050,15 +1024,9 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
 
         auto weightsBlob = weightsConstant->getMemoryPtr();
-        if (weightsBlob == nullptr) {
-            OPENVINO_THROW("Cannot cast to TBlob internal weights blob");
-        }
-
+        OPENVINO_ASSERT(weightsBlob, "Cannot cast to TBlob internal weights blob");
         const auto* weightsPtr = static_cast<const int8_t*>(weightsBlob->getData());
-        if (weightsPtr == nullptr) {
-            OPENVINO_THROW("weightsBlob has not allocated buffer");
-        }
-
+        OPENVINO_ASSERT(weightsPtr, "weightsBlob has not allocated buffer");
         auto G = convNode->getGroupNum();
         const size_t groupOffset = convNode->getAlgorithm() == Algorithm::ConvolutionGrouped ? 1 : 0;
         const auto& weightsConstantDims = weightsConstant->outputShapes[0].getStaticDims();
@@ -1149,7 +1117,7 @@ void GraphOptimizer::FuseFullyConnectedAndSimpleOperation(Graph& graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (any_of(childNode->getType(), Type::FakeQuantize, Type::Eltwise)) {
             auto parentEdges = childNode->parentEdges;
             for (auto& parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -1190,7 +1158,7 @@ void GraphOptimizer::FuseMatMulAndSimpleOperation(Graph& graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (any_of(childNode->getType(), Type::FakeQuantize, Type::Eltwise)) {
             auto parentEdges = childNode->parentEdges;
             for (auto& parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -1215,7 +1183,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 
     auto is1x1Convolution = [](const std::shared_ptr<Convolution>& conv) {
         const auto weightRank = conv->getWeightDims().size();
-        return conv->getWeightDims()[weightRank - 1] == 1 && conv->getWeightDims()[weightRank - 2] == 1;
+        return all_of(1U, conv->getWeightDims()[weightRank - 1], conv->getWeightDims()[weightRank - 2]);
     };
 
     auto isSuitableParentConvolution = [&](const NodePtr& node) {
@@ -1228,10 +1196,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         }
 
         const auto conv = std::dynamic_pointer_cast<Convolution>(node);
-        if (conv == nullptr) {
-            OPENVINO_THROW("Cannot cast to convolution node ", node->getName());
-        }
-
+        OPENVINO_ASSERT(conv, "Cannot cast to convolution node ", node->getName());
         if (!conv->legacyWeightsZeroPoints.empty()) {
             return false;
         }
@@ -1245,12 +1210,12 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
             dimsEqualStrong(inDims[inDims.size() - 1], outDims[outDims.size() - 1]) &&
             dimsEqualStrong(inDims[inDims.size() - 2], outDims[outDims.size() - 2]) &&
             is1x1Convolution(conv) &&  // TODO [oneDNN] : fusing is permitted only with 1x1 convolutions
-            everyone_is(1U,
-                        static_cast<unsigned int>(strides[strides.size() - 1]),
-                        static_cast<unsigned int>(strides[strides.size() - 2])) &&
-            everyone_is(0U,
-                        static_cast<unsigned int>(paddings[paddings.size() - 1]),
-                        static_cast<unsigned int>(paddings[paddings.size() - 2])) &&
+            all_of(1U,
+                   static_cast<unsigned int>(strides[strides.size() - 1]),
+                   static_cast<unsigned int>(strides[strides.size() - 2])) &&
+            all_of(0U,
+                   static_cast<unsigned int>(paddings[paddings.size() - 1]),
+                   static_cast<unsigned int>(paddings[paddings.size() - 2])) &&
             !conv->canBeExecutedInInt8();
         if (!isSupportedParams) {
             return false;
@@ -1269,19 +1234,14 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         }
 
         const auto convChild = std::dynamic_pointer_cast<Convolution>(childNode);
-        if (convChild == nullptr) {
-            OPENVINO_THROW("Cannot cast to convolution node ", childNode->getName());
-        }
+        OPENVINO_ASSERT(convChild, "Cannot cast to convolution node ", childNode->getName());
 
         const auto convParent = std::dynamic_pointer_cast<Convolution>(parentNode);
-        if (convParent == nullptr) {
-            OPENVINO_THROW("Cannot cast to convolution node ", parentNode->getName());
-        }
-
-        if (!everyone_is(ov::element::f32,
-                         convParent->getOriginalOutputPrecisionAtPort(0),
-                         convChild->getOriginalInputPrecisionAtPort(0),
-                         convChild->getOriginalOutputPrecisionAtPort(0))) {
+        OPENVINO_ASSERT(convParent, "Cannot cast to convolution node ", parentNode->getName());
+        if (!all_of(ov::element::f32,
+                    convParent->getOriginalOutputPrecisionAtPort(0),
+                    convChild->getOriginalInputPrecisionAtPort(0),
+                    convChild->getOriginalOutputPrecisionAtPort(0))) {
             return false;
         }
 
@@ -1295,7 +1255,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
                 ? childNode->fusedWith[childNode->fusedWith.size() - 1]->getOriginalOutputPrecisionAtPort(0)
                 : childNode->getOriginalOutputPrecisionAtPort(0);
 
-        if (!everyone_is(ov::element::f32, parentOutputPrecision, childOutputPrecision)) {
+        if (!all_of(ov::element::f32, parentOutputPrecision, childOutputPrecision)) {
             return false;
         }
 
@@ -1307,24 +1267,23 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
 
         const auto weightRank = convChild->getWeightDims().size();
         const auto stridesSize = convChild->getStride().size();
-        bool isSupportedParams =
-            dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
-            convChild->outputShapes[0].getDims()[1] != 1 &&
-            everyone_is(3U,
-                        static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 1]),
-                        static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 2])) &&
-            everyone_is(1U,
-                        static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 1]),
-                        static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 2])) &&
-            everyone_is(1U,
-                        static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 1]),
-                        static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 2])) &&
-            everyone_is(1U,
-                        static_cast<unsigned int>(convChild->getDilation()[stridesSize - 1] + 1),
-                        static_cast<unsigned int>(convChild->getDilation()[stridesSize - 2] + 1)) &&
-            convChild->getStride()[stridesSize - 1] == convChild->getStride()[stridesSize - 2] && withBias &&
-            one_of(convChild->getStride()[stridesSize - 1], 1U, 2U) &&
-            childNode->getOutputShapeAtPort(0).getRank() == 4;
+        bool isSupportedParams = dimsEqualStrong(convChild->outputShapes[0].getDims()[1], convChild->getGroupNum()) &&
+                                 convChild->outputShapes[0].getDims()[1] != 1 &&
+                                 all_of(3U,
+                                        static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 1]),
+                                        static_cast<unsigned int>(convChild->getWeightDims()[weightRank - 2])) &&
+                                 all_of(1U,
+                                        static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 1]),
+                                        static_cast<unsigned int>(convChild->getPaddingL()[stridesSize - 2])) &&
+                                 all_of(1U,
+                                        static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 1]),
+                                        static_cast<unsigned int>(convChild->getPaddingR()[stridesSize - 2])) &&
+                                 all_of(1U,
+                                        static_cast<unsigned int>(convChild->getDilation()[stridesSize - 1] + 1),
+                                        static_cast<unsigned int>(convChild->getDilation()[stridesSize - 2] + 1)) &&
+                                 convChild->getStride()[stridesSize - 1] == convChild->getStride()[stridesSize - 2] &&
+                                 withBias && any_of(convChild->getStride()[stridesSize - 1], 1U, 2U) &&
+                                 childNode->getOutputShapeAtPort(0).getRank() == 4;
 
         return isSupportedParams;
     };
@@ -1343,10 +1302,7 @@ void GraphOptimizer::FuseConvolutionAndDWConvolution(Graph& graph) {
         int dw_conv_output_size = outDims[0] * outDims[1] * outDims[2] * outDims[3] * elemSize;
 
         auto parentConvolutionNode = std::dynamic_pointer_cast<Convolution>(parentNode);
-        if (parentConvolutionNode == nullptr) {
-            OPENVINO_THROW("Cannot get convolution node ", parentNode->getName());
-        }
-
+        OPENVINO_ASSERT(parentConvolutionNode, "Cannot get convolution node ", parentNode->getName());
         if (!impl::cpu::x64::mayiuse(impl::cpu::x64::avx2)) {
             return false;
         }
@@ -1398,7 +1354,7 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperationThroughMaxPool(Graph& grap
     const auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](const NodePtr& node) {
-        return (node->getType() == Type::Convolution || node->getType() == Type::BinaryConvolution) &&
+        return (any_of(node->getType(), Type::Convolution, Type::BinaryConvolution)) &&
                node->getChildEdges().size() == 1 && node->getOriginalOutputPrecisionAtPort(0) == ov::element::f32;
     };
 
@@ -1454,7 +1410,7 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph& graph) {
     const auto& graphNodes = graph.GetNodes();
 
     auto isSuitableParentNode = [](const NodePtr& node) {
-        return (node->getType() == Type::Convolution || node->getType() == Type::BinaryConvolution) &&
+        return (any_of(node->getType(), Type::Convolution, Type::BinaryConvolution)) &&
                node->getChildEdges().size() == 1;
     };
 
@@ -1478,7 +1434,7 @@ void GraphOptimizer::FuseConvolutionAndSimpleOperation(Graph& graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (any_of(childNode->getType(), Type::FakeQuantize, Type::Eltwise)) {
             auto parentEdges = childNode->parentEdges;
             for (auto& parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -1499,7 +1455,7 @@ void GraphOptimizer::FusePoolingAndFakeQuantize(Graph& graph) {
 
     auto isSuitableParentNode = [](const NodePtr& node) {
         if (node->getType() == Type::Pooling) {
-            if (!one_of(node->getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8)) {
+            if (none_of(node->getOriginalInputPrecisionAtPort(0), ov::element::u8, ov::element::i8)) {
                 return false;
             }
             return node->getChildEdges().size() == 1 && node->getAlgorithm() == Algorithm::PoolingAvg;
@@ -1635,10 +1591,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         auto parent1 = graphNode->getParentEdgeAt(0)->getParent();
         auto parent2 = graphNode->getParentEdgeAt(1)->getParent();
 
-        bool isSuitableParent1 =
-            parent1->getType() == Type::Convolution || parent1->getType() == Type::BinaryConvolution;
-        bool isSuitableParent2 =
-            parent2->getType() == Type::Convolution || parent2->getType() == Type::BinaryConvolution;
+        bool isSuitableParent1 = any_of(parent1->getType(), Type::Convolution, Type::BinaryConvolution);
+        bool isSuitableParent2 = any_of(parent2->getType(), Type::Convolution, Type::BinaryConvolution);
 
         auto canFuseSum = [](node::BinaryConvolution* binConv, const NodePtr& fuseCandidate) {
             if (binConv->getImplType() == impl_desc_type::ref) {
@@ -1652,17 +1606,16 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
             if (fuseCandidate->getAlgorithm() == Algorithm::EltwiseAdd) {
                 auto isNotSpecialConvolutionAddFusing = [](const NodePtr& fusedNode) {
                     const auto eltwise = std::dynamic_pointer_cast<Eltwise>(fusedNode);
-                    return !(eltwise && eltwise->isSpecialConvolutionAddFusing());
+                    const auto has_eltwise = static_cast<bool>(eltwise);
+                    const bool is_special_fusing = has_eltwise && eltwise->isSpecialConvolutionAddFusing();
+                    return !is_special_fusing;
                 };
                 auto allFusedNodesNotSpecial = [&]() {
                     return std::all_of(binConv->fusedWith.begin(),
                                        binConv->fusedWith.end(),
                                        isNotSpecialConvolutionAddFusing);
                 };
-                if (!allFusedNodesNotSpecial()) {
-                    return false;
-                }
-                return true;
+                return allFusedNodesNotSpecial();
             }
             return false;
         };
@@ -1716,7 +1669,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
                 const auto branchPrecision = fused.empty()
                                                  ? branchParent->getOriginalOutputPrecisionAtPort(0)
                                                  : fused[fused.size() - 1]->getOriginalOutputPrecisionAtPort(0);
-                return (branchPrecision == ov::element::i8) || (branchPrecision == ov::element::u8);
+                return any_of(branchPrecision, ov::element::i8, ov::element::u8);
             };
 
             const auto isBranch1Quantized = isBranchQuantized(graphNode->getParentEdgeAt(0)->getParent());
@@ -1739,7 +1692,7 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
         }
 
         if (isSuitableParent1 && isSuitableParent2) {
-            if ((peerNode->getType() == Type::Convolution || peerNode->getType() == Type::BinaryConvolution) &&
+            if ((any_of(peerNode->getType(), Type::Convolution, Type::BinaryConvolution)) &&
                 mergedConv->getChildEdges().size() != 1) {
                 mergedConv = parent2;
                 peerNode = parent1;
@@ -1812,8 +1765,8 @@ void GraphOptimizer::FuseConvolutionSumAndConvolutionSumActivation(Graph& graph)
 
         lastNode->fuseInto(mergedConv);
 
-        if (!mergedConv->fusedWith.empty() && (mergedConv->fusedWith[0]->getType() == Type::Convolution ||
-                                               mergedConv->fusedWith[0]->getType() == Type::BinaryConvolution)) {
+        if (!mergedConv->fusedWith.empty() &&
+            (any_of(mergedConv->fusedWith[0]->getType(), Type::Convolution, Type::BinaryConvolution))) {
             // Merged with DW_conv. Shape may change
             mergedConv->inputShapes.push_back(mergedConv->fusedWith[0]->getOutputShapeAtPort(0));
         } else {
@@ -1891,7 +1844,7 @@ void GraphOptimizer::FuseMVNAndSimpleOperation(Graph& graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (any_of(childNode->getType(), Type::FakeQuantize, Type::Eltwise)) {
             auto parentEdges = childNode->parentEdges;
             for (auto& parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -1912,7 +1865,7 @@ void GraphOptimizer::FuseGatherAndConvert(Graph& graph) {
 
     auto isSuitableParentNode = [](const NodePtr& node) {
         return (node->getType() == Type::Gather) && (node->getChildEdges().size() == 1) &&
-               one_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16);
+               any_of(node->getOriginalInputPrecisionAtPort(0), element::f16, element::bf16);
     };
 
     auto parent = graphNodes.begin();
@@ -1957,9 +1910,7 @@ void GraphOptimizer::FuseInterpolateAndSimpleOperation(Graph& graph) {
             return false;
         }
         auto* interpolateNode = dynamic_cast<Interpolate*>(parentNode.get());
-        if (!interpolateNode) {
-            OPENVINO_THROW("Cannot cast ", parentNode->getName(), " to Interpolate");
-        }
+        OPENVINO_ASSERT(interpolateNode, "Cannot cast ", parentNode->getName(), " to Interpolate");
         return interpolateNode->canFuse(childNode);
     };
 
@@ -1983,7 +1934,7 @@ void GraphOptimizer::FuseInterpolateAndSimpleOperation(Graph& graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (any_of(childNode->getType(), Type::FakeQuantize, Type::Eltwise)) {
             auto parentEdges = childNode->parentEdges;
             for (auto& parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -2024,7 +1975,7 @@ void GraphOptimizer::FuseNormalizeL2AndSimpleOperation(Graph& graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (any_of(childNode->getType(), Type::FakeQuantize, Type::Eltwise)) {
             auto parentEdges = childNode->parentEdges;
             for (auto& parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
@@ -2065,13 +2016,11 @@ void GraphOptimizer::FuseReduceAndSimpleOperation(Graph& graph) {
 
         childNode->fuseInto(parentNode);
 
-        if (childNode->getType() == Type::FakeQuantize || childNode->getType() == Type::Eltwise) {
+        if (any_of(childNode->getType(), Type::FakeQuantize, Type::Eltwise)) {
             auto parentEdges = childNode->parentEdges;
             for (auto& parentEdge : parentEdges) {
                 auto p_edge = parentEdge.lock();
-                if (p_edge == nullptr) {
-                    OPENVINO_THROW("Cannot get parent edge ", childNode->getName());
-                }
+                OPENVINO_ASSERT(p_edge, "Cannot get parent edge ", childNode->getName());
                 if (p_edge->getParent()->getType() == Type::Reduce) {
                     continue;
                 }
@@ -2160,8 +2109,8 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
             auto parents = childNode->parentEdges;
             auto initialParentInNum = parentNode->getParentEdges().size();
 
-            for (const auto& i : parents) {
-                auto p_edge = i.lock();
+            for (size_t parentId = 0; parentId < parents.size(); parentId++) {
+                auto p_edge = parents[parentId].lock();
                 if (!p_edge) {
                     continue;
                 }
@@ -2202,8 +2151,7 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                     if (remEdge) {
                         inNum = remEdge->getInputNum();
                         // Need to keep order for these algorithms
-                        if (childNode->getAlgorithm() == Algorithm::EltwiseMulAdd ||
-                            childNode->getAlgorithm() == Algorithm::EltwiseSelect) {
+                        if (any_of(childNode->getAlgorithm(), Algorithm::EltwiseMulAdd, Algorithm::EltwiseSelect)) {
                             outNum = initialParentInNum + remEdge->getOutputNum() - 1;
                         }
                         graph.RemoveEdge(remEdge);
@@ -2213,11 +2161,10 @@ void GraphOptimizer::FuseEltwiseAndSimple(Graph& graph) {
                         parentNode->inputShapes.resize(outNum + 1);
                     }
                     parentNode->inputShapes[outNum] = parent->getOutputShapeAtPort(inNum);
-
+                    parentNode->addOriginalInputPrecision(childNode->getOriginalInputPrecisionAtPort(parentId));
                     graph.CreateEdge(parent, parentNode, inNum, outNum);
                 }
             }
-
             graph.DropNode(childNode);
         } else {
             graph.DropNode(childNode);
@@ -2231,9 +2178,7 @@ void GraphOptimizer::ShareReorders(Graph& graph) {
             return nullptr;
         }
         auto* reorder = dynamic_cast<Reorder*>(node.get());
-        if (reorder == nullptr) {
-            OPENVINO_THROW("Cannot get reorder layer ", node->getName());
-        }
+        OPENVINO_ASSERT(reorder, "Cannot get reorder layer ", node->getName());
 
         // inplace children cannot be safely shared with each other
         auto reorderConsumers = reorder->getChildEdgesAtPort(0);
@@ -2302,19 +2247,16 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
     std::set<NodePtr> processed;
 
     const auto& nodes = graph.GetNodes();
-    for (const auto& node : nodes) {
+    for (size_t i = 0; i < nodes.size(); ++i) {  // NOLINT(modernize-loop-convert)
+        auto node = nodes[i];
+
         if (processed.find(node) == processed.end() && node->getType() == Type::Reorder &&
             node->getChildEdges().size() == 1 && node->getChildEdgeAt(0)->getChild()->getType() == Type::Reorder) {
             auto nextNode = node->getChildEdgeAt(0)->getChild();
             auto* n = dynamic_cast<Reorder*>(node.get());
-            if (n == nullptr) {
-                OPENVINO_THROW("Cannot get reorder layer ", node->getName());
-            }
+            OPENVINO_ASSERT(n, "Cannot get reorder layer ", node->getName());
             auto* nn = dynamic_cast<Reorder*>(nextNode.get());
-            if (nn == nullptr) {
-                OPENVINO_THROW("Cannot get reorder layer ", nextNode->getName());
-            }
-
+            OPENVINO_ASSERT(nn, "Cannot get reorder layer ", nextNode->getName());
             NodePtr p = n->getParentEdgeAt(0)->getParent();
             NodePtr c = nn->getChildEdgeAt(0)->getChild();
 
@@ -2332,10 +2274,7 @@ void GraphOptimizer::DropDoubleReorders(Graph& graph) {
                     edge = cur;
                 }
             }
-            if (!edge) {
-                OPENVINO_THROW("Inappropriate graph processing");
-            }
-
+            OPENVINO_ASSERT(edge, "Inappropriate graph processing");
             std::string layerName = edge->getParent()->getName() + "_ScaleReorder_" + edge->getChild()->getName();
             graph.InsertReorder(edge, layerName, n->getInput(), nn->getOutput(), false);
             graph.RemoveEdge(edge);
@@ -2357,15 +2296,9 @@ void GraphOptimizer::FuseClampAndFakeQuantize(Graph& graph) {
 
     auto fuseClampAndFakeQuantizeNodes = [](const NodePtr& parent, const NodePtr& child) {
         auto* eltwiseNode = dynamic_cast<Eltwise*>(parent.get());
-        if (eltwiseNode == nullptr) {
-            OPENVINO_THROW("Cannot cast ", parent->getName(), " to Eltwise node");
-        }
-
+        OPENVINO_ASSERT(eltwiseNode, "Cannot cast ", parent->getName(), " to Eltwise node");
         auto* fakeQuantizeNode = dynamic_cast<FakeQuantize*>(child.get());
-        if (fakeQuantizeNode == nullptr) {
-            OPENVINO_THROW("Cannot cast ", child->getName(), " to FakeQuantize node");
-        }
-
+        OPENVINO_ASSERT(fakeQuantizeNode, "Cannot cast ", child->getName(), " to FakeQuantize node");
         const std::vector<float>& cropLowData = fakeQuantizeNode->getCropLow();
         const std::vector<float>& cropHighData = fakeQuantizeNode->getCropHigh();
 
@@ -2424,7 +2357,7 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
     };
 
     auto isSuitableScaleShiftNode = [getNonConstPort](const NodePtr& node) {
-        if (!one_of(node->getAlgorithm(),
+        if (none_of(node->getAlgorithm(),
                     Algorithm::EltwiseAdd,
                     Algorithm::EltwiseSubtract,
                     Algorithm::EltwiseMultiply,
@@ -2448,17 +2381,12 @@ void GraphOptimizer::FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph) {
 
     auto fuseScaleShiftAndFakeQuantizeNodes = [getNonConstPort](const NodePtr& parent, const NodePtr& child) {
         auto fakeQuantizeNode = std::dynamic_pointer_cast<FakeQuantize>(child);
-        if (fakeQuantizeNode == nullptr) {
-            OPENVINO_THROW("Cannot cast ", child->getName(), " to FakeQuantize node");
-        }
+        OPENVINO_ASSERT(fakeQuantizeNode, "Cannot cast ", child->getName(), " to FakeQuantize node");
 
         std::vector<float> scalesBuffer;
         std::vector<float> shiftsBuffer;
         auto parentEltwise = std::dynamic_pointer_cast<Eltwise>(parent);
-        if (!parentEltwise) {
-            OPENVINO_THROW("Cannot cast ", parent->getName(), " to Eltwise node");
-        }
-
+        OPENVINO_ASSERT(parentEltwise, "Cannot cast ", parent->getName(), " to Eltwise node");
         const NodePtr eltwiseInput = parentEltwise->getParentEdgeAt(getNonConstPort(parent))->getParent();
         std::tie(scalesBuffer, shiftsBuffer) = parentEltwise->getScalesAndShifts(eltwiseInput.get());
 
@@ -2606,7 +2534,8 @@ bool GraphOptimizer::canBeInplaced(const NodePtr& parentNode, const NodePtr& chi
     const auto childInPlace = std::any_of(childEdges.begin(), childEdges.end(), [](const EdgePtr& edge) {
         return edge->inPlace(Edge::LOOK_DOWN);
     });
-    return !(parentInPlace && childInPlace);
+    const bool both_in_place = parentInPlace && childInPlace;
+    return !both_in_place;
 }
 
 bool GraphOptimizer::checkAscendingFinalOrder(const VectorDims& transposeOrder,
@@ -3194,11 +3123,7 @@ void GraphOptimizer::RemoveConvertMemoryOutput(Graph& graph) {
                 return Type::MemoryOutput == edge->getChild()->getType();
             });
         };
-        if (!allChildrenAreMemoryOutput()) {
-            return false;
-        }
-
-        return true;
+        return allChildrenAreMemoryOutput();
     };
 
     for (const auto& node : graphNodes) {
@@ -3220,7 +3145,7 @@ void GraphOptimizer::MatchSdpaKvCache(Graph& graph) {
         auto&& childEdges = node->getChildEdgesAtPort(0);
         for (auto&& item : childEdges) {
             auto childNode = item->getChild();
-            if (!one_of(childNode->getType(), Type::ScaledDotProductAttention, Type::ShapeOf)) {
+            if (none_of(childNode->getType(), Type::ScaledDotProductAttention, Type::ShapeOf)) {
                 return false;
             }
 

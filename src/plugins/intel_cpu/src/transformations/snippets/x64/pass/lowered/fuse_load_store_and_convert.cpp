@@ -21,6 +21,7 @@
 #include "snippets/op/store.hpp"
 #include "transformations/snippets/x64/op/load_convert.hpp"
 #include "transformations/snippets/x64/op/store_convert.hpp"
+#include "utils/general_utils.h"
 
 bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(
     snippets::lowered::LinearIR& linear_ir,
@@ -28,7 +29,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_load_convert(
     const auto& convert_expr = *convert_it;
     const auto& convert = ov::as_type_ptr<ov::op::v0::Convert>(convert_expr->get_node());
     const auto& input_connector = convert_expr->get_input_port_connector(0);
-    if (convert->get_destination_type() != ov::element::f32 && convert->get_destination_type() != ov::element::i32) {
+    if (none_of(convert->get_destination_type(), ov::element::f32, ov::element::i32)) {
         return false;
     }
 
@@ -77,8 +78,7 @@ bool ov::intel_cpu::pass::FuseLoadStoreConvert::fuse_store_convert(
     const auto& convert_expr = *convert_it;
     const auto& convert = ov::as_type_ptr<ov::op::v0::Convert>(convert_expr->get_node());
     const auto& output_connector = convert_expr->get_output_port_connector(0);
-    if (convert->get_input_element_type(0) != ov::element::f32 &&
-        convert->get_input_element_type(0) != ov::element::i32) {
+    if (none_of(convert->get_input_element_type(0), ov::element::f32, ov::element::i32)) {
         return false;
     }
 

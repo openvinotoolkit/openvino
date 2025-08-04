@@ -24,7 +24,7 @@ public:
 
 protected:
     ConvertParams aclConvertParams;
-    bool isCopyOp;
+    bool isCopyOp = false;
     arm_compute::Tensor srcTensor, dstTensor;
     std::unique_ptr<arm_compute::NECopy> acl_copy;
     std::unique_ptr<arm_compute::NECast> acl_cast;

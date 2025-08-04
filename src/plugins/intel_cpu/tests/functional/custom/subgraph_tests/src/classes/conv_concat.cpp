@@ -17,21 +17,10 @@ namespace test {
 
 std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convConcatCPUParams> obj) {
     std::ostringstream result;
-    nodeType type;
-    commonConvParams convParams;
-    CPUSpecificParams cpuParams;
-    ov::Shape inputShapes;
-    int axis;
-    std::tie(type, convParams, cpuParams, inputShapes, axis) = obj.param;
-
+    const auto& [type, convParams, cpuParams, inputShapes, axis] = obj.param;
     result << "Type=" << nodeType2str(type) << "_";
-
-    std::vector<size_t> kernelSize, strides, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t numOutChannels, numOfGroups;
-    ov::op::PadType paddingType;
-    std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
-
+    const auto& [kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups] =
+        convParams;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "K" << ov::test::utils::vec2str(kernelSize) << "_";
     result << "S" << ov::test::utils::vec2str(strides) << "_";
@@ -51,20 +40,10 @@ std::string ConvConcatSubgraphTest::getTestCaseName(testing::TestParamInfo<convC
 
 void ConvConcatSubgraphTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-    nodeType type;
-    commonConvParams convParams;
-    CPUSpecificParams cpuParams;
-    ov::Shape inputShapes;
-    int axis;
-
-    std::tie(type, convParams, cpuParams, inputShapes, axis) = this->GetParam();
+    const auto& [type, convParams, cpuParams, inputShapes, axis] = this->GetParam();
     pluginTypeNode = nodeType2PluginType(type);
-    std::vector<size_t> kernelSize, strides, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t numOutChannels, numOfGroups;
-    ov::op::PadType paddingType;
-
-    std::tie(kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups) = convParams;
+    const auto& [kernelSize, strides, padBegin, padEnd, dilation, numOutChannels, paddingType, numOfGroups] =
+        convParams;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
 
     selectedType += "_f32";

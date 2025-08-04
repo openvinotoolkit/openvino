@@ -44,8 +44,7 @@
 #include "utils/bit_util.hpp"
 #include "utils/debug_capabilities.h"
 
-#define THROW_CPU_NODE_ERR(...) \
-    OPENVINO_THROW("[CPU] ", getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
+#define CPU_NODE_THROW(...) OPENVINO_THROW("[CPU] ", getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 #define CPU_NODE_ASSERT(condition, ...) \
     OPENVINO_ASSERT(condition, getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
@@ -69,7 +68,7 @@ public:
           inPlace(inPlace) {}
 
     PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                     ov::element::Type prc = ov::element::dynamic,
+                     ov::element::Type prc,
                      bool constant = false,
                      int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
@@ -87,9 +86,7 @@ private:
     static ov::intel_cpu::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(
         ov::intel_cpu::LayoutType blockedDescType) {
         const auto& creators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
-        if (creators.find(blockedDescType) == creators.end()) {
-            OPENVINO_THROW("Cannot find tensor descriptor creator");
-        }
+        OPENVINO_ASSERT(creators.find(blockedDescType) != creators.end(), "Cannot find tensor descriptor creator");
         return creators.at(blockedDescType);
     }
 };
@@ -131,9 +128,7 @@ public:
               std::enable_if_t<std::is_base_of_v<ExecutorFactoryLegacy, T>, int> = 0>
     std::shared_ptr<T> getExecutorFactoryAs() {
         auto casted = std::dynamic_pointer_cast<T>(executorFactory);
-        if (!casted) {
-            OPENVINO_THROW("Cannot dynamically cast ExecutorFactory");
-        }
+        OPENVINO_ASSERT(casted, "Cannot dynamically cast ExecutorFactory");
         return casted;
     }
 
@@ -192,7 +187,7 @@ public:
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(const std::string& name)
+        explicit PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
@@ -387,9 +382,11 @@ public:
             }
         }
 
-        if (getFusingPort() == -1) {
-            OPENVINO_THROW("Cannot determine fusing port between nodes: ", parentNode->getName(), " and ", getName());
-        }
+        OPENVINO_ASSERT(getFusingPort() != -1,
+                        "Cannot determine fusing port between nodes: ",
+                        parentNode->getName(),
+                        " and ",
+                        getName());
 
         parentNode->addFusedNode(getParentEdgeAt(getFusingPort())->getChild());
         parentNode->addOriginalLayer(getOriginalLayers());
@@ -613,29 +610,21 @@ public:
     }
 
     ov::element::Type getOriginalInputPrecisionAtPort(size_t port) const {
-        if (originalInputPrecisions.size() <= port) {
-            OPENVINO_THROW("Incorrect input port number for node ", getName());
-        }
+        OPENVINO_ASSERT(originalInputPrecisions.size() > port, "Incorrect input port number for node ", getName());
         return originalInputPrecisions[port];
     }
     ov::element::Type getOriginalOutputPrecisionAtPort(size_t port) const {
-        if (originalOutputPrecisions.size() <= port) {
-            OPENVINO_THROW("Incorrect output port number for node ", getName());
-        }
+        OPENVINO_ASSERT(originalOutputPrecisions.size() > port, "Incorrect output port number for node ", getName());
         return originalOutputPrecisions[port];
     }
 
     void setOriginalInputPrecisionAtPort(size_t port, ov::element::Type precision) {
-        if (originalInputPrecisions.size() <= port) {
-            OPENVINO_THROW("Incorrect input port number for node ", getName());
-        }
+        OPENVINO_ASSERT(originalInputPrecisions.size() > port, "Incorrect input port number for node ", getName());
         originalInputPrecisions[port] = precision;
     }
 
     void setOriginalOutputPrecisionAtPort(size_t port, ov::element::Type precision) {
-        if (originalOutputPrecisions.size() <= port) {
-            OPENVINO_THROW("Incorrect output port number for node ", getName());
-        }
+        OPENVINO_ASSERT(originalOutputPrecisions.size() > port, "Incorrect output port number for node ", getName());
         originalOutputPrecisions[port] = precision;
     }
 
@@ -687,16 +676,12 @@ public:
     }
 
     const Shape& getInputShapeAtPort(size_t port) const {
-        if (inputShapes.size() <= port) {
-            OPENVINO_THROW("Incorrect input port number for node ", getName());
-        }
+        OPENVINO_ASSERT(inputShapes.size() > port, "Incorrect input port number for node ", getName());
         return inputShapes[port];
     }
 
     const Shape& getOutputShapeAtPort(size_t port) const {
-        if (outputShapes.size() <= port) {
-            OPENVINO_THROW("Incorrect output port number for node ", getName());
-        }
+        OPENVINO_ASSERT(outputShapes.size() > port, "Incorrect output port number for node ", getName());
         return outputShapes[port];
     }
 
@@ -736,7 +721,7 @@ public:
                                        NameFromType(getType()));
         return false;
     }
-    const bool keepOrigPrecision() const {
+    bool keepOrigPrecision() const {
         return keepOriginalPrecision;
     }
 

@@ -30,13 +30,10 @@ class EyeLayerCPUTest : public testing::WithParamInterface<EyeLayerCPUTestParams
                         public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<EyeLayerCPUTestParamsSet> obj) {
-        EyeLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        std::string td;
-        ElementType netPr;
-        std::vector<int> eyePar;
-        std::tie(inputShape, outBatchShape, eyePar, netPr, td) = basicParamsSet;
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [_inputShape, _outBatchShape, eyePar, netPr, td] = basicParamsSet;
+        inputShape = _inputShape;
+        outBatchShape = _outBatchShape;
         std::ostringstream result;
         result << "EyeTest_";
         result << "IS=(";
@@ -61,14 +58,12 @@ public:
 
 protected:
     void SetUp() override {
-        EyeLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        ElementType netPrecision;
-        std::vector<int> eyePar;
-        std::tie(inputShape, outBatchShape, eyePar, netPrecision, targetDevice) = basicParamsSet;
+        const auto& [_inputShape, _outBatchShape, eyePar, netPrecision, _targetDevice] = basicParamsSet;
+        inputShape = _inputShape;
+        outBatchShape = _outBatchShape;
+        targetDevice = _targetDevice;
         rowNum = eyePar[0];
         colNum = eyePar[1];
         shift = eyePar[2];

@@ -49,13 +49,13 @@ DeviceFeaturesKey FullyConnectedKernelMMAD::get_required_device_features_key(con
 
 bool FullyConnectedKernelMMAD::Validate(const Params& params) const {
     if (!Parent::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     auto fc_params = static_cast<const fully_connected_params&>(params);
     auto input = fc_params.inputs[0];
     if (input.GetLayout() == DataLayout::bfyx &&
         (input.X().LogicalDimPadded() != 1 || input.Y().LogicalDimPadded() != 1 || input.Z().LogicalDimPadded() != 1)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     return true;

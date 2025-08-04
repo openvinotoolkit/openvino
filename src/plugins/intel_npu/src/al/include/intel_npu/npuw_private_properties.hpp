@@ -252,6 +252,14 @@ static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief
+ * Type: boolean
+ * When applicable, do embedding gather on host but leave it quantized.
+ * Default value: false.
+ */
+static constexpr ov::Property<bool> gather_quant{"NPUW_HOST_GATHER_QUANT"};
+
+/**
+ * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"
@@ -442,6 +450,16 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * Type: uint64_t.
+ * Prompt chunk size for chunk prefill.
+ * The chunk size should be a power of two.
+ * Chunk prefill feature is disabled in case the value is 0.
+ * Default value: 0.
+ */
+static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
+
+/**
+ * @brief
  * Type: std::string.
  * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
@@ -453,10 +471,23 @@ static constexpr ov::Property<std::string> prefill_hint{"NPUW_LLM_PREFILL_HINT"}
 /**
  * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation of prefill model.
+ * Configuration for compilation/execution of prefill model. If specified, it will override default
+ * config, prepared by NPUW specifically for this model.
+ *
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Additional configuration for compilation/execution of prefill model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_prefill_config{"++NPUW_LLM_PREFILL_CONFIG"};
 
 /**
  * @brief
@@ -471,10 +502,53 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
 /**
  * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation of generate model.
+ * Configuration for compilation/execution of generate model. If specified, it will override default
+ * config, prepared by NPUW specifically for this model.
+ *
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of generate model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW to separate LM head into the 3rd model, that will be shared between
+ * prefill and generate.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> shared_lm_head{"NPUW_LLM_SHARED_HEAD"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of shared LM head model. If specified, it will override
+ * default config, prepared by NPUW specifically for this model.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> shared_lm_head_config{"NPUW_LLM_SHARED_HEAD_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of shared LM head model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_shared_lm_head_config{"++NPUW_LLM_SHARED_HEAD_CONFIG"};
 }  // namespace llm
 
 }  // namespace npuw

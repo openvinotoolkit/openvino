@@ -75,14 +75,15 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
         attrs.AXES_ID = 5;
     }
 
-    if ((attrs.isStridedSliceOp && (inputShapes.size() < 3 || inputShapes.size() > 4)) ||
-        (!attrs.isStridedSliceOp &&
-         (inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1)))) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
-    if (outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
+    const bool is_strided_slice = attrs.isStridedSliceOp;
+    const bool wrong_size_for_strided = inputShapes.size() < 3 || inputShapes.size() > 4;
+    const bool wrong_size_for_slice =
+        inputShapes.size() < (attrs.STRIDE_ID + 1) || inputShapes.size() > (attrs.AXES_ID + 1);
+    const bool strided_slice_with_wrong_size = is_strided_slice && wrong_size_for_strided;
+    const bool slice_with_wrong_size = !is_strided_slice && wrong_size_for_slice;
+    const bool valid_config = !strided_slice_with_wrong_size && !slice_with_wrong_size;
+    CPU_NODE_ASSERT(valid_config, "has incorrect number of input edges");
+    CPU_NODE_ASSERT(outputShapes.size() == 1, "has incorrect number of output edges");
 
     if (inputShapes.size() > attrs.STRIDE_ID) {
         isStrideSpecified = true;
@@ -94,7 +95,7 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
 
     for (size_t i = 0LU; i < op->get_input_size(); i++) {
         isConstantInput[i] = ov::is_type<ov::op::v0::Constant>(op->get_input_node_shared_ptr(i));
-        if (!isConstantInput[i] && one_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
+        if (!isConstantInput[i] && any_of(i, attrs.BEGIN_ID, attrs.END_ID, attrs.STRIDE_ID) &&
             !attrs.isSliceScatterOp) {
             shapeHasDataDependency = true;
         }
@@ -149,13 +150,12 @@ StridedSlice::StridedSlice(const std::shared_ptr<ov::Node>& op, const GraphConte
             attrs.ellipsisMaskCounter += attrs.ellipsisMask[i];
             attrs.ellipsisPos1 = attrs.ellipsisMask[i] == 1 && attrs.ellipsisPos1 == -1 ? i : attrs.ellipsisPos1;
         }
-        if (attrs.ellipsisMaskCounter > 1) {
-            THROW_CPU_NODE_ERR("has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
-        }
+        CPU_NODE_ASSERT(attrs.ellipsisMaskCounter <= 1,
+                        "has incorrect 'Ellipsis_mask'. Only one non-zero bit is allowed");
 
         int newAxis = std::accumulate(attrs.newAxisMask.begin(), attrs.newAxisMask.end(), 0);
         int shrinkAxis = std::accumulate(attrs.shrinkAxisMask.begin(), attrs.shrinkAxisMask.end(), 0);
-        attrs.equalDims = newAxis == 0 && shrinkAxis == 0;
+        attrs.equalDims = all_of(0, newAxis, shrinkAxis);
     } else {
         attrs.equalDims = true;
     }
@@ -388,9 +388,7 @@ bool StridedSlice::needShapeInfer() const {
 }
 
 void StridedSlice::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("doesn't have compiled executor!");
-    }
+    CPU_NODE_ASSERT(execPtr, "doesn't have compiled executor!");
 
     execPtr->exec(srcMemory, dstMemory);
 }
@@ -488,16 +486,12 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
 
     params.attrs.beginDims = srcMemory[attrs.BEGIN_ID]->getShape().getStaticDims();
     params.attrs.endDims = srcMemory[attrs.END_ID]->getShape().getStaticDims();
-    if (params.attrs.beginDims.size() != 1) {
-        OPENVINO_THROW("Strided slice common executor should have begin vector with 1 dimension");
-    }
-    if (params.attrs.endDims.size() != 1) {
-        OPENVINO_THROW("Strided slice common executor should have end vector with 1 dimension");
-    }
-    if (params.attrs.beginDims[0] != params.attrs.endDims[0]) {
-        OPENVINO_THROW("Strided slice common executor should have begin vector with size equal to end vector size");
-    }
-
+    OPENVINO_ASSERT(params.attrs.beginDims.size() == 1,
+                    "Strided slice common executor should have begin vector with 1 dimension");
+    OPENVINO_ASSERT(params.attrs.endDims.size() == 1,
+                    "Strided slice common executor should have end vector with 1 dimension");
+    OPENVINO_ASSERT(params.attrs.beginDims[0] == params.attrs.endDims[0],
+                    "Strided slice common executor should have begin vector with size equal to end vector size");
     if (params.attrs.begin.empty()) {
         fillingInParameters(params.attrs.begin, attrs.BEGIN_ID, params.attrs.beginDims[0], 0);
     }
@@ -510,11 +504,8 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
         if (params.attrs.strideDims.size() > 1) {
             OPENVINO_THROW("Strided slice common executor should have stride vector with 1 dimension");
         }
-        if (params.attrs.beginDims[0] != params.attrs.strideDims[0]) {
-            OPENVINO_THROW(
-                "Strided slice common executor should have stride vector with size equal to begin vector size");
-        }
-
+        OPENVINO_ASSERT(params.attrs.beginDims[0] == params.attrs.strideDims[0],
+                        "Strided slice common executor should have stride vector with size equal to begin vector size");
         if (params.attrs.stride.empty()) {
             fillingInParameters(params.attrs.stride, attrs.STRIDE_ID, params.attrs.strideDims[0], 1);
         }
@@ -525,11 +516,8 @@ void StridedSlice::StridedSliceCommonExecutor::paramsInitialization(const Stride
         if (params.attrs.axesDims.size() != 1) {
             OPENVINO_THROW("Strided slice common executor should have axes vector with 1 dimension.");
         }
-        if (params.attrs.beginDims[0] != params.attrs.axesDims[0]) {
-            OPENVINO_THROW(
-                "Strided slice common executor should have axes vector with size equal to begin vector size.");
-        }
-
+        OPENVINO_ASSERT(params.attrs.beginDims[0] == params.attrs.axesDims[0],
+                        "Strided slice common executor should have axes vector with size equal to begin vector size.");
         if (params.attrs.axes.empty()) {
             fillingInParameters(params.attrs.axes, attrs.AXES_ID, params.attrs.axesDims[0], 0);
         }

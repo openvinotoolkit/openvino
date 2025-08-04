@@ -11,17 +11,17 @@ namespace kernel_selector {
 
 bool SelectKernelBase::Validate(const Params& p) const {
     if (p.GetType() != KernelType::SELECT) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const select_params& params = static_cast<const select_params&>(p);
 
     if (params.inputs[1].GetDType() != params.inputs[2].GetDType()) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (params.inputs.size() != 3) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

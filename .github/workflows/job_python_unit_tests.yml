@@ -7,11 +7,11 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image to use for the job'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
       affected-components:
         description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
         type: string
@@ -31,62 +31,46 @@ jobs:
     name: Python unit tests
     timeout-minutes: 70
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
     defaults:
       run:
         shell: bash
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
-      OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install      
-      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
-      LAYER_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/layer_tests
     steps:
-
-      - name: Download OpenVINO artifacts (tarballs)
+      # checkout action cleans up the workspace and have to be the first step
+      - name: Fetch custom actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+      
+      - name: Download OpenVINO artifacts (tarballs and wheels)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: openvino_[tests]*
+          pattern: openvino_@(wheels|tests)
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
-          
-      - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: openvino_[wheels]*
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
-
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
-      - name: Setup Variables
-        run: |
-          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "LAYER_TESTS_INSTALL_DIR=$GITHUB_WORKSPACE/install/tests/layer_tests" >> "$GITHUB_ENV"
-          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
         run: brew install pigz
           
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
 
-      - name: Fetch setup_python and install wheels actions
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        timeout-minutes: 15
-        with:
-          sparse-checkout: |
-            .github/actions/setup_python/action.yml
-            .github/actions/install_ov_wheels/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'action_root'
-
       - name: Setup Python ${{ inputs.python-version }}
-        uses: ./action_root/.github/actions/setup_python
+        uses: ./.github/actions/setup_python
         with:
           version: ${{ inputs.python-version }}
           pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH || '' }}
@@ -94,9 +78,9 @@ jobs:
           self-hosted-runner: ${{ runner.os == 'Linux' }}
 
       - name: Install OpenVINO Python wheels
-        uses: ./action_root/.github/actions/install_ov_wheels
+        uses: ./.github/actions/install_ov_wheels
         with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
 
       - name: Install Python API tests dependencies
@@ -111,7 +95,7 @@ jobs:
           python3 -m pip install -r ${INSTALL_TEST_DIR}/python/preprocess/torchvision/requirements.txt
 
           # layer test requirements
-          python3 -m pip install -r ${LAYER_TESTS_INSTALL_DIR}/requirements.txt
+          python3 -m pip install -r ${INSTALL_TEST_DIR}/layer_tests/requirements.txt
 
       - name: Install ONNX tests dependencies
         run: |
@@ -134,7 +118,7 @@ jobs:
 
       - name: OVC unit tests
         if: fromJSON(inputs.affected-components).OVC.test
-        run: python3 -m pytest -s ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
+        run: python3 -m pytest -sv ${INSTALL_TEST_DIR}/ovc/unit_tests --junitxml=${INSTALL_TEST_DIR}/TEST-OpenVinoConversion.xml
 
       - name: OVC Python API Tests
         if: fromJSON(inputs.affected-components).OVC.test
@@ -149,7 +133,7 @@ jobs:
             export LD_PRELOAD=${GOMP_LIB}
           fi
 
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/ovc_python_api_tests -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
+          python3 -m pytest ${INSTALL_TEST_DIR}/layer_tests/ovc_python_api_tests -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_ovc_convert.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
@@ -160,11 +144,11 @@ jobs:
         run: |
           # to allow 'libtest_builtin_extensions.so' to find 'libopenvino_onnx_frontend.so'
           export LD_LIBRARY_PATH=${PIP_INSTALL_PATH}/openvino/libs:$LD_LIBRARY_PATH
-          python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/py_frontend_tests --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
+          python3 -m pytest ${INSTALL_TEST_DIR}/layer_tests/py_frontend_tests -v --junitxml=${INSTALL_TEST_DIR}/TEST-test_py_fontend.xml
 
       - name: TensorFlow Lite Layer Tests - TFL FE
         if: fromJSON(inputs.affected-components).TFL_FE.test
-        run: python3 -m pytest ${LAYER_TESTS_INSTALL_DIR}/tensorflow_lite_tests/ -n logical --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
+        run: python3 -m pytest ${INSTALL_TEST_DIR}/layer_tests/tensorflow_lite_tests/ -n logical -v --junitxml=${INSTALL_TEST_DIR}/TEST-tfl_fe.xml
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP16
