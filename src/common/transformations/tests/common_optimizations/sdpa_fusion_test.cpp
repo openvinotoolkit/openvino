@@ -584,7 +584,6 @@ TEST_P(SDPAFusionExplicitTranspose, SDPAFusionTest_explicit_transpose) {
         // insert additional transpose, the transposes will be eliminated in another transformation, e.g.
         // TransposeSinking
         sdpa_ref.transpose_k(get_tranpose_order(param.q_shape.size()));
-        sdpa_ref.transpose_k(get_tranpose_order(param.q_shape.size()));
 
         sdpa_ref.create_reference_sdpa();
         model_ref = sdpa_ref.build_model();
@@ -1017,7 +1016,6 @@ TEST_F(TransformationTestsF, SDPAFusionTest_KScaledInput) {
     // SDPA reference model.
     {
         sdpa_ref.set_scale(1.f);
-        sdpa_ref.transpose_k(get_tranpose_order(query_shape.size()));
         sdpa_ref.transpose_k(get_tranpose_order(query_shape.size()));
         sdpa_ref.create_reference_sdpa();
 
