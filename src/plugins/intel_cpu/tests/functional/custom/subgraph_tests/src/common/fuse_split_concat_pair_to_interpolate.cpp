@@ -22,13 +22,7 @@ class FuseSplitConcatPairToInterpolateTest : public testing::WithParamInterface<
                                              virtual public SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<FuseSplitConcatPairToInterpolateTuple>& obj) {
-        Shape inputShape;
-        element::Type inputPrecision;
-        int axis;
-        size_t num_splits;
-        size_t scale_factor;
-        std::string targetName;
-        std::tie(inputShape, inputPrecision, axis, num_splits, scale_factor, targetName) = obj.param;
+        const auto& [inputShape, inputPrecision, axis, num_splits, scale_factor, targetName] = obj.param;
         std::ostringstream results;
 
         results << "IS=" << inputShape << "_InPRC=" << inputPrecision << "_Axis=" << axis
@@ -40,13 +34,8 @@ public:
 
 protected:
     void SetUp() override {
-        Shape inputShape;
-        element::Type inputPrecision;
-        int axis;
-        size_t num_splits;
-        size_t scale_factor;
-        std::tie(inputShape, inputPrecision, axis, num_splits, scale_factor, targetDevice) = this->GetParam();
-
+        const auto& [inputShape, inputPrecision, axis, num_splits, scale_factor, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
         size_t num_of_concat_inputs = num_splits * scale_factor;
 
         const auto param = std::make_shared<ov::op::v0::Parameter>(inputPrecision, inputShape);

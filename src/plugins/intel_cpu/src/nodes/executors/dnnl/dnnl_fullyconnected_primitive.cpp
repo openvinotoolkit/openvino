@@ -241,7 +241,7 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const FCAttrs& attrs,
                                 memory,
                                 outputDataType,
                                 {},
-                                false,
+                                PostOpsMode::Original,
                                 false);
 
     if (auto it = memory.find(ARG_WEI | ARG_ATTR_SCALES); it != memory.end()) {

@@ -95,14 +95,14 @@ void pre_calc_for_bilinear_interpolate(const int height,
 
                     if (y_low >= height - 1) {
                         y_high = y_low = height - 1;
-                        y = (T)y_low;
+                        y = static_cast<T>(y_low);
                     } else {
                         y_high = y_low + 1;
                     }
 
                     if (x_low >= width - 1) {
                         x_high = x_low = width - 1;
-                        x = (T)x_low;
+                        x = static_cast<T>(x_low);
                     } else {
                         x_high = x_low + 1;
                     }
@@ -162,7 +162,7 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
             offset_bottom_rois++;
         }
 
-        T offset = aligned ? (T)0.5 : (T)0.0;
+        T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
         // Do not using rounding; this implementation detail is critical
         T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
         T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
@@ -170,8 +170,8 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
         T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
 
         // Force malformed ROIs to be 1x1
-        T roi_width = (std::max)(roi_end_w - roi_start_w, (T)1.);
-        T roi_height = (std::max)(roi_end_h - roi_start_h, (T)1.);
+        T roi_width = (std::max)(roi_end_w - roi_start_w, static_cast<T>(1.));
+        T roi_height = (std::max)(roi_end_h - roi_start_h, static_cast<T>(1.));
         T bin_size_h = roi_height / static_cast<T>(pooled_height);
         T bin_size_w = roi_width / static_cast<T>(pooled_width);
 

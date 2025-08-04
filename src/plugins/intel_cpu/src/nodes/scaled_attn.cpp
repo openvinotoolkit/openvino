@@ -416,6 +416,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      q_ptr,
                                      k_ptr,
                                      c_ptr,
+                                     nullptr,
+                                     nullptr,
                                      wsp.data() + tid * wsp_size_per_thread,
                                      qk_scratch_a ? &qk_scratch_a.at<T>({tid, 0}) : nullptr);
             float* alibi_ptr = nullptr;
@@ -476,6 +478,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ONEDNN, T> {
                                      w_ptr,
                                      v_ptr,
                                      fp32_out_ptr,
+                                     nullptr,
+                                     nullptr,
                                      wsp.data() + tid * wsp_size_per_thread,
                                      wv_gemm_ptr->get_scratch_a_size() > 0 ? &wv_scratch_a.at<T>({tid, 0}) : nullptr);
             if (is_xf16) {
@@ -584,7 +588,7 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
                     PlainTensor& output_emb,
                     bool has_out_transpose,
                     bool auto_causal,
-                    float d_scale = 0.0f) {
+                    float d_scale = 0.0F) {
         auto B = query.size(0);
         auto H = query.size(1);
         auto q_len = query.size(2);
@@ -594,8 +598,8 @@ struct MHAKernel<ScaledDotProductAttention::KT_ACL, T> {
         auto h_group_num = present_key.size(1);
         size_t h_each_group_len = H / h_group_num;
 
-        if (d_scale == 0.0f) {
-            d_scale = 1.0f / sqrt(head_size);
+        if (d_scale == 0.0F) {
+            d_scale = 1.0F / static_cast<float>(sqrt(head_size));
         }
         auto k_stride_s = present_key.stride(3);
 
@@ -1246,7 +1250,7 @@ void ScaledDotProductAttention::createPrimitive() {
     m_key_quant_param.isByChannel = false;
     if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_CHANNEL) {
         m_key_quant_param.isByChannel = true;
-    } else if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_HIDDEN) {
+    } else if (cpuConfig.keyCacheQuantMode == ov::intel_cpu::Config::CacheQuantMode::BY_TOKEN) {
         m_key_quant_param.isByChannel = false;
     }
     m_value_quant_param.groupSize = cpuConfig.valueCacheGroupSize ? cpuConfig.valueCacheGroupSize : valueS;
