@@ -852,6 +852,7 @@ size_t jit_greater_emitter::aux_fp_gprs_count() const {
 
 std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>&) {
     return {{element::f32, element::f32}};
+}
 
 /// GELU ERF ///
 jit_gelu_erf_emitter::jit_gelu_erf_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
