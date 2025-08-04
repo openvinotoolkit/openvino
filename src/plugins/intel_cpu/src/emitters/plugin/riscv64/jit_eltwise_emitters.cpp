@@ -823,7 +823,7 @@ size_t jit_floor_mod_emitter::aux_vecs_count() const {
 }
 
 size_t jit_floor_mod_emitter::aux_fp_gprs_count() const {
-    return 2;
+    return 1;
 }
 
 void jit_floor_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -844,10 +844,8 @@ void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     const VReg dst = VReg(out_vec_idxs[0]);
     const VReg tmp1 = VReg(aux_vec_idxs[0]);
     const VReg tmp2 = VReg(aux_vec_idxs[1]);
-    auto fzero = FReg(aux_fp_gpr_idxs[0]);
-    auto fone = FReg(aux_fp_gpr_idxs[1]);
+    auto fone = FReg(aux_fp_gpr_idxs[0]);
 
-    h->fmv_w_x(fzero, zero);
     load_table_val("one", fone);
 
     h->vfdiv_vv(tmp1, src0, src1);
