@@ -40,6 +40,7 @@
 #    include "cpu/x64/jit_avx512_core_fp8cvt.hpp"
 #    include "emitters/plugin/x64/jit_bf16_emitters.hpp"
 #    include "nodes/kernels/x64/jit_kernel.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 namespace ov::intel_cpu {
@@ -157,7 +158,7 @@ public:
 
     using convert_vec_t = void (*)(jit_generator_t&, const RegExp&, const RegExp&);
 
-    jit_convert_array(convert_vec_t convert_vec)
+    explicit jit_convert_array(convert_vec_t convert_vec)
         : jit_kernel(jit_name()),
           _convert_vec(convert_vec),
           _src_size(sizeof(src_t)),
@@ -190,7 +191,7 @@ public:
             static jit_convert_array converter(convert_vec<src_t, dst_t>);
             auto& generator = static_cast<jit_generator_t&>(converter);
             generator.create_kernel();
-            return (fn_t)generator.jit_ker();
+            return jit_kernel_cast<fn_t>(generator.jit_ker());
         }
         return nullptr;
     }
@@ -927,7 +928,7 @@ struct ConvertTo4BitPrecision<std::tuple<src_t, dst_t>> {
     void operator()(ConvertTo4BitContext& ctx) {
         auto insert_half_byte = [](uint8_t dst, uint8_t val, bool high_half) -> uint8_t {
             uint8_t shift = high_half ? 4 : 0;
-            return dst | (uint8_t)(val << shift);
+            return dst | static_cast<uint8_t>(val << shift);
         };
 
         auto src = static_cast<const src_t*>(ctx.srcPtr);

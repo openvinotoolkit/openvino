@@ -23,14 +23,7 @@ class SplitLayerCPUTest : public testing::WithParamInterface<splitCPUTestParams>
                           public CPUTestsBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<splitCPUTestParams> obj) {
-        size_t numSplits;
-        int64_t axis;
-        ElementType netPrecision;
-        InputShape inputShapes;
-        std::vector<size_t> outIndices;
-        CPUSpecificParams cpuParams;
-        std::tie(numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams) = obj.param;
-
+        const auto& [numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=";
         result << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -51,19 +44,14 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
+        const auto& [numSplits, axis, netPrecision, inputShapes, optOutIndices, cpuParams] = this->GetParam();
+        auto splitDefault = [](const size_t numSplits) {
+            std::vector<size_t> indices(numSplits);
+            std::iota(indices.begin(), indices.end(), 0);
+            return indices;
+        };
 
-        size_t numSplits;
-        int axis;
-        ElementType netPrecision;
-        InputShape inputShapes;
-        std::vector<size_t> outIndices;
-        CPUSpecificParams cpuParams;
-        std::tie(numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams) = this->GetParam();
-        if (outIndices.empty()) {
-            for (size_t i = 0; i < numSplits; ++i) {
-                outIndices.push_back(i);
-            }
-        }
+        const auto& outIndices = optOutIndices.empty() ? splitDefault(numSplits) : optOutIndices;
 
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         selectedType += std::string("_") + ov::element::Type(netPrecision).to_string();

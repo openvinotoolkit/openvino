@@ -63,8 +63,8 @@ bool ShlEltwiseExecutor::supports(const EltwiseConfig& config) {
     auto is_precision_supported = [supported_prec](const MemoryDescPtr& desc) {
         return desc->getPrecision() == supported_prec;
     };
-    if (!(std::all_of(srcDescs.cbegin(), srcDescs.cend(), is_precision_supported) &&
-          std::all_of(dstDescs.cbegin(), dstDescs.cend(), is_precision_supported))) {
+    if (!std::all_of(srcDescs.cbegin(), srcDescs.cend(), is_precision_supported) ||
+        !std::all_of(dstDescs.cbegin(), dstDescs.cend(), is_precision_supported)) {
         DEBUG_LOG("ShlEltwise supports only f32");
         return false;
     }
@@ -84,8 +84,8 @@ bool ShlEltwiseExecutor::supports(const EltwiseConfig& config) {
         }
         return desc->hasLayoutType(unifiedLayout);
     };
-    if (!(std::all_of(srcDescs.cbegin(), srcDescs.cend(), has_unified_layout) &&
-          std::all_of(dstDescs.cbegin(), dstDescs.cend(), has_unified_layout))) {
+    if (!std::all_of(srcDescs.cbegin(), srcDescs.cend(), has_unified_layout) ||
+        !std::all_of(dstDescs.cbegin(), dstDescs.cend(), has_unified_layout)) {
         DEBUG_LOG("ShlEltwise needs to ensure all inputs and outputs are in the same 'ncsp' or 'nspc' layouts");
         return false;
     }
@@ -95,8 +95,8 @@ bool ShlEltwiseExecutor::supports(const EltwiseConfig& config) {
         switch (eltwiseAttrs.data.algo) {
         case Algorithm::EltwisePrelu:
             // SHL PRelu op only supports these two kinds of layout
-            if (!(supportedLayout == csinn_layout_enum::CSINN_LAYOUT_NC1HWC0 ||
-                  supportedLayout == csinn_layout_enum::CSINN_LAYOUT_NCHW)) {
+            if (supportedLayout != csinn_layout_enum::CSINN_LAYOUT_NC1HWC0 &&
+                supportedLayout != csinn_layout_enum::CSINN_LAYOUT_NCHW) {
                 DEBUG_LOG("src descriptor layout is unsupported by SHL Prelu op: ", srcDesc->serializeFormat());
                 return false;
             }

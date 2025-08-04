@@ -275,11 +275,11 @@ int64_t get_offset(const cldnn::layout& l, dnnl::memory::desc&& desc) {
 
 std::tuple<dnnl::memory::desc, dnnl::memory::desc, dnnl::memory::desc>
 get_conv_memory_descs(cldnn::layout input_layout, cldnn::layout weights_layout, cldnn::layout output_layout, dnnl::memory::format_tag target_fmt) {
-    mem_flags flags = (input_layout.format.is_blocked() || output_layout.format.is_blocked()) ?
-        mem_flags::need_blocked : mem_flags::None;
-    dnnl::memory::desc input_desc   = layout_to_memory_desc(input_layout, target_fmt, flags);
-    dnnl::memory::desc weights_desc = layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any, flags);
-    dnnl::memory::desc output_desc  = layout_to_memory_desc(output_layout, target_fmt, flags);
+    mem_flags flag = (input_layout.format.is_blocked() || output_layout.format.is_blocked()) ? mem_flags::need_blocked : mem_flags::None;
+    flag = format::is_grouped(weights_layout.format) ? mem_flags::grouped : flag;
+    dnnl::memory::desc input_desc   = layout_to_memory_desc(input_layout, target_fmt, flag);
+    dnnl::memory::desc weights_desc = layout_to_memory_desc(weights_layout, dnnl::memory::format_tag::any, flag);
+    dnnl::memory::desc output_desc  = layout_to_memory_desc(output_layout, target_fmt, flag);
     return {input_desc, weights_desc, output_desc};
 }
 
@@ -307,6 +307,7 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
     bool flatten = has_mem_flag(flags, mem_flags::flatten);
     bool use_strides = has_mem_flag(flags, mem_flags::use_strides);
     bool need_blocked = has_mem_flag(flags, mem_flags::need_blocked);
+    bool is_grouped = has_mem_flag(flags, mem_flags::grouped);
     if (target_fmt == dnnl::memory::format_tag::ab && flatten) {
         dims = flatten_tensor(l.get_tensor());
         dims.insert(dims.begin(), 1);
@@ -349,7 +350,7 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
         // However, if the memory::desc to be converted is related to another blocked format, it should be expanded to a 4d tensor.
         auto shape_rank = l.is_dynamic() ?
             static_cast<size_t>(l.get_partial_shape().rank().get_length()) : l.get_shape().size();
-        if (shape_rank == 3 && !need_blocked) {
+        if (shape_rank == 3 && !need_blocked && !is_grouped) {
             dims.push_back(l.batch());
             dims.push_back(l.feature());
             // In cldnn::layer, when it is a 3D shape, the values ​​of the XY axes can sometimes be flipped,
@@ -734,21 +735,25 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
     std::copy_if(desc_dims.begin(), desc_dims.end(), std::back_inserter(filtered_desc_dims),
                  [](ov::Dimension::value_type i) { return i != 1; });
 
-    // Check whether they have same values and orders.
-    if (filtered_target_dims == filtered_desc_dims) {
-        layout.set_partial_shape(desc_dims);
-        if (layout.get_rank() != desc_dims.size()) {
-            if (cldnn::format::is_default_format(layout.format)) {
-                layout.format = cldnn::format::get_default_format(desc_dims.size());
-            } else {
-                // TO-DO: Consider that weight format is not default format
-                return false;
-            }
-        }
-        return true;
+    if (filtered_target_dims != filtered_desc_dims)
+        return false; // We cannot keep the shapes consistent
+
+    layout.set_partial_shape(desc_dims);
+    if (layout.get_rank() == desc_dims.size()) {
+        return true;    // Shapes are now consistent
     } else {
-        return false;
+        auto is_weights = cldnn::format::is_weights_format(layout.format);
+        auto is_grouped = cldnn::format::is_grouped(layout.format);
+        auto expected_format = cldnn::format::get_default_format(cldnn::format::dimension(layout.format), is_weights, is_grouped);
+        if (layout.format == expected_format) {
+            // Dimension expansion is only allowed when the input layout is in the default format.
+            layout.format = cldnn::format::get_default_format(desc_dims.size(), is_weights, is_grouped);
+        } else {
+            // The expected format is not default format.
+            return false;
+        }
     }
+    return true;
 }
 
 size_t get_post_ops_count(const program_node& node) {
