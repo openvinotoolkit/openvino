@@ -60,12 +60,8 @@ void MSDA::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(internal_MSDA_validate_and_infer_types);
     OPENVINO_ASSERT(get_input_size() == 5, "MSDA must have 5 inputs whereas it has ", get_input_size());
 
-    const auto& input_shapes = ov::util::get_node_input_partial_shapes(*this);
-
     auto value_ps = get_input_partial_shape(0);
     auto attention_weights_ps = get_input_partial_shape(4);
-
-    auto output_shape = get_output_partial_shape(0);
     set_output_type(0, get_input_element_type(0), {value_ps[0], attention_weights_ps[1], value_ps[2] * value_ps[3]});
 }
 

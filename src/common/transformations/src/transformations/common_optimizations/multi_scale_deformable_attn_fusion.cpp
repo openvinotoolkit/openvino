@@ -216,6 +216,7 @@ MultiScaleDeformableAttnFusion::MultiScaleDeformableAttnFusion() : MultiMatcher(
             }
         }
     };
+    std::cout << "wzx debug register" << std::endl;
 
     register_patterns({grid_sampler_block, attn_output_proj_MatMul_transpose_a}, callback, true);
 }
