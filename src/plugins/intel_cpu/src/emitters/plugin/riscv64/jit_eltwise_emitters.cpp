@@ -802,7 +802,6 @@ std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions
     return {{element::f32}};
 }
 
-
 ///  Greater ///
 jit_greater_emitter::jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
@@ -944,7 +943,6 @@ std::set<std::vector<element::Type>> jit_gelu_erf_emitter::get_supported_precisi
 void jit_gelu_erf_emitter::emit_data() const {
     erf_emitter->emit_data();
     jit_emitter::emit_data();
-
 }
 
 /// GREATER EQUAL ///
