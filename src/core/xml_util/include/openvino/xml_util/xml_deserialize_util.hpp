@@ -21,7 +21,7 @@
 namespace ov::util {
 struct GenericLayerParams;
 
-class OPENVINO_API XmlDeserializer : public ov::AttributeVisitor {
+class XmlDeserializer : public ov::AttributeVisitor {
 public:
     explicit XmlDeserializer(const pugi::xml_node& node,
                              const std::shared_ptr<ov::AlignedBuffer>& weights,
