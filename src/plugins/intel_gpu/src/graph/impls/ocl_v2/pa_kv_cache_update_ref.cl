@@ -61,9 +61,10 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
                                     const uint out_data_pitch,
                                     const uint token_pos_in_block,
                                     const uint new_tokens_num,
-                                    const uint sglid) {
-    const int num_head_size_groups = NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS;
+                                    const uint sglid,
+                                    const uint is_prefill_stage) {
     int head_size_offset = SUBGROUP_SIZE * get_group_id(2);
+    int num_head_size_groups = is_prefill_stage ? NUM_HEAD_SIZE_GROUPS : NUM_HEAD_SIZE_GROUPS / NUM_K_HEAD_SIZE_PARTITIONS;
     for (int h_sub = 0; h_sub < num_head_size_groups; h_sub++) {
         const int hidden_idx = head_size_offset + h_sub * SUBGROUP_SIZE + sglid;
         const uint out_offset_per_wi = out_data_offset + hidden_idx * out_data_pitch;
@@ -266,7 +267,8 @@ KERNEL(pa_kv_cache_update)(
                                                                         k_hidden_stride,
                                                                         current_token_pos_in_block,
                                                                         1,
-                                                                        sglid);
+                                                                        sglid,
+                                                                        0);
         }
         // value per token
         if (get_group_id(2) == 0) {
@@ -348,7 +350,8 @@ KERNEL(pa_kv_cache_update)(
                                                                             k_hidden_stride,
                                                                             token_start_pos_key,
                                                                             tokens_num,
-                                                                            sglid);
+                                                                            sglid,
+                                                                            1);
             } else {
                 FUNC_CALL(quantize_and_save_by_channel_prefill)(key_data,
                                                                 key_in_offset,
@@ -515,7 +518,8 @@ KERNEL(pa_kv_cache_update)(
                                                                             k_hidden_stride,
                                                                             token_start_pos_key,
                                                                             tokens_num,
-                                                                            sglid);
+                                                                            sglid,
+                                                                            1);
             } else {
                 FUNC_CALL(quantize_and_save_by_channel_prefill)(key_data,
                                                                 key_in_offset,
