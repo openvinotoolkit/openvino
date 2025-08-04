@@ -25,6 +25,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/utils/utils.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/snippets/x64/op/fa_utils.hpp"
 #include "utils/general_utils.h"
 
@@ -446,12 +447,13 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
 
     size_t kv_block_num = ov::snippets::utils::div_up(kv_len, kv_len_blk);
     size_t q_block_num = ov::snippets::utils::div_up(q_len, q_len_blk);
+    auto k_alignment = brgemm_utils::get_elems_in_vec(ov::element::f32);
     for (size_t i = 0; i < kv_block_num; i++) {
         size_t kv_start = i * kv_len_blk;
         size_t kv_end = std::min(kv_start + kv_len_blk, static_cast<size_t>(kv_len));
         size_t rt_kv_len_blk = kv_end - kv_start;
         bool is_tail_kv = rt_kv_len_blk < kv_len_blk;
-        float* k_ptr = k + kv_start * qk_head_size;  // k is repacked
+        float* k_ptr = k + kv_start * ov::snippets::utils::rnd_up(qk_head_size, k_alignment);  // k is repacked
         float* v_ptr = v + kv_start * v_head_size;
         bool is_first_kv = (i == 0);
         for (size_t j = 0; j < q_block_num; j++) {
@@ -491,9 +493,9 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
             args.max = reinterpret_cast<void*>(max_q);
             args.denominator = reinterpret_cast<void*>(denominator_q);
             args.out = reinterpret_cast<void*>(out_ptr);
-            args.work_amount_inner = is_tail_kv ? rt_kv_len_blk : kv_len_blk;
+            args.work_amount_inner = rt_kv_len_blk;
             args.work_amount_inner_head_size = v_head_size;
-            args.work_amount_outer = is_tail_q ? rt_q_len_blk : q_len_blk;
+            args.work_amount_outer = rt_q_len_blk;
             if (is_first_kv) {
                 (*online_softmax_kernel_init)(&args);
             } else {

@@ -10,15 +10,16 @@
 #include <vector>
 
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
@@ -36,9 +37,9 @@ bool pass::MHAToFA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::MHAToFA")
 
     using namespace ov::pass::pattern;
-    auto input_0 = any_input(type_matches(ov::element::f32));
-    auto input_1 = any_input(type_matches(ov::element::f32));
-    auto input_2 = any_input(type_matches(ov::element::f32));
+    auto input_0 = wrap_type<ov::op::v0::Parameter>(type_matches(ov::element::f32));
+    auto input_1 = wrap_type<ov::op::v0::Parameter>(type_matches(ov::element::f32));
+    auto input_2 = wrap_type<ov::op::v0::Parameter>(type_matches(ov::element::f32));
     auto single_consumer_f32 = [](const ov::Output<ov::Node>& out) {
         return consumers_count(1)(out) && type_matches(ov::element::f32)(out);
     };

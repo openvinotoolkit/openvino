@@ -94,12 +94,13 @@ bool FAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     if (fa_it == linear_ir.end()) {
         return false;
     }
+    auto& rt_info = (*fa_it)->get_node()->get_rt_info();
+    rt_info.erase("splitm_kernel_dim");
     const auto& config = m_configurator->get_config();
     size_t new_batch_dim = 0, new_kernel_dim = 0;
     if (!SplitDimensionM::split(config->master_shape, m_concurrency, new_batch_dim, new_kernel_dim)) {
         return false;
     }
-
     auto& master_shape = config->master_shape;
     *++master_shape.rbegin() = new_kernel_dim;
     master_shape.insert(master_shape.cbegin() + master_shape.size() - 2, new_batch_dim);
@@ -113,7 +114,6 @@ bool FAParallelWAOptimizer::run(const lowered::LinearIR& linear_ir) {
     }
     config->io_layouts = m_optimized_layouts;
 
-    auto& rt_info = (*fa_it)->get_node()->get_rt_info();
     rt_info["splitm_kernel_dim"] = new_kernel_dim;
 
     return true;

@@ -157,7 +157,7 @@ void BrgemmConfig::validate() const {
 
 size_t get_elems_in_vec(const ov::element::Type& precision) {
     using namespace dnnl::impl::cpu;
-    OV_CPU_JIT_EMITTER_ASSERT(x64::mayiuse(x64::avx2), "doesn't support non avx512 platforms");
+    OV_CPU_JIT_EMITTER_ASSERT(x64::mayiuse(x64::avx2), "doesn't support non avx2 platforms");
     const auto vlen = x64::mayiuse(avx512_core) ? x64::cpu_isa_traits_t<x64::avx512_core>::vlen
                                                 : x64::cpu_isa_traits_t<x64::avx2>::vlen;
     return vlen / precision.size();
