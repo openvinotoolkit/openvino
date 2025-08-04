@@ -10,11 +10,11 @@
 
 namespace ov::pass::pattern {
 
-PatternSymbolValue::PatternSymbolValue() : m_value(){};
-PatternSymbolValue::PatternSymbolValue(const std::shared_ptr<ov::Symbol>& s) : m_value(s){};
-PatternSymbolValue::PatternSymbolValue(int64_t i) : m_value(i){};
-PatternSymbolValue::PatternSymbolValue(double d) : m_value(d){};
-PatternSymbolValue::PatternSymbolValue(const std::vector<PatternSymbolValue>& g) : m_value(g){};
+PatternSymbolValue::PatternSymbolValue() : m_value() {};
+PatternSymbolValue::PatternSymbolValue(const std::shared_ptr<ov::Symbol>& s) : m_value(s) {};
+PatternSymbolValue::PatternSymbolValue(int64_t i) : m_value(i) {};
+PatternSymbolValue::PatternSymbolValue(double d) : m_value(d) {};
+PatternSymbolValue::PatternSymbolValue(const std::vector<PatternSymbolValue>& g) : m_value(g) {};
 
 bool PatternSymbolValue::is_dynamic() const {
     return is_valid() && m_value.is<std::shared_ptr<ov::Symbol>>();
