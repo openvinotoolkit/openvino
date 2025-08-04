@@ -221,7 +221,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-    const bool use_chunk_prefill = prefill_chunk_size > 0;
+    const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         clear_chunk_prefill_kv_cache();
     }
@@ -319,7 +319,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
                                  : kvcache_desc.dim;
 
         const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-        const bool use_chunk_prefill = prefill_chunk_size > 0;
+        const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
         if (use_chunk_prefill) {
             // The chunk prefilled KV results are divided into two parts:
             // Part 1: The KV results from loops 1 to n-1 have been copied into the 'past' KV input tensor
@@ -549,7 +549,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     prepare_for_new_conversation();
 
     const auto prefill_chunk_size = m_npuw_llm_compiled_model->m_prefill_chunk_size;
-    const bool use_chunk_prefill = prefill_chunk_size > 0;
+    const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         infer_chunked_prefill(input_ids, attention_mask, position_ids);
     } else {

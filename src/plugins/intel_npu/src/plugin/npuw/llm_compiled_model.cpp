@@ -1080,15 +1080,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
 
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
-    const bool use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
-    LOG_VERB("Enabled prefill chunking: " << use_chunk_prefill);
+    m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
+    LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
     auto is_power_of_two = [](uint64_t n) {
         return n > 0 && (n & (n - 1)) == 0;
     };
-    if (use_chunk_prefill) {
+    if (m_use_chunk_prefill) {
         if (!is_power_of_two(m_prefill_chunk_size)) {
             OPENVINO_THROW("Configuration Error: chunk size (",
                            m_prefill_chunk_size,
@@ -1106,7 +1106,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("Make prefill model with static shapes");
-    if (use_chunk_prefill) {
+    if (m_use_chunk_prefill) {
         reshape_to_static(prefill_model,
                           static_cast<uint32_t>(m_prefill_chunk_size),
                           m_kvcache_desc.max_prompt_size,
@@ -1143,7 +1143,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
 
-    if (!use_chunk_prefill) {
+    if (!m_use_chunk_prefill) {
         NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
     } else {
         LOG_DEBUG("Don't remove input key/values from prefill model.");
@@ -1299,6 +1299,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.dim);
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
         write(model_stream, m_prefill_chunk_size);
+        write(model_stream, m_use_chunk_prefill);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1492,6 +1493,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.dim);
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
         read(model_stream, compiled->m_prefill_chunk_size);
+        read(model_stream, compiled->m_use_chunk_prefill);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
