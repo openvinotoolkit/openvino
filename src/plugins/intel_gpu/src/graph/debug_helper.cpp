@@ -47,7 +47,7 @@ template <class T>
 void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
     auto&& size = mem->get_layout().get_tensor();
 
-    auto batch_size = std::max(std::min(ExecutionConfig::get_dump_batch_limit(), size.batch[0]), 1);
+    auto batch_size = std::max<ov::Dimension::value_type>(std::min<ov::Dimension::value_type>(ExecutionConfig::get_dump_batch_limit(), size.batch[0]), 1);
     tensor tmp_size(size);
     tmp_size.batch[0] = batch_size;
     if (tmp_size == size) {
@@ -76,16 +76,16 @@ void dump(memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump
     std::stringstream buffer;
 
     if (!dump_raw) {
-        for (cldnn::tensor::value_type g = 0; g < size.group[0]; ++g) {
-            for (cldnn::tensor::value_type b = 0; b < batch_size; ++b) {
-                for (cldnn::tensor::value_type f = 0; f < size.feature[0]; ++f) {
-                    for (cldnn::tensor::value_type w = 0; w < size.spatial[3]; ++w) {
-                        for (cldnn::tensor::value_type z = 0; z < size.spatial[2]; ++z) {
-                            for (cldnn::tensor::value_type y = 0; y < size.spatial[1]; ++y) {
+        for (ov::Dimension::value_type g = 0; g < size.group[0]; ++g) {
+            for (ov::Dimension::value_type b = 0; b < batch_size; ++b) {
+                for (ov::Dimension::value_type f = 0; f < size.feature[0]; ++f) {
+                    for (ov::Dimension::value_type w = 0; w < size.spatial[3]; ++w) {
+                        for (ov::Dimension::value_type z = 0; z < size.spatial[2]; ++z) {
+                            for (ov::Dimension::value_type y = 0; y < size.spatial[1]; ++y) {
                                 cldnn::tensor t(cldnn::group(g), cldnn::batch(b), cldnn::feature(f), cldnn::spatial(0, y, z, w));
                                 size_t input_it = mem->get_layout().get_linear_offset(t);
 
-                                for (cldnn::tensor::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
+                                for (ov::Dimension::value_type x = 0; x < size.spatial[0]; ++x, input_it += x_pitch) {
                                     buffer << std::fixed << std::setprecision(6) << convert_element(mem_ptr[input_it]) << std::endl;
                                 }
                             }
@@ -123,7 +123,7 @@ void unpack(cldnn::data_types type, uint8_t input, int8_t &v0, int8_t &v1) {
 void dump_i4u4(cldnn::data_types type, memory::ptr mem, stream& stream, std::ofstream& file_stream, bool dump_raw) {
     auto&& size = mem->get_layout().get_tensor();
 
-    auto batch_size = std::max(std::min(ExecutionConfig::get_dump_batch_limit(), size.batch[0]), 1);
+    auto batch_size = std::max<ov::Dimension::value_type>(std::min<ov::Dimension::value_type>(ExecutionConfig::get_dump_batch_limit(), size.batch[0]), 1);
     tensor tmp_size(size);
     tmp_size.batch[0] = batch_size;
     if (tmp_size == size) {
