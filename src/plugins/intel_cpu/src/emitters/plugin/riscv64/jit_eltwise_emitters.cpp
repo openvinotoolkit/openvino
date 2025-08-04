@@ -55,12 +55,14 @@ void jit_abs_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_abs_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -91,7 +93,7 @@ void jit_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
@@ -128,7 +130,7 @@ jit_clamp_emitter::jit_clamp_emitter(ov::intel_cpu::riscv64::jit_generator_t* ho
         min = static_cast<float>(clamp->get_min());
         max = static_cast<float>(clamp->get_max());
     } else {
-        OPENVINO_THROW("Incompatible node!");
+        OV_CPU_JIT_EMITTER_THROW("Incompatible node!");
     }
     prepare_table();
 }
@@ -157,13 +159,15 @@ void jit_clamp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_clamp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
     auto bound = FReg(aux_fp_gpr_idxs[0]);
@@ -205,7 +209,7 @@ void jit_divide_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
@@ -224,7 +228,7 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->vdiv_vv(dst, src0, src1);
         break;
     default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
     }
 }
 
@@ -278,12 +282,14 @@ void jit_elu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_elu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -364,13 +370,15 @@ void jit_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -420,12 +428,14 @@ void jit_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -549,12 +559,14 @@ void jit_exp_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const st
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_exp_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
     auto aux0 = VReg(aux_vec_idxs[0]);
@@ -687,7 +699,7 @@ size_t jit_mod_emitter::aux_vecs_count() const {
     if (exec_prc_ == ov::element::i32) {
         return 0;
     }
-    OPENVINO_THROW("Unsupported precision");
+    OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
 }
 size_t jit_mod_emitter::aux_fp_gprs_count() const {
     if (exec_prc_ == ov::element::f32) {
@@ -696,13 +708,13 @@ size_t jit_mod_emitter::aux_fp_gprs_count() const {
     if (exec_prc_ == ov::element::i32) {
         return 0;
     }
-    OPENVINO_THROW("Unsupported precision");
+    OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
 }
 void jit_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
@@ -731,7 +743,7 @@ void jit_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std
         break;
     }
     default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision:", exec_prc_);
     }
 }
 std::set<std::vector<element::Type>> jit_mod_emitter::get_supported_precisions(
@@ -774,7 +786,7 @@ void jit_floor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for FLOOR");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for FLOOR");
     }
 }
 void jit_floor_emitter::register_table_entries() {
@@ -784,6 +796,8 @@ void jit_floor_emitter::register_table_entries() {
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
     auto aux1 = VReg(aux_vec_idxs[0]);
@@ -841,7 +855,7 @@ void jit_gelu_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for GELU ERF");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for GELU ERF");
     }
 }
 
@@ -854,6 +868,8 @@ void jit_gelu_erf_emitter::register_table_entries() {
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_gelu_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -922,13 +938,15 @@ void jit_greater_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for GREATER_EQUAL");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for GREATER_EQUAL");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_greater_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                          const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -979,13 +997,15 @@ void jit_hsigmoid_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_hsigmoid_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -1052,13 +1072,15 @@ void jit_hswish_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_hswish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                   const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -1124,6 +1146,8 @@ size_t jit_less_equal_emitter::aux_fp_gprs_count() const {
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_less_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -1140,7 +1164,7 @@ void jit_less_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
@@ -1158,13 +1182,15 @@ void jit_maximum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for MAXIMUM");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for MAXIMUM");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_maximum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -1194,13 +1220,15 @@ void jit_minimum_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for MINIMUM");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for MINIMUM");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_minimum_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -1245,7 +1273,7 @@ void jit_logical_and_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
@@ -1265,7 +1293,7 @@ void jit_logical_and_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->vand_vx(dst, mask0, mask1);
         break;
     default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
     }
 }
 
@@ -1304,14 +1332,14 @@ void jit_logical_not_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_logical_not_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                        const std::vector<size_t>& out_vec_idxs) const {
-    OPENVINO_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision");
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -1364,7 +1392,7 @@ void jit_logical_xor_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
@@ -1391,7 +1419,7 @@ void jit_logical_xor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->vxor_vv(dst, aux0, aux1);
         break;
     default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
     }
 }
 
@@ -1443,12 +1471,14 @@ void jit_mish_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_mish_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     // An equation other than mish(x) = x*tanh(srelu(x)) was used
     // to calculate mish, but it should be remembered that it is equivalent
     // equation, it uses the following rule:
@@ -1529,13 +1559,15 @@ void jit_mul_add_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_mul_add_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto src2 = VReg(in_vec_idxs[2]);
@@ -1582,16 +1614,19 @@ void jit_multiply_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_multiply_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
+
     h->vfmul_vv(dst, src0, src1);
 }
 
@@ -1617,13 +1652,15 @@ void jit_negative_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for NEGATIVE");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for NEGATIVE");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_negative_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -1664,13 +1701,15 @@ void jit_not_equal_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_not_equal_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -1717,13 +1756,15 @@ void jit_prelu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_prelu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                  const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -1755,7 +1796,7 @@ jit_relu_emitter::jit_relu_emitter(ov::intel_cpu::riscv64::jit_generator_t* host
     } else if (ov::is_type<ov::op::v0::Relu>(node)) {
         alpha = 0.F;
     } else {
-        OPENVINO_THROW("Incompatible node!");
+        OV_CPU_JIT_EMITTER_THROW("Incompatible node!");
     }
     prepare_table();
 }
@@ -1782,12 +1823,14 @@ void jit_relu_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_relu_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
     auto fzero = FReg(aux_fp_gpr_idxs[0]);
@@ -1868,13 +1911,15 @@ void jit_power_static_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                         const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -2005,17 +2050,17 @@ size_t jit_sigmoid_emitter::get_inputs_num() const {
 }
 
 size_t jit_sigmoid_emitter::aux_gprs_count() const {
-    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
+    OV_CPU_JIT_EMITTER_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return jit_exp_emitter_->aux_gprs_count() + 1;
 }
 
 size_t jit_sigmoid_emitter::aux_vecs_count() const {
-    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
+    OV_CPU_JIT_EMITTER_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return jit_exp_emitter_->aux_vecs_count() + 1;
 }
 
 size_t jit_sigmoid_emitter::aux_fp_gprs_count() const {
-    OPENVINO_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
+    OV_CPU_JIT_EMITTER_ASSERT(jit_exp_emitter_, "JIT Exp emitter is missed!");
     return std::max(jit_exp_emitter_->aux_fp_gprs_count(), 1LU);
 }
 
@@ -2024,13 +2069,15 @@ void jit_sigmoid_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_sigmoid_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                    const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
     auto sign_mask = VReg(aux_vec_idxs[aux_vecs_count() - 1]);
@@ -2102,12 +2149,14 @@ void jit_sqrt_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_sqrt_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -2139,7 +2188,7 @@ void jit_subtract_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 
@@ -2158,7 +2207,7 @@ void jit_subtract_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         h->vsub_vv(dst, src0, src1);
         break;
     default:
-        OV_CPU_JIT_EMITTER_THROW("Unsupported precision");
+        OV_CPU_JIT_EMITTER_THROW("Unsupported precision: ", exec_prc_);
     }
 }
 
