@@ -23,6 +23,18 @@ static inline cldnn::event::ptr create_event(stream& stream, size_t bytes_count)
     return stream.create_base_event();
 }
 
+std::vector<ze_event_handle_t> get_ze_events(const std::vector<event::ptr>& events) {
+    std::vector<ze_event_handle_t> ze_events;
+    ze_events.reserve(events.size());
+     for (const auto& ev : events) {
+        auto ze_event = downcast<ze::ze_base_event>(ev.get())->get();
+        if (ze_event != nullptr) {
+            ze_events.push_back(ze_event);
+        }
+    }
+    return ze_events;
+}
+
 }  // namespace
 
 allocation_type gpu_usm::detect_allocation_type(const ze_engine* engine, const void* mem_ptr) {
@@ -123,12 +135,20 @@ void gpu_usm::unlock(const stream& /* stream */) {
     }
 }
 
-event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, bool blocking) {
+event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events, bool blocking) {
     auto& _ze_stream = downcast<ze_stream>(stream);
     auto ev = _ze_stream.create_base_event();
     auto ev_ze = downcast<ze::ze_base_event>(ev.get())->get();
     std::vector<unsigned char> temp_buffer(_bytes_count, pattern);
-    ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(), _buffer.get(), temp_buffer.data(), 1, _bytes_count, ev_ze, 0, nullptr));
+    auto ze_dep_events = get_ze_events(dep_events);
+    ZE_CHECK(zeCommandListAppendMemoryFill(_ze_stream.get_queue(),
+        _buffer.get(),
+        temp_buffer.data(),
+        1,
+        _bytes_count,
+        ev_ze,
+        ze_dep_events.size(),
+        ze_dep_events.data()));
 
     if (blocking) {
         ev->wait();
@@ -136,8 +156,8 @@ event::ptr gpu_usm::fill(stream& stream, unsigned char pattern, bool blocking) {
     return ev;
 }
 
-event::ptr gpu_usm::fill(stream& stream, bool blocking) {
-    return fill(stream, 0, blocking);
+event::ptr gpu_usm::fill(stream& stream, const std::vector<event::ptr>& dep_events, bool blocking) {
+    return fill(stream, 0, dep_events, blocking);
 }
 
 event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
