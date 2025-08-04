@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
@@ -27,12 +28,13 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
 using namespace ov::pass;
 using namespace ov::op;
 
-ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
-    MATCHER_SCOPE(QKVProjFusion);
+ov::intel_cpu::QKVProjFusionPass1::QKVProjFusionPass1() {
+    MATCHER_SCOPE(QKVProjFusionPass1);
 
     auto input = pattern::any_input(pattern::rank_equals(3));
 
@@ -47,7 +49,7 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
 
     auto q_proj_weight_const = pattern::wrap_const();
     auto q_proj_weight_cvt =
-        pattern::optional<op::v0::Convert>({q_proj_weight_const}, pattern::type_matches(element::i32));  //  [4096,4096]
+        pattern::optional<op::v0::Convert>({q_proj_weight_const}, pattern::type_matches(element::f32));  //  [4096,4096]
     auto q_proj = pattern::wrap_type<v0::MatMul>({input, q_proj_weight_cvt | q_proj_weight_deq},
                                                  {{"transpose_a", false}, {"transpose_b", true}});  //  [?,?,4096]
 
@@ -185,8 +187,8 @@ ov::intel_cpu::QKVProjFusion::QKVProjFusion() {
     this->register_matcher(m, callback);
 }
 
-ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
-    MATCHER_SCOPE(QKVProjFusion2);
+ov::intel_cpu::QKVProjFusionPass2::QKVProjFusionPass2() {
+    MATCHER_SCOPE(QKVProjFusionPass2);
 
     auto input = pattern::any_input(pattern::rank_equals(3));
 
@@ -291,4 +293,16 @@ ov::intel_cpu::QKVProjFusion2::QKVProjFusion2() {
 
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
+}
+
+bool ov::intel_cpu::QKVProjFusion::run_on_model(const std::shared_ptr<ov::Model>& model) {
+    RUN_ON_MODEL_SCOPE(QKVProjFusion);
+
+    SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+    auto symbolic_ctx_manager = symbolic_optimizations.get_manager();
+
+    symbolic_ctx_manager->register_pass<QKVProjFusionPass1>();
+    symbolic_ctx_manager->register_pass<QKVProjFusionPass2>();
+
+    return symbolic_optimizations.run_on_model(model);
 }
