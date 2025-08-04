@@ -149,7 +149,7 @@ void MatmulWeightsDecompression::check_results() {
     const bool use_matmul_decompression_impl = std::get<10>(test_param);
 
     const auto runtime_model = compiledModel.get_runtime_model();
-    ov::serialize(runtime_model, "test/fc.xml", "test/fc.bin");
+    // ov::serialize(runtime_model, "test/fc.xml", "test/fc.bin");
     const auto result = runtime_model->get_result();
     auto fc = result->get_input_node_shared_ptr(0);
     // Handle precision conversion before output
@@ -163,9 +163,9 @@ void MatmulWeightsDecompression::check_results() {
     const auto& expected_weights_precision = use_matmul_decompression_impl
                                                     ? compressed_weights_precision
                                                     : fc->get_input_element_type(0);
-    auto wp = expected_weights_precision;
-    auto p0 = fc->get_input_element_type(0);
-    auto p1 = fc->get_input_element_type(1);
+    // auto wp = expected_weights_precision;
+    // auto p0 = fc->get_input_element_type(0);
+    // auto p1 = fc->get_input_element_type(1);
     EXPECT_EQ(fc->get_input_element_type(1), expected_weights_precision);
 }
 
