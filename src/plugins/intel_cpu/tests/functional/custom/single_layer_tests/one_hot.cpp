@@ -64,8 +64,14 @@ public:
         for (size_t i = 0; i < funcInputs.size(); ++i) {
             const auto& funcInput = funcInputs[i];
             ov::Tensor tensor;
-
-            if (i == 1) {
+            if (i == 0) {
+                const double start = -static_cast<double>(Depth);
+                const uint32_t range = 2 * static_cast<uint32_t>(Depth) - 1;
+                ov::test::utils::InputGenerateData inGenData(start, range, 1, 1);
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(),
+                                                                 targetInputStaticShapes[i],
+                                                                 inGenData);
+            } else if (i == 1) {
                 tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
                 auto *dataPtr = tensor.data<int32_t>();
                 dataPtr[0] = Depth;

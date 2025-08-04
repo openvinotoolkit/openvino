@@ -134,9 +134,10 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
         const in_type* src_dataPtr = &src_data[prefix_idx * suffix_size];
         out_type* dst_dataPtr = &dst_data[prefix_idx * depth * suffix_size];
         for (std::size_t suffix_idx = 0; suffix_idx < suffix_size; ++suffix_idx, ++src_dataPtr, ++dst_dataPtr) {
-            auto v = static_cast<std::size_t>(*src_dataPtr);
-            if (v < depth) {
-                dst_dataPtr[v * suffix_size] = on_val;
+            const in_type val = *src_dataPtr;
+            const in_type mapped_val = val < 0 ? static_cast<in_type>(depth) + val : val;
+            if (mapped_val >= 0 && mapped_val <= static_cast<in_type>(depth) - 1) {
+                dst_dataPtr[mapped_val * suffix_size] = on_val;
             }
         }
     });
