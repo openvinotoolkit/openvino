@@ -10,6 +10,7 @@
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <set>
 #include <utility>
 #include <vector>
@@ -70,30 +71,28 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     };
     all_used_idxs.insert(all_used_idxs.end(), reserved_regs.begin(), reserved_regs.end());
 
-    // Allocate call address register from temporary registers (X8-X18, excluding X18)
-    std::vector<size_t> temp_candidates;
-    for (size_t i = 8; i < 18; i++) {
-        if (std::find(all_used_idxs.begin(), all_used_idxs.end(), i) == all_used_idxs.end()) {
-            temp_candidates.push_back(i);
+    // Helper to find first available register in range [start, end)
+    auto find_available = [&](size_t start, size_t end) {
+        for (size_t i = start; i < end; i++) {
+            if (std::find(all_used_idxs.begin(), all_used_idxs.end(), i) == all_used_idxs.end()) {
+                return i;
+            }
         }
-    }
+        return SIZE_MAX;
+    };
 
-    OV_CPU_JIT_EMITTER_ASSERT(!temp_candidates.empty(), "No available temporary register for call address");
-    m_call_address_reg = Xbyak_aarch64::XReg(static_cast<int>(temp_candidates[0]));
-    all_used_idxs.push_back(temp_candidates[0]);
-    m_regs_to_spill.emplace(snippets::RegType::gpr, temp_candidates[0]);
+    // Allocate call address register from temporary registers (X8-X18, excluding X18)
+    auto call_reg = find_available(8, 18);
+    OV_CPU_JIT_EMITTER_ASSERT(call_reg != SIZE_MAX, "No available temporary register for call address");
+    m_call_address_reg = Xbyak_aarch64::XReg(static_cast<int>(call_reg));
+    all_used_idxs.push_back(call_reg);
+    m_regs_to_spill.emplace(snippets::RegType::gpr, call_reg);
 
     // Allocate callee-saved register (X19-X28) for stack alignment
-    std::vector<size_t> callee_saved_candidates;
-    for (size_t i = 19; i < 29; i++) {
-        if (std::find(all_used_idxs.begin(), all_used_idxs.end(), i) == all_used_idxs.end()) {
-            callee_saved_candidates.push_back(i);
-        }
-    }
-
-    OV_CPU_JIT_EMITTER_ASSERT(!callee_saved_candidates.empty(), "No available callee-saved register");
-    m_callee_saved_reg = Xbyak_aarch64::XReg(static_cast<int>(callee_saved_candidates[0]));
-    m_regs_to_spill.emplace(snippets::RegType::gpr, callee_saved_candidates[0]);
+    auto callee_reg = find_available(19, 29);
+    OV_CPU_JIT_EMITTER_ASSERT(callee_reg != SIZE_MAX, "No available callee-saved register");
+    m_callee_saved_reg = Xbyak_aarch64::XReg(static_cast<int>(callee_reg));
+    m_regs_to_spill.emplace(snippets::RegType::gpr, callee_reg);
 
     m_regs_initialized = true;
 }
