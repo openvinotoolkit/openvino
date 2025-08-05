@@ -221,7 +221,11 @@ elseif(NOT TARGET arm_compute::arm_compute)
             set(local_extra_cxx_flags "${local_extra_cxx_flags} ${extra_flags}")
 
         elseif(EMSCRIPTEN)
+            # EMSDK: Passing any of -msse, -msse2, -msse3, -mssse3, -msse4.1, -msse4.2,
+            # -msse4, -mavx, -mfpu=neon flags also requires passing -msimd128 (or -mrelaxed-simd)!
             set(local_extra_cxx_flags "${local_extra_cxx_flags} -msimd128")
+            # clang-16: error: argument unused during compilation: '-mthumb' [-Werror,-Wunused-command-line-argument]
+            # clang-16: error: argument unused during compilation: '-mfloat-abi=hard' [-Werror,-Wunused-command-line-argument]
             set(local_extra_cxx_flags "${local_extra_cxx_flags} \
                 -Wno-unused-command-line-argument \
                 -Wno-unknown-warning-option \
