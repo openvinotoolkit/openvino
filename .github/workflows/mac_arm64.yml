@@ -83,6 +83,7 @@ jobs:
       CMAKE_C_COMPILER_LAUNCHER: ccache
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       OPENVINO_CONTRIB_REPO: ${{ github.workspace }}/openvino_contrib
+      DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/developer_package_install
       INSTALL_DIR: ${{ github.workspace }}/openvino_install
       INSTALL_DIR_JS: ${{ github.workspace }}/openvino/src/bindings/js/node/bin
       INSTALL_TEST_DIR: ${{ github.workspace }}/tests_install
@@ -201,6 +202,11 @@ jobs:
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_DIR }} -P ${{ env.BUILD_DIR }}/cmake_install.cmake
           cmake -DCMAKE_INSTALL_PREFIX=${{ env.INSTALL_TEST_DIR }} -DCOMPONENT=tests -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+          cmake -DCMAKE_INSTALL_PREFIX=${{ env.DEVELOPER_PACKAGE_DIR }} -DCOMPONENT=developer_package -P ${{ env.BUILD_DIR }}/cmake_install.cmake
+
+      - name: Pack openvino_developer_package
+        run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/developer_package.tar.gz
+        working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}/developer_package
 
       - name: Pack Artifacts
         run: |
@@ -296,6 +302,14 @@ jobs:
         with:
           name: openvino_package
           path: ${{ env.BUILD_DIR }}/openvino_package.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload OpenVINO developer package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_developer_package
+          path: ${{ env.BUILD_DIR }}/developer_package.tar.gz
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO wheels
