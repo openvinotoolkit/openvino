@@ -11,7 +11,7 @@ productTypes = (
     'public_linux_fedora_29_x86_64_release',
     'public_linux_ubuntu_20_04_x86_64_release',
     'public_linux_ubuntu_22_04_arm64_release',
-    'public_linux_ubuntu_22_04_arm64_native_release',
+    'public_linux_ubuntu_22_04_arm64_cross_compile_release',
     'public_linux_ubuntu_22_04_x86_64_release',
     'public_linux_ubuntu_22_04_dpcpp_x86_64_release',
     'public_linux_ubuntu_24_04_x86_64_release',
