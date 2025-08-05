@@ -1162,7 +1162,7 @@ size_t jit_less_emitter::aux_fp_gprs_count() const {
     return 1;
 }
 void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
-    const std::vector<size_t>& out_vec_idxs) const {
+                                 const std::vector<size_t>& out_vec_idxs) const {
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
@@ -1195,8 +1195,8 @@ jit_logical_or_emitter::jit_logical_or_emitter(jit_generator_t* host, cpu_isa_t 
     prepare_table();
 }
 jit_logical_or_emitter::jit_logical_or_emitter(jit_generator_t* host,
-                                                cpu_isa_t host_isa,
-                                                const std::shared_ptr<ov::Node>& node)
+                                               cpu_isa_t host_isa,
+                                               const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
