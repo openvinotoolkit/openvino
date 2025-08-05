@@ -8,11 +8,7 @@
 namespace ov {
 namespace test {
 std::string LogSoftmaxLayerTest::getTestCaseName(const testing::TestParamInfo<logSoftmaxLayerTestParams>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    int64_t axis;
-    std::string target_device;
-    std::tie(model_type, shapes, axis, target_device) = obj.param;
+    const auto& [model_type, shapes, axis, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -50,11 +46,8 @@ void LogSoftmaxLayerTest::generate_inputs(const std::vector<ov::Shape>& target_s
 }
 
 void LogSoftmaxLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    int64_t axis;
-
-    std::tie(model_type, shapes, axis, targetDevice) = GetParam();
+    const auto& [model_type, shapes, axis, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
