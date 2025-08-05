@@ -41,13 +41,10 @@ else()
     set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
 endif()
 
+# Set default GPU runtime to L0 for now
 set(OV_GPU_DEFAULT_RT "L0")
 if (ENABLE_INTEL_GPU)
     ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported value: OCL and L0" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES L0 OCL)
-    if (GPU_RT_TYPE STREQUAL "L0")
-        # There's no interop with native L0 in onednn API. Temporary disable onednn when L0 runtime is selected
-        set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
-    endif()
 endif()
 
 ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)

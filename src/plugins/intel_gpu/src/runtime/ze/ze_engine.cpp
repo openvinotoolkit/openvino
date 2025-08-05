@@ -17,7 +17,9 @@
 #include <memory>
 #include <stdexcept>
 
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_l0.hpp>
+#endif
 namespace cldnn {
 namespace ze {
 
@@ -54,7 +56,12 @@ ze_engine::ze_engine(const device::ptr dev, runtime_types runtime_type)
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 void ze_engine::create_onednn_engine(const ExecutionConfig& config) {
-    OPENVINO_NOT_IMPLEMENTED;
+    const std::lock_guard<std::mutex> lock(onednn_mutex);
+    OPENVINO_ASSERT(_device->get_info().vendor_id == INTEL_VENDOR_ID, "[GPU] OneDNN engine can be used for Intel GPUs only");
+    if (!_onednn_engine) {
+        auto casted = std::dynamic_pointer_cast<ze_device>(_device);
+        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::l0_interop::make_engine(casted->get_driver(), casted->get_device(), casted->get_context()));
+    }
 }
 
 dnnl::engine& ze_engine::get_onednn_engine() const {
