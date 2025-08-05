@@ -146,18 +146,13 @@ TEST_F(GridSampleDecompositionTest, AppliedForNearest) {
     checkDecomposition(model, true);  // Now should decompose
 }
 
-TEST_F(GridSampleDecompositionTest, BicubicThrowsException) {
+TEST_F(GridSampleDecompositionTest, BicubicDecomposes) {
     auto model = createGridSample({1, 2, 4, 4}, {1, 3, 3, 2},
                                  ov::element::f32, ov::element::f32,
                                  false,
                                  ov::op::v9::GridSample::InterpolationMode::BICUBIC,
                                  ov::op::v9::GridSample::PaddingMode::BORDER);
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
-
-    // BICUBIC should throw an exception on ARM
-    EXPECT_THROW(manager.run_passes(model), std::runtime_error);
+    checkDecomposition(model, true);  // Now should decompose
 }
 
 TEST_F(GridSampleDecompositionTest, AppliedForZerosPadding) {
@@ -393,7 +388,10 @@ const std::vector<GridSampleTestParams> testParams = {
      ov::op::v9::GridSample::InterpolationMode::NEAREST, ov::op::v9::GridSample::PaddingMode::BORDER,
      true, "nearest_interpolation"},
 
-    // BICUBIC removed - should throw exception instead of decompose
+    // BICUBIC cases
+    {{1, 2, 4, 4}, {1, 3, 3, 2}, ov::element::f32, ov::element::f32, false,
+     ov::op::v9::GridSample::InterpolationMode::BICUBIC, ov::op::v9::GridSample::PaddingMode::BORDER,
+     true, "bicubic_interpolation"},
 
     {{1, 2, 4, 4}, {1, 3, 3, 2}, ov::element::f32, ov::element::f32, false,
      ov::op::v9::GridSample::InterpolationMode::BILINEAR, ov::op::v9::GridSample::PaddingMode::ZEROS,
@@ -412,8 +410,13 @@ const std::vector<GridSampleTestParams> testParams = {
      ov::op::v9::GridSample::InterpolationMode::NEAREST, ov::op::v9::GridSample::PaddingMode::REFLECTION,
      true, "nearest_reflection_f16"},
 
-    // BICUBIC test cases removed - should throw exception instead of decompose
-    // "bicubic_zeros" and "bicubic_reflection_align" removed
+    {{3, 2, 6, 10}, {3, 5, 8, 2}, ov::element::f32, ov::element::f32, false,
+     ov::op::v9::GridSample::InterpolationMode::BICUBIC, ov::op::v9::GridSample::PaddingMode::ZEROS,
+     true, "bicubic_zeros"},
+
+    {{1, 4, 12, 16}, {1, 10, 14, 2}, ov::element::f32, ov::element::f32, true,
+     ov::op::v9::GridSample::InterpolationMode::BICUBIC, ov::op::v9::GridSample::PaddingMode::REFLECTION,
+     true, "bicubic_reflection_align"}
 };
 
 INSTANTIATE_TEST_SUITE_P(GridSampleDecomposition,
@@ -423,29 +426,23 @@ INSTANTIATE_TEST_SUITE_P(GridSampleDecomposition,
                             return info.param.test_name;
                         });
 
-// Tests for BICUBIC that should throw exceptions
-TEST_F(GridSampleDecompositionTest, BicubicZerosThrowsException) {
+// Additional BICUBIC tests
+TEST_F(GridSampleDecompositionTest, BicubicWithZerosPadding) {
     auto model = createGridSample({3, 2, 6, 10}, {3, 5, 8, 2},
                                  ov::element::f32, ov::element::f32,
                                  false,
                                  ov::op::v9::GridSample::InterpolationMode::BICUBIC,
                                  ov::op::v9::GridSample::PaddingMode::ZEROS);
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
-    EXPECT_THROW(manager.run_passes(model), std::runtime_error);
+    checkDecomposition(model, true);
 }
 
-TEST_F(GridSampleDecompositionTest, BicubicReflectionAlignThrowsException) {
+TEST_F(GridSampleDecompositionTest, BicubicWithReflectionAlignCorners) {
     auto model = createGridSample({1, 4, 12, 16}, {1, 10, 14, 2},
                                  ov::element::f32, ov::element::f32,
                                  true,
                                  ov::op::v9::GridSample::InterpolationMode::BICUBIC,
                                  ov::op::v9::GridSample::PaddingMode::REFLECTION);
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
-    EXPECT_THROW(manager.run_passes(model), std::runtime_error);
+    checkDecomposition(model, true);
 }
 
 } // namespace

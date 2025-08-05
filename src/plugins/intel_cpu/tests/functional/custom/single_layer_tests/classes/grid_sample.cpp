@@ -103,14 +103,6 @@ const std::vector<ov::op::v9::GridSample::InterpolationMode>& allInterpolationMo
     return modes;
 }
 
-const std::vector<ov::op::v9::GridSample::InterpolationMode>& armInterpolationModes() {
-    static const std::vector<ov::op::v9::GridSample::InterpolationMode> modes = {
-        ov::op::v9::GridSample::InterpolationMode::BILINEAR,
-        ov::op::v9::GridSample::InterpolationMode::NEAREST
-    };
-    return modes;
-}
-
 const std::vector<ov::op::v9::GridSample::PaddingMode>& allPaddingModes() {
     static const std::vector<ov::op::v9::GridSample::PaddingMode> modes = {
         ov::op::v9::GridSample::PaddingMode::ZEROS,
@@ -153,11 +145,6 @@ const std::vector<std::vector<InputShape>>& getDynamicShapes() {
           {{1, 2, 4, 2}, {3, 1, 7, 2}, {5, 2, 3, 2}, {7, 1, 5, 2}}}}
     };
     return shapes;
-}
-
-const std::vector<CPUSpecificParams>& getCPUInfoForCommon() {
-    static const std::vector<CPUSpecificParams> params = {CPUSpecificParams{{}, {}, {"ref"}, "ref"}};
-    return params;
 }
 
 const std::vector<ov::AnyMap>& additionalConfigs() {

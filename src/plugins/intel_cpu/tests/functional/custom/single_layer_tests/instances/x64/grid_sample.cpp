@@ -7,8 +7,7 @@
 
 using namespace CPUTestUtils;
 
-namespace ov {
-namespace test {
+namespace ov::test {
 
 using namespace GridSample;
 
@@ -33,7 +32,6 @@ std::vector<CPUSpecificParams> getCPUInfoX64() {
 
 }  // namespace
 
-// Static shapes tests - same as original master but prefixed with x64_
 INSTANTIATE_TEST_SUITE_P(x64_smoke_static,
                          GridSampleLayerTestCPU,
                          ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
@@ -70,7 +68,6 @@ INSTANTIATE_TEST_SUITE_P(x64_nightly_static_2,
                                             ::testing::Values(additionalConfigX64[0])),
                          GridSampleLayerTestCPU::getTestCaseName);
 
-// Dynamic shapes tests - same as original master but prefixed with x64_
 INSTANTIATE_TEST_SUITE_P(x64_smoke_dynamic,
                          GridSampleLayerTestCPU,
                          ::testing::Combine(::testing::ValuesIn(getDynamicShapes()),
@@ -95,5 +92,4 @@ INSTANTIATE_TEST_SUITE_P(x64_nightly_dynamic,
                                             ::testing::Values(additionalConfigX64[0])),
                          GridSampleLayerTestCPU::getTestCaseName);
 
-}  // namespace test
-}  // namespace ov
+}  // namespace ov::test
