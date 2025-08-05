@@ -15,7 +15,7 @@ namespace ov::intel_cpu {
 
 class jit_parallel_loop_base_emitter : public jit_binary_call_emitter {
 public:
-    jit_parallel_loop_base_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_parallel_loop_base_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                    dnnl::impl::cpu::x64::cpu_isa_t isa,
                                    const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -35,7 +35,7 @@ protected:
 /* ================== jit_loop_begin_emitter ====================== */
 class jit_parallel_loop_begin_emitter : public jit_parallel_loop_base_emitter {
 public:
-    jit_parallel_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_parallel_loop_begin_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr,
                                     const snippets::KernelExecutorTablePtr& kernel_table);
@@ -85,7 +85,7 @@ protected:
 
 class jit_parallel_loop_end_emitter : public jit_parallel_loop_base_emitter {
 public:
-    jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_parallel_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                   dnnl::impl::cpu::x64::cpu_isa_t isa,
                                   const ov::snippets::lowered::ExpressionPtr& expr);
 

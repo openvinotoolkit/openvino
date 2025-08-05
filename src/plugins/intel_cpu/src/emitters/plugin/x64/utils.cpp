@@ -134,7 +134,7 @@ size_t EmitABIRegSpills::compute_memory_buffer_size(const std::vector<Xbyak::Reg
     return needed_buffer_size;
 }
 
-void EmitABIRegSpills::store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator* h,
+void EmitABIRegSpills::store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator_t* h,
                                             const std::vector<Xbyak::Reg>& regs_to_store,
                                             Xbyak::Reg memory_ptr_reg) {
     uint32_t memory_ptr_offset = 0;
@@ -174,7 +174,7 @@ void EmitABIRegSpills::preamble(const std::set<snippets::Reg>& live_regs) {
     spill_status = false;
 }
 
-void EmitABIRegSpills::load_regs_from_memory(dnnl::impl::cpu::x64::jit_generator* h,
+void EmitABIRegSpills::load_regs_from_memory(dnnl::impl::cpu::x64::jit_generator_t* h,
                                              const std::vector<Xbyak::Reg>& regs_to_load,
                                              Xbyak::Reg memory_ptr_reg,
                                              uint32_t memory_byte_size) {

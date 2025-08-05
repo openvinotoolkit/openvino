@@ -70,11 +70,11 @@ private:
     static dnnl::impl::cpu::x64::cpu_isa_t get_isa();
     [[nodiscard]] static size_t compute_memory_buffer_size(const std::vector<Xbyak::Reg>& regs);
 
-    static void store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator* h,
+    static void store_regs_to_memory(dnnl::impl::cpu::x64::jit_generator_t* h,
                                      const std::vector<Xbyak::Reg>& regs_to_store,
                                      Xbyak::Reg memory_ptr_reg);
 
-    static void load_regs_from_memory(dnnl::impl::cpu::x64::jit_generator* h,
+    static void load_regs_from_memory(dnnl::impl::cpu::x64::jit_generator_t* h,
                                       const std::vector<Xbyak::Reg>& regs_to_load,
                                       Xbyak::Reg memory_ptr_reg,
                                       uint32_t memory_byte_size);

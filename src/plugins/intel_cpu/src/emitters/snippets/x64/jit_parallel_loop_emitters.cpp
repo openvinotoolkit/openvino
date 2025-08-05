@@ -4,8 +4,6 @@
 
 #include "jit_parallel_loop_emitters.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -39,7 +37,7 @@ namespace ov::intel_cpu {
 namespace {
 class jit_aux_gpr_holder {
 public:
-    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_aux_gpr_holder(dnnl::impl::cpu::x64::jit_generator_t* host,
                        std::vector<size_t>& pool_gpr_idxs,
                        const std::vector<size_t>& used_gpr_idxs)
         : m_h(host),
@@ -68,14 +66,14 @@ public:
     }
 
 private:
-    dnnl::impl::cpu::x64::jit_generator* m_h;
+    dnnl::impl::cpu::x64::jit_generator_t* m_h;
     std::vector<size_t>& m_pool_gpr_idxs;
     Reg64 m_aux_gpr_idx;
     bool m_is_preserved = false;
 };
 }  // namespace
 
-jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator* h,
+jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator_t* h,
                                                                cpu_isa_t isa,
                                                                const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
@@ -146,7 +144,7 @@ jit_parallel_loop_base_emitter::jit_parallel_loop_base_emitter(jit_generator* h,
     }
 }
 
-jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator* h,
+jit_parallel_loop_begin_emitter::jit_parallel_loop_begin_emitter(jit_generator_t* h,
                                                                  cpu_isa_t isa,
                                                                  const ov::snippets::lowered::ExpressionPtr& expr,
                                                                  const snippets::KernelExecutorTablePtr& kernel_table)
@@ -313,7 +311,7 @@ void jit_parallel_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vect
     emit_parallel_region_initialization(regs_to_restore);
 }
 
-jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator* h,
+jit_parallel_loop_end_emitter::jit_parallel_loop_end_emitter(jit_generator_t* h,
                                                              cpu_isa_t isa,
                                                              const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_parallel_loop_base_emitter(h, isa, expr),
