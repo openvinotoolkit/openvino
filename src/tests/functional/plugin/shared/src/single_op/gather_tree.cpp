@@ -15,12 +15,7 @@ namespace test {
 using ov::test::utils::InputLayerType;
 
 std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<GatherTreeParamsTuple> &obj) {
-    ov::Shape input_shape;
-    ov::element::Type model_type;
-    InputLayerType secondary_input_type;
-    std::string device_name;
-
-    std::tie(input_shape, secondary_input_type, model_type, device_name) = obj.param;
+    const auto& [input_shape, secondary_input_type, model_type, device_name] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -31,11 +26,8 @@ std::string GatherTreeLayerTest::getTestCaseName(const testing::TestParamInfo<Ga
 }
 
 void GatherTreeLayerTest::SetUp() {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    InputLayerType secondary_input_type;
-
-    std::tie(input_shape, secondary_input_type, model_type, targetDevice) = GetParam();
+    const auto& [input_shape, secondary_input_type, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     std::vector<ov::Shape> input_shapes_static {input_shape};
     std::vector<ov::Shape> constant_shapes_static;
