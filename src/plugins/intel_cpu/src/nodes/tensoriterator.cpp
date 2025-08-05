@@ -117,7 +117,7 @@ public:
         auto part_dims = part_blob->getShape().getStaticDims();
 
         auto abs_stride = std::abs(stride);
-        auto sign_of_stride = stride < 0.0F ? -1 : 1;
+        auto sign_of_stride = stride < 0 ? -1 : 1;
 
         iter_count = full_dims[axis] / abs_stride;
 
@@ -205,7 +205,7 @@ public:
 
 class asBoolCheck : public PortChecker {
 public:
-    asBoolCheck(const MemoryPtr& mem) {
+    explicit asBoolCheck(const MemoryPtr& mem) {
         OPENVINO_ASSERT(mem->getDataType() == memory::data_type::u8);
         OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem->getPrimitive();
@@ -220,7 +220,7 @@ public:
 
 class asIntCheck : public PortChecker {
 public:
-    asIntCheck(const MemoryPtr& mem) {
+    explicit asIntCheck(const MemoryPtr& mem) {
         OPENVINO_ASSERT(mem->getDataType() == memory::data_type::s32);
         OPENVINO_ASSERT(mem->getShape() == Shape(VectorDims{1}));
         mem_holder = mem->getPrimitive();
@@ -235,7 +235,7 @@ public:
 
 class staticValueCheck : public PortChecker {
 public:
-    staticValueCheck(const int& value) : value(value) {}
+    explicit staticValueCheck(const int& value) : value(value) {}
 
     int getStatus() override {
         return value;
@@ -430,7 +430,7 @@ void DynamicBuffer::copy(const uint8_t* src,
 bool TensorIterator::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                           std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v0::TensorIterator::get_type_info_static(),
                     ov::op::v5::Loop::get_type_info_static())) {
             errorMessage = "Only opset1 TensorIterator or opset5 Loop operations are supported.";
@@ -557,10 +557,10 @@ void TensorIterator::createPrimitive() {
         algorithm = Algorithm::TensorIteratorLoop;
         auto spec_port = loopOp->get_special_body_ports();
         if (spec_port.current_iteration_input_idx != -1) {
-            loopBodyCurrentIterationIdx.push_back(spec_port.current_iteration_input_idx);
+            loopBodyCurrentIterationIdx.push_back(static_cast<int>(spec_port.current_iteration_input_idx));
         }
         if (spec_port.body_condition_output_idx != -1) {
-            loopBodyConditionOutputIdx = spec_port.body_condition_output_idx;
+            loopBodyConditionOutputIdx = static_cast<int>(spec_port.body_condition_output_idx);
         }
         loopTripCountIdx = 0;
         loopExecutionConditionIdx = 1;

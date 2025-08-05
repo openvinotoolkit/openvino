@@ -23,6 +23,7 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <algorithm>
@@ -330,7 +331,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 template <typename T>
 struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     QKVProjection* m_pnode;
-    Executor(QKVProjection* pnode) : m_pnode(pnode) {}
+    explicit Executor(QKVProjection* pnode) : m_pnode(pnode) {}
     void execute() override {}
 };
 #endif
@@ -389,9 +390,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    CPU_NODE_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
-                    "Unexpected rtPrecision:",
-                    rtPrecision);
+    CPU_NODE_ASSERT(any_of(rtPrecision, ov::element::bf16, ov::element::f16), "Unexpected rtPrecision:", rtPrecision);
 
     if (m_config.quantized) {
         auto weightPrecision = ov::element::i8;

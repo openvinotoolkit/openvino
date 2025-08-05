@@ -33,6 +33,7 @@
 #include "memory_desc/dnnl_blocked_memory_desc.h"
 #include "memory_desc/dnnl_memory_desc.h"
 #include "node.h"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/executors/matmul.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
@@ -105,7 +106,7 @@ bool MatMul::canBeExecutedInInt8() const {
     auto firstInputPrecision = getOriginalInputPrecisionAtPort(0);
     auto secondInputPrecision = getOriginalInputPrecisionAtPort(1);
 
-    return one_of(firstInputPrecision, ov::element::u8, ov::element::i8) && secondInputPrecision == ov::element::i8;
+    return any_of(firstInputPrecision, ov::element::u8, ov::element::i8) && secondInputPrecision == ov::element::i8;
 }
 
 bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
@@ -162,7 +163,7 @@ bool MatMul::canFuse(const NodePtr& node) const {
     // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
     if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
-            if (eltwiseNode->getBroadcastingPolicy() == Eltwise::BroadcastingPolicy::PerChannel) {
+            if (eltwiseNode->getBroadcastingPolicy() == EltwiseBroadcastingPolicy::PerChannel) {
                 auto rank = getInputShapeAtPort(0).getRank();
                 if (rank > 4) {
                     DEBUG_LOG("skip fusing non-perTensor Eltwise:",
@@ -180,7 +181,7 @@ bool MatMul::canFuse(const NodePtr& node) const {
     //  inserted after matmul. In some bert model, this reorder causes great perf degradation. Todo: Remove this if
     //  onednn primitive support U8 output with floating input.
     if (node->getType() == Type::FakeQuantize &&
-        one_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::i8, ov::element::u8) && !canBeExecutedInInt8() &&
+        any_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::i8, ov::element::u8) && !canBeExecutedInInt8() &&
         getOriginalInputPrecisionAtPort(0) == ov::element::f32) {
         return false;
     }
@@ -308,13 +309,13 @@ void MatMul::getSupportedDescriptors() {
     }
 
     // fallback to fp32 for any precision that cannot be handled natively
-    if ((!one_of(firstInPortPrec,
+    if ((none_of(firstInPortPrec,
                  ov::element::u8,
                  ov::element::i8,
                  ov::element::bf16,
                  ov::element::f16,
                  ov::element::f32) ||
-         !one_of(secondInPortPrec, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32))) {
+         none_of(secondInPortPrec, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32))) {
         outPortPrec = firstInPortPrec = secondInPortPrec = ov::element::f32;
     }
 
@@ -341,7 +342,7 @@ void MatMul::getSupportedDescriptors() {
     const auto& inputShape1 = getInputShapeAtPort(1);
     auto outputShape = getOutputShapeAtPort(0);
 
-    CPU_NODE_ASSERT(inputShape0.getRank() == inputShape1.getRank() && inputShape0.getRank() == outputShape.getRank(),
+    CPU_NODE_ASSERT(all_of(inputShape0.getRank(), inputShape1.getRank(), outputShape.getRank()),
                     "has invalid dims count");
 
     const int nDims = inputShape0.getRank();
@@ -393,7 +394,7 @@ void MatMul::getSupportedDescriptors() {
 
 std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const {
     CPU_NODE_ASSERT(in0.getRank() >= 2 && in1.getRank() >= 2, "Can't create dummy inputs with rank less 2");
-    CPU_NODE_ASSERT((in0.getRank() == in1.getRank()) && (in1.getRank() == out.getRank()),
+    CPU_NODE_ASSERT(all_of(in1.getRank(), in0.getRank(), out.getRank()),
                     "Can't create dummy inputs if argument shapes ranks are not equal");
 
     auto swapTranspDims = [&](VectorDims& in0, VectorDims& in1) {
@@ -419,7 +420,7 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     swapTranspDims(maxDims0, maxDims1);
 
     auto fillDummy = [&](size_t idx0, size_t idx1) {
-        if (inDims0[idx0] == Shape::UNDEFINED_DIM && inDims1[idx1] == Shape::UNDEFINED_DIM) {
+        if (all_of(Shape::UNDEFINED_DIM, inDims0[idx0], inDims1[idx1])) {
             inDims0[idx0] = inDims1[idx1] = std::min(std::min(maxDims0[idx0], maxDims1[idx1]),
                                                      std::max(std::max(minDims0[idx0], minDims1[idx1]),
                                                               static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
@@ -659,7 +660,7 @@ void MatMul::prepareParams() {
             const auto& prec_in0 = key.inp0->getDataType();
             const auto& prec_in1 = key.inp1->getDataType();
             const auto& prec_out = key.out->getDataType();
-            if (!everyone_is(dnnl::memory::data_type::f32, prec_in0, prec_in1, prec_out)) {
+            if (!all_of(dnnl::memory::data_type::f32, prec_in0, prec_in1, prec_out)) {
                 return false;
             }
             const auto& stride_in0 = key.inp0->getDnnlDesc().get_strides();

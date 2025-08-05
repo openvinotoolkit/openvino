@@ -8,6 +8,13 @@ foreach(var Python3_EXECUTABLE WORKING_DIRECTORY REPORT_FILE WHEEL_VERSION PACKA
     endif()
 endforeach()
 
+get_filename_component(wheel_name "${PACKAGE_FILE}" NAME)
+if(wheel_name MATCHES ".*cp313t.*")
+    message(STATUS "Skipping duplicate file check for Python 3.13t. Ticket: 171533")
+    file(WRITE "${REPORT_FILE}" "")
+    return()
+endif()
+
 # find programs
 
 find_program(fdupes_PROGRAM NAMES fdupes DOC "Path to fdupes")

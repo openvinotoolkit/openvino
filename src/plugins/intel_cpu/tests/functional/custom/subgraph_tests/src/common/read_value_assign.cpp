@@ -59,10 +59,7 @@ class ReadValueAssignTest : public testing::WithParamInterface<ReadValueAssignTe
                             public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadValueAssignTestParams> &obj) {
-        bool use_init_subgraph = false;
-        CPUSpecificParams cpu_params;
-        std::tie(use_init_subgraph, cpu_params) = obj.param;
-
+        const auto& [use_init_subgraph, cpu_params] = obj.param;
         std::ostringstream results;
         results << "Init_Graph=" << (use_init_subgraph ? "True" : "False") << "_";
         results << CPUTestsBase::getTestCaseName(cpu_params);
@@ -76,10 +73,7 @@ public:
 
         InputShape param1_shape = {{-1, 32, -1, -1}, {tensor_shape}};
         InputShape param2_shape = {{-1, -1, -1, -1}, {tensor_shape}};
-
-        bool use_init_subgraph = false;
-        CPUSpecificParams cpu_params;
-        std::tie(use_init_subgraph, cpu_params) = this->GetParam();
+        const auto& [use_init_subgraph, cpu_params] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpu_params;
         selectedType = makeSelectedTypeStr(selectedType, net_prc);
 

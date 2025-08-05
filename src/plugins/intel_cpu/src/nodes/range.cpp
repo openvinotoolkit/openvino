@@ -30,7 +30,7 @@ namespace ov::intel_cpu::node {
 
 bool Range::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v0::Range::get_type_info_static(),
                     ov::op::v4::Range::get_type_info_static())) {
             errorMessage = "Only v0 and v4 Range operation is supported";
@@ -91,10 +91,10 @@ void Range::initSupportedPrimitiveDescriptors() {
     } else {
         inDataConf.reserve(inputShapes.size());
         for (size_t i = 0; i < inputShapes.size(); ++i) {
-            inDataConf.emplace_back(LayoutType::ncsp);
+            inDataConf.emplace_back(LayoutType::ncsp, ov::element::dynamic);
         }
         outDataConf.reserve(1);
-        outDataConf.emplace_back(LayoutType::ncsp);
+        outDataConf.emplace_back(LayoutType::ncsp, ov::element::dynamic);
         addSupportedPrimDesc(inDataConf, outDataConf, impl_desc_type::ref_any);
     }
 }

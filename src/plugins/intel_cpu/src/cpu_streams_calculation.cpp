@@ -36,6 +36,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov;
 using namespace ov::threading;
@@ -107,7 +108,7 @@ std::vector<std::vector<int>> get_streams_info_table(
                          ((socket_id < 0) || (socket_id == one_proc_table[index][PROC_SOCKET_ID]))) ||
                         ((n_mode == 3) && (current_socket_id == one_proc_table[index][PROC_SOCKET_ID]) &&
                          ((socket_id < 0) || (socket_id == one_proc_table[index][PROC_SOCKET_ID])))) {
-                        if ((0 != one_proc_table[index][n]) && ((ALL_PROC == target_proc) || (n == target_proc))) {
+                        if ((0 != one_proc_table[index][n]) && any_of(target_proc, ALL_PROC, n)) {
                             stream_info[PROC_TYPE] = n;
                             stream_info[STREAM_NUMA_NODE_ID] = one_proc_table[index][PROC_NUMA_NODE_ID];
                             stream_info[STREAM_SOCKET_ID] = one_proc_table[index][PROC_SOCKET_ID];
@@ -162,7 +163,7 @@ std::vector<std::vector<int>> get_streams_info_table(
             if (0 != one_proc_info[proc_type]) {
                 if (n_threads_per_stream == -1) {
                     stream_info[THREADS_PER_STREAM] =
-                        ((proc_type == EFFICIENT_CORE_PROC) || (proc_type == LP_EFFICIENT_CORE_PROC)) ? 2 : 1;
+                        any_of(proc_type, EFFICIENT_CORE_PROC, LP_EFFICIENT_CORE_PROC) ? 2 : 1;
                 }
                 stream_info[PROC_TYPE] = proc_type;
                 update_ids_method(one_proc_info);
@@ -399,8 +400,8 @@ std::vector<std::vector<int>> get_streams_info_table(
 
     if (stream_info[PROC_TYPE] == INIT_VAL) {
         if ((n_streams == 1) && (proc_type_table.size() > 1) &&
-            ((hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
-              hint_model_distribution_policy.end()))) {
+            (hint_model_distribution_policy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
+             hint_model_distribution_policy.end())) {
             for (auto& row : proc_socket_table) {
                 stream_info[THREADS_PER_STREAM] = std::min(TP_CPU_LIMIT, n_threads_per_stream);
                 for (size_t i = 1; i < proc_type_table.size(); i++) {
@@ -682,8 +683,9 @@ int get_model_prefer_threads(const int num_streams,
 #    else
         config.modelPreferThreads = 0;
         if (networkToleranceForLowCache.max_mem_tolerance == ov::MemBandwidthPressure::UNKNOWN) {
-            if ((networkToleranceForLowCache.ratio_compute_convs == ov::MemBandwidthPressure::ALL) ||
-                (networkToleranceForLowCache.ratio_compute_deconvs == ov::MemBandwidthPressure::ALL)) {
+            if (any_of(ov::MemBandwidthPressure::ALL,
+                       networkToleranceForLowCache.ratio_compute_convs,
+                       networkToleranceForLowCache.ratio_compute_deconvs)) {
                 // all relevant layers (convs, etc) are compute-limited, the most aggressive val for #streams
                 config.modelPreferThreads = 1;
             }  // otherwise (no recognized layers) falling back to the default value
