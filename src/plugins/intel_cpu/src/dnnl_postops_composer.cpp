@@ -49,8 +49,9 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
                                          const MemoryArgs& memory,
                                          const dnnl::memory::data_type outDataType,
                                          const std::vector<float>& legacyDqScales,
-                                         bool useLegacyPostOps,
-                                         bool useLegacyZeroPoints)
+                                         PostOpsMode postOpsMode,
+                                         bool useLegacyZeroPoints,
+                                         dnnl::post_ops ops)
     : engine(engine),
       postOps(postOps),
       outputDims(outputDims),
@@ -58,8 +59,9 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel),
       outDataType(outDataType),
-      useLegacyPostOps(useLegacyPostOps),
-      useLegacyZeroPoints(useLegacyZeroPoints) {
+      postOpsMode(postOpsMode),
+      useLegacyZeroPoints(useLegacyZeroPoints),
+      ops(std::move(ops)) {
     OPENVINO_ASSERT(idxOC < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
@@ -134,6 +136,8 @@ static dnnl::algorithm convertToOneDnn(const ActivationPostOp::Type type) {
     case ActivationPostOp::Type::linear:
     case ActivationPostOp::Type::powerstatic:  // actually eltwise_pow + eltwise_linear
         return dnnl::algorithm::eltwise_linear;
+    default:
+        return dnnl::algorithm::undef;
     }
 
     return dnnl::algorithm::undef;
@@ -199,7 +203,7 @@ bool DnnlPostOpsComposer::appendAttrPostOps(const ScaleShiftPostOp& postOp, bool
 static float roundHalfToEven(float f) {
     const float RHAFZ = std::round(f);  // r is round-half-away-from-zero
     const float d = RHAFZ - f;          // f + d -> RHAFZ
-    if ((d != 0.5F) && (d != -0.5F)) {
+    if (none_of(d, 0.5F, -0.5F)) {
         return RHAFZ;
     }
 
@@ -272,12 +276,12 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
                           outputScale.size(),
                           outputShift.size()});
 
-    OPENVINO_ASSERT(inputScale.size() == 1 || inputScale.size() == OC);
-    OPENVINO_ASSERT(inputShift.size() == 1 || inputShift.size() == OC);
-    OPENVINO_ASSERT(cropLow.size() == 1 || cropLow.size() == OC);
-    OPENVINO_ASSERT(cropHigh.size() == 1 || cropHigh.size() == OC);
-    OPENVINO_ASSERT(outputScale.size() == 1 || outputScale.size() == OC);
-    OPENVINO_ASSERT(outputShift.size() == 1 || outputShift.size() == OC);
+    OPENVINO_ASSERT(any_of(inputScale.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(inputShift.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(cropLow.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(cropHigh.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(outputScale.size(), 1U, OC));
+    OPENVINO_ASSERT(any_of(outputShift.size(), 1U, OC));
 
     // WA: a per-Tensor input shift may little drift away randomly
     //     from it's orginal value when FQ was fused with any
@@ -369,7 +373,7 @@ static OptimizedFormula updateOptimizedFormula(const FakeQuantizePostOp& postOp,
     }
 
     // we can save an additional eltwise linear for negligible shift
-    if (f.ish.size() == 1 && f.clo.size() == 1 && f.chi.size() == 1) {
+    if (all_of(1U, f.ish.size(), f.clo.size(), f.chi.size())) {
         auto range = (f.chi[0] - f.clo[0]);
         if (abs(f.ish[0]) < range * 0.00001F) {
             f.ish[0] = 0.0F;
@@ -514,7 +518,7 @@ void DnnlPostOpsComposer::appendRoundHTE() {
 }
 
 bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary) {
-    OPENVINO_ASSERT(scale.size() == OC || scale.size() == 1);
+    OPENVINO_ASSERT(any_of(scale.size(), OC, 1U));
 
     bool fuseIntoWeiScale = false;
     // Use dest scale when last post-ops is per-tensor quantization.
@@ -555,7 +559,7 @@ bool DnnlPostOpsComposer::appendScale(const std::vector<float>& scale, bool isLa
         }
 
         // (x + dst[:])*s = (x*s + s*dst[:])
-        if (scale.size() == 1 && ops.len() == 1) {
+        if (all_of(1, static_cast<int>(scale.size()), ops.len())) {
             auto& cur_op = ops.get()->entry_.back();
             if (cur_op.kind == dnnl::impl::primitive_kind::sum) {
                 cur_op.sum.scale *= scale[0];
@@ -622,7 +626,7 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
                                        const std::vector<float>& shift,
                                        bool isLastPostOp,
                                        bool allowBinary) {
-    if (scale.size() == 1 && shift.size() == 1) {
+    if (all_of(1U, scale.size(), shift.size())) {
         if (shift[0] == 0.0F) {
             return appendScale(scale, isLastPostOp, allowBinary);
         }
@@ -649,7 +653,7 @@ bool DnnlPostOpsComposer::appendLinear(const std::vector<float>& scale,
 }
 
 void DnnlPostOpsComposer::appendClip(const std::vector<float>& low, const std::vector<float>& high) {
-    if (low.size() == 1 && high.size() == 1) {
+    if (all_of(1U, low.size(), high.size())) {
         appendEltwise(dnnl::algorithm::eltwise_clip, low[0], high[0]);
     } else if (low.size() == 1) {
         OPENVINO_ASSERT(high.size() == OC);
@@ -721,11 +725,11 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
                                             ov::element::Type dstPrc,
                                             const dnnl::engine& engine) {
     auto shape = paramsPtr->getShape().getStaticDims();
-    if (shape.size() == 1 && shape[0] == 1) {
+    if (all_of(1U, shape.size(), shape[0])) {
         shape.push_back(1);
     }
 
-    OPENVINO_ASSERT(shape.size() == 2 || shape.size() == 3,
+    OPENVINO_ASSERT(any_of(shape.size(), 2U, 3U),
                     "DnnlPostOpsComposer cannot prepack decompression params with invalid shape");
 
     // weights without batch: (OC, G)
@@ -752,7 +756,7 @@ static MemoryPtr prepackDecompressionParams(const MemoryCPtr& paramsPtr,
 }
 
 static dnnl::memory::dims getGroupDims(const VectorDims& weiDims, const VectorDims& scaleDims) {
-    if (scaleDims[0] == 1 && scaleDims[1] == 1) {
+    if (all_of(1U, scaleDims[0], scaleDims[1])) {
         return {};
     }
 
@@ -1032,7 +1036,11 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
         bool isLastPostOp = (i == (postOps.size() - 1));
 
         if (const auto* const activation = std::any_cast<ActivationPostOp>(&postOp)) {
-            if (useLegacyPostOps) {
+            switch (postOpsMode) {
+            case PostOpsMode::Original:
+                appendAttrPostOps(*activation, isLastPostOp, true);
+                break;
+            case PostOpsMode::Legacy:
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
                 if (appendAttrPostOps(*activation, isLastPostOp, false)) {
@@ -1041,15 +1049,21 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                 }
                 // fallback to legacy if failed
                 appendAttrPostOpsLegacy(*activation);
-            } else {
-                appendAttrPostOps(*activation, isLastPostOp, true);
+                break;
+            case PostOpsMode::ForcedLegacy:
+                appendAttrPostOpsLegacy(*activation);
+                break;
             }
 
             continue;
         }
 
         if (const auto* const ss = std::any_cast<ScaleShiftPostOp>(&postOp)) {
-            if (useLegacyPostOps) {
+            switch (postOpsMode) {
+            case PostOpsMode::Original:
+                appendAttrPostOps(*ss, isLastPostOp, true);
+                break;
+            case PostOpsMode::Legacy:
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
                 if (appendAttrPostOps(*ss, isLastPostOp, false)) {
@@ -1058,8 +1072,10 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                 }
                 // fallback to legacy if failed
                 appendAttrPostOpsLegacy(*ss);
-            } else {
-                appendAttrPostOps(*ss, isLastPostOp, true);
+                break;
+            case PostOpsMode::ForcedLegacy:
+                appendAttrPostOpsLegacy(*ss);
+                break;
             }
             continue;
         }
@@ -1086,7 +1102,12 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
             };
 
             auto round = i == 0 ? doRounding() : true;
-            if (useLegacyPostOps) {
+            switch (postOpsMode) {
+            case PostOpsMode::Original:
+                DEBUG_LOG("Append as original post op");
+                appendAttrPostOps(*fq, isLastPostOp, round, true);
+                break;
+            case PostOpsMode::Legacy:
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
                 if (appendAttrPostOps(*fq, isLastPostOp, round, false)) {
@@ -1095,9 +1116,11 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                 }
                 DEBUG_LOG("Append as legacy post op");
                 appendAttrPostOpsLegacy(*fq);
-            } else {
-                DEBUG_LOG("Append as original post op");
-                appendAttrPostOps(*fq, isLastPostOp, round, true);
+                break;
+            case PostOpsMode::ForcedLegacy:
+                DEBUG_LOG("Append as legacy post op");
+                appendAttrPostOpsLegacy(*fq);
+                break;
             }
             continue;
         }

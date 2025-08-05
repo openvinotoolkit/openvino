@@ -695,8 +695,8 @@ private:
                         arg.dst =
                             &dst[n * dst_strides[0] + cb * dst_strides[1] + oh * dst_strides[2] + ow * dst_strides[3]];
 
-                        arg.xf = in_x - left_x_index;
-                        arg.yf = in_y - top_y_index;
+                        arg.xf = in_x - static_cast<float>(left_x_index);
+                        arg.yf = in_y - static_cast<float>(top_y_index);
 
                         arg.xoff = sizeof(T) * (right_x_index - left_x_index) * jpp.c_block;
                         arg.yoff = sizeof(T) * (bottom_y_index - top_y_index) * jpp.iw * jpp.c_block;
@@ -874,11 +874,14 @@ public:
                                     src_data[roi_batch_ind * src_strides[0] + ch_blk_cur * src_strides[1] +
                                              bottom_y_index * src_strides[2] + right_x_index * src_strides[3] + c];
 
-                                const float top = top_left + (top_right - top_left) * (in_x - left_x_index);
-                                const float bottom = bottom_left + (bottom_right - bottom_left) * (in_x - left_x_index);
+                                const float top =
+                                    top_left + (top_right - top_left) * (in_x - static_cast<float>(left_x_index));
+                                const float bottom = bottom_left + (bottom_right - bottom_left) *
+                                                                       (in_x - static_cast<float>(left_x_index));
 
                                 dst[n * dst_strides[0] + ch_blk_cur * dst_strides[1] + oh * dst_strides[2] +
-                                    ow * dst_strides[3] + c] = top + (bottom - top) * (in_y - top_y_index);
+                                    ow * dst_strides[3] + c] =
+                                    top + (bottom - top) * (in_y - static_cast<float>(top_y_index));
                             }
                         }
                     }
@@ -956,8 +959,12 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
                                                                              const int ow,
                                                                              const int pooled_h,
                                                                              const int pooled_w) {
-    float height_scale = (pooled_h > 1 ? ((roi_end_h - roi_start_h) * (ih - 1)) / (pooled_h - 1) : 0);
-    float width_scale = (pooled_w > 1 ? ((roi_end_w - roi_start_w) * (iw - 1)) / (pooled_w - 1) : 0);
+    float height_scale =
+        (pooled_h > 1 ? ((roi_end_h - roi_start_h) * static_cast<float>(ih - 1)) / static_cast<float>(pooled_h - 1)
+                      : 0.0f);
+    float width_scale =
+        (pooled_w > 1 ? ((roi_end_w - roi_start_w) * static_cast<float>(iw - 1)) / static_cast<float>(pooled_w - 1)
+                      : 0.0f);
 
     float in_y = NAN;
     float in_x = NAN;
@@ -966,14 +973,17 @@ std::pair<float, float> ROIPooling::ROIPoolingExecutor::getXYForBilinearMode(con
     // and as result excess of right limit for proposal value,
     // if the border case (current_h == pooled_h - 1) will not be handled explicitly
     if (pooled_h > 1) {
-        in_y = (oh == pooled_h - 1 ? roi_end_h * (ih - 1) : (oh * height_scale + roi_start_h * (ih - 1)));
+        in_y =
+            (oh == pooled_h - 1 ? roi_end_h * static_cast<float>(ih - 1)
+                                : (static_cast<float>(oh) * height_scale + roi_start_h * static_cast<float>(ih - 1)));
     } else {
-        in_y = 0.5 * (roi_start_h + roi_end_h) * (ih - 1);
+        in_y = 0.5f * (roi_start_h + roi_end_h) * static_cast<float>(ih - 1);
     }
     if (pooled_w > 1) {
-        in_x = (ow == pooled_w - 1 ? roi_end_w * (iw - 1) : (ow * width_scale + roi_start_w * (iw - 1)));
+        in_x = (ow == pooled_w - 1 ? roi_end_w * static_cast<float>(iw - 1)
+                                   : (static_cast<float>(ow) * width_scale + roi_start_w * static_cast<float>(iw - 1)));
     } else {
-        in_x = 0.5 * (roi_start_w + roi_end_w) * (iw - 1);
+        in_x = 0.5f * (roi_start_w + roi_end_w) * static_cast<float>(iw - 1);
     }
 
     return std::make_pair(in_x, in_y);

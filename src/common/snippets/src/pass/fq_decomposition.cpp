@@ -85,17 +85,17 @@ ov::snippets::pass::FakeQuantizeDecomposition::FakeQuantizeDecomposition() {
         if (status) {
             out_scales = calculateScales(fake_quantize_node->get_output_element_type(0), cl, ch, isc, ish, osc, osh);
         }
-        const bool do_dequantize = !(status && ((std::all_of(osc.cbegin(),
+        const bool do_dequantize = !status || ((!std::all_of(osc.cbegin(),
                                                              osc.cend(),
                                                              [](float val) {
                                                                  return val == 1.f;
-                                                             }) &&
-                                                 std::all_of(osh.cbegin(),
+                                                             }) ||
+                                                !std::all_of(osh.cbegin(),
                                                              osh.cend(),
                                                              [](float val) {
                                                                  return val == 0.f;
-                                                             })) ||
-                                                !out_scales.empty()));
+                                                             })) &&
+                                               out_scales.empty());
         const bool do_rounding = do_dequantize || fake_quantize_node->get_output_element_type(0) == ov::element::f32 ||
                                  fake_quantize_node->get_output_element_type(0) == ov::element::f16;
 
@@ -412,7 +412,7 @@ bool ov::snippets::pass::CommonFakeQuantizeDecomposition::is_supported_fq(
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(2)) &&
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(3)) &&
            ov::is_type<ov::op::v0::Constant>(fq->get_input_node_shared_ptr(4)) &&
-           utils::one_of(fq->get_auto_broadcast(), ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::NONE) &&
+           utils::any_of(fq->get_auto_broadcast(), ov::op::AutoBroadcastType::NUMPY, ov::op::AutoBroadcastType::NONE) &&
            is_valid_range_values(fq);
 }
 
