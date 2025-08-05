@@ -563,6 +563,9 @@ void Graph::CreatePrimitivesAndExecConstants() const {
             dnnl::impl::threadpool_utils::activate_threadpool(getThreadPool().get());
 #endif
             node->createPrimitive();
+#if DNNL_CPU_THREADING_RUNTIME == DNNL_RUNTIME_THREADPOOL
+            dnnl::impl::threadpool_utils::deactivate_threadpool();
+#endif
         }
 
         if (!node->isConstant() || !node->isExecutable()) {
