@@ -293,7 +293,7 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
             (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
             (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
             (eltwiseType == utils::EltwiseTypes::MOD) ||
-            (eltwiseType == utils::EltwiseTypes::FLOOR_MOD) ){
+            (eltwiseType == utils::EltwiseTypes::FLOOR_MOD)) {
             return "jit";
         }
     }
