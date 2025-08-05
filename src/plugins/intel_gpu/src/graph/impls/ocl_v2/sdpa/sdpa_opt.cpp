@@ -105,15 +105,13 @@ public:
 
     [[nodiscard]] event::ptr execute(const std::vector<event::ptr>& events, primitive_inst& instance) override {
         const auto& params = *instance.get_impl_params();
-        bool is_prefill = is_prefill_stage(params);
+        auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
+        bool is_prefill = is_prefill_stage(new_params);
         bool is_indirect = need_indirect_load(static_cast<scaled_dot_product_attention_inst&>(instance));
-
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
-        bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-        bool run_micro_sdpa = has_stage(regular_micro_multi_tokens) && (is_prefill || !is_ARL_H) && !is_indirect;
+        bool run_micro_sdpa = has_stage(regular_micro_multi_tokens) && has_stage(regular_micro_single_token) && is_prefill && !is_indirect;
         if (run_micro_sdpa) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
@@ -127,9 +125,7 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
-        auto new_params = SDPABase::requires_shape_canonicalization(params) ? SDPABase::static_canonicalize_shapes(params) : params;
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
-
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
         auto ev = execute_stage(events, instance, is_indirect ? indirect_single_token : regular_single_token);
         if (num_of_partitions > 1) {
