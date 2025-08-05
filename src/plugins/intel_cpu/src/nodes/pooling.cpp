@@ -240,8 +240,7 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         poolingAttrs.exclude_pad = avgPoolOpBase->get_exclude_pad();
         poolingAttrs.rounding = avgPoolOpBase->get_rounding_type();
         get_attributes(poolingAttrs.stride, avgPoolOpBase->get_strides());
-        auto avgPoolV16 = ov::as_type_ptr<const ov::op::v16::AvgPool>(op);
-        if (avgPoolV16) {
+        if (auto avgPoolV16 = ov::as_type_ptr<const ov::op::v16::AvgPool>(op)) {
             get_attributes(poolingAttrs.dilation, avgPoolV16->get_dilations());
         } else {
             poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
@@ -249,7 +248,6 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         get_attributes(poolingAttrs.kernel, avgPoolOpBase->get_kernel());
         get_attributes(poolingAttrs.data_pad_begin, avgPoolOpBase->get_pads_begin());
         get_attributes(poolingAttrs.data_pad_end, avgPoolOpBase->get_pads_end());
-        poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
         poolingAttrs.auto_pad =
             (any_of(avgPoolOpBase->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER));
     }
