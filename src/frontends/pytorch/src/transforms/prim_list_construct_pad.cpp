@@ -61,7 +61,7 @@ const std::unordered_map<std::string, PadMode> PAD_MODES = {{"constant", PadMode
 PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
     // transformation for case aten::pad + prim::ListConstruct as paddings
     const auto& pad_op = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(
-        fw_node_predicate({"aten::pad", "aten::reflection_pad2d"}));
+        fw_node_predicate({"aten::pad", "aten::constant_pad_nd", "aten::reflection_pad2d"}));
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
         Output<Node> input_node;
         Output<Node> padding;
@@ -92,6 +92,15 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             padding = pad_op->input_value(1);
             // Pad value is used only for constant pad, fill with 0 as placeholder.
             pad_value = v0::Constant::create(element::f32, Shape{}, {0});
+        } else if ((pad_op = cast_fw_node(m.get_match_root(), "aten::constant_pad_nd"))) {
+            mode = "constant";
+            input_node = pad_op->input_value(0);
+            padding = pad_op->input_value(1);
+            if (pad_op->get_input_size() > 2){
+                pad_value = pad_op->input_value(2);
+            } else {
+                pad_value = v0::Constant::create(element::f32, Shape{}, {0});
+            }
         } else {
             return false;
         }
