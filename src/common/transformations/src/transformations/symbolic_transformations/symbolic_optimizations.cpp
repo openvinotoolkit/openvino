@@ -205,7 +205,7 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run,
 
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
-    
+
     const auto& pass_config = m_manager->get_pass_config();
     
     // If PassConfig is NOT shared (use_count == 1), we can safely modify it
@@ -213,8 +213,8 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     if (pass_config.use_count() == 1) {
         // Safe to modify - this is our private PassConfig
         // Eliminate Squeeze/Unsqueeze might convert Squeeze/Unsqueeze ops to Reshape
-        // it may break some patterns in the model.
-        // So disable these passes in SymbolicOptimizations.
+        // it may break NNCF patterns and lead to unexpected FakeQuantize ops in the model.
+        // So we decided to disable these passes in SymbolicOptimizations.
         pass_config->disable<EliminateSqueeze>();
         pass_config->disable<EliminateUnsqueeze>();
     } else {
