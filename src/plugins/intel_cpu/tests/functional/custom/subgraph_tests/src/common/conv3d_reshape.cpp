@@ -18,7 +18,7 @@ using Conv3dReshapeTestParams = std::tuple<nodeType, size_t>;
 class Conv3dReshapeTest : public testing::WithParamInterface<Conv3dReshapeTestParams>,
                           virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<Conv3dReshapeTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<Conv3dReshapeTestParams>& obj) {
         const auto& [conv, numOut] = obj.param;
         std::ostringstream result;
         result << nodeType2str(conv) << "_";

@@ -50,7 +50,7 @@ using LoraPatternParams = std::tuple<ov::element::Type,  // states precision
 
 class LoraPatternBaseCPUTest : public SubgraphBaseTest, public testing::WithParamInterface<LoraPatternParams> {
 public:
-static std::string getTestCaseName(testing::TestParamInfo<LoraPatternParams> obj) {
+static std::string getTestCaseName(const testing::TestParamInfo<LoraPatternParams>& obj) {
     const auto& [states_precision, states_policy] = obj.param;
     std::ostringstream result;
     result << "states_precision=" << states_precision << "_states_policy=" << states_policy;
