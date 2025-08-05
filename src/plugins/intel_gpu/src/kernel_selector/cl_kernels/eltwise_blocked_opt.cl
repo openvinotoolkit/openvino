@@ -65,6 +65,11 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
         return;
     }
 
+    if (f_block*VEC_SIZE == OUTPUT_FEATURE_NUM && inner_f == 1) {
+        // no need to copy values to padded memory
+        return;
+    }
+
     MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) res;
 
     DO_ELTWISE
