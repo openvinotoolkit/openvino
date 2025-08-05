@@ -371,6 +371,12 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     OV_ITT_TASK_NEXT(PARSE_BLOB, "getNetworkMeta");
     auto networkMeta = _zeGraphExt->getNetworkMeta(mainGraphDesc);
 
+    // exporting the blob when we get it from cache or ov::hint::compiled_blob property
+    // shall be available
+    const bool blobIsPersistent = config.has<COMPILED_BLOB>()       ? true
+                                  : config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
+                                                                    : false;
+
     if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
@@ -378,9 +384,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
                                        std::move(networkMeta),
                                        std::move(mainBlob),
                                        config,
-                                       config.has<LOADED_FROM_CACHE>()
-                                           ? config.get<LOADED_FROM_CACHE>()
-                                           : false);  // exporting the blob when we get it from cache shall be available
+                                       blobIsPersistent);
     }
 
     // The presence of init schedules means weights separation has been enabled at compilation time. Use a specific
@@ -395,19 +399,17 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
         initMetadata.push_back(_zeGraphExt->getNetworkMeta(initGraphDesc));
     }
 
-    return std::make_shared<WeightlessGraph>(
-        _zeGraphExt,
-        _zeroInitStruct,
-        mainGraphDesc,
-        std::move(networkMeta),
-        std::move(mainBlob),
-        initGraphDescriptors,
-        std::move(initMetadata),
-        std::move(initBlobs),
-        model.value(),
-        config,
-        config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
-                                        : false);  // exporting the blob when we get it from cache shall be available
+    return std::make_shared<WeightlessGraph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             mainGraphDesc,
+                                             std::move(networkMeta),
+                                             std::move(mainBlob),
+                                             initGraphDescriptors,
+                                             std::move(initMetadata),
+                                             std::move(initBlobs),
+                                             model.value(),
+                                             config,
+                                             blobIsPersistent);
 }
 
 ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
