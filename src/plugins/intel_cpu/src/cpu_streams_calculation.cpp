@@ -728,15 +728,15 @@ int get_model_prefer_threads(const int num_streams,
                         bool static_case_2 = networkToleranceForLowCache.total_convs == 0 &&
                                              networkToleranceForLowCache.total_gemms > 0 &&
                                              static_cast<float>(networkToleranceForLowCache.total_light_gemms) /
-                                                     networkToleranceForLowCache.total_gemms >
+                                                     static_cast<float>(networkToleranceForLowCache.total_gemms) >
                                                  0.7;
                         bool static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
                                              static_cast<float>(networkToleranceForLowCache.total_light_convs) /
-                                                     networkToleranceForLowCache.total_convs >
+                                                     static_cast<float>(networkToleranceForLowCache.total_convs) >
                                                  0.6;
                         bool static_case_4 = networkToleranceForLowCache.total_convs > 0 &&
                                              static_cast<float>(networkToleranceForLowCache.total_light_convs) /
-                                                     networkToleranceForLowCache.total_convs <=
+                                                     static_cast<float>(networkToleranceForLowCache.total_convs) <=
                                                  0.6 &&
                                              networkToleranceForLowCache.ratio_compute_convs +
                                                      networkToleranceForLowCache.ratio_mem_limited_convs <
