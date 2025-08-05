@@ -11,7 +11,7 @@ namespace ov {
 namespace test {
 namespace snippets {
 
-std::string ThreeInputsEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams> obj) {
+std::string ThreeInputsEltwise::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::ThreeInputsEltwiseParams>& obj) {
     const auto& [inputShapes0, inputShapes1, inputShapes2, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;

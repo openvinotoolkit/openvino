@@ -13,7 +13,7 @@ typedef std::tuple<proposalSpecificParams, std::vector<float>, std::string> prop
 class ProposalBehTest : public testing::WithParamInterface<proposalBehTestParamsSet>,
                         virtual public ov::test::SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<proposalBehTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<proposalBehTestParamsSet>& obj);
 
 protected:
     void SetUp() override;

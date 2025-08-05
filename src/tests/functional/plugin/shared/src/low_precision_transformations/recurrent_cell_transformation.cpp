@@ -14,7 +14,7 @@
 
 namespace LayerTestsDefinitions {
 
-std::string RecurrentCellTransformation::getTestCaseName(testing::TestParamInfo<RecurrentCellTransformationParams> obj) {
+std::string RecurrentCellTransformation::getTestCaseName(const testing::TestParamInfo<RecurrentCellTransformationParams>& obj) {
     auto [netPrecision, activationsShape, weightsShape, device, addPrecisionTransparentOperations, param] = obj.param;
 
     std::ostringstream result;
