@@ -326,12 +326,14 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
             return;
         }
+
         std::vector<ov::SoPtr<ov::ITensor>> tensorVector = {tensor};
         _graph->reset_last_batch_size();
         auto batchSizeCandidate =
             _graph->get_batch_size(_metadata, tensorVector, _graphInputDescriptors.at(foundPort.idx));
-        if (is_batched_input(foundPort.idx) || batchSizeCandidate.has_value()) {
-            // Check if batch has been changed
+
+        // Check if batch has been changed
+        if (batchSizeCandidate.has_value()) {
             if (get_user_input(foundPort.idx) != nullptr) {
                 _logger.debug("ZeroInferRequest::set_tensor - check if input tensors may have their sizes changed, "
                               "existing: %zu and "
@@ -344,14 +346,15 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                     _pipelineNeedsReallocation = true;
                 }
             }
+            _graph->set_batch_size(batchSizeCandidate.has_value() ? batchSizeCandidate.value() : DEFAULT_BATCH_SIZE);
+        }
 
+        if (is_batched_input(foundPort.idx)) {
             // resize vector size to 1 if set_tensor is called after set_tensors
             get_level_zero_inputs(foundPort.idx).resize(1);
             get_level_zero_inputs(foundPort.idx).shrink_to_fit();
             get_user_inputs(foundPort.idx).resize(1);
             get_user_inputs(foundPort.idx).shrink_to_fit();
-
-            _graph->set_batch_size(batchSizeCandidate.has_value() ? batchSizeCandidate.value() : DEFAULT_BATCH_SIZE);
         }
 
         get_user_input(foundPort.idx) = tensor;
