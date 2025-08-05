@@ -11,6 +11,7 @@
 #include "intel_gpu/runtime/lru_cache.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/runtime/internal_properties.hpp"
 
 #include <list>
 #include <string>
@@ -289,7 +290,9 @@ public:
     static std::shared_ptr<ICompilationContext> make_compilation_context(const ExecutionConfig& config);
 
     void save(cldnn::BinaryOutputBuffer& ob) const;
-    void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr = nullptr);
+    void load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr = nullptr,
+              std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map = nullptr);
+    
     bool is_loaded_from_cache() const { return _loaded_from_cache; }
 
     bool is_new_shape_infer() const { return new_shape_infer; }
