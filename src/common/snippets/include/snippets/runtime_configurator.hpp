@@ -31,20 +31,10 @@ namespace ov::snippets {
  */
 class RuntimeConfig {
 public:
+    OPENVINO_RTTI_BASE("RuntimeConfig")
+
     RuntimeConfig() = default;
     virtual ~RuntimeConfig() = default;
-
-    // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
-    // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static{"RuntimeConfig"};
-        type_info_static.hash();
-        return type_info_static;
-    }
-
-    [[nodiscard]] virtual const DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
 
     [[nodiscard]] const char* get_type_name() const {
         return get_type_info().name;
