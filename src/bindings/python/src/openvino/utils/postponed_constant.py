@@ -3,14 +3,22 @@
 # SPDX-License-Identifier: Apache-2.0
 
 
-from typing import Optional, Union, cast
+from typing import Optional, cast, overload
 from collections.abc import Callable
 from openvino import Op, Type, Shape, Tensor, PartialShape, TensorVector
 
 
 class PostponedConstant(Op):
     """Postponed Constant is a way to materialize a big constant only when it is going to be serialized to IR and then immediately dispose."""
-    def __init__(self, element_type: Type, shape: Shape, maker: Union[Callable[[], Tensor], Callable[[Tensor], None]], name: Optional[str] = None) -> None:
+    @overload
+    def __init__(self, element_type: Type, shape: Shape, maker: Callable[[], Tensor], name: Optional[str] = None) -> None:
+        ...
+
+    @overload
+    def __init__(self, element_type: Type, shape: Shape, maker: Callable[[Tensor], None], name: Optional[str] = None) -> None:
+        ...
+
+    def __init__(self, element_type: Type, shape: Shape, maker: Callable, name: Optional[str] = None) -> None:
         """Creates a PostponedConstant.
 
         :param element_type: Element type of the constant.
@@ -44,11 +52,9 @@ class PostponedConstant(Op):
     def evaluate(self, outputs: TensorVector, _: list[Tensor]) -> bool:  # type: ignore
         num_args = self.m_maker.__call__.__code__.co_argcount
         if num_args == 1:
-            maker = cast(Callable[[], Tensor], self.m_maker)
-            outputs[0] = maker()
+            outputs[0] = cast(Callable[[], Tensor], self.m_maker)()
         else:
-            maker = cast(Callable[[Tensor], None], self.m_maker)
-            maker(outputs[0])
+            cast(Callable[[Tensor], None], self.m_maker)(outputs[0])
         return True
 
     def validate_and_infer_types(self) -> None:
@@ -62,5 +68,5 @@ class PostponedConstant(Op):
 
 
 # `maker` is a function that returns ov.Tensor that represents a target Constant
-def make_postponed_constant(element_type: Type, shape: Shape, maker: Union[Callable[[], Tensor], Callable[[Tensor], None]], name: Optional[str] = None) -> Op:
+def make_postponed_constant(element_type: Type, shape: Shape, maker: Callable, name: Optional[str] = None) -> Op:
     return PostponedConstant(element_type, shape, maker, name)
