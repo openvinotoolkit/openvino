@@ -81,8 +81,8 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const
         const size_t dst_offset = ukernel.get_dst_offset(0, n_start, dst_stride_row);
         // in0, in1, out is point to current block memory, based on block loop info, and shift done in loop begin and
         // end emitters(adjusted copyb loop info as repack outside block loops).
-        float* rhs_ptr = const_cast<float*>(static_cast<const float*>(args->B)) + rhs_packed_offset / sizeof(float);
-        float* dst_ptr = const_cast<float*>(static_cast<const float*>(args->C)) + dst_offset / (sizeof(float));
+        const float* rhs_ptr = static_cast<const float*>(args->B) + rhs_packed_offset / sizeof(float);
+        float* dst_ptr = static_cast<float*>(args->C) + dst_offset / (sizeof(float));
         ukernel.run_matmul(M,
                            n_block_size,
                            K,

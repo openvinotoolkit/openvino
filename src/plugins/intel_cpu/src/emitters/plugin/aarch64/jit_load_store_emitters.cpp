@@ -41,6 +41,7 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
         }
     } else {
         // Manual offset handling for other register types
+        // Note: read about LDR (immediate) in the manual Arm A-profile A64 Instruction Set Architecture
         int max_offset = 4095;  // Default fallback
         int alignment = 1;      // Default fallback
         if constexpr (std::is_same_v<RegType, SReg>) {
@@ -58,7 +59,7 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
         }
 
         if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
-            h->ldr(dst, ptr(src, offset));
+            h->ldr(dst, ptr(src, static_cast<uint32_t>(offset)));
         } else {
             h->add_imm(h->X_DEFAULT_ADDR, src, offset, h->X_TMP_0);
             h->ldr(dst, ptr(h->X_DEFAULT_ADDR));

@@ -70,7 +70,7 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     }
 
     // Add special registers that should not be allocated
-    std::vector<size_t> reserved_regs = {
+    static const std::vector<size_t> reserved_regs = {
         18,  // Platform register (should not be used)
         29,  // Frame pointer (FP)
         30,  // Link register (LR)
@@ -129,8 +129,7 @@ void jit_binary_call_emitter::emit_stack_restore(size_t stack_size) const {
     OV_CPU_JIT_EMITTER_ASSERT(m_stack_preserved, "emit_stack_restore called without corresponding emit_stack_preserve");
 
     // ARM64 requires 16-byte stack alignment
-    const size_t alignment = 16;
-    stack_size = ov::intel_cpu::rnd_up(stack_size, alignment);
+    stack_size = ov::intel_cpu::rnd_up(stack_size, sp_alignment);
 
     if (stack_size > 0) {
         h->add(h->sp, h->sp, stack_size);

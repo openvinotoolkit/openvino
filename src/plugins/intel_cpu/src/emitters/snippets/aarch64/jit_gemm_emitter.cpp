@@ -89,8 +89,7 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     std::unordered_set<size_t> exclude_spill = {};
     store_context(exclude_spill);
 
-    auto reserved_stack_size = sizeof(GemmKaiKernelExecutor::call_args);
-    reserved_stack_size = ov::intel_cpu::rnd_up(reserved_stack_size, sp_alignment);
+    auto reserved_stack_size = ov::intel_cpu::rnd_up(sizeof(GemmKaiKernelExecutor::call_args), sp_alignment);
     emit_stack_preserve(reserved_stack_size);
 
     const size_t A_offset = offsetof(GemmKaiKernelExecutor::call_args, A);
@@ -103,12 +102,17 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
 
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         const bool is_dynamic_offset = ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]);
-        const bool is_valid_buffer_id = !ov::snippets::utils::is_dynamic_value(m_buffer_ids[i]);
+        const bool is_valid_buffer_id = m_buffer_ids[i] != SIZE_MAX;
 
-        std::vector<Xbyak_aarch64::XReg> aux_regs = {call_address_reg, callee_saved_reg, h->X_TMP_1};
+        // Collect used register indices to avoid conflicts
+        std::vector<size_t> used_gpr_idxs = {call_address_reg.getIdx(),
+                                             callee_saved_reg.getIdx(),
+                                             mem_ptrs[i].getIdx()};
 
         if (is_dynamic_offset && is_valid_buffer_id) {
-            aux_regs.emplace_back(h->X_TMP_0);
+            // Get 3 auxiliary registers for dynamic offset handling (runtime offset needs at least 3)
+            auto aux_gprs = ov::intel_cpu::aarch64::utils::get_aux_gprs(used_gpr_idxs, 3);
+            std::vector<Xbyak_aarch64::XReg> aux_regs = {aux_gprs[0], aux_gprs[1], aux_gprs[2]};
             size_t runtime_offset = GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t);
             utils::push_ptr_with_runtime_offset_on_stack(h,
                                                          gemm_args_offsets[i],
@@ -116,17 +120,20 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
                                                          aux_regs,
                                                          runtime_offset);
         } else {
-            size_t offset = is_dynamic_offset ? 0 : m_memory_offsets[i];
-            utils::push_ptr_with_static_offset_on_stack(h, gemm_args_offsets[i], mem_ptrs[i], aux_regs, offset);
+            // Static offset case (dynamic offsets with valid buffer IDs are handled above)
+            // Get 2 auxiliary registers for static offset handling (static offset needs at least 2)
+            auto aux_gprs = ov::intel_cpu::aarch64::utils::get_aux_gprs(used_gpr_idxs, 2);
+            std::vector<Xbyak_aarch64::XReg> aux_regs = {aux_gprs[0], aux_gprs[1]};
+            utils::push_ptr_with_static_offset_on_stack(h,
+                                                        gemm_args_offsets[i],
+                                                        mem_ptrs[i],
+                                                        aux_regs,
+                                                        m_memory_offsets[i]);
         }
     }
 
-    if (mem_ptrs.size() < 4) {
-        h->mov(call_address_reg, 0);
-        h->str(
-            call_address_reg,
-            Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(ov::intel_cpu::rnd_up(reserved_stack_size, sp_alignment))));
-    }
+    h->mov(call_address_reg, 0);
+    h->str(call_address_reg, Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(reserved_stack_size)));
 
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);

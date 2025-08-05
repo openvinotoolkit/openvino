@@ -23,7 +23,6 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/utils/utils.hpp"
@@ -88,19 +87,12 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
 }
 
 void jit_gemm_copy_b_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
-    const auto& regs_to_spill = get_regs_to_spill();
     std::unordered_set<size_t> exclude_spill = {};
-    for (const auto& reg : regs_to_spill) {
-        if (reg.type == snippets::RegType::gpr) {
-            exclude_spill.insert(reg.idx);
-        }
-    }
     store_context(exclude_spill);
 
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
     Xbyak_aarch64::XReg x2(2);
-    Xbyak_aarch64::XReg aux_reg(3);
 
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
