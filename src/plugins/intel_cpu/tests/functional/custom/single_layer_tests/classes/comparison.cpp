@@ -76,8 +76,7 @@ void ComparisonLayerCPUTest::SetUp() {
     }
     const auto comparison_node = ov::test::utils::make_comparison(params[0], secondInput, comparisonType);
 
-    comparison_node->get_rt_info() = getCPUInfo();
-    function = std::make_shared<ov::Model>(comparison_node, params, "Comparison");
+    function = makeNgraphFunction(currModelPrc, params, comparison_node, "Comparison");
 }
 
 std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonTypes& type, ov::element::Type modelType) const {

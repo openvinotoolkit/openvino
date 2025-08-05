@@ -78,8 +78,7 @@ void LogicalLayerCPUTest::SetUp() {
         logical_node = std::make_shared<ov::op::v1::LogicalNot>(params[0]);
     }
 
-    logical_node->get_rt_info() = getCPUInfo();
-    function = std::make_shared<ov::Model>(logical_node, params, "Logical");
+    function = makeNgraphFunction(prc, params, logical_node, "Logical");
 }
 
 std::string LogicalLayerCPUTest::getPrimitiveType(const utils::LogicalTypes& type) const {
