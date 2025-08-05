@@ -36,7 +36,7 @@ using ROIAlignLayerCPUTestParamsSet = std::tuple<
 class ROIAlignLayerCPUTest : public testing::WithParamInterface<ROIAlignLayerCPUTestParamsSet>,
                              public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ROIAlignLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ROIAlignLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [roiPar, netPrecision, td] = basicParamsSet;
         const auto& [pooledH, pooledW, spatialScale, samplingRatio, mode, alignedMode, inputShapes] = roiPar;
