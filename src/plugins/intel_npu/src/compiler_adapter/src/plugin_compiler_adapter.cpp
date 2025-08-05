@@ -264,7 +264,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     network.clear();
     network.shrink_to_fit();
 
-    auto mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
+    GraphDescriptor mainGraphDesc;
+
+    if (_zeGraphExt) {
+        mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());
+    }
 
     _logger.debug("main schedule parse end");
 
