@@ -1419,6 +1419,9 @@ HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_
     register_matcher(std::make_shared<opp::Matcher>(qcvtm, "HostGatherQuantAsymm"), std::move(callback));
 }
 
+template class HostGatherQuantAsymm<ov::op::v0::Parameter>;
+template class HostGatherQuantAsymm<ov::op::v0::Constant>;
+
 // This is a follow-up to DQLiftGatherSymGQ step, which happens if the respective
 // block (mainly, a head) was turned a function (e.g. with FUNCALL_FOR_ALL)
 // Overall it's a combination of DQUnpackDictGatherGQi and HostGatherDQ
@@ -1499,6 +1502,9 @@ HostGatherQuantSymm<WType>::HostGatherQuantSymm(Context::Ref ctx, bool verify_on
     };
     register_matcher(std::make_shared<opp::Matcher>(qcvtm, "HostGatherQuantSymm"), std::move(callback));
 }
+
+template class HostGatherQuantSymm<ov::op::v0::Parameter>;
+template class HostGatherQuantSymm<ov::op::v0::Constant>;
 
 // Identify the case* where the FP16/32 vocab tensor is gathered with
 // input_ids and the embedding size is high. In this case, substitute

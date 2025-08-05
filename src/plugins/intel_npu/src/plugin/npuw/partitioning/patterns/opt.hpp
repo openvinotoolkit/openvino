@@ -162,8 +162,6 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantAsymm");
     HostGatherQuantAsymm(Context::Ref ctx, bool verify_only = false);
 };
-template class HostGatherQuantAsymm<ov::op::v0::Parameter>;
-template class HostGatherQuantAsymm<ov::op::v0::Constant>;
 
 template <typename WType = ov::op::v0::Parameter>
 class HostGatherQuantSymm : public ov::pass::MatcherPass {
@@ -171,8 +169,6 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantSymm");
     HostGatherQuantSymm(Context::Ref ctx, bool verify_only = false);
 };
-template class HostGatherQuantSymm<ov::op::v0::Parameter>;
-template class HostGatherQuantSymm<ov::op::v0::Constant>;
 
 class HostGather : public ov::pass::MatcherPass {
 public:
