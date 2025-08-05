@@ -106,11 +106,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<FakeQuantizeTransformationParams> obj) {
-        ov::element::Type precision;
-        ov::PartialShape shape;
-        bool updatePrecision;
-        FakeQuantizeTransformationTestValues fakeQuantizeOnData;
-        std::tie(precision, shape, updatePrecision, fakeQuantizeOnData) = obj.param;
+        const auto& [precision, shape, updatePrecision, fakeQuantizeOnData] = obj.param;
 
         std::ostringstream result;
         result << precision << "_" << shape << "_" << toString(fakeQuantizeOnData.params)
