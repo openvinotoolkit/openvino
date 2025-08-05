@@ -232,8 +232,8 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
     size_t batch = 4;
-    auto one_shape = Shape{1, 2, 2, 2};
-    auto batch_shape = Shape{batch, 2, 2, 2};
+    auto one_shape = Shape{1, 16, 16, 16};
+    auto batch_shape = Shape{batch, 16, 16, 16};
     auto one_shape_size = ov::shape_size(one_shape);
     auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
     auto execNet = core->compile_model(model, target_device, configuration);
@@ -242,7 +242,9 @@ TEST_P(BatchedTensorsRunTests, SetInputDifferentTensorsMultipleInferMCL) {
     ov::InferRequest req;
     req = execNet.create_infer_request();
 
-    std::vector<float> buffer(one_shape_size * batch * 2, 0);
+    size_t buffer_size = one_shape_size * batch * 2;
+    float* buffer = static_cast<float*>(::operator new(buffer_size * sizeof(float), std::align_val_t(4096)));
+    std::memset(buffer, 0, buffer_size * sizeof(float));
 
     {
         std::vector<ov::Tensor> tensors;
