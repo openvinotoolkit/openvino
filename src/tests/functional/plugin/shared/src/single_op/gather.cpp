@@ -13,13 +13,7 @@
 namespace ov {
 namespace test {
 std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gatherParamsTuple> &obj) {
-    int axis;
-    std::vector<int> indices;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::tie(indices, indices_shape, axis, shapes, model_type, device_name) = obj.param;
+    const auto& [indices, indices_shape, axis, shapes, model_type, device_name] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -42,12 +36,8 @@ std::string GatherLayerTest::getTestCaseName(const testing::TestParamInfo<gather
 }
 
 void GatherLayerTest::SetUp() {
-    int axis;
-    std::vector<int> indices;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(indices, indices_shape, axis, shapes, model_type, targetDevice) = GetParam();
+    const auto& [indices, indices_shape, axis, shapes, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
     ASSERT_EQ(ov::shape_size(indices_shape), indices.size()) << "Indices vector size and provided indices shape doesn't fit each other";
 
@@ -62,13 +52,9 @@ void GatherLayerTest::SetUp() {
 }
 
 std::string Gather7LayerTest::getTestCaseName(const testing::TestParamInfo<gather7ParamsTuple>& obj) {
-    std::tuple<int, int> axis_batch_idx;
     std::vector<int> indices;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, device_name) = obj.param;
+
+    const auto& [shapes, indices_shape, axis_batch_idx, model_type, device_name] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -91,11 +77,8 @@ std::string Gather7LayerTest::getTestCaseName(const testing::TestParamInfo<gathe
 }
 
 void Gather7LayerTest::SetUp() {
-    std::tuple<int, int> axis_batch_idx;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, targetDevice) = GetParam();
+    const auto& [shapes, indices_shape, axis_batch_idx, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     int axis = std::get<0>(axis_batch_idx);
@@ -122,11 +105,8 @@ std::string Gather8LayerTest::getTestCaseName(const testing::TestParamInfo<gathe
 }
 
 void Gather8LayerTest::SetUp() {
-    std::tuple<int, int> axis_batch_idx;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, targetDevice) = GetParam();
+    const auto& [shapes, indices_shape, axis_batch_idx, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     int axis = std::get<0>(axis_batch_idx);
@@ -153,11 +133,8 @@ std::string Gather8IndiceScalarLayerTest::getTestCaseName(const testing::TestPar
 }
 
 void Gather8IndiceScalarLayerTest::SetUp() {
-    std::tuple<int, int> axis_batch_idx;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, targetDevice) = GetParam();
+    const auto& [shapes, indices_shape, axis_batch_idx, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     int axis = std::get<0>(axis_batch_idx);
@@ -175,17 +152,11 @@ void Gather8IndiceScalarLayerTest::SetUp() {
 }
 
 std::string Gather8withIndicesDataLayerTest::getTestCaseName(const testing::TestParamInfo<gather8withIndicesDataParamsTuple>& obj) {
-    gather7ParamsTuple basicParams;
-    std::vector<int64_t> indicesData;
-    std::tie(basicParams, indicesData) = obj.param;
+    const auto& [basicParams, indicesData] = obj.param;
 
-    std::tuple<int, int> axis_batch_idx;
     std::vector<int> indices;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, device_name) = basicParams;
+
+    const auto& [shapes, indices_shape, axis_batch_idx, model_type, device_name] = basicParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -212,15 +183,10 @@ std::string Gather8withIndicesDataLayerTest::getTestCaseName(const testing::Test
 }
 
 void Gather8withIndicesDataLayerTest::SetUp() {
-    gather7ParamsTuple basicParams;
-    std::vector<int64_t> indicesData;
-    std::tie(basicParams, indicesData) = GetParam();
+    const auto& [basicParams, indicesData] = GetParam();
 
-    std::tuple<int, int> axis_batch_idx;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, targetDevice) = basicParams;
+    const auto& [shapes, indices_shape, axis_batch_idx, model_type, _targetDevice] = basicParams;
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     int axis = std::get<0>(axis_batch_idx);
@@ -247,16 +213,10 @@ void Gather8withIndicesDataLayerTest::SetUp() {
 // Gather String support
 std::string GatherStringWithIndicesDataLayerTest::getTestCaseName(const testing::TestParamInfo<GatherStringParamsTuple>& obj) {
     const GatherStringParamsTuple& basicParams = obj.param;
-    std::vector<int64_t> indicesData;
-    std::vector<std::string> str_data;
 
-    std::tuple<int, int> axis_batch_idx;
     std::vector<int> indices;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, device_name, indicesData, str_data) = basicParams;
+
+    const auto& [shapes, indices_shape, axis_batch_idx, model_type, device_name, indicesData, str_data] = basicParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -283,12 +243,11 @@ std::string GatherStringWithIndicesDataLayerTest::getTestCaseName(const testing:
 
 void GatherStringWithIndicesDataLayerTest::SetUp() {
     const GatherStringParamsTuple& basicParams = GetParam();
-    std::vector<int64_t> indicesData;
-    std::tuple<int, int> axis_batch_idx;
-    ov::Shape indices_shape;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(shapes, indices_shape, axis_batch_idx, model_type, targetDevice, indicesData, string_data) = basicParams;
+
+    const auto& [shapes, indices_shape, axis_batch_idx, model_type, _targetDevice, indicesData, _string_data] =
+        basicParams;
+    targetDevice = _targetDevice;
+    string_data = _string_data;
     init_input_shapes(shapes);
 
     int axis = std::get<0>(axis_batch_idx);
