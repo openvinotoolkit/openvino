@@ -25,7 +25,7 @@ typedef std::tuple<std::vector<InputShape>,        // Input shapes
                    >
     GridSampleLayerTestCPUParams;
 
-class работв : public testing::WithParamInterface<GridSampleLayerTestCPUParams>,
+class GridSampleLayerTestCPU : public testing::WithParamInterface<GridSampleLayerTestCPUParams>,
                                virtual public SubgraphBaseTest,
                                public CPUTestsBase {
 public:
