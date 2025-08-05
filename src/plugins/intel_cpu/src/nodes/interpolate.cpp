@@ -2505,7 +2505,7 @@ void Interpolate::prepareParams() {
             *rbegin = ncdhwMaxIndex - i;
             rbegin++;
         }
-        if (scales.size() == 4 && dimsNum == 3) {
+        if (scales.size() == 4 && dimsNum == 3 && reordered) {
             // Has insert reorder and need to change the shape
             // DHW -> HWD
             convertMap[1] = 4;
@@ -2514,7 +2514,8 @@ void Interpolate::prepareParams() {
         }
         return convertMap;
     };
-    conversion5DMap = getConvertMapFromScale(dataScales, interpAttrs.layout == InterpolateLayoutType::by_channel);
+
+    conversion5DMap = getConvertMapFromScale(dataScales, srcMemPtr->getDesc().hasLayoutType(LayoutType::nspc));
     auto src5DDims =
         convertTo5D(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), conversion5DMap);
     auto dst5DDims = convertTo5D(dstDims, conversion5DMap);
