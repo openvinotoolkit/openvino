@@ -195,7 +195,7 @@ jobs:
       - name: Download OpenVINO artifacts (JS)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: openvino_js
+          pattern: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
           merge-multiple: true
 
@@ -629,7 +629,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows
-    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests ]
+    needs: [ Smart_CI, Build, Samples, CXX_Unit_Tests, Python_Unit_Tests, CPU_Functional_Tests, Openvino_tokenizers, TensorFlow_Layer_Tests, Pytorch_Layer_Tests, JS_API ]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
