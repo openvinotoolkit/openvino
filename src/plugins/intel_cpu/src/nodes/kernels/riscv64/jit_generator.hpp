@@ -47,9 +47,9 @@ namespace ov::intel_cpu::riscv64 {
 
 class jit_generator_t : public Xbyak_riscv::CodeGenerator {
 public:
-    jit_generator_t(size_t maxSize = Xbyak_riscv::DEFAULT_MAX_CODE_SIZE,
-                    void* userPtr = Xbyak_riscv::DontSetProtectRWE,
-                    Xbyak_riscv::Allocator* allocator = nullptr)
+    explicit jit_generator_t(size_t maxSize = Xbyak_riscv::DEFAULT_MAX_CODE_SIZE,
+                             void* userPtr = Xbyak_riscv::DontSetProtectRWE,
+                             Xbyak_riscv::Allocator* allocator = nullptr)
         : Xbyak_riscv::CodeGenerator(maxSize, userPtr, allocator) {}
     ~jit_generator_t() override = default;
 

@@ -667,7 +667,7 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
                 const bool acceptAnyBatchStride = !isDynamicNode() && srcShape.getDims()[0] == 1;
                 const BlockedMemoryDesc::CmpMask inputMask =
                     acceptAnyBatchStride ? BlockedMemoryDesc::EMPTY_MASK : BlockedMemoryDesc::SKIP_OFFSET_MASK;
-                nodeConfig.inConfs[i] = {desc, inputMask, isInPlace};
+                nodeConfig.inConfs[i] = PortConfig(desc, inputMask, isInPlace);
             }
         }
 
