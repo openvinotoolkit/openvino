@@ -182,7 +182,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             "fullyconnected_mlas",
             ExecutorType::Mlas,
             OperationType::MatMul,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 // @todo probably there is no need of having implementation name in the debug message
@@ -191,18 +190,18 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(MlasGemmExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
-                return MlasGemmExecutor::supports(config);
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDefault<MlasGemmExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_X64(
             "convolution_1x1_dnnl",
             ExecutorType::Dnnl,
             OperationType::Convolution,
-            ShapeTolerance::Dependant,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
@@ -305,12 +304,13 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             "fullyconnected_acl",
             ExecutorType::Acl,
             OperationType::FullyConnected,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                return ACLFullyConnectedExecutor::supports(config);
+                VERIFY(ACLFullyConnectedExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -319,19 +319,20 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                  aclFCLayoutConfig,
                                                  fcMappingNotation);
             },
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDefault<ACLFullyConnectedExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_ACL(
             "fullyconnected_acl_lowp",
             ExecutorType::Acl,
             OperationType::FullyConnected,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
-                return ACLLowpFullyConnectedExecutor::supports(config);
+                VERIFY(ACLLowpFullyConnectedExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -354,7 +355,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             "fullyconnected_kleidiai",
             ExecutorType::Kleidiai,
             OperationType::MatMul,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
@@ -365,35 +365,36 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     VERIFY(biaType(config) == f32, UNSUPPORTED_SRC_PRECISIONS);
                 }
                 VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
-                return MatMulKleidiAIExecutor::supports(config);
+                VERIFY(MatMulKleidiAIExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
+
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDefault<MatMulKleidiAIExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_SHL(
             "fullyconnected_shl",
             ExecutorType::Shl,
             OperationType::FullyConnected,
-            ShapeTolerance::Agnostic,
             // supports
             [](const FCConfig& config) -> bool {
                 VERIFY(noPostOps(config), UNSUPPORTED_POST_OPS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+                VERIFY(ShlFCExecutor::supports(config), UNSUPPORTED_BY_EXECUTOR);
 
-                return ShlFCExecutor::supports(config);
+                return true;
             },
             HasNoOptimalConfig<FCAttrs>{},
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDefault<ShlFCExecutor, FCAttrs>{}
             )
         OV_CPU_INSTANCE_DNNL(
             "matmul_dnnl",
             ExecutorType::Dnnl,
             OperationType::MatMul,
-            ShapeTolerance::Dependant,
             // supports
             []([[maybe_unused]] const FCConfig& config) -> bool {
                 // enable only with debug caps and env variable defined for now
@@ -411,7 +412,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                  dnnlFCLayoutConfig,
                                                  fcMappingNotation);
             },
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             // create
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
@@ -445,7 +446,6 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             "fullyconnected_dnnl",
             ExecutorType::Dnnl,
             OperationType::FullyConnected,
-            ShapeTolerance::Dependant,
             SupportsAnyConfig<FCAttrs>{},
             // createOptimalConfig
             [](const FCConfig& config) -> std::optional<executor::Config<FCAttrs>> {
@@ -454,7 +454,7 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                                                  dnnlFCLayoutConfig,
                                                  fcMappingNotation);
             },
-            AcceptsAnyShape<FCAttrs>{},
+            AcceptsAnyShape<FCAttrs>,
             CreateDnnlDefault<DnnlFCPrimitive, FCAttrs>{false, true}
             )
     };

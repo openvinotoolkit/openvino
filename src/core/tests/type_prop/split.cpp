@@ -297,8 +297,7 @@ TEST_P(SplitTest, use_default_ctor) {
 }
 
 TEST_P(SplitTest, symbols_propagation) {
-    ov::TensorSymbol in_symbols, exp_symbols;
-    std::tie(in_symbols, exp_symbols) = make_in_exp_symbols();
+    const auto& [in_symbols, exp_symbols] = make_in_exp_symbols();
 
     set_shape_symbols(p_shape, in_symbols);
     const auto param = make_shared<op::v0::Parameter>(element::f32, p_shape);

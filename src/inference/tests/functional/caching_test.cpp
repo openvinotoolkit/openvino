@@ -2864,7 +2864,7 @@ TEST_P(CachingTest, import_from_compiled_blob_weights_path_property_is_supported
             if (m_checkConfigCb) {
                 m_checkConfigCb(config);
             }
-            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 0);
+            EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
             EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
             EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
             return nullptr;
