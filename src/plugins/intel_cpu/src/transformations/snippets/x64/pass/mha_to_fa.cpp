@@ -45,8 +45,9 @@ bool pass::MHAToFA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     };
     const auto matmul0_m = wrap_type<opset1::MatMul>({input_0, input_1}, single_consumer_f32);
     const auto softmax_m = wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({matmul0_m}, single_consumer_f32);
-    const auto matmul1_m = wrap_type<opset1::MatMul>({softmax_m, input_2});
-    auto matcher = std::make_shared<Matcher>(matmul1_m);
+    const auto matmul1_m = wrap_type<opset1::MatMul>({softmax_m, input_2}, single_consumer_f32);
+    const auto result_m = wrap_type<ov::op::v0::Result>(matmul1_m);
+    auto matcher = std::make_shared<Matcher>(result_m);
 
     bool status = false;
     for (const auto& n : model->get_ordered_ops()) {

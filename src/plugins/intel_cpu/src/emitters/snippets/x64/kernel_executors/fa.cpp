@@ -405,12 +405,12 @@ void FAKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr&
     config.update(q_len, kv_len, qk_head_size, v_head_size);
 }
 
-void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void* in1, void* in2, void* out) {
+void FAKernelExecutor::execute(const FAKernelExecutor* executor, call_args* args) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
-    auto* q = static_cast<float*>(in0);
-    auto* k = static_cast<float*>(in1);
-    auto* v = static_cast<float*>(in2);
-    auto* out_f32 = static_cast<float*>(out);
+    const auto* q = static_cast<const float*>(args->A);
+    const auto* k = static_cast<const float*>(args->B);
+    const auto* v = static_cast<const float*>(args->C);
+    auto* out_f32 = static_cast<float*>(args->D);
     const auto& config = static_cast<const FAKernelConfig&>(executor->get_config());
     const auto& q_len = config.get_q_seq_len();
     const auto& kv_len = config.get_kv_seq_len();
@@ -453,15 +453,15 @@ void FAKernelExecutor::execute(const FAKernelExecutor* executor, void* in0, void
         size_t kv_end = std::min(kv_start + kv_len_blk, static_cast<size_t>(kv_len));
         size_t rt_kv_len_blk = kv_end - kv_start;
         bool is_tail_kv = rt_kv_len_blk < kv_len_blk;
-        float* k_ptr = k + kv_start * ov::snippets::utils::rnd_up(qk_head_size, k_alignment);  // k is repacked
-        float* v_ptr = v + kv_start * v_head_size;
+        const float* k_ptr = k + kv_start * ov::snippets::utils::rnd_up(qk_head_size, k_alignment);  // k is repacked
+        const float* v_ptr = v + kv_start * v_head_size;
         bool is_first_kv = (i == 0);
         for (size_t j = 0; j < q_block_num; j++) {
             size_t q_start = j * q_len_blk;
             size_t q_end = std::min(q_start + q_len_blk, static_cast<size_t>(q_len));
             size_t rt_q_len_blk = q_end - q_start;
             bool is_tail_q = rt_q_len_blk < q_len_blk;
-            float* q_ptr = q + q_start * qk_head_size;
+            const float* q_ptr = q + q_start * qk_head_size;
             // q*k
             auto used_qk_ker = qk_MN_kernel;
             if (is_tail_kv && is_tail_q) {

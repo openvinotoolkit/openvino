@@ -74,37 +74,41 @@ uintptr_t jit_fa_emitter::get_execute_function_ptr() {
 void jit_fa_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
     validate_arguments(in, out);
     std::vector<size_t> mem_ptrs_idxs{in[0], in[1], in[2], out[0]};
-    init_binary_call_regs(5, mem_ptrs_idxs);  // should 3(in)+1(out)+1(executor kernel ptr as abi_param1)
+    init_binary_call_regs(2, mem_ptrs_idxs);
 
     const Xbyak::Reg64& aux_reg = get_call_address_reg();
     const Xbyak::Reg64& callee_saved_reg = get_callee_saved_reg();
 
     EmitABIRegSpills spill(h);
-    // save 5 abi_params, and callee_saved_reg. aux_reg saved in base jit_emitter. all are changed in call
+    // save abi_params, and callee_saved_reg. aux_reg saved in base jit_emitter. all could be changed in call
     spill.preamble(get_regs_to_spill());
 
-    // move in/out registers to abi_params, to avoid overwrite in/out registers, need move to stack, then to abi_params
-    size_t reserved_stack_size = mem_ptrs_idxs.size() * 8;
+    auto reserved_stack_size = sizeof(FAKernelExecutor::call_args);
+    // Reserve memory on the stack
     h->sub(h->rsp, reserved_stack_size);
+
+#define GET_OFF_CALL_ARGS(field) offsetof(FAKernelExecutor::call_args, field)
+    const std::vector<size_t> fa_args_offsets = {GET_OFF_CALL_ARGS(A),
+                                                 GET_OFF_CALL_ARGS(B),
+                                                 GET_OFF_CALL_ARGS(C),
+                                                 GET_OFF_CALL_ARGS(D)};
 
     const auto& mem_ptrs = ov::intel_cpu::utils::transform_idxs_to_regs(mem_ptrs_idxs);
     for (size_t i = 0; i < mem_ptrs_idxs.size(); i++) {
-        utils::push_ptr_with_static_offset_on_stack(h, i * 8, mem_ptrs[i], m_memory_offsets[i]);
+        utils::push_ptr_with_static_offset_on_stack(h, fa_args_offsets[i], mem_ptrs[i], m_memory_offsets[i]);
     }
+#undef GET_OFF_CALL_ARGS
 
     h->mov(aux_reg, get_execute_function_ptr());
     h->mov(abi_param1, get_compiled_kernel_ptr());
-    // move from satck to abi_param2-5
-    h->mov(abi_param2, h->ptr[h->rsp]);
-    h->mov(abi_param3, h->ptr[h->rsp + 8]);
-    h->mov(abi_param4, h->ptr[h->rsp + 2 * 8]);
-    h->mov(abi_param5, h->ptr[h->rsp + 3 * 8]);
-
-    h->add(h->rsp, reserved_stack_size);
+    // move from satck to abi_param2
+    h->mov(abi_param2, h->rsp);
 
     spill.rsp_align(callee_saved_reg.getIdx());
     h->call(aux_reg);
     spill.rsp_restore();
+
+    h->add(h->rsp, reserved_stack_size);
 
     spill.postamble();
 }

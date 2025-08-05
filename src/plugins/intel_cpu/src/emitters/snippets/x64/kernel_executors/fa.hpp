@@ -156,12 +156,18 @@ struct FACompiledKernel {
 
 class FAKernelExecutor : public BrgemmBaseKernelExecutor, public CPUKernelExecutor<FAKernelConfig, FACompiledKernel> {
 public:
+    struct call_args {
+        const void* A = nullptr;
+        const void* B = nullptr;
+        const void* C = nullptr;
+        void* D = nullptr;
+    };
     FAKernelExecutor(ov::intel_cpu::MultiCacheWeakPtr kernel_cache, FAKernelConfig config);
 
     [[nodiscard]] std::shared_ptr<FACompiledKernel> compile_kernel(const FAKernelConfig& c) const override;
 
     // Function that will be called in runtime to execute the kernel
-    static void execute(const FAKernelExecutor* executor, void* in0, void* in1, void* in2, void* out);
+    static void execute(const FAKernelExecutor* executor, call_args* args);
 
 private:
     void update_config(const ov::snippets::lowered::ExpressionPtr& expr,
