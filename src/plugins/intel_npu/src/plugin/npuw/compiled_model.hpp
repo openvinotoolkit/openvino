@@ -118,6 +118,9 @@ private:
     std::vector<ov::PropertyName> m_all_supported_props;
     ov::AnyMap m_non_npuw_props;
 
+    // No s11n needed, used only during partitioning
+    bool m_use_host_gather_quant = false;
+
     std::string m_name;
     const bool m_loaded_from_cache;
 

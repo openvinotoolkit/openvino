@@ -226,7 +226,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // and set them in m_cfg
     identify_host_gather_property(model, npuw_props);
 
-    auto partitioning = getPartitioning(model, m_cfg);
+    auto partitioning = getPartitioning(model, m_cfg, m_use_host_gather_quant);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -535,13 +535,10 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
     LOG_INFO("Identifying best HOST_GATHER config value...");
     LOG_BLOCK();
     // Check if was explicitly specified
-    auto it = properties.find("NPUW_HOST_GATHER");
-    std::string explicit_host_gather = "";
-    if (it != properties.end()) {
-        explicit_host_gather = it->second.as<std::string>();
-        NPUW_ASSERT(
-            (explicit_host_gather == "NO" || explicit_host_gather == "YES" || explicit_host_gather == "QUANT") &&
-            "NPUW_HOST_GATHER can only be NO, YES or QUANT!");
+    auto it_hg = properties.find("NPUW_HOST_GATHER");
+    std::optional<bool> explicit_hg_value;
+    if (it_hg != properties.end()) {
+        explicit_hg_value = it_hg->second.as<bool>();
     }
 
     // Check NPUW_HOST_GATHER:QUANT based on the patterns (for tail vocab)
@@ -558,39 +555,26 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
         !npu_devices.empty() &&
         get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version) >= ONEAPI_MAKE_VERSION(7, 21);
 
+    bool can_enable_hgq = pattern_matched && (compiler_version_enough || npu_devices.empty());
+
     // Now make a decision based on the checks above
-    if (explicit_host_gather == "") {
+    if (!explicit_hg_value) {
         // Default value is used, can force the best option
-        if ((!pattern_matched || (!npu_devices.empty() && !compiler_version_enough)) ||
-            (!pattern_matched && npu_devices.empty())) {
-            LOG_INFO("Couldn't match NPUW_HOST_GATHER:QUANT patterns or the compiler version is too low. Enabling "
-                     "NPUW_HOST_GATHER:YES instead.");
-            std::map<std::string, std::string> host_gather_cfg;
-            host_gather_cfg["NPUW_HOST_GATHER"] = "YES";
-            m_cfg.update(host_gather_cfg);
-        } else if (m_cfg.get<::intel_npu::NPUW_HOST_GATHER>() != "QUANT") {
-            LOG_INFO("Forcing NPUW_HOST_GATHER:QUANT for better performance.");
-            std::map<std::string, std::string> host_gather_cfg;
-            host_gather_cfg["NPUW_HOST_GATHER"] = "QUANT";
-            m_cfg.update(host_gather_cfg);
+        if (can_enable_hgq) {
+            LOG_INFO("Forcing quantized tail vocabulary for better performance.");
+            m_use_host_gather_quant = true;
         }
-    } else if (explicit_host_gather == "NO") {
-        if (pattern_matched && (compiler_version_enough || npu_devices.empty())) {
-            LOG_WARN("Consider enabling NPUW_HOST_GATHER:QUANT for better performance.");
+    } else if (!explicit_hg_value.value()) {  // explicit NO
+        if (can_enable_hgq) {
+            LOG_WARN("Consider removing NPUW_HOST_GATHER:NO from the config for better performance.");
         } else {
             LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
         }
-    } else if (explicit_host_gather == "YES") {
-        if (pattern_matched && (compiler_version_enough || npu_devices.empty())) {
-            LOG_WARN("Consider enabling NPUW_HOST_GATHER:QUANT for better performance.");
+    } else {  // explicit YES
+        if (can_enable_hgq) {
+            LOG_WARN("Consider removing NPUW_HOST_GATHER:YES from the config for better performance.");
         }
-    } else if (explicit_host_gather == "QUANT") {
-        if (!pattern_matched || !compiler_version_enough) {
-            LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
-        }
-    } else {
-        NPUW_ASSERT(false);
-    }  // explicit_host_gather
+    }  // explicit_hg_value
     LOG_INFO("DONE.");
 }
 

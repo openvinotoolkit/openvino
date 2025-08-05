@@ -244,11 +244,11 @@ static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
 
 /**
  * @brief
- * Type: std::string
+ * Type: boolean
  * When applicable, do embedding gather on host.
- * Default value: "QUANT".
+ * Default value: true.
  */
-static constexpr ov::Property<std::string> host_gather{"NPUW_HOST_GATHER"};
+static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief

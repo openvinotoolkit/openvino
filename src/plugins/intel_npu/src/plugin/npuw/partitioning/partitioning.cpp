@@ -294,12 +294,14 @@ public:
     Partitioner(const std::shared_ptr<ov::Model>& _model,
                 ov::npuw::Ensemble& _ens,
                 ov::npuw::Partitioning& _P,
-                ::intel_npu::Config& _cfg)
+                ::intel_npu::Config& _cfg,
+                bool use_host_gather_quant)
         : model(_model),
           ens(_ens),
           P(_P),
           func_pipeline_type(FunctionPipelineType::FOLD),
-          cfg(_cfg) {}
+          cfg(_cfg),
+          m_use_host_gather_quant(use_host_gather_quant) {}
 
     ////////////////////////////////////////////////////////
     // Partitioning execution pipeline
@@ -339,6 +341,8 @@ private:
     ::intel_npu::Config& cfg;
 
     std::size_t m_f16ic_counter = 0u;
+
+    bool m_use_host_gather_quant = false;
 
     std::shared_ptr<ov::Node> new_f16ic_cvt(ov::Output<ov::Node> out, ov::element::Type type);
 };
@@ -1432,7 +1436,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
 }
 
 void Partitioner::saveTailDictConstants(const std::string& func_name) {
-    if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() != "QUANT") {
+    if (!m_use_host_gather_quant) {
         // No need to preserve as constants
         return;
     }
@@ -1913,7 +1917,7 @@ void Partitioner::optimize(const std::string& func_name) {
 
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
-        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() == "YES") {
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && !m_use_host_gather_quant) {
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
@@ -1929,7 +1933,7 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.run_on_model(f._model);
 
         // Quantized Gather + Unpack on host in the runtime
-        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() == "QUANT") {
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && m_use_host_gather_quant) {
             ov::pass::GraphRewrite rewr2;
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<>>(std::ref(ctx));
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<>>(std::ref(ctx));
@@ -1937,7 +1941,7 @@ void Partitioner::optimize(const std::string& func_name) {
         }
 
         // Move Gather to host, if required
-        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() == "YES") {
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && !m_use_host_gather_quant) {
             ov::pass::GraphRewrite rewr2;
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherDQ>(std::ref(ctx));
@@ -2361,7 +2365,9 @@ void Partitioner::finalizeLinks() {
 
 }  // namespace
 
-ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model>& model,
+                                                 ::intel_npu::Config& cfg,
+                                                 bool use_host_gather_quant) {
     LOG_INFO("Building partitioning for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
@@ -2422,7 +2428,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     Partitioning P;
     P.total_gflops = ens.gflops;
 
-    Partitioner p(model, ens, P, cfg);
+    Partitioner p(model, ens, P, cfg, use_host_gather_quant);
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {
