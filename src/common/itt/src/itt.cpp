@@ -47,11 +47,13 @@ void taskBegin(domain_t d, handle_t t) {
         __itt_id parent_id = __itt_null;
         if (!region_id_stack.empty()) {
             // Use the current region ID as parent ID for this task
-            parent_id = __itt_id_make(reinterpret_cast<void*>(t), region_id_stack.back());
+            parent_id = __itt_id_make(nullptr, region_id_stack.back());
         }
+        // Create a unique task ID
+        __itt_id task_id = __itt_id_make(reinterpret_cast<void*>(t), nextRegionId());
         __itt_task_begin(reinterpret_cast<__itt_domain*>(d),
+                         task_id,
                          parent_id,
-                         __itt_null,
                          reinterpret_cast<__itt_string_handle*>(t));
     }
 }
