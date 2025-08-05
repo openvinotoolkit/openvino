@@ -21,18 +21,11 @@ SDPAToVLSDPA::SDPAToVLSDPA() = default;
 
 namespace {
 
-void reshape(std::shared_ptr<v0::Parameter> node,
-             const ov::element::Type& dtype,
-             const ov::PartialShape& partial_shape,
-             const char* name) {
-    // reshape Parameter node and reset its element type
-    // append a new name for both node and output tensor
-    node->set_element_type(dtype);
-    node->set_partial_shape(partial_shape);
-    node->set_output_type(0, dtype, partial_shape);
+std::shared_ptr<v0::Parameter> addName(std::shared_ptr<v0::Parameter> node, const char* name) {
+    // add name for both node and output tensor
     node->set_friendly_name(name);
     node->get_output_tensor(0).add_names({name});
-    return;
+    return node;
 }
 }  // namespace
 
@@ -91,9 +84,10 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
             if (!consumers_are_sdpa)
                 continue;
 
-            // transform attn_param from "attention_mask" to "cu_seq_lens"
-            // by reset the shape and data type, and append a new name as well.
-            reshape(attn_param, element::i32, PartialShape{-1}, std::string(param_new).c_str());
+            model->remove_parameter(attn_param);
+            auto cu_seqlens_param = addName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
+                                            std::string(param_new).c_str());
+            model->add_parameters({cu_seqlens_param});
 
             for (auto target : attn_param->get_output_target_inputs(0)) {
                 auto sdpa =
@@ -102,7 +96,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
                 const auto sdpa_consumers = sdpa->get_output_target_inputs(0);
                 const auto new_args = sdpa->input_values();
-                OutputVector inputs{new_args.at(0), new_args.at(1), new_args.at(2), attn_param};
+                OutputVector inputs{new_args.at(0), new_args.at(1), new_args.at(2), cu_seqlens_param};
 
                 std::shared_ptr<op::internal::VLSDPA> vl_sdpa;
                 vl_sdpa = std::make_shared<op::internal::VLSDPA>(inputs);
