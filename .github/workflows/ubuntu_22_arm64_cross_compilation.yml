@@ -128,7 +128,7 @@ jobs:
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
       os: 'ubuntu_22_04'
-      arch: 'arm64'
+      arch: 'arm64_cross_compile'
       build-js: true
       build-contrib: false
       build-debian-packages: false
