@@ -2490,7 +2490,7 @@ void Interpolate::prepareParams() {
         getScales(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), dstDims);
 
     // Convert to 5D
-    auto getConvertMapFromScale = [](const std::vector<float>& scales) -> std::vector<int> {
+    auto getConvertMapFromScale = [](const std::vector<float>& scales, bool reordered) -> std::vector<int> {
         std::vector<int> convertMap(scales.size());
         std::iota(convertMap.begin(), convertMap.end(), 0);
 
@@ -2514,7 +2514,7 @@ void Interpolate::prepareParams() {
         }
         return convertMap;
     };
-    conversion5DMap = getConvertMapFromScale(dataScales);
+    conversion5DMap = getConvertMapFromScale(dataScales, interpAttrs.layout == InterpolateLayoutType::by_channel);
     auto src5DDims =
         convertTo5D(getPaddedInputShape(srcDims, interpAttrs.padBegin, interpAttrs.padEnd), conversion5DMap);
     auto dst5DDims = convertTo5D(dstDims, conversion5DMap);
