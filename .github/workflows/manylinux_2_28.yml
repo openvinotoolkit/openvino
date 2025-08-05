@@ -181,6 +181,15 @@ jobs:
           
           done
 
+      - name: Build OpenVINO JS API
+        run: |
+          /usr/bin/cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B =${{ env.BUILD_DIR }} \
+                -DCPACK_GENERATOR=NPM \
+                -DENABLE_SYSTEM_TBB=OFF \
+                -DENABLE_WHEEL=OFF
+          /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
+          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node
+
       - name: Pack Artifacts
         run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
@@ -188,6 +197,13 @@ jobs:
       - name: Pack openvino_tests
         run: tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
+
+      - name: Pack openvino_node_npm_package
+        run: |
+          npm i
+          npm pack
+          tar -czvf ${BUILD_DIR}/openvino_node_npm_package.tar.gz bin openvino-node-*
+        working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       #
       # Upload build artifacts
@@ -214,6 +230,14 @@ jobs:
         with:
           name: openvino_tests
           path: ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+          if-no-files-found: 'error'
+
+      - name: Upload openvino-node NPM package
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
           if-no-files-found: 'error'
 
       - name: Store artifacts to a shared drive
