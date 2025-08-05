@@ -378,11 +378,15 @@ void primitive_inst::update_shape() {
                 break;
             }
         }
+
         if (!subgraph_input_changed) {
             GPU_DEBUG_TRACE_DETAIL << id() << ": skip shape_update, because it is in shape_of_subgraph and input shape is not changed\n";
             unset_flag(ExecutionFlags::SHAPE_CHANGED);
             return;
         }
+
+        // If the input shape of root ShapeOf node has changed, update node's parameters as well.
+        set_flag(ExecutionFlags::SHAPE_CHANGED, subgraph_input_changed);
     }
 
     // Even though the predecessors' shapes are not changed, the output shape might be updated by the mem_dep
@@ -900,7 +904,6 @@ void primitive_inst::realloc_if_needed(bool prev_execution_skipped) {
 
     // Handle runtime dynamic concat optimization
     if (get_node().is_type<concatenation>() && can_be_optimized() && _allocation_done_by_other) {
-        _allocation_done_by_other = false;
         GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("concat_alloc_by_other");
         return;
     }
@@ -1668,6 +1671,10 @@ void primitive_inst::do_runtime_in_place_concat() {
 
     if (!concat_inst->get_flag(ExecutionFlags::SHAPE_CHANGED))
         return;
+
+    // Reset the allocation flag when the output shape has changed, to allow buffer reallocation
+    // by predecessors or by the concat primitive itself if in-place optimization is not possible
+    concat_inst->_allocation_done_by_other = false;
 
     if (!concat_in_place_optimization::match(concat_inst->get_node(), *concat_inst->_impl_params, pred_params, true)) {
         concat_inst->set_can_be_optimized(false);

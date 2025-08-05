@@ -5,7 +5,10 @@
 #include "pyopenvino/graph/preprocess/pre_post_process.hpp"
 
 #include <pybind11/functional.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+
+#include <sstream>
 
 #include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
@@ -191,7 +194,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :type pads_begin: 1D tensor of type T_INT.
             :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
             :type pads_end: 1D tensor of type T_INT.
-            :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
+            :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other pad_mode values.
             :type value: scalar tensor of type T.
             :param mode: pad_mode specifies the method used to generate new element values.
             :type mode: string
@@ -219,7 +222,7 @@ static void regclass_graph_PreProcessSteps(py::module m) {
             :type pads_begin: 1D tensor of type T_INT.
             :param pads_end: Number of elements matches the number of indices in data attribute. Specifies the number of padding elements at the ending of each axis.
             :type pads_end: 1D tensor of type T_INT.
-            :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn’t be set for other pad_mode values.
+            :param value: All new elements are populated with this value or with 0 if input not provided. Shouldn't be set for other pad_mode values.
             :type value: scalar tensor of type T.
             :param mode: pad_mode specifies the method used to generate new element values.
             :type mode: string
@@ -368,7 +371,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         R"(
             Helper function to reuse element type and shape from user's created tensor. Overwrites previously
             set shape and element type via `set_shape` and `set_element_type' methods. This method should be
-            used only in case if tensor is already known and avaiable before.
+            used only in case if tensor is already known and available before.
 
             :param tensor: User's created tensor
             :type type: openvino.Tensor
@@ -386,7 +389,7 @@ static void regclass_graph_InputTensorInfo(py::module m) {
         R"(
             Helper function to reuse element type and shape from user's created tensor. Overwrites previously
             set shape and element type via `set_shape` and `set_element_type' methods. This method should be
-            used only in case if tensor is already known and avaiable before.
+            used only in case if tensor is already known and available before.
 
             :param tensor: User's created numpy array
             :type type: numpy.ndarray
@@ -602,7 +605,7 @@ void regclass_graph_PrePostProcessor(py::module m) {
     proc.def("build", [](ov::preprocess::PrePostProcessor& self) {
         std::shared_ptr<ov::Model> model;
         {
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             model = self.build();
         }
         py::type model_class = py::module_::import("openvino").attr("Model");

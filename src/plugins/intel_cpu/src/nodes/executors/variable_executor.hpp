@@ -47,6 +47,9 @@ public:
              implId = select(memory, ++implId)) {
             if (!m_executors[implId]) {
                 m_executors[implId] = create(implId, memory);
+                if (!m_executors[implId]) {
+                    continue;  // skip if creation failed
+                }
             }
 
             if (m_executors[implId]->update(memory)) {
@@ -80,12 +83,12 @@ private:
 
         auto startIt = m_suitableImplementations.begin() + startIdx;
 
-        const auto selectedImplementation = std::find_if(
-            startIt,
-            m_suitableImplementations.end(),
-            [&memory, this](const ExecutorImplementationRef& implementation) {
-                return implementation.get().shapeAgnostic() || implementation.get().acceptsShapes(m_attrs, memory);
-            });
+        const auto selectedImplementation =
+            std::find_if(startIt,
+                         m_suitableImplementations.end(),
+                         [&memory, this](const ExecutorImplementationRef& implementation) {
+                             return implementation.get().acceptsShapes(m_attrs, memory);
+                         });
 
         OPENVINO_ASSERT(selectedImplementation != m_suitableImplementations.end(), "Failed to select an implemetation");
 

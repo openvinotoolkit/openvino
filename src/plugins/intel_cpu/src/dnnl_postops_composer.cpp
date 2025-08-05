@@ -49,8 +49,9 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
                                          const MemoryArgs& memory,
                                          const dnnl::memory::data_type outDataType,
                                          const std::vector<float>& legacyDqScales,
-                                         bool useLegacyPostOps,
-                                         bool useLegacyZeroPoints)
+                                         PostOpsMode postOpsMode,
+                                         bool useLegacyZeroPoints,
+                                         dnnl::post_ops ops)
     : engine(engine),
       postOps(postOps),
       outputDims(outputDims),
@@ -58,8 +59,9 @@ DnnlPostOpsComposer::DnnlPostOpsComposer(const PostOps& postOps,
       isINT8(isInt8),
       weightScaleMaskPerChannel(weiScaleMaskPerChannel),
       outDataType(outDataType),
-      useLegacyPostOps(useLegacyPostOps),
-      useLegacyZeroPoints(useLegacyZeroPoints) {
+      postOpsMode(postOpsMode),
+      useLegacyZeroPoints(useLegacyZeroPoints),
+      ops(std::move(ops)) {
     OPENVINO_ASSERT(idxOC < outputDims.size());
     OC = outputDims[idxOC];
     dimsPerOC = dimsPerTensor = VectorDims(outputDims.size(), 1);
@@ -134,6 +136,8 @@ static dnnl::algorithm convertToOneDnn(const ActivationPostOp::Type type) {
     case ActivationPostOp::Type::linear:
     case ActivationPostOp::Type::powerstatic:  // actually eltwise_pow + eltwise_linear
         return dnnl::algorithm::eltwise_linear;
+    default:
+        return dnnl::algorithm::undef;
     }
 
     return dnnl::algorithm::undef;
@@ -1032,7 +1036,11 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
         bool isLastPostOp = (i == (postOps.size() - 1));
 
         if (const auto* const activation = std::any_cast<ActivationPostOp>(&postOp)) {
-            if (useLegacyPostOps) {
+            switch (postOpsMode) {
+            case PostOpsMode::Original:
+                appendAttrPostOps(*activation, isLastPostOp, true);
+                break;
+            case PostOpsMode::Legacy:
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
                 if (appendAttrPostOps(*activation, isLastPostOp, false)) {
@@ -1041,15 +1049,21 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                 }
                 // fallback to legacy if failed
                 appendAttrPostOpsLegacy(*activation);
-            } else {
-                appendAttrPostOps(*activation, isLastPostOp, true);
+                break;
+            case PostOpsMode::ForcedLegacy:
+                appendAttrPostOpsLegacy(*activation);
+                break;
             }
 
             continue;
         }
 
         if (const auto* const ss = std::any_cast<ScaleShiftPostOp>(&postOp)) {
-            if (useLegacyPostOps) {
+            switch (postOpsMode) {
+            case PostOpsMode::Original:
+                appendAttrPostOps(*ss, isLastPostOp, true);
+                break;
+            case PostOpsMode::Legacy:
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
                 if (appendAttrPostOps(*ss, isLastPostOp, false)) {
@@ -1058,8 +1072,10 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                 }
                 // fallback to legacy if failed
                 appendAttrPostOpsLegacy(*ss);
-            } else {
-                appendAttrPostOps(*ss, isLastPostOp, true);
+                break;
+            case PostOpsMode::ForcedLegacy:
+                appendAttrPostOpsLegacy(*ss);
+                break;
             }
             continue;
         }
@@ -1082,11 +1098,18 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                     }
                 }
 
-                return !(hasSubsequentSum && hasSubsequentFQ);
+                const bool no_subsequent_sum = !hasSubsequentSum;
+                const bool no_subsequent_fq = !hasSubsequentFQ;
+                return no_subsequent_sum || no_subsequent_fq;
             };
 
             auto round = i == 0 ? doRounding() : true;
-            if (useLegacyPostOps) {
+            switch (postOpsMode) {
+            case PostOpsMode::Original:
+                DEBUG_LOG("Append as original post op");
+                appendAttrPostOps(*fq, isLastPostOp, round, true);
+                break;
+            case PostOpsMode::Legacy:
                 // legacy depthwise post ops often outperform binary post ops
                 // first try to make do with original post ops without binary
                 if (appendAttrPostOps(*fq, isLastPostOp, round, false)) {
@@ -1095,9 +1118,11 @@ DnnlPrimitiveAttrs DnnlPostOpsComposer::compose() {
                 }
                 DEBUG_LOG("Append as legacy post op");
                 appendAttrPostOpsLegacy(*fq);
-            } else {
-                DEBUG_LOG("Append as original post op");
-                appendAttrPostOps(*fq, isLastPostOp, round, true);
+                break;
+            case PostOpsMode::ForcedLegacy:
+                DEBUG_LOG("Append as legacy post op");
+                appendAttrPostOpsLegacy(*fq);
+                break;
             }
             continue;
         }
