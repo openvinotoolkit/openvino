@@ -16,18 +16,17 @@ source_group("src" FILES ${LIBRARY_SRC})
 source_group("include" FILES ${PUBLIC_HEADERS})
 
 # Create static library
-add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS}
-                                  $<TARGET_OBJECTS:openvino_transformations_obj>)
+add_library(${TARGET_NAME} STATIC ${LIBRARY_SRC} ${PUBLIC_HEADERS})
 
 add_library(openvino::xml_util ALIAS ${TARGET_NAME})
 set_target_properties(${TARGET_NAME} PROPERTIES EXPORT_NAME openvino_xml_util)
 
 target_include_directories(${TARGET_NAME} PUBLIC
     $<BUILD_INTERFACE:${TARGET_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
     $<TARGET_PROPERTY:openvino::core::dev,INTERFACE_INCLUDE_DIRECTORIES>)
 
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
+target_link_libraries(${TARGET_NAME} PRIVATE openvino::runtime)
 
 if(NOT BUILD_SHARED_LIBS)
     target_compile_definitions(${TARGET_NAME} PUBLIC OPENVINO_STATIC_LIBRARY)
