@@ -26,7 +26,7 @@ using GatedMLPParams = std::tuple<
 class GatedMLP : public testing::WithParamInterface<GatedMLPParams>,
                  virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::GatedMLPParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::GatedMLPParams>& obj);
 protected:
     void SetUp() override;
 };
