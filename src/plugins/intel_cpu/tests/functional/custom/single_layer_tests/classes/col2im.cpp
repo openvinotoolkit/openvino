@@ -14,7 +14,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 namespace Col2Im {
-std::string Col2ImLayerCPUTest::getTestCaseName(testing::TestParamInfo<Col2ImLayerCPUTestParamsSet> obj) {
+std::string Col2ImLayerCPUTest::getTestCaseName(const testing::TestParamInfo<Col2ImLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, cpuParams] = obj.param;
     const auto& [col2ImPar, netPrecision, indexPrecision, td] = basicParamsSet;
     const auto& [inputShape, outputSize, kernelSize, strides, dilations, pads_begin, pads_end] = col2ImPar;

@@ -20,7 +20,7 @@ class SelectLayerCPUTest : public testing::WithParamInterface<selectParams>,
                            virtual public SubgraphBaseTest,
                            public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<selectParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<selectParams>& obj) {
         const auto& [shapes, precision, broadcast, fusingParams] = obj.param;
         std::ostringstream result;
         result << "Condition_prc_" << ElementType::boolean << "_Then_Else_prc_" << precision << "_";
