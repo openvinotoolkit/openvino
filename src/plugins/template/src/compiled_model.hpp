@@ -1,14 +1,21 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #pragma once
+
+#include <atomic>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "config.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
+
+#include "openvino/runtime/cache/cache_eviction.hpp"
+#include "openvino/runtime/cache/cache_manager.hpp"
 
 namespace ov {
 namespace template_plugin {
@@ -50,6 +57,21 @@ private:
 
     void compile_model(const std::shared_ptr<ov::Model>& model);
     std::shared_ptr<const Plugin> get_template_plugin() const;
+
+    mutable std::shared_ptr<ov::cache::CacheManager> m_cache_manager;
+    mutable std::mutex m_cache_mgr_mutex;
+
+    // Eviction config defaults
+    ov::cache::CacheEvictionConfig m_eviction_cfg{
+        /*start*/ 32, /*recent*/ 128, /*max*/ 672,
+        ov::cache::AggregationMode::NORM_SUM,
+        /*apply_rotation*/ false,
+        /*snapkv_window*/ 8
+    };
+
+    // Helper giving (shared) access to the cache manager, creating it on first use.
+    std::shared_ptr<ov::cache::CacheManager> get_or_create_cache_manager_locked(
+        const std::shared_ptr<ov::IInferRequest>& req) const;
 
     mutable std::atomic<std::size_t> m_request_id = {0};
     Configuration m_cfg;

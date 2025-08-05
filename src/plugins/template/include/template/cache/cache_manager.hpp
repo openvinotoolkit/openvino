@@ -9,10 +9,12 @@
 #include <string>
 #include <vector>
 
-#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/template/compiled_model.hpp"
+#include "openvino/runtime/iinfer_request.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ov::cache {
+namespace ov::template_plugin::cache {
 
 // Engine-scoped KV Cache Manager: shared by all InferRequests of a TemplateCompiledModel.
 class OPENVINO_API CacheManager {
@@ -27,14 +29,14 @@ class OPENVINO_API CacheManager {
     std::vector<ov::Tensor> m_key_cache, m_value_cache;
     size_t m_num_allocated_kv_blocks = 0;
     size_t m_block_size_in_bytes = 0;
-    ov::InferRequest m_request;
-    ov::RemoteContext m_context;
+    ov::IInferRequest m_request;
+    ov::IRemoteContext m_context;
 
     static ov::Shape set_kv_blocks(ov::PartialShape pshape, size_t num_kv_blocks);
     void update_request_tensor(size_t decoder_layer_id);
 
 public:
-    explicit CacheManager(ov::InferRequest request);
+    explicit CacheManager(ov::IInferRequest request);
 
     size_t get_num_decoder_layers() const;
     std::string get_device() const;
@@ -55,4 +57,4 @@ public:
     void copy_blocks(const std::map<size_t, std::list<size_t>>& block_copy_map);
 };
 
-}  // namespace ov::cache
+}  // namespace ov::template_plugin::cache

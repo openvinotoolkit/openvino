@@ -1,7 +1,6 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-
 #include "compiled_model.hpp"
 
 #include <memory>
@@ -28,9 +27,6 @@ ov::template_plugin::CompiledModel::CompiledModel(const std::shared_ptr<ov::Mode
       m_cfg(cfg),
       m_model(model),
       m_loaded_from_cache(loaded_from_cache) {
-    // TODO: if your plugin supports device ID (more that single instance of device can be on host machine)
-    // you should select proper device based on KEY_DEVICE_ID or automatic behavior
-    // In this case, m_wait_executor should also be created per device.
     try {
         compile_model(m_model);
     } catch (const std::exception& e) {
@@ -61,6 +57,19 @@ void ov::template_plugin::CompiledModel::compile_model(const std::shared_ptr<ov:
 }
 // ! [compiled_model:compile_model]
 
+// ! [compiled_model:get_or_create_cache_manager_locked]
+std::shared_ptr<ov::cache::CacheManager>
+ov::template_plugin::CompiledModel::get_or_create_cache_manager_locked(
+    const std::shared_ptr<ov::IInferRequest>& req) const {
+    std::lock_guard<std::mutex> lock(m_cache_mgr_mutex);
+    if (m_cache_manager)
+        return m_cache_manager;
+
+    m_cache_manager = std::make_shared<ov::cache::CacheManager>(req);
+    return m_cache_manager;
+}
+// ! [compiled_model:get_or_create_cache_manager_locked]
+
 // ! [compiled_model:create_sync_infer_request]
 std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::create_sync_infer_request() const {
     return std::make_shared<InferRequest>(
@@ -71,6 +80,9 @@ std::shared_ptr<ov::ISyncInferRequest> ov::template_plugin::CompiledModel::creat
 // ! [compiled_model:create_infer_request]
 std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::create_infer_request() const {
     auto internal_request = create_sync_infer_request();
+    // Ensure CacheManager exists and is shared by all requests
+    (void)get_or_create_cache_manager_locked(internal_request);
+
     auto async_infer_request = std::make_shared<AsyncInferRequest>(
         std::static_pointer_cast<ov::template_plugin::InferRequest>(internal_request),
         get_task_executor(),
@@ -84,6 +96,7 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::template_plugin::CompiledModel::crea
 // ! [compiled_model:set_property]
 void ov::template_plugin::CompiledModel::set_property(const ov::AnyMap& properties) {
     m_cfg = Configuration{properties, m_cfg};
+    // Optionally: parse eviction knobs from properties into m_eviction_cfg
 }
 // ! [compiled_model:set_property]
 
@@ -174,11 +187,11 @@ void ov::template_plugin::CompiledModel::export_model(std::ostream& model_stream
     serializer.run_on_model(m_model);
 
     auto m_constants = binFile.str();
-    auto m_model = xmlFile.str();
+    auto m_model_s = xmlFile.str();
 
-    auto dataSize = static_cast<std::uint64_t>(m_model.size());
+    auto dataSize = static_cast<std::uint64_t>(m_model_s.size());
     model_stream.write(reinterpret_cast<char*>(&dataSize), sizeof(dataSize));
-    model_stream.write(m_model.c_str(), dataSize);
+    model_stream.write(m_model_s.c_str(), dataSize);
 
     if (m_cfg.cache_mode == CacheMode::OPTIMIZE_SPEED) {
         dataSize = static_cast<std::uint64_t>(m_constants.size());

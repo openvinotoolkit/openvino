@@ -1,15 +1,15 @@
 // Copyright (C) 2023-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 
-#include "openvino/runtime/cache/cache_manager.hpp"
+#include "openvino/template/cache/cache_manager.hpp"
 
 #include <algorithm>
 #include <cstring>
 #include <numeric>
 
-namespace ov::cache {
+namespace ov::template_plugin::cache {
 
-CacheManager::CacheManager(ov::InferRequest request) : m_request(request) {
+CacheManager::CacheManager(ov::IInferRequest request) : m_request(request) {
     ov::CompiledModel compiled_model = request.get_compiled_model();
     std::vector<std::string> execution_devices = compiled_model.get_property(ov::execution_devices);
     const bool all_gpu_device =
@@ -223,4 +223,4 @@ void CacheManager::copy_blocks(const std::map<size_t, std::list<size_t>>& block_
     }
 }
 
-}  // namespace ov::cache
+}  // namespace ov::template_plugin::cache
