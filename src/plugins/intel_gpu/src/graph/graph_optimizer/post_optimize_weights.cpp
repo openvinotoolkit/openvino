@@ -188,114 +188,122 @@ void post_optimize_weights::add_lstm_weights_reorder(primitive_id input_id, std:
                                                      cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    cache_key ckey{prev.id(), reorder_params->get_output_layout()};
+    reorder_cache_key ckey{prev.id(), reorder_params->get_output_layout()};
     auto itr = _cached_lstm_weights_reorder.find(ckey);
-    if (itr == _cached_lstm_weights_reorder.end()) {
-        std::string reorder_id = input_id + "_reo_" + std::to_string(i);
-        const auto dir_num = static_cast<int>(reorder_params->get_input_layout().get_shape()[0]);
-        auto hiddenSize = reorder_params->get_input_layout().get_shape()[1] / 4;
-        auto inputSize = static_cast<int>(reorder_params->get_input_layout().get_shape()[2]);
-        int size_third;
-        const int W_idx = 3;
-        if (i == W_idx) {
-            size_third = inputSize;
-        } else {
-            size_third = static_cast<int>(hiddenSize);
-        }
-        auto cropSizeR = cldnn::tensor{dir_num, static_cast<int>(hiddenSize), 1, size_third};
-        std::string crop_id_b = input_id + "_c";
-        auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
-            auto crop_id = primitive_id(crop_id_b + std::to_string(cropNum));
-            auto crop_prim = std::make_shared<cldnn::crop>(crop_id, reorder_id, cropSizeR, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0});
-            return p.get_or_create(crop_prim);
-        };
 
-        auto& crop0_node = get_crop_node(0);
-        auto& crop1_node = get_crop_node(1);
-        auto crop2_id = primitive_id(crop_id_b + std::to_string(2));
-        auto crop2_prim = std::make_shared<cldnn::crop>(crop2_id, reorder_id,  cldnn::tensor{dir_num, static_cast<int>(2*hiddenSize), 1, size_third},
-            cldnn::tensor{0, static_cast<int>(2*hiddenSize), 0, 0});
-        auto& crop2_node = p.get_or_create(crop2_prim);
-        std::vector<input_info> con_input{input_info(crop_id_b + "1"), input_info(crop_id_b + "0"), input_info(crop_id_b + "2")};
-        cldnn::primitive_id concat_id{input_id + "cont"};
-        auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 1);
-        auto& con_node = p.get_or_create(con);
-        p.add_intermediate(con_node, node, prev, true);
-        p.add_intermediate(crop1_node, con_node, prev, true);
-        p.add_connection(prev, crop0_node, 0);
-        p.add_connection(prev, crop2_node, 0);
-        p.add_connection(crop0_node, con_node, 0);
-        p.add_connection(crop2_node, con_node, 0);
-        std::string permute_id = input_id + "_perx";
-        std::vector<uint16_t> ord{0, 2, 1};
-        auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
-        auto& permute_node = p.get_or_create(permute);
-        p.add_intermediate(permute_node, node, con_node,  true);
-        auto set_implementation_and_output = [this, &p](program_node& node) {
-            node.get_output_layout(false);
-            select_implementation(p, node);
-            p.mark_if_constant(node);
-            node.recalc_output_layout(false);
-        };
-        set_implementation_and_output(crop1_node);
-        set_implementation_and_output(crop0_node);
-        set_implementation_and_output(crop2_node);
-        set_implementation_and_output(con_node);
-        set_implementation_and_output(permute_node);
-
-        _cached_lstm_weights_reorder[ckey] = &permute_node;
-    } else {
-        node.replace_dependency(i, *itr->second, false);
+    // If we already did the lstm weight optimization, reuse existing node.
+    if (itr != _cached_lstm_weights_reorder.end()) {
+            node.replace_dependency(i, *itr->second, false);
+            return;
     }
+
+    // This is first time. Run lstm weight optimization.
+    std::string reorder_id = input_id + "_reo_" + std::to_string(i);
+    const auto dir_num = static_cast<int>(reorder_params->get_input_layout().get_shape()[0]);
+    auto hiddenSize = reorder_params->get_input_layout().get_shape()[1] / 4;
+    auto inputSize = static_cast<int>(reorder_params->get_input_layout().get_shape()[2]);
+    int size_third;
+    const int W_idx = 3;
+    if (i == W_idx) {
+        size_third = inputSize;
+    } else {
+        size_third = static_cast<int>(hiddenSize);
+    }
+    auto cropSizeR = cldnn::tensor{dir_num, static_cast<int>(hiddenSize), 1, size_third};
+    std::string crop_id_b = input_id + "_c";
+    auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
+        auto crop_id = primitive_id(crop_id_b + std::to_string(cropNum));
+        auto crop_prim = std::make_shared<cldnn::crop>(crop_id, reorder_id, cropSizeR, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0});
+        return p.get_or_create(crop_prim);
+    };
+
+    auto& crop0_node = get_crop_node(0);
+    auto& crop1_node = get_crop_node(1);
+    auto crop2_id = primitive_id(crop_id_b + std::to_string(2));
+    auto crop2_prim = std::make_shared<cldnn::crop>(crop2_id, reorder_id,  cldnn::tensor{dir_num, static_cast<int>(2*hiddenSize), 1, size_third},
+        cldnn::tensor{0, static_cast<int>(2*hiddenSize), 0, 0});
+    auto& crop2_node = p.get_or_create(crop2_prim);
+    std::vector<input_info> con_input{input_info(crop_id_b + "1"), input_info(crop_id_b + "0"), input_info(crop_id_b + "2")};
+    cldnn::primitive_id concat_id{input_id + "cont"};
+    auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 1);
+    auto& con_node = p.get_or_create(con);
+    p.add_intermediate(con_node, node, prev, true);
+    p.add_intermediate(crop1_node, con_node, prev, true);
+    p.add_connection(prev, crop0_node, 0);
+    p.add_connection(prev, crop2_node, 0);
+    p.add_connection(crop0_node, con_node, 0);
+    p.add_connection(crop2_node, con_node, 0);
+    std::string permute_id = input_id + "_perx";
+    std::vector<uint16_t> ord{0, 2, 1};
+    auto permute = std::make_shared<cldnn::permute>(permute_id, input_info{concat_id}, ord);
+    auto& permute_node = p.get_or_create(permute);
+    p.add_intermediate(permute_node, node, con_node,  true);
+    auto set_implementation_and_output = [this, &p](program_node& node) {
+        node.get_output_layout(false);
+        select_implementation(p, node);
+        p.mark_if_constant(node);
+        node.recalc_output_layout(false);
+    };
+    set_implementation_and_output(crop1_node);
+    set_implementation_and_output(crop0_node);
+    set_implementation_and_output(crop2_node);
+    set_implementation_and_output(con_node);
+    set_implementation_and_output(permute_node);
+
+    _cached_lstm_weights_reorder[ckey] = &permute_node;
 }
 
 void post_optimize_weights::add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, \
                                                   cldnn::program_node& prev, cldnn::program_node& node, size_t i) {
     OPENVINO_ASSERT(reorder_params != nullptr, "[GPU] WeightsReorderParams is not initialized.");
 
-    cache_key ckey{prev.id(), reorder_params->get_output_layout()};
+    reorder_cache_key ckey{prev.id(), reorder_params->get_output_layout()};
     auto itr = _cached_lstm_bias_reorder.find(ckey);
-    if (itr == _cached_lstm_bias_reorder.end()) {
-        const auto dir_num = static_cast<int>(reorder_params->get_input_layout().get_shape()[0]);
-        auto hiddenSize = reorder_params->get_output_layout().get_shape()[1] / 4;
-        auto cropSize = cldnn::tensor{dir_num, static_cast<int>(hiddenSize), 1, 1};
-        std::string crop_id_b = input_id + "_c";
-        auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
-            auto crop_id = primitive_id(crop_id_b + std::to_string(cropNum));
-            auto crop_prim = std::make_shared<cldnn::crop>(crop_id,  input_id, cropSize, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0});
-            return p.get_or_create(crop_prim);
-        };
-        auto& crop0_node = get_crop_node(0);
-        auto& crop1_node = get_crop_node(1);
-        auto crop2_id = primitive_id(crop_id_b + std::to_string(2));
-        auto crop2_prim = std::make_shared<cldnn::crop>(crop2_id, input_id,  cldnn::tensor{dir_num, static_cast<int>(2*hiddenSize), 1, 1},
-            cldnn::tensor{0, static_cast<int>(2*hiddenSize), 0, 0});
-        auto& crop2_node = p.get_or_create(crop2_prim);
-        std::vector<input_info> con_input{input_info(crop1_node.id()), input_info(crop0_node.id()), input_info(crop2_node.id())};
-        cldnn::primitive_id concat_id{input_id + "concat"};
-        auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 1);
-        auto& con_node = p.get_or_create(con);
-        p.add_intermediate(con_node, node, prev, true);
-        p.add_intermediate(crop1_node, con_node, prev, true);
-        p.add_connection(prev, crop0_node, 0);
-        p.add_connection(prev, crop2_node, 0);
-        p.add_connection(crop0_node, con_node, 0);
-        p.add_connection(crop2_node, con_node, 0);
-        auto set_implementation_and_output = [this, &p](program_node& node) {
-            node.get_output_layout(false);
-            select_implementation(p, node);
-            p.mark_if_constant(node);
-            node.recalc_output_layout(false);
-        };
-        set_implementation_and_output(crop0_node);
-        set_implementation_and_output(crop1_node);
-        set_implementation_and_output(crop2_node);
-        set_implementation_and_output(con_node);
 
-        _cached_lstm_bias_reorder[ckey] = &con_node;
-    } else {
-        node.replace_dependency(i, *itr->second, false);
+    // If we already did the lstm bias optimization, reuse existing node.
+    if (itr != _cached_lstm_bias_reorder.end()) {
+            node.replace_dependency(i, *itr->second, false);
+            return;
     }
+
+    // This is first time. Run lstm bias optimization.
+    const auto dir_num = static_cast<int>(reorder_params->get_input_layout().get_shape()[0]);
+    auto hiddenSize = reorder_params->get_output_layout().get_shape()[1] / 4;
+    auto cropSize = cldnn::tensor{dir_num, static_cast<int>(hiddenSize), 1, 1};
+    std::string crop_id_b = input_id + "_c";
+    auto get_crop_node = [&](int cropNum) -> cldnn::program_node& {
+        auto crop_id = primitive_id(crop_id_b + std::to_string(cropNum));
+        auto crop_prim = std::make_shared<cldnn::crop>(crop_id,  input_id, cropSize, cldnn::tensor{0, static_cast<int>(cropNum*hiddenSize), 0, 0});
+        return p.get_or_create(crop_prim);
+    };
+    auto& crop0_node = get_crop_node(0);
+    auto& crop1_node = get_crop_node(1);
+    auto crop2_id = primitive_id(crop_id_b + std::to_string(2));
+    auto crop2_prim = std::make_shared<cldnn::crop>(crop2_id, input_id,  cldnn::tensor{dir_num, static_cast<int>(2*hiddenSize), 1, 1},
+        cldnn::tensor{0, static_cast<int>(2*hiddenSize), 0, 0});
+    auto& crop2_node = p.get_or_create(crop2_prim);
+    std::vector<input_info> con_input{input_info(crop1_node.id()), input_info(crop0_node.id()), input_info(crop2_node.id())};
+    cldnn::primitive_id concat_id{input_id + "concat"};
+    auto con = std::make_shared<cldnn::concatenation>(concat_id, con_input, 1);
+    auto& con_node = p.get_or_create(con);
+    p.add_intermediate(con_node, node, prev, true);
+    p.add_intermediate(crop1_node, con_node, prev, true);
+    p.add_connection(prev, crop0_node, 0);
+    p.add_connection(prev, crop2_node, 0);
+    p.add_connection(crop0_node, con_node, 0);
+    p.add_connection(crop2_node, con_node, 0);
+    auto set_implementation_and_output = [this, &p](program_node& node) {
+        node.get_output_layout(false);
+        select_implementation(p, node);
+        p.mark_if_constant(node);
+        node.recalc_output_layout(false);
+    };
+    set_implementation_and_output(crop0_node);
+    set_implementation_and_output(crop1_node);
+    set_implementation_and_output(crop2_node);
+    set_implementation_and_output(con_node);
+
+    _cached_lstm_bias_reorder[ckey] = &con_node;
 }
 
 void post_optimize_weights::run(program& p) {

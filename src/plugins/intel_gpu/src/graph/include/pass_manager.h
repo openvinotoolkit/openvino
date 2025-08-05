@@ -218,8 +218,8 @@ private:
                                cldnn::program_node&, size_t);
     reorder_factory& _rf;
 
-    std::map<cache_key, program_node*> _cached_lstm_weights_reorder;
-    std::map<cache_key, program_node*> _cached_lstm_bias_reorder;
+    std::map<reorder_cache_key, program_node*> _cached_lstm_weights_reorder;
+    std::map<reorder_cache_key, program_node*> _cached_lstm_bias_reorder;
 };
 
 class propagate_constants : public base_pass {
