@@ -120,6 +120,7 @@ jobs:
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
       PRODUCT_TYPE: public_manylinux_2_28_x86_64_release
+      NODE_VERSION: 22
       
     steps:
       - name: Clone OpenVINO
@@ -128,6 +129,11 @@ jobs:
         with:
           path: ${{ env.OPENVINO_REPO }}
           submodules: 'true'
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: System info
         uses: ./src/.github/actions/system_info
