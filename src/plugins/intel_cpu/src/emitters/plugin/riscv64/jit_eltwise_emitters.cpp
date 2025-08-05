@@ -831,13 +831,13 @@ void jit_floor_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for FLOOR_MOD");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for FLOOR_MOD");
     }
 }
 template <cpu_isa_t isa>
 void jit_floor_mod_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
-    OPENVINO_ASSERT(exec_prc_ == element::f32, "JIT Floor Mod emitter supports only f32 precision");
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == element::f32, "JIT Floor Mod emitter supports only f32 precision");
 
     const VReg src0 = VReg(in_vec_idxs[0]);
     const VReg src1 = VReg(in_vec_idxs[1]);
@@ -1166,12 +1166,12 @@ void jit_less_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for LESS");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for LESS");
     }
 }
 template <cpu_isa_t isa>
 void jit_less_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
-    OPENVINO_ASSERT(exec_prc_ == element::f32, "JIT Less emitter supports only f32 precision");
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == element::f32, "JIT Less emitter supports only f32 precision");
     auto src0 = VReg(in_vec_idxs[0]);
     auto src1 = VReg(in_vec_idxs[1]);
     auto dst = VReg(out_vec_idxs[0]);
@@ -1214,13 +1214,13 @@ void jit_logical_or_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel");
     }
 }
 template <cpu_isa_t isa>
 void jit_logical_or_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                       const std::vector<size_t>& out_vec_idxs) const {
-    OPENVINO_ASSERT(exec_prc_ == element::f32, "JIT Logical OR emitter supports only f32 precision");
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == element::f32, "JIT Logical OR emitter supports only f32 precision");
     const VReg src0 = VReg(in_vec_idxs[0]);
     const VReg src1 = VReg(in_vec_idxs[1]);
     const VReg aux0 = VReg(aux_vec_idxs[0]);
