@@ -498,19 +498,28 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
     }
 }
 
-// Optimized and cleaned up ConvertToROPE_chatGLM test
-TEST_F(TransformationTestsF, ConvertToROPE_chatGLM) {
+// Parametrized ConvertToROPE_chatGLM test to check both unpack->output(0) and unpack->output(1)
+class ConvertToROPETest : public TransformationTestsF, public ::testing::WithParamInterface<int> {};
+
+TEST_P(ConvertToROPETest, ConvertToROPE_chatGLM) {
     disable_rt_info_check();
+    
     constexpr int batch = 2;
     constexpr int seq_len = 7;
     constexpr int num_heads = 32;
     constexpr int ndims = 128;
     constexpr int rotary_ndims = 64;
     constexpr int max_pos_length = 2048;
+    constexpr int total_size_q = 4096;
+    constexpr int total_size_k = 256;
+    constexpr int total_size_v = 256;
+    constexpr int total_size = total_size_q + total_size_k + total_size_v;
+
+    int unpack_output_idx = GetParam();
 
     // Build the original model
     {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, batch, 4608});
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, batch, total_size});
         auto seq_length = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{1});
         auto cos_sin_cache =
             std::make_shared<ov::opset1::Parameter>(ov::element::f32,
@@ -518,7 +527,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM) {
 
         auto unpack = makeOP<ov::opset1::VariadicSplit>({input, -1, {4096, 256, 256}});
         auto reshaped =
-            makeOP<ov::opset1::Reshape>({unpack->output(0), {0, 0, num_heads, ndims}}, {{"special_zero", true}});
+            makeOP<ov::opset1::Reshape>({unpack->output(unpack_output_idx), {0, 0, num_heads, ndims}}, {{"special_zero", true}});
         auto slice = makeOP<ov::opset1::StridedSlice>({reshaped, {0, 0, 0, 0}, {0, 0, 0, rotary_ndims}, {1, 1, 1, 1}},
                                                       {{"begin_mask", {1, 1, 1, 0}},
                                                        {"end_mask", {1, 1, 1, 0}},
@@ -582,22 +591,26 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM) {
                                             ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
 
-    // Optionally serialize for debugging (can be commented out in CI)
-    manager.register_pass<ov::pass::Serialize>("/tmp/fuse_rotary_positional_embeddings_chatglm.xml",
-                                               "/tmp/fuse_rotary_positional_embeddings_chatglm.bin");
-
     manager.register_pass<ov::pass::RoPEFusion>();
-
+    
     // Build the reference model
     {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, batch, 4608});
+        int slice_start = 0, slice_stop = 0;
+        if (unpack_output_idx == 0) {
+            slice_stop = total_size_q;
+        } else {
+            slice_start = total_size_q;
+            slice_stop = slice_start + total_size_k;
+        }
+        
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{seq_len, batch, total_size});
         auto seq_length = std::make_shared<ov::opset1::Parameter>(ov::element::i32, ov::Shape{1});
         auto cos_sin_cache =
             std::make_shared<ov::opset1::Parameter>(ov::element::f32,
                                                     ov::Shape{max_pos_length, batch, rotary_ndims / 2, 2});
         auto rope = makeOP<ov::op::internal::RoPE>({input, cos_sin_cache, cos_sin_cache},
-                                                   {{"config.slice_start", 0},
-                                                    {"config.slice_stop", 4096},
+                                                   {{"config.slice_start", slice_start},
+                                                    {"config.slice_stop", slice_stop},
                                                     {"config.input_trans0213", false},
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", false},
@@ -612,7 +625,10 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM) {
         model_ref =
             std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
+
+INSTANTIATE_TEST_SUITE_P(TransformationTestsF, ConvertToROPETest, ::testing::ValuesIn({0,1}));
 
 TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_Slice) {
     using namespace ov;
@@ -692,6 +708,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_Slice) {
         model_ref =
             std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, seq_length, cos_sin_cache});
     }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
