@@ -125,6 +125,7 @@ class TestSession:
     def api_push_reference_values(self, modelid, device, result):
         if "error" in result:
             print("Failed result is not going to be uploaded as reference.")
+            return
         test_report = []
         test_name = result.get("test", self.test_name)
         model_assumptions = modelid_assume_info(modelid)
@@ -147,6 +148,7 @@ class TestSession:
             refsamples = {}
         if "error" in result:
             print("Failed result is not going to be uploaded.")
+            return
         if not self.report_metadata:
             print("No job metadata found, no report will be made.")
             return
