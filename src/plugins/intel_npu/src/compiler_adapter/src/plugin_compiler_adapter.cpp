@@ -272,6 +272,12 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
 
     _logger.debug("main schedule parse end");
 
+    // exporting the blob when we get it from cache or ov::hint::compiled_blob property
+    // shall be available
+    const bool blobIsPersistent = config.has<COMPILED_BLOB>()       ? true
+                                  : config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
+                                                                    : false;
+
     if (!initBlobs.has_value()) {
         return std::make_shared<Graph>(_zeGraphExt,
                                        _zeroInitStruct,
@@ -279,9 +285,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
                                        std::move(networkMeta),
                                        std::move(mainBlob),
                                        config,
-                                       config.has<LOADED_FROM_CACHE>()
-                                           ? config.get<LOADED_FROM_CACHE>()
-                                           : false,  // exporting the blob when we get it from cache shall be available
+                                       blobIsPersistent,
                                        _compiler);
     }
 
@@ -306,20 +310,18 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::parse(
     }
 
     _logger.debug("init schedules parse end");
-    return std::make_shared<WeightlessGraph>(
-        _zeGraphExt,
-        _zeroInitStruct,
-        mainGraphDesc,
-        std::move(networkMeta),
-        std::move(mainBlob),
-        initGraphDescriptors,
-        std::move(initMetadata),
-        std::move(initBlobs),
-        model.value(),
-        config,
-        config.has<LOADED_FROM_CACHE>() ? config.get<LOADED_FROM_CACHE>()
-                                        : false,  // exporting the blob when we get it from cache shall be available
-        _compiler);
+    return std::make_shared<WeightlessGraph>(_zeGraphExt,
+                                             _zeroInitStruct,
+                                             mainGraphDesc,
+                                             std::move(networkMeta),
+                                             std::move(mainBlob),
+                                             initGraphDescriptors,
+                                             std::move(initMetadata),
+                                             std::move(initBlobs),
+                                             model.value(),
+                                             config,
+                                             blobIsPersistent,
+                                             _compiler);
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
