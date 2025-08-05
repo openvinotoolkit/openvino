@@ -11,6 +11,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <map>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
@@ -19,7 +20,6 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
-#include <limits>
 
 #include "config.h"
 #include "cpu_memory.h"
@@ -545,6 +545,23 @@ bool Eltwise::isWithBroadcast() {
     return false;
 }
 
+void Eltwise::init() {
+    if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
+        float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        auto& gamma = m_attrs.data.gamma;
+
+        if (gamma  < lowest) {
+            gamma = lowest;
+        }
+
+        if (gamma > max) {
+            gamma = max;
+        }
+    }
+
+}
+
 void Eltwise::getSupportedDescriptors() {
     CPU_NODE_ASSERT(!getParentEdges().empty(), "Incorrect number of input edges");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "Incorrect number of output edges");
@@ -621,15 +638,6 @@ void Eltwise::initSupportedPrimitiveDescriptors() {
     m_attrs.data.algo = getAlgorithm();
     m_attrs.postOps = getPostOps(fusedWith, ov::element::dynamic);
     m_attrs.opsList = {getType()};
-
-    if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
-        if (m_attrs.data.gamma < static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest())) {
-            m_attrs.data.gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
-        }
-        if (m_attrs.data.gamma > static_cast<float>(std::numeric_limits<ov::bfloat16>::max())) {
-            m_attrs.data.gamma = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
-        }
-    }
 
     // Create memory descriptors
     std::vector<MemoryDescPtr> srcDescs;
