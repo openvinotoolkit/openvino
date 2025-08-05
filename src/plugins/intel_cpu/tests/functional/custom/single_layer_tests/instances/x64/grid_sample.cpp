@@ -14,57 +14,86 @@ using namespace GridSample;
 
 namespace {
 
-std::vector<CPUSpecificParams> getCPUInfoForX64() {
+std::vector<ov::AnyMap> additionalConfigX64 = {{{ov::hint::inference_precision(ov::element::f32)}},
+                                               {{ov::hint::inference_precision(ov::element::bf16)}}};
+
+std::vector<CPUSpecificParams> getCPUInfoX64() {
     std::vector<CPUSpecificParams> resCPUParams;
-    if (with_cpu_x86_avx512f()) {
+    if (ov::with_cpu_x86_avx512f()) {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_avx512"}, "jit_avx512"});
-    }
-    if (with_cpu_x86_avx2()) {
+    } else if (ov::with_cpu_x86_avx2()) {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_avx2"}, "jit_avx2"});
-    }
-    if (with_cpu_x86_sse42()) {
+    } else if (ov::with_cpu_x86_avx()) {
+        resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_avx"}, "jit_avx"});
+    } else if (ov::with_cpu_x86_sse42()) {
         resCPUParams.push_back(CPUSpecificParams{{}, {}, {"jit_sse42"}, "jit_sse42"});
     }
-    resCPUParams.push_back(CPUSpecificParams{{}, {}, {"ref"}, "ref"});
     return resCPUParams;
 }
 
 }  // namespace
 
-// X86 JIT optimized tests
-INSTANTIATE_TEST_SUITE_P(smoke_GridSample_x86_JIT, GridSampleLayerTestCPU,
-                        ::testing::Combine(
-                            ::testing::Values(getStaticShapes()[0], getStaticShapes()[1]),
-                            ::testing::Values(ov::op::v9::GridSample::InterpolationMode::BILINEAR),  // JIT optimized
-                            ::testing::Values(ov::op::v9::GridSample::PaddingMode::ZEROS, 
-                                              ov::op::v9::GridSample::PaddingMode::BORDER),
-                            ::testing::Values(false),  // align_corners = false is more optimized
-                            ::testing::Values(ElementType::f32),
-                            ::testing::Values(ElementType::f32),
-                            ::testing::ValuesIn(getCPUInfoForX64()),
-                            ::testing::Values(ov::AnyMap{})),
-                        GridSampleLayerTestCPU::getTestCaseName);
+// Static shapes tests - same as original master but prefixed with x64_
+INSTANTIATE_TEST_SUITE_P(x64_smoke_static,
+                         GridSampleLayerTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
+                                            ::testing::ValuesIn(allInterpolationModes()),
+                                            ::testing::ValuesIn(allPaddingModes()),
+                                            ::testing::ValuesIn(alignCornersValues()),
+                                            ::testing::ValuesIn({ElementType::f32, ElementType::i32}),
+                                            ::testing::ValuesIn({ElementType::f32}),
+                                            ::testing::ValuesIn(getCPUInfoX64()),
+                                            ::testing::Values(additionalConfigX64[0])),
+                         GridSampleLayerTestCPU::getTestCaseName);
 
-// X86 specific dynamic shapes
-const std::vector<std::vector<InputShape>> dynamicShapesX86 = {
-    {{{{1, 10}, {1, 10}, {1, 100}, {1, 100}},
-      {{1, 1, 50, 50}, {3, 3, 100, 100}, {10, 10, 25, 25}}},
-     {{{1, 10}, {1, 100}, {1, 100}, 2},
-      {{1, 50, 50, 2}, {3, 100, 100, 2}, {10, 25, 25, 2}}}}
-};
+INSTANTIATE_TEST_SUITE_P(x64_nightly_static_1,
+                         GridSampleLayerTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
+                                            ::testing::ValuesIn(allInterpolationModes()),
+                                            ::testing::ValuesIn(allPaddingModes()),
+                                            ::testing::ValuesIn(alignCornersValues()),
+                                            ::testing::ValuesIn({ElementType::bf16, ElementType::i8}),
+                                            ::testing::ValuesIn({ElementType::f32, ElementType::bf16}),
+                                            ::testing::ValuesIn(getCPUInfoX64()),
+                                            ::testing::Values(additionalConfigX64[0])),
+                         GridSampleLayerTestCPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_GridSample_x86_Dynamic, GridSampleLayerTestCPU,
-                        ::testing::Combine(
-                            ::testing::ValuesIn(dynamicShapesX86),
-                            ::testing::Values(ov::op::v9::GridSample::InterpolationMode::BILINEAR),
-                            ::testing::Values(ov::op::v9::GridSample::PaddingMode::ZEROS, 
-                                              ov::op::v9::GridSample::PaddingMode::BORDER),
-                            ::testing::Values(false),
-                            ::testing::Values(ElementType::f32),
-                            ::testing::Values(ElementType::f32),
-                            ::testing::ValuesIn(getCPUInfoForX64()),
-                            ::testing::Values(ov::AnyMap{})),
-                        GridSampleLayerTestCPU::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(x64_nightly_static_2,
+                         GridSampleLayerTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(getStaticShapes()),
+                                            ::testing::ValuesIn(allInterpolationModes()),
+                                            ::testing::ValuesIn(allPaddingModes()),
+                                            ::testing::ValuesIn(alignCornersValues()),
+                                            ::testing::ValuesIn({ElementType::f32}),
+                                            ::testing::ValuesIn({ElementType::bf16}),
+                                            ::testing::ValuesIn(getCPUInfoX64()),
+                                            ::testing::Values(additionalConfigX64[0])),
+                         GridSampleLayerTestCPU::getTestCaseName);
+
+// Dynamic shapes tests - same as original master but prefixed with x64_
+INSTANTIATE_TEST_SUITE_P(x64_smoke_dynamic,
+                         GridSampleLayerTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(getDynamicShapes()),
+                                            ::testing::ValuesIn(allInterpolationModes()),
+                                            ::testing::ValuesIn(allPaddingModes()),
+                                            ::testing::ValuesIn(alignCornersValues()),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::Values(ElementType::f32),
+                                            ::testing::ValuesIn(getCPUInfoX64()),
+                                            ::testing::Values(additionalConfigX64[0])),
+                         GridSampleLayerTestCPU::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(x64_nightly_dynamic,
+                         GridSampleLayerTestCPU,
+                         ::testing::Combine(::testing::ValuesIn(getDynamicShapes()),
+                                            ::testing::ValuesIn(allInterpolationModes()),
+                                            ::testing::ValuesIn(allPaddingModes()),
+                                            ::testing::ValuesIn(alignCornersValues()),
+                                            ::testing::ValuesIn({ElementType::bf16, ElementType::i32}),
+                                            ::testing::ValuesIn({ElementType::bf16}),
+                                            ::testing::ValuesIn(getCPUInfoX64()),
+                                            ::testing::Values(additionalConfigX64[0])),
+                         GridSampleLayerTestCPU::getTestCaseName);
 
 }  // namespace test
 }  // namespace ov

@@ -103,6 +103,14 @@ const std::vector<ov::op::v9::GridSample::InterpolationMode>& allInterpolationMo
     return modes;
 }
 
+const std::vector<ov::op::v9::GridSample::InterpolationMode>& armInterpolationModes() {
+    static const std::vector<ov::op::v9::GridSample::InterpolationMode> modes = {
+        ov::op::v9::GridSample::InterpolationMode::BILINEAR,
+        ov::op::v9::GridSample::InterpolationMode::NEAREST
+    };
+    return modes;
+}
+
 const std::vector<ov::op::v9::GridSample::PaddingMode>& allPaddingModes() {
     static const std::vector<ov::op::v9::GridSample::PaddingMode> modes = {
         ov::op::v9::GridSample::PaddingMode::ZEROS,

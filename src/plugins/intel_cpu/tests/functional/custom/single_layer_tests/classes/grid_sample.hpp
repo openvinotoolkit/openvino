@@ -38,6 +38,7 @@ protected:
 namespace GridSample {
     // Common test parameters
     const std::vector<ov::op::v9::GridSample::InterpolationMode>& allInterpolationModes();
+    const std::vector<ov::op::v9::GridSample::InterpolationMode>& armInterpolationModes();
     const std::vector<ov::op::v9::GridSample::PaddingMode>& allPaddingModes();
     const std::vector<bool>& alignCornersValues();
     const std::vector<std::vector<InputShape>>& getStaticShapes();

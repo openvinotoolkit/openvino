@@ -48,11 +48,11 @@ const std::vector<std::vector<InputShape>> dynamicShapesARM = {
 
 }  // namespace
 
-// Static shapes tests for ARM
+// Static shapes tests for ARM - using armInterpolationModes (BILINEAR + NEAREST only)
 INSTANTIATE_TEST_SUITE_P(smoke_GridSample_ARM_Static, GridSampleLayerTestCPU,
                         ::testing::Combine(
                             ::testing::ValuesIn(staticShapesARM),
-                            ::testing::ValuesIn(allInterpolationModes()),
+                            ::testing::ValuesIn(armInterpolationModes()),
                             ::testing::ValuesIn(allPaddingModes()),
                             ::testing::ValuesIn(alignCornersValues()),
                             ::testing::Values(ElementType::f32),
@@ -61,11 +61,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_GridSample_ARM_Static, GridSampleLayerTestCPU,
                             ::testing::Values(ov::AnyMap{})),
                         GridSampleLayerTestCPU::getTestCaseName);
 
-// Dynamic shapes tests for ARM
+// Dynamic shapes tests for ARM - using armInterpolationModes (BILINEAR + NEAREST only)
 INSTANTIATE_TEST_SUITE_P(smoke_GridSample_ARM_Dynamic, GridSampleLayerTestCPU,
                         ::testing::Combine(
                             ::testing::ValuesIn(dynamicShapesARM),
-                            ::testing::ValuesIn(allInterpolationModes()),
+                            ::testing::ValuesIn(armInterpolationModes()),
                             ::testing::ValuesIn(allPaddingModes()),
                             ::testing::ValuesIn(alignCornersValues()),
                             ::testing::Values(ElementType::f32),

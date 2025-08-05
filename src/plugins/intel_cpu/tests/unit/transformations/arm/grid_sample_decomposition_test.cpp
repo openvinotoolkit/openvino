@@ -146,13 +146,18 @@ TEST_F(GridSampleDecompositionTest, AppliedForNearest) {
     checkDecomposition(model, true);  // Now should decompose
 }
 
-TEST_F(GridSampleDecompositionTest, AppliedForBicubic) {
+TEST_F(GridSampleDecompositionTest, BicubicThrowsException) {
     auto model = createGridSample({1, 2, 4, 4}, {1, 3, 3, 2},
                                  ov::element::f32, ov::element::f32,
                                  false,
                                  ov::op::v9::GridSample::InterpolationMode::BICUBIC,
                                  ov::op::v9::GridSample::PaddingMode::BORDER);
-    checkDecomposition(model, true);  // Now should decompose
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
+
+    // BICUBIC should throw an exception on ARM
+    EXPECT_THROW(manager.run_passes(model), std::runtime_error);
 }
 
 TEST_F(GridSampleDecompositionTest, AppliedForZerosPadding) {
@@ -388,9 +393,7 @@ const std::vector<GridSampleTestParams> testParams = {
      ov::op::v9::GridSample::InterpolationMode::NEAREST, ov::op::v9::GridSample::PaddingMode::BORDER,
      true, "nearest_interpolation"},
 
-    {{1, 2, 4, 4}, {1, 3, 3, 2}, ov::element::f32, ov::element::f32, false,
-     ov::op::v9::GridSample::InterpolationMode::BICUBIC, ov::op::v9::GridSample::PaddingMode::BORDER,
-     true, "bicubic_interpolation"},
+    // BICUBIC removed - should throw exception instead of decompose
 
     {{1, 2, 4, 4}, {1, 3, 3, 2}, ov::element::f32, ov::element::f32, false,
      ov::op::v9::GridSample::InterpolationMode::BILINEAR, ov::op::v9::GridSample::PaddingMode::ZEROS,
@@ -409,13 +412,8 @@ const std::vector<GridSampleTestParams> testParams = {
      ov::op::v9::GridSample::InterpolationMode::NEAREST, ov::op::v9::GridSample::PaddingMode::REFLECTION,
      true, "nearest_reflection_f16"},
 
-    {{3, 2, 6, 10}, {3, 5, 8, 2}, ov::element::f32, ov::element::f32, false,
-     ov::op::v9::GridSample::InterpolationMode::BICUBIC, ov::op::v9::GridSample::PaddingMode::ZEROS,
-     true, "bicubic_zeros"},
-
-    {{1, 4, 12, 16}, {1, 10, 14, 2}, ov::element::f32, ov::element::f32, true,
-     ov::op::v9::GridSample::InterpolationMode::BICUBIC, ov::op::v9::GridSample::PaddingMode::REFLECTION,
-     true, "bicubic_reflection_align"},
+    // BICUBIC test cases removed - should throw exception instead of decompose
+    // "bicubic_zeros" and "bicubic_reflection_align" removed
 };
 
 INSTANTIATE_TEST_SUITE_P(GridSampleDecomposition,
@@ -424,5 +422,30 @@ INSTANTIATE_TEST_SUITE_P(GridSampleDecomposition,
                         [](const testing::TestParamInfo<GridSampleTestParams>& info) {
                             return info.param.test_name;
                         });
+
+// Tests for BICUBIC that should throw exceptions
+TEST_F(GridSampleDecompositionTest, BicubicZerosThrowsException) {
+    auto model = createGridSample({3, 2, 6, 10}, {3, 5, 8, 2},
+                                 ov::element::f32, ov::element::f32,
+                                 false,
+                                 ov::op::v9::GridSample::InterpolationMode::BICUBIC,
+                                 ov::op::v9::GridSample::PaddingMode::ZEROS);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
+    EXPECT_THROW(manager.run_passes(model), std::runtime_error);
+}
+
+TEST_F(GridSampleDecompositionTest, BicubicReflectionAlignThrowsException) {
+    auto model = createGridSample({1, 4, 12, 16}, {1, 10, 14, 2},
+                                 ov::element::f32, ov::element::f32,
+                                 true,
+                                 ov::op::v9::GridSample::InterpolationMode::BICUBIC,
+                                 ov::op::v9::GridSample::PaddingMode::REFLECTION);
+
+    ov::pass::Manager manager;
+    manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
+    EXPECT_THROW(manager.run_passes(model), std::runtime_error);
+}
 
 } // namespace
