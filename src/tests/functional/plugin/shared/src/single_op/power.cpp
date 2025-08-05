@@ -12,11 +12,7 @@
 namespace ov {
 namespace test {
 std::string PowerLayerTest::getTestCaseName(const testing::TestParamInfo<PowerParamsTuple> &obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::vector<float> power;
-    std::tie(shapes, model_type, power, device_name) = obj.param;
+    const auto& [shapes, model_type, power, device_name] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -40,10 +36,8 @@ std::string PowerLayerTest::getTestCaseName(const testing::TestParamInfo<PowerPa
 void PowerLayerTest::SetUp() {
     abs_threshold = 0.04f;
 
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::vector<float> power;
-    std::tie(shapes, model_type, power, targetDevice) = this->GetParam();
+    const auto& [shapes, model_type, power, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

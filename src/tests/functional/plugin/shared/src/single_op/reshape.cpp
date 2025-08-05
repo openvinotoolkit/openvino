@@ -8,12 +8,7 @@
 namespace ov {
 namespace test {
 std::string ReshapeLayerTest::getTestCaseName(const testing::TestParamInfo<reshapeParams>& obj) {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    std::vector<int64_t> out_form_shapes;
-    std::string target_device;
-    bool special_zero;
-    std::tie(special_zero, model_type, input_shape, out_form_shapes, target_device) = obj.param;
+    const auto& [special_zero, model_type, input_shape, out_form_shapes, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
     result << "OS=" << ov::test::utils::vec2str(out_form_shapes) << "_";
@@ -24,11 +19,8 @@ std::string ReshapeLayerTest::getTestCaseName(const testing::TestParamInfo<resha
 }
 
 void ReshapeLayerTest::SetUp() {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    std::vector<int64_t> out_form_shapes;
-    bool special_zero;
-    std::tie(special_zero, model_type, input_shape, out_form_shapes, targetDevice) = this->GetParam();
+    const auto& [special_zero, model_type, input_shape, out_form_shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape));
     auto const_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{out_form_shapes.size()}, out_form_shapes);
