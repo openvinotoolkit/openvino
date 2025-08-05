@@ -358,7 +358,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 [&](const_node_ptr &) -> bool {
                     auto& engine = m_context->get_engine();
                     const auto& info = engine.get_device_info();
-                    if (!(info.arch > cldnn::gpu_arch::xe_lp)) { // gpu with XMX
+                    if (!(info.supports_immad)) { // CM optimized for systolic-array architectures
                         return true;
                     }
 

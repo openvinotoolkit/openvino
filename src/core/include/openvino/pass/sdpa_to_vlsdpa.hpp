@@ -14,6 +14,11 @@ namespace pass {
 /**
  * @brief The transformation replaces SDPA in ViTs by VLSDPA operation.
  * The input "attention_mask" is replaced by "accumulated sequence lengths".
+ * Please note -
+ * 1. This pass applies to QWen2.x-VL models only, which relies on user (genai) to set
+ * rt_info of "model_type_hint".
+ * 2. The pass will change model inputs w.r.t input names, shape, and data type. Therefore,
+ * it should be applied at the beginning of transformation pipeline.
  * \ingroup ov_pass_cpp_api
  */
 class OPENVINO_API SDPAToVLSDPA : public ModelPass {
