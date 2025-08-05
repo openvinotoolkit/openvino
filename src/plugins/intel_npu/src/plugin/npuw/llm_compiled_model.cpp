@@ -1396,6 +1396,13 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             compiled->m_kvcache_compiled->m_import_weights_ctx.reset();
             compiled->m_prefill_compiled->finalize_weights_bank();
             compiled->m_prefill_compiled->m_import_weights_ctx.reset();
+
+            if (compiled->m_lm_head_compiled) {
+                compiled->m_lm_head_compiled->m_weights_bank = bank;
+
+                compiled->m_lm_head_compiled->finalize_weights_bank();
+                compiled->m_lm_head_compiled->m_import_weights_ctx.reset();
+            }
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -1405,6 +1412,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
             compiled->m_kvcache_compiled->reconstruct_closure();
             compiled->m_prefill_compiled->reconstruct_closure();
+
+            if (compiled->m_lm_head_compiled) {
+                compiled->m_lm_head_compiled->m_weights_bank = bank;
+
+                compiled->m_lm_head_compiled->reconstruct_closure();
+            }
         }
     };
 
