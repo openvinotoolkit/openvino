@@ -89,15 +89,16 @@ class TestSession:
     def __init__(self, executable, ir_cache_dirs, devices, api=None, report_reference=False):
         self.executable = executable
         self.test_name = executable.rsplit("/", 1)[-1].removesuffix(".exe").removeprefix("test_")
+        self.ir_cache_dirs = ir_cache_dirs
+        self.devices = devices
         self.report_api = api
+        self.report_reference = report_reference
+
         self.report_metadata = None
         self.reference_values = {}
         if self.report_api:
             self.detect_report_metadata()
             self.reference_values = self.api_get_reference_values()
-        self.ir_cache_dirs = ir_cache_dirs
-        self.devices = devices
-        self.report_reference = report_reference
 
     def api(self, method, data=None, **kwargs):
         extra_args = {"timeout": 5}
@@ -183,7 +184,7 @@ class TestSession:
                 "branch": os.environ.get("sourceBranch", "unknown"),
                 "target_branch": os.environ.get("targetBranch", "unknown"),
                 "log_path": os.environ.get("SHARED_LOG_PATH", ""),
-                "dldt_version": os.environ["TT_PRODUCT_BUILD_NUMBER"],
+                "dldt_version": build_number,
                 "ext": {}
             }
         except KeyError as err:
