@@ -551,7 +551,7 @@ void Eltwise::init() {
         float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
         auto& gamma = m_attrs.data.gamma;
 
-        if (gamma  < lowest) {
+        if (gamma < lowest) {
             gamma = lowest;
         }
 
@@ -559,7 +559,6 @@ void Eltwise::init() {
             gamma = max;
         }
     }
-
 }
 
 void Eltwise::getSupportedDescriptors() {
