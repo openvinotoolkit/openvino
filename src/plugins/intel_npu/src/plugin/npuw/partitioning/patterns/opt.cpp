@@ -1845,7 +1845,8 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
-PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep) {
+PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep,
+                                                           bool verify_only) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1876,10 +1877,30 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
 
         if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            to_keep.get().push_back(matched_qweight);
-            to_keep.get().push_back(matched_qzerop);
-            to_keep.get().push_back(matched_qcoeff);
-            return false;  // root hasn't changed
+            if (verify_only) {
+                // Insert dummy constant
+                to_keep.get().push_back({});
+                return false;
+            }
+            // Need to create new constants to allow memory detach during compilation
+            auto create_and_link_new_const = [&](const Context::CPtr& old_const) {
+                auto new_const =
+                    std::make_shared<ov::op::v0::Constant>(old_const->get_element_type(), old_const->get_shape());
+                std::memcpy(const_cast<void*>(new_const->get_data_ptr()),
+                            old_const->get_data_ptr(),
+                            old_const->get_byte_size());
+                for (auto&& r : old_const->get_output_target_inputs(0)) {
+                    r.replace_source_output(new_const);
+                }
+                return new_const;
+            };
+            auto new_w_c = create_and_link_new_const(matched_qweight);
+            auto new_z_c = create_and_link_new_const(matched_qzerop);
+            auto new_s_c = create_and_link_new_const(matched_qcoeff);
+            to_keep.get().push_back(new_w_c);
+            to_keep.get().push_back(new_z_c);
+            to_keep.get().push_back(new_s_c);
+            return true;  // root hasn't changed
         }
         return false;  // root hasn't changed
     };
@@ -1890,7 +1911,8 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
 //     Const(S) ----------------> Multiply -> MatMul -> Result
 //     ???(Act) ---------------------------->
 
-PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMulSymm::Results to_keep) {
+PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMulSymm::Results to_keep,
+                                                         bool verify_only) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
@@ -1917,9 +1939,28 @@ PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMul
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            to_keep.get().push_back(matched_qweight);
-            to_keep.get().push_back(matched_qcoeff);
-            return false;  // root hasn't changed
+            if (verify_only) {
+                // Insert dummy constant
+                to_keep.get().push_back({});
+                return false;
+            }
+            // Need to create new constants to allow memory detach during compilation
+            auto create_and_link_new_const = [&](const Context::CPtr& old_const) {
+                auto new_const =
+                    std::make_shared<ov::op::v0::Constant>(old_const->get_element_type(), old_const->get_shape());
+                std::memcpy(const_cast<void*>(new_const->get_data_ptr()),
+                            old_const->get_data_ptr(),
+                            old_const->get_byte_size());
+                for (auto&& r : old_const->get_output_target_inputs(0)) {
+                    r.replace_source_output(new_const);
+                }
+                return new_const;
+            };
+            auto new_w_c = create_and_link_new_const(matched_qweight);
+            auto new_s_c = create_and_link_new_const(matched_qcoeff);
+            to_keep.get().push_back(new_w_c);
+            to_keep.get().push_back(new_s_c);
+            return true;  // root hasn't changed
         }
         return false;  // root hasn't changed
     };

@@ -552,8 +552,8 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
     std::vector<CPtr> to_keep;
 
     ov::pass::GraphRewrite rewr2;
-    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
-    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep), true);
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep), true);
     rewr2.run_on_model(model);
     // Head or tail
     bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
