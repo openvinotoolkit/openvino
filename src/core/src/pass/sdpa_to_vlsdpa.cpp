@@ -21,7 +21,10 @@ SDPAToVLSDPA::SDPAToVLSDPA() = default;
 
 namespace {
 
-void reshape(std::shared_ptr<v0::Parameter> node, const ov::element::Type& dtype, const ov::PartialShape& partial_shape, const char* name) {
+void reshape(std::shared_ptr<v0::Parameter> node,
+             const ov::element::Type& dtype,
+             const ov::PartialShape& partial_shape,
+             const char* name) {
     // reshape Parameter node and reset its element type
     // append a new name for both node and output tensor
     node->set_element_type(dtype);
