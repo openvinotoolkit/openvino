@@ -21,7 +21,7 @@ class ConcatLayerCPUTest : public testing::WithParamInterface<concatCPUTestParam
                            virtual public SubgraphBaseTest,
                            public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<concatCPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<concatCPUTestParams>& obj) {
         const auto& [axis, inputShapes, netPrecision, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=";

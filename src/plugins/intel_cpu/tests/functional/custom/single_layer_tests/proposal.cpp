@@ -56,7 +56,7 @@ using proposalLayerTestCPUParams = std::tuple<std::vector<InputShape>,  // Input
 class ProposalLayerCPUTest : public testing::WithParamInterface<proposalLayerTestCPUParams>,
                              public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<proposalLayerTestCPUParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<proposalLayerTestCPUParams>& obj) {
         const auto& [inputShapes, proposalParams, netPrecision] = obj.param;
         const auto& [base_size, box_coordinate_scale, box_size_scale, clip_after_nms, clip_before_nms, feat_stride,
                      framework, min_size, nms_thresh, normalize, post_nms_topn, pre_nms_topn, ratio, scale] =
