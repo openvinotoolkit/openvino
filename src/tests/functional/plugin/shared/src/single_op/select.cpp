@@ -16,11 +16,7 @@ std::string SelectLayerTest::getTestCaseName(const testing::TestParamInfo<select
         return ss;
     };
 
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    ov::op::AutoBroadcastSpec broadcast;
-    std::string target_device;
-    std::tie(input_shapes, model_type, broadcast, target_device) = obj.param;
+    const auto& [input_shapes, model_type, broadcast, target_device] = obj.param;
     std::ostringstream result;
     result << "COND=BOOL" << shapes_ss(input_shapes[0]).str() <<
         "_THEN=" << model_type.to_string() << shapes_ss(input_shapes[1]).str() <<
@@ -31,10 +27,8 @@ std::string SelectLayerTest::getTestCaseName(const testing::TestParamInfo<select
 }
 
 void SelectLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    ov::op::AutoBroadcastSpec broadcast;
-    std::tie(input_shapes, model_type, broadcast, targetDevice) = this->GetParam();
+    const auto& [input_shapes, model_type, broadcast, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shapes);
 

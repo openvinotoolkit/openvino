@@ -15,14 +15,15 @@ using ov::test::utils::OpType;
 using ov::test::utils::EltwiseTypes;
 
 std::string EltwiseLayerTest::getTestCaseName(const testing::TestParamInfo<EltwiseTestParams>& obj) {
-    std::vector<InputShape> shapes;
-    ElementType model_type, in_type, out_type;
-    InputLayerType secondary_input_type;
-    OpType op_type;
-    EltwiseTypes eltwise_op_type;
-    std::string device_name;
-    ov::AnyMap additional_config;
-    std::tie(shapes, eltwise_op_type, secondary_input_type, op_type, model_type, in_type, out_type, device_name, additional_config) = obj.param;
+    const auto& [shapes,
+                 eltwise_op_type,
+                 secondary_input_type,
+                 op_type,
+                 model_type,
+                 in_type,
+                 out_type,
+                 device_name,
+                 additional_config] = obj.param;
     std::ostringstream results;
 
     results << "IS=(";
@@ -70,13 +71,20 @@ void EltwiseLayerTest::transformInputShapesAccordingEltwise(const ov::PartialSha
 }
 
 void EltwiseLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ElementType model_type;
-    InputLayerType secondary_input_type;
-    OpType op_type;
-    EltwiseTypes eltwise_type;
     Config additional_config;
-    std::tie(shapes, eltwise_type, secondary_input_type, op_type, model_type, inType, outType, targetDevice, configuration) = this->GetParam();
+    const auto& [shapes,
+                 eltwise_type,
+                 secondary_input_type,
+                 op_type,
+                 model_type,
+                 _inType,
+                 _outType,
+                 _targetDevice,
+                 _configuration] = this->GetParam();
+    inType = _inType;
+    outType = _outType;
+    targetDevice = _targetDevice;
+    configuration = _configuration;
     init_input_shapes(shapes);
 
     ov::ParameterVector parameters{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};

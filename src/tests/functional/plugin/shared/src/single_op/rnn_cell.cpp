@@ -14,19 +14,17 @@ namespace test {
 using utils::InputLayerType;
 
 std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellParams> &obj) {
-    bool should_decompose;
-    size_t batch;
-    size_t hidden_size;
-    size_t input_size;
-    std::vector<std::string> activations;
-    float clip;
-    InputLayerType WType;
-    InputLayerType RType;
-    InputLayerType BType;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, WType, RType, BType,
-             model_type, target_device) = obj.param;
+    const auto& [should_decompose,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 WType,
+                 RType,
+                 BType,
+                 model_type,
+                 target_device] = obj.param;
     std::vector<std::vector<size_t>> input_shapes = {{batch, input_size}, {batch, hidden_size},
                                      {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};
     std::ostringstream result;
@@ -46,20 +44,21 @@ std::string RNNCellTest::getTestCaseName(const testing::TestParamInfo<RNNCellPar
 }
 
 void RNNCellTest::SetUp() {
-    bool should_decompose;
-    size_t batch;
-    size_t hidden_size;
-    size_t input_size;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    InputLayerType WType;
-    InputLayerType RType;
-    InputLayerType BType;
-    ov::element::Type model_type;
-    std::tie(should_decompose, batch, hidden_size, input_size, activations, clip, WType, RType, BType,
-            model_type, targetDevice) = this->GetParam();
+
+    const auto& [should_decompose,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 WType,
+                 RType,
+                 BType,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     std::vector<std::vector<size_t>> input_shapes = {{batch, input_size}, {batch, hidden_size},
                                                     {hidden_size, input_size}, {hidden_size, hidden_size}, {hidden_size}};

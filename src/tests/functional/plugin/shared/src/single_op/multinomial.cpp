@@ -11,17 +11,14 @@ using namespace ov::test;
 namespace ov {
 namespace test {
 std::string MultinomialLayerTest::getTestCaseName(const testing::TestParamInfo<MultinomialTestParams>& obj) {
-    std::string test_type;
-    ov::Tensor probs;
-    ov::Tensor num_samples;
-    ov::test::ElementType convert_type;
-    bool with_replacement;
-    bool log_probs;
-    std::pair<uint64_t, uint64_t> global_op_seed;
-    std::string device_name;
-
-    std::tie(test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, device_name) =
-        obj.param;
+    const auto& [test_type,
+                 probs,
+                 num_samples,
+                 convert_type,
+                 with_replacement,
+                 log_probs,
+                 global_op_seed,
+                 device_name] = obj.param;
 
     uint64_t global_seed = global_op_seed.first;
     uint64_t op_seed = global_op_seed.second;
@@ -49,16 +46,15 @@ std::string MultinomialLayerTest::getTestCaseName(const testing::TestParamInfo<M
 void MultinomialLayerTest::SetUp() {
     MultinomialTestParams test_params;
 
-    std::string test_type;
-    ov::Tensor probs;
-    ov::Tensor num_samples;
-    ov::test::ElementType convert_type;
-    bool with_replacement;
-    bool log_probs;
-    std::pair<uint64_t, uint64_t> global_op_seed;
-
-    std::tie(test_type, probs, num_samples, convert_type, with_replacement, log_probs, global_op_seed, targetDevice) =
-        GetParam();
+    const auto& [test_type,
+                 probs,
+                 num_samples,
+                 convert_type,
+                 with_replacement,
+                 log_probs,
+                 global_op_seed,
+                 _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     m_probs = probs;
     m_num_samples = num_samples;

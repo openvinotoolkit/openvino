@@ -11,10 +11,8 @@
 
 std::string AddOutputsTest::getTestCaseName(const testing::TestParamInfo<addOutputsParams> &obj) {
     std::ostringstream results;
-    std::shared_ptr<ov::Model> net;
-    std::vector<std::string> outputsToAdd;
-    std::string deviceName;
-    std::tie(net, outputsToAdd, deviceName) = obj.param;
+
+    const auto& [net, outputsToAdd, deviceName] = obj.param;
     results << "Outputs=" << ov::test::utils::vec2str<std::string>(outputsToAdd);
     results << "Dev=" << deviceName;
     return results.str();
@@ -25,10 +23,7 @@ void AddOutputsTest::SetUp() {
 }
 
 TEST_P(AddOutputsTest, smoke_CheckOutputExist) {
-    std::shared_ptr<ov::Model> net;
-    std::vector<std::string> outputsToAdd;
-    std::string deviceName;
-    std::tie(net, outputsToAdd, deviceName) = GetParam();
+    const auto& [net, outputsToAdd, deviceName] = GetParam();
     std::vector<std::string> expectedOutputs = outputsToAdd;
     for (const auto &out : net->outputs()) {
         expectedOutputs.push_back(out.get_any_name());

@@ -123,9 +123,8 @@ void GraphCache::update_cache(const std::shared_ptr<ov::Model>& extracted_model,
                                                                        input_info, cached_model.second.get_input_info());
                     // in case if one model is subgraph of other to update model meta info and remove subgraph from cache
                     if (std::get<0>(is_subgraph)) {
-                        std::shared_ptr<ov::Model> graph, subgraph;
-                        std::map<std::string, ov::conformance::InputInfo> graph_in_info, subgraph_in_info;
-                        std::tie(std::ignore, subgraph, graph, subgraph_in_info, graph_in_info) = is_subgraph;
+                        const auto& [_ignore, subgraph, graph, subgraph_in_info, graph_in_info] = is_subgraph;
+                        std::ignore = _ignore;
                         if (subgraph == cached_model.first) {
                             auto meta = m_graph_cache[subgraph];
                             meta.set_input_info(graph_in_info);

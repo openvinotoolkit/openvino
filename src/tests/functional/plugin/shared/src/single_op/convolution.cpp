@@ -14,16 +14,9 @@
 namespace ov {
 namespace test {
 std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<convLayerTestParamsSet>& obj) {
-    convSpecificParams conv_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string targetDevice;
-    std::tie(conv_params, model_type, shapes, targetDevice) = obj.param;
-    ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<ptrdiff_t> pad_begin, pad_end;
-    size_t conv_out_channels;
-    std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, pad_type) = conv_params;
+    const auto& [conv_params, model_type, shapes, targetDevice] = obj.param;
+
+    const auto& [kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, pad_type] = conv_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -51,17 +44,11 @@ std::string ConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<c
 }
 
 void ConvolutionLayerTest::SetUp() {
-    convSpecificParams conv_params;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(conv_params, model_type, shapes, targetDevice) = this->GetParam();
+    const auto& [conv_params, model_type, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
-    ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<ptrdiff_t> pad_begin, pad_end;
-    size_t conv_out_channels;
-    std::tie(kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, pad_type) = conv_params;
+    const auto& [kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, pad_type] = conv_params;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 

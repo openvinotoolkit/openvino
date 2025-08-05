@@ -17,10 +17,8 @@ namespace test {
 namespace behavior {
 
 std::string OVCompiledGraphImportExportTest::getTestCaseName(testing::TestParamInfo<OVCompiledGraphImportExportTestParams> obj) {
-    ov::element::Type_t elementType;
-    std::string targetDevice;
-    ov::AnyMap configuration;
-    std::tie(elementType, targetDevice, configuration) = obj.param;
+    const auto& [elementType, _targetDevice, configuration] = obj.param;
+    auto targetDevice = _targetDevice;
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << "_";
@@ -313,10 +311,8 @@ TEST_P(OVClassCompiledModelImportExportTestP, smoke_ImportNetworkThrowWithDevice
 //
 
 std::string OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName(testing::TestParamInfo<OVCompiledModelGraphUniqueNodeNamesTestParams> obj) {
-    ov::element::Type netPrecision;
-    ov::Shape inputShapes;
-    std::string targetDevice;
-    std::tie(netPrecision, inputShapes, targetDevice) = obj.param;
+    const auto& [netPrecision, inputShapes, _targetDevice] = obj.param;
+    auto targetDevice = _targetDevice;
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '_');
 
     std::ostringstream result;
@@ -327,10 +323,9 @@ std::string OVCompiledModelGraphUniqueNodeNamesTest::getTestCaseName(testing::Te
 }
 
 void OVCompiledModelGraphUniqueNodeNamesTest::SetUp() {
-    ov::Shape inputShape;
-    ov::element::Type netPrecision;
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::tie(netPrecision, inputShape, target_device) = this->GetParam();
+    const auto& [netPrecision, inputShape, _target_device] = this->GetParam();
+    target_device = _target_device;
 
     APIBaseTest::SetUp();
 
@@ -785,9 +780,7 @@ TEST_P(OVExecGraphSerializationTest, ExecutionGraph) {
     }
     ASSERT_TRUE(result.load_file(m_out_xml_path.c_str()));
 
-    bool status;
-    std::string message;
-    std::tie(status, message) = this->compare_docs(expected, result);
+    const auto& [status, message] = this->compare_docs(expected, result);
 
     ASSERT_TRUE(status) << message;
 }

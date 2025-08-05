@@ -11,25 +11,22 @@
 namespace ov {
 namespace test {
 std::string MulticlassNmsLayerTest::getTestCaseName(const testing::TestParamInfo<MulticlassNmsParams>& obj) {
-    std::vector<InputShape> shapes;
-    InputTypes input_types;
-    int32_t nmsTopK, backgroundClass, keepTopK;
-    element::Type outType;
-    op::util::MulticlassNmsBase::SortResultType sortResultType;
-    InputfloatVar inFloatVar;
-    InputboolVar inboolVar;
-    std::string targetDevice;
+    const auto& [shapes,
+                 input_types,
+                 nmsTopK,
+                 inFloatVar,
+                 backgroundClass,
+                 keepTopK,
+                 outType,
+                 sortResultType,
+                 inboolVar,
+                 targetDevice] = obj.param;
 
-    std::tie(shapes, input_types, nmsTopK, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice) = obj.param;
+    const auto& [paramsPrec, roisnumPrec] = input_types;
 
-    ElementType paramsPrec, roisnumPrec;
-    std::tie(paramsPrec, roisnumPrec) = input_types;
+    const auto& [iouThr, scoreThr, nmsEta] = inFloatVar;
 
-    float iouThr, scoreThr, nmsEta;
-    std::tie(iouThr, scoreThr, nmsEta) = inFloatVar;
-
-    bool sortResCB, normalized;
-    std::tie(sortResCB, normalized) = inboolVar;
+    const auto& [sortResCB, normalized] = inboolVar;
 
     std::ostringstream result;
     result << "IS=(";
@@ -115,30 +112,27 @@ void MulticlassNmsLayerTest::generate_inputs(const std::vector<ov::Shape>& targe
 }
 
 void MulticlassNmsLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    InputTypes input_types;
-    size_t maxOutBoxesPerClass, backgroundClass, keepTopK;
-    element::Type outType;
-
-    op::util::MulticlassNmsBase::SortResultType sortResultType;
-
-    InputfloatVar inFloatVar;
-    InputboolVar inboolVar;
     ov::op::util::MulticlassNmsBase::Attributes attrs;
 
-    std::tie(shapes, input_types, maxOutBoxesPerClass, inFloatVar, backgroundClass, keepTopK, outType, sortResultType, inboolVar, targetDevice)
-        = this->GetParam();
+    const auto& [shapes,
+                 input_types,
+                 maxOutBoxesPerClass,
+                 inFloatVar,
+                 backgroundClass,
+                 keepTopK,
+                 outType,
+                 sortResultType,
+                 inboolVar,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
 
-    ElementType paramsPrec, roisnumPrec;
-    std::tie(paramsPrec, roisnumPrec) = input_types;
+    const auto& [paramsPrec, roisnumPrec] = input_types;
 
-    float iouThr, scoreThr, nmsEta;
-    std::tie(iouThr, scoreThr, nmsEta) = inFloatVar;
+    const auto& [iouThr, scoreThr, nmsEta] = inFloatVar;
 
-    bool sortResCB, normalized;
-    std::tie(sortResCB, normalized) = inboolVar;
+    const auto& [sortResCB, normalized] = inboolVar;
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(paramsPrec, inputDynamicShapes.at(0)),
                                 std::make_shared<ov::op::v0::Parameter>(paramsPrec, inputDynamicShapes.at(1))};

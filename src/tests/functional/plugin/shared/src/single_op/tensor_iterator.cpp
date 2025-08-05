@@ -16,19 +16,18 @@
 namespace ov {
 namespace test {
 std::string TensorIteratorTest::getTestCaseName(const testing::TestParamInfo<TensorIteratorParams> &obj) {
-    bool should_decompose;
-    size_t seq_lengths;
-    size_t batch;
-    size_t hidden_size;
     size_t input_size = 10;
-    size_t sequence_axis;
-    ov::test::utils::TensorIteratorBody ti_body;
-    float clip;
-    ov::op::RecurrentSequenceDirection direction;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(should_decompose, seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, model_type,
-                target_device) = obj.param;
+
+    const auto& [should_decompose,
+                 seq_lengths,
+                 batch,
+                 hidden_size,
+                 sequence_axis,
+                 clip,
+                 ti_body,
+                 direction,
+                 model_type,
+                 target_device] = obj.param;
     std::vector<ov::Shape> input_shapes = {};
 
     switch (ti_body) {
@@ -67,18 +66,19 @@ std::string TensorIteratorTest::getTestCaseName(const testing::TestParamInfo<Ten
 }
 
 void TensorIteratorTest::SetUp() {
-    size_t seq_lengths;
-    bool should_decompose;
-    size_t batch;
-    size_t hidden_size;
     size_t input_size = 10;
-    size_t sequence_axis;
-    ov::test::utils::TensorIteratorBody ti_body;
-    float clip;
-    ov::op::RecurrentSequenceDirection direction;
-    ov::element::Type model_type;
-    std::tie(should_decompose, seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, model_type,
-                targetDevice) = this->GetParam();
+
+    const auto& [should_decompose,
+                 seq_lengths,
+                 batch,
+                 hidden_size,
+                 sequence_axis,
+                 clip,
+                 ti_body,
+                 direction,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     std::vector<ov::Shape> input_shapes;
     auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();
 

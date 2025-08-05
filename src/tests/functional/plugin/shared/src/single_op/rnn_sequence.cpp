@@ -17,21 +17,20 @@ namespace ov {
 namespace test {
 
 std::string RNNSequenceTest::getTestCaseName(const testing::TestParamInfo<RNNSequenceParams> &obj) {
-    SequenceTestsMode mode;
-    size_t seq_lengths;
-    size_t batch;
-    size_t hidden_size;
-    size_t input_size;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    ov::op::RecurrentSequenceDirection direction;
-    ov::element::Type model_type;
-    InputLayerType WRBType;
-    std::string target_device;
-    std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, WRBType,
-            model_type, target_device) = obj.param;
+
+    const auto& [mode,
+                 seq_lengths,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 direction,
+                 WRBType,
+                 model_type,
+                 target_device] = obj.param;
     std::vector<std::vector<size_t>> input_shapes = {
             {{batch, input_size}, {batch, hidden_size}, {batch, hidden_size}, {hidden_size, input_size},
                     {hidden_size, hidden_size}, {hidden_size}},
@@ -52,20 +51,21 @@ std::string RNNSequenceTest::getTestCaseName(const testing::TestParamInfo<RNNSeq
 }
 
 void RNNSequenceTest::SetUp() {
-    SequenceTestsMode mode;
-    size_t seq_lengths;
-    size_t batch;
-    size_t hidden_size;
-    size_t input_size;
-    std::vector<std::string> activations;
     std::vector<float> activations_alpha;
     std::vector<float> activations_beta;
-    float clip;
-    ov::op::RecurrentSequenceDirection direction;
-    InputLayerType WRBType;
-    ov::element::Type model_type;
-    std::tie(mode, seq_lengths, batch, hidden_size, input_size, activations, clip, direction, WRBType,
-            model_type, targetDevice) = this->GetParam();
+
+    const auto& [mode,
+                 seq_lengths,
+                 batch,
+                 hidden_size,
+                 input_size,
+                 activations,
+                 clip,
+                 direction,
+                 WRBType,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     size_t num_directions = direction == ov::op::RecurrentSequenceDirection::BIDIRECTIONAL ? 2 : 1;
     std::vector<ov::Shape> input_shapes = {

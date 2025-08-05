@@ -13,18 +13,7 @@ using ov::test::utils::ComparisonTypes;
 using ov::test::utils::InputLayerType;
 
 std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<ComparisonTestParams> &obj) {
-    std::vector<InputShape> shapes;
-    ComparisonTypes comparison_op_type;
-    InputLayerType second_input_type;
-    ov::element::Type model_type;
-    std::string device_name;
-    std::map<std::string, std::string> additional_config;
-    std::tie(shapes,
-             comparison_op_type,
-             second_input_type,
-             model_type,
-             device_name,
-             additional_config) = obj.param;
+    const auto& [shapes, comparison_op_type, second_input_type, model_type, device_name, additional_config] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -47,17 +36,9 @@ std::string ComparisonLayerTest::getTestCaseName(const testing::TestParamInfo<Co
 }
 
 void ComparisonLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    InputLayerType second_input_type;
-    std::map<std::string, std::string> additional_config;
-    ov::element::Type model_type;
-    ov::test::utils::ComparisonTypes comparison_op_type;
-    std::tie(shapes,
-             comparison_op_type,
-             second_input_type,
-             model_type,
-             targetDevice,
-             additional_config) = this->GetParam();
+    const auto& [shapes, comparison_op_type, second_input_type, model_type, _targetDevice, additional_config] =
+        this->GetParam();
+    targetDevice = _targetDevice;
     configuration.insert(additional_config.begin(), additional_config.end());
     init_input_shapes(shapes);
 

@@ -9,15 +9,13 @@
 namespace ov {
 namespace test {
 std::string ReverseSequenceLayerTest::getTestCaseName(const testing::TestParamInfo<ReverseSequenceParamsTuple> &obj) {
-    int64_t batch_axis_idx;
-    int64_t seq_axis_idx;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::vector<size_t> input_shape;
-    std::vector<size_t> second_input_shape;
-    ov::test::utils::InputLayerType secondary_input_type;
-
-    std::tie(batch_axis_idx, seq_axis_idx, input_shape, second_input_shape, secondary_input_type, model_type, target_device) = obj.param;
+    const auto& [batch_axis_idx,
+                 seq_axis_idx,
+                 input_shape,
+                 second_input_shape,
+                 secondary_input_type,
+                 model_type,
+                 target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -31,14 +29,14 @@ std::string ReverseSequenceLayerTest::getTestCaseName(const testing::TestParamIn
 }
 
 void ReverseSequenceLayerTest::SetUp() {
-    ov::element::Type model_type;
-    int64_t batch_axis_idx;
-    int64_t seq_axis_idx;
-    std::vector<size_t> input_shape;
-    std::vector<size_t> second_input_shape;
-    ov::test::utils::InputLayerType secondary_input_type;
-
-    std::tie(batch_axis_idx, seq_axis_idx, input_shape, second_input_shape, secondary_input_type, model_type, targetDevice) = GetParam();
+    const auto& [batch_axis_idx,
+                 seq_axis_idx,
+                 input_shape,
+                 second_input_shape,
+                 secondary_input_type,
+                 model_type,
+                 _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape))};
     auto second_data_type = ov::element::i32; //according to the specification

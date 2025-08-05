@@ -16,14 +16,8 @@ std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamIn
         return ss;
     };
 
-    scatterNDUpdateSpecParams shapes_desc;
-    std::vector<InputShape> input_shapes;
-    ov::Shape indices_shape;
-    std::vector<int> indices_value;
-    ov::element::Type model_type, indices_type;
-    std::string target_device;
-    std::tie(shapes_desc, model_type, indices_type, target_device) = obj.param;
-    std::tie(input_shapes, indices_shape, indices_value) = shapes_desc;
+    const auto& [shapes_desc, model_type, indices_type, target_device] = obj.param;
+    const auto& [input_shapes, indices_shape, indices_value] = shapes_desc;
 
     std::ostringstream result;
     result << "InputShape=" << shapes_ss(input_shapes.at(0)).str() << "_";
@@ -37,13 +31,9 @@ std::string ScatterNDUpdateLayerTest::getTestCaseName(const testing::TestParamIn
 }
 
 void ScatterNDUpdateLayerTest::SetUp() {
-    scatterNDUpdateSpecParams shapes_desc;
-    std::vector<InputShape> input_shapes;
-    ov::Shape indices_shape;
-    std::vector<int> indices_value;
-    ov::element::Type model_type, indices_type;
-    std::tie(shapes_desc, model_type, indices_type, targetDevice) = this->GetParam();
-    std::tie(input_shapes, indices_shape, indices_value) = shapes_desc;
+    const auto& [shapes_desc, model_type, indices_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [input_shapes, indices_shape, indices_value] = shapes_desc;
 
     init_input_shapes(input_shapes);
 
@@ -63,15 +53,8 @@ std::string ScatterNDUpdate15LayerTest::getTestCaseName(const testing::TestParam
         return ss;
     };
 
-    scatterNDUpdateSpecParams shapes_desc;
-    std::vector<InputShape> input_shapes;
-    ov::Shape indices_shape;
-    std::vector<int> indices_value;
-    ov::element::Type model_type, indices_type;
-    ov::op::v15::ScatterNDUpdate::Reduction reduceMode;
-    std::string target_device;
-    std::tie(shapes_desc, reduceMode, model_type, indices_type, target_device) = obj.param;
-    std::tie(input_shapes, indices_shape, indices_value) = shapes_desc;
+    const auto& [shapes_desc, reduceMode, model_type, indices_type, target_device] = obj.param;
+    const auto& [input_shapes, indices_shape, indices_value] = shapes_desc;
 
     std::ostringstream result;
     result << "InputShape=" << shapes_ss(input_shapes.at(0)).str() << "_";
@@ -86,14 +69,9 @@ std::string ScatterNDUpdate15LayerTest::getTestCaseName(const testing::TestParam
 }
 
 void ScatterNDUpdate15LayerTest::SetUp() {
-    scatterNDUpdateSpecParams shapes_desc;
-    std::vector<InputShape> input_shapes;
-    ov::Shape indices_shape;
-    std::vector<int> indices_value;
-    ov::element::Type model_type, indices_type;
-    ov::op::v15::ScatterNDUpdate::Reduction reduceMode;
-    std::tie(shapes_desc, reduceMode, model_type, indices_type, targetDevice) = this->GetParam();
-    std::tie(input_shapes, indices_shape, indices_value) = shapes_desc;
+    const auto& [shapes_desc, reduceMode, model_type, indices_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [input_shapes, indices_shape, indices_value] = shapes_desc;
 
     init_input_shapes(input_shapes);
 

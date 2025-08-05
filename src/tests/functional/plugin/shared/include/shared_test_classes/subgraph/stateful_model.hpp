@@ -237,9 +237,8 @@ public:
             auto outputTensor = inferRequest.get_output_tensor(0);
             ASSERT_TRUE(outputTensor);
             inferRequest.infer();
-            std::vector<float> expected_state0;
-            std::vector<float> expected_results;
-            std::tie(expected_state0, expected_results) = calc_refs();
+
+            const auto& [expected_state0, expected_results] = calc_refs();
 
             auto states = inferRequest.query_state();
             ASSERT_FALSE(states.empty());
@@ -538,9 +537,8 @@ public:
             ASSERT_TRUE(outputTensor1);
             ASSERT_TRUE(outputTensor2);
             inferRequest.infer();
-            std::vector<float> result1;
-            std::vector<float> result2;
-            std::tie(result1, result2) = calc_refs(input_shape, vec_state);
+
+            const auto& [result1, result2] = calc_refs(input_shape, vec_state);
             ASSERT_EQ(result1.size(), outputTensor1.get_shape()[1]);
             ASSERT_EQ(result2.size(), outputTensor2.get_shape()[1]);
             auto actual_res1 = outputTensor1.data<ov::element_type_traits<testPrc>::value_type>();

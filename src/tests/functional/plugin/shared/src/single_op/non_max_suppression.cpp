@@ -11,30 +11,20 @@ namespace ov {
 namespace test {
 
 std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
-    InputShapeParams input_shape_params;
-    InputTypes input_types;
-    int32_t max_out_boxes_per_class;
-    float iou_thr, score_thr, soft_nms_sigma;
-    op::v5::NonMaxSuppression::BoxEncodingType box_encoding;
-    bool sort_res_descend;
-    element::Type out_type;
-    std::string target_device;
-    std::tie(input_shape_params,
-             input_types,
-             max_out_boxes_per_class,
-             iou_thr,
-             score_thr,
-             soft_nms_sigma,
-             box_encoding,
-             sort_res_descend,
-             out_type,
-             target_device) = obj.param;
+    const auto& [input_shape_params,
+                 input_types,
+                 max_out_boxes_per_class,
+                 iou_thr,
+                 score_thr,
+                 soft_nms_sigma,
+                 box_encoding,
+                 sort_res_descend,
+                 out_type,
+                 target_device] = obj.param;
 
-    size_t num_batches, num_boxes, num_classes;
-    std::tie(num_batches, num_boxes, num_classes) = input_shape_params;
+    const auto& [num_batches, num_boxes, num_classes] = input_shape_params;
 
-    ov::element::Type params_type, max_box_type, thr_type;
-    std::tie(params_type, max_box_type, thr_type) = input_types;
+    const auto& [params_type, max_box_type, thr_type] = input_types;
 
     using ov::operator<<;
     std::ostringstream result;
@@ -49,29 +39,23 @@ std::string NmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams
 }
 
 void NmsLayerTest::SetUp() {
-    InputTypes input_types;
-    InputShapeParams input_shape_params;
-    int max_out_boxes_per_class;
-    float iou_thr, score_thr, soft_nms_sigma;
-    op::v5::NonMaxSuppression::BoxEncodingType box_encoding;
-    bool sort_res_descend;
-    element::Type out_type;
-    std::tie(input_shape_params,
-             input_types,
-             max_out_boxes_per_class,
-             iou_thr,
-             score_thr,
-             soft_nms_sigma,
-             box_encoding,
-             sort_res_descend,
-             out_type,
-             targetDevice) = this->GetParam();
+    const auto& [input_shape_params,
+                 input_types,
+                 max_out_boxes_per_class,
+                 iou_thr,
+                 score_thr,
+                 soft_nms_sigma,
+                 box_encoding,
+                 sort_res_descend,
+                 out_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
-    size_t num_classes;
-    std::tie(m_num_batches, m_num_boxes, num_classes) = input_shape_params;
+    const auto& [_m_num_batches, _m_num_boxes, num_classes] = input_shape_params;
+    m_num_batches = _m_num_batches;
+    m_num_boxes = _m_num_boxes;
 
-    ov::element::Type params_type, max_box_type, thr_type;
-    std::tie(params_type, max_box_type, thr_type) = input_types;
+    const auto& [params_type, max_box_type, thr_type] = input_types;
 
     const ov::Shape boxes_shape{m_num_batches, m_num_boxes, 4}, scores_shape{m_num_batches, num_classes, m_num_boxes};
 
@@ -99,34 +83,29 @@ void NmsLayerTest::SetUp() {
 }
 
 void Nms9LayerTest::SetUp() {
-    InputTypes input_types;
-    InputShapeParams input_shape_params;
-    int max_out_boxes_per_class;
-    float iou_thr, score_thr, soft_nms_sigma;
-    op::v5::NonMaxSuppression::BoxEncodingType box_encoding;
     op::v9::NonMaxSuppression::BoxEncodingType box_encoding_v9;
-    bool sort_res_descend;
-    ov::element::Type out_type;
-    std::tie(input_shape_params,
-             input_types,
-             max_out_boxes_per_class,
-             iou_thr,
-             score_thr,
-             soft_nms_sigma,
-             box_encoding,
-             sort_res_descend,
-             out_type,
-             targetDevice) = this->GetParam();
+
+    const auto& [input_shape_params,
+                 input_types,
+                 max_out_boxes_per_class,
+                 iou_thr,
+                 score_thr,
+                 soft_nms_sigma,
+                 box_encoding,
+                 sort_res_descend,
+                 out_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     box_encoding_v9 = box_encoding == op::v5::NonMaxSuppression::BoxEncodingType::CENTER
                           ? op::v9::NonMaxSuppression::BoxEncodingType::CENTER
                           : op::v9::NonMaxSuppression::BoxEncodingType::CORNER;
 
-    size_t num_classes;
-    std::tie(m_num_batches, m_num_boxes, num_classes) = input_shape_params;
+    const auto& [_m_num_batches, _m_num_boxes, num_classes] = input_shape_params;
+    m_num_batches = _m_num_batches;
+    m_num_boxes = _m_num_boxes;
 
-    ov::element::Type params_type, max_box_type, thr_type;
-    std::tie(params_type, max_box_type, thr_type) = input_types;
+    const auto& [params_type, max_box_type, thr_type] = input_types;
 
     const std::vector<size_t> boxes_shape{m_num_batches, m_num_boxes, 4}, scores_shape{m_num_batches, num_classes, m_num_boxes};
 

@@ -26,12 +26,7 @@ std::ostream& operator<<(std::ostream& os, const midOutputType& oType) {
 }
 
 std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo<outputBeforeActivationParams>& obj) {
-    std::string targetDevice;
-    ov::element::Type element_type;
-    size_t inputSize;
-    midOutputType outputType;
-    ov::AnyMap config;
-    std::tie(targetDevice, element_type, inputSize, outputType, config) = obj.param;
+    const auto& [targetDevice, element_type, inputSize, outputType, config] = obj.param;
     std::ostringstream result;
 
     result << "InputType=" << element_type << "_";
@@ -45,11 +40,8 @@ std::string OutputBeforeActivation::getTestCaseName(const testing::TestParamInfo
 }
 
 void OutputBeforeActivation::SetUp() {
-    ov::element::Type element_type;
-    ov::AnyMap config;
-    size_t inputSize;
-    midOutputType outputType;
-    std::tie(targetDevice, element_type, inputSize, outputType, config) = this->GetParam();
+    const auto& [_targetDevice, element_type, inputSize, outputType, config] = this->GetParam();
+    targetDevice = _targetDevice;
     configuration.insert(config.begin(), config.end());
 
     std::vector<size_t> input_dims{1, inputSize};

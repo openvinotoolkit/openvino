@@ -12,13 +12,7 @@
 namespace ov {
 namespace test {
 std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Params>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    ov::AxisSet axes;
-    bool across_channels, normalize_variance;
-    double eps;
-    std::string target_device;
-    std::tie(shapes, model_type, axes, across_channels, normalize_variance, eps, target_device) = obj.param;
+    const auto& [shapes, model_type, axes, across_channels, normalize_variance, eps, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -45,12 +39,8 @@ std::string Mvn1LayerTest::getTestCaseName(const testing::TestParamInfo<mvn1Para
 }
 
 void Mvn1LayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    ov::AxisSet axes;
-    bool across_channels, normalize_variance;
-    double eps;
-    std::tie(shapes, model_type, axes, across_channels, normalize_variance, eps, targetDevice) = this->GetParam();
+    const auto& [shapes, model_type, axes, across_channels, normalize_variance, eps, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
@@ -80,15 +70,7 @@ void Mvn1LayerTest::SetUp() {
 }
 
 std::string Mvn6LayerTest::getTestCaseName(const testing::TestParamInfo<mvn6Params>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    ov::element::Type axis_type;
-    std::vector<int> axes;
-    bool normalize_variance;
-    float eps;
-    std::string eps_mode;
-    std::string target_device;
-    std::tie(shapes, model_type, axis_type, axes, normalize_variance, eps, eps_mode, target_device) = obj.param;
+    const auto& [shapes, model_type, axis_type, axes, normalize_variance, eps, eps_mode, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < shapes.size(); i++) {
@@ -113,14 +95,9 @@ std::string Mvn6LayerTest::getTestCaseName(const testing::TestParamInfo<mvn6Para
 }
 
 void Mvn6LayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    ov::element::Type axis_type;
-    std::vector<int> axes;
-    bool normalize_variance;
-    float eps;
-    std::string eps_mode;
-    std::tie(shapes, model_type, axis_type, axes, normalize_variance, eps, eps_mode, targetDevice) = this->GetParam();
+    const auto& [shapes, model_type, axis_type, axes, normalize_variance, eps, eps_mode, _targetDevice] =
+        this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

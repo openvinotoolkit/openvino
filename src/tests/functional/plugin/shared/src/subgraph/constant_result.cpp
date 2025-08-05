@@ -26,12 +26,7 @@ std::ostream& operator<<(std::ostream& os, ConstantSubgraphType type) {
 }
 
 std::string ConstantResultSubgraphTest::getTestCaseName(const testing::TestParamInfo<constResultParams>& obj) {
-    ConstantSubgraphType type;
-    ov::Shape input_shape;
-    ov::element::Type input_type;
-    std::string target_device;
-
-    std::tie(type, input_shape, input_type, target_device) = obj.param;
+    const auto& [type, input_shape, input_type, target_device] = obj.param;
     std::ostringstream result;
     result << "SubgraphType=" << type << "_";
     result << "IS=" << input_shape << "_";
@@ -66,10 +61,8 @@ void ConstantResultSubgraphTest::createGraph(const ConstantSubgraphType& type,
 }
 
 void ConstantResultSubgraphTest::SetUp() {
-    ConstantSubgraphType type;
-    ov::Shape input_shape;
-    ov::element::Type input_type;
-    std::tie(type, input_shape, input_type, targetDevice) = this->GetParam();
+    const auto& [type, input_shape, input_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     createGraph(type, input_shape, input_type);
 }

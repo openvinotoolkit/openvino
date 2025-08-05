@@ -10,12 +10,7 @@
 namespace ov {
 namespace test {
 std::string IsInfLayerTest::getTestCaseName(const testing::TestParamInfo<IsInfParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    bool detect_negative, detect_positive;
-    std::string target_name;
-    ov::AnyMap additional_config;
-    std::tie(shapes, detect_negative, detect_positive, model_type, target_name, additional_config) = obj.param;
+    const auto& [shapes, detect_negative, detect_positive, model_type, target_name, additional_config] = obj.param;
     std::ostringstream result;
 
     result << "IS=(";
@@ -42,11 +37,9 @@ std::string IsInfLayerTest::getTestCaseName(const testing::TestParamInfo<IsInfPa
 }
 
 void IsInfLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ElementType model_type;
-    bool detect_negative, detect_positive;
-    ov::AnyMap additional_config;
-    std::tie(shapes, detect_negative, detect_positive, model_type, targetDevice, additional_config) = this->GetParam();
+    const auto& [shapes, detect_negative, detect_positive, model_type, _targetDevice, additional_config] =
+        this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
     configuration.insert(additional_config.begin(), additional_config.end());

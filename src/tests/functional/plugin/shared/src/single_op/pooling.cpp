@@ -15,18 +15,9 @@ namespace test {
 using ov::test::utils::PoolingTypes;
 
 std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolLayerTestParamsSet>& obj) {
-    poolSpecificParams pool_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string targetDevice;
-    std::tie(pool_params, model_type, shapes, targetDevice) = obj.param;
-    PoolingTypes pool_type;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> pad_begin, pad_end;
-    ov::op::PadType pad_type;
-    ov::op::RoundingType rounding_type;
-    bool excludePad;
-    std::tie(pool_type, kernel, stride, pad_begin, pad_end, rounding_type, pad_type, excludePad) = pool_params;
+    const auto& [pool_params, model_type, shapes, targetDevice] = obj.param;
+
+    const auto& [pool_type, kernel, stride, pad_begin, pad_end, rounding_type, pad_type, excludePad] = pool_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -62,17 +53,10 @@ std::string PoolingLayerTest::getTestCaseName(const testing::TestParamInfo<poolL
 }
 
 void PoolingLayerTest::SetUp() {
-    poolSpecificParams pool_params;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(pool_params, model_type, shapes, targetDevice) = this->GetParam();
-    PoolingTypes pool_type;
-    std::vector<size_t> kernel, stride;
-    std::vector<size_t> pad_begin, pad_end;
-    ov::op::PadType pad_type;
-    ov::op::RoundingType rounding_type;
-    bool excludePad;
-    std::tie(pool_type, kernel, stride, pad_begin, pad_end, rounding_type, pad_type, excludePad) = pool_params;
+    const auto& [pool_params, model_type, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+
+    const auto& [pool_type, kernel, stride, pad_begin, pad_end, rounding_type, pad_type, excludePad] = pool_params;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
@@ -90,18 +74,10 @@ void PoolingLayerTest::SetUp() {
 
 
 std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<maxPoolV8LayerTestParamsSet>& obj) {
-    maxPoolV8SpecificParams pool_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string target_device;
-    std::tie(pool_params, model_type, shapes, target_device) = obj.param;
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> pad_begin, pad_end;
-    ov::op::PadType pad_type;
-    ov::op::RoundingType rounding_type;
-    ov::element::Type index_element_type;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, pad_begin, pad_end, index_element_type, axis, rounding_type, pad_type) = pool_params;
+    const auto& [pool_params, model_type, shapes, target_device] = obj.param;
+
+    const auto& [kernel, stride, dilation, pad_begin, pad_end, index_element_type, axis, rounding_type, pad_type] =
+        pool_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -131,17 +107,11 @@ std::string MaxPoolingV8LayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void MaxPoolingV8LayerTest::SetUp() {
-    maxPoolV8SpecificParams pool_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::tie(pool_params, model_type, shapes, targetDevice) = this->GetParam();
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<size_t> pad_begin, pad_end;
-    ov::op::PadType pad_type;
-    ov::op::RoundingType rounding_type;
-    ov::element::Type index_element_type;
-    int64_t axis;
-    std::tie(kernel, stride, dilation, pad_begin, pad_end, index_element_type, axis, rounding_type, pad_type) = pool_params;
+    const auto& [pool_params, model_type, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+
+    const auto& [kernel, stride, dilation, pad_begin, pad_end, index_element_type, axis, rounding_type, pad_type] =
+        pool_params;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

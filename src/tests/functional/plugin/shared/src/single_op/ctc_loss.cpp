@@ -12,16 +12,14 @@
 namespace ov {
 namespace test {
 std::string CTCLossLayerTest::getTestCaseName(const testing::TestParamInfo<CTCLossParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type fp_type, int_type;
-    bool preprocess_collapse_repeated, ctc_merge_repeated, unique;
-    std::vector<int> logits_length, labels_length;
-    std::vector<std::vector<int>> labels;
-    int blank_index;
-    std::string targetDevice;
-    CTCLossParamsSubset ctcLossArgsSubset;
-    std::tie(ctcLossArgsSubset, shapes, fp_type, int_type, targetDevice) = obj.param;
-    std::tie(logits_length, labels, labels_length, blank_index, preprocess_collapse_repeated, ctc_merge_repeated, unique) = ctcLossArgsSubset;
+    const auto& [ctcLossArgsSubset, shapes, fp_type, int_type, targetDevice] = obj.param;
+    const auto& [logits_length,
+                 labels,
+                 labels_length,
+                 blank_index,
+                 preprocess_collapse_repeated,
+                 ctc_merge_repeated,
+                 unique] = ctcLossArgsSubset;
 
     std::ostringstream result;
     result << "IS=(";
@@ -50,16 +48,15 @@ std::string CTCLossLayerTest::getTestCaseName(const testing::TestParamInfo<CTCLo
 }
 
 void CTCLossLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type fp_type, int_type;
-    bool preprocess_collapse_repeated, ctc_merge_repeated, unique;
-    std::vector<int> logits_length, labels_length;
-    std::vector<std::vector<int>> labels;
-    int blank_index;
-    CTCLossParamsSubset ctcLossArgsSubset;
-    std::tie(ctcLossArgsSubset, shapes, fp_type, int_type, targetDevice) = this->GetParam();
-    std::tie(logits_length, labels, labels_length, blank_index, preprocess_collapse_repeated,
-        ctc_merge_repeated, unique) = ctcLossArgsSubset;
+    const auto& [ctcLossArgsSubset, shapes, fp_type, int_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [logits_length,
+                 labels,
+                 labels_length,
+                 blank_index,
+                 preprocess_collapse_repeated,
+                 ctc_merge_repeated,
+                 unique] = ctcLossArgsSubset;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(fp_type, inputDynamicShapes.front());

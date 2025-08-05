@@ -9,12 +9,7 @@ namespace ov {
 namespace test {
 
 std::string ReverseLayerTest::getTestCaseName(const testing::TestParamInfo<reverseParams>& obj) {
-    std::vector<size_t> input_shape;
-    std::vector<int> axes;
-    std::string mode;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(input_shape, axes, mode, model_type, target_device) = obj.param;
+    const auto& [input_shape, axes, mode, model_type, target_device] = obj.param;
 
     std::ostringstream result;
     result << "in_shape=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -26,11 +21,8 @@ std::string ReverseLayerTest::getTestCaseName(const testing::TestParamInfo<rever
 }
 
 void ReverseLayerTest::SetUp() {
-    std::vector<size_t> input_shape;
-    std::vector<int> axes;
-    std::string mode;
-    ov::element::Type model_type;
-    std::tie(input_shape, axes, mode, model_type, targetDevice) = GetParam();
+    const auto& [input_shape, axes, mode, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape));
     std::shared_ptr<ov::op::v0::Constant> axes_constant;

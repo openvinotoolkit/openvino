@@ -15,11 +15,7 @@
 namespace LayerTestsDefinitions {
 
 std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<GatherTransformationParams>& obj) {
-    ov::element::Type precision;
-    std::string targetDevice;
-    GatherTransformationTestValues testValues;
-    int opset_version;
-    std::tie(precision, targetDevice, testValues, opset_version) = obj.param;
+    const auto& [precision, targetDevice, testValues, opset_version] = obj.param;
 
     std::ostringstream result;
     result <<
@@ -32,10 +28,8 @@ std::string GatherTransformation::getTestCaseName(const testing::TestParamInfo<G
 }
 
 void GatherTransformation::SetUp() {
-    ov::element::Type precision;
-    GatherTransformationTestValues testValues;
-    int opset_version;
-    std::tie(precision, targetDevice, testValues, opset_version) = this->GetParam();
+    const auto& [precision, _targetDevice, testValues, opset_version] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(testValues.inputShape);
 

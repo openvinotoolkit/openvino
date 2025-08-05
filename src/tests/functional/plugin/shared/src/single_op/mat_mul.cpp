@@ -15,13 +15,7 @@ namespace test {
 using ov::test::utils::InputLayerType;
 
 std::string MatMulLayerTest::getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet> &obj) {
-    std::vector<InputShape> shapes;
-    std::pair<bool, bool> transpose;
-    ov::element::Type model_type;
-    InputLayerType secondary_input_type;
-    std::string target_device;
-    std::map<std::string, std::string> additional_config;
-    std::tie(shapes, transpose, model_type, secondary_input_type, target_device, additional_config) = obj.param;
+    const auto& [shapes, transpose, model_type, secondary_input_type, target_device, additional_config] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -50,12 +44,9 @@ std::string MatMulLayerTest::getTestCaseName(const testing::TestParamInfo<MatMul
 }
 
 void MatMulLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    std::pair<bool, bool> transpose;
-    ov::element::Type model_type;
-    InputLayerType secondary_input_type;
-    std::map<std::string, std::string> additional_config;
-    std::tie(shapes, transpose, model_type, secondary_input_type, targetDevice, additional_config) = this->GetParam();
+    const auto& [shapes, transpose, model_type, secondary_input_type, _targetDevice, additional_config] =
+        this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
     configuration.insert(additional_config.begin(), additional_config.end());
 

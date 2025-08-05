@@ -76,9 +76,8 @@ class OVCompiledModelBaseTest : public testing::WithParamInterface<InferRequestP
                                 public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
-        std::string targetDevice;
-        ov::AnyMap configuration;
-        std::tie(targetDevice, configuration) = obj.param;
+        const auto& [_targetDevice, configuration] = obj.param;
+        auto targetDevice = _targetDevice;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
         std::ostringstream result;
@@ -696,10 +695,8 @@ class CompiledModelSetType : public testing::WithParamInterface<CompiledModelSet
                              public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CompiledModelSetTypeParams> obj) {
-        ov::element::Type convert_type;
-        std::string target_device;
-        ov::AnyMap configuration;
-        std::tie(convert_type, target_device, configuration) = obj.param;
+        const auto& [convert_type, _target_device, configuration] = obj.param;
+        auto target_device = _target_device;
         std::replace(target_device.begin(), target_device.end(), ':', '.');
 
         std::ostringstream result;

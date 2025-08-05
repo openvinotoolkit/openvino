@@ -13,16 +13,8 @@ namespace ov {
 namespace test {
 
 std::string MVNMultiplyAdd::getTestCaseName(const testing::TestParamInfo<mvnMultiplyAddParams>& obj) {
-    std::pair<ov::Shape, ov::Shape> shapes;
-    ov::Shape inputShapes, constantShapes;
-    ov::element::Type dataPrecision, axesPrecision;
-    std::vector<int> axes;
-    bool normalizeVariance;
-    float eps;
-    std::string epsMode;
-    std::string targetDevice;
-    std::tie(shapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice) = obj.param;
-    std::tie(inputShapes, constantShapes) = shapes;
+    const auto& [shapes, dataPrecision, axesPrecision, axes, normalizeVariance, eps, epsMode, targetDevice] = obj.param;
+    const auto& [inputShapes, constantShapes] = shapes;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "CS=" << ov::test::utils::vec2str(constantShapes) << "_";
@@ -37,15 +29,9 @@ std::string MVNMultiplyAdd::getTestCaseName(const testing::TestParamInfo<mvnMult
 }
 
 void MVNMultiplyAdd::SetUp() {
-    std::pair<ov::Shape, ov::Shape> shapes;
-    ov::Shape inputShapes, constantShapes;
-    ov::element::Type dataType, axesType;
-    std::vector<int> axes;
-    bool normalizeVariance;
-    float eps;
-    std::string epsMode;
-    std::tie(shapes, dataType, axesType, axes, normalizeVariance, eps, epsMode, targetDevice) = this->GetParam();
-    std::tie(inputShapes, constantShapes) = shapes;
+    const auto& [shapes, dataType, axesType, axes, normalizeVariance, eps, epsMode, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [inputShapes, constantShapes] = shapes;
 
     ov::ParameterVector param{std::make_shared<ov::op::v0::Parameter>(dataType, ov::Shape(inputShapes))};
     auto axesNode = ov::op::v0::Constant::create(axesType, ov::Shape{axes.size()}, axes);

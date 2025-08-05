@@ -12,15 +12,7 @@
 namespace ov {
 namespace test {
 std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHotLayerTestParamsSet>& obj) {
-    int64_t axis;
-    ov::element::Type depth_type, set_type;
-    int64_t depth_val;
-    float on_val, off_val;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string targetDevice;
-
-    std::tie(depth_type, depth_val, set_type, on_val, off_val, axis, model_type, shapes, targetDevice) = obj.param;
+    const auto& [depth_type, depth_val, set_type, on_val, off_val, axis, model_type, shapes, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -48,13 +40,9 @@ std::string OneHotLayerTest::getTestCaseName(const testing::TestParamInfo<oneHot
 }
 
 void OneHotLayerTest::SetUp() {
-    int64_t axis;
-    ov::element::Type depth_type, set_type;
-    int64_t depth_val;
-    float on_val, off_val;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::tie(depth_type, depth_val, set_type, on_val, off_val, axis, model_type, shapes, targetDevice) = this->GetParam();
+    const auto& [depth_type, depth_val, set_type, on_val, off_val, axis, model_type, shapes, _targetDevice] =
+        this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

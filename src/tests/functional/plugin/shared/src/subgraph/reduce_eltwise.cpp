@@ -17,14 +17,7 @@
 namespace ov {
 namespace test {
 std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<ReduceEltwiseParamsTuple> &obj) {
-    ov::Shape inputShapes;
-    std::vector<int> axes;
-    ov::test::utils::OpType opType;
-    bool keepDims;
-    ov::element::Type type;
-    std::string targetName;
-    std::tie(inputShapes, axes, opType, keepDims, type, targetName) = obj.param;
-
+    const auto& [inputShapes, axes, opType, keepDims, type, targetName] = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
     result << "axes=" << ov::test::utils::vec2str(axes) << "_";
@@ -36,12 +29,8 @@ std::string ReduceEltwiseTest::getTestCaseName(const testing::TestParamInfo<Redu
 }
 
 void ReduceEltwiseTest::SetUp() {
-    ov::Shape inputShape;
-    std::vector<int> axes;
-    ov::test::utils::OpType opType;
-    bool keepDims;
-    ov::element::Type type;
-    std::tie(inputShape, axes, opType, keepDims, type, targetDevice) = this->GetParam();
+    const auto& [inputShape, axes, opType, keepDims, type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(type, inputShape)};
 

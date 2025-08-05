@@ -12,22 +12,27 @@ namespace ov {
 namespace test {
 std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
         const testing::TestParamInfo<ExperimentalDetectronDetectionOutputTestParams>& obj) {
-    std::vector<ov::test::InputShape> shapes;
     ov::op::v6::ExperimentalDetectronDetectionOutput::Attributes attributes;
-    ElementType model_type;
-    std::string target_device;
-    std::tie(
-        shapes,
-        attributes.score_threshold,
-        attributes.nms_threshold,
-        attributes.max_delta_log_wh,
-        attributes.num_classes,
-        attributes.post_nms_count,
-        attributes.max_detections_per_image,
-        attributes.class_agnostic_box_regression,
-        attributes.deltas_weights,
-        model_type,
-        target_device) = obj.param;
+
+    const auto& [shapes,
+                 _score_threshold,
+                 _nms_threshold,
+                 _max_delta_log_wh,
+                 _num_classes,
+                 _post_nms_count,
+                 _max_detections_per_image,
+                 _class_agnostic_box_regression,
+                 _deltas_weights,
+                 model_type,
+                 target_device] = obj.param;
+    attributes.score_threshold = _score_threshold;
+    attributes.nms_threshold = _nms_threshold;
+    attributes.max_delta_log_wh = _max_delta_log_wh;
+    attributes.num_classes = _num_classes;
+    attributes.post_nms_count = _post_nms_count;
+    attributes.max_detections_per_image = _max_detections_per_image;
+    attributes.class_agnostic_box_regression = _class_agnostic_box_regression;
+    attributes.deltas_weights = _deltas_weights;
 
     std::ostringstream result;
 
@@ -54,23 +59,27 @@ std::string ExperimentalDetectronDetectionOutputLayerTest::getTestCaseName(
 }
 
 void ExperimentalDetectronDetectionOutputLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
     ov::op::v6::ExperimentalDetectronDetectionOutput::Attributes attributes;
 
-    ElementType model_type;
-    std::string targetName;
-    std::tie(
-        shapes,
-        attributes.score_threshold,
-        attributes.nms_threshold,
-        attributes.max_delta_log_wh,
-        attributes.num_classes,
-        attributes.post_nms_count,
-        attributes.max_detections_per_image,
-        attributes.class_agnostic_box_regression,
-        attributes.deltas_weights,
-        model_type,
-        targetName) = this->GetParam();
+    const auto& [shapes,
+                 _score_threshold,
+                 _nms_threshold,
+                 _max_delta_log_wh,
+                 _num_classes,
+                 _post_nms_count,
+                 _max_detections_per_image,
+                 _class_agnostic_box_regression,
+                 _deltas_weights,
+                 model_type,
+                 targetName] = this->GetParam();
+    attributes.score_threshold = _score_threshold;
+    attributes.nms_threshold = _nms_threshold;
+    attributes.max_delta_log_wh = _max_delta_log_wh;
+    attributes.num_classes = _num_classes;
+    attributes.post_nms_count = _post_nms_count;
+    attributes.max_detections_per_image = _max_detections_per_image;
+    attributes.class_agnostic_box_regression = _class_agnostic_box_regression;
+    attributes.deltas_weights = _deltas_weights;
 
     if (model_type == element::f16)
         abs_threshold = 0.01;

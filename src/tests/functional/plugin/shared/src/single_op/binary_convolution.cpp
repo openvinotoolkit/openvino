@@ -10,19 +10,9 @@
 namespace ov {
 namespace test {
 std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParamInfo<binaryConvolutionTestParamsSet>& obj) {
-    binConvSpecificParams bin_conv_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string target_device;
+    const auto& [bin_conv_params, model_type, shapes, target_device] = obj.param;
 
-    std::tie(bin_conv_params, model_type, shapes, target_device) = obj.param;
-
-    ov::op::PadType pad_type;
-    std::vector<size_t> kernel, stride, dilation;
-    std::vector<ptrdiff_t> pad_begin, padEnd;
-    size_t conv_out_channels;
-    float pad_value;
-    std::tie(kernel, stride, pad_begin, padEnd, dilation, conv_out_channels, pad_type, pad_value) = bin_conv_params;
+    const auto& [kernel, stride, pad_begin, padEnd, dilation, conv_out_channels, pad_type, pad_value] = bin_conv_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -51,19 +41,12 @@ std::string BinaryConvolutionLayerTest::getTestCaseName(const testing::TestParam
 }
 
 void BinaryConvolutionLayerTest::SetUp() {
-    binConvSpecificParams bin_conv_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-
-    std::tie(bin_conv_params, model_type, shapes, targetDevice) = this->GetParam();
+    const auto& [bin_conv_params, model_type, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
-    ov::op::PadType pad_type;
-    std::vector<size_t> kernel_size, strides, dilations;
-    std::vector<ptrdiff_t> pads_begin, pads_end;
-    size_t num_out_channels;
-    float pad_value;
-    std::tie(kernel_size, strides, pads_begin, pads_end, dilations, num_out_channels, pad_type, pad_value) = bin_conv_params;
+    const auto& [kernel_size, strides, pads_begin, pads_end, dilations, num_out_channels, pad_type, pad_value] =
+        bin_conv_params;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
     params[0]->set_friendly_name("a_data_batch");

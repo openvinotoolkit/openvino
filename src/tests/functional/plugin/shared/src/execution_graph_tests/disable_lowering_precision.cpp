@@ -24,11 +24,8 @@ namespace ExecutionGraphTests {
 
 std::string ExecGraphDisableLoweringPrecision::getTestCaseName(testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams> obj) {
     std::ostringstream result;
-    bool disableLoweringPrecision;
-    std::string targetDevice;
-    ov::element::Type loweringPrecision;
 
-    std::tie(disableLoweringPrecision, targetDevice, loweringPrecision) = obj.param;
+    const auto& [disableLoweringPrecision, targetDevice, loweringPrecision] = obj.param;
     result << "matmul_disable_lowingprecision=" << disableLoweringPrecision << "_";
     result << "device=" << targetDevice << "_";
     result << "loweringPrecision=" << loweringPrecision.to_string();

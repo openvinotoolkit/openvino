@@ -13,9 +13,8 @@ namespace test {
 namespace behavior {
 
 std::string OVPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
-    std::string target_device;
-    AnyMap properties;
-    std::tie(target_device, properties) = obj.param;
+    const auto& [_target_device, properties] = obj.param;
+    auto target_device = _target_device;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
@@ -40,10 +39,8 @@ void OVPropertiesTests::TearDown() {
 }
 
 std::string OVSetPropComplieModleGetPropTests::getTestCaseName(testing::TestParamInfo<CompileModelPropertiesParams> obj) {
-    std::string target_device;
-    AnyMap properties;
-    AnyMap compileModelProperties;
-    std::tie(target_device, properties, compileModelProperties) = obj.param;
+    const auto& [_target_device, properties, compileModelProperties] = obj.param;
+    auto target_device = _target_device;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
@@ -63,9 +60,8 @@ void OVSetPropComplieModleGetPropTests::SetUp() {
 }
 
 std::string OVPropertiesTestsWithCompileModelProps::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
-    std::string target_device;
-    AnyMap properties;
-    std::tie(target_device, properties) = obj.param;
+    const auto& [_target_device, properties] = obj.param;
+    auto target_device = _target_device;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     std::ostringstream result;
     result << "target_device=" << target_device << "_";
@@ -77,8 +73,9 @@ std::string OVPropertiesTestsWithCompileModelProps::getTestCaseName(testing::Tes
 
 void OVPropertiesTestsWithCompileModelProps::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::string temp_device;
-    std::tie(temp_device, properties) = this->GetParam();
+
+    const auto& [temp_device, _properties] = this->GetParam();
+    properties = _properties;
 
     std::string::size_type pos = temp_device.find(":", 0);
     if (pos != std::string::npos) {

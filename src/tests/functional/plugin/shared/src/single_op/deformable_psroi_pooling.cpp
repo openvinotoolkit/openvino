@@ -13,20 +13,8 @@ namespace ov {
 namespace test {
 
 std::string DeformablePSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<deformablePSROILayerTestParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    int64_t outputDim;
-    int64_t groupSize;
-    float spatialScale;
-    std::vector<int64_t> spatialBinsXY;
-    float trans_std;
-    int64_t part_size;
-    std::string target_device;
-    deformablePSROISpecificParams opParams;
-
-    std::tie(opParams, shapes, model_type, target_device) = obj.param;
-    std::tie(outputDim, groupSize, spatialScale, spatialBinsXY,
-    trans_std, part_size) = opParams;
+    const auto& [opParams, shapes, model_type, target_device] = obj.param;
+    const auto& [outputDim, groupSize, spatialScale, spatialBinsXY, trans_std, part_size] = opParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -54,18 +42,11 @@ std::string DeformablePSROIPoolingLayerTest::getTestCaseName(const testing::Test
 }
 
 void DeformablePSROIPoolingLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    int64_t outputDim;
-    int64_t groupSize;
     std::string mode = "bilinear_deformable";
-    std::vector<int64_t> spatialBinsXY;
-    float trans_std, spatial_scale;
-    int64_t part_size;
-    deformablePSROISpecificParams opParams;
 
-    std::tie(opParams, shapes, model_type, targetDevice) = this->GetParam();
-    std::tie(outputDim, groupSize, spatial_scale, spatialBinsXY, trans_std, part_size) = opParams;
+    const auto& [opParams, shapes, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
+    const auto& [outputDim, groupSize, spatial_scale, spatialBinsXY, trans_std, part_size] = opParams;
     init_input_shapes(shapes);
 
     ov::ParameterVector params;

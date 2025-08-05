@@ -132,9 +132,8 @@ class OVInferRequestTests : public testing::WithParamInterface<InferRequestParam
                             public OVInferRequestTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
-        std::string targetDevice;
-        ov::AnyMap configuration;
-        std::tie(targetDevice, configuration) = obj.param;
+        const auto& [_targetDevice, configuration] = obj.param;
+        auto targetDevice = _targetDevice;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
         std::ostringstream result;
         result << "targetDevice=" << targetDevice << "_";

@@ -12,11 +12,7 @@ namespace test {
 namespace snippets {
 
 std::string EdgeReplace::getTestCaseName(testing::TestParamInfo<ov::test::snippets::EdgeReplaceParams> obj) {
-    ov::PartialShape inputShape;
-    ov::element::Type type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShape, type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    const auto& [inputShape, type, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShape}) << "_";
@@ -28,9 +24,10 @@ std::string EdgeReplace::getTestCaseName(testing::TestParamInfo<ov::test::snippe
 }
 
 void EdgeReplace::SetUp() {
-    ov::PartialShape inputShape;
-    ov::element::Type type;
-    std::tie(inputShape, type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, type, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({{{inputShape}, {inputShape.get_shape()}}});
 
     auto f = ov::test::snippets::EdgeReplaceFunction({inputShape});

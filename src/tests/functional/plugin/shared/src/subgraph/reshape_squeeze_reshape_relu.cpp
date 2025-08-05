@@ -14,11 +14,7 @@ namespace test {
 
 std::string ReshapeSqueezeReshapeRelu::getTestCaseName(
     const testing::TestParamInfo<ReshapeSqueezeReshapeReluTuple>& obj) {
-    ShapeAxesTuple squeezeShape;
-    ov::element::Type element_type;
-    std::string targetName;
-    ov::test::utils::SqueezeOpType opType;
-    std::tie(squeezeShape, element_type, targetName, opType) = obj.param;
+    const auto& [squeezeShape, element_type, targetName, opType] = obj.param;
     std::ostringstream results;
     results << "OpType=" << opType;
     results << "IS=" << ov::test::utils::vec2str(squeezeShape.first) << "_";
@@ -29,10 +25,8 @@ std::string ReshapeSqueezeReshapeRelu::getTestCaseName(
 }
 
 void ReshapeSqueezeReshapeRelu::SetUp() {
-    ShapeAxesTuple squeezeShape;
-    ov::element::Type element_type;
-    ov::test::utils::SqueezeOpType opType;
-    std::tie(squeezeShape, element_type, targetDevice, opType) = this->GetParam();
+    const auto& [squeezeShape, element_type, _targetDevice, opType] = this->GetParam();
+    targetDevice = _targetDevice;
     const size_t input_dim = ov::shape_size(squeezeShape.first);
     std::vector<size_t> shape_input{1, input_dim};
     ov::ParameterVector input{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(shape_input))};

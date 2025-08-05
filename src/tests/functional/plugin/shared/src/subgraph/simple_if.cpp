@@ -17,11 +17,7 @@ namespace ov {
 namespace test {
 
 std::string SimpleIfTest::getTestCaseName(const testing::TestParamInfo<SimpleIfParamsTuple>& obj) {
-    std::vector<ov::test::InputShape> shapes;
-    ov::test::ElementType inType;
-    bool condition;
-    std::string targetName;
-    std::tie(shapes, inType, condition, targetName) = obj.param;
+    const auto& [shapes, inType, condition, targetName] = obj.param;
 
     std::ostringstream results;
     for (size_t i = 0; i < shapes.size(); i++) {
@@ -54,10 +50,8 @@ void SimpleIfTest::compare(const std::vector<ov::Tensor>& expected, const std::v
 }
 
 void SimpleIfTest::SetUp() {
-    std::vector<ov::test::InputShape> shapes;
-    ov::test::ElementType inType;
-    bool condition;
-    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+    const auto& [shapes, inType, condition, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
     ov::ParameterVector params;
@@ -89,10 +83,8 @@ void SimpleIfTest::SetUp() {
 }
 
 void SimpleIf2OutTest::SetUp() {
-    std::vector<ov::test::InputShape> shapes;
-    ov::test::ElementType inType;
-    bool condition;
-    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+    const auto& [shapes, inType, condition, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
     ov::ParameterVector params;
@@ -129,9 +121,9 @@ void SimpleIf2OutTest::SetUp() {
 }
 
 void SimpleIfNotConstConditionTest::SetUp() {
-    std::vector<ov::test::InputShape> shapes;
-    ov::test::ElementType inType;
-    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+    const auto& [shapes, inType, _condition, _targetDevice] = this->GetParam();
+    condition = _condition;
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
     for (auto& target : targetStaticShapes)
@@ -192,9 +184,9 @@ void SimpleIfNotConstConditionTest::generate_inputs(const std::vector<ov::Shape>
 }
 
 void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
-    std::vector<ov::test::InputShape> shapes;
-    ov::test::ElementType inType;
-    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+    const auto& [shapes, inType, _condition, _targetDevice] = this->GetParam();
+    condition = _condition;
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
     for (auto& target : targetStaticShapes)
@@ -237,9 +229,9 @@ void SimpleIfNotConstConditionAndInternalDynamismTest::SetUp() {
 }
 
 void SimpleIfNotConstConditionAndDimsIncreaseTest::SetUp() {
-    std::vector<ov::test::InputShape> shapes;
-    ov::test::ElementType inType;
-    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+    const auto& [shapes, inType, _condition, _targetDevice] = this->GetParam();
+    condition = _condition;
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
     for (auto& target : targetStaticShapes)
@@ -291,9 +283,9 @@ void SimpleIfNotConstConditionAndDimsIncreaseTest::compare(const std::vector<ov:
 }
 
 void SimpleIfNotConstConditionUnusedOutputPortsTest::SetUp() {
-    std::vector<ov::test::InputShape> shapes;
-    ov::test::ElementType inType;
-    std::tie(shapes, inType, condition, targetDevice) = this->GetParam();
+    const auto& [shapes, inType, _condition, _targetDevice] = this->GetParam();
+    condition = _condition;
+    targetDevice = _targetDevice;
 
     init_input_shapes(shapes);
     for (auto& target : targetStaticShapes)

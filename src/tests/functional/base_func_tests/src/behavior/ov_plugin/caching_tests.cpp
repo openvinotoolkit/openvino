@@ -178,8 +178,11 @@ std::string CompileModelCacheTestBase::getTestCaseName(testing::TestParamInfo<co
 }
 
 void CompileModelCacheTestBase::SetUp() {
-    ovModelWithName funcPair;
-    std::tie(funcPair, m_precision, m_batchSize, targetDevice, configuration) = GetParam();
+    const auto& [funcPair, _m_precision, _m_batchSize, _targetDevice, _configuration] = GetParam();
+    m_precision = _m_precision;
+    m_batchSize = _m_batchSize;
+    targetDevice = _targetDevice;
+    configuration = _configuration;
     target_device = targetDevice;
     APIBaseTest::SetUp();
     auto fGen = std::get<0>(funcPair);
@@ -739,9 +742,8 @@ TEST_P(CompileModelLoadFromMemoryTestBase, CanLoadFromMemoryWithoutWeightsANdExe
 
 std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<compileKernelsCacheParams> obj) {
     auto param = obj.param;
-    std::string deviceName;
-    std::pair<ov::AnyMap, std::string> userConfig;
-    std::tie(deviceName, userConfig) = obj.param;
+    const auto& [_deviceName, userConfig] = obj.param;
+    auto deviceName = _deviceName;
     std::replace(deviceName.begin(), deviceName.end(), ':', '.');
     auto properties = userConfig.first;
     std::ostringstream result;
@@ -755,8 +757,9 @@ std::string CompiledKernelsCacheTest::getTestCaseName(testing::TestParamInfo<com
 
 void CompiledKernelsCacheTest::SetUp() {
     function = ov::test::utils::make_conv_pool_relu();
-    std::pair<ov::AnyMap, std::string> userConfig;
-    std::tie(targetDevice, userConfig) = GetParam();
+
+    const auto& [_targetDevice, userConfig] = GetParam();
+    targetDevice = _targetDevice;
     target_device = targetDevice;
     APIBaseTest::SetUp();
     SKIP_IF_CURRENT_TEST_IS_DISABLED();

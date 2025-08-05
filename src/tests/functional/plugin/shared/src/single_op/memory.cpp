@@ -21,12 +21,7 @@ namespace ov {
 namespace test {
 
 std::string MemoryLayerTest::getTestCaseName(const testing::TestParamInfo<MemoryLayerTestParams> &obj) {
-    int64_t iteration_count;
-    ov::element::Type model_type;
-    ov::Shape input_shape;
-    std::string target_device;
-    ov::test::utils::MemoryTransformation transformation;
-    std::tie(transformation, iteration_count, input_shape, model_type, target_device) = obj.param;
+    const auto& [transformation, iteration_count, input_shape, model_type, target_device] = obj.param;
 
     std::ostringstream result;
     result << "transformation=" << transformation << "_";
@@ -39,11 +34,9 @@ std::string MemoryLayerTest::getTestCaseName(const testing::TestParamInfo<Memory
 }
 
 void MemoryLayerTest::SetUp() {
-    ov::element::Type model_type;
-    ov::Shape input_shape;
-    ov::test::utils::MemoryTransformation transformation;
-
-    std::tie(transformation, iteration_count, input_shape, model_type, targetDevice) = this->GetParam();
+    const auto& [transformation, _iteration_count, input_shape, model_type, _targetDevice] = this->GetParam();
+    iteration_count = _iteration_count;
+    targetDevice = _targetDevice;
 
     if (transformation == ov::test::utils::MemoryTransformation::NONE) {
         CreateCommonFunc(model_type, input_shape);

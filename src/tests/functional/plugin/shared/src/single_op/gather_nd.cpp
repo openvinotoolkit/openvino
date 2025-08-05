@@ -9,12 +9,7 @@
 namespace ov {
 namespace test {
 std::string GatherNDLayerTest::getTestCaseName(const testing::TestParamInfo<GatherNDParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::Shape indices_shape;
-    ov::element::Type model_type, indices_type;
-    int batch_dims;
-    std::string device;
-    std::tie(shapes, indices_shape, batch_dims, model_type, indices_type, device) = obj.param;
+    const auto& [shapes, indices_shape, batch_dims, model_type, indices_type, device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -38,11 +33,8 @@ std::string GatherNDLayerTest::getTestCaseName(const testing::TestParamInfo<Gath
 }
 
 void GatherNDLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::Shape indices_shape;
-    ov::element::Type model_type, indices_type;
-    int batch_dims;
-    std::tie(shapes, indices_shape, batch_dims, model_type, indices_type, targetDevice) = this->GetParam();
+    const auto& [shapes, indices_shape, batch_dims, model_type, indices_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
@@ -59,11 +51,8 @@ std::string GatherND8LayerTest::getTestCaseName(const testing::TestParamInfo<Gat
 }
 
 void GatherND8LayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::Shape indices_shape;
-    ov::element::Type model_type, indices_type;
-    int batch_dims;
-    std::tie(shapes, indices_shape, batch_dims, model_type, indices_type, targetDevice) = this->GetParam();
+    const auto& [shapes, indices_shape, batch_dims, model_type, indices_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

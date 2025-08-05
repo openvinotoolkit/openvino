@@ -15,9 +15,7 @@
 namespace LayerTestsDefinitions {
 
 std::string FuseDequantizeToFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<FuseDequantizeToFakeQuantizeTransformationParams>& obj) {
-    std::string targetDevice;
-    FuseDequantizeToFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = obj.param;
+    const auto& [targetDevice, testValues] = obj.param;
 
     std::ostringstream result;
     result << targetDevice << "_" <<
@@ -33,8 +31,8 @@ std::string FuseDequantizeToFakeQuantizeTransformation::getTestCaseName(const te
 }
 
 void FuseDequantizeToFakeQuantizeTransformation::SetUp() {
-    FuseDequantizeToFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = this->GetParam();
+    const auto& [_targetDevice, testValues] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(testValues.inputShape);
 

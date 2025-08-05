@@ -18,10 +18,7 @@
 namespace ov {
 namespace test {
 std::string StridedSliceEltwiseTest::getTestCaseName(const testing::TestParamInfo<StridedSliceEltwiseParamsTuple> &obj) {
-    StridedSliceEltwiseSpecificParams params;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(params, model_type, target_device) = obj.param;
+    const auto& [params, model_type, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < params.input_shape.size(); i++) {
@@ -50,9 +47,8 @@ std::string StridedSliceEltwiseTest::getTestCaseName(const testing::TestParamInf
 }
 
 void StridedSliceEltwiseTest::SetUp() {
-    StridedSliceEltwiseSpecificParams ssParams;
-    ov::element::Type type;
-    std::tie(ssParams, type, targetDevice) = this->GetParam();
+    const auto& [ssParams, type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(ssParams.input_shape);
 

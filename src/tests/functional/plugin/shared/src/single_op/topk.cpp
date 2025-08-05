@@ -10,13 +10,7 @@
 namespace ov {
 namespace test {
 std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKParams>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> input_shapes;
-    std::string target_device;
-    int64_t keepK, axis;
-    ov::op::v1::TopK::Mode mode;
-    ov::op::v1::TopK::SortType sort;
-    std::tie(keepK, axis, mode, sort, model_type, input_shapes, target_device) = obj.param;
+    const auto& [keepK, axis, mode, sort, model_type, input_shapes, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < input_shapes.size(); i++) {
@@ -41,12 +35,8 @@ std::string TopKLayerTest::getTestCaseName(const testing::TestParamInfo<TopKPara
 }
 
 void TopKLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    int64_t keepK, axis;
-    ov::op::v1::TopK::Mode mode;
-    ov::op::v1::TopK::SortType sort;
-    std::tie(keepK, axis, mode, sort, model_type, input_shapes, targetDevice) = this->GetParam();
+    const auto& [keepK, axis, mode, sort, model_type, input_shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(input_shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());
@@ -56,14 +46,7 @@ void TopKLayerTest::SetUp() {
 }
 
 std::string TopK11LayerTest::getTestCaseName(const testing::TestParamInfo<TopK11Params>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> input_shapes;
-    std::string target_device;
-    int64_t keepK, axis;
-    bool stable;
-    ov::op::v1::TopK::Mode mode;
-    ov::op::v1::TopK::SortType sort;
-    std::tie(keepK, axis, mode, sort, model_type, input_shapes, stable, target_device) = obj.param;
+    const auto& [keepK, axis, mode, sort, model_type, input_shapes, stable, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < input_shapes.size(); i++) {
@@ -89,13 +72,8 @@ std::string TopK11LayerTest::getTestCaseName(const testing::TestParamInfo<TopK11
 }
 
 void TopK11LayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    int64_t keepK, axis;
-    bool stable;
-    ov::op::v1::TopK::Mode mode;
-    ov::op::v1::TopK::SortType sort;
-    std::tie(keepK, axis, mode, sort, model_type, input_shapes, stable, targetDevice) = this->GetParam();
+    const auto& [keepK, axis, mode, sort, model_type, input_shapes, stable, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(input_shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

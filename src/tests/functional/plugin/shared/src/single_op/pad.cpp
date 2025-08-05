@@ -12,13 +12,7 @@
 namespace ov {
 namespace test {
 std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerTestParamsSet>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::vector<int64_t> pads_begin, pads_end;
-    ov::op::PadMode pad_mode;
-    float arg_pad_value;
-    std::string target_device;
-    std::tie(pads_begin, pads_end, arg_pad_value, pad_mode, model_type, shapes, target_device) = obj.param;
+    const auto& [pads_begin, pads_end, arg_pad_value, pad_mode, model_type, shapes, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -45,12 +39,8 @@ std::string PadLayerTest::getTestCaseName(const testing::TestParamInfo<padLayerT
 }
 
 void PadLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::vector<int64_t> pads_begin, pads_end;
-    ov::op::PadMode pad_mode;
-    float arg_pad_value;
-    std::tie(pads_begin, pads_end, arg_pad_value, pad_mode, model_type, shapes, targetDevice) = this->GetParam();
+    const auto& [pads_begin, pads_end, arg_pad_value, pad_mode, model_type, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

@@ -7,10 +7,7 @@
 namespace ov {
 namespace test {
 std::string ResultLayerTest::getTestCaseName(const testing::TestParamInfo<ResultTestParamSet>& obj) {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(input_shape, model_type, target_device) = obj.param;
+    const auto& [input_shape, model_type, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";
@@ -20,9 +17,8 @@ std::string ResultLayerTest::getTestCaseName(const testing::TestParamInfo<Result
 }
 
 void ResultLayerTest::SetUp() {
-    std::vector<size_t> input_shape;
-    ov::element::Type model_type;
-    std::tie(input_shape, model_type, targetDevice) = GetParam();
+    const auto& [input_shape, model_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape))};
     auto result = std::make_shared<ov::op::v0::Result>(params[0]);
