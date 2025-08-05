@@ -144,26 +144,34 @@ InterpolateEvalHelper::InfoForGenericLinearONNXMode InterpolateEvalHelper::get_i
 
     std::size_t spatial_rank = input_shape.size() - 2;
 
+    if (input_rank == 4) {
+        if (m_scales[1] != 1.0f) {
+            spatial_rank = 3;
+            num_channels = 1;
+        }
+    }
+
     std::vector<int64_t> input_index_multipliers(spatial_rank);
     std::vector<int64_t> output_index_multipliers(spatial_rank);
     input_index_multipliers[spatial_rank - 1] = 1;
     output_index_multipliers[spatial_rank - 1] = 1;
 
-    for (int64_t i = static_cast<int64_t>(spatial_rank) - 2; i >= 0; --i) {
-        input_index_multipliers[i] = input_index_multipliers[i + 1] * static_cast<int64_t>(input_shape[i + 3]);
-        output_index_multipliers[i] = output_index_multipliers[i + 1] * static_cast<int64_t>(output_shape[i + 3]);
+    auto in_shape_it = input_shape.rbegin();
+    auto out_shape_it = output_shape.rbegin();
+
+    for (int64_t i = static_cast<int64_t>(spatial_rank) - 2; i >= 0; --i, in_shape_it++, out_shape_it++) {
+        input_index_multipliers[i] = input_index_multipliers[i + 1] * static_cast<int64_t>(*in_shape_it);
+        output_index_multipliers[i] = output_index_multipliers[i + 1] * static_cast<int64_t>(*out_shape_it);
     }
 
-    int64_t input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(input_shape[2]);
-    int64_t output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(output_shape[2]);
+    int64_t input_data_ptr_increment = input_index_multipliers[0] * static_cast<int64_t>(*in_shape_it);
+    int64_t output_data_ptr_increment = output_index_multipliers[0] * static_cast<int64_t>(*out_shape_it);
 
     std::vector<int64_t> input_spatial_shape(spatial_rank);
     std::vector<int64_t> output_spatial_shape(spatial_rank);
 
-    for (size_t i = 0; i < spatial_rank; ++i) {
-        input_spatial_shape[i] = static_cast<int64_t>(input_shape[i + 2]);
-        output_spatial_shape[i] = static_cast<int64_t>(output_shape[i + 2]);
-    }
+    std::copy(input_shape.rbegin(), input_shape.rbegin() + spatial_rank, input_spatial_shape.rbegin());
+    std::copy(output_shape.rbegin(), output_shape.rbegin() + spatial_rank, output_spatial_shape.rbegin());
 
     result.input_data_ptr_increment = input_data_ptr_increment;
     result.output_data_ptr_increment = output_data_ptr_increment;
