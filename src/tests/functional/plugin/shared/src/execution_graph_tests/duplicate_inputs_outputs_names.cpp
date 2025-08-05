@@ -18,8 +18,8 @@ constexpr char DUMMY_NAME[] = "dummy_name";
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphDuplicateInputsOutputsNames::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    std::string targetDevice = obj.param;
+std::string ExecGraphDuplicateInputsOutputsNames::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    const std::string& targetDevice = obj.param;
     return "Dev=" + targetDevice;
 }
 

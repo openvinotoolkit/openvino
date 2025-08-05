@@ -20,7 +20,7 @@ typedef std::tuple<
 class TwoInputsAndOutputs : public testing::WithParamInterface<ov::test::snippets::TwoInputsAndOutputsParams>,
                             virtual public SnippetsTestsCommon {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::TwoInputsAndOutputsParams>& obj);
 
 protected:
     void SetUp() override;

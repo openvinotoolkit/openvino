@@ -22,7 +22,7 @@
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphDisableLoweringPrecision::getTestCaseName(testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams> obj) {
+std::string ExecGraphDisableLoweringPrecision::getTestCaseName(const testing::TestParamInfo<ExecGraphDisableLoweringPrecisionSpecificParams>& obj) {
     std::ostringstream result;
 
     const auto& [disableLoweringPrecision, targetDevice, loweringPrecision] = obj.param;
