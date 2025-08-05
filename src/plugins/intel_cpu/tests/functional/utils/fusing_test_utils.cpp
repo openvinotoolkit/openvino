@@ -8,7 +8,7 @@
 
 namespace CPUTestUtils {
 
-std::string CpuTestWithFusing::getTestCaseName(fusingSpecificParams params) {
+std::string CpuTestWithFusing::getTestCaseName(const fusingSpecificParams& params) {
     const auto& [postOpMgrPtr, fusedOps] = params;
     std::ostringstream result;
     if (postOpMgrPtr) {
