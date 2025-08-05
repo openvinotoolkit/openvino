@@ -60,7 +60,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
                     stage->kd = stage->codegen->get_kernel_data(params);
                     _order.push_back(i);
                 } catch (const std::exception& e) {
-                    GPU_DEBUG_TRACE_DETAIL << "Failed to get kernel data for stage: " << e.what();
+                    GPU_DEBUG_TRACE_DETAIL << "Failed to get kernel data for stage: " << e.what() << "\n";
                 }
                 break;
             }
