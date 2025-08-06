@@ -1,6 +1,5 @@
 # 🔧 Disable CPU Layer Fusion in OpenVINO (via Config or Env Var)
 
-Brief description of the feature or motivation...
 
 ## 📚 Table of Contents
 
@@ -12,7 +11,7 @@ Brief description of the feature or motivation...
 - [🧪 Validation Summary](#-validation-summary)
 - [🔍 Runtime Graph Observation](#-runtime-graph-observation)
 - [📉 Performance Impact Analysis](#-performance-impact-analysis)
-- [🚧 Future Work](#-future-work)
+- [Flowchart Overview](#-Flowchart-Overview)
 
 ## ✨ Feature: Disable Layer Fusion via Config or Env Var
 
@@ -169,9 +168,8 @@ Disabling layer fusion in the OpenVINO CPU plugin allows deeper insight into mod
 | Kernel Launch Overhead    | Higher (many ops)           | Lower (fewer ops)         |
 | Use Case                  | Profiling, Debugging        | Production, Performance   |
 
-### 🚧 Future Work
+###Flowchart Overview
 
-- [ ] Add `--disable_fusion` to `benchmark_app`
-- [ ] Improve fused/unfused op visualization in GUI tools
+- [Disable Layer Fusion Flowchart](https://drive.google.com/file/d/1PD0Ci7yjWiSB9ydRigIka772qt-dkKLI/view?usp=sharing)
 
 ---
