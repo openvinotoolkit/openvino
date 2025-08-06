@@ -404,7 +404,9 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         _pipeline->update_graph_arguments(
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
             levelZeroTensors->data(),
-            levelZeroTensors->get_byte_size());
+            levelZeroTensors->get_byte_size(),
+            levelZeroTensors->get_strides(),
+            levelZeroTensors->get_shape());
     }
 }
 
@@ -431,7 +433,9 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
         _pipeline->update_graph_arguments(
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
             data,
-            tensor->get_byte_size());
+            tensor->get_byte_size(),
+            tensor->get_strides(),
+            tensor->get_shape());
     }
 }
 
@@ -726,7 +730,9 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
 
             _pipeline->update_graph_arguments(_graph->get_input_descriptors().at(ioIndex).idx,
                                               zeroTensor->data(),
-                                              zeroTensor->get_byte_size());
+                                              zeroTensor->get_byte_size(),
+                                              zeroTensor->get_strides(),
+                                              zeroTensor->get_shape());
 
             if (!inputDescriptor.isStateInput) {
                 zeroTensor->reset_memory_flag();
@@ -753,7 +759,9 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
 
             _pipeline->update_graph_arguments(_graph->get_output_descriptors().at(ioIndex).idx,
                                               zeroTensor->data(),
-                                              zeroTensor->get_byte_size());
+                                              zeroTensor->get_byte_size(),
+                                              zeroTensor->get_strides(),
+                                              zeroTensor->get_shape());
 
             zeroTensor->reset_memory_flag();
         }
@@ -793,12 +801,16 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       levelZeroInput->data(),
-                                                      levelZeroInput->get_byte_size());
+                                                      levelZeroInput->get_byte_size(),
+                                                      levelZeroInput->get_strides(),
+                                                      levelZeroInput->get_shape());
 
                     _pipeline->update_graph_arguments(
                         _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
                         levelZeroInput->data(),
-                        levelZeroInput->get_byte_size());
+                        levelZeroInput->get_byte_size(),
+                        levelZeroInput->get_strides(),
+                        levelZeroInput->get_shape());
 
                     zeroState->reset_tensor_imported_flag();
                 } else {
@@ -809,12 +821,16 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       userBuffer,
-                                                      zeroState->get_state()->get_byte_size());
+                                                      zeroState->get_state()->get_byte_size(),
+                                                      zeroState->get_state()->get_strides(),
+                                                      zeroState->get_state()->get_shape());
 
                     _pipeline->update_graph_arguments(
                         _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
                         userBuffer,
-                        zeroState->get_state()->get_byte_size());
+                        zeroState->get_state()->get_byte_size(),
+                        zeroState->get_state()->get_strides(),
+                        zeroState->get_state()->get_shape());
 
                     levelZeroInput = zeroState->get_state()._ptr;
                     levelZeroOutput = zeroState->get_state()._ptr;

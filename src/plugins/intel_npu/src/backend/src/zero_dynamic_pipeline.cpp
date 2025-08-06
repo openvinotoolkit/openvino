@@ -277,18 +277,42 @@ void DynamicPipeline::pull() {
 };
 
 void DynamicPipeline::reset() const {
-    Pipeline::reset(_command_lists);
+    _logger.debug("Pipeline - rest() started");
+
+    for (size_t i = 0; i < _command_lists.size(); ++i) {
+        if (_sync_output_with_fences) {
+            _fences.at(i)->reset();
+        } else {
+            _events.at(i)->reset();
+        }
+    }
+
+    _logger.debug("Pipeline - rest() completed");
 };
 
-void DynamicPipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size) {
+void DynamicPipeline::update_graph_arguments(uint32_t arg_index,
+                                             const void* arg_data,
+                                             size_t byte_size,
+                                             [[maybe_unused]] const ov::Strides& strides,
+                                             [[maybe_unused]] const ov::Shape& shapes) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
-    Pipeline::update_graph_arguments(arg_index, arg_data, byte_size, _command_lists);
+    const size_t number_of_command_lists = _command_lists.size();
+
+    for (size_t i = 0; i < number_of_command_lists; i++) {
+        _command_lists.at(i)->updateMutableCommandList(
+            arg_index,
+            static_cast<const unsigned char*>(arg_data) + (i * byte_size) / number_of_command_lists,
+            strides,
+            shapes);
+    }
 };
 
 void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
                                                       const void* arg_data,
+                                                      [[maybe_unused]] const ov::Strides& strides,
+                                                      [[maybe_unused]] const ov::Shape& shapes,
                                                       size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL,
                       itt::domains::LevelZeroBackend,
@@ -296,7 +320,13 @@ void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
                       "updateCommandListIndex");
     _logger.debug("DynamicPipeline - updateCommandListIndex");
 
-    update_graph_arguments_batching(arg_index, arg_data, command_list_index);
+    const size_t number_of_command_lists = _command_lists.size();
+
+    OPENVINO_ASSERT(command_list_index < number_of_command_lists,
+                    "Command list index is higher than the number of Command lists ",
+                    command_list_index);
+
+    _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data, strides, shapes);
 };
 
 std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
