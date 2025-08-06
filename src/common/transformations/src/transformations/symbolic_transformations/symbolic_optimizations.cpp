@@ -207,7 +207,7 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
 
     const auto& pass_config = m_manager->get_pass_config();
-    
+
     // If PassConfig is NOT shared (use_count == 1), we can safely modify it
     // If it IS shared (use_count > 1), we should not modify it to avoid affecting other passes
     if (pass_config.use_count() == 1) {

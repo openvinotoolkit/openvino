@@ -42,13 +42,13 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/defs.hpp"
-#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/symbolic_transformations/symbol_optimization.hpp"
+#include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
-#include "transformations/common_optimizations/nop_elimination.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
@@ -341,7 +341,7 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 
 bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SDPASubgraphFusion);
-    
+
     ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
     const auto& ctx_manager = symbolic_optimizations.get_manager();
 
