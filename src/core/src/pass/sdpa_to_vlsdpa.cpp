@@ -63,7 +63,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // change "attention_mask" to "cu_seq_lens", and "window_attention_mask" to "cu_window_seqlens"
     constexpr std::array<std::pair<std::string_view, std::string_view>, 2> mask_2_seqlens_mapping = {
         {{"attention_mask", "cu_seq_lens"}, {"window_attention_mask", "cu_window_seqlens"}}};
-    for (const auto& [param_name, param_new] : mask_2_seqlens_mapping) {
+    for (const auto& [old_name, new_name] : mask_2_seqlens_mapping) {
         if (auto attn_param = get_parameter(model, std::string(param_name))) {
             // all consumers should be SDPA
             bool consumers_are_sdpa = true;
