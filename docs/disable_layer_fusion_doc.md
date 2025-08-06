@@ -13,8 +13,6 @@
 - [📉 Performance Impact Analysis](#-performance-impact-analysis)
 - [Flowchart Overview](#-Flowchart-Overview)
 
-## ✨ Feature: Disable Layer Fusion via Config or Env Var
-
 ...
 
 ## ✨ Feature: Disable Layer Fusion (via Config or Env Var)
@@ -168,7 +166,7 @@ Disabling layer fusion in the OpenVINO CPU plugin allows deeper insight into mod
 | Kernel Launch Overhead    | Higher (many ops)           | Lower (fewer ops)         |
 | Use Case                  | Profiling, Debugging        | Production, Performance   |
 
-###Flowchart Overview
+### 🔄 Flowchart Overview
 
 - [Disable Layer Fusion Flowchart](https://drive.google.com/file/d/1PD0Ci7yjWiSB9ydRigIka772qt-dkKLI/view?usp=sharing)
 
