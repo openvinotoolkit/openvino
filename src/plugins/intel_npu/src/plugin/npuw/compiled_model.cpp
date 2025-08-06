@@ -554,6 +554,11 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
     rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
     rewr2.run_on_model(model);
+    // FIXME: since 3-model pipeline is the default option, the tail will be separate,
+    // so we need to match either head or tail pattern here for host gather quantized feature to work.
+    // However, there might be a case where tail pattern is matched, but head is not (for the same model)
+    // or vice versa. This would lead to worse performance. Consider adding this check to LLMCompiledModel
+    // as well, since there we have uncut model.
     // Head or tail
     bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
 
