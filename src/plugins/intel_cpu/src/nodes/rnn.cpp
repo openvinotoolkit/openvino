@@ -426,7 +426,7 @@ namespace {
  */
 class RnnShapeInfer : public IShapeInfer {
 public:
-    RnnShapeInfer(std::shared_ptr<ov::Node> op)
+    explicit RnnShapeInfer(std::shared_ptr<ov::Node> op)
         : is_sequence(!(RNN::isCell(op))),
           native_order(RNN::testNativeOrder(op)),
           m_shape_infer(make_shape_inference(std::move(op))) {}
@@ -466,7 +466,7 @@ private:
 
 class RnnShapeInferFactory final : public ShapeInferFactory {
 public:
-    RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit RnnShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<RnnShapeInfer>(m_op);
     }
@@ -654,7 +654,8 @@ void RNN::initCell() {
                        "; Hidden state rank: ",
                        getInputShapeAtPort(1).getRank());
     }
-    CPU_NODE_ASSERT(!(is_augru && getInputShapeAtPort(5).getRank() != 2LU),
+    const bool is_augru_with_wrong_rank = is_augru && getInputShapeAtPort(5).getRank() != 2LU;
+    CPU_NODE_ASSERT(!is_augru_with_wrong_rank,
                     "has incorrect input ranks. Attention rank: ",
                     getInputShapeAtPort(2).getRank());
 
@@ -694,7 +695,10 @@ void RNN::initCell() {
 
         if (is_augru) {
             const Shape shapeA{B, 1};
-            CPU_NODE_ASSERT(!(getInputShapeAtPort(5).isStatic() && getInputShapeAtPort(5) != shapeA),
+            const bool is_static = getInputShapeAtPort(5).isStatic();
+            const bool wrong_shape = getInputShapeAtPort(5) != shapeA;
+            const bool static_with_wrong_shape = is_static && wrong_shape;
+            CPU_NODE_ASSERT(!static_with_wrong_shape,
                             "has incorrect input shapes. Attention shape: ",
                             getInputShapeAtPort(5).toString());
         }
@@ -1005,15 +1009,15 @@ void RNN::fillWeights() {
         const std::string hash_w =
             getName() + "_0_" +
             std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*w_data_desc->getDnnlDesc().get()));
-        m_initial_weights[0] = *weight_cache->findOrCreate(hash_w, create_w);
+        m_initial_weights[0] = MemoryPtr(*weight_cache->findOrCreate(hash_w, create_w));
 
         const std::string hash_r =
             getName() + "_1_" +
             std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*w_state_desc->getDnnlDesc().get()));
-        m_initial_weights[1] = *weight_cache->findOrCreate(hash_r, create_r);
+        m_initial_weights[1] = MemoryPtr(*weight_cache->findOrCreate(hash_r, create_r));
     } else {
-        m_initial_weights[0] = create_w();
-        m_initial_weights[1] = create_r();
+        m_initial_weights[0] = MemoryPtr(create_w());
+        m_initial_weights[1] = MemoryPtr(create_r());
     }
 }
 
@@ -1071,9 +1075,9 @@ void RNN::fillBiases() {
         const std::string hash_str =
             getName() + "_2_" +
             std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*w_bias_data_desc->getDnnlDesc().get()));
-        m_initial_weights[2] = *weight_cache->findOrCreate(hash_str, create);
+        m_initial_weights[2] = MemoryPtr(*weight_cache->findOrCreate(hash_str, create));
     } else {
-        m_initial_weights[2] = create();
+        m_initial_weights[2] = MemoryPtr(create());
     }
 }
 
@@ -1092,10 +1096,10 @@ void RNN::prepareMemory(const DnnlMemoryDescPtr& new_desc, size_t idx) {
         const std::string hash_str =
             getName() + "_" + std::to_string(idx) + "_" +
             std::to_string(dnnl::impl::primitive_hashing::get_md_hash(*new_desc->getDnnlDesc().get()));
-        res_ptr = *weight_cache->findOrCreate(hash_str, create);
+        res_ptr = MemoryPtr(*weight_cache->findOrCreate(hash_str, create));
         m_weights_pull.insert(res_ptr);
     } else {
-        res_ptr = create();
+        res_ptr = MemoryPtr(create());
     }
 
     internalBlobMemory[idx] = std::move(res_ptr);

@@ -13,10 +13,7 @@ namespace test {
 namespace snippets {
 
 std::string SoftmaxDecompositionTest::getTestCaseName(testing::TestParamInfo<SoftmaxDecompositionTestParams> obj) {
-    PartialShape input_shape;
-    int axis;
-    SoftmaxVersion softmax_version;
-    std::tie(input_shape, axis, softmax_version) = obj.param;
+    const auto& [input_shape, axis, softmax_version] = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({input_shape}) << "_";
     result << "axis=" << axis << "_";
@@ -27,9 +24,9 @@ std::string SoftmaxDecompositionTest::getTestCaseName(testing::TestParamInfo<Sof
 void SoftmaxDecompositionTest::SetUp() {
     LoweringTests::SetUp();
     std::vector<PartialShape> input_shapes{{}};
-    int axis;
-    SoftmaxVersion softmax_version;
-    std::tie(input_shapes[0], axis, softmax_version) = this->GetParam();
+
+    const auto& [_tmp, axis, softmax_version] = this->GetParam();
+    input_shapes[0] = _tmp;
     snippets_model = std::make_shared<SoftmaxFunction>(input_shapes, axis, softmax_version);
 }
 

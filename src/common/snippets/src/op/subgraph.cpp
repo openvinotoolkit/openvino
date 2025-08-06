@@ -302,7 +302,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
 
-    size_t hidden_data_count = 0lu;
+    size_t hidden_data_count = 0LU;
     if (auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
         hidden_data_count += utils::get_non_scalar_constant_count_for_fq(fq_node);
     }
@@ -623,7 +623,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-    return {std::move(lowering_result)};
+    return Schedule{std::move(lowering_result)};
 }
 
 const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {

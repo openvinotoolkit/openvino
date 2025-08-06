@@ -66,8 +66,8 @@ void ACLScheduler::schedule_custom(ICPPKernel* kernel, const Hints& hints, const
         }
 
         ov::parallel_for(m_threads * n_threads, [&, m_threads = m_threads, n_threads = n_threads](int wid) {
-            int mi = wid / n_threads;
-            int ni = wid % n_threads;
+            int mi = wid / static_cast<int>(n_threads);
+            int ni = wid % static_cast<int>(n_threads);
             Window win = max_window.split_window(Window::DimX, mi, m_threads).split_window(Window::DimY, ni, n_threads);
             win.validate();
             main_run(win, {wid, static_cast<int>(num_threads), &cpu_info()});
