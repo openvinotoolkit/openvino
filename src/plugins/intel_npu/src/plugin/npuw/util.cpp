@@ -454,22 +454,22 @@ void ov::npuw::util::gather_nf4(const ov::SoPtr<ov::ITensor>& src,
     if (src_type == ov::element::f8e4m3) {
         const auto* pSrc = src->data<ov::float8_e4m3>();
         for (std::size_t i = 0; i < dst->get_size(); i += 2) {
-            *(pDst + i) = float(pSrc[lo4(*pIdx)]);
-            *(pDst + i + 1) = float(pSrc[hi4(*pIdx)]);
+            *(pDst + i) = static_cast<float>(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = static_cast<float>(pSrc[hi4(*pIdx)]);
             pIdx++;
         }
     } else if (src_type == ov::element::f8e5m2) {
         const auto* pSrc = src->data<ov::float8_e5m2>();
         for (std::size_t i = 0; i < dst->get_size(); i += 2) {
-            *(pDst + i) = float(pSrc[lo4(*pIdx)]);
-            *(pDst + i + 1) = float(pSrc[hi4(*pIdx)]);
+            *(pDst + i) = static_cast<float>(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = static_cast<float>(pSrc[hi4(*pIdx)]);
             pIdx++;
         }
     } else {
         const auto* pSrc = src->data<ov::float8_e8m0>();
         for (std::size_t i = 0; i < dst->get_size(); i += 2) {
-            *(pDst + i) = float(pSrc[lo4(*pIdx)]);
-            *(pDst + i + 1) = float(pSrc[hi4(*pIdx)]);
+            *(pDst + i) = static_cast<float>(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = static_cast<float>(pSrc[hi4(*pIdx)]);
             pIdx++;
         }
     }
