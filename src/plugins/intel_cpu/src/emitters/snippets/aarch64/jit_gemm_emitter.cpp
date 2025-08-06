@@ -22,6 +22,7 @@
 #include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
