@@ -61,14 +61,59 @@ struct DynamicPipeline : public Pipeline {
             // TODO
         }
 
-        void updateMutableCommandList( uint32_t arg_index, const void* arg_value ) {
+        void updateMutableCommandList(uint32_t arg_index,
+                                      const void* arg_value,
+                                      const ov::Strides& strides,
+                                      const ov::Shape& shapes) {
             if (arg_index < _binding._inputs.size()) {
                 _binding._inputs[arg_index]->setArg(arg_value);
+                // Now MemRefType only support 4 dimension
+                size_t shapesSize = shapes.size();
+                for (int i = 0; i < 4; i++) {
+                    if (i < shapesSize) {
+                        _binding._inputs[arg_index]->sizes[i] = shapes[i];
+                    } else {
+                        // Set dimension to 1 if exceed region of shapes
+                        _binding._inputs[arg_index]->sizes[i] = 1;
+                    }
+                }
+
+                size_t stridesSize = strides.size();
+                for (int i = 0; i < 4; i++) {
+                    if (i < stridesSize) {
+                        _binding._inputs[arg_index]->strides[i] = strides[i];
+                    } else {
+                        // Set dimension to 1 if exceed region of shapes
+                        _binding._inputs[arg_index]->strides[i] = 1;
+                    }
+                }
+
             }
             else {
                 uint32_t output_index = arg_index - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
                     _binding._outputs[output_index]->setArg(arg_value);
+
+                    // Now MemRefType only support 4 dimension
+                    size_t shapesSize = shapes.size();
+                    for (int i = 0; i < 4; i++) {
+                        if (i < shapesSize) {
+                            _binding._outputs[output_index]->sizes[i] = shapes[i];
+                        } else {
+                            // Set dimension to 1 if exceed region of shapes
+                            _binding._outputs[output_index]->sizes[i] = 1;
+                        }
+                    }
+
+                    size_t stridesSize = strides.size();
+                    for (int i = 0; i < 4; i++) {
+                        if (i < stridesSize) {
+                            _binding._outputs[output_index]->strides[i] = strides[i];
+                        } else {
+                            // Set dimension to 1 if exceed region of shapes
+                            _binding._outputs[output_index]->strides[i] = 1;
+                        }
+                    }
                 }
             }
         }
@@ -102,8 +147,16 @@ public:
     virtual void pull() override;
     virtual void reset() const override;
 
-    virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
+    virtual void update_graph_arguments(uint32_t arg_index,
+                                        const void* arg_data,
+                                        size_t byte_size,
+                                        [[maybe_unused]] const ov::Strides& strides,
+                                        [[maybe_unused]] const ov::Shape& shapes) override;
+    virtual void update_graph_arguments_batching(uint32_t arg_index,
+                                                 const void* arg_data,
+                                                 [[maybe_unused]] const ov::Strides& strides,
+                                                 [[maybe_unused]] const ov::Shape& shapes,
+                                                 size_t command_list_index) override;
 
     virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
