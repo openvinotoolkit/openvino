@@ -15,10 +15,7 @@ namespace ov {
 namespace test {
 
 std::string SplitConvConcat::getTestCaseName(const testing::TestParamInfo<ov::test::BasicParams>& obj) {
-    ov::element::Type element_type;
-    ov::Shape inputShapes;
-    std::string targetDevice;
-    std::tie(element_type, inputShapes, targetDevice) = obj.param;
+    const auto& [element_type, inputShapes, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -32,9 +29,8 @@ void SplitConvConcat::SetUp() {
 }
 
 void SplitConvConcatBase::configure_test(const ov::test::BasicParams& param) {
-    ov::Shape inputShape;
-    ov::element::Type element_type;
-    std::tie(element_type, inputShape, targetDevice) = param;
+    const auto& [element_type, inputShape, _targetDevice] = param;
+    targetDevice = _targetDevice;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(element_type, ov::Shape(inputShape))};
 
