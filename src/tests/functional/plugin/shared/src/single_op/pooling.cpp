@@ -149,7 +149,7 @@ void MaxPoolingV8LayerTest::SetUp() {
 std::string AvgPoolingV16LayerTest::getTestCaseName(const testing::TestParamInfo<avgPoolV16LayerTestParamsSet>& obj) {
     const auto& [basicParamsSet, inPrc, inputShapes, targetDevice] = obj.param;
 
-    const auto& [kernel, stride, dilations, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
+    const auto& [kernel, stride, dilation, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
 
     std::ostringstream results;
     results << "IS=(";
@@ -180,7 +180,8 @@ std::string AvgPoolingV16LayerTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void AvgPoolingV16LayerTest::SetUp() {
-    const auto& [basicParamsSet, inPrc, inputShapes, targetDevice] = this->GetParam();
+    const auto& [basicParamsSet, inPrc, inputShapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const auto& [kernel, stride, dilation, padBegin, padEnd, roundingType, padType, excludePad] = basicParamsSet;
 
