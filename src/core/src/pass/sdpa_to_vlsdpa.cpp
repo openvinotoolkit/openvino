@@ -69,7 +69,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
             bool consumers_are_sdpa = true;
             for (auto target : attn_param->get_output_target_inputs(0)) {
                 auto target_node = target.get_node()->shared_from_this();
-                if (auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(target_node)) {
+                if (auto sdpa = ov::as_type_ptr<v13::ScaledDotProductAttention>(target_node)) {
                     // when sdpa only has inputs q,k,v,attention_mask and is_causal==False
                     if (sdpa->get_input_size() > 4 || sdpa->get_causal()) {
                         consumers_are_sdpa = false;
