@@ -456,7 +456,7 @@ static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHU
  * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
  * Possible values: "DYNAMIC", "STATIC".
- * Default value: "STATIC".
+ * Default value: "DYNAMIC".
  */
 static constexpr ov::Property<std::string> prefill_hint{"NPUW_LLM_PREFILL_HINT"};
 
