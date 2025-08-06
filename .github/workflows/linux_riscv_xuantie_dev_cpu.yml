@@ -228,12 +228,17 @@ jobs:
       GTEST_FILTER: ${{ inputs.testFilterType == 'SMOKE' && '*smoke*' || '*ActivationLayer*:*EltwiseLayer*:*LogicalLayer*:*ComparisonLayer*:*SelectLayer*:*MatMulLayerCPUTest*:*ExtremumLayerCPUTest*' }}
 
     steps:
-      - name: Download OpenVINO artifacts (tarballs)
+      - name: Download OpenVINO artifacts (package)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: "{openvino_package,openvino_tests}"
+          name: openvino_package
           path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (tests)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_tests
+          path: ${{ env.INSTALL_TEST_DIR }}
           
       - name: Extract OpenVINO packages and tests
         run: |
