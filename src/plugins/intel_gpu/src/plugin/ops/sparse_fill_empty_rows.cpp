@@ -28,24 +28,18 @@ static void CreateSparseFillEmptyRowsOp(ProgramBuilder& p, const std::shared_ptr
 
     std::shared_ptr<cldnn::sparse_fill_empty_rows> prim = nullptr;
 
-    if (p.use_new_shape_infer()) {
-        if (indices_constant && values_constant && dense_shape_constant && default_value_constant) {
-            prim = std::make_shared<cldnn::sparse_fill_empty_rows>(
-                layerName,
-                inputs,
-                values,
-                dense_shape,
-                indices,
-                default_value);
-        } else {
-            prim = std::make_shared<cldnn::sparse_fill_empty_rows>(
-                layerName,
-                inputs);
-        }
+    if (indices_constant && values_constant && dense_shape_constant && default_value_constant) {
+        prim = std::make_shared<cldnn::sparse_fill_empty_rows>(
+            layerName,
+            inputs,
+            values,
+            dense_shape,
+            indices,
+            default_value);
     } else {
         prim = std::make_shared<cldnn::sparse_fill_empty_rows>(
-                layerName,
-                inputs);
+            layerName,
+            inputs);
     }
 
     p.add_primitive(*op, prim);

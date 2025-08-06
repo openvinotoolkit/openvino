@@ -15,7 +15,7 @@ inline bool FUNC(row_exists)(const __global INPUT2_TYPE* restrict indices, uint 
 
 KERNEL(sparse_fill_empty_rows_ref)(
     const __global INPUT0_TYPE* restrict values,         // [N] - values at specified indices
-    const __global INPUT1_TYPE* restrict dense_shape,    // [2] - shape of the dense tensor (rows, cols)
+    const __global INPUT1_TYPE* restrict _unused,        // [2] - shape of the dense tensor (rows, cols)
     const __global INPUT2_TYPE* restrict indices,        // [N, 2] - indices (row, col) coordinates
     const __global INPUT3_TYPE* restrict default_value,  // scalar - default value
     __global OUTPUT_TYPE* restrict output_indices,       // [M, 2] - output indices 
@@ -39,7 +39,7 @@ KERNEL(sparse_fill_empty_rows_ref)(
         }
     }
 
-    bool is_empty = !FUNC_CALL(row_exists)(indices, indices_count, row_idx);
+    const bool is_empty = !FUNC_CALL(row_exists)(indices, indices_count, row_idx);
     empty_row_indicator[row_idx] = is_empty;
     if (is_empty) {
         // Insert default value at [row_idx, 0]

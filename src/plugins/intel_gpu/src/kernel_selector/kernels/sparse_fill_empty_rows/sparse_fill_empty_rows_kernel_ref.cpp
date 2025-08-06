@@ -77,14 +77,6 @@ bool SparseFillEmptyRowsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::SPARSE_FILL_EMPTY_ROWS) {
         return false;
     }
-
-    const sparse_fill_empty_rows_params &params = static_cast<const sparse_fill_empty_rows_params&>(p);
-    if (params.inputs.size() != 4)
-        return false;
-
-    if (params.outputs.size() != 3)
-        return false;
-
     return true;
 }
 
@@ -95,6 +87,7 @@ JitConstants SparseFillEmptyRowsKernelRef::GetJitConstants(const sparse_fill_emp
 }
 
 bool SparseFillEmptyRowsKernelRef::SkipKernelExecution(const sparse_fill_empty_rows_params& params, size_t kernel_id) const {
+    // If indices tensor size has changed the kernel has to be executed
     if (params.inputs[2].LogicalSize() != params.outputs[0].LogicalSize()) {
         return false;
     }
