@@ -58,6 +58,7 @@ void IRGraph::MemRefType::updateStride() {
     for (size_t i = 4 - 1; i > 0; --i) {
         strides[i] = stride;
         stride *= sizes[i];
+        std::cout << "stride: " << strides[i] << " dimension size: " << sizes[i] << std::endl;
     }
 }
 
@@ -122,6 +123,10 @@ public:
     std::unique_ptr<mlir::ExecutionEngine> createExecutionEngine(const std::string& entryName, std::optional<ov::Tensor>& blob, mlir::MLIRContext* context);
     void initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs);
     void setArgumentValue(uint32_t argi, const void* argv) override;
+    void setArgumentProperty(uint32_t argi,
+                             const void* argv,
+                             const ov::Strides strides,
+                             const ov::Shape& shapes) override;
     void initializeGraph(uint64_t command_queue_group_ordinal) override;
     uint64_t getNumSubgraphs() override { return _numOfSubgraphs; }
     void executeGraph(std::vector<MemRefType*>& inputs, std::vector<MemRefType*>& outputs, const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
@@ -169,6 +174,19 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
         outputs[i] = new MemRefType();
         outputs[i]->setSize(metadata.outputs[i]);
         outputs[i]->updateStride();
+    }
+
+    // dump output of _metadata
+    std::cout << "Metadata inputs: " << metadata.inputs.size() << std::endl;
+    for (const auto& input : metadata.inputs) {
+        std::cout << "Input compiler name: " << input.nameFromCompiler << " input node name: " << input.nodeFriendlyName
+                  << " shape: " << input.shapeFromCompiler << std::endl;
+    }
+    std::cout << "Metadata outputs: " << metadata.outputs.size() << std::endl;
+    for (const auto& output : metadata.outputs) {
+        std::cout << "Output compiler name: " << output.nameFromCompiler
+                  << " output node name: " << output.nodeFriendlyName << " shape: " << output.shapeFromCompiler
+                  << std::endl;
     }
 }
 
@@ -273,6 +291,64 @@ void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv)
         auto idx = argi - inputs.size();
         if (idx < outputs.size()) {
             outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
+        }
+    }
+}
+
+void IRGraphImpl::setArgumentProperty(uint32_t argi,
+                                      const void* argv,
+                                      const ov::Strides strides,
+                                      const ov::Shape& shapes) {
+    auto inputs = _binding._inputs;
+    if (argi < inputs.size()) {
+        inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
+        // Now MemRefType only support 4 dimension
+        size_t shapesSize = shapes.size();
+        for (int i = 0; i < 4; i++) {
+            if (i < shapesSize) {
+                inputs[argi]->sizes[i] = shapes[i];
+            } else {
+                // Set dimension to 1 if exceed region of shapes
+                inputs[argi]->sizes[i] = 1;
+            }
+        }
+
+        size_t stridesSize = strides.size();
+        for (int i = 0; i < 4; i++) {
+            if (i < stridesSize) {
+                inputs[argi]->strides[i] = strides[i];
+            } else {
+                // Set dimension to 1 if exceed region of shapes
+                inputs[argi]->strides[i] = 1;
+            }
+        }
+
+    } else {
+        auto outputs = _binding._outputs;
+        auto idx = argi - inputs.size();
+        if (idx < outputs.size()) {
+            outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
+
+            // Now MemRefType only support 4 dimension
+            size_t shapesSize = shapes.size();
+            for (int i = 0; i < 4; i++) {
+                if (i < shapesSize) {
+                    outputs[idx]->sizes[i] = shapes[i];
+                } else {
+                    // Set dimension to 1 if exceed region of shapes
+                    outputs[idx]->sizes[i] = 1;
+                }
+            }
+
+            size_t stridesSize = strides.size();
+            for (int i = 0; i < 4; i++) {
+                if (i < stridesSize) {
+                    outputs[idx]->strides[i] = strides[i];
+                } else {
+                    // Set dimension to 1 if exceed region of shapes
+                    outputs[idx]->strides[i] = 1;
+                }
+            }
         }
     }
 }
@@ -425,6 +501,18 @@ void IRGraph::set_argument_value(uint32_t argi, const void* argv) const {
     }
 
     _impl->setArgumentValue(argi, argv);
+}
+
+void IRGraph::set_argument_property(uint32_t argi,
+                                    const void* argv,
+                                    const ov::Strides& strides,
+                                    const ov::Shape& shapes) const {
+    if (_impl == nullptr) {
+        _logger.warning("Graph handle is null, dynamic pipeline to handle set_argument_value");
+        return;
+    }
+
+    _impl->setArgumentProperty(argi, argv, strides, shapes);
 }
 
 void IRGraph::initialize(const Config& config) {

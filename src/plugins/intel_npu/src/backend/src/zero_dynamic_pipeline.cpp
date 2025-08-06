@@ -10,18 +10,6 @@
 
 #include "zero_dynamic_pipeline.hpp"
 
-#include <llvm/Support/Error.h>
-#include <llvm/Support/InitLLVM.h>
-#include <llvm/Support/SourceMgr.h>
-#include <llvm/Support/TargetSelect.h>
-#include <mlir/ExecutionEngine/ExecutionEngine.h>
-#include <mlir/ExecutionEngine/MemRefUtils.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/DialectRegistry.h>
-#include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser/Parser.h>
-#include <mlir/Support/LLVM.h>
-#include <mlir/Target/LLVMIR/Dialect/All.h>
 #include <ze_api.h>
 #include <ze_graph_ext.h>
 
@@ -70,7 +58,6 @@ DynamicPipeline::DynamicPipeline(const Config& config,
         }
     }
 
-    // TODO: We have multiple command list to support batch, do we still need this for IR blob?
     if (!_sync_output_with_fences || (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
                                       _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
         _event_pool =
@@ -85,8 +72,6 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     }
     _logger.debug("DynamicPipeline - emplace_back _event_pool and _command_queue completed");
 
-    // TODO: How many command list shall we create here? one for input to update tensor, one for output to update
-    // tensor, then how to deal with batch
     uint64_t num_of_subgraphs = _graph->get_num_subgraphs();
 
     _command_lists.reserve(_number_of_command_lists);
@@ -103,8 +88,11 @@ DynamicPipeline::DynamicPipeline(const Config& config,
         }
     }
 
+    intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(graph.get());
+
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         size_t io_index = 0;
+
         for (const auto& desc : graph->get_input_descriptors()) {
             if (input_tensors.at(io_index).size() > 1) {
                 void* data = nullptr;
@@ -115,13 +103,18 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                     data = remote_tensor->get_original_memory();
                 }
 
-                graph->set_argument_value(desc.idx, data);
+                // graph->set_argument_value(desc.idx, data);
+                irGraph->set_argument_property(desc.idx,
+                                               data,
+                                               input_tensors.at(io_index).at(i)->get_strides(),
+                                               input_tensors.at(io_index).at(i)->get_shape());
 
                 ++io_index;
                 continue;
             }
 
             void* data = nullptr;
+
             auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(0));
             if (remote_tensor == nullptr) {
                 data = input_tensors.at(io_index).at(0)->data();
@@ -129,12 +122,18 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                 data = remote_tensor->get_original_memory();
             }
 
-            // TODO: we do not have graph handle, so can not call setGraphArgumentValue(), then IR call this? but how
-            // can IR know new tensor come?
-            graph->set_argument_value(
+            // graph->set_argument_value(
+            //     desc.idx,
+            //     static_cast<unsigned char*>(data) +
+            //         (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
+
+            std::cout << desc.idx << std::endl;
+            irGraph->set_argument_property(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
-                    (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
+                    (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists,
+                input_tensors.at(io_index).at(0)->get_strides(),
+                input_tensors.at(io_index).at(0)->get_shape());
 
             ++io_index;
         }
@@ -149,60 +148,62 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                 data = remote_tensor->get_original_memory();
             }
 
-            // TODO: we do not have graph handle, so can not call setGraphArgumentValue(), then IR call this? but how
-            // can IR know new tensor come?
-            graph->set_argument_value(
+            // graph->set_argument_value(
+            //     desc.idx,
+            //     static_cast<unsigned char*>(data) +
+            //         (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
+
+            std::cout << desc.idx << std::endl;
+            irGraph->set_argument_property(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
-                    (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
+                    (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists,
+                output_tensors.at(io_index)->get_strides(),
+                output_tensors.at(io_index)->get_shape());
+
             ++io_index;
         }
 
         if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
             _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
             if (_graph->get_last_submitted_event(i)) {
-                // TODO: this wait shall for the final execution, but if multiple graph inside IR, how to wait? And
-                // still no graph handle, IR shall maintain this
                 _command_lists.at(i)->appendWaitOnEvent(_graph->get_last_submitted_event(i));
             }
         }
 
-        /// append timestamp command if feature was activated
-        if (_npu_profiling != nullptr) {
-            _command_lists.at(i)->appendBarrier();
-            // TODO: we can only change the first command list, all subgraph inside IR shall also add this?
-            _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
-        }
+        /// TODO, profiling needs to add timestamp before and after graph execute, but the execute is added inside blob
+        /// now
+        // /// append timestamp command if feature was activated
+        // if (_npu_profiling != nullptr) {
+        //     _command_lists.at(i)->appendBarrier();
+        //     _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_start));
+        // }
 
         _command_lists.at(i)->bind(dynamic_cast<intel_npu::IRGraph*>(graph.get()));
 
-        // FIXME(askrebko): commands will added on the fly
-        //_command_lists.at(i)->appendGraphExecute(static_cast<ze_graph_handle_t>(graph->get_handle()),
-        //                                         _profiling_query ? _profiling_query->getHandle() : nullptr);
-        
-        /// append timestamp command if feature was activated
-        if (_npu_profiling != nullptr) {
-            _command_lists.at(i)->appendBarrier();
-            // TODO: we can only change the first command list, all subgraph inside IR shall also add this?
-            _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
-        }
+        // /// Old graph execute called here
 
-        if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
-            _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            if (_graph->get_last_submitted_event(i)) {
-                _command_lists.at(i)->appendReset(_graph->get_last_submitted_event(i));
-            }
+        // /// append timestamp command if feature was activated
+        // if (_npu_profiling != nullptr) {
+        //     _command_lists.at(i)->appendBarrier();
+        //     _command_lists.at(i)->appendNpuTimestamp(reinterpret_cast<uint64_t*>(_npu_profiling->npu_ts_infer_end));
+        // }
 
-            _command_lists.at(i)->appendSignalEvent(_events.at(i));
-            _graph->set_last_submitted_event(_events.at(i), i);
-        }
+        // if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
+        //     _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        //     if (_graph->get_last_submitted_event(i)) {
+        //         _command_lists.at(i)->appendReset(_graph->get_last_submitted_event(i));
+        //     }
 
-        // appendBarrier used in L0 as well
-        if (!_sync_output_with_fences) {
-            // TODO: if we have multiple commandlist inside IR, then the barrier seems useless here.
-            _command_lists.at(i)->appendBarrier();
-            _command_lists.at(i)->appendSignalEvent(_events.at(i));
-        }
+        //     _command_lists.at(i)->appendSignalEvent(_events.at(i));
+        //     _graph->set_last_submitted_event(_events.at(i), i);
+        // }
+
+        // // appendBarrier used in L0 as well
+        // if (!_sync_output_with_fences) {
+        //     _command_lists.at(i)->appendBarrier();
+        //     _command_lists.at(i)->appendSignalEvent(_events.at(i));
+        // }
     }
 }
 
@@ -213,14 +214,6 @@ void DynamicPipeline::PipelinedCommandLists::bind( IRGraph* graph ) {
 void DynamicPipeline::push() {
     _logger.debug("DynamicPipeline - push() started");
     _logger.debug("inputs.size = %d, outputs.size=%d", _levelZeroInputTensors.size(), _levelZeroOutputTensors.size());
-
-    void* contextHandlePtr = _init_structs->getContext();
-    void* deviceHandlePtr = _init_structs->getDevice();
-    void* ddiTableHandlePtr = _init_structs->getGraphDdiTable().getImpl();
-   
-
-    // TODO: if we support batch, need close more. If we have multiple graph inside IR, need know which to close
-    //_command_lists.at(0)->close();
 
     if (_init_structs->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         _config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
@@ -251,6 +244,28 @@ void DynamicPipeline::push() {
         }
 
         auto& command_lists = _command_lists.at(i);
+        auto graphArguments = command_lists->getBinding();
+        std::cout << "Inputs info for IRGraph:" << std::endl;
+        for (auto& memType : graphArguments._inputs) {
+            std::cout << " sizes: " << memType->sizes[0] << "*" << memType->sizes[1] << "*" << memType->sizes[2] << "*"
+                      << memType->sizes[3];
+            std::cout << " strides: " << memType->strides[0] << "*" << memType->strides[1] << "*" << memType->strides[2]
+                      << "*" << memType->strides[3];
+            std::cout << " basePtr: " << memType->basePtr << " data: " << memType->data
+                      << " offset:" << memType->offset;
+            std::cout << std::endl;
+        }
+        std::cout << "Outputs info for IRGraph:" << std::endl;
+        for (auto& memType : graphArguments._outputs) {
+            std::cout << " sizes: " << memType->sizes[0] << "*" << memType->sizes[1] << "*" << memType->sizes[2] << "*"
+                      << memType->sizes[3];
+            std::cout << " strides: " << memType->strides[0] << "*" << memType->strides[1] << "*" << memType->strides[2]
+                      << "*" << memType->strides[3];
+            std::cout << " basePtr: " << memType->basePtr << " data: " << memType->data
+                      << " offset:" << memType->offset;
+            std::cout << std::endl;
+        }
+
         dynamic_cast<IRGraph*>(_graph.get())->execute(_init_structs, command_lists->getBinding(), command_lists->getHandles(), commandQueueHandle, fence, event, nullptr);
     }
 
@@ -283,6 +298,30 @@ void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
 
     update_graph_arguments_batching(arg_index, arg_data, command_list_index);
 };
+
+std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
+    // TODO: Need a way to get profiling info
+    _logger.debug("InferRequest::get_profiling_info started");
+    if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
+        _logger.warning("InferRequest::get_profiling_info complete with empty {}.");
+        return {};
+    }
+
+    if (_config.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER) {
+        _logger.debug("InferRequest::get_profiling_info complete with _npu_profiling->getNpuInferStatistics().");
+        return _npu_profiling->getNpuInferStatistics();
+    }
+    // /// PROFILING_TYPE = MODEL or undefined = fallback to model profiling
+    // if (_config.get<COMPILER_TYPE>() == ov::intel_npu::CompilerType::MLIR) {
+    // For plugin compiler retreive raw profiling data from backend and delegate
+    // processing to the compiler
+    _logger.debug("InferRequest::get_profiling_info complete with compiler->process_profiling_output().");
+    return _graph->process_profiling_output(_profiling_query->getData<uint8_t>(), _config);
+    // } else {
+    //     _logger.debug("InferRequest::get_profiling_info complete with _profiling_query.getLayerStatistics().");
+    //     return _profiling_query->getLayerStatistics();
+    // }
+}
 
 }  // namespace intel_npu
 

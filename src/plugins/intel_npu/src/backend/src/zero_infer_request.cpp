@@ -396,6 +396,8 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "set_tensor");
+    std::cout << "set_tensor:  tensor shape: " << tensor->get_shape().to_string()
+              << ", size: " << tensor->get_byte_size() << std::endl;
 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
@@ -406,6 +408,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
+        std::cout << "update input tensor" << std::endl;
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
             // Got set_tensor with the same object - do nothing
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
@@ -420,6 +423,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         // Check if batch has been changed
         if (batchSizeCandidate.has_value()) {
             if (get_user_input(foundPort.idx) != nullptr) {
+                std::cout << "Detect size" << std::endl;
                 _logger.debug("ZeroInferRequest::set_tensor - check if input tensors may have their sizes changed, "
                               "existing: %zu and "
                               "count: %zu, new: %zu - to determine whether we need for pipeline reallocation",
@@ -428,6 +432,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                               tensor->get_byte_size());
                 if (get_user_input(foundPort.idx)->get_byte_size() * get_user_inputs(foundPort.idx).size() !=
                     tensor->get_byte_size()) {
+                    std::cout << "Need to recreate pipeline since tensor size change, old size: "
+                          << get_user_input(foundPort.idx)->get_byte_size() * get_user_inputs(foundPort.idx).size()
+                          << " new size: " << tensor->get_byte_size() << std::endl;
                     _pipelineNeedsReallocation = true;
                 }
             }
@@ -441,7 +448,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             get_user_inputs(foundPort.idx).resize(1);
             get_user_inputs(foundPort.idx).shrink_to_fit();
         }
-
+        std::cout << "set new tensor" << std::endl;
         get_user_input(foundPort.idx) = tensor;
     } else {
         if (_userOutputTensors.at(foundPort.idx)._ptr == tensor._ptr) {
