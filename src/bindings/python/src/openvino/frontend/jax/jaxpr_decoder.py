@@ -21,7 +21,6 @@ from openvino.frontend.jax.utils import jax_array_to_ov_const, get_ov_type_for_v
 
 import numpy as np
 
-from typing import List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -85,7 +84,7 @@ class JaxprPythonDecoder(Decoder):
         # TODO: this implementation may lead to memory increasing. Any better solution?
         self.m_decoders = []
 
-    def inputs(self) -> List[int]:
+    def inputs(self) -> list[int]:
         if isinstance(self.jaxpr, jex.core.JaxprEqn):
             idx = 0
             res = []
@@ -176,7 +175,7 @@ class JaxprPythonDecoder(Decoder):
         else:
             return "root"
 
-    def outputs(self) -> List[int]:
+    def outputs(self) -> list[int]:
         return [id(v) for v in self.jaxpr.outvars]
 
     def output(self, idx: int) -> int:
@@ -239,7 +238,7 @@ class _JaxprPythonConstantDecoder(Decoder):
         self.constant = constant
         self.output_id = id(self.constant) if output_id is None else output_id
 
-    def inputs(self) -> List[int]:
+    def inputs(self) -> list[int]:
         return []
 
     def input(self, idx: int) -> int:
@@ -288,7 +287,7 @@ class _JaxprPythonConstantDecoder(Decoder):
     def get_op_type(self) -> str:
         return "constant"
 
-    def outputs(self) -> List[int]:
+    def outputs(self) -> list[int]:
         return [self.output_id]
 
     def output(self, idx: int) -> int:

@@ -13,6 +13,7 @@
 
 #include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/node.hpp"
+#include "pyopenvino/utils/utils.hpp"
 
 namespace py = pybind11;
 
@@ -21,7 +22,7 @@ void PyOp::validate_and_infer_types() {
 }
 
 bool PyOp::visit_attributes(ov::AttributeVisitor& value) {
-    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    ConditionalGILScopedAcquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "visit_attributes");
     if (overrided_py_method) {                                       // method is found
@@ -31,7 +32,7 @@ bool PyOp::visit_attributes(ov::AttributeVisitor& value) {
 }
 
 std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& new_args) const {
-    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    ConditionalGILScopedAcquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "clone_with_new_inputs");
     if (overrided_py_method) {                        // method is found
@@ -39,7 +40,7 @@ std::shared_ptr<ov::Node> PyOp::clone_with_new_inputs(const ov::OutputVector& ne
         return result.cast<std::shared_ptr<ov::Node>>();
     }
     // Default implementation for clone_with_new_inputs
-    auto py_handle_type = py_handle.get_type();
+    auto py_handle_type = py::type::handle_of(py_handle);
     auto new_py_object = py_handle_type(new_args);
     return new_py_object.cast<std::shared_ptr<ov::Node>>();
 }
@@ -53,7 +54,7 @@ bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& inp
 }
 
 bool PyOp::has_evaluate() const {
-    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    ConditionalGILScopedAcquire gil;  // Acquire the GIL while in this scope.
     // Try to look up the overridden method on the Python side.
     py::function overrided_py_method = pybind11::get_override(this, "has_evaluate");
     if (overrided_py_method) {                                 // method is found
@@ -67,7 +68,7 @@ bool PyOp::has_evaluate() const {
 }
 
 void PyOp::update_type_info() {
-    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    ConditionalGILScopedAcquire gil;  // Acquire the GIL while in this scope.
 
     // Try to look up the overridden method on the Python side.
     py::function overriden_py_method = pybind11::get_override(this, "get_type_info");

@@ -37,8 +37,8 @@ void regclass_frontend_FrontEndManager(py::module m) {
             R"(
                 Gets list of registered frontends.
 
-                :return: List of available frontend names.
-                :rtype: List[str]
+                :return: list of available frontend names.
+                :rtype: list[str]
              )");
 
     fem.def(

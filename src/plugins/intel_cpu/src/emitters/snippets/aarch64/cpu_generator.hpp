@@ -33,7 +33,7 @@ private:
 
 class CPUTargetMachine : public snippets::TargetMachine {
 public:
-    explicit CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr);
+    explicit CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache);
     [[nodiscard]] std::shared_ptr<snippets::TargetMachine> clone() const override;
     [[nodiscard]] bool is_supported() const override;
     snippets::CompiledSnippetPtr get_snippet() override;
@@ -53,7 +53,7 @@ private:
 
 class CPUGenerator : public snippets::Generator {
 public:
-    CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa, ov::intel_cpu::MultiCacheWeakPtr);
+    CPUGenerator(dnnl::impl::cpu::aarch64::cpu_isa_t isa, ov::intel_cpu::MultiCacheWeakPtr cache);
     CPUGenerator(const std::shared_ptr<CPUTargetMachine>& target);
     std::shared_ptr<Generator> clone() const override;
 

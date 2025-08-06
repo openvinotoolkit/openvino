@@ -17,7 +17,7 @@ namespace ov::intel_cpu::aarch64 {
 struct GemmCopyBKernelKaiConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     GemmCopyBKernelKaiConfig() = default;
-    GemmCopyBKernelKaiConfig(const size_t n_blk_size);
+    GemmCopyBKernelKaiConfig(size_t n_blk_size);
 
     bool operator==(const GemmCopyBKernelKaiConfig& rhs) const;
     bool operator!=(const GemmCopyBKernelKaiConfig& rhs) const {
@@ -32,12 +32,12 @@ public:
     [[nodiscard]] bool is_empty() const;
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    virtual std::string to_string() const override;
+    [[nodiscard]] std::string to_string() const override;
 #endif
 
     void update(size_t N, size_t K);
 
-    size_t hash() const override {
+    [[nodiscard]] size_t hash() const override {
         return m_hash;
     }
 

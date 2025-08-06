@@ -56,7 +56,7 @@ MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorConte
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("ShlFCExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("ShlFCExecutor: Weights cache is not available");
@@ -78,7 +78,7 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
     const auto& dstDesc = config.descs.at(ARG_DST);
-    if (!everyone_is(ov::element::f32, srcDesc->getPrecision(), weiDesc->getPrecision(), dstDesc->getPrecision())) {
+    if (!all_of(ov::element::f32, srcDesc->getPrecision(), weiDesc->getPrecision(), dstDesc->getPrecision())) {
         DEBUG_LOG("ShlFCExecutor: supports only f32");
         return false;
     }

@@ -9,7 +9,8 @@ import os
 import re
 import weakref
 from datetime import datetime
-from typing import cast, List, Union, Tuple, Generator
+from typing import cast, Union
+from collections.abc import Generator
 
 from e2e_tests.common import config
 
@@ -40,7 +41,7 @@ class Chunks(Generator):
     generator yielding tuple: no of part, number of parts, and part of the input list
     """
 
-    def __init__(self, seq: List[str], max_number_of_elements: int = 1000) -> None:
+    def __init__(self, seq: list[str], max_number_of_elements: int = 1000) -> None:
         super().__init__()
         self.seq = tuple(seq)
         assert max_number_of_elements > 0, "Incorrect number of elements, should be more than zero"
@@ -49,13 +50,13 @@ class Chunks(Generator):
         self.current_chunk = 0
         self.index_iterator = iter(range(0, len(self.seq), self.chunk_len))
 
-    def __next__(self) -> Tuple[int, int, list]:
+    def __next__(self) -> tuple[int, int, list]:
         return self.send(None)
 
     def __iter__(self) -> 'Chunks':
         return self
 
-    def send(self, ignored_value) -> Tuple[int, int, list]:
+    def send(self, ignored_value) -> tuple[int, int, list]:
         index = next(self.index_iterator)
         return_chunk = self.current_chunk, self.no_of_chunks, list(self.seq[index:index + self.chunk_len])
         self.current_chunk += 1
@@ -166,7 +167,7 @@ class Logger(logging.Logger):
         return record
 
     def _log(self, level, msg, args, exc_info=None, extra=None, stack_info=False,
-             list_of_strings: List[str] = None,
+             list_of_strings: list[str] = None,
              chunk_len: int = 1000,
              chunk_msg: str = None,
              final_msg: str = None):
@@ -182,7 +183,7 @@ class Logger(logging.Logger):
             return super().findCaller(stack_info=stack_info)
 
     def log_list_of_strings(self, level, chunk_msg, args, exc_info=None, extra=None, stack_info=False,
-                            list_of_strings: List[str] = None,
+                            list_of_strings: list[str] = None,
                             chunk_len: int = 1000,
                             final_msg: str = None):
         fn, lno, func, sinfo = self.findCaller(stack_info=stack_info)

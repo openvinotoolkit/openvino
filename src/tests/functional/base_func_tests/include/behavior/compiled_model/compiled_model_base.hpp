@@ -6,7 +6,6 @@
 #include <openvino/core/preprocess/pre_post_process.hpp>
 #include <openvino/pass/serialize.hpp>
 
-#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
@@ -24,6 +23,7 @@
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "openvino/util/file_util.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 namespace ov::test::behavior {
 namespace {
@@ -76,9 +76,8 @@ class OVCompiledModelBaseTest : public testing::WithParamInterface<InferRequestP
                                 public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestParams> obj) {
-        std::string targetDevice;
-        ov::AnyMap configuration;
-        std::tie(targetDevice, configuration) = obj.param;
+        const auto& [_targetDevice, configuration] = obj.param;
+        auto targetDevice = _targetDevice;
         std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
 
         std::ostringstream result;
@@ -696,10 +695,8 @@ class CompiledModelSetType : public testing::WithParamInterface<CompiledModelSet
                              public OVCompiledNetworkTestBase {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CompiledModelSetTypeParams> obj) {
-        ov::element::Type convert_type;
-        std::string target_device;
-        ov::AnyMap configuration;
-        std::tie(convert_type, target_device, configuration) = obj.param;
+        const auto& [convert_type, _target_device, configuration] = obj.param;
+        auto target_device = _target_device;
         std::replace(target_device.begin(), target_device.end(), ':', '.');
 
         std::ostringstream result;
@@ -762,6 +759,29 @@ TEST_P(CompiledModelSetType, canSetInputOutputTypeAndCompileModel) {
     output.postprocess().convert_element_type(convert_type);
     model = ppp.build();
     OV_ASSERT_NO_THROW(core.compile_model(model, target_device, configuration));
+}
+
+TEST_P(OVCompiledModelBaseTest, import_from_istream) {
+    std::stringstream export_stream;
+    {
+        auto model = make_model_with_weights();
+        auto compiled_model = core->compile_model(model, target_device);
+        ASSERT_TRUE(compiled_model);
+        compiled_model.export_model(export_stream);
+    }
+    EXPECT_NO_THROW(core->import_model(export_stream, target_device));
+}
+
+TEST_P(OVCompiledModelBaseTest, import_from_tensor) {
+    std::stringstream export_stream;
+    {
+        auto model = make_model_with_weights();
+        auto compiled_model = core->compile_model(model, target_device);
+        ASSERT_TRUE(compiled_model);
+        compiled_model.export_model(export_stream);
+    }
+    ov::Tensor exported_model = from_stream(export_stream, export_stream.str().size());
+    EXPECT_NO_THROW(core->import_model(exported_model, target_device));
 }
 
 TEST_P(OVCompiledModelBaseTest, import_from_weightless_blob) {
@@ -1170,7 +1190,7 @@ TEST_P(OVCompiledModelBaseTest, compile_from_cached_weightless_blob_but_no_weigh
         // Model loaded from cache since weightless cache with ov::Model is supported.
         auto compiled_model = core->compile_model(model, target_device, configuration);
         ASSERT_TRUE(compiled_model);
-        if (target_device == utils::DEVICE_GPU) {
+        if (target_device == utils::DEVICE_GPU || target_device == utils::DEVICE_NPU) {
             EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
         } else {
             EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));

@@ -4,7 +4,7 @@
 
 #include "jit_brgemm_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -19,6 +19,7 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_amx.hpp"
@@ -42,7 +43,7 @@ using namespace ov::intel_cpu::x64;
 
 namespace ov::intel_cpu {
 
-jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
+jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
                                        cpu_isa_t isa,
                                        const ov::snippets::lowered::ExpressionPtr& expr,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
@@ -70,13 +71,13 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator* h,
                               "Jit emitter is called when the shapes are unknown");
 
     m_memory_offsets = {brgemm_node->get_offset_a(), brgemm_node->get_offset_b(), brgemm_node->get_offset_c()};
-    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
-                    utils::get_buffer_cluster_id(expr->get_input_port(1)),
-                    utils::get_buffer_cluster_id(expr->get_output_port(0))};
+    m_buffer_ids = {ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(1)),
+                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(0))};
     m_with_scratchpad = brgemm_config.with_scratchpad();
     if (m_with_scratchpad) {
         m_memory_offsets.push_back(brgemm_node->get_offset_scratch());
-        m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_input_port(2)));
+        m_buffer_ids.push_back(ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(2)));
     }
     m_gemm_inputs_count = brgemm_node->get_gemm_inputs_count();
 }
@@ -112,12 +113,12 @@ std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precision
     }
     if (config.with_wei_repacking()) {
         std::set<std::vector<element::Type>> supported_types = {form_precisions({element::f32, element::f32})};
-        if (snippets::utils::one_of(config.isa(),
+        if (snippets::utils::any_of(config.isa(),
                                     dnnl::impl::cpu::x64::avx512_core_bf16,
                                     dnnl::impl::cpu::x64::avx2_vnni_2)) {
             supported_types.insert(form_precisions({element::bf16, element::bf16}));
         }
-        if (snippets::utils::one_of(config.isa(),
+        if (snippets::utils::any_of(config.isa(),
                                     dnnl::impl::cpu::x64::avx512_core_vnni,
                                     dnnl::impl::cpu::x64::avx2_vnni)) {
             supported_types.insert(form_precisions({element::u8, element::i8}));

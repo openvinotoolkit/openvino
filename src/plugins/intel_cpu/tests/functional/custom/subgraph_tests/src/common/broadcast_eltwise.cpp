@@ -24,11 +24,7 @@ class BroadcastEltwise : virtual public SubgraphBaseTest,
                       public testing::WithParamInterface<BroadcastEltwiseParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<BroadcastEltwiseParams>& obj) {
-        ElementType input_precision;
-        InputShape input_shape;
-        ov::Shape target_shape;
-        std::tie(input_precision, input_shape, target_shape) = obj.param;
-
+        const auto& [input_precision, input_shape, target_shape] = obj.param;
         std::ostringstream result;
         result << "precision=" << input_precision << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << ")_TS=(";
         for (const auto& item : input_shape.second) {
@@ -40,9 +36,8 @@ public:
 
 protected:
     void SetUp() override {
-        ElementType input_precision;
-        InputShape input_shape;
-        std::tie(input_precision, input_shape, target_shape) = GetParam();
+        const auto& [input_precision, input_shape, _target_shape] = GetParam();
+        target_shape = _target_shape;
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         std::vector<InputShape> input_shapes{input_shape, {{}, {{target_shape.size()}}}};

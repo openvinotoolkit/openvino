@@ -32,7 +32,6 @@ public:
     ExecutorImplementation(const char* name,
                            const ExecutorType type,
                            const OperationType operationType,
-                           const ShapeTolerance shapeRelation,
                            SupportsExtendedPredicate supports,
                            CreateOptimalConfigPredicate createOptimalConfig,
                            AcceptsShapePredicate acceptsShape,
@@ -40,7 +39,6 @@ public:
         : m_name(name),
           m_type(type),
           m_operationType(operationType),
-          m_shapeRelation(shapeRelation),
           m_supports(std::move(supports)),
           m_createOptimalConfig(std::move(createOptimalConfig)),
           m_acceptsShape(std::move(acceptsShape)),
@@ -49,7 +47,6 @@ public:
     ExecutorImplementation(const char* name,
                            const ExecutorType type,
                            const OperationType operationType,
-                           const ShapeTolerance shapeRelation,
                            SupportsSimplePredicate supports,
                            CreateOptimalConfigPredicate createOptimalConfig,
                            AcceptsShapePredicate acceptsShape,
@@ -57,7 +54,6 @@ public:
         : m_name(name),
           m_type(type),
           m_operationType(operationType),
-          m_shapeRelation(shapeRelation),
           m_supports([supports](const executor::Config<Attrs>& config, const MemoryFormatFilter&) {
               return supports(config);
           }),
@@ -88,7 +84,7 @@ public:
             return m_acceptsShape(attrs, memory);
         }
 
-        return false;
+        return true;
     }
 
     [[nodiscard]] ExecutorPtr create(const Attrs& attrs,
@@ -103,18 +99,18 @@ public:
     }
 
     [[nodiscard]] bool shapeAgnostic() const {
-        return m_shapeRelation == ShapeTolerance::Agnostic;
+        return !static_cast<bool>(m_acceptsShape);
     }
 
     [[nodiscard]] const char* name() const {
         return m_name;
     }
 
-    [[nodiscard]] const ExecutorType type() const {
+    [[nodiscard]] ExecutorType type() const {
         return m_type;
     }
 
-    [[nodiscard]] const OperationType operationType() const {
+    [[nodiscard]] OperationType operationType() const {
         return m_operationType;
     }
 
@@ -122,7 +118,6 @@ private:
     const char* m_name;
     ExecutorType m_type;
     OperationType m_operationType;
-    ShapeTolerance m_shapeRelation;
     SupportsExtendedPredicate m_supports;
     CreateOptimalConfigPredicate m_createOptimalConfig;
     AcceptsShapePredicate m_acceptsShape;

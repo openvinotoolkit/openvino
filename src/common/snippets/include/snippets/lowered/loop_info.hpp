@@ -39,6 +39,8 @@ using LoopInfoPtr = std::shared_ptr<LoopInfo>;
  */
 class LoopInfo : public std::enable_shared_from_this<LoopInfo> {
 public:
+    OPENVINO_RTTI_BASE("LoopInfoBase")
+
     LoopInfo() = default;
     LoopInfo(size_t work_amount,
              size_t increment,
@@ -160,18 +162,6 @@ public:
      */
     virtual void sort_ports() = 0;
 
-    // Note that get_type_info_static and get_type_info are needed to mimic OPENVINO_RTTI interface,
-    // so the standard OPENVINO_RTTI(...) macros could be used in derived classes.
-    _OPENVINO_HIDDEN_METHOD static const ::ov::DiscreteTypeInfo& get_type_info_static() {
-        static ::ov::DiscreteTypeInfo type_info_static{"LoopInfoBase"};
-        type_info_static.hash();
-        return type_info_static;
-    }
-
-    virtual const DiscreteTypeInfo& get_type_info() const {
-        return get_type_info_static();
-    }
-
     const char* get_type_name() const {
         return get_type_info().name;
     }
@@ -226,7 +216,7 @@ public:
     // The structure describes data pointer shift parameters:
     // pointer increment, finalization offset, element size of the port
     struct LoopPortDesc {
-        LoopPortDesc(int64_t inc = 0, int64_t fo = 0, int64_t ds = 0)
+        explicit LoopPortDesc(int64_t inc = 0, int64_t fo = 0, int64_t ds = 0)
             : ptr_increment(inc),
               finalization_offset(fo),
               data_size(ds) {}

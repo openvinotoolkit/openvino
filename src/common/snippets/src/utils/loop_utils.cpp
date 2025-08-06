@@ -39,14 +39,14 @@ inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, 
     if (is_dynamic_value(shape[dim]) && port_count > 1) {
         return get_dynamic_value<int64_t>();
     }
-    if (!(shape[dim] == 1 && work_amount != 1)) {
+    if (shape[dim] != 1 || work_amount == 1) {
         return get_stride(dim, shape);
     }
     return 0;
 }
 
 inline int64_t get_finalization_offset(size_t work_amount, int64_t ptr_increment) {
-    if (ptr_increment == 0 || work_amount == 0) {
+    if (any_of(0U, ptr_increment, work_amount)) {
         return 0;
     }
     if (is_dynamic_value(work_amount) || is_dynamic_value(ptr_increment)) {
