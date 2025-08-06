@@ -111,9 +111,8 @@ ov::intel_cpu::MLPFusionPass::MLPFusionPass() {
     auto mlp_up_proj = wrap_type<MatMul>({input, up_proj_weight | up_proj_weight_compressed | up_proj_weight_deq},
                                          {{"transpose_a", false}, {"transpose_b", true}});
 
-    auto mlp_gated_up =
-        wrap_type<Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split},
-                            {{"auto_broadcast", "numpy"}});
+    auto mlp_gated_up = wrap_type<Multiply>({mlp_silu_gate | mlp_gelu_gate, mlp_up_proj | gate_up_proj_split},
+                                            {{"auto_broadcast", "numpy"}});
     auto down_proj =
         wrap_type<MatMul>({mlp_gated_up, down_proj_weight | down_proj_weight_compressed | down_proj_weight_deq},
                           {{"transpose_a", false}, {"transpose_b", true}});
