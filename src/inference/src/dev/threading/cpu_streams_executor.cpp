@@ -110,9 +110,18 @@ struct CPUStreamsExecutor::Impl {
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
             if (stream_type == STREAM_WITHOUT_PARAM) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_max_concurrency(concurrency)
-                                                            .set_max_threads_per_core(max_threads_per_core)});
+                auto core_types = tbb::info::core_types();
+                if (core_types.size() > 2) {  // size should be 3 on PTL
+                    _taskArena.reset(
+                        new custom::task_arena{custom::task_arena::constraints{}
+                                                   .set_max_concurrency(concurrency)
+                                                   .set_max_threads_per_core(max_threads_per_core)
+                                                   .set_core_types({core_types.end() - 2, core_types.end()})});
+                } else {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_max_threads_per_core(max_threads_per_core)});
+                }
             } else if (stream_type == STREAM_WITH_NUMA_ID) {
                 // Numa node id has used different mapping methods in TBBBind since oneTBB 2021.4.0
 #    if USE_TBBBIND_2_5
