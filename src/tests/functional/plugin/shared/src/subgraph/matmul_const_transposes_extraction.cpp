@@ -17,9 +17,8 @@ namespace test {
 
 std::string MatMulConstTransposesExtractionTest::getTestCaseName(
     const testing::TestParamInfo<MatMulConstTransposesExtractionTestParams>& obj) {
-    MatMulConstTransposesExtractionTestShapeParams shape_params;
-    std::string device;
-    std::tie(shape_params, std::ignore, device) = obj.param;
+    const auto& [shape_params, _ignore, device] = obj.param;
+    std::ignore = _ignore;
     std::ostringstream results;
 
     results << "input=" << shape_params.input_shape << "_";
@@ -30,10 +29,10 @@ std::string MatMulConstTransposesExtractionTest::getTestCaseName(
 }
 
 void MatMulConstTransposesExtractionTest::SetUp() {
-    MatMulConstTransposesExtractionTestShapeParams shape_params;
     element::Type type = element::f32;
-    bool can_be_fused;
-    std::tie(shape_params, can_be_fused, targetDevice) = GetParam();
+
+    const auto& [shape_params, can_be_fused, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     const auto& input_shape = shape_params.input_shape;
     const auto& weights_shape = shape_params.weights_shape;
@@ -48,9 +47,9 @@ void MatMulConstTransposesExtractionTest::SetUp() {
     manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     manager.run_passes(transformed_function);
 
-    bool functions_equal;
     auto orig_function = function->clone();
-    std::tie(functions_equal, std::ignore) = compare_functions(transformed_function, orig_function, true);
+    const auto& [functions_equal, _ignore] = compare_functions(transformed_function, orig_function, true);
+    std::ignore = _ignore;
     if (can_be_fused) {
         ASSERT_FALSE(functions_equal);
     } else {
@@ -60,9 +59,8 @@ void MatMulConstTransposesExtractionTest::SetUp() {
 
 std::string QuantizedMatMulConstTransposesExtractionTest::getTestCaseName(
     const testing::TestParamInfo<MatMulConstTransposesExtractionTestParams>& obj) {
-    MatMulConstTransposesExtractionTestShapeParams params;
-    std::string device;
-    std::tie(params, std::ignore, device) = obj.param;
+    const auto& [params, _ignore, device] = obj.param;
+    std::ignore = _ignore;
     std::ostringstream results;
 
     results << "input=" << params.input_shape
@@ -76,9 +74,8 @@ std::string QuantizedMatMulConstTransposesExtractionTest::getTestCaseName(
 }
 
 void QuantizedMatMulConstTransposesExtractionTest::SetUp() {
-    MatMulConstTransposesExtractionTestShapeParams params;
-    bool can_be_fused;
-    std::tie(params, can_be_fused, targetDevice) = GetParam();
+    const auto& [params, can_be_fused, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     const auto& input_shape = params.input_shape;
     auto weights_shape = params.weights_shape;
@@ -99,9 +96,9 @@ void QuantizedMatMulConstTransposesExtractionTest::SetUp() {
     manager.register_pass<ov::pass::MatMulConstTransposesExtraction>();
     manager.run_passes(transformed_function);
 
-    bool functions_equal;
     auto orig_function = function->clone();
-    std::tie(functions_equal, std::ignore) = compare_functions(transformed_function, orig_function, true);
+    const auto& [functions_equal, _ignore] = compare_functions(transformed_function, orig_function, true);
+    std::ignore = _ignore;
     if (can_be_fused) {
         ASSERT_FALSE(functions_equal);
     } else {

@@ -26,7 +26,7 @@ using RDFTTestCPUParams = std::tuple<std::vector<InputShape>,
 class RDFTTestCPU : public testing::WithParamInterface<std::tuple<ov::element::Type, RDFTTestCPUParams>>,
                            virtual public test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<std::tuple<ov::element::Type, RDFTTestCPUParams>> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<ov::element::Type, RDFTTestCPUParams>>& obj) {
         const auto& [precision, params] = obj.param;
         const auto& [shapes, axes, signalSizes, inverse, constAxes, constSignalSizes, cpuParams] = params;
         std::ostringstream result;
