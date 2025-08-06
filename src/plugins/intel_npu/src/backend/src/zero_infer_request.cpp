@@ -430,6 +430,8 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "set_tensor");
+    std::cout << "set_tensor:  tensor shape: " << tensor->get_shape().to_string()
+              << ", size: " << tensor->get_byte_size() << std::endl;
 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
@@ -440,6 +442,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
+        std::cout << "update input tensor" << std::endl;
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
             // Got set_tensor with the same object - do nothing
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
@@ -476,7 +479,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             get_user_inputs(foundPort.idx).resize(1);
             get_user_inputs(foundPort.idx).shrink_to_fit();
         }
-
+        std::cout << "set new tensor" << std::endl;
         get_user_input(foundPort.idx) = tensor;
     } else {
         if (_userOutputTensors.at(foundPort.idx)._ptr == tensor._ptr) {

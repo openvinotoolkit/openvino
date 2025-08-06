@@ -51,6 +51,10 @@ public:
     public:
         virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs) = 0;
         virtual void setArgumentValue(uint32_t argi, const void* argv) = 0;
+        virtual void setArgumentProperty(uint32_t argi,
+                                         const void* argv,
+                                         const ov::Strides strides,
+                                         const ov::Shape& shapes) = 0;
         virtual uint64_t getNumSubgraphs() = 0;
         virtual void initializeGraph(uint64_t command_queue_group_ordinal) = 0;
         virtual void getBinding(GraphArguments& binding) = 0;
@@ -70,6 +74,10 @@ public:
                                                             const Config& config) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
+    void set_argument_property(uint32_t argi,
+                               const void* argv,
+                               const ov::Strides& strides,
+                               const ov::Shape& shapes) const;
 
     void initialize(const Config& config) override;
 
