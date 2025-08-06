@@ -32,6 +32,7 @@
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/mod.hpp"
+#include "openvino/op/floor_mod.hpp"
 #include "openvino/op/negative.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/select.hpp"
@@ -440,9 +441,15 @@ GridSampleDecomposition::GridSampleDecomposition() {
             } else if (is_bicubic) {
                 // BICUBIC interpolation - proper implementation for ARM
                 
-                // Apply padding to continuous coordinates first (same as bilinear)
+                // Step 1: Apply padding/reflection to continuous coordinates FIRST
                 std::shared_ptr<ov::Node> x_padded, y_padded;
+                
+                // Early shortcuts for size==1 axes
+                auto w_is_one = std::make_shared<ov::op::v1::Equal>(w_in_f, const_1);
+                auto h_is_one = std::make_shared<ov::op::v1::Equal>(h_in_f, const_1);
+                
                 if (is_border) {
+                    // BORDER padding: clamp to [0, size-1]
                     auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
                     auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
                     x_padded = std::make_shared<ov::op::v1::Maximum>(x, const_0);
@@ -450,24 +457,67 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
                     y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
                 } else if (is_reflection) {
-                    // Apply reflection to continuous coordinates
-                    x_padded = apply_reflection(x, w_in_f);
-                    y_padded = apply_reflection(y, h_in_f);
+                    // REFLECTION padding: apply unified float-based reflection
+                    // For align_corners=false: lo=-0.5, hi=S-0.5, m=S
+                    // For align_corners=true: lo=0, hi=S-1, m=S-1
+                    
+                    if (!attrs.align_corners) {
+                        // align_corners=false: unified float reflection with triangular wave
+                        auto apply_reflect_float = [&](const std::shared_ptr<ov::Node>& coord,
+                                                       const std::shared_ptr<ov::Node>& size_f,
+                                                       const std::shared_ptr<ov::Node>& is_size_one) {
+                            // Early return 0 for size==1
+                            auto const_0_5 = ov::op::v0::Constant::create(calc_type, {}, {0.5F});
+                            auto lo = std::make_shared<ov::op::v0::Negative>(const_0_5);  // -0.5
+                            auto hi = std::make_shared<ov::op::v1::Subtract>(size_f, const_0_5);  // S-0.5
+                            auto m = size_f;  // m = hi - lo = S
+                            
+                            // r = FloorMod(coord - lo, 2*m) using float arithmetic
+                            auto coord_shifted = std::make_shared<ov::op::v1::Subtract>(coord, lo);
+                            auto two_m = std::make_shared<ov::op::v1::Multiply>(const_2, m);
+                            
+                            // FloorMod: r = coord_shifted - floor(coord_shifted / (2*m)) * (2*m)
+                            auto div = std::make_shared<ov::op::v1::Divide>(coord_shifted, two_m);
+                            auto floor_div = std::make_shared<ov::op::v0::Floor>(div);
+                            auto mult = std::make_shared<ov::op::v1::Multiply>(floor_div, two_m);
+                            auto r = std::make_shared<ov::op::v1::Subtract>(coord_shifted, mult);
+                            
+                            // Triangular wave: reflected = lo + (m - |r - m|)
+                            auto r_minus_m = std::make_shared<ov::op::v1::Subtract>(r, m);
+                            auto abs_r_minus_m = std::make_shared<ov::op::v0::Abs>(r_minus_m);
+                            auto m_minus_abs = std::make_shared<ov::op::v1::Subtract>(m, abs_r_minus_m);
+                            std::shared_ptr<ov::Node> reflected = std::make_shared<ov::op::v1::Add>(lo, m_minus_abs);
+                            
+                            // Clamp to [0, S-1] for safety
+                            auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
+                            reflected = std::make_shared<ov::op::v1::Maximum>(reflected, const_0);
+                            reflected = std::make_shared<ov::op::v1::Minimum>(reflected, size_minus_1);
+                            
+                            // For size==1: always return 0
+                            return std::make_shared<ov::op::v1::Select>(is_size_one, const_0, reflected);
+                        };
+                        
+                        x_padded = apply_reflect_float(x, w_in_f, w_is_one);
+                        y_padded = apply_reflect_float(y, h_in_f, h_is_one);
+                    } else {
+                        // align_corners=true: use existing apply_reflection
+                        x_padded = apply_reflection(x, w_in_f);
+                        y_padded = apply_reflection(y, h_in_f);
+                    }
                 } else {
                     // ZEROS padding - NEVER clamp continuous coordinates
                     x_padded = x;
                     y_padded = y;
                 }
                 
-                // Get floor coordinates from continuous (potentially padded) coords
+                // Step 2: Compute floor and fractional parts from padded continuous coords
                 auto x0 = std::make_shared<ov::op::v0::Floor>(x_padded);
                 auto y0 = std::make_shared<ov::op::v0::Floor>(y_padded);
                 
-                // Compute fractional parts and clamp to avoid numerical issues
                 auto dx_raw = std::make_shared<ov::op::v1::Subtract>(x_padded, x0);
                 auto dy_raw = std::make_shared<ov::op::v1::Subtract>(y_padded, y0);
                 
-                // Clamp dx, dy to [0, 1-1e-7] to avoid numerical instabilities at boundaries
+                // Step 3: Stabilize dx, dy to [0, 1-eps]
                 auto eps = ov::op::v0::Constant::create(calc_type, {}, {1e-7F});
                 auto one_minus_eps = std::make_shared<ov::op::v1::Subtract>(const_1, eps);
                 std::shared_ptr<ov::Node> dx = std::make_shared<ov::op::v1::Maximum>(dx_raw, const_0);
@@ -475,13 +525,8 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 std::shared_ptr<ov::Node> dy = std::make_shared<ov::op::v1::Maximum>(dy_raw, const_0);
                 dy = std::make_shared<ov::op::v1::Minimum>(dy, one_minus_eps);
                 
-                // Early shortcuts for size==1 cases
-                auto w_is_one = std::make_shared<ov::op::v1::Equal>(w_in_f, const_1);
-                auto h_is_one = std::make_shared<ov::op::v1::Equal>(h_in_f, const_1);
-                
-                // For W_in==1: force dx=0, use only center tap
+                // For size==1: force dx=0 or dy=0
                 dx = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, dx);
-                // For H_in==1: force dy=0, use only center tap  
                 dy = std::make_shared<ov::op::v1::Select>(h_is_one, const_0, dy);
                 
                 // Implement proper BICUBIC with unified cubic polynomials
@@ -602,10 +647,63 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     }
                 }
                 
-                // For size==1 cases, force indices to 0 to avoid boundary issues
-                for (int i = 0; i < 4; ++i) {
-                    x_indices[i] = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, x_indices[i]);
-                    y_indices[i] = std::make_shared<ov::op::v1::Select>(h_is_one, const_0, y_indices[i]);
+                // Apply discrete index reflection for REFLECTION mode
+                if (is_reflection) {
+                    // Helper lambda for discrete index reflection
+                    auto reflect_discrete_index = [&](const std::shared_ptr<ov::Node>& idx, 
+                                                      const std::shared_ptr<ov::Node>& size_f,
+                                                      const std::shared_ptr<ov::Node>& is_size_one) {
+                        // For size==1: always return 0
+                        // Otherwise: apply reflection with modulo arithmetic
+                        auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
+                        
+                        if (!attrs.align_corners) {
+                            // align_corners=false: reflect using modulo 2*size
+                            auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
+                            
+                            // r = ((idx % two_size) + two_size) % two_size
+                            auto mod1 = std::make_shared<ov::op::v1::FloorMod>(idx, two_size);
+                            auto mod2 = std::make_shared<ov::op::v1::Add>(mod1, two_size);
+                            auto r = std::make_shared<ov::op::v1::FloorMod>(mod2, two_size);
+                            
+                            // reflected = (r >= size) ? (two_size - 1 - r) : r
+                            auto two_size_minus_1 = std::make_shared<ov::op::v1::Subtract>(two_size, const_1);
+                            auto flipped = std::make_shared<ov::op::v1::Subtract>(two_size_minus_1, r);
+                            auto cond = std::make_shared<ov::op::v1::GreaterEqual>(r, size_f);
+                            auto reflected = std::make_shared<ov::op::v1::Select>(cond, flipped, r);
+                            
+                            return std::make_shared<ov::op::v1::Select>(is_size_one, const_0, reflected);
+                        } else {
+                            // align_corners=true: reflect using modulo 2*(size-1)
+                            auto two_size_minus_2 = std::make_shared<ov::op::v1::Multiply>(
+                                const_2, size_minus_1);
+                            
+                            // Apply absolute value first
+                            auto abs_idx = std::make_shared<ov::op::v0::Abs>(idx);
+                            
+                            // r = abs_idx % two_size_minus_2
+                            auto r = std::make_shared<ov::op::v1::FloorMod>(abs_idx, two_size_minus_2);
+                            
+                            // reflected = (r >= size) ? (two_size_minus_2 - r) : r
+                            auto flipped = std::make_shared<ov::op::v1::Subtract>(two_size_minus_2, r);
+                            auto cond = std::make_shared<ov::op::v1::GreaterEqual>(r, size_f);
+                            auto reflected = std::make_shared<ov::op::v1::Select>(cond, flipped, r);
+                            
+                            return std::make_shared<ov::op::v1::Select>(is_size_one, const_0, reflected);
+                        }
+                    };
+                    
+                    // Apply reflection to all x and y indices
+                    for (int i = 0; i < 4; ++i) {
+                        x_indices[i] = reflect_discrete_index(x_indices[i], w_in_f, w_is_one);
+                        y_indices[i] = reflect_discrete_index(y_indices[i], h_in_f, h_is_one);
+                    }
+                } else {
+                    // For size==1 cases in non-REFLECTION modes, force indices to 0
+                    for (int i = 0; i < 4; ++i) {
+                        x_indices[i] = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, x_indices[i]);
+                        y_indices[i] = std::make_shared<ov::op::v1::Select>(h_is_one, const_0, y_indices[i]);
+                    }
                 }
                 
                 // Sample all 16 values using 4x4 grid
@@ -617,7 +715,9 @@ GridSampleDecomposition::GridSampleDecomposition() {
                         auto y_idx = y_indices[iy];
                         
                         // For ZEROS: clamp indices ONLY for safe gathering
-                        if (is_zeros) {
+                        // For BORDER: clamp indices to valid range
+                        // For REFLECTION: indices are already reflected, no clamping needed
+                        if (is_zeros || is_border) {
                             auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
                             auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
                             x_idx = std::make_shared<ov::op::v1::Maximum>(x_idx, const_0);
