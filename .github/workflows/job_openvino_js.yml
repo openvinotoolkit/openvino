@@ -12,6 +12,11 @@ on:
         type: string
         required: false
         default: null
+      nodejs-version:
+        description: 'NodeJS version to setup. E.g., "22"'
+        type: string
+        required: false
+        default: "21"
 
 permissions: read-all
 
@@ -32,7 +37,7 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_JS_DIR: ${{ github.workspace }}/src/bindings/js/node
       OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/src/bindings/js/node/bin
-      NODE_VERSION: 21
+      NODE_VERSION: ${{ inputs.nodejs-version }}
       DISPLAY: ':99'
     steps:
       - name: Fetch OpenVINO JS sources
