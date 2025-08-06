@@ -54,13 +54,13 @@ jobs:
       - name: Download OpenVINO artifacts (JS)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          name: openvino_js_package
-          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
+          name: openvino_node_npm_package
+          path: ${{ env.OPENVINO_JS_DIR }}
           merge-multiple: true
 
       - name: Extract OpenVINO packages
-        run: pigz -dc openvino_js_package.tar.gz | tar -xf - -v
-        working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
+        run: pigz -dc openvino_node_npm_package.tar.gz | tar -xf - -v
+        working-directory: ${{ env.OPENVINO_JS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         if: runner.os != 'Linux' # Node is already installed in the Docker image
