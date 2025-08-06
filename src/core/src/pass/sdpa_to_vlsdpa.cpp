@@ -13,21 +13,13 @@
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/vl_sdpa.hpp"
 #include "transformations/utils/utils.hpp"
+#include "openvino/op/util/node_util.hpp"
 
 using namespace ov::op;
 using namespace ov::pass;
 
 SDPAToVLSDPA::SDPAToVLSDPA() = default;
 
-namespace {
-
-std::shared_ptr<v0::Parameter> add_name(std::shared_ptr<v0::Parameter> node, const char* name) {
-    // add name for both node and output tensor
-    node->set_friendly_name(name);
-    node->get_output_tensor(0).add_names({name});
-    return node;
-}
-}  // namespace
 
 bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToVLSDPA);
@@ -64,7 +56,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     constexpr std::array<std::pair<std::string_view, std::string_view>, 2> mask_2_seqlens_mapping = {
         {{"attention_mask", "cu_seq_lens"}, {"window_attention_mask", "cu_window_seqlens"}}};
     for (const auto& [old_name, new_name] : mask_2_seqlens_mapping) {
-        if (auto attn_param = get_parameter(model, std::string(param_name))) {
+        if (auto attn_param = get_parameter(model, std::string(old_name))) {
             // all consumers should be SDPA
             bool consumers_are_sdpa = true;
             for (auto target : attn_param->get_output_target_inputs(0)) {
@@ -85,9 +77,9 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 continue;
 
             auto cu_seqlens_param = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
-            ov::util::set_name(*cu_seqlens_param, new_name);
+            op::util::set_name(*cu_seqlens_param, std::string(new_name));
             // Optionally copy all names from old input except replaced name
-            model->replace_paramter(model->get_parameter_index(attn_param), cu_seqlens_param);
+            model->replace_parameter(model->get_parameter_index(attn_param), cu_seqlens_param);
 
             for (auto target : attn_param->get_output_target_inputs(0)) {
                 auto sdpa =
