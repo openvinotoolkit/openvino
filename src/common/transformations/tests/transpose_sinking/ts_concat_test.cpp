@@ -287,21 +287,13 @@ class TransposeSinkingConcatTestFixture : public ::testing::WithParamInterface<T
                                           public TransformationTestsF {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestConcatParams>& obj) {
-        PassFactoryPtr pass_factory;
-        size_t num_concat_ops;
-        CreateGraphConcatF model_factory;
-        CreateGraphConcatF reference_model_factory;
-        element::Type input_type;
-        size_t concat_transpose_input_idx;
-        size_t num_concat_inputs;
-
-        std::tie(pass_factory,
-                 num_concat_ops,
-                 model_factory,
-                 reference_model_factory,
-                 input_type,
-                 concat_transpose_input_idx,
-                 num_concat_inputs) = obj.param;
+        const auto& [pass_factory,
+                     num_concat_ops,
+                     model_factory,
+                     reference_model_factory,
+                     input_type,
+                     concat_transpose_input_idx,
+                     num_concat_inputs] = obj.param;
 
         std::ostringstream test_name;
         test_name << "passFactory=" << pass_factory->getTypeName() << "/";
@@ -315,20 +307,13 @@ public:
 };
 
 TEST_P(TransposeSinkingConcatTestFixture, CompareFunctions) {
-    PassFactoryPtr pass_factory;
-    size_t num_concat_ops;
-    CreateGraphConcatF model_factory;
-    CreateGraphConcatF reference_model_factory;
-    element::Type input_type;
-    size_t concat_transpose_input_idx;
-    size_t num_concat_inputs;
-    std::tie(pass_factory,
-             num_concat_ops,
-             model_factory,
-             reference_model_factory,
-             input_type,
-             concat_transpose_input_idx,
-             num_concat_inputs) = this->GetParam();
+    const auto& [pass_factory,
+                 num_concat_ops,
+                 model_factory,
+                 reference_model_factory,
+                 input_type,
+                 concat_transpose_input_idx,
+                 num_concat_inputs] = this->GetParam();
 
     model = model_factory(num_concat_ops, input_type, concat_transpose_input_idx, num_concat_inputs);
     model_ref = reference_model_factory(num_concat_ops, input_type, concat_transpose_input_idx, num_concat_inputs);
@@ -376,15 +361,12 @@ class TransposeSinkingConcatAllTransposesInputTestFixture
       public TransformationTestsF {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestConcatAllTransposesInputParams>& obj) {
-        PassFactoryPtr pass_factory;
-        size_t num_concat_ops;
-        CreateGraphConcatAllTransposesInputF model_factory;
-        CreateGraphConcatAllTransposesInputF reference_model_factory;
-        element::Type input_type;
-        size_t num_concat_inputs;
-
-        std::tie(pass_factory, num_concat_ops, model_factory, reference_model_factory, input_type, num_concat_inputs) =
-            obj.param;
+        const auto& [pass_factory,
+                     num_concat_ops,
+                     model_factory,
+                     reference_model_factory,
+                     input_type,
+                     num_concat_inputs] = obj.param;
 
         std::ostringstream test_name;
         test_name << "passFactory=" << pass_factory->getTypeName() << "/";
@@ -397,14 +379,7 @@ public:
 };
 
 TEST_P(TransposeSinkingConcatAllTransposesInputTestFixture, CompareFunctions) {
-    PassFactoryPtr pass_factory;
-    size_t num_concat_ops;
-    CreateGraphConcatAllTransposesInputF model_factory;
-    CreateGraphConcatAllTransposesInputF reference_model_factory;
-    element::Type input_type;
-    size_t num_concat_inputs;
-
-    std::tie(pass_factory, num_concat_ops, model_factory, reference_model_factory, input_type, num_concat_inputs) =
+    const auto& [pass_factory, num_concat_ops, model_factory, reference_model_factory, input_type, num_concat_inputs] =
         this->GetParam();
 
     model = model_factory(num_concat_ops, input_type, num_concat_inputs);
@@ -882,19 +857,12 @@ class TransposeConcatMultiSinkingFixture : public ::testing::WithParamInterface<
                                            public TransformationTestsF {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestConcatParams>& obj) {
-        PassFactoryPtr pass_factory;
-        size_t num_concat_ops;
-        CreateGraphFunctionDesc function_desc;
-        element::Type input_type;
-        size_t concat_transpose_input_idx;
-        size_t num_concat_inputs;
-
-        std::tie(pass_factory,
-                 num_concat_ops,
-                 function_desc,
-                 input_type,
-                 concat_transpose_input_idx,
-                 num_concat_inputs) = obj.param;
+        const auto& [pass_factory,
+                     num_concat_ops,
+                     function_desc,
+                     input_type,
+                     concat_transpose_input_idx,
+                     num_concat_inputs] = obj.param;
 
         std::ostringstream test_name;
         test_name << "passFactory=" << pass_factory->getTypeName() << "/";
@@ -909,15 +877,12 @@ public:
 };
 
 TEST_P(TransposeConcatMultiSinkingFixture, CompareFunctions) {
-    PassFactoryPtr pass_factory;
-    size_t num_concat_ops;
-    CreateGraphFunctionDesc function_desc;
-    element::Type input_type;
-    size_t concat_transpose_input_idx;
-    size_t num_concat_inputs;
-
-    std::tie(pass_factory, num_concat_ops, function_desc, input_type, concat_transpose_input_idx, num_concat_inputs) =
-        this->GetParam();
+    const auto& [pass_factory,
+                 num_concat_ops,
+                 function_desc,
+                 input_type,
+                 concat_transpose_input_idx,
+                 num_concat_inputs] = this->GetParam();
 
     model = function_desc.model_factory(num_concat_ops, input_type, concat_transpose_input_idx, num_concat_inputs);
     model_ref = function_desc.reference_model_factory(num_concat_ops,
@@ -984,19 +949,12 @@ class TransposeConcatMultiSinkingConcatConsumersFixture : public ::testing::With
                                                           public TransformationTestsF {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestConcatParams>& obj) {
-        PassFactoryPtr pass_factory;
-        size_t num_concat_ops;
-        CreateGraphFunctionNoSinkingDesc function_desc;
-        element::Type input_type;
-        size_t concat_transpose_input_idx;
-        size_t num_concat_inputs;
-
-        std::tie(pass_factory,
-                 num_concat_ops,
-                 function_desc,
-                 input_type,
-                 concat_transpose_input_idx,
-                 num_concat_inputs) = obj.param;
+        const auto& [pass_factory,
+                     num_concat_ops,
+                     function_desc,
+                     input_type,
+                     concat_transpose_input_idx,
+                     num_concat_inputs] = obj.param;
 
         std::ostringstream test_name;
         test_name << "passFactory=" << pass_factory->getTypeName() << "/";
@@ -1011,15 +969,12 @@ public:
 };
 
 TEST_P(TransposeConcatMultiSinkingConcatConsumersFixture, CompareFunctions) {
-    PassFactoryPtr pass_factory;
-    size_t num_concat_ops;
-    CreateGraphFunctionNoSinkingDesc function_desc;
-    element::Type input_type;
-    size_t concat_transpose_input_idx;
-    size_t num_concat_inputs;
-
-    std::tie(pass_factory, num_concat_ops, function_desc, input_type, concat_transpose_input_idx, num_concat_inputs) =
-        this->GetParam();
+    const auto& [pass_factory,
+                 num_concat_ops,
+                 function_desc,
+                 input_type,
+                 concat_transpose_input_idx,
+                 num_concat_inputs] = this->GetParam();
 
     model = function_desc.model_factory(num_concat_ops, input_type, concat_transpose_input_idx, num_concat_inputs);
     model_ref = model->clone();
