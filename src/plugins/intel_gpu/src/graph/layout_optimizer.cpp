@@ -12,6 +12,7 @@
 #include "reorder_inst.h"
 #include "resample_inst.h"
 #include "reshape_inst.h"
+#include "rms_inst.h"
 #include "arg_max_min_inst.h"
 #include "shape_of_inst.h"
 #include "select_inst.h"
@@ -343,7 +344,7 @@ bool layout_optimizer::can_fuse_reorder_to_prev(program_node& prev, reorder_node
     // Because mvn and concatenation kernel can work cross-layout, if reorder only performs type conversion,
     // fusing reorder to the previous node can be done even if it is a dynamic shape case
     if ((prev.is_type<mvn>() || prev.is_type<concatenation>() || prev.is_type<gather>() || prev.is_type<broadcast>() ||
-         prev.is_type<select>() || prev.is_type<eltwise>()) &&
+         prev.is_type<select>() || prev.is_type<eltwise>() || prev.is_type<rms>()) &&
         !prev.is_in_shape_of_subgraph() && node.is_type_conversion_only() &&
         (format::is_simple_data_format(fmt_prev) && format::is_simple_data_format(fmt_next)) &&
         // If the prev node is backedge of the loop, the type will be changed by fusing reorder.
@@ -1260,6 +1261,7 @@ format layout_optimizer::get_preferred_format(program_node& node) {
                 } catch (ov::Exception&) {
                     fmt = format::get_default_format(in_lay_rank);
                 }
+
                 node.set_preferred_input_fmt(i, fmt);
             }
         }
@@ -1288,6 +1290,13 @@ format layout_optimizer::get_preferred_format(program_node& node) {
             expected = node.get_output_layout().format;
         }
     } else if (node.is_type<reshape>()) {
+        // Reshape from blocked to simple format is not acceptable
+        auto dep_size = node.get_dependencies().size();
+        for (size_t i = 0; i < dep_size; i++) {
+            auto in_lay_rank = node.get_input_layout(i).get_rank();
+            node.set_preferred_input_fmt(i, format::get_default_format(in_lay_rank));
+        }
+
         expected = format::get_default_format(node.get_output_layout().get_rank());
     } else if (node.is_type<deconvolution>()) {
         expected = get_expected_format(node.as<deconvolution>());

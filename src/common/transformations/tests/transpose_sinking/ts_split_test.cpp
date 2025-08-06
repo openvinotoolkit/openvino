@@ -498,15 +498,12 @@ class TransposeSinkingSplitTestFixture : public ::testing::WithParamInterface<Te
                                          public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestSplitParams>& obj) {
-        PassFactoryPtr pass_factory;
-        size_t num_split_ops;
-        size_t num_split_outputs;
-        CreateGraphSplitF model_factory;
-        CreateGraphSplitF reference_model_factory;
-        element::Type input_type;
-
-        std::tie(pass_factory, num_split_ops, num_split_outputs, model_factory, reference_model_factory, input_type) =
-            obj.param;
+        const auto& [pass_factory,
+                     num_split_ops,
+                     num_split_outputs,
+                     model_factory,
+                     reference_model_factory,
+                     input_type] = obj.param;
 
         std::ostringstream test_name;
         test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
@@ -519,13 +516,7 @@ public:
 };
 
 TEST_P(TransposeSinkingSplitTestFixture, CompareFunctions) {
-    PassFactoryPtr pass_factory;
-    size_t num_split_ops;
-    size_t num_split_outputs;
-    CreateGraphSplitF model_factory;
-    CreateGraphSplitF reference_model_factory;
-    element::Type input_type;
-    std::tie(pass_factory, num_split_ops, num_split_outputs, model_factory, reference_model_factory, input_type) =
+    const auto& [pass_factory, num_split_ops, num_split_outputs, model_factory, reference_model_factory, input_type] =
         this->GetParam();
 
     model = model_factory(num_split_ops, num_split_outputs, input_type);
@@ -774,19 +765,12 @@ class TSSplitBackwardRestrictTestFixture : public ::testing::WithParamInterface<
                                            public TransformationTestsF {
 public:
     static std::string get_test_name(const ::testing::TestParamInfo<TestSplitBackwardRestrictParams>& obj) {
-        PassFactoryPtr pass_factory;
-        size_t split_tree_depth;
-        size_t num_split_outputs;
-        CreateGraphSplitBackwardRestrictF model_factory;
-        element::Type input_type;
-        TransposeInsertFuncDesc tranpose_insert_function;
-
-        std::tie(pass_factory,
-                 split_tree_depth,
-                 num_split_outputs,
-                 model_factory,
-                 input_type,
-                 tranpose_insert_function) = obj.param;
+        const auto& [pass_factory,
+                     split_tree_depth,
+                     num_split_outputs,
+                     model_factory,
+                     input_type,
+                     tranpose_insert_function] = obj.param;
 
         std::ostringstream test_name;
         test_name << "pass_factory=" << pass_factory->getTypeName() << "_";
@@ -800,15 +784,12 @@ public:
 };
 
 TEST_P(TSSplitBackwardRestrictTestFixture, CompareFunctions) {
-    PassFactoryPtr pass_factory;
-    size_t split_tree_depth;
-    size_t num_split_outputs;
-    CreateGraphSplitBackwardRestrictF model_factory;
-    element::Type input_type;
-    TransposeInsertFuncDesc tranpose_insert_function;
-
-    std::tie(pass_factory, split_tree_depth, num_split_outputs, model_factory, input_type, tranpose_insert_function) =
-        this->GetParam();
+    const auto& [pass_factory,
+                 split_tree_depth,
+                 num_split_outputs,
+                 model_factory,
+                 input_type,
+                 tranpose_insert_function] = this->GetParam();
 
     model = model_factory(split_tree_depth, num_split_outputs, input_type, tranpose_insert_function.model);
     model_ref = model->clone();
