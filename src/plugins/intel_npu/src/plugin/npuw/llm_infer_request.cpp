@@ -331,44 +331,6 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
     }
 }
 
-// Function to adjust the alpha values for LoRA (Low-Rank Adaptation) weights
-// This function modifies the alpha values to ensure that the LoRA result remains consistent
-// even when using dynamic rank with padding in the weights.
-//
-// Parameters:
-// - alpha_src_tensor: Source tensor containing the original alpha values.
-// - alpha_dst_tensor: Destination tensor where adjusted alpha values will be stored.
-// - max_rank: The maximum rank used for padding in LoRA weights.
-// - real_rank: The actual rank of the LoRA weights.
-//
-// LoRA Calculation Process:
-// - result_a = MatMul(X, Wa): Compute the matrix multiplication of input X and weights Wa to get result_a.
-// - val_1 = Divide(alpha, rank): Divide alpha by rank to obtain the scaling factor val_1.
-// - val_2 = Multiply(result_a, val_1): Multiply result_a by val_1 to get the scaled result val_2.
-// - result = MatMul(val_2, Wb): Compute the matrix multiplication of val_2 and weights Wb to get the final result.
-//
-// Dynamic Rank Adjustment:
-// - To support adapters with dynamic rank, LoRA weights use rank_max as the maximum rank with zero padding.
-// - Since val_1' = Divide(alpha, rank_max) is not equal to val_1, we adjust alpha to get identical results.
-// - Use adjusted alpha' = alpha * rank_max / rank, so val_1' = Divide(alpha', rank_max) equals val_1.
-// - This ensures the final LoRA result is consistent with the original calculation.
-void fill_lora_alpha(ov::SoPtr<ov::ITensor>& alpha_src_tensor,
-                     ov::SoPtr<ov::ITensor>& alpha_dst_tensor,
-                     uint32_t max_rank,
-                     uint32_t real_rank) {
-    // alpha [1, r]
-    float* lora_alpha_src_data = alpha_src_tensor->data<float>();
-    size_t size = alpha_src_tensor->get_size();
-
-    float* lora_alpha_dst_data = alpha_dst_tensor->data<float>();
-
-    float scale_factor = static_cast<float>(max_rank) / static_cast<float>(real_rank);
-
-    for (size_t i = 0; i < size; ++i) {
-        lora_alpha_dst_data[i] = lora_alpha_src_data[i] * scale_factor;
-    }
-}
-
 void ov::npuw::LLMInferRequest::apply_lora() {
     uint32_t max_rank_size = m_npuw_llm_compiled_model->m_max_lora_rank;
 
@@ -425,16 +387,11 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                     ov::Tensor(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape()));
 
                 fill_tensor<float>(new_tensor_for_infer, 0.0f);
-                if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
-                    // alpha [1, r]
-                    fill_lora_alpha(state_tensor, new_tensor_for_infer, target_lora_rank, state_tensor_rank);
+                auto new_tensor_slice = make_tensor_slice(new_tensor_for_infer, rank_dim, 0u, state_tensor_rank);
+                if (rank_dim == 1) {
+                    copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                 } else {
-                    auto new_tensor_slice = make_tensor_slice(new_tensor_for_infer, rank_dim, 0u, state_tensor_rank);
-                    if (rank_dim == 1) {
-                        copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
-                    } else {
-                        state_tensor->copy_to(new_tensor_slice._ptr);
-                    }
+                    state_tensor->copy_to(new_tensor_slice._ptr);
                 }
 
                 // Set new tensor for inference
