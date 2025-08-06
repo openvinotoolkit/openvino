@@ -83,7 +83,7 @@ public:
             cfg.update(cfg_map);
 
             ov::npuw::Partitioning partitioning;
-            ASSERT_NO_THROW(partitioning = ov::npuw::getPartitioning(model, cfg));
+            ASSERT_NO_THROW(partitioning = ov::npuw::getPartitioning(model, cfg, false));
 
             // input to add is 32b via convert / or via 32b parameter
             bool bAttentionMaskVerified = false;
