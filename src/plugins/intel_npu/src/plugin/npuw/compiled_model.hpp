@@ -100,7 +100,7 @@ private:
     void log_device_dist() const;
     void implement_properties();
 
-    void identify_host_gather_property(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties);
+    bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
 
     // For full deserialization flow with weights
     void reconstruct_closure();
@@ -117,9 +117,6 @@ private:
     GetPropertiesMap m_prop_to_opt;
     std::vector<ov::PropertyName> m_all_supported_props;
     ov::AnyMap m_non_npuw_props;
-
-    // No s11n needed, used only during partitioning
-    bool m_use_host_gather_quant = false;
 
     std::string m_name;
     const bool m_loaded_from_cache;

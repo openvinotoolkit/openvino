@@ -222,11 +222,10 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
-    // Identify (based on compiler version, user config and pattern) host gather or quantized host gather properties
-    // and set them in m_cfg
-    identify_host_gather_property(model, npuw_props);
+    // Identify based on compiler version, user config and pattern
+    auto use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
 
-    auto partitioning = getPartitioning(model, m_cfg, m_use_host_gather_quant);
+    auto partitioning = getPartitioning(model, m_cfg, use_host_gather_quant);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -530,8 +529,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
-void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_ptr<ov::Model>& model,
-                                                            const ov::AnyMap& properties) {
+bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::AnyMap& properties) const {
     LOG_INFO("Identifying best HOST_GATHER config value...");
     LOG_BLOCK();
     // Check if was explicitly specified
@@ -552,8 +551,8 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
     std::vector<CPtr> to_keep;
 
     ov::pass::GraphRewrite rewr2;
-    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep), true);
-    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep), true);
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
     rewr2.run_on_model(model);
     // Head or tail
     bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
@@ -571,7 +570,7 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
         // Default value is used, can force the best option
         if (can_enable_hgq) {
             LOG_INFO("Forcing quantized tail vocabulary for better performance.");
-            m_use_host_gather_quant = true;
+            return true;
         }
     } else if (!explicit_hg_value.value()) {  // explicit NO
         if (can_enable_hgq) {
@@ -585,6 +584,7 @@ void ov::npuw::CompiledModel::identify_host_gather_property(const std::shared_pt
         }
     }  // explicit_hg_value
     LOG_INFO("DONE.");
+    return false;
 }
 
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,

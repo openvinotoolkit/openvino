@@ -1845,8 +1845,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
-PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep,
-                                                           bool verify_only) {
+PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1877,11 +1876,6 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
 
         if (ov::element::u8 == matched_qweight->get_element_type() && qcoeff_shape[1] == 1 &&
             !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            if (verify_only) {
-                // Insert dummy constant
-                to_keep.get().push_back({});
-                return false;
-            }
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
@@ -1896,8 +1890,7 @@ PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatM
 //     Const(S) ----------------> Multiply -> MatMul -> Result
 //     ???(Act) ---------------------------->
 
-PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMulSymm::Results to_keep,
-                                                         bool verify_only) {
+PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMulSymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
@@ -1924,11 +1917,6 @@ PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMul
              ov::element::f8e5m2 == matched_qweight->get_element_type() ||
              ov::element::f8e8m0 == matched_qweight->get_element_type()) &&
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
-            if (verify_only) {
-                // Insert dummy constant
-                to_keep.get().push_back({});
-                return false;
-            }
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qcoeff);
             return false;  // root hasn't changed

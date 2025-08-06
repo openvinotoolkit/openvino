@@ -216,7 +216,7 @@ public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulAsymm(Results to_keep, bool verify_only = false);
+    PreserveConstDictMatMulAsymm(Results to_keep);
 };
 
 class PreserveConstDictMatMulSymm : public ov::pass::MatcherPass {
@@ -226,7 +226,7 @@ public:
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulSymm(Results to_keep, bool verify_only = false);
+    PreserveConstDictMatMulSymm(Results to_keep);
 };
 
 // Slice last Matmul

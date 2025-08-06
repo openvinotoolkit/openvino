@@ -568,8 +568,7 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
                                    ov::get_tensor_impl(m_quant_gather_tensors.s),
                                    gather);
         } else {
-            // Already gathered above - just unpack
-            ov::npuw::util::unpack(ov::get_tensor_impl(m_quant_gather_tensors.w), gather);
+            NPUW_ASSERT(false && "Not supported");
         }
     }
 }

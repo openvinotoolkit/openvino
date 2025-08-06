@@ -149,7 +149,7 @@ struct Partitioning {
 
 Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,
                              ::intel_npu::Config& config,
-                             bool use_host_gather_quant);
+                             bool use_host_gather_quant = false);
 
 }  // namespace npuw
 }  // namespace ov
