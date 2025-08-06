@@ -53,8 +53,9 @@ public:
                const ov::Shape& shape);  // construct from unpack
     LazyTensor(const LazyTensor& cw,
                const ov::Tensor& t,
-               const ov::element::Type& type,
-               const ov::Shape& shape);  // construct from nf4_gather
+               const ov::element::Type& dst_type,
+               const ov::Shape& dst_shape,
+               const void* orig_lut_ptr);  // construct from nf4_gather
 
     LazyTensor permute(const std::vector<std::size_t>& axes);
     LazyTensor convert(const ov::element::Type& type);
@@ -206,11 +207,16 @@ class Gather {
 
 public:
     Gather() = default;
-    Gather(const LazyTensor& _w, const ov::Tensor& _t, const ov::element::Type& _type, const ov::Shape& _shape)
+    Gather(const LazyTensor& _w,
+           const ov::Tensor& _t,
+           const ov::element::Type& _dst_type,
+           const ov::Shape& _dst_shape,
+           const void* _orig_lut_ptr)
         : w(_w),
           t(_t),
-          type(_type),
-          shape(_shape) {}
+          dst_type(_dst_type),
+          dst_shape(_dst_shape),
+          orig_lut_ptr(_orig_lut_ptr) {}
 
     std::size_t hash() const;
     bool operator==(const Gather& other) const;
@@ -224,8 +230,9 @@ public:
 private:
     LazyTensor w;
     ov::Tensor t;
-    ov::element::Type type;
-    ov::Shape shape;
+    ov::element::Type dst_type;
+    ov::Shape dst_shape;
+    const void* orig_lut_ptr = nullptr;
 };
 }  // namespace op
 

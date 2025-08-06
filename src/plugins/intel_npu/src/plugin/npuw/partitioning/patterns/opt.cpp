@@ -109,7 +109,10 @@ Context::PPtr Context::unpack(const Context::PPtr& w, const Context::PPtr& s, ov
     return new_param;
 }
 
-Context::PPtr Context::gather_nf4(const Context::PPtr& w, const ov::Tensor& t, ov::element::Type type) {
+Context::PPtr Context::gather_nf4(const Context::PPtr& w,
+                                  const ov::Tensor& t,
+                                  ov::element::Type type,
+                                  const void* orig_lut_ptr) {
     const auto& w_shape = w->get_shape();
 
     Context::PPtr new_param;
@@ -120,7 +123,7 @@ Context::PPtr Context::gather_nf4(const Context::PPtr& w, const ov::Tensor& t, o
     }
 
     NPUW_ASSERT(new_param);
-    params_to_nf4_gather[new_param] = {w, t};
+    params_to_nf4_gather[new_param] = {w, t, orig_lut_ptr};
     return new_param;
 }
 
@@ -1707,7 +1710,8 @@ HostGatherNF4::HostGatherNF4(Context::Ref ctx) {
             // Need to gather the weight into f16 first
             auto fp16weight = ctx.get().gather_nf4(matched_qweight,
                                                    ov::npuw::util::copy_tensor_from_const(matched_qweightt),
-                                                   ov::element::f16);
+                                                   ov::element::f16,
+                                                   matched_qweightt->get_data_ptr());
             auto fp16vocab = ctx.get().unpack(fp16weight, matched_qcoeff, ov::element::f16);
             auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);
 

@@ -367,30 +367,31 @@ std::size_t Gather::hash() const {
     for (const auto& dim : t.get_shape()) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
     }
-    seed ^= type.hash() + 0x9e3779b9;
-    for (const auto& dim : shape) {
+    seed ^= std::hash<const void*>()(orig_lut_ptr) + 0x9e3779b9;
+    seed ^= dst_type.hash() + 0x9e3779b9;
+    for (const auto& dim : dst_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
     }
     return seed;
 }
 
 bool Gather::operator==(const Gather& other) const {
-    // FIXME: compare tensor memory
     return (w == other.w && t.get_element_type() == other.t.get_element_type() &&
-            t.get_shape() == other.t.get_shape() && type == other.type && shape == other.shape);
+            t.get_shape() == other.t.get_shape() && orig_lut_ptr == other.orig_lut_ptr && dst_type == other.dst_type &&
+            dst_shape == other.dst_shape);
 }
 
 ov::Tensor Gather::eval() const {
     auto ttype = t.get_element_type();
     NPUW_ASSERT(ttype == ov::element::f8e4m3 || ttype == ov::element::f8e5m2 || ttype == ov::element::f8e8m0);
-    ov::Tensor dst(type, shape);
+    ov::Tensor dst(dst_type, dst_shape);
     const auto& gti = ov::get_tensor_impl;
     ov::npuw::util::gather_nf4(gti(t), gti(w.eval()), gti(dst));
     return dst;
 }
 
 LazyTensor::Meta Gather::eval_meta() const {
-    return {shape, type};
+    return {dst_shape, dst_type};
 }
 
 void Gather::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
@@ -403,8 +404,8 @@ void Gather::detach() {
 
 void Gather::serialize(std::ostream& stream) const {
     using namespace ov::npuw::s11n;
-    write(stream, type.to_string());
-    write(stream, shape);
+    write(stream, dst_type.to_string());
+    write(stream, dst_shape);
     write(stream, w);
     write(stream, t);
 }
@@ -414,8 +415,8 @@ Gather Gather::deserialize(std::istream& stream) {
     Gather g;
     std::string type_str;
     read(stream, type_str);
-    g.type = ov::element::Type(type_str);
-    read(stream, g.shape);
+    g.dst_type = ov::element::Type(type_str);
+    read(stream, g.dst_shape);
     read(stream, g.w);
     read(stream, g.t);
     return g;
@@ -622,8 +623,12 @@ LazyTensor::LazyTensor(const LazyTensor& cw,
                        const ov::element::Type& type,
                        const ov::Shape& shape)
     : m_impl(std::make_shared<LazyTensorImpl>(op::Unpack(cw, cz, cs, type, shape))) {}
-LazyTensor::LazyTensor(const LazyTensor& cw, const ov::Tensor& t, const ov::element::Type& type, const ov::Shape& shape)
-    : m_impl(std::make_shared<LazyTensorImpl>(op::Gather(cw, t, type, shape))) {}
+LazyTensor::LazyTensor(const LazyTensor& cw,
+                       const ov::Tensor& t,
+                       const ov::element::Type& dst_type,
+                       const ov::Shape& dst_shape,
+                       const void* orig_lut_ptr)
+    : m_impl(std::make_shared<LazyTensorImpl>(op::Gather(cw, t, dst_type, dst_shape, orig_lut_ptr))) {}
 
 LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
     LazyTensor new_lt;
