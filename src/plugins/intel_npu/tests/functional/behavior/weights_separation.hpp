@@ -168,7 +168,7 @@ TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
 }
 
-TEST_P(WeightsSeparationTests, CorrectInferenceResultNoImport) {
+TEST_P(WeightsSeparationTests, CorrectInferenceResultNoImportIterative) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
@@ -202,7 +202,6 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfCachingUsed) {
 TEST_P(WeightsSeparationTests, CorrectInferenceResultIfModelHintUsed) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
 
     compiled_model = core->compile_model(model, target_device, configuration);
     ASSERT_TRUE(compiled_model);
@@ -224,7 +223,6 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfWeightsPathUsed) {
     ov::serialize(model, model_path + ".xml", model_path + ".bin");
 
     configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     compiled_model = core->compile_model(model, target_device, configuration);
     ASSERT_TRUE(compiled_model);
 
@@ -242,7 +240,6 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfTensorImported) {
     model = createTestModel();
 
     configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     compiled_model = core->compile_model(model, target_device, configuration);
     ASSERT_TRUE(compiled_model);
 
@@ -261,7 +258,6 @@ TEST_P(WeightsSeparationTests, ImportFailureIfNoWeightsProvided) {
     model = createTestModel();
 
     configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     compiled_model = core->compile_model(model, target_device, configuration);
     ASSERT_TRUE(compiled_model);
 
@@ -275,7 +271,6 @@ TEST_P(WeightsSeparationTests, ModelHintHasPriorityOverWeightsPath) {
     model = createTestModel();
 
     configuration.insert(ov::intel_npu::weightless_blob(true));
-    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     compiled_model = core->compile_model(model, target_device, configuration);
     ASSERT_TRUE(compiled_model);
 
@@ -288,6 +283,131 @@ TEST_P(WeightsSeparationTests, ModelHintHasPriorityOverWeightsPath) {
     ASSERT_TRUE(compiled_model);
 
     create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, WeightfulIfCacheModeOptimizeSpeed) {
+    m_cache_dir = generateCacheDirName(GetTestName());
+    core->set_property({ov::cache_dir(m_cache_dir)});
+
+    model = createTestModel();
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED));
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    compiled_model = core->import_model(export_stream, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, WeightlessIfCacheModeOptimizeSize) {
+    m_cache_dir = generateCacheDirName(GetTestName());
+    core->set_property({ov::cache_dir(m_cache_dir)});
+
+    model = createTestModel();
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    OV_EXPECT_THROW(core->import_model(export_stream, target_device, configuration), ov::Exception, _);
+}
+
+TEST_P(WeightsSeparationTests, WeightfulIfCacheDirectoryNotProvided) {
+    model = createTestModel();
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    compiled_model = core->import_model(export_stream, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, CacheModeHasPriorityOverWeightlessBlobIfCachingIsUsed) {
+    m_cache_dir = generateCacheDirName(GetTestName());
+    core->set_property({ov::cache_dir(m_cache_dir)});
+
+    model = createTestModel();
+
+    configuration.emplace(ov::intel_npu::weightless_blob(true));
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SPEED));
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    compiled_model = core->import_model(export_stream, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, WeightlessBlobHasPriorityOverCacheModeIfCachingIsNotUsed) {
+    model = createTestModel();
+
+    configuration.emplace(ov::intel_npu::weightless_blob(false));
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    compiled_model = core->import_model(export_stream, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+using WeightsSeparationOneShotTests = WeightsSeparationTests;
+
+TEST_P(WeightsSeparationOneShotTests, CorrectInferenceResultNoImportOneShot) {
+    model = createTestModel();
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT));
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    create_infer_request_and_check_result();
+}
+
+using WeightsSeparationNotSupportedTests = WeightsSeparationTests;
+
+TEST_P(WeightsSeparationNotSupportedTests, WeightlessBlobNotSupported) {
+    model = createTestModel();
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+
+    OV_EXPECT_THROW(core->compile_model(model, target_device, configuration), ov::Exception, _);
+}
+
+TEST_P(WeightsSeparationNotSupportedTests, CacheModeNotSupported) {
+    m_cache_dir = generateCacheDirName(GetTestName());
+    core->set_property({ov::cache_dir(m_cache_dir)});
+
+    model = createTestModel();
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+
+    OV_EXPECT_THROW(core->compile_model(model, target_device, configuration), ov::Exception, _);
 }
 
 }  // namespace behavior
