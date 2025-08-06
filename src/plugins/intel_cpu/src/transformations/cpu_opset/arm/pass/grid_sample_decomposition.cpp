@@ -271,9 +271,16 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
                     y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
                 } else if (is_reflection) {
-                    // Reflection padding using unified helper
-                    x_padded = apply_reflection(x, w_in_f);
-                    y_padded = apply_reflection(y, h_in_f);
+                    // For REFLECTION mode with align_corners=false, don't reflect continuous coordinates
+                    // Reflection will be applied to discrete indices after rounding
+                    if (!attrs.align_corners) {
+                        x_padded = x;
+                        y_padded = y;
+                    } else {
+                        // For align_corners=true, apply reflection to continuous coordinates
+                        x_padded = apply_reflection(x, w_in_f);
+                        y_padded = apply_reflection(y, h_in_f);
+                    }
                 } else {
                     // zeros padding - use original coordinates
                     x_padded = x;
@@ -282,21 +289,88 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 
                 // Apply rounding for NEAREST mode to match PyTorch behavior
                 std::shared_ptr<ov::Node> x_idx, y_idx;
-                // PyTorch uses round() with HALF_TO_EVEN for NEAREST mode
-                x_idx = std::make_shared<ov::op::v5::Round>(x_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-                y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+                if (attrs.align_corners) {
+                    // PyTorch uses round() with HALF_AWAY_FROM_ZERO for align_corners=true
+                    // This properly handles negative coordinates (e.g., -0.5 -> -1, not 0)
+                    x_idx = std::make_shared<ov::op::v5::Round>(x_padded, ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+                    y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+                } else {
+                    // PyTorch uses round() with HALF_TO_EVEN for align_corners=false
+                    x_idx = std::make_shared<ov::op::v5::Round>(x_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+                    y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+                }
+                
+                // Apply discrete index reflection for REFLECTION mode
+                if (is_reflection) {
+                    if (!attrs.align_corners) {
+                        // Helper lambda for discrete index reflection with align_corners=false
+                        auto reflect_discrete_nearest = [&](const std::shared_ptr<ov::Node>& idx,
+                                                             const std::shared_ptr<ov::Node>& size_f) {
+                            // period = 2 * size
+                            auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
+                            auto period_minus_1 = std::make_shared<ov::op::v1::Subtract>(two_size, const_1);
+                            
+                            // Proper modulo: ((idx mod period) + period) mod period
+                            auto mod1 = std::make_shared<ov::op::v1::FloorMod>(idx, two_size);
+                            auto mod1_plus_period = std::make_shared<ov::op::v1::Add>(mod1, two_size);
+                            auto mod2 = std::make_shared<ov::op::v1::FloorMod>(mod1_plus_period, two_size);
+                            
+                            // If mod2 >= size, use (period - 1 - mod2)
+                            auto need_reflect = std::make_shared<ov::op::v1::GreaterEqual>(mod2, size_f);
+                            auto reflected_val = std::make_shared<ov::op::v1::Subtract>(period_minus_1, mod2);
+                            return std::make_shared<ov::op::v1::Select>(need_reflect, reflected_val, mod2);
+                        };
+                        
+                        x_idx = reflect_discrete_nearest(x_idx, w_in_f);
+                        y_idx = reflect_discrete_nearest(y_idx, h_in_f);
+                    } else {
+                        // For align_corners=true, also need discrete reflection but with different period
+                        auto reflect_discrete_align = [&](const std::shared_ptr<ov::Node>& idx,
+                                                          const std::shared_ptr<ov::Node>& size_f) {
+                            // period = 2 * (size - 1) for align_corners=true
+                            auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
+                            auto period = std::make_shared<ov::op::v1::Multiply>(const_2, size_minus_1);
+                            
+                            // Proper modulo: ((idx mod period) + period) mod period
+                            auto mod1 = std::make_shared<ov::op::v1::FloorMod>(idx, period);
+                            auto mod1_plus_period = std::make_shared<ov::op::v1::Add>(mod1, period);
+                            auto r = std::make_shared<ov::op::v1::FloorMod>(mod1_plus_period, period);
+                            
+                            // If r >= size, use (period - r)
+                            auto need_reflect = std::make_shared<ov::op::v1::GreaterEqual>(r, size_f);
+                            auto reflected_val = std::make_shared<ov::op::v1::Subtract>(period, r);
+                            std::shared_ptr<ov::Node> reflected_idx = std::make_shared<ov::op::v1::Select>(need_reflect, reflected_val, r);
+                            
+                            // Clamp to [0, size-1] to handle edge cases
+                            reflected_idx = std::make_shared<ov::op::v1::Maximum>(reflected_idx, const_0);
+                            reflected_idx = std::make_shared<ov::op::v1::Minimum>(reflected_idx, size_minus_1);
+                            return reflected_idx;
+                        };
+                        
+                        x_idx = reflect_discrete_align(x_idx, w_in_f);
+                        y_idx = reflect_discrete_align(y_idx, h_in_f);
+                    }
+                }
                 
                 // Use helper function to gather values
                 result = gather_values(x_idx, y_idx);
                 
                 // Apply zeros padding mask if needed
                 if (is_zeros) {
+                    // Check if rounded indices are within bounds
+                    // Convert to int32 first to avoid floating point comparison issues with f16
+                    auto x_idx_i32 = std::make_shared<ov::op::v0::Convert>(x_idx, ov::element::i32);
+                    auto y_idx_i32 = std::make_shared<ov::op::v0::Convert>(y_idx, ov::element::i32);
+                    auto w_i32 = std::make_shared<ov::op::v0::Convert>(w_in_f, ov::element::i32);
+                    auto h_i32 = std::make_shared<ov::op::v0::Convert>(h_in_f, ov::element::i32);
+                    auto zero_i32 = ov::op::v0::Constant::create(ov::element::i32, {}, {0});
+                    
                     auto x_valid = std::make_shared<ov::op::v1::LogicalAnd>(
-                        std::make_shared<ov::op::v1::GreaterEqual>(x, const_0),
-                        std::make_shared<ov::op::v1::Less>(x, w_in_f));
+                        std::make_shared<ov::op::v1::GreaterEqual>(x_idx_i32, zero_i32),
+                        std::make_shared<ov::op::v1::Less>(x_idx_i32, w_i32));
                     auto y_valid = std::make_shared<ov::op::v1::LogicalAnd>(
-                        std::make_shared<ov::op::v1::GreaterEqual>(y, const_0),
-                        std::make_shared<ov::op::v1::Less>(y, h_in_f));
+                        std::make_shared<ov::op::v1::GreaterEqual>(y_idx_i32, zero_i32),
+                        std::make_shared<ov::op::v1::Less>(y_idx_i32, h_i32));
                     auto valid = std::make_shared<ov::op::v1::LogicalAnd>(x_valid, y_valid);
                     // Convert mask to match result type
                     auto mask = std::make_shared<ov::op::v0::Convert>(valid, element_type);
@@ -310,12 +384,11 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 // Apply padding to continuous coordinates first
                 std::shared_ptr<ov::Node> x_padded, y_padded;
                 if (is_border) {
-                    auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
-                    auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
-                    x_padded = std::make_shared<ov::op::v1::Maximum>(x, const_0);
-                    y_padded = std::make_shared<ov::op::v1::Maximum>(y, const_0);
-                    x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
-                    y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
+                    // For BORDER mode: don't clamp continuous coordinates
+                    // The discrete indices will be clamped later
+                    // This allows proper interpolation weights at boundaries
+                    x_padded = x;
+                    y_padded = y;
                 } else if (is_reflection) {
                     // For REFLECTION mode
                     if (!attrs.align_corners) {
@@ -416,8 +489,8 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     auto x_coord = x_coords[i];
                     auto y_coord = y_coords[i];
                     
-                    // For zeros padding, clamp coordinates for safe indexing only
-                    if (is_zeros) {
+                    // For zeros and border padding, clamp coordinates for safe indexing
+                    if (is_zeros || is_border) {
                         auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
                         auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
                         x_coord = std::make_shared<ov::op::v1::Maximum>(x_coord, const_0);
@@ -425,7 +498,7 @@ GridSampleDecomposition::GridSampleDecomposition() {
                         x_coord = std::make_shared<ov::op::v1::Minimum>(x_coord, w_minus_1);
                         y_coord = std::make_shared<ov::op::v1::Minimum>(y_coord, h_minus_1);
                     }
-                    // For border/reflection padding, coordinates are already correctly padded
+                    // For reflection padding, coordinates are already correctly reflected
                     
                     // Convert to int32
                     auto x_i32 = std::make_shared<ov::op::v0::Convert>(x_coord, ov::element::i32);
@@ -512,13 +585,11 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 auto h_is_one = std::make_shared<ov::op::v1::Equal>(h_in_f, const_1);
                 
                 if (is_border) {
-                    // BORDER padding: clamp to [0, size-1]
-                    auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
-                    auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
-                    x_padded = std::make_shared<ov::op::v1::Maximum>(x, const_0);
-                    y_padded = std::make_shared<ov::op::v1::Maximum>(y, const_0);
-                    x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
-                    y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
+                    // BORDER padding: DO NOT clamp continuous coordinates for BICUBIC
+                    // The clamping should only be applied to discrete indices
+                    // This allows proper cubic interpolation near boundaries
+                    x_padded = x;
+                    y_padded = y;
                 } else if (is_reflection) {
                     // REFLECTION padding
                     if (!attrs.align_corners) {
@@ -544,13 +615,22 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 auto dx_raw = std::make_shared<ov::op::v1::Subtract>(x_padded, x0);
                 auto dy_raw = std::make_shared<ov::op::v1::Subtract>(y_padded, y0);
                 
-                // Step 3: Stabilize dx, dy to [0, 1-eps]
-                auto eps = ov::op::v0::Constant::create(calc_type, {}, {1e-7F});
-                auto one_minus_eps = std::make_shared<ov::op::v1::Subtract>(const_1, eps);
-                std::shared_ptr<ov::Node> dx = std::make_shared<ov::op::v1::Maximum>(dx_raw, const_0);
-                dx = std::make_shared<ov::op::v1::Minimum>(dx, one_minus_eps);
-                std::shared_ptr<ov::Node> dy = std::make_shared<ov::op::v1::Maximum>(dy_raw, const_0);
-                dy = std::make_shared<ov::op::v1::Minimum>(dy, one_minus_eps);
+                // Step 3: Stabilize dx, dy
+                std::shared_ptr<ov::Node> dx, dy;
+                if (is_zeros) {
+                    // For ZEROS padding: don't apply eps clamping, use raw fractional parts
+                    // This ensures correct weights even at boundaries
+                    dx = dx_raw;
+                    dy = dy_raw;
+                } else {
+                    // For BORDER/REFLECTION: apply eps clamping for numerical stability
+                    auto eps = ov::op::v0::Constant::create(calc_type, {}, {1e-7F});
+                    auto one_minus_eps = std::make_shared<ov::op::v1::Subtract>(const_1, eps);
+                    dx = std::make_shared<ov::op::v1::Maximum>(dx_raw, const_0);
+                    dx = std::make_shared<ov::op::v1::Minimum>(dx, one_minus_eps);
+                    dy = std::make_shared<ov::op::v1::Maximum>(dy_raw, const_0);
+                    dy = std::make_shared<ov::op::v1::Minimum>(dy, one_minus_eps);
+                }
                 
                 // For size==1: force dx=0 or dy=0
                 dx = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, dx);
@@ -752,21 +832,25 @@ GridSampleDecomposition::GridSampleDecomposition() {
                         auto x_idx = x_indices[ix];
                         auto y_idx = y_indices[iy];
                         
-                        // For ZEROS: clamp indices ONLY for safe gathering
-                        // For BORDER: clamp indices to valid range
+                        // For ZEROS: use safe indices for gathering (clamp to valid range)
+                        // The actual masking is done via x_valid_masks and y_valid_masks
+                        // For BORDER: clamp indices to valid range for border replication
                         // For REFLECTION: indices are already reflected, no clamping needed
+                        std::shared_ptr<ov::Node> x_idx_safe = x_idx;
+                        std::shared_ptr<ov::Node> y_idx_safe = y_idx;
+                        
                         if (is_zeros || is_border) {
                             auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
                             auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
-                            x_idx = std::make_shared<ov::op::v1::Maximum>(x_idx, const_0);
-                            y_idx = std::make_shared<ov::op::v1::Maximum>(y_idx, const_0);
-                            x_idx = std::make_shared<ov::op::v1::Minimum>(x_idx, w_minus_1);
-                            y_idx = std::make_shared<ov::op::v1::Minimum>(y_idx, h_minus_1);
+                            x_idx_safe = std::make_shared<ov::op::v1::Maximum>(x_idx, const_0);
+                            y_idx_safe = std::make_shared<ov::op::v1::Maximum>(y_idx, const_0);
+                            x_idx_safe = std::make_shared<ov::op::v1::Minimum>(x_idx_safe, w_minus_1);
+                            y_idx_safe = std::make_shared<ov::op::v1::Minimum>(y_idx_safe, h_minus_1);
                         }
                         
                         // Convert to int32 and gather
-                        auto x_i32 = std::make_shared<ov::op::v0::Convert>(x_idx, ov::element::i32);
-                        auto y_i32 = std::make_shared<ov::op::v0::Convert>(y_idx, ov::element::i32);
+                        auto x_i32 = std::make_shared<ov::op::v0::Convert>(x_idx_safe, ov::element::i32);
+                        auto y_i32 = std::make_shared<ov::op::v0::Convert>(y_idx_safe, ov::element::i32);
                         
                         // Create batch indices for GatherND
                         auto batch_indices = create_batch_indices();
