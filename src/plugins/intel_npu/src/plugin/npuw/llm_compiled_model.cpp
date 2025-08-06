@@ -851,8 +851,9 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
 
 struct NPUDesc {
     std::string arch;
-    int64_t max_tiles;
-    bool compiler_dq;
+    int64_t max_tiles = 0;
+    bool compiler_dq = false;
+    int64_t compiler_ver = 0;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
@@ -861,17 +862,21 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         return std::nullopt;
     }
 
-    const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
-    const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
-    bool compiler_dq = false;
+    NPUDesc desc;
+    desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+    desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+
     // Don't use reference here!
     const auto supported_properties =
         plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
     if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
         supported_properties.end()) {
-        compiler_dq = true;
+        desc.compiler_dq = true;
     }
-    return std::make_optional(NPUDesc{std::move(arch), max_tiles, compiler_dq});
+
+    desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+
+    return std::make_optional(std::move(desc));
 }
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
@@ -917,17 +922,8 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     return config;
 }
 
-ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
-                                      const std::optional<NPUDesc>& npudesc,
-                                      const ::intel_npu::npuw::llm::PrefillHint hint) {
+ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
     auto config = get_default_common_config(npudesc);
-    if (hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC) {
-        if (is_cw_compressed(model)) {
-            // NB: These two ifs are not combined into one with && deliberately
-            // there may be later changes w.r.t. required compiler versions for GQ
-            config.emplace("NPUW_ONLINE_PIPELINE", "SPATIAL");
-        }
-    }
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_TILES", npudesc->max_tiles);
     }
@@ -983,6 +979,24 @@ void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properti
     }
 }
 
+void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDesc>& npudesc) {
+    if (!npudesc) {
+        // No NPU device detected - no idea about the actual capabilities.
+        return;
+    }
+
+    if (llm_properties.count(ov::intel_npu::npuw::llm::prefill_chunk_size.name())) {
+        // The chunk size value is enforced by the config, keep it
+        return;
+    }
+
+    if (npudesc->compiler_ver < ONEAPI_MAKE_VERSION(7, 22)) {
+        // Specify larger chunk size for older compiler versions
+        LOG_VERB("Default the prefill chunk size to 1024");
+        llm_properties["NPUW_LLM_PREFILL_CHUNK_SIZE"] = 1024;
+    }
+}
+
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -1004,6 +1018,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
+    const auto npudesc = extract_npu_descriptor(plugin);
+
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
     split_llm_properties(properties, npuw_llm_props, other_props);
@@ -1020,7 +1036,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Also make these maps for third: lm head model, in case it will be created:
     auto lm_head_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_SHARED_HEAD_CONFIG"));
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
-
+    refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
@@ -1058,16 +1074,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
+    // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
+    // the generate model they're not mutually exclusive
+    const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
+
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
-    const bool use_chunk_prefill = m_prefill_chunk_size > 0;
-    LOG_VERB("Enabled prefill chunking: " << use_chunk_prefill);
+    m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
+    LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
     auto is_power_of_two = [](uint64_t n) {
         return n > 0 && (n & (n - 1)) == 0;
     };
-    if (use_chunk_prefill) {
+    if (m_use_chunk_prefill) {
         if (!is_power_of_two(m_prefill_chunk_size)) {
             OPENVINO_THROW("Configuration Error: chunk size (",
                            m_prefill_chunk_size,
@@ -1085,7 +1105,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("Make prefill model with static shapes");
-    if (use_chunk_prefill) {
+    if (m_use_chunk_prefill) {
         reshape_to_static(prefill_model,
                           static_cast<uint32_t>(m_prefill_chunk_size),
                           m_kvcache_desc.max_prompt_size,
@@ -1122,7 +1142,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
 
-    if (!use_chunk_prefill) {
+    if (!m_use_chunk_prefill) {
         NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
     } else {
         LOG_DEBUG("Don't remove input key/values from prefill model.");
@@ -1137,15 +1157,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
-    auto npudesc = extract_npu_descriptor(plugin);
-
-    // NB: PREFILL_HINT is only applicable for default prefill config!
-    if (prefill_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::prefill_hint.name())) {
-        OPENVINO_THROW("PREFILL_HINT only works with default prefill config!");
-    }
-    const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     auto prefill_config =
-        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc, prefill_hint)).as<ov::AnyMap>();
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
@@ -1285,6 +1298,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.dim);
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
         write(model_stream, m_prefill_chunk_size);
+        write(model_stream, m_use_chunk_prefill);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1396,6 +1410,13 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             compiled->m_kvcache_compiled->m_import_weights_ctx.reset();
             compiled->m_prefill_compiled->finalize_weights_bank();
             compiled->m_prefill_compiled->m_import_weights_ctx.reset();
+
+            if (compiled->m_lm_head_compiled) {
+                compiled->m_lm_head_compiled->m_weights_bank = bank;
+
+                compiled->m_lm_head_compiled->finalize_weights_bank();
+                compiled->m_lm_head_compiled->m_import_weights_ctx.reset();
+            }
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -1405,6 +1426,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
             compiled->m_kvcache_compiled->reconstruct_closure();
             compiled->m_prefill_compiled->reconstruct_closure();
+
+            if (compiled->m_lm_head_compiled) {
+                compiled->m_lm_head_compiled->m_weights_bank = bank;
+
+                compiled->m_lm_head_compiled->reconstruct_closure();
+            }
         }
     };
 
@@ -1478,6 +1505,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.dim);
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
         read(model_stream, compiled->m_prefill_chunk_size);
+        read(model_stream, compiled->m_use_chunk_prefill);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
