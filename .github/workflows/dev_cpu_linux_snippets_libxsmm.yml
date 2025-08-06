@@ -220,7 +220,7 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+          path: ${{ env.INSTALL_DIR }}
 
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
@@ -278,7 +278,7 @@ jobs:
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+          path: ${{ env.INSTALL_DIR }}
 
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
