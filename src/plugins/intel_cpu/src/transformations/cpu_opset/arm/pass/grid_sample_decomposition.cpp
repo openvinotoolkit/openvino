@@ -107,20 +107,22 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 ov::op::v0::Constant::create(ov::element::i32, {}, {2}),
                 ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
             
-            // Convert to float for calculations
-            auto h_in_f = std::make_shared<ov::op::v0::Convert>(h_in, element_type);
-            auto w_in_f = std::make_shared<ov::op::v0::Convert>(w_in, element_type);
-            
             // Constants
-            auto const_0 = ov::op::v0::Constant::create(element_type, {}, {0.0f});
-            auto const_1 = ov::op::v0::Constant::create(element_type, {}, {1.0f});
-            auto const_2 = ov::op::v0::Constant::create(element_type, {}, {2.0f});
-            auto const_0_5 = ov::op::v0::Constant::create(element_type, {}, {0.5f});
+            // For coordinate calculations, always use floating point
+            auto calc_type = element_type.is_real() ? element_type : ov::element::f32;
             
-            // Convert grid to data element type if needed
+            // Convert to float for calculations
+            auto h_in_f = std::make_shared<ov::op::v0::Convert>(h_in, calc_type);
+            auto w_in_f = std::make_shared<ov::op::v0::Convert>(w_in, calc_type);
+            auto const_0 = ov::op::v0::Constant::create(calc_type, {}, {0.0f});
+            auto const_1 = ov::op::v0::Constant::create(calc_type, {}, {1.0f});
+            auto const_2 = ov::op::v0::Constant::create(calc_type, {}, {2.0f});
+            auto const_0_5 = ov::op::v0::Constant::create(calc_type, {}, {0.5f});
+            
+            // Convert grid to calculation type if needed
             auto grid_converted = grid;
-            if (grid.get_element_type() != element_type) {
-                grid_converted = std::make_shared<ov::op::v0::Convert>(grid, element_type);
+            if (grid.get_element_type() != calc_type) {
+                grid_converted = std::make_shared<ov::op::v0::Convert>(grid, calc_type);
             }
             
             // Split grid into x and y components - gather along last axis (axis 3)
@@ -214,15 +216,11 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     y_padded = y;
                 }
                 
-                // Now round the padded coordinates for NEAREST mode
+                // Apply rounding for NEAREST mode to match PyTorch behavior
                 std::shared_ptr<ov::Node> x_idx, y_idx;
-                if (attrs.align_corners) {
-                    x_idx = std::make_shared<ov::op::v5::Round>(x_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-                    y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-                } else {
-                    x_idx = std::make_shared<ov::op::v0::Floor>(x_padded);
-                    y_idx = std::make_shared<ov::op::v0::Floor>(y_padded);
-                }
+                // PyTorch uses round() with HALF_TO_EVEN for NEAREST mode
+                x_idx = std::make_shared<ov::op::v5::Round>(x_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+                y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
                 
                 // Convert to int32 for indexing
                 auto x_idx_i32 = std::make_shared<ov::op::v0::Convert>(x_idx, ov::element::i32);
@@ -277,6 +275,7 @@ GridSampleDecomposition::GridSampleDecomposition() {
                         std::make_shared<ov::op::v1::GreaterEqual>(y, const_0),
                         std::make_shared<ov::op::v1::Less>(y, h_in_f));
                     auto valid = std::make_shared<ov::op::v1::LogicalAnd>(x_valid, y_valid);
+                    // Convert mask to match result type
                     auto mask = std::make_shared<ov::op::v0::Convert>(valid, element_type);
                     auto mask_expanded = std::make_shared<ov::op::v0::Unsqueeze>(mask,
                         ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
