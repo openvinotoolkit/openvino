@@ -88,8 +88,6 @@ static size_t get_heads_per_wi(const size_t kv_group_size) {
 
 static size_t get_num_k_head_size_partitions(const kv_cache_update_params& params) {
     size_t head_size_partition = 1;
-    if (getenv("NUM") != nullptr)
-        return std::stoi(getenv("NUM"));
     if (params.is_key_by_channel) {
         if (params.conf.k_head_size % subgroup_size == 0)
             head_size_partition = std::min(static_cast<size_t>(16),
