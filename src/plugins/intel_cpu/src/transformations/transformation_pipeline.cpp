@@ -1073,7 +1073,6 @@ void Transformations::PostLpt() {
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionChatGLMHF);
     CPU_REGISTER_PASS_X64(postLPTPassManager, CausalMaskPreprocessFusion);
 
-
 #if defined(OPENVINO_ARCH_X86_64)
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
