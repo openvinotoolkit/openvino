@@ -91,7 +91,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
             for (auto target : attn_param->get_output_target_inputs(0)) {
                 auto sdpa =
-                    ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(target.get_node()->shared_from_this());
+                    ov::as_type<v13::ScaledDotProductAttention>(target.get_node());
                 OPENVINO_ASSERT(sdpa, "all consumers should be SDPA!");
 
                 const auto sdpa_consumers = sdpa->get_output_target_inputs(0);
