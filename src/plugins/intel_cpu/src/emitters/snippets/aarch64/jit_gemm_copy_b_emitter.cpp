@@ -82,7 +82,7 @@ void jit_gemm_copy_b_emitter::emit_impl(const std::vector<size_t>& in, const std
 
     std::vector<size_t> mem_ptrs_idxs{in[0], out[0]};
 
-    init_binary_call_regs(2, mem_ptrs_idxs);
+    init_binary_call_regs(3, mem_ptrs_idxs);
     emit_call(mem_ptrs_idxs);
 }
 

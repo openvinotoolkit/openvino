@@ -100,16 +100,18 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
 
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
+    // Collect used register indices to avoid conflicts
+    std::vector<size_t> used_gpr_idxs = {call_address_reg.getIdx(), callee_saved_reg.getIdx()};
+
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         const bool is_dynamic_offset = ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]);
         const bool is_valid_buffer_id = m_buffer_ids[i] != SIZE_MAX;
 
-        // Collect used register indices to avoid conflicts
-        std::vector<size_t> used_gpr_idxs = {call_address_reg.getIdx(),
-                                             callee_saved_reg.getIdx(),
-                                             mem_ptrs[i].getIdx()};
+        // Add current register to avoid conflicts in auxiliary register allocation
+        used_gpr_idxs.push_back(mem_ptrs[i].getIdx());
 
         if (is_dynamic_offset && is_valid_buffer_id) {
+            OPENVINO_ASSERT(is_valid_buffer_id, "In dynamic case Buffer ID must be defined");
             // Get 3 auxiliary registers for dynamic offset handling (runtime offset needs at least 3)
             auto aux_gprs = ov::intel_cpu::aarch64::utils::get_aux_gprs(used_gpr_idxs, 3);
             std::vector<Xbyak_aarch64::XReg> aux_regs = {aux_gprs[0], aux_gprs[1], aux_gprs[2]};

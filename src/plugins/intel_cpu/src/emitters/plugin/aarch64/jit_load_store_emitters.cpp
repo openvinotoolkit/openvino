@@ -100,7 +100,7 @@ static void store_with_offset_check(jit_generator* h, const RegType& src, const 
         }
 
         if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
-            h->str(src, ptr(dst, offset));
+            h->str(src, ptr(dst, static_cast<uint32_t>(offset)));
         } else {
             h->add_imm(h->X_DEFAULT_ADDR, dst, offset, h->X_TMP_0);
             h->str(src, ptr(h->X_DEFAULT_ADDR));

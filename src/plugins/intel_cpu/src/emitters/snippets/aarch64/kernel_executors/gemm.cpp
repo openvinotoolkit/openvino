@@ -86,7 +86,7 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, const
         ukernel.run_matmul(M,
                            n_block_size,
                            K,
-                           const_cast<void*>(args->A),
+                           static_cast<const void*>(args->A),
                            lhs_stride,
                            rhs_ptr,
                            dst_ptr,

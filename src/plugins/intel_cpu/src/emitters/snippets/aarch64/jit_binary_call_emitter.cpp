@@ -66,7 +66,9 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     // Add ABI parameter registers to used list (X0-X7 based on num_binary_args)
     for (size_t i = 0; i < num_binary_args; i++) {
         all_used_idxs.push_back(i);
-        m_regs_to_spill.emplace(snippets::RegType::gpr, i);
+        if (m_regs_to_spill.find({snippets::RegType::gpr, i}) == m_regs_to_spill.end()) {
+            m_regs_to_spill.emplace(snippets::RegType::gpr, i);
+        }
     }
 
     // Add special registers that should not be allocated
@@ -93,13 +95,17 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
     OV_CPU_JIT_EMITTER_ASSERT(call_reg != SIZE_MAX, "No available temporary register for call address");
     m_call_address_reg = Xbyak_aarch64::XReg(static_cast<int>(call_reg));
     all_used_idxs.push_back(call_reg);
-    m_regs_to_spill.emplace(snippets::RegType::gpr, call_reg);
+    if (m_regs_to_spill.find({snippets::RegType::gpr, call_reg}) == m_regs_to_spill.end()) {
+        m_regs_to_spill.emplace(snippets::RegType::gpr, call_reg);
+    }
 
     // Allocate callee-saved register (X19-X28) for stack alignment
     auto callee_reg = find_available(19, 29);
     OV_CPU_JIT_EMITTER_ASSERT(callee_reg != SIZE_MAX, "No available callee-saved register");
     m_callee_saved_reg = Xbyak_aarch64::XReg(static_cast<int>(callee_reg));
-    m_regs_to_spill.emplace(snippets::RegType::gpr, callee_reg);
+    if (m_regs_to_spill.find({snippets::RegType::gpr, callee_reg}) == m_regs_to_spill.end()) {
+        m_regs_to_spill.emplace(snippets::RegType::gpr, callee_reg);
+    }
 
     m_regs_initialized = true;
 }
