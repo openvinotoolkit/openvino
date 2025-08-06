@@ -14,17 +14,17 @@ namespace npuw {
 
 class VariableState final : public ov::IVariableState {
 public:
-    explicit VariableState(const std::string& name, const ov::SoPtr<ov::ITensor>& tensor) : ov::IVariableState(name) {
+    VariableState(const std::string& name, const ov::SoPtr<ov::ITensor>& tensor) : ov::IVariableState(name) {
         m_state = tensor;
         clear_state_updated();
     }
 
-    virtual void set_state(const ov::SoPtr<ov::ITensor>& newState) override {
+    void set_state(const ov::SoPtr<ov::ITensor>& newState) override {
         m_state = newState;
         m_state_updapted = true;
     }
 
-    virtual void reset() override {
+    void reset() override {
         OPENVINO_THROW("VariableState::reset() is not implemented");
     }
 
@@ -53,19 +53,19 @@ static bool matchStringWithLoRAPattern(const std::string& input, const std::stri
     std::regex regex_pattern(pattern);
 
     return std::regex_match(input, regex_pattern);
-};
+}
 
 static bool matchLoRAMatMulAString(const std::string& input) {
     return matchStringWithLoRAPattern(input, LoRANames::MatMul_A);
-};
+}
 
 static bool matchLoRAMatMulBString(const std::string& input) {
     return matchStringWithLoRAPattern(input, LoRANames::MatMul_B);
-};
+}
 
 static bool matchLoRAMatMulAlphaString(const std::string& input) {
     return matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
-};
+}
 
 }  // namespace npuw
 }  // namespace ov
