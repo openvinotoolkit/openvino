@@ -25,43 +25,50 @@ namespace ov::intel_cpu::aarch64 {
 using jit_generator = dnnl::impl::cpu::aarch64::jit_generator;
 using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 
+// Helper function to get max_offset and alignment for different register types
+template <typename RegType>
+static std::pair<int, int> get_load_store_limits() {
+    // Default fallback
+    int max_offset = 4095;
+    int alignment = 1;
+
+    if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
+        max_offset = 65520;  // 4095 * 16
+        alignment = 16;
+    } else if constexpr (std::is_same_v<RegType, SReg>) {
+        max_offset = 16380;
+        alignment = 4;
+    } else if constexpr (std::is_same_v<RegType, DReg>) {
+        max_offset = 32760;
+        alignment = 8;
+    } else if constexpr (std::is_same_v<RegType, HReg>) {
+        max_offset = 8190;
+        alignment = 2;
+    } else if constexpr (std::is_same_v<RegType, BReg>) {
+        max_offset = 4095;
+        alignment = 1;
+    }
+
+    return {max_offset, alignment};
+}
+
 // Helper function to load with large offset handling
 template <typename RegType>
 static void load_with_offset_check(jit_generator* h, const RegType& dst, const XReg& src, int offset) {
-    if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
-        // Manual offset handling for VReg/QReg due to uni_ldr limitations
-        const int off_mod = offset % 16;
-        const int off_mul_vl = offset / 16;
+    const auto [max_offset, alignment] = get_load_store_limits<RegType>();
 
-        if (off_mod == 0 && off_mul_vl >= 0 && off_mul_vl <= 4095) {
+    if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
+        if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
             h->ldr(QReg(dst.getIdx()), ptr(src, static_cast<uint32_t>(offset)));
         } else {
-            h->add_imm(h->X_DEFAULT_ADDR, src, offset, h->X_TMP_0);
-            h->ldr(QReg(dst.getIdx()), ptr(h->X_DEFAULT_ADDR));
+            h->ldr(dst, ptr(src, static_cast<uint32_t>(offset)));
         }
     } else {
-        // Manual offset handling for other register types
-        // Note: read about LDR (immediate) in the manual Arm A-profile A64 Instruction Set Architecture
-        int max_offset = 4095;  // Default fallback
-        int alignment = 1;      // Default fallback
-        if constexpr (std::is_same_v<RegType, SReg>) {
-            max_offset = 16380;
-            alignment = 4;
-        } else if constexpr (std::is_same_v<RegType, DReg>) {
-            max_offset = 32760;
-            alignment = 8;
-        } else if constexpr (std::is_same_v<RegType, HReg>) {
-            max_offset = 8190;
-            alignment = 2;
-        } else if constexpr (std::is_same_v<RegType, BReg>) {
-            max_offset = 4095;
-            alignment = 1;
-        }
-
-        if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
-            h->ldr(dst, ptr(src, static_cast<uint32_t>(offset)));
+        // Use add_imm which handles register allocation internally
+        h->add_imm(h->X_DEFAULT_ADDR, src, offset, h->X_TMP_0);
+        if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
+            h->ldr(QReg(dst.getIdx()), ptr(h->X_DEFAULT_ADDR));
         } else {
-            h->add_imm(h->X_DEFAULT_ADDR, src, offset, h->X_TMP_0);
             h->ldr(dst, ptr(h->X_DEFAULT_ADDR));
         }
     }
@@ -70,39 +77,20 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
 // Helper function to store with large offset handling
 template <typename RegType>
 static void store_with_offset_check(jit_generator* h, const RegType& src, const XReg& dst, int offset) {
-    if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
-        // Manual offset handling for VReg/QReg due to uni_str limitations
-        const int off_mod = offset % 16;
-        const int off_mul_vl = offset / 16;
+    const auto [max_offset, alignment] = get_load_store_limits<RegType>();
 
-        if (off_mod == 0 && off_mul_vl >= 0 && off_mul_vl <= 4095) {
+    if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
+        if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
             h->str(QReg(src.getIdx()), ptr(dst, static_cast<uint32_t>(offset)));
         } else {
-            h->add_imm(h->X_DEFAULT_ADDR, dst, offset, h->X_TMP_0);
-            h->str(QReg(src.getIdx()), ptr(h->X_DEFAULT_ADDR));
+            h->str(src, ptr(dst, static_cast<uint32_t>(offset)));
         }
     } else {
-        // Manual offset handling for other register types
-        int max_offset = 4095;  // Default fallback
-        int alignment = 1;      // Default fallback
-        if constexpr (std::is_same_v<RegType, SReg>) {
-            max_offset = 16380;
-            alignment = 4;
-        } else if constexpr (std::is_same_v<RegType, DReg>) {
-            max_offset = 32760;
-            alignment = 8;
-        } else if constexpr (std::is_same_v<RegType, HReg>) {
-            max_offset = 8190;
-            alignment = 2;
-        } else if constexpr (std::is_same_v<RegType, BReg>) {
-            max_offset = 4095;
-            alignment = 1;
-        }
-
-        if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
-            h->str(src, ptr(dst, static_cast<uint32_t>(offset)));
+        // Use add_imm which handles register allocation internally
+        h->add_imm(h->X_DEFAULT_ADDR, dst, offset, h->X_TMP_0);
+        if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
+            h->str(QReg(src.getIdx()), ptr(h->X_DEFAULT_ADDR));
         } else {
-            h->add_imm(h->X_DEFAULT_ADDR, dst, offset, h->X_TMP_0);
             h->str(src, ptr(h->X_DEFAULT_ADDR));
         }
     }

@@ -101,42 +101,19 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
 
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
-    // Collect used register indices to avoid conflicts
+    // Collect used register indices to avoid conflicts with auxiliary registers
     std::vector<size_t> used_gpr_idxs = {call_address_reg.getIdx(), callee_saved_reg.getIdx()};
-
-    for (size_t i = 0; i < mem_ptrs.size(); i++) {
-        const bool is_dynamic_offset = ov::snippets::utils::is_dynamic_value(m_memory_offsets[i]);
-        const bool is_valid_buffer_id = m_buffer_ids[i] != SIZE_MAX;
-
-        // Add current register to avoid conflicts in auxiliary register allocation
-        used_gpr_idxs.push_back(mem_ptrs[i].getIdx());
-
-        if (is_dynamic_offset && is_valid_buffer_id) {
-            OPENVINO_ASSERT(is_valid_buffer_id, "In dynamic case Buffer ID must be defined");
-            // Get 3 auxiliary registers for dynamic offset handling (runtime offset needs at least 3)
-            auto aux_gprs = ov::intel_cpu::aarch64::utils::get_aux_gprs(used_gpr_idxs, 3);
-            std::vector<Xbyak_aarch64::XReg> aux_regs = {aux_gprs[0], aux_gprs[1], aux_gprs[2]};
-            size_t runtime_offset = GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t);
-            utils::push_ptr_with_runtime_offset_on_stack(h,
-                                                         gemm_args_offsets[i],
-                                                         mem_ptrs[i],
-                                                         aux_regs,
-                                                         runtime_offset);
-        } else {
-            // Static offset case (dynamic offsets with valid buffer IDs are handled above)
-            // Get 2 auxiliary registers for static offset handling (static offset needs at least 2)
-            auto aux_gprs = ov::intel_cpu::aarch64::utils::get_aux_gprs(used_gpr_idxs, 2);
-            std::vector<Xbyak_aarch64::XReg> aux_regs = {aux_gprs[0], aux_gprs[1]};
-            utils::push_ptr_with_static_offset_on_stack(h,
-                                                        gemm_args_offsets[i],
-                                                        mem_ptrs[i],
-                                                        aux_regs,
-                                                        m_memory_offsets[i]);
-        }
+    for (const auto& reg : mem_ptrs) {
+        used_gpr_idxs.push_back(reg.getIdx());
     }
 
-    h->mov(call_address_reg, 0);
-    h->str(call_address_reg, Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(reserved_stack_size)));
+    // Get auxiliary registers for the helper function (needs at least 3 for dynamic offsets)
+    auto aux_gprs = ov::intel_cpu::aarch64::utils::get_aux_gprs(used_gpr_idxs, 3);
+
+    // Use the new helper function to push all pointers with offsets to their stack locations
+    utils::push_ptrs_with_offsets_to_stack(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_gprs, gemm_args_offsets);
+
+    // Note: scratch field was removed per earlier review feedback, so we don't need to zero it
 
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);

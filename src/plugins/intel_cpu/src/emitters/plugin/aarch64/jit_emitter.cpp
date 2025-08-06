@@ -260,16 +260,15 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
 
         // Store GPR registers using stack offset (preserving original order)
         const auto last = store_gpr_regs_size % 2;
-        auto current_offset = 0U;
+        int32_t current_offset = 0;
         for (size_t i = 0; i < (store_gpr_regs_size - last); i += 2) {
             h->stp(Xbyak_aarch64::XReg(gpr_regs[i]),
                    Xbyak_aarch64::XReg(gpr_regs[i + 1]),
-                   Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(current_offset)));
-            current_offset += get_gpr_length() * 2;
+                   Xbyak_aarch64::ptr(h->sp, current_offset));
+            current_offset += static_cast<int32_t>(get_gpr_length() * 2);
         }
         if (last != 0) {
-            h->str(Xbyak_aarch64::XReg(gpr_regs[store_gpr_regs_size - 1]),
-                   Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(current_offset)));
+            h->str(Xbyak_aarch64::XReg(gpr_regs[store_gpr_regs_size - 1]), Xbyak_aarch64::ptr(h->sp, current_offset));
         }
     }
 
@@ -354,25 +353,21 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
     // 2. General-purpose Registers - optimized to deallocate stack space once
     const auto save_gpr_regs_size = gpr_regs.size();
     if (save_gpr_regs_size > 0) {
-        // Calculate total stack space (must match store_context calculation)
-        const auto total_gpr_shift = ov::intel_cpu::rnd_up(get_gpr_length() * save_gpr_regs_size, sp_alignment);
-
         // Restore GPR registers using stack offset (reverse order to match original behavior)
         const auto last = save_gpr_regs_size % 2;
-        auto current_offset = get_gpr_length() * save_gpr_regs_size;
         if (last != 0) {
-            current_offset -= get_gpr_length();
-            h->ldr(Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1]),
-                   Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(current_offset)));
+            int32_t current_offset = get_gpr_length() * save_gpr_regs_size - get_gpr_length();
+            h->ldr(Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1]), Xbyak_aarch64::ptr(h->sp, current_offset));
         }
 
         for (size_t i = last; i < save_gpr_regs_size; i += 2) {
-            current_offset -= get_gpr_length() * 2;
+            int32_t current_offset = get_gpr_length() * (save_gpr_regs_size - (i + 2));
             h->ldp(Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1 - (i + 1)]),
                    Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1 - i]),
-                   Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(current_offset)));
+                   Xbyak_aarch64::ptr(h->sp, current_offset));
         }
 
+        const auto total_gpr_shift = ov::intel_cpu::rnd_up(get_gpr_length() * save_gpr_regs_size, sp_alignment);
         // Single stack deallocation for all GPR registers
         h->add(h->sp, h->sp, total_gpr_shift);
     }

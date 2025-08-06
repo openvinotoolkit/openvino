@@ -121,10 +121,9 @@ void jit_binary_call_emitter::init_binary_call_regs(size_t num_binary_args,
 void jit_binary_call_emitter::emit_stack_preserve(size_t stack_size) const {
     OV_CPU_JIT_EMITTER_ASSERT(!m_stack_preserved, "emit_stack_preserve called twice without emit_stack_restore");
 
-    // ARM64 requires 16-byte stack alignment
-    stack_size = ov::intel_cpu::rnd_up(stack_size, sp_alignment);
-
     if (stack_size > 0) {
+        // ARM64 requires 16-byte stack alignment
+        stack_size = ov::intel_cpu::rnd_up(stack_size, sp_alignment);
         h->sub(h->sp, h->sp, stack_size);
     }
 
@@ -134,10 +133,9 @@ void jit_binary_call_emitter::emit_stack_preserve(size_t stack_size) const {
 void jit_binary_call_emitter::emit_stack_restore(size_t stack_size) const {
     OV_CPU_JIT_EMITTER_ASSERT(m_stack_preserved, "emit_stack_restore called without corresponding emit_stack_preserve");
 
-    // ARM64 requires 16-byte stack alignment
-    stack_size = ov::intel_cpu::rnd_up(stack_size, sp_alignment);
-
     if (stack_size > 0) {
+        // ARM64 requires 16-byte stack alignment
+        stack_size = ov::intel_cpu::rnd_up(stack_size, sp_alignment);
         h->add(h->sp, h->sp, stack_size);
     }
 

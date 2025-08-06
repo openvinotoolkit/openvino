@@ -178,4 +178,37 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
     h->add(h->sp, h->sp, sp_size);
 }
 
+void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
+                                     const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
+                                     const std::vector<size_t>& memory_offsets,
+                                     const std::vector<size_t>& buffer_ids,
+                                     const std::vector<Xbyak_aarch64::XReg>& aux_regs,
+                                     const std::vector<size_t>& stack_offsets) {
+    OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == memory_offsets.size(), "mem_ptrs and memory_offsets size mismatch");
+    OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == buffer_ids.size(), "mem_ptrs and buffer_ids size mismatch");
+    OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == stack_offsets.size(), "mem_ptrs and stack_offsets size mismatch");
+    OV_CPU_JIT_EMITTER_ASSERT(aux_regs.size() >= 3, "aux_regs must contain at least 3 registers");
+
+    // Store all pointers with offsets to their specific stack locations
+    for (size_t i = 0; i < mem_ptrs.size(); i++) {
+        const auto& ptr_reg = mem_ptrs[i];
+        int32_t stack_offset = static_cast<int32_t>(stack_offsets[i]);
+
+        if (i < memory_offsets.size() && ov::snippets::utils::is_dynamic_value(memory_offsets[i])) {
+            if (i < buffer_ids.size() && !ov::snippets::utils::is_dynamic_value(buffer_ids[i]) && buffer_ids[i] < 24) {
+                // Dynamic offset: read from runtime parameters
+                size_t runtime_offset = GET_OFF(buffer_offsets) + buffer_ids[i] * sizeof(size_t);
+                push_ptr_with_runtime_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, runtime_offset);
+            } else {
+                // Invalid buffer ID, store with zero offset
+                push_ptr_with_static_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, 0);
+            }
+        } else {
+            // Static offset: add compile-time constant
+            size_t offset = (i < memory_offsets.size()) ? memory_offsets[i] : 0;
+            push_ptr_with_static_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, offset);
+        }
+    }
+}
+
 }  // namespace ov::intel_cpu::aarch64::utils
