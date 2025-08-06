@@ -104,6 +104,9 @@ public:
 
     virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
     virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
+
+    virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
+
 protected:
     const std::vector<std::vector<std::shared_ptr<ov::ITensor>>> _levelZeroInputTensors;
     const std::vector<std::shared_ptr<ov::ITensor>> _levelZeroOutputTensors;
