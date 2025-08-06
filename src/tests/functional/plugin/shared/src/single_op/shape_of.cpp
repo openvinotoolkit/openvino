@@ -8,10 +8,7 @@
 namespace ov {
 namespace test {
 std::string ShapeOfLayerTest::getTestCaseName(testing::TestParamInfo<shapeOfParams> obj) {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type, out_type;
-    std::string target_device;
-    std::tie(model_type, out_type, input_shapes, target_device) = obj.param;
+    const auto& [model_type, out_type, input_shapes, target_device] = obj.param;
     std::ostringstream result;
     result << "IS=(";
     for (size_t i = 0lu; i < input_shapes.size(); i++) {
@@ -33,9 +30,9 @@ std::string ShapeOfLayerTest::getTestCaseName(testing::TestParamInfo<shapeOfPara
 }
 
 void ShapeOfLayerTest::SetUp() {
-    std::vector<InputShape> input_shapes;
-    ov::element::Type model_type;
-    std::tie(model_type, outType, input_shapes, targetDevice) = this->GetParam();
+    const auto& [model_type, _outType, input_shapes, _targetDevice] = this->GetParam();
+    outType = _outType;
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shapes);
 
