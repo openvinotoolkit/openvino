@@ -28,7 +28,7 @@ class GridSampleLayerTestCPU : public testing::WithParamInterface<GridSampleLaye
                                virtual public SubgraphBaseTest,
                                public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<GridSampleLayerTestCPUParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<GridSampleLayerTestCPUParams>& obj) {
         const auto &[inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision, cpuParams,
                      additionalConfig] = obj.param;
         std::ostringstream result;

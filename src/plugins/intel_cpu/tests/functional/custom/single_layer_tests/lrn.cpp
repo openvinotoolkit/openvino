@@ -22,7 +22,7 @@ using LRNParams = std::tuple<
 
 class LRNLayerCPUTest : public testing::WithParamInterface<LRNParams>, public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LRNParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<LRNParams>& obj) {
         const auto& [inputPrecision, inputShapes, alpha, beta, bias, size, axes] = obj.param;
         std::ostringstream result;
         result << inputPrecision << "_" << "IS=" << ov::test::utils::partialShape2str({ inputShapes.first }) << "_" << "TS=(";
