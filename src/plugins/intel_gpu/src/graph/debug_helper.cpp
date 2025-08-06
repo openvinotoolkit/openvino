@@ -466,7 +466,31 @@ NodeDebugHelper::~NodeDebugHelper() {
                                        dump_raw);
                 }
             }
+            for (size_t i = 0; i < m_inst.get_intermediates_memories().size(); i++) {
+                std::string name = get_file_prefix() + "_intermediates_" + std::to_string(i);
+                auto output_mem = m_inst.get_intermediates_memories()[i];
+                if (output_mem == nullptr) {
+                    GPU_DEBUG_COUT << " intermediates_mem is nullptr. Nothing to dump." << std::endl;
+                    continue;
+                }
 
+                auto& output_layout = output_mem->get_layout();
+                if (config.get_dump_tensors_format() == ov::intel_gpu::DumpFormat::binary) {
+                    // Binary dump : raw
+                    auto filename = get_file_path_for_binary_dump(output_layout, name, config.get_dump_tensors_path());
+
+                    mem_lock<char, mem_lock_type::read> lock(output_mem, m_stream);
+                    ov::util::save_binary(filename, lock.data(), output_mem->size());
+                    GPU_DEBUG_COUT << " Dump layer dst : " << layer_name << " to " << filename << std::endl;
+                    debug_str_for_bin_load += (filename + ",");
+                } else {
+                    const bool dump_raw = config.get_dump_tensors_format() == ov::intel_gpu::DumpFormat::text_raw;
+                    GPU_DEBUG_COUT << " Dump " << (dump_raw ? "raw " : "") << name << std::endl;
+                    auto filename = config.get_dump_tensors_path() + get_name_for_dump(name) + ".txt";
+                    // Text dump
+                    log_memory_to_file(output_mem, output_layout, m_stream, filename, dump_raw);
+                }
+            }
             if (config.get_dump_tensors_format() == ov::intel_gpu::DumpFormat::binary && m_inst.is_input()) {
                 debug_str_for_bin_load[debug_str_for_bin_load.size()-1] = '\"';
                 GPU_DEBUG_COUT << debug_str_for_bin_load << std::endl;;
