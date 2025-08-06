@@ -455,8 +455,8 @@ jobs:
       python-version: '3.11'
       scope: ${{ contains(fromJSON('["schedule", "workflow_dispatch"]'), github.event_name)  && 'nightly' || 'smoke' }}
 
-  upload_artifacts:
-    name: Upload OpenVINO artifacts
+  store_artifacts:
+    name: Store OpenVINO artifacts on a shared drive
     timeout-minutes: 10
     needs: [Build, Smart_CI]
     defaults:
@@ -485,12 +485,35 @@ jobs:
             .github/actions/store_artifacts
           path: ${{ env.OPENVINO_REPO }}
 
-      - name: Download OpenVINO artifacts
+      - name: Download OpenVINO package
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: "{openvino_package,openvino_developer_package,openvino_js_package,openvino_node_npm_package,openvino_package_manifest}"
+          name: openvino_package
           path: ${{ env.ARTIFACTS_DIR }}
-          merge-multiple: true
+
+      - name: Download OpenVINO developer package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_developer_package
+          path: ${{ env.ARTIFACTS_DIR }}
+
+      - name: Download OpenVINO JS package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_js_package
+          path: ${{ env.ARTIFACTS_DIR }}
+
+      - name: Download OpenVINO Node NPM package
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.ARTIFACTS_DIR }}
+
+      - name: Download OpenVINO package manifest
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_package_manifest
+          path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO wheels
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
