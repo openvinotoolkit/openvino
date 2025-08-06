@@ -484,7 +484,7 @@ public:
                             const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
-    size_t aux_gprs_count() const override;
+    size_t aux_fp_gprs_count() const override;
     size_t aux_vecs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(

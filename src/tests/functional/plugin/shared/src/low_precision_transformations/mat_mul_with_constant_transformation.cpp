@@ -18,10 +18,7 @@
 namespace LayerTestsDefinitions {
 
 std::string MatMulWithConstantTransformation::getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
-    ov::element::Type precision;
-    std::string targetDevice;
-    MatMulWithConstantTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = obj.param;
+    const auto& [precision, targetDevice, testValues] = obj.param;
 
     std::ostringstream result;
     result <<
@@ -37,9 +34,8 @@ std::string MatMulWithConstantTransformation::getTestCaseName(const testing::Tes
 
 
 void MatMulWithConstantTransformation::SetUp() {
-    ov::element::Type precision;
-    MatMulWithConstantTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = this->GetParam();
+    const auto& [precision, _targetDevice, testValues] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(testValues.inputShape);
 
