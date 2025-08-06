@@ -19,7 +19,9 @@
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/model_util.hpp"
 #include "openvino/core/node_vector.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
@@ -31,6 +33,7 @@ using CompilationParams = std::tuple<std::string,  // Device name
                                      ov::AnyMap    // Config
                                      >;
 
+using testing::_;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
 
@@ -95,8 +98,26 @@ public:
         APIBaseTest::TearDown();
     }
 
-    // std::shared_ptr<ov::Model> createModel(element::Type type, const PartialShape& shape, const ov::Layout& layout) {
-    // }
+    std::shared_ptr<ov::Model> createTestModel(const bool addWeightlessCacheAttribute = true) {
+        constexpr auto precision = element::f32;
+
+        auto weights = std::make_shared<op::v0::Constant>(element::f32, Shape{5}, std::vector<float>{1.0f});
+        auto input = std::make_shared<op::v0::Parameter>(precision, Shape{1});
+        auto add = std::make_shared<op::v1::Add>(input, weights);
+
+        weights->set_friendly_name("weights");
+        input->set_friendly_name("input");
+        add->set_friendly_name("add");
+
+        if (addWeightlessCacheAttribute) {
+            weights->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+                ov::WeightlessCacheAttribute(weights->get_byte_size(), 0, weights->get_element_type());
+        }
+
+        auto model = std::make_shared<Model>(OutputVector{add}, ParameterVector{input}, "Simple with weights");
+        ov::util::set_tensors_names(AUTO, *model, {}, {{0, {"add"}}});
+        return model;
+    }
 
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
@@ -106,7 +127,19 @@ protected:
     std::string m_cache_dir;
 };
 
-TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {}
+TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
+    model = createTestModel();
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ONE_SHOT));
+    OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
+}
+
+TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
+    model = createTestModel(false);
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+    OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
+}
 
 }  // namespace behavior
 }  // namespace test
