@@ -34,7 +34,7 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
         const int off_mul_vl = offset / 16;
 
         if (off_mod == 0 && off_mul_vl >= 0 && off_mul_vl <= 4095) {
-            h->ldr(QReg(dst.getIdx()), ptr(src, offset));
+            h->ldr(QReg(dst.getIdx()), ptr(src, static_cast<uint32_t>(offset)));
         } else {
             h->add_imm(h->X_DEFAULT_ADDR, src, offset, h->X_TMP_0);
             h->ldr(QReg(dst.getIdx()), ptr(h->X_DEFAULT_ADDR));
@@ -76,7 +76,7 @@ static void store_with_offset_check(jit_generator* h, const RegType& src, const 
         const int off_mul_vl = offset / 16;
 
         if (off_mod == 0 && off_mul_vl >= 0 && off_mul_vl <= 4095) {
-            h->str(QReg(src.getIdx()), ptr(dst, offset));
+            h->str(QReg(src.getIdx()), ptr(dst, static_cast<uint32_t>(offset)));
         } else {
             h->add_imm(h->X_DEFAULT_ADDR, dst, offset, h->X_TMP_0);
             h->str(QReg(src.getIdx()), ptr(h->X_DEFAULT_ADDR));
