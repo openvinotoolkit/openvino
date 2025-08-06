@@ -342,13 +342,11 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
 bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
     RUN_ON_FUNCTION_SCOPE(SDPASubgraphFusion);
 
-    ov::pass::SymbolicOptimizations symbolic_optimizations(false, get_pass_config());
+    // Use SymbolicOptimizations without shared PassConfig to avoid conflicts
+    ov::pass::SymbolicOptimizations symbolic_optimizations(false);
     const auto& ctx_manager = symbolic_optimizations.get_manager();
 
-    ctx_manager->register_pass<ov::pass::SimplifyGatherShapeOf>();
-    ctx_manager->register_pass<ov::pass::transpose_sinking::TSShapeOfForward>();
     ctx_manager->register_pass<StatefulSDPAFusion>();
-    CPU_REGISTER_PASS_X64((*ctx_manager), ov::intel_cpu::SDPAFuseTransposeReshape);
 
     return symbolic_optimizations.run_on_model(f);
 }
