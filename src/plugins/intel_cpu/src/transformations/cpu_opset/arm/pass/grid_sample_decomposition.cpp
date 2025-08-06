@@ -359,8 +359,9 @@ GridSampleDecomposition::GridSampleDecomposition() {
                         auto mod2 = std::make_shared<ov::op::v1::Add>(mod1, two_size);
                         auto r = std::make_shared<ov::op::v1::FloorMod>(mod2, two_size);
                         
-                        // If r >= size: r = period - r (no -1!)
-                        auto flipped = std::make_shared<ov::op::v1::Subtract>(two_size, r);
+                        // If r >= size: r = (period - 1) - r
+                        auto period_minus_1 = std::make_shared<ov::op::v1::Subtract>(two_size, const_1);
+                        auto flipped = std::make_shared<ov::op::v1::Subtract>(period_minus_1, r);
                         auto cond = std::make_shared<ov::op::v1::GreaterEqual>(r, size_f);
                         auto reflected = std::make_shared<ov::op::v1::Select>(cond, flipped, r);
                         
