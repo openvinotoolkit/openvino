@@ -16,9 +16,11 @@
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/any.hpp"
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/model_util.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -91,6 +93,11 @@ public:
             ov::test::utils::removeDir(m_cache_dir);
         }
 
+        if (!model_path.empty()) {
+            utils::removeFile(model_path + ".xml");
+            utils::removeFile(model_path + ".bin");
+        }
+
         if (!configuration.empty()) {
             utils::PluginCache::get().reset();
         }
@@ -119,12 +126,32 @@ public:
         return model;
     }
 
+    Tensor from_stream(std::istream& stream, const size_t size) {
+        ov::Tensor t(element::from<char>(), Shape{size});
+        stream.read(t.data<char>(), size);
+        return t;
+    }
+
+    void create_infer_request_and_check_result() {
+        const ov::Tensor expected =
+            utils::create_tensor(element::f32, Shape{5}, std::vector<float>{3.0f, 5.0f, 3.0f, 3.0f, 3.0f});
+        const ov::Tensor input = utils::create_tensor(element::f32, Shape{1}, std::vector<float>{2.0f});
+        OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+        OV_ASSERT_NO_THROW(inference_request.set_tensor("input", input));
+        OV_ASSERT_NO_THROW(inference_request.infer());
+
+        const ov::Tensor output = inference_request.get_tensor("add");
+        OV_ASSERT_NO_THROW(utils::compare(expected, output));
+    }
+
 protected:
     std::shared_ptr<ov::Core> core = utils::PluginCache::get().core();
     ov::AnyMap configuration;
     std::shared_ptr<ov::Model> model;
     ov::CompiledModel compiled_model;
+    ov::InferRequest inference_request;
     std::string m_cache_dir;
+    std::string model_path;
 };
 
 TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
@@ -139,6 +166,128 @@ TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
     configuration.insert(ov::intel_npu::weightless_blob(true));
     configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
+}
+
+TEST_P(WeightsSeparationTests, CorrectInferenceResultNoImport) {
+    model = createTestModel();
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, CorrectInferenceResultIfCachingUsed) {
+    m_cache_dir = generateCacheDirName(GetTestName());
+    core->set_property({ov::cache_dir(m_cache_dir)});
+
+    model = createTestModel();
+    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+    EXPECT_FALSE(compiled_model.get_property(ov::loaded_from_cache));
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+    EXPECT_TRUE(compiled_model.get_property(ov::loaded_from_cache));
+
+    create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, CorrectInferenceResultIfModelHintUsed) {
+    model = createTestModel();
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration.insert(ov::hint::model(model));
+    compiled_model = core->import_model(export_stream, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, CorrectInferenceResultIfWeightsPathUsed) {
+    model = createTestModel();
+
+    model_path = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix()}).string();
+    ov::serialize(model, model_path + ".xml", model_path + ".bin");
+
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration.insert(ov::weights_path(model_path + ".bin"));
+    compiled_model = core->import_model(export_stream, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, CorrectInferenceResultIfTensorImported) {
+    model = createTestModel();
+
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+    ov::Tensor exported_model = from_stream(export_stream, export_stream.str().size());
+
+    configuration.insert(ov::hint::model(model));
+    compiled_model = core->import_model(exported_model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
+}
+
+TEST_P(WeightsSeparationTests, ImportFailureIfNoWeightsProvided) {
+    model = createTestModel();
+
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    OV_EXPECT_THROW(core->import_model(export_stream, target_device, configuration), ov::Exception, _);
+}
+
+TEST_P(WeightsSeparationTests, ModelHintHasPriorityOverWeightsPath) {
+    model = createTestModel();
+
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    configuration.insert(ov::intel_npu::separate_weights_version(ov::intel_npu::WSVersion::ITERATIVE));
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration.insert(ov::hint::model(model));
+    configuration.insert(ov::weights_path("this_file_does_not_exist"));
+    compiled_model = core->import_model(export_stream, target_device, configuration);
+    ASSERT_TRUE(compiled_model);
+
+    create_infer_request_and_check_result();
 }
 
 }  // namespace behavior
