@@ -894,17 +894,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#176909 -->
-    <skip_config>
-        <message>Tests currently skipped for NPU4000 until u2 precision fully supported (need driver update)</message>
-        <enable_rules>
-            <device>4000</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#168772 -->
     <skip_config>
         <message>Tests currently skipped until dynamic batch is fully supported (need NPU compiler alignment/driver update)</message>
