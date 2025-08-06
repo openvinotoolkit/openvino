@@ -189,7 +189,7 @@ jobs:
 
       - name: Build OpenVINO JS API
         run: |
-          /usr/bin/cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B =${{ env.BUILD_DIR }} \
+          /usr/bin/cmake -UTBB* -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }} \
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
