@@ -40,7 +40,7 @@ The methods are sensitive to model internals, do not always give optimal perform
 For a short overview of the methods, refer to the :doc:`When Dynamic Shapes API is Not Applicable <dynamic-shapes/openvino-without-dynamic-shapes-api>` page.
 Apply those methods only if native dynamic shape API described in the following sections does not work or does not perform as expected.
 
-It is recommended to benchmark your application with real data to determine if dynamic shapes are necessary and to assess their impact on performance and resource usage. It is because models with dynamic shapes may have different inference performance characteristics and memory requirements compared to statically shaped models. The overhead depends on the hardware plugin (that is, CPU, GPU or NPU) and the specific model.
+It is recommended to benchmark your application with real data to see if you need dynamic shapes and how it affects performance and resource use. Dynamic shapes can change inference performance and memory requirements compared to static shapes. The impact depends on the hardware plugin  used, such as CPU, GPU, or NPU, and on the specific model.
 
 .. note::
     **GPU Dynamic Shape Support:** While GPU supports dynamic shapes, optimization is still in progress for a broader range of network architectures. Performance may vary depending on the specific model and use case. Consider testing with your specific workload to evaluate performance.
