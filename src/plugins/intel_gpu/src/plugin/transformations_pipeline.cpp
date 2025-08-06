@@ -854,7 +854,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto axesNode = ov::as_type_ptr<const ov::op::v0::Constant>(norm->get_input_node_shared_ptr(1));
             const auto axes = axesNode->cast_vector<size_t>();
             const auto isSupportedAxes = [](const std::vector<size_t> &axes, const size_t inputRank) {
-                if (axes.size() == 1 && axes[0] == 1) {
+                if (axes.size() == 1 &&
+                   (axes[0] == 1 || axes[0] == 2 || axes[0] == 3)) {
                     return true;
                 } else if (axes.size() == inputRank - 1) {
                     auto sortAxes = axes;

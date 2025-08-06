@@ -41,6 +41,8 @@ std::string normalize_inst::to_string(normalize_node const& node) {
     normalize_info.add("scale input id", scale_input.id());
     normalize_info.add("epsilon", epsilon);
     normalize_info.add("normalization region", norm_region);
+    if (!desc->across_spatial)
+        normalize_info.add("axis", desc->axis);
 
     node_info->add("normalize info", normalize_info);
     node_info->dump(primitive_description);

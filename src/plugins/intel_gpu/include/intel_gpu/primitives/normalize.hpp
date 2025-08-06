@@ -41,10 +41,12 @@ struct normalize : public primitive_base<normalize> {
               const input_info& input,
               const primitive_id& scale_input,
               const bool across_spatial = true,
+              const size_t axis = 1,
               const float epsilon = 1e-10f)
         : primitive_base(id, {input}),
           scale_input(scale_input),
           across_spatial(across_spatial),
+          axis(axis),
           epsilon(epsilon) {}
 
     /// @brief Scale input primitive id with values needed for scaling after the normalization.
@@ -53,6 +55,8 @@ struct normalize : public primitive_base<normalize> {
     input_info scale_input;
     /// @brief Determines if the normalization is done across or within spatial (see documentation above).
     bool across_spatial = true;
+    /// @brief Axis to normalize.
+    size_t axis = 1;
     /// @brief Epsilon for not dividing by zero while normalizing.
     float epsilon = 1e-10f;
 
@@ -70,6 +74,7 @@ struct normalize : public primitive_base<normalize> {
         auto rhs_casted = downcast<const normalize>(rhs);
 
         return across_spatial == rhs_casted.across_spatial &&
+               axis == rhs_casted.axis &&
                epsilon == rhs_casted.epsilon;
     }
 
@@ -77,6 +82,7 @@ struct normalize : public primitive_base<normalize> {
         primitive_base<normalize>::save(ob);
         ob << scale_input;
         ob << across_spatial;
+        ob << axis;
         ob << epsilon;
     }
 
@@ -84,6 +90,7 @@ struct normalize : public primitive_base<normalize> {
         primitive_base<normalize>::load(ib);
         ib >> scale_input;
         ib >> across_spatial;
+        ib >> axis;
         ib >> epsilon;
     }
 
