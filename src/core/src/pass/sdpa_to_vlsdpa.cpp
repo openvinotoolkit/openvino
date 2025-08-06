@@ -21,7 +21,7 @@ SDPAToVLSDPA::SDPAToVLSDPA() = default;
 
 namespace {
 
-std::shared_ptr<v0::Parameter> addName(std::shared_ptr<v0::Parameter> node, const char* name) {
+std::shared_ptr<v0::Parameter> add_name(std::shared_ptr<v0::Parameter> node, const char* name) {
     // add name for both node and output tensor
     node->set_friendly_name(name);
     node->get_output_tensor(0).add_names({name});
