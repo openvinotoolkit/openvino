@@ -365,8 +365,6 @@ public:
         dnnl::memory::data_type dzp_data_type = dnnl::memory::data_type::undef;
         int idx = !arg.bias_term() ? 1 : 2;
 
-        // There may be a performance difference between InnerProduct and MatMul primitives in oneDNN,
-        // so use MatMul only for weights compression and IP for all other cases.
         if (prim->compressed_weights) {
             bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
             if (is_dyn_quan_input) {

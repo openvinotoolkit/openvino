@@ -8,24 +8,20 @@
 namespace ov {
 namespace test {
 std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<NmsParams>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    op::v8::MatrixNms::SortResultType sort_result_type;
-    ov::element::Type out_type;
-    int backgroudClass;
-    op::v8::MatrixNms::DecayFunction decayFunction;
-    TopKParams top_k_params;
-    ThresholdParams threshold_params;
-    bool normalized;
-    std::string target_device;
-    std::tie(shapes, model_type, sort_result_type, out_type, top_k_params, threshold_params,
-        backgroudClass, normalized, decayFunction, target_device) = obj.param;
+    const auto& [shapes,
+                 model_type,
+                 sort_result_type,
+                 out_type,
+                 top_k_params,
+                 threshold_params,
+                 backgroudClass,
+                 normalized,
+                 decayFunction,
+                 target_device] = obj.param;
 
-    int nms_top_k, keep_top_k;
-    std::tie(nms_top_k, keep_top_k) = top_k_params;
+    const auto& [nms_top_k, keep_top_k] = top_k_params;
 
-    float score_threshold, gaussian_sigma, post_threshold;
-    std::tie(score_threshold, gaussian_sigma, post_threshold) = threshold_params;
+    const auto& [score_threshold, gaussian_sigma, post_threshold] = threshold_params;
 
     std::ostringstream result;
     result << "IS=(";
@@ -50,14 +46,24 @@ std::string MatrixNmsLayerTest::getTestCaseName(const testing::TestParamInfo<Nms
 }
 
 void MatrixNmsLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    TopKParams top_k_params;
-    ThresholdParams threshold_params;
     ov::op::v8::MatrixNms::Attributes attrs;
 
-    std::tie(shapes, model_type, attrs.sort_result_type, attrs.output_type, top_k_params, threshold_params,
-        attrs.background_class, attrs.normalized, attrs.decay_function, targetDevice) = this->GetParam();
+    const auto& [shapes,
+                 model_type,
+                 _sort_result_type,
+                 _output_type,
+                 top_k_params,
+                 threshold_params,
+                 _background_class,
+                 _normalized,
+                 _decay_function,
+                 _targetDevice] = this->GetParam();
+    attrs.sort_result_type = _sort_result_type;
+    attrs.output_type = _output_type;
+    attrs.background_class = _background_class;
+    attrs.normalized = _normalized;
+    attrs.decay_function = _decay_function;
+    targetDevice = _targetDevice;
 
     std::tie(attrs.nms_top_k, attrs.keep_top_k) = top_k_params;
     std::tie(attrs.score_threshold, attrs.gaussian_sigma, attrs.post_threshold) = threshold_params;

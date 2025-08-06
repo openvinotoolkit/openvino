@@ -15,13 +15,7 @@ using namespace ov::test;
 namespace ov {
 namespace test {
 std::string InverseLayerTest::getTestCaseName(const testing::TestParamInfo<InverseTestParams>& obj) {
-    std::vector<InputShape> input_shape;
-    ov::element::Type element_type;
-    bool adjoint;
-    int32_t seed;
-    std::string device_name;
-
-    std::tie(input_shape, element_type, adjoint, seed, device_name) = obj.param;
+    const auto& [input_shape, element_type, adjoint, seed, device_name] = obj.param;
 
     const char separator = '_';
     std::ostringstream result;
@@ -35,11 +29,9 @@ std::string InverseLayerTest::getTestCaseName(const testing::TestParamInfo<Inver
 }
 
 void InverseLayerTest::SetUp() {
-    std::vector<InputShape> input_shape;
-    ov::element::Type element_type;
-    bool adjoint;
-
-    std::tie(input_shape, element_type, adjoint, m_seed, targetDevice) = GetParam();
+    const auto& [input_shape, element_type, adjoint, _m_seed, _targetDevice] = GetParam();
+    m_seed = _m_seed;
+    targetDevice = _targetDevice;
 
     init_input_shapes(input_shape);
 

@@ -8,17 +8,16 @@
 namespace ov {
 namespace test {
 std::string PSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<psroiParams>& obj) {
-    std::vector<size_t> input_shape;
-    std::vector<size_t> coords_shape;
-    size_t output_dim;
-    size_t group_size;
-    float spatial_scale;
-    size_t spatial_bins_x;
-    size_t spatial_bins_y;
-    std::string mode;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::tie(input_shape, coords_shape, output_dim, group_size, spatial_scale, spatial_bins_x, spatial_bins_y, mode, model_type, target_device) = obj.param;
+    const auto& [input_shape,
+                 coords_shape,
+                 output_dim,
+                 group_size,
+                 spatial_scale,
+                 spatial_bins_x,
+                 spatial_bins_y,
+                 mode,
+                 model_type,
+                 target_device] = obj.param;
 
     std::ostringstream result;
 
@@ -36,17 +35,17 @@ std::string PSROIPoolingLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void PSROIPoolingLayerTest::SetUp() {
-    std::vector<size_t> input_shape;
-    std::vector<size_t> coords_shape;
-    size_t output_dim;
-    size_t group_size;
-    float spatial_scale;
-    size_t spatial_bins_x;
-    size_t spatial_bins_y;
-    std::string mode;
-    ov::element::Type model_type;
-    std::tie(input_shape, coords_shape, output_dim, group_size, spatial_scale,
-             spatial_bins_x, spatial_bins_y, mode, model_type, targetDevice) = this->GetParam();
+    const auto& [input_shape,
+                 coords_shape,
+                 output_dim,
+                 group_size,
+                 spatial_scale,
+                 spatial_bins_x,
+                 spatial_bins_y,
+                 mode,
+                 model_type,
+                 _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(input_shape)),
                                 std::make_shared<ov::op::v0::Parameter>(model_type, ov::Shape(coords_shape))};

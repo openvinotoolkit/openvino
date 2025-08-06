@@ -16,10 +16,8 @@ typedef std::tuple<InputShape> groupConvLayerCPUTestParamsSet;
 class GroupConvToConvTransformationCPUTest: public testing::WithParamInterface<groupConvLayerCPUTestParamsSet>,
                                             virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<groupConvLayerCPUTestParamsSet> obj) {
-        InputShape inputShapes;
-        std::tie(inputShapes) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<groupConvLayerCPUTestParamsSet>& obj) {
+        const auto& [inputShapes] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShapes;
 
@@ -30,9 +28,7 @@ protected:
     static const size_t numOfGroups = 2;
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        InputShape inputShapes;
-        std::tie(inputShapes) = this->GetParam();
-
+        const auto& [inputShapes] = this->GetParam();
         init_input_shapes({inputShapes});
 
         std::shared_ptr<Node> conv;
