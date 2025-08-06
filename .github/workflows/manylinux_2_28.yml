@@ -194,7 +194,7 @@ jobs:
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
           /usr/bin/cmake --build ${{ env.BUILD_DIR }} --parallel $(nproc)
-          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node
+          /usr/bin/cmake --install ${{ env.BUILD_DIR }} --prefix ${{ env.OPENVINO_REPO }}/src/bindings/js/node/bin
 
       - name: Pack Artifacts
         run: mkdir -p ${{ env.BUILD_DIR }} && tar -cvf - * | pigz > ${{ env.BUILD_DIR }}/openvino_package.tar.gz
@@ -254,6 +254,7 @@ jobs:
           artifacts: |
             ${{ env.BUILD_DIR }}/openvino_package.tar.gz
             ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
+            ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
             ${{ env.MANIFEST_PATH }}
             ${{ env.INSTALL_WHEELS_DIR }}/wheels
           storage_dir: ${{ env.PRODUCT_TYPE }}
