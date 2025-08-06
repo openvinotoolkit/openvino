@@ -84,10 +84,10 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
             if (!consumers_are_sdpa)
                 continue;
 
-            model->remove_parameter(attn_param);
-            auto cu_seqlens_param = addName(std::make_shared<v0::Parameter>(element::i32, PartialShape{-1}),
-                                            std::string(param_new).c_str());
-            model->add_parameters({cu_seqlens_param});
+            auto cu_seqlens_param = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+            ov::util::set_name(*cu_seqlens_param, new_name);
+            // Optionally copy all names from old input except replaced name
+            model->replace_paramter(model->get_parameter_index(attn_param), cu_seqlens_param);
 
             for (auto target : attn_param->get_output_target_inputs(0)) {
                 auto sdpa =
