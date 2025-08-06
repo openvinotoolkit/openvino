@@ -331,8 +331,61 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
     }
 }
 
+std::string shape_to_String(const ov::Shape& shape) {
+    std::ostringstream oss;
+    oss << "[";
+    for (size_t i = 0; i < shape.size(); ++i) {
+        oss << shape[i];
+        if (i < shape.size() - 1) {
+            oss << ", ";
+        }
+    }
+    oss << "]";
+    return oss.str();
+}
+
+void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
+                                      const ov::Shape& infer_tensor_shape,
+                                      size_t full_rank_dim,
+                                      size_t low_rank_dim,
+                                      uint32_t max_low_rank_dim_size) {
+    if (state_tensor_shape[full_rank_dim] != infer_tensor_shape[full_rank_dim]) {
+        OPENVINO_THROW("LoRA adapter tensor shape: " + shape_to_String(state_tensor_shape) +
+                       " is not compatible with inference tensor shape: " + shape_to_String(infer_tensor_shape) +
+                       ". Please check if adapter is compatible with the base model.");
+    }
+
+    uint32_t state_tensor_low_rank_size = static_cast<uint32_t>(state_tensor_shape[low_rank_dim]);
+    if (state_tensor_low_rank_size > max_low_rank_dim_size) {
+        OPENVINO_THROW("LoRA tensor low-rank size: " + std::to_string(state_tensor_low_rank_size) +
+                       " is larger than the maximum LoRA low-rank size " + std::to_string(max_low_rank_dim_size) +
+                       +". Please adjust NPUW_LLM_MAX_LORA_RANK configuration.");
+    }
+}
+
+std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_name) {
+    uint32_t low_rank_dim, full_rank_dim;
+    if (ov::npuw::matchLoRAMatMulAString(state_name)) {
+        // Shape of A is [r, d]
+        low_rank_dim = 0;
+        full_rank_dim = 1;
+    } else if (ov::npuw::matchLoRAMatMulBString(state_name)) {
+        // Shape of B is [d, r]
+        low_rank_dim = 1;
+        full_rank_dim = 0;
+    } else if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
+        // Shape of alpha is [1, r]
+        low_rank_dim = 1;
+        full_rank_dim = 0;
+    } else {
+        OPENVINO_THROW("Unknown LoRA state name: " + state_name);
+    }
+
+    return std::make_pair(low_rank_dim, full_rank_dim);
+}
+
 void ov::npuw::LLMInferRequest::apply_lora() {
-    uint32_t max_rank_size = m_npuw_llm_compiled_model->m_max_lora_rank;
+    uint32_t max_low_rank_dim_size = m_npuw_llm_compiled_model->m_max_lora_rank;
 
     for (auto state : m_variableStates) {
         auto state_name = state->get_name();
@@ -357,25 +410,18 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             fill_tensor<float>(kvcache_lora_in_tensor, 0.0f);
         } else {
             // Generate with LoRA
-            auto tensor_shape = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name))->get_shape();
-            uint32_t rank_dim;
-            if (ov::npuw::matchLoRAMatMulAString(state_name)) {
-                rank_dim = 0;
-            } else if (ov::npuw::matchLoRAMatMulBString(state_name)) {
-                rank_dim = 1;
-            } else if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
-                rank_dim = 1;
-            } else {
-                OPENVINO_THROW("Unknown LoRA state name: " + state_name);
-            }
+            auto infer_tensor_shape = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name))->get_shape();
+            auto state_tensor_shape = state_tensor->get_shape();
+            auto [low_rank_dim, full_rank_dim] = get_lora_dims_by_name(state_name);
 
-            uint32_t state_tensor_rank = static_cast<uint32_t>(state_tensor->get_shape()[rank_dim]);
-            if (state_tensor_rank > max_rank_size) {
-                OPENVINO_THROW("LoRA rank: " + std::to_string(state_tensor_rank) +
-                               " is larger than maximum LoRA rank " + std::to_string(max_rank_size));
-            }
+            check_tensor_shape_compatibility(state_tensor_shape,
+                                             infer_tensor_shape,
+                                             full_rank_dim,
+                                             low_rank_dim,
+                                             max_low_rank_dim_size);
 
-            uint32_t target_lora_rank = static_cast<uint32_t>(tensor_shape[rank_dim]);
+            uint32_t state_tensor_rank = static_cast<uint32_t>(state_tensor_shape[low_rank_dim]);
+            uint32_t target_lora_rank = static_cast<uint32_t>(infer_tensor_shape[low_rank_dim]);
             if (state_tensor_rank == target_lora_rank) {
                 // Use state tensor directly in case rank is compatible with LoRA input tensor
                 m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), state_tensor);
@@ -387,8 +433,8 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                     ov::Tensor(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape()));
 
                 fill_tensor<float>(new_tensor_for_infer, 0.0f);
-                auto new_tensor_slice = make_tensor_slice(new_tensor_for_infer, rank_dim, 0u, state_tensor_rank);
-                if (rank_dim == 1) {
+                auto new_tensor_slice = make_tensor_slice(new_tensor_for_infer, low_rank_dim, 0u, state_tensor_rank);
+                if (low_rank_dim == 1) {
                     copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                 } else {
                     state_tensor->copy_to(new_tensor_slice._ptr);
