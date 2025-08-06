@@ -114,10 +114,10 @@ GridSampleDecomposition::GridSampleDecomposition() {
             // Convert to float for calculations
             auto h_in_f = std::make_shared<ov::op::v0::Convert>(h_in, calc_type);
             auto w_in_f = std::make_shared<ov::op::v0::Convert>(w_in, calc_type);
-            auto const_0 = ov::op::v0::Constant::create(calc_type, {}, {0.0f});
-            auto const_1 = ov::op::v0::Constant::create(calc_type, {}, {1.0f});
-            auto const_2 = ov::op::v0::Constant::create(calc_type, {}, {2.0f});
-            auto const_0_5 = ov::op::v0::Constant::create(calc_type, {}, {0.5f});
+            auto const_0 = ov::op::v0::Constant::create(calc_type, {}, {0.0F});
+            auto const_1 = ov::op::v0::Constant::create(calc_type, {}, {1.0F});
+            auto const_2 = ov::op::v0::Constant::create(calc_type, {}, {2.0F});
+            auto const_0_5 = ov::op::v0::Constant::create(calc_type, {}, {0.5F});
             
             // Convert grid to calculation type if needed
             auto grid_converted = grid;
@@ -170,6 +170,76 @@ GridSampleDecomposition::GridSampleDecomposition() {
             auto transpose_to_nhwc = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 2, 3, 1});
             auto data_nhwc = std::make_shared<ov::op::v1::Transpose>(data, transpose_to_nhwc);
             
+            // Helper function to create batch indices for GatherND operations
+            auto create_batch_indices = [&]() {
+                auto batch_range = std::make_shared<ov::op::v4::Range>(
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}),
+                    n_dim,
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {1}),
+                    ov::element::i32);
+                
+                auto n_dim_1d_bs = std::make_shared<ov::op::v0::Unsqueeze>(n_dim,
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
+                auto batch_shape = std::make_shared<ov::op::v0::Concat>(
+                    std::vector<Output<Node>>{n_dim_1d_bs, 
+                        ov::op::v0::Constant::create(ov::element::i32, {1}, {1}),
+                        ov::op::v0::Constant::create(ov::element::i32, {1}, {1})}, 0);
+                auto batch_indices = std::make_shared<ov::op::v1::Reshape>(batch_range, batch_shape, false);
+                
+                auto n_dim_1d = std::make_shared<ov::op::v0::Unsqueeze>(n_dim,
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
+                auto h_out_1d = std::make_shared<ov::op::v0::Unsqueeze>(h_out,
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
+                auto w_out_1d = std::make_shared<ov::op::v0::Unsqueeze>(w_out,
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
+                auto batch_broadcast_shape = std::make_shared<ov::op::v0::Concat>(
+                    std::vector<Output<Node>>{n_dim_1d, h_out_1d, w_out_1d}, 0);
+                auto batch_broadcast = std::make_shared<ov::op::v3::Broadcast>(batch_indices, batch_broadcast_shape);
+                return std::make_shared<ov::op::v0::Convert>(batch_broadcast, ov::element::i32);
+            };
+            
+            // Helper function to create indices for GatherND and sample values
+            auto gather_values = [&](const std::shared_ptr<ov::Node>& x_coord, 
+                                    const std::shared_ptr<ov::Node>& y_coord) -> std::shared_ptr<ov::Node> {
+                auto x_i32 = std::make_shared<ov::op::v0::Convert>(x_coord, ov::element::i32);
+                auto y_i32 = std::make_shared<ov::op::v0::Convert>(y_coord, ov::element::i32);
+                auto batch_indices_i32 = create_batch_indices();
+                
+                auto batch_expanded = std::make_shared<ov::op::v0::Unsqueeze>(batch_indices_i32,
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
+                auto y_expanded = std::make_shared<ov::op::v0::Unsqueeze>(y_i32,
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
+                auto x_expanded = std::make_shared<ov::op::v0::Unsqueeze>(x_i32,
+                    ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
+                auto indices = std::make_shared<ov::op::v0::Concat>(
+                    OutputVector{batch_expanded, y_expanded, x_expanded}, -1);
+                
+                return std::make_shared<ov::op::v8::GatherND>(data_nhwc, indices, 0);
+            };
+            
+            // Helper function for reflection padding - unified implementation
+            auto apply_reflection = [&](const std::shared_ptr<ov::Node>& coord,
+                                       const std::shared_ptr<ov::Node>& size_f) -> std::shared_ptr<ov::Node> {
+                auto coord_abs = std::make_shared<ov::op::v0::Abs>(coord);
+                
+                if (attrs.align_corners) {
+                    auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
+                    auto two_size_minus_2 = std::make_shared<ov::op::v1::Multiply>(const_2, size_minus_1);
+                    auto mod_val = std::make_shared<ov::op::v1::Mod>(coord_abs, two_size_minus_2);
+                    return std::make_shared<ov::op::v1::Subtract>(size_minus_1,
+                        std::make_shared<ov::op::v0::Abs>(
+                            std::make_shared<ov::op::v1::Subtract>(mod_val, size_minus_1)));
+                } else {
+                    auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
+                    auto mod_val = std::make_shared<ov::op::v1::Mod>(coord_abs, two_size);
+                    auto reflected = std::make_shared<ov::op::v1::Subtract>(size_f,
+                        std::make_shared<ov::op::v0::Abs>(
+                            std::make_shared<ov::op::v1::Subtract>(mod_val, size_f)));
+                    return std::make_shared<ov::op::v1::Minimum>(reflected,
+                        std::make_shared<ov::op::v1::Subtract>(size_f, const_1));
+                }
+            };
+            
             std::shared_ptr<ov::Node> result;
             
             if (is_nearest) {
@@ -185,31 +255,9 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
                     y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
                 } else if (is_reflection) {
-                    // Reflection padding implementation - apply to original coordinates
-                    auto reflect_coord = [&](const std::shared_ptr<ov::Node>& coord,
-                                             const std::shared_ptr<ov::Node>& size_f) -> std::shared_ptr<ov::Node> {
-                        auto coord_abs = std::make_shared<ov::op::v0::Abs>(coord);
-                        
-                        if (attrs.align_corners) {
-                            auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
-                            auto two_size_minus_2 = std::make_shared<ov::op::v1::Multiply>(const_2, size_minus_1);
-                            auto mod_val = std::make_shared<ov::op::v1::Mod>(coord_abs, two_size_minus_2);
-                            return std::make_shared<ov::op::v1::Subtract>(size_minus_1,
-                                std::make_shared<ov::op::v0::Abs>(
-                                    std::make_shared<ov::op::v1::Subtract>(mod_val, size_minus_1)));
-                        } else {
-                            auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
-                            auto mod_val = std::make_shared<ov::op::v1::Mod>(coord_abs, two_size);
-                            auto reflected = std::make_shared<ov::op::v1::Subtract>(size_f,
-                                std::make_shared<ov::op::v0::Abs>(
-                                    std::make_shared<ov::op::v1::Subtract>(mod_val, size_f)));
-                            return std::make_shared<ov::op::v1::Minimum>(reflected,
-                                std::make_shared<ov::op::v1::Subtract>(size_f, const_1));
-                        }
-                    };
-                    
-                    x_padded = reflect_coord(x, w_in_f);  // Apply reflection to original x
-                    y_padded = reflect_coord(y, h_in_f);  // Apply reflection to original y
+                    // Reflection padding using unified helper
+                    x_padded = apply_reflection(x, w_in_f);
+                    y_padded = apply_reflection(y, h_in_f);
                 } else {
                     // zeros padding - use original coordinates
                     x_padded = x;
@@ -222,49 +270,8 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 x_idx = std::make_shared<ov::op::v5::Round>(x_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
                 y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
                 
-                // Convert to int32 for indexing
-                auto x_idx_i32 = std::make_shared<ov::op::v0::Convert>(x_idx, ov::element::i32);
-                auto y_idx_i32 = std::make_shared<ov::op::v0::Convert>(y_idx, ov::element::i32);
-                
-                // Create batch indices
-                auto batch_range = std::make_shared<ov::op::v4::Range>(
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}),
-                    n_dim,
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {1}),
-                    ov::element::i32);
-                // Ensure n_dim is 1D for concatenation
-                auto n_dim_1d_bs = std::make_shared<ov::op::v0::Unsqueeze>(n_dim,
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                auto batch_shape = std::make_shared<ov::op::v0::Concat>(
-                    std::vector<Output<Node>>{n_dim_1d_bs, 
-                        ov::op::v0::Constant::create(ov::element::i32, {1}, {1}),
-                        ov::op::v0::Constant::create(ov::element::i32, {1}, {1})}, 0);
-                auto batch_indices = std::make_shared<ov::op::v1::Reshape>(batch_range, batch_shape, false);
-                // Ensure dimensions are 1D for concatenation
-                auto n_dim_1d = std::make_shared<ov::op::v0::Unsqueeze>(n_dim,
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                auto h_out_1d = std::make_shared<ov::op::v0::Unsqueeze>(h_out,
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                auto w_out_1d = std::make_shared<ov::op::v0::Unsqueeze>(w_out,
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                auto batch_broadcast_shape = std::make_shared<ov::op::v0::Concat>(
-                    std::vector<Output<Node>>{n_dim_1d, h_out_1d, w_out_1d}, 0);
-                auto batch_broadcast = std::make_shared<ov::op::v3::Broadcast>(batch_indices, batch_broadcast_shape);
-                auto batch_indices_i32 = std::make_shared<ov::op::v0::Convert>(batch_broadcast, ov::element::i32);
-                
-                // Concatenate indices [N, H_out, W_out, 3]
-                // First expand dimensions
-                auto batch_expanded = std::make_shared<ov::op::v0::Unsqueeze>(batch_indices_i32,
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                auto y_expanded = std::make_shared<ov::op::v0::Unsqueeze>(y_idx_i32,
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                auto x_expanded = std::make_shared<ov::op::v0::Unsqueeze>(x_idx_i32,
-                    ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                auto indices = std::make_shared<ov::op::v0::Concat>(
-                    OutputVector{batch_expanded, y_expanded, x_expanded}, -1);
-                
-                // Use GatherND to sample values
-                result = std::make_shared<ov::op::v8::GatherND>(data_nhwc, indices, 0);
+                // Use helper function to gather values
+                result = gather_values(x_idx, y_idx);
                 
                 // Apply zeros padding mask if needed
                 if (is_zeros) {
@@ -736,9 +743,9 @@ GridSampleDecomposition::GridSampleDecomposition() {
                             auto weight1 = std::make_shared<ov::op::v1::Add>(
                                 std::make_shared<ov::op::v1::Subtract>(
                                     std::make_shared<ov::op::v1::Multiply>(
-                                        ov::op::v0::Constant::create(element_type, {}, {1.5f}), t_cubed),
+                                        ov::op::v0::Constant::create(element_type, {}, {1.5F}), t_cubed),
                                     std::make_shared<ov::op::v1::Multiply>(
-                                        ov::op::v0::Constant::create(element_type, {}, {2.5f}), t_squared)),
+                                        ov::op::v0::Constant::create(element_type, {}, {2.5F}), t_squared)),
                                 const_1);
                             
                             // For 1 < |t| <= 2
@@ -746,11 +753,11 @@ GridSampleDecomposition::GridSampleDecomposition() {
                                 std::make_shared<ov::op::v1::Subtract>(
                                     std::make_shared<ov::op::v1::Add>(
                                         std::make_shared<ov::op::v1::Multiply>(
-                                            ov::op::v0::Constant::create(element_type, {}, {-0.5f}), t_cubed),
+                                            ov::op::v0::Constant::create(element_type, {}, {-0.5F}), t_cubed),
                                         std::make_shared<ov::op::v1::Multiply>(
-                                            ov::op::v0::Constant::create(element_type, {}, {2.5f}), t_squared)),
+                                            ov::op::v0::Constant::create(element_type, {}, {2.5F}), t_squared)),
                                     std::make_shared<ov::op::v1::Multiply>(
-                                        ov::op::v0::Constant::create(element_type, {}, {4.0f}), t_abs)),
+                                        ov::op::v0::Constant::create(element_type, {}, {4.0F}), t_abs)),
                                 const_2);
                             
                             // Conditions
