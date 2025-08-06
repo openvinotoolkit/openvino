@@ -438,267 +438,201 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 }
                 
             } else if (is_bicubic) {
-                // BICUBIC interpolation 
-                // BICUBIC on ARM has fundamental issues causing SIGBUS crashes
-                // Fall back to BILINEAR for all cases on ARM
-                bool use_bilinear_fallback = true;
+                // BICUBIC interpolation - proper implementation for ARM
                 
-                if (use_bilinear_fallback) {
-                    // Fall back to BILINEAR for small tensors
-                    // Get integer coordinates
-                    auto x_floor = std::make_shared<ov::op::v0::Floor>(x);
-                    auto y_floor = std::make_shared<ov::op::v0::Floor>(y);
-                    // Calculate ceiling as floor + 1
-                    auto x_ceil = std::make_shared<ov::op::v1::Add>(x_floor, const_1);
-                    auto y_ceil = std::make_shared<ov::op::v1::Add>(y_floor, const_1);
-                    
-                    // Compute fractional parts  
-                    auto x_frac = std::make_shared<ov::op::v1::Subtract>(x, x_floor);
-                    auto y_frac = std::make_shared<ov::op::v1::Subtract>(y, y_floor);
-                    
-                    // Get 4 corner coordinates 
-                    std::vector<std::shared_ptr<ov::Node>> x_coords = {x_floor, x_ceil, x_floor, x_ceil};
-                    std::vector<std::shared_ptr<ov::Node>> y_coords = {y_floor, y_floor, y_ceil, y_ceil};
-                    
-                    // Apply padding and gather values for each corner
-                    std::vector<std::shared_ptr<ov::Node>> corner_values(4);
-                    std::vector<std::shared_ptr<ov::Node>> weights = {
-                        std::make_shared<ov::op::v1::Multiply>(
-                            std::make_shared<ov::op::v1::Subtract>(const_1, x_frac),
-                            std::make_shared<ov::op::v1::Subtract>(const_1, y_frac)),
-                        std::make_shared<ov::op::v1::Multiply>(x_frac,
-                            std::make_shared<ov::op::v1::Subtract>(const_1, y_frac)),
-                        std::make_shared<ov::op::v1::Multiply>(
-                            std::make_shared<ov::op::v1::Subtract>(const_1, x_frac), y_frac),
-                        std::make_shared<ov::op::v1::Multiply>(x_frac, y_frac)
-                    };
-                    
-                    for (size_t i = 0; i < 4; ++i) {
-                        // Apply padding
-                        std::shared_ptr<ov::Node> x_padded, y_padded;
-                        if (is_border) {
-                            auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
-                            auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
-                            x_padded = std::make_shared<ov::op::v1::Maximum>(x_coords[i], const_0);
-                            y_padded = std::make_shared<ov::op::v1::Maximum>(y_coords[i], const_0);
-                            x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
-                            y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
-                        } else if (is_reflection) {
-                            // Simple reflection padding for bilinear fallback
-                            auto reflect_coord = [&](const std::shared_ptr<ov::Node>& coord,
-                                                     const std::shared_ptr<ov::Node>& size_f) -> std::shared_ptr<ov::Node> {
-                                if (attrs.align_corners) {
-                                    auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
-                                    auto two_size_minus_2 = std::make_shared<ov::op::v1::Multiply>(const_2, size_minus_1);
-                                    auto coord_abs = std::make_shared<ov::op::v0::Abs>(coord);
-                                    auto mod_val = std::make_shared<ov::op::v1::Mod>(coord_abs, two_size_minus_2);
-                                    return std::make_shared<ov::op::v1::Subtract>(size_minus_1,
-                                        std::make_shared<ov::op::v0::Abs>(
-                                            std::make_shared<ov::op::v1::Subtract>(mod_val, size_minus_1)));
-                                } else {
-                                    // For align_corners=False: use the correct reflection formula
-                                    auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
-                                    auto coord_abs = std::make_shared<ov::op::v0::Abs>(coord);
-                                    auto mod_val = std::make_shared<ov::op::v1::Mod>(coord_abs, two_size);
-                                    auto reflected = std::make_shared<ov::op::v1::Subtract>(size_f,
-                                        std::make_shared<ov::op::v0::Abs>(
-                                            std::make_shared<ov::op::v1::Subtract>(mod_val, size_f)));
-                                    return std::make_shared<ov::op::v1::Minimum>(reflected,
-                                        std::make_shared<ov::op::v1::Subtract>(size_f, const_1));
-                                }
-                            };
-                            x_padded = reflect_coord(x_coords[i], w_in_f);
-                            y_padded = reflect_coord(y_coords[i], h_in_f);
-                        } else {
-                            x_padded = x_coords[i];
-                            y_padded = y_coords[i];
-                        }
-                        
-                        // Convert to int for indexing
-                        auto x_i32 = std::make_shared<ov::op::v0::Convert>(x_padded, ov::element::i32);
-                        auto y_i32 = std::make_shared<ov::op::v0::Convert>(y_padded, ov::element::i32);
-                        
-                        // Create batch indices
-                        auto batch_range = std::make_shared<ov::op::v4::Range>(
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}),
-                            n_dim,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {1}),
-                            ov::element::i32);
-                        auto n_dim_1d_bs = std::make_shared<ov::op::v0::Unsqueeze>(n_dim,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                        auto batch_shape = std::make_shared<ov::op::v0::Concat>(
-                            std::vector<Output<Node>>{n_dim_1d_bs, 
-                                ov::op::v0::Constant::create(ov::element::i32, {1}, {1}),
-                                ov::op::v0::Constant::create(ov::element::i32, {1}, {1})}, 0);
-                        auto batch_indices = std::make_shared<ov::op::v1::Reshape>(batch_range, batch_shape, false);
-                        auto n_dim_1d = std::make_shared<ov::op::v0::Unsqueeze>(n_dim,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                        auto h_out_1d = std::make_shared<ov::op::v0::Unsqueeze>(h_out,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                        auto w_out_1d = std::make_shared<ov::op::v0::Unsqueeze>(w_out,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                        auto batch_broadcast_shape = std::make_shared<ov::op::v0::Concat>(
-                            std::vector<Output<Node>>{n_dim_1d, h_out_1d, w_out_1d}, 0);
-                        auto batch_broadcast_indices = std::make_shared<ov::op::v3::Broadcast>(batch_indices, batch_broadcast_shape);
-                        auto batch_indices_i32 = std::make_shared<ov::op::v0::Convert>(batch_broadcast_indices, ov::element::i32);
-                        
-                        // Concatenate indices [N, H_out, W_out, 3]
-                        auto batch_expanded = std::make_shared<ov::op::v0::Unsqueeze>(batch_indices_i32,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                        auto y_expanded = std::make_shared<ov::op::v0::Unsqueeze>(y_i32,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                        auto x_expanded = std::make_shared<ov::op::v0::Unsqueeze>(x_i32,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                        auto indices = std::make_shared<ov::op::v0::Concat>(
-                            OutputVector{batch_expanded, y_expanded, x_expanded}, -1);
-                        
-                        // Gather values
-                        auto values = std::make_shared<ov::op::v8::GatherND>(data_nhwc, indices, 0);
-                        
-                        // Apply zeros padding mask for this corner
-                        if (is_zeros) {
-                            auto x_valid = std::make_shared<ov::op::v1::LogicalAnd>(
-                                std::make_shared<ov::op::v1::GreaterEqual>(x_coords[i], const_0),
-                                std::make_shared<ov::op::v1::Less>(x_coords[i], w_in_f));
-                            auto y_valid = std::make_shared<ov::op::v1::LogicalAnd>(
-                                std::make_shared<ov::op::v1::GreaterEqual>(y_coords[i], const_0),
-                                std::make_shared<ov::op::v1::Less>(y_coords[i], h_in_f));
-                            auto valid = std::make_shared<ov::op::v1::LogicalAnd>(x_valid, y_valid);
-                            auto mask = std::make_shared<ov::op::v0::Convert>(valid, element_type);
-                            auto mask_expanded = std::make_shared<ov::op::v0::Unsqueeze>(mask,
-                                ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                            auto masked_values = std::make_shared<ov::op::v1::Multiply>(values, mask_expanded);
-                            corner_values[i] = masked_values;
-                        } else {
-                            corner_values[i] = values;
-                        }
-                    }
-                    
-                    // Weighted sum of corner values
-                    result = std::make_shared<ov::op::v1::Multiply>(corner_values[0],
-                        std::make_shared<ov::op::v0::Unsqueeze>(weights[0],
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {-1})));
-                    
-                    for (size_t i = 1; i < 4; ++i) {
-                        auto weighted = std::make_shared<ov::op::v1::Multiply>(corner_values[i],
-                            std::make_shared<ov::op::v0::Unsqueeze>(weights[i],
-                                ov::op::v0::Constant::create(ov::element::i32, {}, {-1})));
-                        result = std::make_shared<ov::op::v1::Add>(result, weighted);
-                    }
+                // Apply padding to continuous coordinates first (same as bilinear)
+                std::shared_ptr<ov::Node> x_padded, y_padded;
+                if (is_border) {
+                    auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
+                    auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
+                    x_padded = std::make_shared<ov::op::v1::Maximum>(x, const_0);
+                    y_padded = std::make_shared<ov::op::v1::Maximum>(y, const_0);
+                    x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
+                    y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
+                } else if (is_reflection) {
+                    // Apply reflection to continuous coordinates
+                    x_padded = apply_reflection(x, w_in_f);
+                    y_padded = apply_reflection(y, h_in_f);
                 } else {
-                    // Full BICUBIC implementation for larger tensors
-                    // Get integer coordinates for 16 surrounding points
-                    auto x_floor = std::make_shared<ov::op::v0::Floor>(x);
-                    auto y_floor = std::make_shared<ov::op::v0::Floor>(y);
+                    // ZEROS padding - NEVER clamp continuous coordinates
+                    x_padded = x;
+                    y_padded = y;
+                }
                 
-                // Compute fractional parts
-                auto x_frac = std::make_shared<ov::op::v1::Subtract>(x, x_floor);
-                auto y_frac = std::make_shared<ov::op::v1::Subtract>(y, y_floor);
+                // Get floor coordinates from continuous (potentially padded) coords
+                auto x0 = std::make_shared<ov::op::v0::Floor>(x_padded);
+                auto y0 = std::make_shared<ov::op::v0::Floor>(y_padded);
                 
-                // Create offsets for 4x4 grid
-                std::vector<int> offsets = {-1, 0, 1, 2};
+                // Compute fractional parts and clamp to avoid numerical issues
+                auto dx_raw = std::make_shared<ov::op::v1::Subtract>(x_padded, x0);
+                auto dy_raw = std::make_shared<ov::op::v1::Subtract>(y_padded, y0);
                 
-                // Accumulate weighted sum
+                // Clamp dx, dy to [0, 1-1e-7] to avoid numerical instabilities at boundaries
+                auto eps = ov::op::v0::Constant::create(calc_type, {}, {1e-7F});
+                auto one_minus_eps = std::make_shared<ov::op::v1::Subtract>(const_1, eps);
+                std::shared_ptr<ov::Node> dx = std::make_shared<ov::op::v1::Maximum>(dx_raw, const_0);
+                dx = std::make_shared<ov::op::v1::Minimum>(dx, one_minus_eps);
+                std::shared_ptr<ov::Node> dy = std::make_shared<ov::op::v1::Maximum>(dy_raw, const_0);
+                dy = std::make_shared<ov::op::v1::Minimum>(dy, one_minus_eps);
+                
+                // Early shortcuts for size==1 cases
+                auto w_is_one = std::make_shared<ov::op::v1::Equal>(w_in_f, const_1);
+                auto h_is_one = std::make_shared<ov::op::v1::Equal>(h_in_f, const_1);
+                
+                // For W_in==1: force dx=0, use only center tap
+                dx = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, dx);
+                // For H_in==1: force dy=0, use only center tap  
+                dy = std::make_shared<ov::op::v1::Select>(h_is_one, const_0, dy);
+                
+                // Implement proper BICUBIC with unified cubic polynomials
+                // Cubic coefficients a = -0.75
+                auto a = ov::op::v0::Constant::create(calc_type, {}, {-0.75F});
+                auto const_3 = ov::op::v0::Constant::create(calc_type, {}, {3.0F});
+                auto const_4 = ov::op::v0::Constant::create(calc_type, {}, {4.0F}); 
+                auto const_5 = ov::op::v0::Constant::create(calc_type, {}, {5.0F});
+                auto const_8 = ov::op::v0::Constant::create(calc_type, {}, {8.0F});
+                
+                // Helper function for cubic polynomial evaluation
+                auto cubic_weight = [&](const std::shared_ptr<ov::Node>& t) -> std::shared_ptr<ov::Node> {
+                    // Clamp t to [0, 2] to ensure numerical stability
+                    std::shared_ptr<ov::Node> t_clamped = std::make_shared<ov::op::v1::Maximum>(t, const_0);
+                    t_clamped = std::make_shared<ov::op::v1::Minimum>(t_clamped, const_2);
+                    
+                    auto t_sq = std::make_shared<ov::op::v1::Multiply>(t_clamped, t_clamped);
+                    auto t_cb = std::make_shared<ov::op::v1::Multiply>(t_sq, t_clamped);
+                    
+                    // Branch 1: 0 <= t <= 1: f01(t) = ((a+2)*t - (a+3))*t*t + 1
+                    auto a_plus_2 = std::make_shared<ov::op::v1::Add>(a, const_2);
+                    auto a_plus_3 = std::make_shared<ov::op::v1::Add>(a, const_3);
+                    auto f01_inner = std::make_shared<ov::op::v1::Subtract>(
+                        std::make_shared<ov::op::v1::Multiply>(a_plus_2, t_clamped), a_plus_3);
+                    auto f01 = std::make_shared<ov::op::v1::Add>(
+                        std::make_shared<ov::op::v1::Multiply>(f01_inner, t_sq), const_1);
+                    
+                    // Branch 2: 1 < t < 2: f12(t) = ((a*t - 5a)*t + 8a)*t - 4a
+                    auto five_a = std::make_shared<ov::op::v1::Multiply>(const_5, a);
+                    auto eight_a = std::make_shared<ov::op::v1::Multiply>(const_8, a);
+                    auto four_a = std::make_shared<ov::op::v1::Multiply>(const_4, a);
+                    auto f12_inner1 = std::make_shared<ov::op::v1::Subtract>(
+                        std::make_shared<ov::op::v1::Multiply>(a, t_clamped), five_a);
+                    auto f12_inner2 = std::make_shared<ov::op::v1::Add>(
+                        std::make_shared<ov::op::v1::Multiply>(f12_inner1, t_clamped), eight_a);
+                    auto f12 = std::make_shared<ov::op::v1::Subtract>(
+                        std::make_shared<ov::op::v1::Multiply>(f12_inner2, t_clamped), four_a);
+                    
+                    // Conditions
+                    auto cond1 = std::make_shared<ov::op::v1::LessEqual>(t_clamped, const_1);
+                    auto cond2 = std::make_shared<ov::op::v1::Less>(t_clamped, const_2);
+                    
+                    // Select appropriate branch
+                    auto weight = std::make_shared<ov::op::v1::Select>(cond1, f01,
+                        std::make_shared<ov::op::v1::Select>(cond2, f12, const_0));
+                    
+                    return weight;
+                };
+                
+                // Calculate 4 cubic weights for X direction
+                auto t_x0 = std::make_shared<ov::op::v1::Add>(const_1, dx);  // 1 + dx
+                auto t_x1 = dx;                                              // dx  
+                auto t_x2 = std::make_shared<ov::op::v1::Subtract>(const_1, dx);  // 1 - dx
+                auto t_x3 = std::make_shared<ov::op::v1::Subtract>(const_2, dx);  // 2 - dx
+                
+                auto w_x0 = cubic_weight(t_x0);
+                auto w_x1 = cubic_weight(t_x1); 
+                auto w_x2 = cubic_weight(t_x2);
+                auto w_x3 = cubic_weight(t_x3);
+                
+                // Force exact weights for W_in==1: [0,1,0,0]
+                w_x0 = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, w_x0);
+                w_x1 = std::make_shared<ov::op::v1::Select>(w_is_one, const_1, w_x1);
+                w_x2 = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, w_x2);
+                w_x3 = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, w_x3);
+                
+                // Calculate 4 cubic weights for Y direction  
+                auto t_y0 = std::make_shared<ov::op::v1::Add>(const_1, dy);  // 1 + dy
+                auto t_y1 = dy;                                              // dy
+                auto t_y2 = std::make_shared<ov::op::v1::Subtract>(const_1, dy);  // 1 - dy
+                auto t_y3 = std::make_shared<ov::op::v1::Subtract>(const_2, dy);  // 2 - dy
+                
+                auto w_y0 = cubic_weight(t_y0);
+                auto w_y1 = cubic_weight(t_y1);
+                auto w_y2 = cubic_weight(t_y2);
+                auto w_y3 = cubic_weight(t_y3);
+                
+                // Force exact weights for H_in==1: [0,1,0,0]
+                w_y0 = std::make_shared<ov::op::v1::Select>(h_is_one, const_0, w_y0);
+                w_y1 = std::make_shared<ov::op::v1::Select>(h_is_one, const_1, w_y1);
+                w_y2 = std::make_shared<ov::op::v1::Select>(h_is_one, const_0, w_y2);
+                w_y3 = std::make_shared<ov::op::v1::Select>(h_is_one, const_0, w_y3);
+                
+                // Calculate 4x4 discrete indices (offsets from floor)
+                std::vector<std::shared_ptr<ov::Node>> x_indices, y_indices;
+                std::vector<std::shared_ptr<ov::Node>> x_weights, y_weights;
+                
+                // X indices and weights
+                x_indices.push_back(std::make_shared<ov::op::v1::Subtract>(x0, const_1)); // x0-1
+                x_indices.push_back(x0);                                                   // x0  
+                x_indices.push_back(std::make_shared<ov::op::v1::Add>(x0, const_1));     // x0+1
+                x_indices.push_back(std::make_shared<ov::op::v1::Add>(x0, const_2));     // x0+2
+                x_weights = {w_x0, w_x1, w_x2, w_x3};
+                
+                // Y indices and weights
+                y_indices.push_back(std::make_shared<ov::op::v1::Subtract>(y0, const_1)); // y0-1
+                y_indices.push_back(y0);                                                   // y0
+                y_indices.push_back(std::make_shared<ov::op::v1::Add>(y0, const_1));     // y0+1
+                y_indices.push_back(std::make_shared<ov::op::v1::Add>(y0, const_2));     // y0+2
+                y_weights = {w_y0, w_y1, w_y2, w_y3};
+                
+                // Build ZEROS validity mask from raw discrete indices BEFORE clamping
+                std::vector<std::shared_ptr<ov::Node>> x_valid_masks, y_valid_masks;
+                
+                if (is_zeros) {
+                    for (int i = 0; i < 4; ++i) {
+                        // X validity: 0 <= x_index < W_in
+                        auto x_geq_0 = std::make_shared<ov::op::v1::GreaterEqual>(x_indices[i], const_0);
+                        auto x_lt_w = std::make_shared<ov::op::v1::Less>(x_indices[i], w_in_f);
+                        auto x_valid = std::make_shared<ov::op::v1::LogicalAnd>(x_geq_0, x_lt_w);
+                        x_valid_masks.push_back(x_valid);
+                        
+                        // Y validity: 0 <= y_index < H_in  
+                        auto y_geq_0 = std::make_shared<ov::op::v1::GreaterEqual>(y_indices[i], const_0);
+                        auto y_lt_h = std::make_shared<ov::op::v1::Less>(y_indices[i], h_in_f);
+                        auto y_valid = std::make_shared<ov::op::v1::LogicalAnd>(y_geq_0, y_lt_h);
+                        y_valid_masks.push_back(y_valid);
+                    }
+                }
+                
+                // For size==1 cases, force indices to 0 to avoid boundary issues
+                for (int i = 0; i < 4; ++i) {
+                    x_indices[i] = std::make_shared<ov::op::v1::Select>(w_is_one, const_0, x_indices[i]);
+                    y_indices[i] = std::make_shared<ov::op::v1::Select>(h_is_one, const_0, y_indices[i]);
+                }
+                
+                // Sample all 16 values using 4x4 grid
                 result = nullptr;
                 
                 for (int iy = 0; iy < 4; ++iy) {
                     for (int ix = 0; ix < 4; ++ix) {
-                        // Calculate x and y coordinates
-                        auto x_coord = std::make_shared<ov::op::v1::Add>(x_floor,
-                            ov::op::v0::Constant::create(element_type, {}, {static_cast<float>(offsets[ix])}));
-                        auto y_coord = std::make_shared<ov::op::v1::Add>(y_floor,
-                            ov::op::v0::Constant::create(element_type, {}, {static_cast<float>(offsets[iy])}));
+                        auto x_idx = x_indices[ix];
+                        auto y_idx = y_indices[iy];
                         
-                        // Apply padding
-                        std::shared_ptr<ov::Node> x_padded, y_padded;
-                        if (is_border) {
-                            // Use Maximum/Minimum instead of Clamp to avoid float literal issues
-                            x_padded = std::make_shared<ov::op::v1::Maximum>(x_coord, const_0);
-                            y_padded = std::make_shared<ov::op::v1::Maximum>(y_coord, const_0);
-                            auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
-                            auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
-                            x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
-                            y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
-                        } else if (is_reflection) {
-                            // Reflection padding for bicubic
-                            auto reflect_coord = [&](const std::shared_ptr<ov::Node>& coord,
-                                                     const std::shared_ptr<ov::Node>& size) -> std::shared_ptr<ov::Node> {
-                                auto size_f = std::make_shared<ov::op::v0::Convert>(size, element_type);
-                                auto coord_abs = std::make_shared<ov::op::v0::Abs>(coord);
-                                
-                                if (attrs.align_corners) {
-                                    auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
-                                    auto two_size_minus_2 = std::make_shared<ov::op::v1::Multiply>(const_2, size_minus_1);
-                                    auto mod_val = std::make_shared<ov::op::v1::Mod>(coord_abs, two_size_minus_2);
-                                    return std::make_shared<ov::op::v1::Subtract>(size_minus_1,
-                                        std::make_shared<ov::op::v0::Abs>(
-                                            std::make_shared<ov::op::v1::Subtract>(mod_val, size_minus_1)));
-                                } else {
-                                    auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
-                                    auto mod_val = std::make_shared<ov::op::v1::Mod>(coord_abs, two_size);
-                                    auto reflected = std::make_shared<ov::op::v1::Subtract>(size_f,
-                                        std::make_shared<ov::op::v0::Abs>(
-                                            std::make_shared<ov::op::v1::Subtract>(mod_val, size_f)));
-                                    return std::make_shared<ov::op::v1::Minimum>(reflected,
-                                        std::make_shared<ov::op::v1::Subtract>(size_f, const_1));
-                                }
-                            };
-                            
-                            x_padded = reflect_coord(x_coord, w_in);
-                            y_padded = reflect_coord(y_coord, h_in);
-                        } else {
-                            // zeros padding - use original coordinates
-                            x_padded = x_coord;
-                            y_padded = y_coord;
-                        }
-                        
-                        // For ZEROS padding, clamp to valid image bounds to avoid out-of-bounds access
-                        std::shared_ptr<ov::Node> x_safe, y_safe;
+                        // For ZEROS: clamp indices ONLY for safe gathering
                         if (is_zeros) {
                             auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
                             auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
-                            // Use Maximum/Minimum instead of Clamp to avoid float literal issues
-                            x_safe = std::make_shared<ov::op::v1::Maximum>(x_padded, const_0);
-                            y_safe = std::make_shared<ov::op::v1::Maximum>(y_padded, const_0);
-                            x_safe = std::make_shared<ov::op::v1::Minimum>(x_safe, w_minus_1);
-                            y_safe = std::make_shared<ov::op::v1::Minimum>(y_safe, h_minus_1);
-                        } else {
-                            x_safe = x_padded;
-                            y_safe = y_padded;
+                            x_idx = std::make_shared<ov::op::v1::Maximum>(x_idx, const_0);
+                            y_idx = std::make_shared<ov::op::v1::Maximum>(y_idx, const_0);
+                            x_idx = std::make_shared<ov::op::v1::Minimum>(x_idx, w_minus_1);
+                            y_idx = std::make_shared<ov::op::v1::Minimum>(y_idx, h_minus_1);
                         }
                         
-                        // Convert to int32 for indexing
-                        auto x_i32 = std::make_shared<ov::op::v0::Convert>(x_safe, ov::element::i32);
-                        auto y_i32 = std::make_shared<ov::op::v0::Convert>(y_safe, ov::element::i32);
+                        // Convert to int32 and gather
+                        auto x_i32 = std::make_shared<ov::op::v0::Convert>(x_idx, ov::element::i32);
+                        auto y_i32 = std::make_shared<ov::op::v0::Convert>(y_idx, ov::element::i32);
                         
-                        // Create batch indices
-                        auto batch_range = std::make_shared<ov::op::v4::Range>(
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}),
-                            n_dim,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {1}),
-                            ov::element::i32);
-                        // Ensure n_dim is 1D for concatenation
-                        auto n_dim_1d_bs = std::make_shared<ov::op::v0::Unsqueeze>(n_dim,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                        auto batch_shape = std::make_shared<ov::op::v0::Concat>(
-                            std::vector<Output<Node>>{n_dim_1d_bs, 
-                                ov::op::v0::Constant::create(ov::element::i32, {1}, {1}),
-                                ov::op::v0::Constant::create(ov::element::i32, {1}, {1})}, 0);
-                        auto batch_indices = std::make_shared<ov::op::v1::Reshape>(batch_range, batch_shape, false);
-                        // Ensure dimensions are 1D for concatenation
-                        auto n_dim_1d = std::make_shared<ov::op::v0::Unsqueeze>(n_dim,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                        auto h_out_1d = std::make_shared<ov::op::v0::Unsqueeze>(h_out,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                        auto w_out_1d = std::make_shared<ov::op::v0::Unsqueeze>(w_out,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
-                        auto batch_broadcast_shape = std::make_shared<ov::op::v0::Concat>(
-                            std::vector<Output<Node>>{n_dim_1d, h_out_1d, w_out_1d}, 0);
-                        auto batch_broadcast_indices = std::make_shared<ov::op::v3::Broadcast>(batch_indices, batch_broadcast_shape);
-                        auto batch_indices_i32 = std::make_shared<ov::op::v0::Convert>(batch_broadcast_indices, ov::element::i32);
-                        
-                        // Concatenate indices [N, H_out, W_out, 3]
-                        auto batch_expanded = std::make_shared<ov::op::v0::Unsqueeze>(batch_indices_i32,
+                        // Create batch indices for GatherND
+                        auto batch_indices = create_batch_indices();
+                        auto batch_expanded = std::make_shared<ov::op::v0::Unsqueeze>(batch_indices,
                             ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
                         auto y_expanded = std::make_shared<ov::op::v0::Unsqueeze>(y_i32,
                             ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
@@ -707,95 +641,39 @@ GridSampleDecomposition::GridSampleDecomposition() {
                         auto indices = std::make_shared<ov::op::v0::Concat>(
                             OutputVector{batch_expanded, y_expanded, x_expanded}, -1);
                         
-                        // Use GatherND to sample values
                         auto sampled_value = std::make_shared<ov::op::v8::GatherND>(data_nhwc, indices, 0);
                         
-                        // Apply zeros padding if needed
-                        std::shared_ptr<ov::Node> value_to_weight = sampled_value;
+                        // Calculate combined weight for this tap
+                        auto combined_weight = std::make_shared<ov::op::v1::Multiply>(x_weights[ix], y_weights[iy]);
+                        
+                        // Apply ZEROS mask (multiply by validity of BOTH x and y for this tap)
+                        std::shared_ptr<ov::Node> final_value;
                         if (is_zeros) {
-                            auto x_valid = std::make_shared<ov::op::v1::LogicalAnd>(
-                                std::make_shared<ov::op::v1::GreaterEqual>(x_coord, const_0),
-                                std::make_shared<ov::op::v1::Less>(x_coord, w_in_f));
-                            auto y_valid = std::make_shared<ov::op::v1::LogicalAnd>(
-                                std::make_shared<ov::op::v1::GreaterEqual>(y_coord, const_0),
-                                std::make_shared<ov::op::v1::Less>(y_coord, h_in_f));
-                            auto valid = std::make_shared<ov::op::v1::LogicalAnd>(x_valid, y_valid);
-                            auto mask = std::make_shared<ov::op::v0::Convert>(valid, element_type);
-                            auto mask_expanded = std::make_shared<ov::op::v0::Unsqueeze>(mask,
+                            auto tap_valid = std::make_shared<ov::op::v1::LogicalAnd>(
+                                x_valid_masks[ix], y_valid_masks[iy]);
+                            auto validity_mask = std::make_shared<ov::op::v0::Convert>(tap_valid, element_type);
+                            auto masked_weight = std::make_shared<ov::op::v1::Multiply>(combined_weight, validity_mask);
+                            auto weight_expanded = std::make_shared<ov::op::v0::Unsqueeze>(masked_weight,
                                 ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                            value_to_weight = std::make_shared<ov::op::v1::Multiply>(sampled_value, mask_expanded);
+                            final_value = std::make_shared<ov::op::v1::Multiply>(sampled_value, weight_expanded);
+                        } else {
+                            auto weight_expanded = std::make_shared<ov::op::v0::Unsqueeze>(combined_weight,
+                                ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
+                            final_value = std::make_shared<ov::op::v1::Multiply>(sampled_value, weight_expanded);
                         }
                         
-                        // Compute bicubic weight using cubic kernel
-                        auto cubic_weight = [&](const std::shared_ptr<ov::Node>& frac, float offset) -> std::shared_ptr<ov::Node> {
-                            // For bicubic, we need to evaluate the kernel at |frac - offset|
-                            // where offset is relative to the floor coordinate
-                            auto offset_const = ov::op::v0::Constant::create(element_type, {}, {offset});
-                            auto t_diff = std::make_shared<ov::op::v1::Subtract>(frac, offset_const);
-                            auto t_abs = std::make_shared<ov::op::v0::Abs>(t_diff);
-                            
-                            // Cubic kernel: 
-                            // if |t| <= 1: 1.5|t|^3 - 2.5|t|^2 + 1
-                            // if 1 < |t| <= 2: -0.5|t|^3 + 2.5|t|^2 - 4|t| + 2
-                            // else: 0
-                            auto t_squared = std::make_shared<ov::op::v1::Multiply>(t_abs, t_abs);
-                            auto t_cubed = std::make_shared<ov::op::v1::Multiply>(t_squared, t_abs);
-                            
-                            // For |t| <= 1
-                            auto weight1 = std::make_shared<ov::op::v1::Add>(
-                                std::make_shared<ov::op::v1::Subtract>(
-                                    std::make_shared<ov::op::v1::Multiply>(
-                                        ov::op::v0::Constant::create(element_type, {}, {1.5F}), t_cubed),
-                                    std::make_shared<ov::op::v1::Multiply>(
-                                        ov::op::v0::Constant::create(element_type, {}, {2.5F}), t_squared)),
-                                const_1);
-                            
-                            // For 1 < |t| <= 2
-                            auto weight2 = std::make_shared<ov::op::v1::Add>(
-                                std::make_shared<ov::op::v1::Subtract>(
-                                    std::make_shared<ov::op::v1::Add>(
-                                        std::make_shared<ov::op::v1::Multiply>(
-                                            ov::op::v0::Constant::create(element_type, {}, {-0.5F}), t_cubed),
-                                        std::make_shared<ov::op::v1::Multiply>(
-                                            ov::op::v0::Constant::create(element_type, {}, {2.5F}), t_squared)),
-                                    std::make_shared<ov::op::v1::Multiply>(
-                                        ov::op::v0::Constant::create(element_type, {}, {4.0F}), t_abs)),
-                                const_2);
-                            
-                            // Conditions
-                            auto cond1 = std::make_shared<ov::op::v1::LessEqual>(t_abs, const_1);
-                            auto cond2 = std::make_shared<ov::op::v1::LogicalAnd>(
-                                std::make_shared<ov::op::v1::Greater>(t_abs, const_1),
-                                std::make_shared<ov::op::v1::LessEqual>(t_abs, const_2));
-                            
-                            // Select weight based on conditions
-                            auto weight = std::make_shared<ov::op::v1::Select>(cond1, weight1,
-                                std::make_shared<ov::op::v1::Select>(cond2, weight2, const_0));
-                            
-                            return weight;
-                        };
-                        
-                        // Compute weights
-                        auto wx = cubic_weight(x_frac, static_cast<float>(offsets[ix]));
-                        auto wy = cubic_weight(y_frac, static_cast<float>(offsets[iy]));
-                        auto weight = std::make_shared<ov::op::v1::Multiply>(wx, wy);
-                        auto weight_expanded = std::make_shared<ov::op::v0::Unsqueeze>(weight,
-                            ov::op::v0::Constant::create(ov::element::i32, {}, {-1}));
-                        
-                        // Apply weight to sampled value
-                        auto weighted_value = std::make_shared<ov::op::v1::Multiply>(value_to_weight, weight_expanded);
-                        
-                        // Accumulate
+                        // Accumulate result
                         if (result == nullptr) {
-                            result = weighted_value;
+                            result = final_value;
                         } else {
-                            result = std::make_shared<ov::op::v1::Add>(result, weighted_value);
+                            result = std::make_shared<ov::op::v1::Add>(result, final_value);
                         }
                     }
                 }
+            } else {
+                // Unsupported interpolation mode
+                return false;
             }
-            
-                }
             
             // Convert back from NHWC to NCHW
             auto transpose_to_nchw = ov::op::v0::Constant::create(ov::element::i32, {4}, {0, 3, 1, 2});
