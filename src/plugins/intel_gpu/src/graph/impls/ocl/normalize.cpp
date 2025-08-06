@@ -39,6 +39,8 @@ public:
 
         params.normMode = primitive->across_spatial ? kernel_selector::normalize_mode::ACROSS_SPATIAL
                                                     : kernel_selector::normalize_mode::WITHIN_SPATIAL;
+        if (!primitive->across_spatial)
+            params.axis = primitive->axis;
         params.epsilon = primitive->epsilon;
         if (format::is_simple_data_format(scale_layout.format)) {
             params.scaleTable = convert_data_tensor(scale_layout).FlattenFeatureAndSpatials();
