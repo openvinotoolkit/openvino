@@ -11,4 +11,16 @@
 
 using namespace ov::test::behavior;
 
-const std::vector<ov::AnyMap> configsInferRequestRunTests = {{}};
+const std::vector<ov::AnyMap> emptyConfig = {{}};
+
+INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
+                         WeightsSeparationTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(emptyConfig)),
+                         WeightsSeparationTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         WeightsSeparationNotSupportedTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::ValuesIn(emptyConfig)),
+                         WeightsSeparationNotSupportedTests::getTestCaseName);
