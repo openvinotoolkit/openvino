@@ -44,10 +44,10 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     const auto& causal = get_causal();
     if (input_size >= 4 && !causal) {
         const auto& attention_type = get_input_element_type(3);
-        NODE_VALIDATION_CHECK(
-            this,
-            attention_type.is_real() || attention_type == element::boolean || attention_type == element::u8 || attention_type.is_dynamic(),
-            "The element type of attention_mask must be either floating-point or boolean.");
+        NODE_VALIDATION_CHECK(this,
+                              attention_type.is_real() || attention_type == element::boolean ||
+                                  attention_type == element::u8 || attention_type.is_dynamic(),
+                              "The element type of attention_mask must be either floating-point or boolean.");
     }
     for (size_t i = 1; i < input_size; i++) {
         const auto& element_type = get_input_element_type(i);
