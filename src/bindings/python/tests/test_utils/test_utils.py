@@ -98,7 +98,8 @@ def test_cmake_file_not_found(monkeypatch):
     assert result == ""
 
 
-class Maker:
+# For backward compatibility with old maker signatures
+class MakerTensorCopy:
     def __init__(self):
         self.calls_count = 0
 
@@ -106,6 +107,19 @@ class Maker:
         self.calls_count += 1
         tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)
         ov.Tensor(tensor_data).copy_to(tensor)
+
+    def called_times(self):
+        return self.calls_count
+
+
+class Maker:
+    def __init__(self):
+        self.calls_count = 0
+
+    def __call__(self) -> ov.Tensor:
+        self.calls_count += 1
+        tensor_data = np.array([2, 2, 2, 2], dtype=np.float32).reshape(1, 1, 2, 2)
+        return ov.Tensor(tensor_data)
 
     def called_times(self):
         return self.calls_count
@@ -163,6 +177,16 @@ def test_save_postponned_constant_twice(prepare_ir_paths):
 
 def test_serialize_postponned_constant(prepare_ir_paths):
     maker = Maker()
+    model = create_model(maker)
+    assert maker.called_times() == 0
+
+    model_export_file_name, weights_export_file_name = prepare_ir_paths
+    ov.serialize(model, model_export_file_name, weights_export_file_name)
+    assert maker.called_times() == 1
+
+
+def test_serialize_postponned_constant_maker_tensor_copy(prepare_ir_paths):
+    maker = MakerTensorCopy()
     model = create_model(maker)
     assert maker.called_times() == 0
 

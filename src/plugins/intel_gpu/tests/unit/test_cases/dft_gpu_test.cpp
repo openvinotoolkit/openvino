@@ -85,12 +85,7 @@ template <class T>
 struct dft_gpu_test : public testing::TestWithParam<dft_test_params> {
 public:
     void test() {
-        format::type plain_format;
-        format::type blocked_format;
-        dft_type type;
-        dft_params p;
-        bool is_caching_test;
-        std::tie(plain_format, blocked_format, type, p, is_caching_test) = testing::TestWithParam<dft_test_params>::GetParam();
+        const auto& [plain_format, blocked_format, type, p, is_caching_test] = testing::TestWithParam<dft_test_params>::GetParam();
 
         auto& engine = get_test_engine();
 
@@ -125,12 +120,7 @@ public:
     }
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<dft_test_params>& info) {
-        format::type plain_format;
-        format::type blocked_format;
-        dft_type type;
-        dft_params p;
-        bool is_caching_test;
-        std::tie(plain_format, blocked_format, type, p, is_caching_test) = info.param;
+        const auto& [plain_format, blocked_format, type, p, is_caching_test] = info.param;
 
         std::ostringstream result;
         result << "InputShape=" << vec2str(p.input_shape) << "_";
