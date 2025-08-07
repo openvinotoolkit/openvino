@@ -8,6 +8,7 @@
 
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
+#include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
@@ -26,6 +27,11 @@ public:
         static constexpr const char* logits = "logits";
         static constexpr const char* token_type_ids = "token_type_ids";
         static constexpr const char* gemma_sliding_mask = "npuw_gemma_sliding_mask";
+    };
+
+    struct layer_ids {
+        static constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
+        static constexpr std::size_t kStartOutputKVCacheLayers = 1;
     };
 
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -99,9 +105,25 @@ private:
     int64_t m_first_position_id = 0;
     int32_t m_gemma_sliding_window_size = 0;
 
+    uint64_t m_tokens_in_present_chunk = 0;
+
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
+
+    // Support prefix caching
+    std::shared_ptr<PrefixCacheManager> m_prefix_cache;
+
+    friend uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                                          size_t block_size,
+                                          const std::vector<uint64_t>& prompt_hashes,
+                                          const std::unordered_map<std::string, std::string>& input_name_map,
+                                          LLMInferRequest& request);
+    friend void store_blocks_in_cache(size_t chunk_size,
+                                      size_t block_size,
+                                      const std::vector<uint64_t>& prompt_hashes,
+                                      size_t& token_idx,
+                                      LLMInferRequest& request);
 };
 
 }  // namespace npuw

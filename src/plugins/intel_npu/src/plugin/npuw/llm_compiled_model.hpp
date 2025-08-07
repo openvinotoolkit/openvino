@@ -81,6 +81,22 @@ private:
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
 
+    // Support prefix caching
+    bool m_enable_prefix_caching = false;
+    uint64_t m_prefix_caching_block_size = 0;
+    uint64_t m_prefix_caching_max_num_blocks = 0;
+
+    friend uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                                          size_t block_size,
+                                          const std::vector<uint64_t>& prompt_hashes,
+                                          const std::unordered_map<std::string, std::string>& input_name_map,
+                                          LLMInferRequest& request);
+    friend void store_blocks_in_cache(size_t chunk_size,
+                                      size_t block_size,
+                                      const std::vector<uint64_t>& prompt_hashes,
+                                      size_t& token_idx,
+                                      LLMInferRequest& request);
+
     void gemma_transformations(const std::shared_ptr<ov::Model>& model);
     int32_t m_gemma_sliding_window_size = 0;
 };
