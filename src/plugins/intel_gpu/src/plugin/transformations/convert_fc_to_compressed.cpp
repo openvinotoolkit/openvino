@@ -96,7 +96,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
             ov::Shape current_shape = constant->get_shape();
-            if (current_shape.size() <= 2)
+//            if (current_shape.size() <= 2)
+            if (current_shape.size() <= 3) // TODO
                 return constant;
 
             OPENVINO_ASSERT(current_shape.size() == 3);
