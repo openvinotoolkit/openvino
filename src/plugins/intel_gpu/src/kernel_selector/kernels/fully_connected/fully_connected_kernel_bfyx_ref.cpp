@@ -60,7 +60,8 @@ FullyConnected_bfyx_Ref::DispatchData FullyConnected_bfyx_Ref::SetDefault(const 
 }
 
 KernelsPriority FullyConnected_bfyx_Ref::GetKernelsPriority(const Params& /*params*/) const {
-    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    return FORCE_PRIORITY_1;
+//    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_params& params,
