@@ -12,66 +12,54 @@
 
 namespace ov::intel_gpu {
 
-static void CreateAvgPoolOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::AvgPool>& op) {
+static void AvgPoolImpl(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {
     validate_inputs_count(op, {1});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
+    auto avg_pool_base = ov::as_type_ptr<ov::op::util::AvgPoolBase>(op);
+
+    auto exclude_pad = avg_pool_base->get_exclude_pad() ? cldnn::pooling_mode::average_no_padding : cldnn::pooling_mode::average;
+    auto kernel = avg_pool_base->get_kernel();
+    auto stride = avg_pool_base->get_strides();
+    auto pads_begin = avg_pool_base->get_pads_begin();
+    auto pads_end = avg_pool_base->get_pads_end();
 
     std::shared_ptr<cldnn::pooling> pooling_prim = nullptr;
     if (p.use_new_shape_infer()) {
         pooling_prim = std::make_shared<cldnn::pooling>(layerName,
                                                         inputs[0],
-                                                        op->get_exclude_pad() ? cldnn::pooling_mode::average_no_padding : cldnn::pooling_mode::average,
-                                                        op->get_kernel(),
-                                                        op->get_strides(),
-                                                        op->get_pads_begin(),
-                                                        op->get_pads_end(),
-                                                        op->get_auto_pad(),
-                                                        op->get_rounding_type());
+                                                        exclude_pad,
+                                                        kernel,
+                                                        stride,
+                                                        pads_begin,
+                                                        pads_end,
+                                                        avg_pool_base->get_auto_pad(),
+                                                        avg_pool_base->get_rounding_type());
     } else {
         pooling_prim = std::make_shared<cldnn::pooling>(layerName,
                                                         inputs[0],
-                                                        op->get_exclude_pad() ? cldnn::pooling_mode::average_no_padding : cldnn::pooling_mode::average,
-                                                        op->get_kernel(),
-                                                        op->get_strides(),
-                                                        op->get_pads_begin(),
-                                                        op->get_pads_end(),
+                                                        exclude_pad,
+                                                        kernel,
+                                                        stride,
+                                                        pads_begin,
+                                                        pads_end,
                                                         tensor_from_dims(op->get_output_shape(0)),
                                                         cldnn::element_type_to_data_type(op->get_output_element_type(0)));
+    }
+
+    if (ov::is_type<ov::op::v16::AvgPool>(op)) {
+        const auto& avg_pool = ov::as_type_ptr<ov::op::v16::AvgPool>(op);
+        pooling_prim->dilation = avg_pool->get_dilations();
     }
     p.add_primitive(*op, pooling_prim);
 }
 
-static void CreateAvgPoolOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v16::AvgPool>& op) {
-    validate_inputs_count(op, {1});
-    auto inputs = p.GetInputInfo(op);
-    std::string layerName = layer_type_name_ID(op);
+static void CreateAvgPoolOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::AvgPool>& op) {
+    AvgPoolImpl(p, op);
+}
 
-    std::shared_ptr<cldnn::pooling> pooling_prim = nullptr;
-    if (p.use_new_shape_infer()) {
-        pooling_prim = std::make_shared<cldnn::pooling>(layerName,
-                                                        inputs[0],
-                                                        op->get_exclude_pad() ? cldnn::pooling_mode::average_no_padding : cldnn::pooling_mode::average,
-                                                        op->get_kernel(),
-                                                        op->get_strides(),
-                                                        op->get_dilations(),
-                                                        op->get_pads_begin(),
-                                                        op->get_pads_end(),
-                                                        op->get_auto_pad(),
-                                                        op->get_rounding_type());
-    } else {
-        pooling_prim = std::make_shared<cldnn::pooling>(layerName,
-                                                        inputs[0],
-                                                        op->get_exclude_pad() ? cldnn::pooling_mode::average_no_padding : cldnn::pooling_mode::average,
-                                                        op->get_kernel(),
-                                                        op->get_strides(),
-                                                        op->get_dilations(),
-                                                        op->get_pads_begin(),
-                                                        op->get_pads_end(),
-                                                        tensor_from_dims(op->get_output_shape(0)),
-                                                        cldnn::element_type_to_data_type(op->get_output_element_type(0)));
-    }
-    p.add_primitive(*op, pooling_prim);
+static void CreateAvgPoolOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v16::AvgPool>& op) {
+    AvgPoolImpl(p, op);
 }
 
 static void CreateMaxPoolOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::MaxPool>& op) {
