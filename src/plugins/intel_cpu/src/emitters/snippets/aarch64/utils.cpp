@@ -192,7 +192,7 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
     // Store all pointers with offsets to their specific stack locations
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         const auto& ptr_reg = mem_ptrs[i];
-        int32_t stack_offset = static_cast<int32_t>(stack_offsets[i]);
+        auto stack_offset = static_cast<int32_t>(stack_offsets[i]);
 
         if (i < memory_offsets.size() && ov::snippets::utils::is_dynamic_value(memory_offsets[i])) {
             if (i < buffer_ids.size() && !ov::snippets::utils::is_dynamic_value(buffer_ids[i]) && buffer_ids[i] < 24) {

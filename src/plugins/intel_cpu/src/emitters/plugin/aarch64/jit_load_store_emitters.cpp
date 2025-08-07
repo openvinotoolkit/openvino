@@ -10,6 +10,7 @@
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "cpu/aarch64/cpu_isa_traits.hpp"
