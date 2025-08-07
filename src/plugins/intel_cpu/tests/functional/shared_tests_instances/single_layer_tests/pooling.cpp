@@ -45,8 +45,7 @@ const auto maxPool_ExplicitPad_FloorRounding_Params =
                        ::testing::ValuesIn(pad_ends),
                        ::testing::Values(ov::op::RoundingType::FLOOR),
                        ::testing::Values(ov::op::PadType::EXPLICIT),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MaxPool_ExplicitPad_FloorRounding,
@@ -66,8 +65,7 @@ const auto maxPool_SameUpperPad_FloorRounding_Params =
                        ::testing::ValuesIn(pad_ends),
                        ::testing::Values(ov::op::RoundingType::FLOOR),
                        ::testing::Values(ov::op::PadType::SAME_UPPER),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MaxPool_SameUpperPad_FloorRounding,
@@ -87,8 +85,7 @@ const auto maxPool_SameLowerPad_FloorRounding_Params =
                        ::testing::ValuesIn(pad_ends),
                        ::testing::Values(ov::op::RoundingType::FLOOR),
                        ::testing::Values(ov::op::PadType::SAME_LOWER),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MaxPool_SameLowerPad_FloorRounding,
@@ -111,8 +108,7 @@ const auto maxPool_ExplicitPad_FloorRounding_5Dinput_Params =
                        ::testing::ValuesIn(pad_ends_3d),
                        ::testing::Values(ov::op::RoundingType::FLOOR),
                        ::testing::Values(ov::op::PadType::EXPLICIT),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MaxPool_ExplicitPad_FloorRounding_5Dinput,
@@ -132,8 +128,7 @@ const auto maxPool_SameUpperPad_FloorRounding_5Dinput_Params =
                        ::testing::ValuesIn(pad_ends_3d),
                        ::testing::Values(ov::op::RoundingType::FLOOR),
                        ::testing::Values(ov::op::PadType::SAME_UPPER),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MaxPool_SameUpperPad_FloorRounding_5Dinput,
@@ -153,8 +148,7 @@ const auto maxPool_SameLowerPad_CeilRounding_5Dinput_Params =
                        ::testing::ValuesIn(pad_ends_3d),
                        ::testing::Values(ov::op::RoundingType::CEIL),
                        ::testing::Values(ov::op::PadType::SAME_LOWER),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MaxPool_SameLowerPad_CeilRounding_5Dinput,
@@ -174,8 +168,7 @@ const auto maxPool_ExplicitPad_CeilRounding_Params =
                        ::testing::ValuesIn(pad_ends),
                        ::testing::Values(ov::op::RoundingType::CEIL),
                        ::testing::Values(ov::op::PadType::EXPLICIT),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(
     smoke_MaxPool_ExplicitPad_CeilRounding,
