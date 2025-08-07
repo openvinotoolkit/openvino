@@ -972,9 +972,7 @@ void jit_gelu_erf_emitter::emit_data() const {
 }
 
 /// GELU TANH ///
-jit_gelu_tanh_emitter::jit_gelu_tanh_emitter(jit_generator_t* host,
-                                             cpu_isa_t host_isa,
-                                             const element::Type exec_prc)
+jit_gelu_tanh_emitter::jit_gelu_tanh_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
     tanh_emitter = std::make_unique<jit_tanh_emitter>(host, host_isa, exec_prc_);
@@ -2484,17 +2482,13 @@ std::set<std::vector<element::Type>> jit_subtract_emitter::get_supported_precisi
 }
 
 /// TANH ///
-jit_tanh_emitter::jit_tanh_emitter(jit_generator_t* host,
-                                   cpu_isa_t host_isa,
-                                   const element::Type exec_prc)
+jit_tanh_emitter::jit_tanh_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc_);
 }
 
-jit_tanh_emitter::jit_tanh_emitter(jit_generator_t* host,
-                                   cpu_isa_t host_isa,
-                                   const std::shared_ptr<ov::Node>& node)
+jit_tanh_emitter::jit_tanh_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
     sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc_);
@@ -2526,15 +2520,14 @@ void jit_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 }
 
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
-void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
-                                     const std::vector<size_t>& out_vec_idxs) const {
+void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const {
     OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
 
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
     auto fp = FReg(aux_fp_gpr_idxs[0]);
-    
+
     load_table_val("two", fp);
     h->vfmul_vf(dst, src, fp);
 
