@@ -37,6 +37,11 @@ SOME_MACRO_WITH_PARAM(1)
 #define _CAT(a,b) a##b
 #define CAT(a,b) _CAT(a,b)
 
+#define QUERIES_PER_WI 1
+#define _VEC_1_ELEMENT_ACCESSOR(vec, idx) vec
+#define _VEC_ELEMENT_ACCESSOR(VECTOR_SIZE, vec, idx) CAT(_VEC_,CAT(VECTOR_SIZE,_ELEMENT_ACCESSOR))(vec, idx)
+#define GET_VECTOR_ELEMENT(vec, idx) _VEC_ELEMENT_ACCESSOR(QUERIES_PER_WI, vec, idx)
+
 #define USED_SIMPLE_MACRO 10
 #define UNUSED_SIMPLE_MACRO 20
     #     define      USED_MACRO_WITH_SPACES      10
@@ -72,6 +77,9 @@ multi-line comment
     int c = CAT(USED_MACRO_CONCAT, _NAME);  // some inline comment
     int d = CAT(CAT(USED_MACRO_CONCAT, _NAME), _NESTED);
     int e = USED_REGULAR_HEADER_MACRO;
+
+    int vec[4] = {1, 2, 3, 4};
+    int result1 = GET_VECTOR_ELEMENT(vec, 0);
 }
 
 #undef UNUSED_MACRO_WITH_UNDEF
@@ -118,6 +126,10 @@ SOME_MACRO_WITH_PARAM(1)
 #undef SOME_MACRO_PARAM
 #define _CAT(a,b) a##b
 #define CAT(a,b) _CAT(a,b)
+#define QUERIES_PER_WI 1
+#define _VEC_1_ELEMENT_ACCESSOR(vec,idx) vec
+#define _VEC_ELEMENT_ACCESSOR(VECTOR_SIZE,vec,idx) CAT(_VEC_,CAT(VECTOR_SIZE,_ELEMENT_ACCESSOR))(vec,idx)
+#define GET_VECTOR_ELEMENT(vec,idx) _VEC_ELEMENT_ACCESSOR(QUERIES_PER_WI,vec,idx)
 #define USED_SIMPLE_MACRO 10
 #define USED_MACRO_WITH_SPACES 10
 #define USED_MULTI_LINE_MACRO 100 101
@@ -136,8 +148,12 @@ int b=USED_MACRO_FUNC(a,10) ? 1 : 0;
 int c=CAT(USED_MACRO_CONCAT,_NAME);
 int d=CAT(CAT(USED_MACRO_CONCAT,_NAME),_NESTED);
 int e=USED_REGULAR_HEADER_MACRO;
+int vec[4]={1,2,3,4};
+int result1=GET_VECTOR_ELEMENT(vec,0);
 }
 #undef CAT
+#undef GET_VECTOR_ELEMENT
+#undef QUERIES_PER_WI
 #undef USED_MACRO_CONCAT_NAME
 #undef USED_MACRO_CONCAT_NAME_NESTED
 #undef USED_MACRO_FUNC
@@ -145,7 +161,9 @@ int e=USED_REGULAR_HEADER_MACRO;
 #undef USED_MULTI_LINE_MACRO
 #undef USED_REGULAR_HEADER_MACRO
 #undef USED_SIMPLE_MACRO
-#undef _CAT)__krnl"),
+#undef _CAT
+#undef _VEC_1_ELEMENT_ACCESSOR
+#undef _VEC_ELEMENT_ACCESSOR)__krnl"),
 '''
 
     def test_opencl_code_preprocessing(self):
