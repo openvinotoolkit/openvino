@@ -96,9 +96,6 @@ test_scope = init_test_scope()
     test_scope,
 )
 def test_accuracy_conformance(model_path, model_type, precision, gt_data, device):
-    if device == "GPU":
-        pytest.skip("CVS-171598")
-
     target_model = OVModelForCausalLM.from_pretrained(model_path, device=device, ov_config={"KV_CACHE_PRECISION": "f16"})
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
