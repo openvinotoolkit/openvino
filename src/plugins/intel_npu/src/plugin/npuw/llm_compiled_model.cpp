@@ -1087,9 +1087,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
     LOG_DEBUG("Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
-    std::cout << "Convert stateful LoRA to stateless." << std::endl;
     convert_stateful_lora_to_stateless(kvcache_model);
-    std::cout << "Done." << std::endl;
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
@@ -1153,7 +1151,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
-    std::cout << "Maximum LoRA rank: " << m_max_lora_rank << std::endl;
     if (m_use_chunk_prefill) {
         reshape_to_static(prefill_model,
                           static_cast<uint32_t>(m_prefill_chunk_size),
