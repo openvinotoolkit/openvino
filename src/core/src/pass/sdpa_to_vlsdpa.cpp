@@ -10,16 +10,15 @@
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/vl_sdpa.hpp"
 #include "transformations/utils/utils.hpp"
-#include "openvino/op/util/node_util.hpp"
 
 using namespace ov::op;
 using namespace ov::pass;
 
 SDPAToVLSDPA::SDPAToVLSDPA() = default;
-
 
 bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(SDPAToVLSDPA);
@@ -60,8 +59,7 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
             // all consumers should be SDPA
             bool consumers_are_sdpa = true;
             for (auto target : attn_param->get_output_target_inputs(0)) {
-                auto target_node = target.get_node()->shared_from_this();
-                if (auto sdpa = ov::as_type_ptr<v13::ScaledDotProductAttention>(target_node)) {
+                if (auto sdpa = ov::as_type<v13::ScaledDotProductAttention>(target.get_node())) {
                     // when sdpa only has inputs q,k,v,attention_mask and is_causal==False
                     if (sdpa->get_input_size() > 4 || sdpa->get_causal()) {
                         consumers_are_sdpa = false;
@@ -77,13 +75,12 @@ bool SDPAToVLSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 continue;
 
             auto cu_seqlens_param = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
-            op::util::set_name(*cu_seqlens_param, std::string(new_name));
             // Optionally copy all names from old input except replaced name
+            op::util::set_name(*cu_seqlens_param, std::string(new_name));
             model->replace_parameter(model->get_parameter_index(attn_param), cu_seqlens_param);
 
-            for (auto target : attn_param->get_output_target_inputs(0)) {
-                auto sdpa =
-                    ov::as_type<v13::ScaledDotProductAttention>(target.get_node());
+            for (auto target : cu_seqlens_param->get_output_target_inputs(0)) {
+                auto sdpa = ov::as_type<v13::ScaledDotProductAttention>(target.get_node());
                 OPENVINO_ASSERT(sdpa, "all consumers should be SDPA!");
 
                 const auto sdpa_consumers = sdpa->get_output_target_inputs(0);
