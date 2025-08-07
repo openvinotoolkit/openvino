@@ -12,7 +12,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-std::string TransposeLayerCPUTest::getTestCaseName(testing::TestParamInfo<TransposeLayerCPUTestParamSet> obj) {
+std::string TransposeLayerCPUTest::getTestCaseName(const testing::TestParamInfo<TransposeLayerCPUTestParamSet>& obj) {
     const auto& [inputShapes, inputOrder, netPrecision, targetDevice, additionalConfig, cpuParams] = obj.param;
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";

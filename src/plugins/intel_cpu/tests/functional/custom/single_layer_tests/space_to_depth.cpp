@@ -20,7 +20,7 @@ class SpaceToDepthLayerCPUTest : public testing::WithParamInterface<SpaceToDepth
                                  virtual public ov::test::SubgraphBaseTest,
                                  public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SpaceToDepthLayerCPUTestParamSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<SpaceToDepthLayerCPUTestParamSet>& obj) {
         const auto& [shapes, inType, mode, blockSize, cpuParams] = obj.param;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";

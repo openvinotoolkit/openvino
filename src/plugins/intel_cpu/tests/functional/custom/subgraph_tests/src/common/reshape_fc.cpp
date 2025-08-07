@@ -22,7 +22,7 @@ class ReshapeFcCPUTest : public testing::WithParamInterface<ReshapeFcParams>,
                          virtual public SubgraphBaseTest,
                          public CpuTestWithFusing {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ReshapeFcParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ReshapeFcParams>& obj) {
         const auto& [specParams, fusingParams, cpuParams] = obj.param;
         const auto& [shapes, data, prc] = specParams;
         std::ostringstream result;

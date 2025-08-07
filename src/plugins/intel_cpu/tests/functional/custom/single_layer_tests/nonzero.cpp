@@ -25,7 +25,7 @@ typedef std::tuple<
 class NonZeroLayerCPUTest : public testing::WithParamInterface<NonZeroLayerCPUTestParamsSet>,
                           virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<NonZeroLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<NonZeroLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, genData, cpuParams] = obj.param;
         std::string td;
         const auto& [inputShape, netType] = basicParamsSet;

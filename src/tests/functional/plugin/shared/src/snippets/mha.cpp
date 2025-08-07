@@ -67,23 +67,15 @@ void MHABase::SetUp() {
  }
 
 std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAParams> obj) {
-    std::vector<InputShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    ov::element::Type prc;
-    bool with_mul;
-    size_t thread_count;
-    std::string target_device;
-    size_t num_nodes, num_subgraphs;
-    ov::AnyMap additional_config;
-    std::tie(input_shapes,
-             elem_types,
-             prc,
-             with_mul,
-             thread_count,
-             num_nodes,
-             num_subgraphs,
-             target_device,
-             additional_config) = obj.param;
+    const auto& [input_shapes,
+                 elem_types,
+                 prc,
+                 with_mul,
+                 thread_count,
+                 num_nodes,
+                 num_subgraphs,
+                 target_device,
+                 additional_config] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
@@ -107,14 +99,14 @@ std::string MHA::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAP
 }
 
 std::string MHAWithDynamicMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MHAWithDynamicMulParams> obj) {
-    std::vector<InputShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    ov::element::Type prc;
-    size_t thread_count;
-    std::string target_device;
-    size_t num_nodes, num_subgraphs;
-    ov::AnyMap additional_config;
-    std::tie(input_shapes, elem_types, prc, thread_count, num_nodes, num_subgraphs, target_device, additional_config) = obj.param;
+    const auto& [input_shapes,
+                 elem_types,
+                 prc,
+                 thread_count,
+                 num_nodes,
+                 num_subgraphs,
+                 target_device,
+                 additional_config] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)

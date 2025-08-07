@@ -24,7 +24,7 @@ class ShapeOfLayerCPUTest : public testing::WithParamInterface<ShapeOfLayerCPUTe
                             virtual public ov::test::SubgraphBaseTest,
                             public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShapeOfLayerCPUTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ShapeOfLayerCPUTestParamsSet>& obj) {
         const auto& [basicParamsSet, cpuParams] = obj.param;
         const auto& [inputShape, netPr] = basicParamsSet;
         std::ostringstream result;
