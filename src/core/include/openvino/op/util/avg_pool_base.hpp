@@ -20,7 +20,6 @@ public:
     /// \param      arg            The output producing the input data batch tensor.<br>
     ///                            `[d1, dn]`
     /// \param      strides        The strides.<br> `[n]`
-    /// \param      dilations      The dilations. `[n]`
     /// \param      pads_begin     The beginning of padding shape.<br> `[n]`
     /// \param      pads_end       The end of padding shape.<br> `[n]`
     /// \param      kernel         The kernel shape.<br> `[n]`
@@ -33,7 +32,6 @@ public:
     /// \param      auto_pad       Padding type to use for additional padded dimensions
     AvgPoolBase(const Output<Node>& arg,
                 const Strides& strides,
-                const Strides& dilations,
                 const Shape& pads_begin,
                 const Shape& pads_end,
                 const Shape& kernel,
@@ -75,7 +73,6 @@ public:
 protected:
     Shape m_kernel;
     Strides m_strides;
-    Strides m_dilations;
     Shape m_pads_begin;
     Shape m_pads_end;
     bool m_exclude_pad{true};
