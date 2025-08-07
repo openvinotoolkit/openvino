@@ -19,7 +19,7 @@ class MatmulStridedInputsOutputsTest : public testing::WithParamInterface<Matmul
                                        public CPUTestsBase,
                                        virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MatmulStridedInputsOutputsTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<MatmulStridedInputsOutputsTestParams>& obj) {
         ov::element::Type netPrecision;
         netPrecision = obj.param;
 
