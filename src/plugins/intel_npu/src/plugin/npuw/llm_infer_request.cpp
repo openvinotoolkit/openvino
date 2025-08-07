@@ -144,10 +144,6 @@ void fill_sliding_mask(const ov::SoPtr<ov::ITensor>& mask, int64_t curr_pos, int
     mask_data[mask->get_size() - 1] = true;
 }
 
-constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
-
-constexpr std::size_t kStartOutputKVCacheLayers = 1;
-
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
@@ -206,6 +202,11 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         clear_chunk_prefill_kv_cache();
     }
 
+    if (m_npuw_llm_compiled_model->m_enable_prefix_caching) {
+        const uint64_t prefix_caching_max_num_blocks = m_npuw_llm_compiled_model->m_prefix_caching_max_num_blocks;
+        m_prefix_cache = std::make_shared<PrefixCacheManager>(prefix_caching_max_num_blocks);
+    }
+
     if (compiled_model->m_lm_head_compiled) {
         m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
         OPENVINO_ASSERT(m_lm_head_request);
@@ -239,7 +240,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     if (enable_cpu_wa) {
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
         // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-        for (std::size_t i = kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
+        for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < kvcache_compiled->outputs().size(); ++i) {
             const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
             const auto& input_name =
                 std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
@@ -391,8 +392,8 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-    ov::parallel_for(kvcache_compiled->outputs().size() - kStartOutputKVCacheLayers, [&](size_t out_idx) {
-        const std::size_t i = kStartOutputKVCacheLayers + out_idx;
+    ov::parallel_for(kvcache_compiled->outputs().size() - layer_ids::kStartOutputKVCacheLayers, [&](size_t out_idx) {
+        const std::size_t i = layer_ids::kStartOutputKVCacheLayers + out_idx;
         const auto& output_name = kvcache_compiled->outputs()[i].get_any_name();
         auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
@@ -420,11 +421,8 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             // The task is to copy both parts into the KV-cache input tensor for the decoding process
 
             // Copy part 1 KV results
-            auto tokens_in_present_chunk = kvcache_desc.num_stored_tokens % prefill_chunk_size;
-            tokens_in_present_chunk = tokens_in_present_chunk ? tokens_in_present_chunk : prefill_chunk_size;
-
             // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
-            auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - tokens_in_present_chunk;
+            auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
                 auto prefill_past_kv_chunks = uu::make_tensor_slice(prefill_past_kv,
@@ -444,7 +442,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             auto prefill_present_kv_chunk =
                 uu::make_tensor_slice(prefill_out_tensor,
                                       pre_kv_dim,
-                                      static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
+                                      static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
                                       static_cast<uint32_t>(prefill_chunk_size));
 
             auto kvcache_last_kv_chunk = uu::make_tensor_slice(kvcache_in_tensor,
@@ -482,7 +480,7 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     auto& compiled = request->get_compiled_model();
     // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
-    for (std::size_t i = kStartOutputKVCacheLayers; i < compiled->outputs().size(); ++i) {
+    for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < compiled->outputs().size(); ++i) {
         const auto& output_name = compiled->outputs()[i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), layer_names::past_key_values);
         if (in_ports.find(input_name) == in_ports.end()) {
@@ -528,7 +526,7 @@ void ov::npuw::LLMInferRequest::trim_kvcache_for_speculative_decoding(ov::SoPtr<
 void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     const auto& prefill_compiled = m_prefill_request->get_compiled_model();
 
-    for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
+    for (std::size_t i = layer_ids::kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
         const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
         const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
         if (m_prefill_in_ports.find(input_name) == m_prefill_in_ports.end()) {
@@ -549,7 +547,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     LOG_DEBUG("Calling chunked inference for prefill model.");
     LOG_BLOCK();
 
-    const auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    const auto input_prompt_len = input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM];
 
     // For LLM, model accepts 2d inputs_embeds[BATCH, SEQ_LEN]
     // For VLM, model accepts 3d inputs_ids[BATCH, SEQ_LEN, EMB_SIZE]
@@ -557,19 +555,57 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     const auto input_ids_elem_size = input_ids->get_element_type().size();
     auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-    const int64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
+    const uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
     auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
-    int64_t remaining_prompts = input_prompt_len;
+    uint64_t remaining_prompts = input_prompt_len;
+
+    const bool enable_prefix_caching = m_npuw_llm_compiled_model->m_enable_prefix_caching;
+    const uint64_t prefix_caching_block_size = m_npuw_llm_compiled_model->m_prefix_caching_block_size;
+    std::vector<uint64_t> prompt_hashes;
+    std::unordered_map<std::string, std::string> input_name_map;
+    size_t token_idx = 0;
+    bool restore_prefix_cache = false;
+    if (enable_prefix_caching) {
+        // Calculate input prompts hash
+        prompt_hashes = calculate_hashes(input_ids);
+
+        // Create output to input ports name for convinience
+        const auto& prefill_compiled = m_prefill_request->get_compiled_model();
+        input_name_map = create_output_to_input_name_mapping(prefill_compiled, m_prefill_in_ports);
+
+        // Try to restore prefilled prompts from cache
+        auto restored_token_num =
+            restore_cached_blocks(input_ids, prefix_caching_block_size, prompt_hashes, input_name_map, *this);
+        uint64_t scheduled_token_num = input_prompt_len - restored_token_num;
+        LOG_VERB("[PrefixCache] Successfully restored " << restored_token_num
+                                                        << " tokens from cache. "
+                                                           "Will compute "
+                                                        << scheduled_token_num << " tokens out of total input length "
+                                                        << input_prompt_len << ".");
+        remaining_prompts = scheduled_token_num;
+
+        kvcache_desc.num_stored_tokens = static_cast<uint32_t>(restored_token_num);
+        token_idx = kvcache_desc.num_stored_tokens;
+        restore_prefix_cache = scheduled_token_num < input_prompt_len;
+    }
+
+    bool is_first_chunk = true;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+        if (enable_prefix_caching && current_prompts_len == chunk_prompt_len && is_first_chunk) {
+            auto token_num_to_a_full_chunk =
+                adjust_chunk_size_for_prefix_caching(kvcache_desc.num_stored_tokens, chunk_prompt_len);
+            current_prompts_len = token_num_to_a_full_chunk;
+            is_first_chunk = false;
+        }
 
         // Populate the attention mask for the present chunk
         // For the already processed tokens, they will be added into the attention mask after inference call
@@ -580,9 +616,20 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
             ov::npuw::util::fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
         }
+
         std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
+
+        if (enable_prefix_caching && restore_prefix_cache) {
+            // Populate the attention mask for prefix caching:
+            // kvcache_desc.num_stored_tokens has been prefilled already
+            // The calculated key/values blocks will be copied from cache to past k/v inputs for inference
+            restore_prefix_cache = false;
+            std::copy_n(attention_mask->data<int64_t>(),
+                        kvcache_desc.num_stored_tokens,
+                        attn_mask_in_tensor->data<int64_t>());
+        }
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
         auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
@@ -609,12 +656,17 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         m_prefill_request->infer();
 
+        if (enable_prefix_caching) {
+            store_blocks_in_cache(current_prompts_len, prefix_caching_block_size, prompt_hashes, token_idx, *this);
+        }
+
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
 
         // Do not copy last computed chunk and preserve it in present k/v layer
         if (remaining_prompts <= 0) {
             LOG_DEBUG("All prompts have been prefilled in chunks");
+            m_tokens_in_present_chunk = current_prompts_len;
             break;
         }
 
@@ -632,6 +684,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     }
 
     LOG_DEBUG("Done.");
+
+    if (enable_prefix_caching) {
+        m_prefix_cache->print_cache_status();
+    }
 }
 
 void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
@@ -666,7 +722,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
 
     m_prefill_request->infer();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
+    kvcache_desc.num_stored_tokens += static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
 
     LOG_DEBUG("Done");
 }
@@ -679,7 +735,7 @@ void ov::npuw::LLMInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
     LOG_BLOCK();
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > kvcache_desc.max_prompt_size) {
+    if (input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > kvcache_desc.max_prompt_size) {
         OPENVINO_THROW("Input prompt is longer than configured \"NPUW_LLM_MAX_PROMPT_LEN\": ",
                        kvcache_desc.max_prompt_size,
                        ".\nPlease either setup bigger "
@@ -718,7 +774,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
+    uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM]);
     if (input_tokens_len > kvcache_desc.max_generation_token_len) {
         OPENVINO_THROW("Input prompt length is greater than output \"NPUW_LLM_MAX_GENERATION_TOKEN_LEN\": ",
                        kvcache_desc.max_generation_token_len,
@@ -876,7 +932,8 @@ void ov::npuw::LLMInferRequest::infer() {
     // The outcome of two items is that prefill and generate stages
     //    can be safely differentiated by start position id for
     //    both main and draft models.
-    if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > 1 && position_ids->data<int64_t>()[0] == m_first_position_id) {
+    if (input_ids->get_shape()[layer_ids::INPUT_IDS_SEQ_LEN_DIM] > 1 &&
+        position_ids->data<int64_t>()[0] == m_first_position_id) {
         infer_prefill(input_ids, attention_mask, position_ids, token_type_ids);
     } else {
         trim_kvcache_for_speculative_decoding(position_ids);
