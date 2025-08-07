@@ -60,7 +60,7 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
-void gather_nf4(const ov::SoPtr<ov::ITensor>& src,
+void gather_cb4(const ov::SoPtr<ov::ITensor>& src,
                 const ov::SoPtr<ov::ITensor>& idx,
                 const ov::SoPtr<ov::ITensor>& dst);
 

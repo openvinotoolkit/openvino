@@ -386,7 +386,7 @@ ov::Tensor Gather::eval() const {
     NPUW_ASSERT(ttype == ov::element::f8e4m3 || ttype == ov::element::f8e5m2 || ttype == ov::element::f8e8m0);
     ov::Tensor dst(dst_type, dst_shape);
     const auto& gti = ov::get_tensor_impl;
-    ov::npuw::util::gather_nf4(gti(t), gti(w.eval()), gti(dst));
+    ov::npuw::util::gather_cb4(gti(t), gti(w.eval()), gti(dst));
     return dst;
 }
 

@@ -109,7 +109,7 @@ Context::PPtr Context::unpack(const Context::PPtr& w, const Context::PPtr& s, ov
     return new_param;
 }
 
-Context::PPtr Context::gather_nf4(const Context::PPtr& w,
+Context::PPtr Context::gather_cb4(const Context::PPtr& w,
                                   const ov::Tensor& t,
                                   ov::element::Type type,
                                   const void* orig_lut_ptr) {
@@ -1672,14 +1672,14 @@ HostGatherDQ::HostGatherDQ(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qmul, "HostGatherDQ"), std::move(callback));
 }
 
-HostGatherNF4::HostGatherNF4(Context::Ref ctx) {
+HostGatherCB4::HostGatherCB4(Context::Ref ctx) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::wrap_type<ov::op::v0::Convert>({pids});
 
     auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
-    auto qweightt = opp::wrap_type<ov::op::v0::Constant>();
-    auto qcvtwt = opp::wrap_type<ov::op::v0::Convert>({qweightt});
+    auto qtable = opp::wrap_type<ov::op::v0::Constant>();
+    auto qcvtwt = opp::wrap_type<ov::op::v0::Convert>({qtable});
     auto qweightg = opp::wrap_type<ov::op::v8::Gather>({qcvtwt, qcvtw, opp::any_input()});
 
     auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
@@ -1700,18 +1700,18 @@ HostGatherNF4::HostGatherNF4(Context::Ref ctx) {
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
             auto matched_node_qgthr = node_to_output.at(qgthr).get_node_shared_ptr();
-            auto matched_node_qweightt = node_to_output.at(qweightt).get_node_shared_ptr();
+            auto matched_node_qtable = node_to_output.at(qtable).get_node_shared_ptr();
 
             auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
             auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qcoeff);
             auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
-            auto matched_qweightt = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweightt);
+            auto matched_qtable = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qtable);
 
             // Need to gather the weight into f16 first
-            auto fp16weight = ctx.get().gather_nf4(matched_qweight,
-                                                   ov::npuw::util::copy_tensor_from_const(matched_qweightt),
+            auto fp16weight = ctx.get().gather_cb4(matched_qweight,
+                                                   ov::npuw::util::copy_tensor_from_const(matched_qtable),
                                                    ov::element::f16,
-                                                   matched_qweightt->get_data_ptr());
+                                                   matched_qtable->get_data_ptr());
             auto fp16vocab = ctx.get().unpack(fp16weight, matched_qcoeff, ov::element::f16);
             auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);
 
@@ -1726,7 +1726,7 @@ HostGatherNF4::HostGatherNF4(Context::Ref ctx) {
         }
         return false;  // Root hasn't changed (yet)
     };
-    register_matcher(std::make_shared<opp::Matcher>(qgthr, "HostGatherNF4"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qgthr, "HostGatherCB4"), std::move(callback));
 }
 
 // FROM:

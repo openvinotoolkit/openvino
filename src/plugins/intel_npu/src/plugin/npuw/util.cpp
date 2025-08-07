@@ -432,7 +432,7 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
     }
 }
 
-void ov::npuw::util::gather_nf4(const ov::SoPtr<ov::ITensor>& src,
+void ov::npuw::util::gather_cb4(const ov::SoPtr<ov::ITensor>& src,
                                 const ov::SoPtr<ov::ITensor>& idx,
                                 const ov::SoPtr<ov::ITensor>& dst) {
     const auto src_type = src->get_element_type();

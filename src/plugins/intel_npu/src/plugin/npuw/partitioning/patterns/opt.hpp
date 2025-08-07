@@ -60,7 +60,7 @@ struct Context {
         const void* orig_lut_ptr;
     };
     std::map<PPtr, DQNF4Gather> params_to_nf4_gather;
-    PPtr gather_nf4(const PPtr& w, const ov::Tensor& t, ov::element::Type type, const void* orig_lut_ptr);
+    PPtr gather_cb4(const PPtr& w, const ov::Tensor& t, ov::element::Type type, const void* orig_lut_ptr);
 
     struct Gather {
         PPtr pnew, pold, pids;
@@ -193,10 +193,10 @@ public:
     HostGatherDQ(Context::Ref ctx);
 };
 
-class HostGatherNF4 : public ov::pass::MatcherPass {
+class HostGatherCB4 : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherNF4");
-    HostGatherNF4(Context::Ref ctx);
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherCB4");
+    HostGatherCB4(Context::Ref ctx);
 };
 
 // Tail vocab unpacks
