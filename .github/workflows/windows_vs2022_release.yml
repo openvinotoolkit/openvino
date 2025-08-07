@@ -92,21 +92,12 @@ jobs:
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
       BUILD_DIR: "${{ github.workspace }}\\build"
-
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: "{openvino_package,openvino_tests}"
-          path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
-
+        run: gh run download --repo "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" -n openvino_package -n openvino_tests --dir ${{ env.INSTALL_DIR }}
+      
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: openvino_wheels
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
+        run: gh run download --repo "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Extract OpenVINO packages
         run: |
