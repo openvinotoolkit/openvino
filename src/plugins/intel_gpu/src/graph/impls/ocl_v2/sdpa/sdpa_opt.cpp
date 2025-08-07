@@ -42,6 +42,7 @@ public:
     Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    Stage::Ptr regular_micro_single_token = make_stage<SDPAMicroGenerator>(!prefill);
     Stage::Ptr regular_micro_multi_tokens = make_stage<SDPAMicroGenerator>(prefill);
 #endif
 
@@ -61,6 +62,7 @@ public:
             if (SDPAOpt::supports_micro_sdpa(params)) {
                 GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa  dynamic ...\n";
                 add_stage(regular_micro_multi_tokens, params);
+                add_stage(regular_micro_single_token, params);
             }
 #endif
             GPU_DEBUG_TRACE_DETAIL << "add stage for dynamic done \n";
@@ -75,6 +77,8 @@ public:
                 } else if (SDPAOpt::supports_micro_sdpa(params)) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa non-dynamic with prefill_stage \n";
                     add_stage(regular_micro_multi_tokens, params);
+                    // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
+                    // In this case, fallback to opt kernel.
                     if (!has_stage(regular_micro_multi_tokens)) {
                         GPU_DEBUG_TRACE_DETAIL << "fail to create micro kernel, fallback to regular_multi_tokens for prefill \n";
                         add_stage(regular_multi_tokens, params);
@@ -86,8 +90,15 @@ public:
                 }
             } else {
                 GPU_DEBUG_TRACE_DETAIL << "add stage single_tokens \n";
+#ifdef ENABLE_ONEDNN_FOR_GPU
+                const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
+                bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
+                bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params) && !is_ARL_H && !is_indirect;
+                if (can_use_micro_sdpa) {
+                    add_stage(regular_micro_single_token, params);
+                }
+#endif
                 add_stage(is_indirect ? indirect_single_token : regular_single_token, params);
-
                 if (get_partitions_num(params, SDPAStage::SINGLE_TOKEN) > 1) {
                     add_stage(is_indirect ? indirect_finalization : regular_finalization, params);
                 }
@@ -103,8 +114,7 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "execute indirect = " << is_indirect << ", prefill = " << is_prefill << "\n";
         update_rt_params(instance);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        bool run_micro_sdpa = has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect;
-        if (run_micro_sdpa) {
+        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
         }
@@ -117,7 +127,11 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
-
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        if (has_stage(regular_micro_single_token) && !is_indirect) {
+            return execute_stage(events, instance, regular_micro_single_token);
+        }
+#endif
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";
         auto ev = execute_stage(events, instance, is_indirect ? indirect_single_token : regular_single_token);
