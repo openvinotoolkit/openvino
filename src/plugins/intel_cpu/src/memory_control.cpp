@@ -64,7 +64,7 @@ private:
 class MemoryBlockWithRelease : public IMemoryBlockObserver {
 public:
     MemoryBlockWithRelease() {
-        auto pInternalMem = make_unique<MemoryBlockWithReuse>();
+        auto pInternalMem = std::make_unique<MemoryBlockWithReuse>();
         m_pInternalMem = pInternalMem.get();
         m_pBlock = std::make_shared<DnnlMemoryBlock>(std::move(pInternalMem));
     }
@@ -160,7 +160,7 @@ using MemoryManagerPtr = std::shared_ptr<IMemoryManager>;
 
 template <typename T, typename... Args>
 std::shared_ptr<DnnlMemoryBlock> makeDnnlMemoryBlock(Args&&... args) {
-    return std::make_shared<DnnlMemoryBlock>(make_unique<T>(std::forward<Args>(args)...));
+    return std::make_shared<DnnlMemoryBlock>(std::make_unique<T>(std::forward<Args>(args)...));
 }
 
 template <typename T>
@@ -173,7 +173,7 @@ public:
     using BlockType = MemoryBlockWithReuse;
 
     void insert(const MemoryRegion& reg, [[maybe_unused]] const std::vector<size_t>& syncInds) override {
-        auto block = make_unique<BlockType>();
+        auto block = std::make_unique<BlockType>();
         CPU_DEBUG_CAP_ENABLE(m_blocks.emplace_back(*block);)
         m_solution.insert({reg.id, makeDnnlMemoryBlock(std::move(block))});
     }
