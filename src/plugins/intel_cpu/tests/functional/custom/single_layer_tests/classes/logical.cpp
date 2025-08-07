@@ -90,10 +90,7 @@ std::string LogicalLayerCPUTest::getPrimitiveType(const utils::LogicalTypes& typ
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
-        if (ov::intel_cpu::any_of(type, utils::LogicalTypes::LOGICAL_AND,
-                                        utils::LogicalTypes::LOGICAL_XOR,
-                                        utils::LogicalTypes::LOGICAL_NOT))
-            return "jit";
+        return "jit";
     }
 #endif
     return CPUTestsBase::getPrimitiveType();

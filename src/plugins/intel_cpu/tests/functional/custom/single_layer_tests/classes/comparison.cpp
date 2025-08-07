@@ -92,6 +92,7 @@ std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonType
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         if (ov::intel_cpu::any_of(type, utils::ComparisonTypes::EQUAL,
                                         utils::ComparisonTypes::NOT_EQUAL,
+                                        utils::ComparisonTypes::LESS,
                                         utils::ComparisonTypes::LESS_EQUAL,
                                         utils::ComparisonTypes::GREATER_EQUAL))
             return "jit";
