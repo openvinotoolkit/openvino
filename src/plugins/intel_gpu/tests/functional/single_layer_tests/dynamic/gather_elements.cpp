@@ -24,11 +24,7 @@ class GatherElementsGPUTest : public testing::WithParamInterface<GatherElementsP
                               virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GatherElementsParams>& obj) {
-        std::vector<InputShape> shapes;
-        ov::element::Type data_type, indices_type;
-        int axis;
-        std::string device;
-        std::tie(shapes, axis, data_type, indices_type, device) = obj.param;
+        const auto& [shapes, axis, data_type, indices_type, device] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -68,10 +64,8 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> shapes;
-        ov::element::Type data_type, indices_type;
-        int axis;
-        std::tie(shapes, axis, data_type, indices_type, targetDevice) = this->GetParam();
+        const auto& [shapes, axis, data_type, indices_type, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
         init_input_shapes(shapes);
 
         ov::ParameterVector params = {

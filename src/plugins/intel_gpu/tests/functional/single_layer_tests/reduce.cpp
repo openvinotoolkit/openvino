@@ -26,12 +26,7 @@ class ReduceSumSqueezeTest : public testing::WithParamInterface<ReduceInputParam
           virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ReduceInputParams> obj) {
-        ov::Shape input_shape;
-        ov::element::Type input_precisions;
-        std::vector<int64_t> reduce_axes;
-        bool keep_dims;
-
-        std::tie(input_shape, input_precisions, reduce_axes, keep_dims) = obj.param;
+        const auto& [input_shape, input_precisions, reduce_axes, keep_dims] = obj.param;
 
         std::ostringstream result;
         result << "IS=ReduceSum_";
@@ -50,8 +45,11 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
         core->set_property(targetDevice, ov::enable_profiling(true));
-        ov::element::Type input_precision;
-        std::tie(input_shape, input_precision, reduce_axes, keep_dims) = GetParam();
+
+        const auto& [_input_shape, input_precision, _reduce_axes, _keep_dims] = GetParam();
+        input_shape = _input_shape;
+        reduce_axes = _reduce_axes;
+        keep_dims = _keep_dims;
 
         ov::Shape add_val_shape = {input_shape.begin(), input_shape.end() - 1};
         ov::test::utils::InputGenerateData in_data;
@@ -73,8 +71,11 @@ protected:
 
     void run() override {
         ov::test::SubgraphBaseStaticTest::run();
-        ov::Shape input_shape;
-        std::tie(input_shape, std::ignore, std::ignore, std::ignore) = GetParam();
+
+        const auto& [input_shape, _ignore, _ignore1, _ignore2] = GetParam();
+        std::ignore = _ignore;
+        std::ignore = _ignore1;
+        std::ignore = _ignore2;
         auto profile_info = inferRequest.get_profiling_info();
         auto num_executed = std::count_if(profile_info.begin(), profile_info.end(),
             [](const ov::ProfilingInfo& p) { return p.status == ov::ProfilingInfo::Status::EXECUTED; });

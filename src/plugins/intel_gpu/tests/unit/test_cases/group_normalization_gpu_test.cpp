@@ -37,9 +37,13 @@ public:
     GroupNormalizationGPUTest() = default;
 
     void SetUp() override {
-        std::vector<ov::Dimension::value_type> input_shape;
         const auto& params = GetParam();
-        std::tie(input_shape, num_groups_, epsilon_, in_format_, out_format_, output_pad_) = params;
+        const auto& [input_shape, _num_groups_, _epsilon_, _in_format_, _out_format_, _output_pad_] = params;
+        num_groups_ = _num_groups_;
+        epsilon_ = _epsilon_;
+        in_format_ = _in_format_;
+        out_format_ = _out_format_;
+        output_pad_ = _output_pad_;
         std::copy(std::begin(input_shape), std::end(input_shape), std::back_inserter(data_shape_));
         tests::random_generator rg{"GroupNormalizationGPUTest"};
         data_ = rg.generate_random_1d<float>(ov::shape_size(input_shape), -1, 1);

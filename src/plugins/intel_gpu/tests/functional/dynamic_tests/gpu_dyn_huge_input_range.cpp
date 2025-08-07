@@ -34,12 +34,7 @@ class DynamicShapeHugeRangeGPUTest : public testing::WithParamInterface<StridedS
                                      virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<StridedSliceLayerParamSet>& obj) {
-        InputShape shapes;
-        StridedSliceParams params;
-        ov::element::Type model_type;
-        std::vector<ov::test::utils::InputLayerType> restInputType;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(shapes, params, model_type, restInputType, additionalConfig) = obj.param;
+        const auto& [shapes, params, model_type, restInputType, additionalConfig] = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -123,10 +118,9 @@ protected:
     bool exception;
 
     void SetUp() override {
-        InputShape shapes;
-        StridedSliceParams ssParams;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(shapes, ssParams, inType, restInputType, additionalConfig) = this->GetParam();
+        const auto& [shapes, ssParams, _inType, _restInputType, additionalConfig] = this->GetParam();
+        inType = _inType;
+        restInputType = _restInputType;
 
         begin = ssParams.begin;
         end = ssParams.end;

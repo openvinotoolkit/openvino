@@ -309,9 +309,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder) {
     topology topology;
     auto& engine = get_test_engine();
 
-    data_types req_data_type;
-    format::type req_format;
-    std::tie(req_data_type, req_format) = GetParam();
+    const auto& [req_data_type, req_format] = GetParam();
     const auto reorder_prim_id = "surface_input_reorder_prim";
 
     auto weights_size = tensor{32, 1, 8, 8};
@@ -364,9 +362,7 @@ TEST_P(can_fuse_reorder, surface_input_reorder_batched) {
     topology topology;
     auto& engine = get_test_engine();
 
-    data_types req_data_type;
-    format::type req_format;
-    std::tie(req_data_type, req_format) = GetParam();
+    const auto& [req_data_type, req_format] = GetParam();
     const auto reorder_prim_id1 = "surface_input_reorder_prim1";
     const auto reorder_prim_id2 = "surface_input_reorder_prim2";
 

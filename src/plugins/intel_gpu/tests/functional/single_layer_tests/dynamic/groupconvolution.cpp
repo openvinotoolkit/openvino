@@ -26,18 +26,9 @@ class GroupConvolutionLayerGPUTestDynamic : public testing::WithParamInterface<g
                                             virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<groupConvLayerTestParamsSet>& obj) {
-        groupConvSpecificParams groupConvParams;
-        ov::element::Type model_type;
-        InputShape inputShape;
-        std::string targetDevice;
-        std::tie(groupConvParams, model_type, inputShape, targetDevice) = obj.param;
+        const auto& [groupConvParams, model_type, inputShape, targetDevice] = obj.param;
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        size_t numGroups;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType] = groupConvParams;
 
         std::ostringstream result;
         result << "IS=";
@@ -63,19 +54,12 @@ public:
 
 protected:
     void SetUp() override {
-        groupConvSpecificParams groupConvParams;
-        InputShape inputShape;
-        auto model_type = ov::element::dynamic;
-        std::tie(groupConvParams, model_type, inputShape, targetDevice) = this->GetParam();
+        const auto& [groupConvParams, model_type, inputShape, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        size_t numGroups;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType) = groupConvParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType] = groupConvParams;
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)

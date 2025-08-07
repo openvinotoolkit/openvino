@@ -93,11 +93,8 @@ float getError<ov::float16>() {
 struct PrintToStringParamName {
     std::string operator()(const testing::TestParamInfo<AdaptiveAvgPoolingParamsWithLayout> &param) {
         std::stringstream buf;
-        AdaptiveAvgPoolingParams p;
-        format::type plain_layout;
-        format::type target_layout;
-        bool is_caching_test;
-        std::tie(p, plain_layout, target_layout, is_caching_test) = param.param;
+
+        const auto& [p, plain_layout, target_layout, is_caching_test] = param.param;
         buf << " input tensor " << p.inputTensor.to_string()
             << " output tensor " << p.outputTensor.to_string()
             << " plain layout " << plain_layout
@@ -120,11 +117,8 @@ struct adaptive_avg_pooling_test
 public:
     void test() {
         const auto data_type = ov::element::from<T>();
-        AdaptiveAvgPoolingParams params;
-        format::type plain_layout;
-        format::type target_layout;
-        bool is_caching_test;
-        std::tie(params, plain_layout, target_layout, is_caching_test) = this->GetParam();
+
+        const auto& [params, plain_layout, target_layout, is_caching_test] = this->GetParam();
 
         std::vector<T> input_data;
         std::vector<T> expected;

@@ -23,11 +23,7 @@ class OVDynamicBatchShape_Tests : public ::testing::WithParamInterface<OVDynamic
                                   virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(::testing::TestParamInfo<OVDynamicBatchParams> obj) {
-        std::vector<InputShape> input_shapes;
-        ov::element::Type model_type;
-        std::string target_device;
-        ov::AnyMap configuration;
-        std::tie(input_shapes, model_type, target_device, configuration) = obj.param;
+        const auto& [input_shapes, model_type, target_device, configuration] = obj.param;
 
         std::ostringstream result;
         result << "IS=";
@@ -62,9 +58,11 @@ protected:
             core.reset();
             core = ov::test::utils::PluginCache::get().core();
         }
-        std::vector<InputShape> input_shape;
 
-        std::tie(input_shape, model_type, targetDevice, configuration) = this->GetParam();
+        const auto& [input_shape, _model_type, _targetDevice, _configuration] = this->GetParam();
+        model_type = _model_type;
+        targetDevice = _targetDevice;
+        configuration = _configuration;
 
         init_input_shapes(input_shape);
         //TODO: think how we can switch between several input topologies in the future

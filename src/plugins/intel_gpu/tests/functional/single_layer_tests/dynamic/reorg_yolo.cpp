@@ -24,11 +24,7 @@ class ReorgYoloLayerGPUTest : public testing::WithParamInterface<ReorgYoloGPUTes
                               virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ReorgYoloGPUTestParams> obj) {
-        InputShape shapes;
-        size_t stride;
-        ov::element::Type model_type;
-        std::string targetDev;
-        std::tie(shapes, stride, model_type, targetDev) = obj.param;
+        const auto& [shapes, stride, model_type, targetDev] = obj.param;
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         for (const auto& item : shapes.second) {
@@ -42,10 +38,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        size_t stride;
-        ov::element::Type model_type;
-        std::tie(shapes, stride, model_type, targetDevice) = this->GetParam();
+        const auto& [shapes, stride, model_type, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({shapes});
 

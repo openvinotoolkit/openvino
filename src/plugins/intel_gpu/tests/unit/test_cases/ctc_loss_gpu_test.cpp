@@ -45,10 +45,7 @@ template <class TF, class TI>
 struct ctc_loss_gpu_test : public testing::TestWithParam<ctc_loss_test_params<TF, TI>> {
 public:
     void test() {
-        format::type fmt;
-        ctc_loss_test_inputs<TF, TI> p;
-        bool is_caching_test;
-        std::tie(p, fmt, is_caching_test) = testing::TestWithParam<ctc_loss_test_params<TF, TI>>::GetParam();
+        const auto& [p, fmt, is_caching_test] = testing::TestWithParam<ctc_loss_test_params<TF, TI>>::GetParam();
 
         auto& engine = get_test_engine();
         const auto float_data_type = ov::element::from<TF>();
@@ -124,10 +121,7 @@ public:
     }
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<ctc_loss_test_params<TF, TI>>& info) {
-        format::type fmt;
-        ctc_loss_test_inputs<TF, TI> p;
-        bool is_caching_test;
-        std::tie(p, fmt, is_caching_test) = info.param;
+        const auto& [p, fmt, is_caching_test] = info.param;
 
         std::ostringstream result;
         result << "PreprocessCollapseRepeated=" << p.preprocess_collapse_repeated << "_";

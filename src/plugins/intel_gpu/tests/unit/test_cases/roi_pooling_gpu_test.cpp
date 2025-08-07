@@ -117,13 +117,7 @@ template <class T>
 struct roi_pooling_gpu_test : public testing::TestWithParam<roi_pooling_test_params<T>> {
 public:
     void test(bool is_caching_test) {
-        format::type fmt;
-        pooling_mode mode;
-        bool position_sensitive;
-        T threshold;
-        roi_pooling_test_inputs<T> p;
-        std::tie(p, mode, position_sensitive, threshold, fmt) =
-            testing::TestWithParam<roi_pooling_test_params<T>>::GetParam();
+        const auto& [p, mode, position_sensitive, threshold, fmt] = testing::TestWithParam<roi_pooling_test_params<T>>::GetParam();
 
         auto& engine = get_test_engine();
         const auto data_type = ov::element::from<T>();
@@ -205,12 +199,7 @@ public:
     }
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<roi_pooling_test_params<T>>& info) {
-        format::type fmt;
-        pooling_mode mode;
-        bool position_sensitive;
-        roi_pooling_test_inputs<T> p;
-        T threshold;
-        std::tie(p, mode, position_sensitive, threshold, fmt) = info.param;
+        const auto& [p, mode, position_sensitive, threshold, fmt] = info.param;
 
         auto mode_str = mode == pooling_mode::max                   ? "max"
                         : mode == pooling_mode::bilinear            ? "bilinear"

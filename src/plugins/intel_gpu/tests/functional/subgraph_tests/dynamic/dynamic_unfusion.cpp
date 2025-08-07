@@ -23,12 +23,7 @@ class DynamicUnfusions : public testing::WithParamInterface<DynamicUnfusionsPara
                          virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<DynamicUnfusionsParams> obj) {
-        std::vector<InputShape> input_shapes;
-        bool transpose_a;
-        bool transpose_b;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, transpose_a, transpose_b, input_precision) = obj.param;
+        const auto& [input_shapes, transpose_a, transpose_b, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -73,12 +68,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes;
-        bool transpose_a;
-        bool transpose_b;
-        ov::element::Type input_precision;
-
-        std::tie(input_shapes, transpose_a, transpose_b, input_precision) = GetParam();
+        const auto& [input_shapes, transpose_a, transpose_b, input_precision] = GetParam();
 
         init_input_shapes(input_shapes);
 

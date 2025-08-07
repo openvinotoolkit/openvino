@@ -29,15 +29,7 @@ template <class OutputType, class InputType>
 class EyeTest : public ::testing::TestWithParam<eye_test_param<OutputType, InputType>> {
 public:
     void SetUp() override {
-        format fmt{format::bfyx};
-        InputType cols{};
-        InputType rows{};
-        InputType diag{};
-        std::vector<InputType> batch_shape;
-        std::vector<ov::Dimension::value_type> output_shape;
-        std::vector<OutputType> expected_values;
-        bool is_caching_test;
-        std::tie(fmt, cols, rows, diag, batch_shape, output_shape, expected_values, is_caching_test) = this->GetParam();
+        const auto& [fmt, cols, rows, diag, batch_shape, output_shape, expected_values, is_caching_test] = this->GetParam();
 
         auto num_rows = engine_.allocate_memory({ov::element::from<InputType>(), fmt, tensor{1}});
         set_values<InputType>(num_rows, {rows});

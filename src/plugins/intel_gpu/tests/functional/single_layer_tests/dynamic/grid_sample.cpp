@@ -28,13 +28,7 @@ class GridSampleLayerTestGPU : public testing::WithParamInterface<GridSampleLaye
                                virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GridSampleLayerTestGPUParams> obj) {
-        std::vector<InputShape> inputShapes;
-        GridSample::InterpolationMode interpolateMode;
-        GridSample::PaddingMode paddingMode;
-        bool alignCorners;
-        ov::element::Type dataPrecision, gridPrecision;
-
-        std::tie(inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision) = obj.param;
+        const auto& [inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -64,13 +58,8 @@ public:
 protected:
     void SetUp() override {
         abs_threshold = 0.0005;
-        std::vector<InputShape> inputShapes;
-        GridSample::InterpolationMode interpolateMode;
-        GridSample::PaddingMode paddingMode;
-        bool alignCorners;
-        ov::element::Type dataPrecision, gridPrecision;
 
-        std::tie(inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision) = this->GetParam();
+        const auto& [inputShapes, interpolateMode, paddingMode, alignCorners, dataPrecision, gridPrecision] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes(inputShapes);
 

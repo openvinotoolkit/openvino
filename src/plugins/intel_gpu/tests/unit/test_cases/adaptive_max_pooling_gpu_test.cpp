@@ -98,11 +98,8 @@ float getError<ov::float16>() {
 struct PrintToStringParamName {
     std::string operator()(const testing::TestParamInfo<AdaptiveMaxPoolingParamsWithLayout>& param) {
         std::stringstream buf;
-        AdaptiveMaxPoolingParams p;
-        format::type plain_layout;
-        format::type target_layout;
-        bool is_caching_test;
-        std::tie(p, plain_layout, target_layout, is_caching_test) = param.param;
+
+        const auto& [p, plain_layout, target_layout, is_caching_test] = param.param;
         buf << " input tensor " << p.inputTensor.to_string()
             << " output tensor " << p.outputTensor.to_string()
             << " plain layout " << plain_layout
@@ -125,11 +122,8 @@ struct adaptive_max_pooling_test
 public:
     void test() {
         const auto data_type = ov::element::from<T>();
-        AdaptiveMaxPoolingParams params;
-        format::type plain_layout;
-        format::type target_layout;
-        bool is_caching_test;
-        std::tie(params, plain_layout, target_layout, is_caching_test) = this->GetParam();
+
+        const auto& [params, plain_layout, target_layout, is_caching_test] = this->GetParam();
         const bool need_reorder = target_layout != plain_layout;
 
         std::vector<T> input_data;
@@ -195,7 +189,7 @@ public:
                                                   }
         );
 
-        const auto get_reordered_indices_mem = [&]() {
+        const auto get_reordered_indices_mem = [&, plain_layout = plain_layout]() {
             cldnn::topology reorder_topology;
             reorder_topology.add(input_layout("indices", indices_layout));
             reorder_topology.add(reorder("plane_indices", input_info("indices"), plain_layout, data_types::i32));

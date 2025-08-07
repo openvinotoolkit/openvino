@@ -31,15 +31,9 @@ public:
     static std::string getTestCaseName(testing::TestParamInfo<AdaPoolLayerGPUTestParams> obj) {
         AdaPoolLayerGPUTestParams basicParamsSet;
         basicParamsSet = obj.param;
-        std::string targetDevice;
-        ov::element::Type netPr;
-        bool isStatic;
-        AdaPoolSpecificParams adaPar;
-        std::vector<int> pooledSpatialShape;
-        std::vector<InputShape> inputShape;
-        std::string mode;
-        std::tie(adaPar, mode, isStatic, netPr, targetDevice) = basicParamsSet;
-        std::tie(pooledSpatialShape, inputShape) = adaPar;
+
+        const auto& [adaPar, mode, isStatic, netPr, targetDevice] = basicParamsSet;
+        const auto& [pooledSpatialShape, inputShape] = adaPar;
         std::ostringstream result;
 
         result << "AdaPoolTest_";
@@ -66,12 +60,11 @@ protected:
         AdaPoolLayerGPUTestParams basicParamsSet;
         basicParamsSet = this->GetParam();
 
-        AdaPoolSpecificParams adaPoolParams;
-        ov::element::Type netPrecision;
-        bool isStatic;
-        std::vector<InputShape> inputShape;
-        std::tie(adaPoolParams, mode, isStatic, netPrecision, targetDevice) = basicParamsSet;
-        std::tie(pooledVector, inputShape) = adaPoolParams;
+        const auto& [adaPoolParams, _mode, isStatic, netPrecision, _targetDevice] = basicParamsSet;
+        mode = _mode;
+        targetDevice = _targetDevice;
+        const auto& [_pooledVector, inputShape] = adaPoolParams;
+        pooledVector = _pooledVector;
 
         init_input_shapes(inputShape);
         if (!isStatic) {

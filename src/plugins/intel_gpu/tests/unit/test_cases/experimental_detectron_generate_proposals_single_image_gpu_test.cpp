@@ -154,10 +154,8 @@ struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageParamsWithLayout<T> > &param) {
         std::stringstream buf;
-        ExperimentalDetectronGenerateProposalsSingleImageParams<T> p;
-        format::type layout;
-        bool is_caching_test;
-        std::tie(p, layout, is_caching_test) = param.param;
+
+        const auto& [p, layout, is_caching_test] = param.param;
 
         buf << "min_size=" << p.min_size << "_";
         buf << "nms_threshold=" << p.nms_threshold << "_";
@@ -175,10 +173,7 @@ struct experimental_detectron_generate_proposals_single_image_test
         : public ::testing::TestWithParam<ExperimentalDetectronGenerateProposalsSingleImageParamsWithLayout<T> > {
 public:
     void test() {
-        ExperimentalDetectronGenerateProposalsSingleImageParams<T> param;
-        format::type data_layout;
-        bool is_caching_test;
-        std::tie(param, data_layout, is_caching_test) = this->GetParam();
+        const auto& [param, data_layout, is_caching_test] = this->GetParam();
         const auto data_type = ov::element::from<T>();
 
         auto &engine = get_test_engine();

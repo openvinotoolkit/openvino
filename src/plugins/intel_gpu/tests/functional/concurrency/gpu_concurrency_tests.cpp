@@ -33,8 +33,7 @@ class OVConcurrencyTest : public ov::test::TestsCommon,
     };
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcurrencyTestParams>& obj) {
-        size_t streams, requests;
-        std::tie(streams, requests) = obj.param;
+        const auto& [streams, requests] = obj.param;
         return "_num_streams_" + std::to_string(streams) + "_num_req_" +
             std::to_string(requests);
     }

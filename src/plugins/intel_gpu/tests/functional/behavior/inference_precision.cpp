@@ -12,9 +12,7 @@ using params = std::tuple<ov::element::Type, ov::element::Type>;
 class InferencePrecisionTests : public ::testing::TestWithParam<params> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<params> &obj) {
-        ov::element::Type model_precision;
-        ov::element::Type inference_precision;
-        std::tie(model_precision, inference_precision) = obj.param;
+        const auto& [model_precision, inference_precision] = obj.param;
         std::stringstream s;
         s << "model_precision=" << model_precision << "_inference_precison=" << inference_precision;
         return s.str();
@@ -24,9 +22,8 @@ public:
 TEST_P(InferencePrecisionTests, smoke_canSetInferencePrecisionAndInfer) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
     auto core = ov::test::utils::PluginCache::get().core();
-    ov::element::Type model_precision;
-    ov::element::Type inference_precision;
-    std::tie(model_precision, inference_precision) = GetParam();
+
+    const auto& [model_precision, inference_precision] = GetParam();
     auto function = ov::test::behavior::getDefaultNGraphFunctionForTheDevice({1, 2, 32, 32}, model_precision);
     ov::CompiledModel compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(function, ov::test::utils::DEVICE_GPU, ov::hint::inference_precision(inference_precision)));

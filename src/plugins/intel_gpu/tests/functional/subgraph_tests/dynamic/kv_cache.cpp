@@ -22,10 +22,7 @@ class KVCacheTest : public testing::WithParamInterface<KVCacheTestParams>,
                     virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<KVCacheTestParams> obj) {
-        std::vector<InputShape> input_shapes;
-        ov::element::Type element_type;
-
-        std::tie(input_shapes, element_type) = obj.param;
+        const auto& [input_shapes, element_type] = obj.param;
 
         std::ostringstream result;
         for (const auto& shape : input_shapes) {
@@ -50,10 +47,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::vector<InputShape> input_shapes;
-        ov::element::Type element_type;
-
-        std::tie(input_shapes, element_type) = GetParam();
+        const auto& [input_shapes, element_type] = GetParam();
 
         init_input_shapes(input_shapes);
 

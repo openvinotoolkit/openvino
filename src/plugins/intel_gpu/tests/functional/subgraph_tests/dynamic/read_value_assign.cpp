@@ -24,9 +24,7 @@ class ReadValueAssignGPUTest : virtual public ov::test::SubgraphBaseTest,
                                public testing::WithParamInterface<ReadValueAssignParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReadValueAssignParams>& obj) {
-        InputShape input_shapes;
-        ov::element::Type input_precision;
-        std::tie(input_shapes, input_precision) = obj.param;
+        const auto& [input_shapes, input_precision] = obj.param;
 
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({input_shapes.first}) << "_";
@@ -40,9 +38,7 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape input_shapes;
-        ov::element::Type input_precision;
-        std::tie(input_shapes, input_precision) = GetParam();
+        const auto& [input_shapes, input_precision] = GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
 
         init_input_shapes({input_shapes});
