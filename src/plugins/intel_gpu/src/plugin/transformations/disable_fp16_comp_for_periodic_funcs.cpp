@@ -11,10 +11,6 @@
 
 #include "openvino/op/sin.hpp"
 #include "openvino/op/cos.hpp"
-
-// Only include necessary and non-duplicate OpenVINO ops
-#include "openvino/op/sin.hpp"
-#include "openvino/op/cos.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/slice.hpp"
@@ -27,14 +23,10 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/util/broadcast_base.hpp"
-#include "openvino/op/util/pad_base.hpp"
-#include "openvino/op/util/precision_sensitive_attribute.hpp"
+// #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/op/util/gather_base.hpp"
 #include "openvino/op/util/gather_nd_base.hpp"
-#include "openvino/op/util/scatter_base.hpp"
-#include "openvino/op/util/scatter_nd_base.hpp"
-#include "openvino/op/util/scatter_elements_update_base.hpp"
 #include "openvino/op/identity.hpp"
 #include "openvino/op/util/binary_elementwise_arithmetic.hpp"
 #include "openvino/op/util/unary_elementwise_arithmetic.hpp"
@@ -123,12 +115,13 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
             current_node = nodes_to_process.front();
             nodes_to_process.pop();
 
-            if (!current_node || current_node->inputs().empty()) {
+            OPENVINO_ASSERT(current_node, "current_node should not be null");
+
+            if (current_node->inputs().empty()) {
                 continue;
             }
 
-            if (ov::fp16_compression_is_disabled(current_node)
-                && (node->get_friendly_name() != current_node->get_friendly_name())) {
+            if ((node != current_node) && ov::fp16_compression_is_disabled(current_node)) {
                 continue;
             }
 
