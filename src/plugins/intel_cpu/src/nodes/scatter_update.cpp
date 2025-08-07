@@ -1071,6 +1071,8 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
 
     size_t k = indicesDim[indicesRank - 1];
+    std::vector<std::mutex> mutexVec(srcBlockND[0] / k);
+    std::vector<int64_t> updatedIdxVec(srcBlockND[0] / k, -1);
     size_t idxTupleNum = 1;
     for (size_t ri = 0; ri < indicesRank - 1; ri++) {
         idxTupleNum *= indicesDim[ri];
@@ -1080,11 +1082,15 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     parallel_for(idxTupleNum, [&](size_t tupleIdx) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
+        int64_t firstIdxValue = -1;
         for (size_t i = 0; i < k; i++) {
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
             if (idxValue < 0) {
                 // Negative value for indices means counting backwards from the end.
                 idxValue += srcDataDim[i];
+            }
+            if (i == 0) {
+                firstIdxValue = idxValue;
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
@@ -1095,8 +1101,12 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
 
         dstOffset *= dataSize;
         size_t updateOffset = tupleIdx * sizeToUpdate;
-
-        cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
+        mutexVec[firstIdxValue].lock();
+        if (static_cast<int64_t>(tupleIdx) > updatedIdxVec[firstIdxValue]) {
+            cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
+            updatedIdxVec[firstIdxValue] = tupleIdx;
+        }
+        mutexVec[firstIdxValue].unlock();
     });
 }
 
