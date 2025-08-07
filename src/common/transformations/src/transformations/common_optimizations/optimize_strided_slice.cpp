@@ -90,6 +90,27 @@ op::util::SlicePlan get_slice_plan(std::shared_ptr<ov::op::v1::StridedSlice> sli
     return plan;
 }
 
+std::shared_ptr<Node> concat_boundaries(const Output<Node>& lhs, const Output<Node>& rhs) {
+    // Find common element type
+    auto lhs_dtype = lhs.get_element_type();
+    auto rhs_dtype = rhs.get_element_type();
+    auto _lhs = lhs;
+    auto _rhs = rhs;
+    if (lhs_dtype.is_static() && rhs_dtype.is_static() && lhs_dtype != rhs_dtype) {
+        // Assuming both are integer types
+        auto common_dtype = lhs_dtype.bitwidth() > rhs_dtype.bitwidth() ? lhs_dtype : rhs_dtype;
+        if (lhs_dtype != common_dtype) {
+            auto new_lhs = std::make_shared<ov::op::v0::Convert>(_lhs, common_dtype);
+            _lhs = ov::op::util::try_fold_unary_output(new_lhs);
+        }
+        if (rhs_dtype != common_dtype) {
+            auto new_rhs = std::make_shared<ov::op::v0::Convert>(_rhs, common_dtype);
+            _rhs = ov::op::util::try_fold_unary_output(new_rhs);
+        }
+    }
+    return std::make_shared<ov::op::v0::Concat>(OutputVector{_lhs, _rhs}, 0);
+}
+
 }  // namespace
 
 bool ov::pass::GroupedStridedSliceOptimizer::run_on_model(const std::shared_ptr<ov::Model>& f) {
@@ -393,6 +414,25 @@ ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
 
         auto axes_1_values = const_axes_1->cast_vector<int64_t>();
         auto axes_2_values = const_axes_2->cast_vector<int64_t>();
+        
+        // normalize axes
+        auto rank = slice_1->input_value(0).get_partial_shape().rank();
+        for (size_t i = 0; i < axes_1_values.size(); ++i) {
+            if (axes_1_values[i] < 0) {
+                if (rank.is_dynamic()) {
+                    return false;
+                }
+                axes_1_values[i] += rank.get_length();
+            }
+        }
+        for (size_t i = 0; i < axes_2_values.size(); ++i) {
+            if (axes_2_values[i] < 0) {
+                if (rank.is_dynamic()) {
+                    return false;
+                }
+                axes_2_values[i] += rank.get_length();
+            }
+        }
 
         // supported a simple scenario when the axes_1 values and axes_2 values don't intersect.
         for (const auto& axis : axes_1_values) {
@@ -401,10 +441,10 @@ ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
             }
         }
 
-        auto begin = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(1), slice_2->input_value(1)}, 0);
-        auto end = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(2), slice_2->input_value(2)}, 0);
-        auto step = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(3), slice_2->input_value(3)}, 0);
-        auto axes = std::make_shared<v0::Concat>(OutputVector{slice_1->input_value(4), slice_2->input_value(4)}, 0);
+        auto begin = concat_boundaries(slice_1->input_value(1), slice_2->input_value(1));
+        auto end = concat_boundaries(slice_1->input_value(2), slice_2->input_value(2));
+        auto step = concat_boundaries(slice_1->input_value(3), slice_2->input_value(3));
+        auto axes = concat_boundaries(slice_1->input_value(4), slice_2->input_value(4));
         auto one_slice = std::make_shared<ov::op::v8::Slice>(slice_1->input_value(0),
                                                              try_fold_unary_output(begin),
                                                              try_fold_unary_output(end),
