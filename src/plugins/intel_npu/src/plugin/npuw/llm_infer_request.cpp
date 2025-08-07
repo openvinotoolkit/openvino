@@ -222,7 +222,6 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
             m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
         }
     }
-    std::cout << "Created " << m_variableStates.size() << " VariableStates for LoRA adapter" << std::endl;
 }
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
