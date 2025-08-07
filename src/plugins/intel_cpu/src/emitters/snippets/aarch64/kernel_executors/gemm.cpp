@@ -91,7 +91,7 @@ void GemmKaiKernelExecutor::execute(const GemmKaiKernelExecutor* executor, void*
                            dst_ptr,
                            dst_stride_row,
                            dst_stride_col,
-                           std::numeric_limits<float>::min(),
+                           std::numeric_limits<float>::lowest(),
                            std::numeric_limits<float>::max());
     }
 }
