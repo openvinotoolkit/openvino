@@ -12,6 +12,7 @@ namespace ov {
 namespace npuw {
 
 class LLMInferRequest;
+class WhisperInferRequest;
 class LLMCompiledModel : public ov::npuw::ICompiledModel {
     using GetPropertiesMap =
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
@@ -48,8 +49,10 @@ public:
 
 private:
     friend class LLMInferRequest;
+    friend class WhisperInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
+    std::shared_ptr<ov::ISyncInferRequest> create_whisper_infer_request();
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
@@ -79,6 +82,8 @@ private:
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
+
+    bool m_is_whisper = false;
 };
 
 }  // namespace npuw

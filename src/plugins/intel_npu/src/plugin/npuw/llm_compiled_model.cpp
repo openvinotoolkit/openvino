@@ -3,11 +3,18 @@
 //
 #include "llm_compiled_model.hpp"
 
+
+#include <regex>
+
 #include "llm_infer_request.hpp"
+#include "whisper_infer_request.hpp"
 #include "logging.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/node_util.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -302,6 +309,113 @@ public:
     }
 };
 
+class AttentionMaskInputPast : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AttentionMaskInputPast");
+
+    AttentionMaskInputPast(std::shared_ptr<ov::Model> model) {
+        auto range = opp::wrap_type<ov::op::v4::Range>();
+        auto convert1 = opp::wrap_type<ov::op::v0::Convert>({range});
+        auto greater = opp::wrap_type<ov::op::v1::Greater>({convert1, opp::any_input()});
+        auto convert2 = opp::wrap_type<ov::op::v0::Convert>({greater});
+
+        register_matcher(std::make_shared<opp::Matcher>(convert2, this->get_type_info().name), [model](opp::Matcher& m) {
+            auto node = m.get_match_root();
+            auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+            attention_mask->get_output_tensor(0).set_names({"attention_mask"});
+            model->add_parameters({attention_mask});
+
+            auto cvt = std::make_shared<ov::op::v0::Convert>(attention_mask->output(0), ov::element::f32);
+            ov::replace_node(node, cvt);
+            return false;
+        });
+    }
+};
+
+class AttentionMaskInput : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::AttentionMaskInput");
+
+    AttentionMaskInput(std::shared_ptr<ov::Model> model, const uint32_t& max_prompt_len, const uint32_t& lhs_seq_size, bool transform_cross_attn) {
+        std::vector<std::shared_ptr<ov::Node>> self_attn_nodes;
+        std::vector<std::shared_ptr<ov::Node>> cross_attn_nodes;
+        for (auto node : model->get_ops()) {
+            if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node)) {
+                if (node->inputs().size() == 4u) {
+                    self_attn_nodes.push_back(node);
+                } else {
+                    cross_attn_nodes.push_back(node);
+                }
+            }
+        }
+
+        // Self-attention
+        OPENVINO_ASSERT(!self_attn_nodes.empty());
+
+        auto attention_mask = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+        attention_mask->get_output_tensor(0).set_names({"attention_mask"});
+        model->add_parameters({attention_mask});
+
+        const auto kAttnMaskPort = 3;
+        auto slice = self_attn_nodes[0]->input(kAttnMaskPort).get_source_output().get_node();
+        auto cvt = std::make_shared<ov::op::v0::Convert>(attention_mask->output(0), ov::element::f32);
+        auto add = std::make_shared<ov::op::v1::Add>(slice->output(0), cvt->output(0));
+
+        auto trps = std::make_shared<ov::op::v1::Transpose>(cvt->output(0), ov::op::v0::Constant::create(ov::element::i32,
+                                                                                                         ov::Shape{2},
+                                                                                                         std::vector<int>{1, 0}));
+        auto mtpl = std::make_shared<ov::op::v1::Multiply>(trps->output(0), add->output(0));
+
+        auto cst_ninf = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1},
+                                                               std::vector<float>{-std::numeric_limits<float>::max()}
+                                                               );
+        auto cst_1 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{1});
+        auto cst_0 = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{1}, std::vector<float>{0});
+
+        auto equal = std::make_shared<ov::op::v1::Equal>(mtpl->output(0), cst_1->output(0));
+        auto select = std::make_shared<ov::op::v1::Select>(equal->output(0), cst_0->output(0), cst_ninf->output(0));
+
+        for (auto self_attn : self_attn_nodes) {
+            self_attn->input(3).replace_source_output(select->output(0));
+        }
+
+        if (transform_cross_attn) {
+            // Cross attn
+            OPENVINO_ASSERT(!cross_attn_nodes.empty());
+            // FIXME: Should be taken from topology - don't hardcode!!!
+            auto shape_cst = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i64,
+                ov::Shape{2},
+                std::vector<float>{static_cast<float>(max_prompt_len), 1}
+            );
+            auto target_shape = std::make_shared<ov::op::v0::Constant>(
+                ov::element::i64,
+                ov::Shape{2},
+                std::vector<float>{static_cast<float>(max_prompt_len), static_cast<float>(lhs_seq_size)}
+            );
+            // FIXME: Must be transpose if batch present
+            auto reshape = std::make_shared<ov::op::v1::Reshape>(cvt->output(0), shape_cst->output(0), false);
+            auto equal = std::make_shared<ov::op::v1::Equal>(reshape->output(0), cst_1->output(0));
+            auto select = std::make_shared<ov::op::v1::Select>(
+                equal->output(0), cst_0->output(0), cst_ninf->output(0)
+            );
+            auto broadcast = std::make_shared<ov::op::v3::Broadcast>(select->output(0), target_shape->output(0));
+            auto unsq1 = std::make_shared<ov::op::v0::Unsqueeze>(broadcast->output(0), cst_0->output(0));
+            auto unsq2 = std::make_shared<ov::op::v0::Unsqueeze>(unsq1->output(0), cst_1->output(0));
+            for (auto cross_attn_node : cross_attn_nodes) {
+                auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(
+                    cross_attn_node->input(0).get_source_output(),
+                    cross_attn_node->input(1).get_source_output(),
+                    cross_attn_node->input(2).get_source_output(),
+                    unsq2->output(0),
+                    false
+                );
+                ov::replace_node(cross_attn_node, sdpa);
+            }
+        }
+    }
+};
+
 namespace {
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
@@ -460,7 +574,8 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
                        const KVAxesPosition& kv_axes_position,
-                       const uint32_t lora_rank) {
+                       const uint32_t lora_rank,
+                       const uint32_t lhs_seq_size = 0) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -474,6 +589,9 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({1, input_size, input.get_partial_shape()[2]});
         } else if (input_name.find("attention_mask") != std::string::npos) {
             new_shape = ov::PartialShape({1, kvcache_size});
+            if (lhs_seq_size && kvcache_size > 4)
+                // NB: for whisper kvcache model attn mask should be size + 1
+                new_shape = ov::PartialShape({1, kvcache_size+1});
         } else if (input_name.find("position_ids") != std::string::npos) {
             const auto partial_shape_size = input.get_partial_shape().size();
             // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
@@ -482,6 +600,14 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             new_shape =
                 partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
+        } else if (input_name.find("cache_position") != std::string::npos) {
+            // NB: Whisper case
+            new_shape = ov::PartialShape({1});
+        } else if (input_name.find("encoder_hidden_states") != std::string::npos) {
+            // NB: Whisper case
+            const auto& partial_shape = input.get_partial_shape();
+            new_shape = partial_shape;
+            new_shape[0] = 1;            // batch_dim
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
@@ -492,7 +618,13 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[kv_axes_position.batch] = 1;
-            new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
+            if (lhs_seq_size) { // Whisper model
+                new_shape[kv_axes_position.seq_len] = (input_name.find(".decoder") != std::string::npos)
+                                                      ? kvcache_size - input_size // kv_size for decoder
+                                                      : lhs_seq_size;             // sequence size for encoder hidden states
+            } else { // LLM/VLM
+                new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
+            }
         }
         new_shapes.emplace(input_name, new_shape);
     }
@@ -732,12 +864,269 @@ void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDes
     }
 }
 
+void update_config_for_whisper(ov::AnyMap& config) {
+    config.erase("NPUW_SLICE_OUT");
+}
+
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
         result.emplace(value.first, value.second.as<std::string>());
     }
     return result;
+}
+
+auto remove_encoder_attn_read_value(const std::shared_ptr<ov::Node>& rv_node,
+                                    const ov::Output<ov::Node>& kv_out,
+                                    const ov::Input<ov::Node>& sdpa_in) {
+    // Find Assign node
+    OPENVINO_ASSERT(rv_node->outputs().size() == 1);
+    auto rv_out = rv_node->outputs()[0];
+    ov::NodeVector rv_readers;
+    for (const auto& target_in: rv_out.get_target_inputs()) {
+        rv_readers.push_back(target_in.get_node()->shared_from_this());
+    }
+    // Assign and SDPA
+    OPENVINO_ASSERT(rv_readers.size() == 2);
+    auto assign_node = (strstr(rv_readers[0]->get_type_name(), "Assign") != nullptr) ? rv_readers[0] : rv_readers[1];
+    OPENVINO_ASSERT(strstr(assign_node->get_type_name(), "Assign") != nullptr);
+    // Redirect KV-cache tensor to SDPA
+    sdpa_in.replace_source_output(kv_out);
+    return std::make_pair(std::make_shared<ov::op::v0::Result>(kv_out), ov::as_type_ptr<ov::op::v6::Assign>(assign_node));
+}
+
+std::string transform_key_value_name(std::string input_string, std::string prefix, std::string enc_or_dec, std::string key_or_value) {
+    std::regex pattern("[0-9]+");
+    std::smatch match;
+    std::regex_search(input_string, match, pattern);
+
+    if (match.empty())
+        OPENVINO_THROW("Input string does not match the expected pattern");
+
+    auto number = std::string(match[0]);
+    return prefix + "." + number + enc_or_dec + key_or_value;
+}
+
+void set_name(std::shared_ptr<ov::Node> result, const std::string& name) {
+    result->set_friendly_name(name);
+    result->get_output_tensor(0).set_names({name});
+}
+
+void expose_runtime_states_as_outputs(std::shared_ptr<ov::Model>& model) {
+    // Find all ReadValue nodes
+    ov::NodeVector read_value_nodes;
+    for (const auto& op : model->get_ops()) {
+        if (strstr(op->get_type_name(), "ReadValue") != nullptr) {
+            read_value_nodes.push_back(op);
+        }
+    }
+
+    // Holds result layers for cross-attn KV-cache tensors
+    ov::ResultVector results;
+    ov::SinkVector assigns;
+
+    // Go through all ReadValue nodes and remove them
+    for (const auto& rv_node : read_value_nodes) {
+        OPENVINO_ASSERT(rv_node->inputs().size() == 1);
+        OPENVINO_ASSERT(rv_node->outputs().size() == 1);
+        auto rv_in  = rv_node->inputs()[0];
+        auto x = rv_in.get_source_output();
+        auto rv_out = rv_node->outputs()[0];
+        // Gather all nodes that read from ReadValue, there must be SDPA and Assign
+        auto rv_readers = rv_out.get_target_inputs();
+        OPENVINO_ASSERT(rv_readers.size() == 2);
+        // Input port for SDPA node
+        for (const auto& reader : rv_readers) {
+            bool is_fake_cvt = strstr(reader.get_node()->get_type_name(), "FakeConvert") != nullptr;
+            if (strstr(reader.get_node()->get_type_name(), "ScaledDotProductAttention") != nullptr || is_fake_cvt) {
+                auto sdpa_in = reader;
+                // Remove ReadValue, store new Result and Assign
+                auto key_or_value = (sdpa_in.get_index() == 1 || is_fake_cvt) ? "key" : "value";
+                auto [result, assign] = remove_encoder_attn_read_value(rv_node, rv_in.get_source_output(), sdpa_in);
+                auto normalized_name = transform_key_value_name(
+                    rv_node->inputs()[0].get_source_output().get_node()->get_friendly_name(),
+                    "present",
+                    ".encoder.",
+                    key_or_value
+                );
+                set_name(result, normalized_name);
+                results.push_back(result);
+                assigns.push_back(assign);
+            }
+        }
+    }
+
+    // Add, remove, validate
+    model->add_results(results);
+    for (const auto& assign : assigns) {
+        model->remove_sink(assign);
+    }
+    model->validate_nodes_and_infer_types();
+}
+
+void remove_cache_position(std::shared_ptr<ov::Model>& model) {
+    // Build subgraph that will replace cache_pos
+    auto input_ids = model->input("input_ids").get_node();
+    auto shape_of_node = std::make_shared<ov::op::v3::ShapeOf>(input_ids->outputs()[0]);
+
+    std::vector<int> v_0{0};
+    std::vector<int> v_1{1};
+
+    auto indices = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, v_1);
+    indices->set_friendly_name("indices");
+    auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, v_0);
+    axis->set_friendly_name("axis");
+
+    auto gather_node = std::make_shared<ov::op::v8::Gather>(shape_of_node->outputs()[0], indices, axis);
+    
+    auto cst_node = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, v_0);
+    auto step     = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{}, v_1);
+    step->set_friendly_name("step");
+    auto range_node = std::make_shared<ov::op::v4::Range>(cst_node->outputs()[0], gather_node->outputs()[0], step->outputs()[0], ov::element::i64);
+    // Replace cache_position
+    auto cache_pos = ov::as_type_ptr<ov::op::v0::Parameter>(model->input("cache_position").get_node()->shared_from_this());
+    for (const auto& target_input : cache_pos->outputs()[0].get_target_inputs()) {
+        target_input.replace_source_output(range_node->outputs()[0]);
+    }
+
+    model->remove_parameter(cache_pos);
+    model->validate_nodes_and_infer_types();
+}
+
+void expose_runtime_states_as_inputs(std::shared_ptr<ov::Model>& model) {
+    // Store Assign nodes to perform remove_sink later on
+    ov::SinkVector assigns;
+    // To add new Params to the model
+    ov::ParameterVector params;
+
+    ov::NodeVector read_value_nodes;
+    for (const auto& op : model->get_ops()) {
+        if (strstr(op->get_type_name(), "ReadValue") != nullptr) {
+            read_value_nodes.push_back(op);
+        }
+    }
+
+    for (const auto& rv_node : read_value_nodes) {
+        auto rv_out = rv_node->outputs()[0];
+        auto rv_readers = rv_out.get_target_inputs();
+        for (auto rv_reader: rv_readers) {
+            bool is_fake_cvt = strstr(rv_reader.get_node()->get_type_name(), "FakeConvert") != nullptr;
+            if (strstr(rv_reader.get_node()->get_type_name(), "Assign") != nullptr) {
+                auto assign_node = ov::as_type_ptr<ov::op::v6::Assign>(rv_reader.get_node()->shared_from_this());
+                assigns.push_back(assign_node);
+            } else if (strstr(rv_reader.get_node()->get_type_name(), "ScaledDotProductAttention") != nullptr || is_fake_cvt) {
+                auto sdpa_in = rv_reader;
+                auto sdpa_node = rv_reader.get_node();
+
+                auto shape = rv_node->get_output_partial_shape(0);
+                auto new_param = std::make_shared<ov::op::v0::Parameter>(rv_node->get_output_element_type(0), shape);
+                
+                auto key_or_value = (sdpa_in.get_index() == 1 || is_fake_cvt) ? "key" : "value";
+                auto normalized_name = transform_key_value_name(sdpa_in.get_node()->get_friendly_name(),
+                                                                    "past_key_values",
+                                                                    ".encoder.",
+                                                                    key_or_value);
+                set_name(new_param, normalized_name);
+
+                params.push_back(new_param);
+                sdpa_in.replace_source_output(new_param->outputs()[0]);
+            }
+        }
+    }
+
+    // Remove sinks and add new params
+    model->add_parameters(params);
+    for (const auto& assign: assigns) {
+        model->remove_sink(assign);
+    }
+}
+
+void normalize_input_key_value_names(std::shared_ptr<ov::Model>& model) {
+    ov::ResultVector new_results, old_results;
+    for (const auto& in : model->inputs()) {
+        if (in.get_any_name().find("decoder") == std::string::npos) {
+            continue;
+        }
+
+        auto key_or_value = (in.get_any_name().find(".key") != std::string::npos) ? "key" : "value";
+        auto normalized_name = transform_key_value_name(in.get_any_name(), "past_key_values", ".decoder.", key_or_value);
+        set_name(in.get_node_shared_ptr(), normalized_name);
+    }
+
+    model->validate_nodes_and_infer_types();
+}
+
+void normalize_output_key_value_names(std::shared_ptr<ov::Model>& model) {
+    ov::ResultVector new_results, old_results;
+    for (const auto& out : model->outputs()) {
+        if (out.get_any_name().find("decoder") == std::string::npos) {
+            continue;
+        }
+
+        auto key_or_value = (out.get_any_name().find(".key") != std::string::npos) ? "key" : "value";
+        auto normalized_name = transform_key_value_name(out.get_any_name(), "present", ".decoder.", key_or_value);
+        set_name(out.get_node_shared_ptr(), normalized_name);
+    }
+
+    model->validate_nodes_and_infer_types();
+}
+
+void add_attention_mask_input(std::shared_ptr<ov::Model> model,
+                              const uint32_t& max_prompt_size = 0,
+                              const uint32_t& lhs_seq_size = 0,
+                              bool transform_cross_attn = false) {
+    ov::pass::GraphRewrite rewr;
+    if (transform_cross_attn) {
+        rewr.add_matcher<AttentionMaskInput>(model, max_prompt_size, lhs_seq_size, transform_cross_attn);
+    } else {
+        rewr.add_matcher<AttentionMaskInputPast>(model);
+    }
+
+    rewr.run_on_model(model);
+
+    ov::pass::Validate().run_on_model(model);
+}
+
+std::shared_ptr<ov::Model> prepare_whisper_prefill_model(std::shared_ptr<ov::Model>& model,
+                                                         const uint32_t& max_prompt_size,
+                                                         const uint32_t& lhs_seq_size) {
+    // 2) Remove all non-runtime states from inputs (they empty on first iteration)
+    // remove_input_kv_tensors(model); -> Done for LLM also 
+    // 3) Expose all states that requires initialization on the first run as outputs
+    expose_runtime_states_as_outputs(model);
+    // 4) Remove cache_position input
+    remove_cache_position(model);
+    // 5) Normalize output names - should be done in stateful_to_stateless_transformation
+    normalize_output_key_value_names(model);
+
+    add_attention_mask_input(model, max_prompt_size, lhs_seq_size, true);
+
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+std::shared_ptr<ov::Model> prepare_whisper_kvcache_model(std::shared_ptr<ov::Model>& model) {
+    // FIXME: normalization should be done inside stateful_to_stateless_transformation
+    normalize_input_key_value_names(model);
+    normalize_output_key_value_names(model);
+    expose_runtime_states_as_inputs(model);
+
+    add_attention_mask_input(model);
+
+    model->reshape({{"input_ids", ov::PartialShape({-1, 1})}});
+
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+bool check_if_whisper_model(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& node : model->get_ops()) {
+        if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(node) && node->inputs().size() == 3u) {
+            // Found cross-attention -> whisper model
+            LOG_DEBUG("Whisper model was found");
+            return true;
+        }
+    }
 }
 }  // namespace
 
@@ -795,6 +1184,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_BLOCK();
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
+
+    m_is_whisper = check_if_whisper_model(model);
 
     const auto npudesc = extract_npu_descriptor(plugin);
 
@@ -888,6 +1279,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     m_kvcache_desc =
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
+
+    uint32_t whisper_lhs_seq_size = 0; // Not applicable for LLMs/VLMs
+    if (m_is_whisper) {
+        // FIXME: hardcode because LLMs use alignment, whisper doesn't need it
+        axes = KVAxesPosition{0u, 2u};
+        m_kvcache_desc = KVCacheDesc{4u, 448u, 0u, 2u};
+        whisper_lhs_seq_size = static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
+
+        prepare_whisper_prefill_model(prefill_model, m_kvcache_desc.max_prompt_size, whisper_lhs_seq_size); // Whisper decoder model
+        prepare_whisper_kvcache_model(kvcache_model); // Whisper decoder_with_past model
+    }
+
     LOG_DEBUG("Make prefill model with static shapes");
     m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
     if (m_use_chunk_prefill) {
@@ -901,14 +1304,16 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                           m_kvcache_desc.max_prompt_size,
                           m_kvcache_desc.max_prompt_size,
                           axes,
-                          m_max_lora_rank);
+                          m_max_lora_rank,
+                          whisper_lhs_seq_size);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
     reshape_to_static(kvcache_model,
                       m_kvcache_desc.max_generation_token_len,
                       m_kvcache_desc.total_size,
                       axes,
-                      m_max_lora_rank);
+                      m_max_lora_rank,
+                      whisper_lhs_seq_size);
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
@@ -971,6 +1376,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
+
+    if (m_is_whisper) {
+        update_config_for_whisper(prefill_config);
+    }
 
     if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
         LOG_DEBUG("Caching preROPE ");
@@ -1382,12 +1791,18 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_infer_request() const {
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
-    return non_const_this->create_llm_infer_request();
+    return m_is_whisper ? non_const_this->create_whisper_infer_request()
+                        : non_const_this->create_llm_infer_request();
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
     return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
+}
+
+std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {
+    auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
+    return std::make_shared<ov::npuw::WhisperInferRequest>(this_sptr);
 }
 
 void ov::npuw::LLMCompiledModel::implement_properties() {
