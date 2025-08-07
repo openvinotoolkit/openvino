@@ -93,11 +93,18 @@ jobs:
       SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
       BUILD_DIR: "${{ github.workspace }}\\build"
     steps:
+      - name: Install GH CLI
+        run: choco install gh
+
       - name: Download OpenVINO artifacts (tarballs)
         run: gh run download --repo "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" -n openvino_package -n openvino_tests --dir ${{ env.INSTALL_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
       
       - name: Download OpenVINO artifacts (wheels)
         run: gh run download --repo "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Extract OpenVINO packages
         run: |
