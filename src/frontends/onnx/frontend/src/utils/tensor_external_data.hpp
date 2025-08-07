@@ -60,6 +60,28 @@ private:
     uint64_t m_data_length = 0;
     std::string m_sha1_digest{};
 };
+
+class MappedMemoryHolder : public ov::MappedMemory {
+public:
+    MappedMemoryHolder(char* addr_ptr, size_t length) : m_size(length) {
+        m_copied_data = std::make_shared<ov::AlignedBuffer>(length);
+        std::memcpy(m_copied_data->get_ptr<char>(), addr_ptr, length);
+    }
+
+    ~MappedMemoryHolder() {}
+
+    char* data() noexcept override {
+        return m_copied_data->get_ptr<char>();
+    }
+
+    size_t size() const noexcept override {
+        return m_size;
+    }
+
+private:
+    std::shared_ptr<ov::AlignedBuffer> m_copied_data;
+    size_t m_size = 0;
+};
 }  // namespace detail
 }  // namespace onnx
 }  // namespace frontend

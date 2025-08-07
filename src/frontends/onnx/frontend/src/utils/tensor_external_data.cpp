@@ -36,6 +36,17 @@ TensorExternalData::TensorExternalData(const TensorProto& tensor) {
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
                                                                      MappedMemoryHandles cache) const {
+    if (m_data_location == "*/_ORT_MEM_ADDR_/*") {
+        char* addr_ptr = reinterpret_cast<char*>(m_offset);
+        if (!addr_ptr || m_data_length == 0) {
+            throw error::invalid_external_data{*this};
+        }
+        auto mapped_memory = std::make_shared<MappedMemoryHolder>(addr_ptr, m_data_length);
+        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
+                                                                                     mapped_memory->size(),
+                                                                                     mapped_memory);
+    }
+
     const auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
