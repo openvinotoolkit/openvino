@@ -105,6 +105,34 @@ std::vector<SubtractParams> generateParamsForSubtract() {
     return params;
 }
 
+
+std::vector<SubtractParams> generateParamsForSubtractU2() {
+    std::vector<SubtractParams> params{
+        SubtractParams(ov::Shape{2, 2},
+                       ov::Shape{2, 2},
+                       ov::Shape{2, 2},
+                       ov::element::Type_t::u2,
+                       std::vector<uint8_t>{0b00011110},  // 2 3 1 0
+                       std::vector<uint8_t>{0b11100100},  // 0 1 2 3
+                       std::vector<uint8_t>{0b01111010}), // 2 2 3 1
+        SubtractParams(ov::Shape{3, 2, 1},
+                       ov::Shape{1, 6},
+                       ov::Shape{3, 2, 6},
+                       ov::element::Type_t::u2,
+                       std::vector<uint8_t>{0b11100100, 0b00000100}, // 0 1 2 3, 0 1 + padding 0 0
+                       std::vector<uint8_t>{0b11100100, 0b00000110}, // 0 1 2 3, 2 1 + padding 0 0
+                                         // 0 3 2 1,    2 3 1 0,    3 2 3 0,    2 1 0 3,     0 1 3 2,    1 0 1 2,    0 3 2 1,    2 3 1 0,    3 2 3 0
+                       std::vector<uint8_t>{0b01101100, 0b00011110, 0b00111011, 0b11000110,  0b10110100, 0b10010001, 0b01101100, 0b00011110, 0b00111011}),
+        SubtractParams(ov::Shape{1},
+                       ov::Shape{1},
+                       ov::Shape{1},
+                       ov::element::Type_t::u2,
+                       std::vector<uint8_t>{0b00000011},   // 3
+                       std::vector<uint8_t>{0b00000010},   // 2
+                       std::vector<uint8_t>{0b00000001})}; // 1
+    return params;
+}
+
 template <element::Type_t IN_ET>
 std::vector<SubtractParams> generateParamsForSubtractFloat() {
     using T = typename element_type_traits<IN_ET>::value_type;
@@ -126,7 +154,8 @@ std::vector<SubtractParams> generateCombinedParamsForSubtract() {
                                                                  generateParamsForSubtract<element::Type_t::i64>(),
                                                                  generateParamsForSubtract<element::Type_t::i32>(),
                                                                  generateParamsForSubtract<element::Type_t::u64>(),
-                                                                 generateParamsForSubtract<element::Type_t::u32>()};
+                                                                 generateParamsForSubtract<element::Type_t::u32>(),
+                                                                 generateParamsForSubtractU2()};
 
     std::vector<SubtractParams> combinedParams;
 
