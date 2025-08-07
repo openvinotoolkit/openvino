@@ -8,21 +8,16 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include <array>
 #include <cstddef>
 #include <exception>
-#include <memory>
 
 #include "behavior/ov_infer_request/inference.hpp"
-#include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
-#include "functional_test_utils/ov_plugin_cache.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/model_util.hpp"
-#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/opsets/opset8.hpp"
@@ -105,10 +100,12 @@ public:
         APIBaseTest::TearDown();
     }
 
-    std::shared_ptr<ov::Model> createTestModel(const bool addWeightlessCacheAttribute = true) {
+    std::shared_ptr<ov::Model> createTestModel(const bool addWeightlessCacheAttribute = true,
+                                               const bool alternativeWeights = false) {
         constexpr auto precision = element::f32;
 
-        auto weights = std::make_shared<op::v0::Constant>(element::f32, Shape{5}, std::vector<float>{1.0f});
+        const float weightsValue = !alternativeWeights ? 1 : 2;
+        auto weights = std::make_shared<op::v0::Constant>(element::f32, Shape{5}, std::vector<float>{weightsValue});
         auto input = std::make_shared<op::v0::Parameter>(precision, Shape{1});
         auto add = std::make_shared<op::v1::Add>(input, weights);
 
@@ -154,6 +151,10 @@ protected:
     std::string model_path;
 };
 
+/**
+ * @brief The "one shot" implementation of the weights separation feature is not supported in the compiler-in-driver
+ * case.
+ */
 TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
@@ -161,6 +162,10 @@ TEST_P(WeightsSeparationTests, CheckOneShotVersionThrows) {
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
 }
 
+/**
+ * @brief The current implementation requires the WeightlessCacheAttribute to be found within at least one ov::Constant
+ * node.
+ */
 TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
     model = createTestModel(false);
     configuration.insert(ov::intel_npu::weightless_blob(true));
@@ -168,6 +173,9 @@ TEST_P(WeightsSeparationTests, CheckForFailureNoWeightlessCacheAttribute) {
     OV_EXPECT_THROW(compiled_model = core->compile_model(model, target_device, configuration), ov::Exception, _);
 }
 
+/**
+ * @brief Compiles a basic model and checks if it produces correct results.
+ */
 TEST_P(WeightsSeparationTests, CorrectInferenceResultNoImportIterative) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
@@ -180,6 +188,9 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultNoImportIterative) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief compile -> import using OV caching -> create inference request -> run one inference and check the result
+ */
 TEST_P(WeightsSeparationTests, CorrectInferenceResultIfCachingUsed) {
     m_cache_dir = generateCacheDirName(GetTestName());
     core->set_property({ov::cache_dir(m_cache_dir)});
@@ -199,6 +210,10 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfCachingUsed) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief compile -> import the result, ov::hint::model provided -> create inference request -> run one inference and
+ * check the result
+ */
 TEST_P(WeightsSeparationTests, CorrectInferenceResultIfModelHintUsed) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
@@ -216,6 +231,10 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfModelHintUsed) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief compile -> import the result, ov::weights_path provided -> create inference request -> run one inference and
+ * check the result
+ */
 TEST_P(WeightsSeparationTests, CorrectInferenceResultIfWeightsPathUsed) {
     model = createTestModel();
 
@@ -236,6 +255,42 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfWeightsPathUsed) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief Providing the wrong weights to a weightless compiled model should produce incorrect results.
+ */
+TEST_P(WeightsSeparationTests, WrongInferenceResultIfWrongWeightsProvided) {
+    model = createTestModel();
+
+    const std::shared_ptr<ov::Model> different_model = createTestModel(false, true);
+    model_path = ov::util::path_join({utils::getCurrentWorkingDir(), utils::generateTestFilePrefix()}).string();
+    ov::serialize(different_model, model_path + ".xml", model_path + ".bin");
+
+    configuration.insert(ov::intel_npu::weightless_blob(true));
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    std::stringstream export_stream;
+    compiled_model.export_model(export_stream);
+
+    configuration.insert(ov::weights_path(model_path + ".bin"));
+    OV_ASSERT_NO_THROW(compiled_model = core->import_model(export_stream, target_device, configuration));
+    ASSERT_TRUE(compiled_model);
+
+    const ov::Tensor expected =
+        utils::create_tensor(element::f32, Shape{5}, std::vector<float>{3.0f, 3.0f, 3.0f, 3.0f, 3.0f});
+    const ov::Tensor input = utils::create_tensor(element::f32, Shape{1}, std::vector<float>{2.0f});
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+    OV_ASSERT_NO_THROW(inference_request.set_tensor("input", input));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    const ov::Tensor output = inference_request.get_tensor("add");
+    OV_EXPECT_THROW(utils::compare(expected, output), std::runtime_error, _);
+}
+
+/**
+ * @brief compile -> import the result shaped as a tensor, ov::hint::model provided -> create inference request -> run
+ * one inference and check the result
+ */
 TEST_P(WeightsSeparationTests, CorrectInferenceResultIfTensorImported) {
     model = createTestModel();
 
@@ -254,6 +309,9 @@ TEST_P(WeightsSeparationTests, CorrectInferenceResultIfTensorImported) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief compile -> attempt to import the result, failure is expected due to the missing weights
+ */
 TEST_P(WeightsSeparationTests, ImportFailureIfNoWeightsProvided) {
     model = createTestModel();
 
@@ -267,6 +325,10 @@ TEST_P(WeightsSeparationTests, ImportFailureIfNoWeightsProvided) {
     OV_EXPECT_THROW(core->import_model(export_stream, target_device, configuration), ov::Exception, _);
 }
 
+/**
+ * @brief A weightless compiled model is imported. Both ov::hint::model and ov::weights_path are provided.
+ * ov::hint::model should have priority.
+ */
 TEST_P(WeightsSeparationTests, ModelHintHasPriorityOverWeightsPath) {
     model = createTestModel();
 
@@ -285,6 +347,10 @@ TEST_P(WeightsSeparationTests, ModelHintHasPriorityOverWeightsPath) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief If OV caching is used, then ov::cache_mode tells the plugin whether or not the compiled model should be
+ * weightless.
+ */
 TEST_P(WeightsSeparationTests, WeightfulIfCacheModeOptimizeSpeed) {
     m_cache_dir = generateCacheDirName(GetTestName());
     core->set_property({ov::cache_dir(m_cache_dir)});
@@ -305,6 +371,10 @@ TEST_P(WeightsSeparationTests, WeightfulIfCacheModeOptimizeSpeed) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief If OV caching is used, then ov::cache_mode tells the plugin whether or not the compiled model should be
+ * weightless.
+ */
 TEST_P(WeightsSeparationTests, WeightlessIfCacheModeOptimizeSize) {
     m_cache_dir = generateCacheDirName(GetTestName());
     core->set_property({ov::cache_dir(m_cache_dir)});
@@ -322,6 +392,9 @@ TEST_P(WeightsSeparationTests, WeightlessIfCacheModeOptimizeSize) {
     OV_EXPECT_THROW(core->import_model(export_stream, target_device, configuration), ov::Exception, _);
 }
 
+/**
+ * @brief ov::cache_mode is not taken into consideration if OV caching is disabled.
+ */
 TEST_P(WeightsSeparationTests, WeightfulIfCacheDirectoryNotProvided) {
     model = createTestModel();
     configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
@@ -338,6 +411,10 @@ TEST_P(WeightsSeparationTests, WeightfulIfCacheDirectoryNotProvided) {
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief If OV caching is used, then ov::cache_mode tells the plugin whether or not the compiled model should be
+ * weightless. Otherwise, ov::intel_npu::weightless_blob is this switch.
+ */
 TEST_P(WeightsSeparationTests, CacheModeHasPriorityOverWeightlessBlobIfCachingIsUsed) {
     m_cache_dir = generateCacheDirName(GetTestName());
     core->set_property({ov::cache_dir(m_cache_dir)});
@@ -359,6 +436,10 @@ TEST_P(WeightsSeparationTests, CacheModeHasPriorityOverWeightlessBlobIfCachingIs
     create_infer_request_and_check_result();
 }
 
+/**
+ * @brief If OV caching is used, then ov::cache_mode tells the plugin whether or not the compiled model should be
+ * weightless. Otherwise, ov::intel_npu::weightless_blob is this switch.
+ */
 TEST_P(WeightsSeparationTests, WeightlessBlobHasPriorityOverCacheModeIfCachingIsNotUsed) {
     model = createTestModel();
 
@@ -379,6 +460,9 @@ TEST_P(WeightsSeparationTests, WeightlessBlobHasPriorityOverCacheModeIfCachingIs
 
 using WeightsSeparationOneShotTests = WeightsSeparationTests;
 
+/**
+ * @brief The "one shot" implementation of the weights separation feature is supported in the compiler-in-plugin case.
+ */
 TEST_P(WeightsSeparationOneShotTests, CorrectInferenceResultNoImportOneShot) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
@@ -393,6 +477,9 @@ TEST_P(WeightsSeparationOneShotTests, CorrectInferenceResultNoImportOneShot) {
 
 using WeightsSeparationNotSupportedTests = WeightsSeparationTests;
 
+/**
+ * @brief Old enough drivers should not support this config option.
+ */
 TEST_P(WeightsSeparationNotSupportedTests, WeightlessBlobNotSupported) {
     model = createTestModel();
     configuration.insert(ov::intel_npu::weightless_blob(true));
@@ -400,6 +487,9 @@ TEST_P(WeightsSeparationNotSupportedTests, WeightlessBlobNotSupported) {
     OV_EXPECT_THROW(core->compile_model(model, target_device, configuration), ov::Exception, _);
 }
 
+/**
+ * @brief Old enough drivers should not support this config option.
+ */
 TEST_P(WeightsSeparationNotSupportedTests, CacheModeNotSupported) {
     m_cache_dir = generateCacheDirName(GetTestName());
     core->set_property({ov::cache_dir(m_cache_dir)});
