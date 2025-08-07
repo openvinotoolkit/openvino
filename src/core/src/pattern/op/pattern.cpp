@@ -615,4 +615,29 @@ op::Predicate value_matches(const std::string& value_notation) {
         },
         "value_matches('" + value_notation + "')");
 }
+
+op::Predicate output_index_matches(size_t expected_index) {
+    return op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            return output.get_index() == expected_index;
+        },
+        "output_index_matches(" + std::to_string(expected_index) + ")");
+}
+
+op::Predicate output_index_matches(const std::vector<size_t>& expected_indices) {
+    std::string indices_str = "{";
+    for (size_t i = 0; i < expected_indices.size(); ++i) {
+        if (i > 0) indices_str += ", ";
+        indices_str += std::to_string(expected_indices[i]);
+    }
+    indices_str += "}";
+    
+    return op::Predicate(
+        [=](const Output<Node>& output) -> bool {
+            const auto output_index = output.get_index();
+            return std::find(expected_indices.begin(), expected_indices.end(), output_index) != expected_indices.end();
+        },
+        "output_index_matches(" + indices_str + ")");
+}
+
 }  // namespace ov::pass::pattern
