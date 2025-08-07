@@ -77,7 +77,7 @@ private:
 
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
-    uint32_t m_max_lora_rank;
+    uint32_t m_max_lora_rank = 32;
 };
 
 }  // namespace npuw
