@@ -15,8 +15,8 @@ namespace frontend {
 namespace onnx {
 namespace ai_onnx {
 namespace opset_common {
-template<v1::OneHot::NegativeIndicesMode MODE>
-ov::OutputVector onehot(const ov::frontend::onnx::Node& node) {
+template <v1::OneHot::NegativeIndicesMode MODE>
+ov::OutputVector onehot_impl(const ov::frontend::onnx::Node& node) {
     ov::OutputVector inputs{node.get_ov_inputs()};
     auto indices = std::make_shared<v0::Convert>(inputs.at(0), ov::element::i64);
     auto depth = std::make_shared<v0::Convert>(reshape::interpret_as_scalar(inputs.at(1)), ov::element::i64);
@@ -33,10 +33,16 @@ ov::OutputVector onehot(const ov::frontend::onnx::Node& node) {
 }
 }  // namespace opset_common
 namespace opset_1 {
-ONNX_OP("OneHot", OPSET_RANGE(1, 10), ai_onnx::opset_common::onehot<v1::OneHot::NegativeIndicesMode::IGNORE_NEGATIVE>);
-} // namespace opset_1
+ov::OutputVector onehot(const ov::frontend::onnx::Node& node) {
+    return ai_onnx::opset_common::onehot_impl<v1::OneHot::NegativeIndicesMode::IGNORE_NEGATIVE>(node);
+}
+ONNX_OP("OneHot", OPSET_RANGE(1, 10), ai_onnx::opset_1::onehot);
+}  // namespace opset_1
 namespace opset_11 {
-ONNX_OP("OneHot", OPSET_SINCE(11), ai_onnx::opset_common::onehot<v1::OneHot::NegativeIndicesMode::NORMALIZE>);
+ov::OutputVector onehot(const ov::frontend::onnx::Node& node) {
+    return ai_onnx::opset_common::onehot_impl<v1::OneHot::NegativeIndicesMode::NORMALIZE>(node);
+}
+ONNX_OP("OneHot", OPSET_SINCE(11), ai_onnx::opset_11::onehot);
 }  // namespace opset_11
 }  // namespace ai_onnx
 }  // namespace onnx
