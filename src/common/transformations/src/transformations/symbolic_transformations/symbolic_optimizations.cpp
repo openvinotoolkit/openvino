@@ -219,6 +219,9 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
 
     m_manager->run_passes(m);
 
+    // Restore original pass states to avoid spoiling the shared PassConfig for subsequent transformations.
+    // Without this restoration, passes would remain disabled, breaking transformations like NgramFusion
+    // that rely on symbolic information from these passes for pattern matching.
     if (squeeze_was_enabled) {
         pass_config->enable<EliminateSqueeze>();
     }
