@@ -5,6 +5,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -14,8 +15,8 @@
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-#include "openvino/runtime/cache/cache_eviction.hpp"
-#include "openvino/runtime/cache/cache_manager.hpp"
+#include "cache_manager.hpp"
+#include "cache_eviction.hpp"
 
 namespace ov {
 namespace template_plugin {
@@ -27,7 +28,6 @@ class InferRequest;
  * @class CompiledModel
  * @brief Implementation of compiled model
  */
-// ! [compiled_model:header]
 class CompiledModel : public ov::ICompiledModel {
 public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -58,10 +58,11 @@ private:
     void compile_model(const std::shared_ptr<ov::Model>& model);
     std::shared_ptr<const Plugin> get_template_plugin() const;
 
+    // --- NEW: shared CacheManager (engine-scoped) ---
     mutable std::shared_ptr<ov::cache::CacheManager> m_cache_manager;
     mutable std::mutex m_cache_mgr_mutex;
 
-    // Eviction config defaults
+    // Eviction defaults (exposed to requests)
     ov::cache::CacheEvictionConfig m_eviction_cfg{
         /*start*/ 32, /*recent*/ 128, /*max*/ 672,
         ov::cache::AggregationMode::NORM_SUM,
@@ -69,16 +70,14 @@ private:
         /*snapkv_window*/ 8
     };
 
-    // Helper giving (shared) access to the cache manager, creating it on first use.
-    std::shared_ptr<ov::cache::CacheManager> get_or_create_cache_manager_locked(
-        const std::shared_ptr<ov::IInferRequest>& req) const;
+    // Create-or-get CacheManager (constructed from compiled model, no request coupling)
+    std::shared_ptr<ov::cache::CacheManager> get_or_create_cache_manager_locked() const;
 
     mutable std::atomic<std::size_t> m_request_id = {0};
     Configuration m_cfg;
     std::shared_ptr<ov::Model> m_model;
     const bool m_loaded_from_cache;
 };
-// ! [compiled_model:header]
 
 }  // namespace template_plugin
 }  // namespace ov

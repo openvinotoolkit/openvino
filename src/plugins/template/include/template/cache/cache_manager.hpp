@@ -5,56 +5,71 @@
 
 #include <list>
 #include <map>
-#include <shared_mutex>
+#include <mutex>
 #include <string>
 #include <vector>
 
-#include "openvino/template/compiled_model.hpp"
-#include "openvino/runtime/iinfer_request.hpp"
-#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ov::template_plugin::cache {
+namespace ov { namespace cache {
 
-// Engine-scoped KV Cache Manager: shared by all InferRequests of a TemplateCompiledModel.
-class OPENVINO_API CacheManager {
-    // Thread-safety for multi-stream use
-    mutable std::shared_mutex m_mu;
-
-    size_t m_num_decoder_layers = 0;
-    std::string m_device;
-    size_t m_block_size = 0;
-    std::vector<ov::element::Type> m_key_precisions, m_value_precisions;
-    std::vector<ov::PartialShape> m_key_shapes, m_value_shapes;
-    std::vector<ov::Tensor> m_key_cache, m_value_cache;
-    size_t m_num_allocated_kv_blocks = 0;
-    size_t m_block_size_in_bytes = 0;
-    ov::IInferRequest m_request;
-    ov::IRemoteContext m_context;
-
-    static ov::Shape set_kv_blocks(ov::PartialShape pshape, size_t num_kv_blocks);
-    void update_request_tensor(size_t decoder_layer_id);
-
+/**
+ * @brief Engine-scoped KV cache owner/allocator.
+ * Thread-safe. Does NOT bind tensors to any InferRequest.
+ */
+class CacheManager {
 public:
-    explicit CacheManager(ov::IInferRequest request);
+    // Construct from compiled model metadata (no request coupling)
+    explicit CacheManager(const ov::CompiledModel& compiled_model);
 
     size_t get_num_decoder_layers() const;
     std::string get_device() const;
     size_t get_block_size() const;
+
     ov::element::Type get_key_cache_precision(size_t decoder_layer_id) const;
     ov::element::Type get_value_cache_precision(size_t decoder_layer_id) const;
-    size_t get_block_size_in_bytes() const;
-    size_t sub_byte_data_type_multiplier(const ov::element::Type data_type) const;
 
-    // Allocates or grows KV storage to hold at least num_kv_blocks pages.
+    size_t get_block_size_in_bytes() const;
+
+    // For packed nibble types
+    static size_t sub_byte_data_type_multiplier(const ov::element::Type data_type);
+
+    // Ensure at least num_kv_blocks pages exist (grow-only)
     void allocate_cache_if_needed(size_t num_kv_blocks);
 
-    // Accessors (copy-by-value ov::Tensor handle; safe and cheap)
+    // Read-only handles to engine-owned KV tensors
     ov::Tensor get_key_cache(size_t decoder_layer_id) const;
     ov::Tensor get_value_cache(size_t decoder_layer_id) const;
 
-    // Bulk copy pages (src_block_id -> many dests) across all layers.
+    // Utility
+    size_t get_v_head_size(size_t layer_id) const;
+
+    // In-place copy single-page chunks K/V: src_block -> dst_blocks (per layer)
     void copy_blocks(const std::map<size_t, std::list<size_t>>& block_copy_map);
+
+private:
+    static ov::Shape set_kv_blocks(ov::PartialShape pshape, size_t num_kv_blocks);
+
+    // immutable after ctor
+    size_t m_num_decoder_layers = 0;
+    std::string m_device;
+    size_t m_block_size = 0;
+    ov::RemoteContext m_context;
+
+    std::vector<ov::element::Type> m_key_precisions, m_value_precisions;
+    std::vector<ov::PartialShape> m_key_shapes, m_value_shapes;
+
+    // resized by allocate_cache_if_needed()
+    std::vector<ov::Tensor> m_key_cache, m_value_cache;
+    size_t m_num_allocated_kv_blocks = 0;
+    size_t m_block_size_in_bytes = 0;
+
+    size_t m_k_head_size = 0;
+
+    // protect growth / copies
+    mutable std::mutex m_mutex;
 };
 
-}  // namespace ov::template_plugin::cache
+}} // namespace ov::cache
