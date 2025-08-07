@@ -48,6 +48,42 @@ static const std::string name_mul = "mul_1";
 static const std::string name_sin = "sin";
 static const std::string name_cos = "cos";
 
+static std::shared_ptr<ov::Model> create_model_with_periodic_func_with_matmul() {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, -1, 3 });
+    auto constant_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, { -1 });
+    auto unsqueeze_1 = std::make_shared<ov::op::v0::Unsqueeze>(input, constant_1 );
+
+    auto constant_2_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1,1,341 }, { 3.14062f });
+    auto constant_2 = std::make_shared<ov::op::v0::Convert>(constant_2_compressed, ov::element::f32);
+
+    auto matmul_weight = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{ 1, 341 }, { 1.0f });
+    auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(unsqueeze_1, matmul_weight);
+
+    auto multiply_1 = std::make_shared<ov::op::v1::Multiply>(matmul_1, constant_2);
+
+    auto constant_3_compressed = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{ 1,1,341 }, { -1.57031f });
+    auto constant_3 = std::make_shared<ov::op::v0::Convert>(constant_3_compressed, ov::element::f32);
+    auto constant_4 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 4 }, { 0, 1, 3, 2 });
+
+    auto add_1 = std::make_shared<ov::op::v1::Add>(multiply_1, constant_3);
+    add_1->set_friendly_name(name_add);
+    auto transpose_1 = std::make_shared<ov::op::v1::Transpose>(add_1, constant_4);
+    auto reshape_1 = std::make_shared<ov::op::v1::Reshape>(transpose_1, ov::op::v0::Constant::create(ov::element::i64, ov::Shape{ 3 }, { 0, 0, 1023 }), false);
+
+    auto sin = std::make_shared<ov::op::v0::Sin>(reshape_1);
+    sin->set_friendly_name(name_sin);
+    auto cos = std::make_shared<ov::op::v0::Cos>(reshape_1);
+    cos->set_friendly_name(name_cos);
+    auto constant_5 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ 2046 }, { 0 });
+    auto constant_6 = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{ }, { 0 });
+    auto gather_sin = std::make_shared<ov::op::v8::Gather>(sin, constant_5, constant_6);
+    auto gather_cos = std::make_shared<ov::op::v8::Gather>(cos, constant_5, constant_6);
+    auto concat = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{gather_sin, gather_cos}, 2);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{concat}, ov::ParameterVector{input});
+}
+
+
 static std::shared_ptr<ov::Model> create_model_with_periodic_func() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{ -1, -1, 3 });
     auto constant_1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, { -1 });
@@ -91,7 +127,6 @@ static std::shared_ptr<ov::Model> create_simple_model_with_periodic_func() {
 
     return std::make_shared<ov::Model>(ov::OutputVector{sin, cos}, ov::ParameterVector{input});
 }
-
 
 static std::shared_ptr<ov::Model> create_no_available_disabled_fp16_model() {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 1});
@@ -150,7 +185,6 @@ static void run_disable_fp16_compression_for_periodic_func_test(std::shared_ptr<
                                                         keep_precision_sensitive_in_fp32_2,
                                                         convert_input_output_precision);
     manager.run_passes(model);
-
     std::unordered_set<std::string> found_nodes; // Set of found node names
 
     for (auto& op : model->get_ops()) {
@@ -176,6 +210,13 @@ TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTest) {
     auto model = create_model_with_periodic_func();
     run_disable_fp16_compression_for_periodic_func_test(model, required_nodes);
 }
+
+TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTestWithMatMul) {
+    std::unordered_set<std::string> required_nodes = {name_sin, name_cos, name_add};
+    auto model = create_model_with_periodic_func_with_matmul();
+    run_disable_fp16_compression_for_periodic_func_test(model, required_nodes);
+}
+
 
 TEST(TransformationTests, DisableFP16CompressionForPeriodicFuncsTestSimple) {
     std::unordered_set<std::string> required_nodes = {name_sin, name_cos};
