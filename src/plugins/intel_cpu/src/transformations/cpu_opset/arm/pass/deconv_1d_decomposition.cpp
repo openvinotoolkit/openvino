@@ -52,8 +52,9 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
     // Predicate to check for 3D tensors (1D deconv)
     auto is_1d_deconv = [](const ov::Output<ov::Node>& output) -> bool {
         auto deconv = ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(output.get_node_shared_ptr());
-        if (!deconv)
+        if (!deconv) {
             return false;
+        }
 
         auto input_shape = deconv->get_input_partial_shape(0);
         auto weights_shape = deconv->get_input_partial_shape(1);
@@ -307,14 +308,10 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
             decomp_nodes.push_back(pad_left_1d.get_node_shared_ptr());
             decomp_nodes.push_back(pad_right_1d.get_node_shared_ptr());
 
-            auto pads_begin_dyn = ov::op::util::make_try_fold<ov::op::v0::Concat>(
-                ov::OutputVector{zero_1d, zero_1d, pad_left_1d, zero_1d},
-                0);
-            auto pads_end_dyn = ov::op::util::make_try_fold<ov::op::v0::Concat>(
-                ov::OutputVector{zero_1d, zero_1d, pad_right_1d, zero_1d},
-                0);
-            decomp_nodes.push_back(pads_begin_dyn);
-            decomp_nodes.push_back(pads_end_dyn);
+            auto pads_begin_dyn = create_shape_pattern({zero_1d, zero_1d, pad_left_1d, zero_1d});
+            auto pads_end_dyn = create_shape_pattern({zero_1d, zero_1d, pad_right_1d, zero_1d});
+            decomp_nodes.push_back(pads_begin_dyn.get_node_shared_ptr());
+            decomp_nodes.push_back(pads_end_dyn.get_node_shared_ptr());
 
             auto pad_value = ov::op::v0::Constant::create(result.get_element_type(), {}, {0});
             auto pad_op = std::make_shared<ov::op::v1::Pad>(result,
@@ -330,9 +327,8 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
             shape_of_weights = ov::op::util::make_try_fold<ov::op::v3::ShapeOf>(weights, ov::element::i32);
             decomp_nodes.push_back(shape_of_weights);
         }
-        auto weights_4d_shape =
-            ov::op::util::make_try_fold<ov::op::v0::Concat>(ov::OutputVector{shape_of_weights, one_const}, 0);
-        decomp_nodes.push_back(weights_4d_shape);
+        auto weights_4d_shape = create_shape_pattern({shape_of_weights, one_const});
+        decomp_nodes.push_back(weights_4d_shape.get_node_shared_ptr());
         ov::Output<ov::Node> weights_4d = std::make_shared<ov::op::v1::Reshape>(weights, weights_4d_shape, false);
 
         std::vector<int32_t> transpose_order = {1, 0, 2, 3};
