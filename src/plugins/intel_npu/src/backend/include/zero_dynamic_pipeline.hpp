@@ -69,7 +69,7 @@ struct DynamicPipeline : public Pipeline {
                 _binding._inputs[arg_index]->setArg(arg_value);
                 // Now MemRefType only support 4 dimension
                 size_t shapesSize = shapes.size();
-                for (int i = 0; i < 4; i++) {
+                for (size_t i = 0; i < 4; i++) {
                     if (i < shapesSize) {
                         _binding._inputs[arg_index]->sizes[i] = shapes[i];
                     } else {
@@ -79,7 +79,7 @@ struct DynamicPipeline : public Pipeline {
                 }
 
                 size_t stridesSize = strides.size();
-                for (int i = 0; i < 4; i++) {
+                for (size_t i = 0; i < 4; i++) {
                     if (i < stridesSize) {
                         _binding._inputs[arg_index]->strides[i] = strides[i];
                     } else {
@@ -96,7 +96,7 @@ struct DynamicPipeline : public Pipeline {
 
                     // Now MemRefType only support 4 dimension
                     size_t shapesSize = shapes.size();
-                    for (int i = 0; i < 4; i++) {
+                    for (size_t i = 0; i < 4; i++) {
                         if (i < shapesSize) {
                             _binding._outputs[output_index]->sizes[i] = shapes[i];
                         } else {
@@ -106,7 +106,7 @@ struct DynamicPipeline : public Pipeline {
                     }
 
                     size_t stridesSize = strides.size();
-                    for (int i = 0; i < 4; i++) {
+                    for (size_t i = 0; i < 4; i++) {
                         if (i < stridesSize) {
                             _binding._outputs[output_index]->strides[i] = strides[i];
                         } else {

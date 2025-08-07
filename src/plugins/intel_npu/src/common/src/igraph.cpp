@@ -52,8 +52,7 @@ IGraph::IGraph(NetworkMetadata metadata, const Config& config, std::optional<ov:
       _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
 IGraph::IGraph(const Config& config, std::optional<ov::Tensor> blob)
-    : _handle(nullptr),
-      _blob(std::move(blob)),
+    : _blob(std::move(blob)),
       _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
 const NetworkMetadata& IGraph::get_metadata() const {
