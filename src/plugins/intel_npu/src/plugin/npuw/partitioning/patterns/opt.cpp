@@ -1707,8 +1707,7 @@ HostGatherCB4::HostGatherCB4(Context::Ref ctx) {
             // Need to gather the weight into f16 first
             auto fp16weight = ctx.get().gather_cb4(matched_qweight,
                                                    ov::npuw::util::copy_tensor_from_const(matched_qtable),
-                                                   ov::element::f16,
-                                                   matched_qtable->get_data_ptr());
+                                                   ov::element::f16);
             auto fp16vocab = ctx.get().unpack(fp16weight, matched_qcoeff, ov::element::f16);
             auto new_param = ctx.get().host_gather(fp16vocab, matched_ids);
 

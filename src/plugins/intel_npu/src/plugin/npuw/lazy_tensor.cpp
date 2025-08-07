@@ -626,9 +626,8 @@ LazyTensor::LazyTensor(const LazyTensor& cw,
 LazyTensor::LazyTensor(const LazyTensor& cw,
                        const ov::Tensor& t,
                        const ov::element::Type& dst_type,
-                       const ov::Shape& dst_shape,
-                       const void* orig_lut_ptr)
-    : m_impl(std::make_shared<LazyTensorImpl>(op::Gather(cw, t, dst_type, dst_shape, orig_lut_ptr))) {}
+                       const ov::Shape& dst_shape)
+    : m_impl(std::make_shared<LazyTensorImpl>(op::Gather(cw, t, dst_type, dst_shape))) {}
 
 LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
     LazyTensor new_lt;
