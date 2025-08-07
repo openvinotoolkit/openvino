@@ -63,6 +63,7 @@ struct normalize : public primitive_base<normalize> {
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, across_spatial);
+        seed = hash_combine(seed, axis);
         seed = hash_combine(seed, epsilon);
         return seed;
     }
