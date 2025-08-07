@@ -20,6 +20,7 @@ namespace KERNEL_NAME {
 
 #ifdef CM_HAS_LSC_UNTYPED_2D
 #define USE_LSC 1
+#define USE_LSC_PREFETCH 1
 #else
 #define USE_LSC 0
 #endif
@@ -110,6 +111,18 @@ _GENX_MAIN_ void KERNEL_NAME(
     uint kv_offset = (kv_start*num_kv_heads + hkv)*head_size;
 
 #if USE_LSC == 1
+#if USE_LSC_PREFETCH
+    sdpa_kernel_lsc_prefetch<false, num_heads, num_kv_heads, head_size, 0, 16>(
+                                wg_local_id,
+                                q_start,
+                                kv_seq_len,
+                                q_len,
+                                kv_seq_len, //kv_len,
+                                reinterpret_cast<svmptr_t>(query + qo_offset),
+                                reinterpret_cast<svmptr_t>(key + kv_offset),
+                                reinterpret_cast<svmptr_t>(value + kv_offset),
+                                reinterpret_cast<svmptr_t>(output + qo_offset));
+#else
     sdpa_kernel_lsc<false, num_heads, num_kv_heads, head_size>(
                                 slm_K,
                                 slm_V,
@@ -123,6 +136,7 @@ _GENX_MAIN_ void KERNEL_NAME(
                                 reinterpret_cast<svmptr_t>(key + kv_offset),
                                 reinterpret_cast<svmptr_t>(value + kv_offset),
                                 reinterpret_cast<svmptr_t>(output + qo_offset));
+#endif
 #else
     sdpa_kernel<false, num_heads, num_kv_heads, head_size, 0>(
                                 slm_K,
