@@ -2528,11 +2528,12 @@ void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     load_table_val("two", fp);
     h->vfmul_vf(dst, src, fp);
 
-    sigmoid_emitter->emit_code({static_cast<size_t>(dst.getIdx())},
-                               {static_cast<size_t>(dst.getIdx())},
-                               aux_vec_idxs,
-                               aux_gpr_idxs,
-                               {aux_fp_gpr_idxs.begin(), aux_fp_gpr_idxs.begin() + sigmoid_emitter->aux_fp_gprs_count()});
+    sigmoid_emitter->emit_code(
+        {static_cast<size_t>(dst.getIdx())},
+        {static_cast<size_t>(dst.getIdx())},
+        aux_vec_idxs,
+        aux_gpr_idxs,
+        {aux_fp_gpr_idxs.begin(), aux_fp_gpr_idxs.begin() + sigmoid_emitter->aux_fp_gprs_count()});
 
     h->vfmul_vf(dst, dst, fp);
     load_table_val("one", fp);
