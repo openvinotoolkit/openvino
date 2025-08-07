@@ -41,7 +41,7 @@ KERNEL (normalize_gpu_within_spatial_ref)(
         norm = mad(value, value, norm);
     }
 #elif NORM_AXIS == 3
-    for (x = 0; x < INPUT0_SIZE_Y; x++)
+    for (x = 0; x < INPUT0_SIZE_X; x++)
     {
         y = gws0;
         f = gws1;

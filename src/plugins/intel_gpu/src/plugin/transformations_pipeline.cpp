@@ -126,6 +126,7 @@
 #include "transformations/fp16_compression/convert_compression_only_to_legacy.hpp"
 #include "transformations/fp16_compression/mark_decompression_convert_constant_folding.hpp"
 #include "transformations/init_node_info.hpp"
+#include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
@@ -845,8 +846,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 return false;
             });
 
-        pass_config->enable<ov::pass::NormalizeL2Decomposition>();
-        pass_config->set_callback<ov::pass::NormalizeL2Decomposition>(
+        // ReduceSum would causes fp16 out of range.
+        // To avoid the out of range, use fp32 nodes for NormalizeL2Decomposition.
+        bool use_fp32_internal_nodes = (infer_precision == ov::element::f16);
+        manager.register_pass<NormalizeL2Decomposition>(use_fp32_internal_nodes);
+        pass_config->set_callback<NormalizeL2Decomposition>(
             [](const_node_ptr &node) -> bool {
             // Condition to filter out axes such as [0, 1, 2] which is not supported currently.
             const auto norm = ov::as_type_ptr<const ov::op::v0::NormalizeL2>(node);
@@ -854,8 +858,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             auto axesNode = ov::as_type_ptr<const ov::op::v0::Constant>(norm->get_input_node_shared_ptr(1));
             const auto axes = axesNode->cast_vector<size_t>();
             const auto isSupportedAxes = [](const std::vector<size_t> &axes, const size_t inputRank) {
-                if (axes.size() == 1 &&
-                   (axes[0] == 1 || axes[0] == 2 || axes[0] == 3)) {
+                if (axes.size() == 1 && axes[0] == 1) {
                     return true;
                 } else if (axes.size() == inputRank - 1) {
                     auto sortAxes = axes;
