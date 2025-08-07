@@ -21,10 +21,11 @@ struct DeconvTestParams {
     size_t stride = 1;
     ov::op::PadType pad_type = ov::op::PadType::EXPLICIT;
     bool expect_transformation = true;
+    bool with_output_shape = false;  // Test 3-input variant
     std::string test_name;
 };
 
-class Deconv1DTest : public ::testing::TestWithParam<DeconvTestParams> {
+class DeconvDecomposition1DTest : public ::testing::TestWithParam<DeconvTestParams> {
 protected:
     std::shared_ptr<ov::Model> model;
 
@@ -40,19 +41,45 @@ protected:
         ov::CoordinateDiff pads = (rank == 3) ? ov::CoordinateDiff{0} : ov::CoordinateDiff{0, 0};
         ov::Strides dilations = (rank == 3) ? ov::Strides{1} : ov::Strides{1, 1};
 
-        auto deconv = std::make_shared<ov::opset1::ConvolutionBackpropData>(input,
-                                                                            weights,
-                                                                            strides,
-                                                                            pads,
-                                                                            pads,
-                                                                            dilations,
-                                                                            p.pad_type);
+        std::shared_ptr<ov::Node> deconv;
+        if (p.with_output_shape) {
+            // Test 3-input variant with explicit output shape (only spatial dimensions)
+            ov::Shape output_shape;
+            if (rank == 3) {
+                // For 3D case, only specify the spatial dimension (L)
+                auto in_size = p.input_shape[2].is_static() ? p.input_shape[2].get_length() : 100;
+                auto kernel_size = p.weights_shape[2];
+                auto out_size = p.stride * (in_size - 1) + kernel_size;
+                output_shape = {out_size};  // Only spatial dimension
+            } else {
+                output_shape = {100, 100};  // 4D case - two spatial dimensions
+            }
+            auto output_shape_const =
+                ov::opset1::Constant::create(ov::element::i64, {output_shape.size()}, output_shape);
+            deconv = std::make_shared<ov::opset1::ConvolutionBackpropData>(input,
+                                                                           weights,
+                                                                           output_shape_const,
+                                                                           strides,
+                                                                           pads,
+                                                                           pads,
+                                                                           dilations,
+                                                                           p.pad_type);
+        } else {
+            // Test 2-input variant
+            deconv = std::make_shared<ov::opset1::ConvolutionBackpropData>(input,
+                                                                           weights,
+                                                                           strides,
+                                                                           pads,
+                                                                           pads,
+                                                                           dilations,
+                                                                           p.pad_type);
+        }
 
         model = std::make_shared<ov::Model>(ov::NodeVector{deconv}, ov::ParameterVector{input});
     }
 
     template <typename T>
-    bool has_op_of_type() const {
+    [[nodiscard]] bool has_op_of_type() const {
         auto ops = model->get_ordered_ops();
         return std::any_of(ops.begin(), ops.end(), [](const auto& n) {
             return ov::is_type<T>(n.get());
@@ -60,7 +87,7 @@ protected:
     }
 };
 
-TEST_P(Deconv1DTest, TransformationTest) {
+TEST_P(DeconvDecomposition1DTest, TransformationTest) {
     const auto& p = GetParam();
 
     // Apply transformation
@@ -86,41 +113,62 @@ TEST_P(Deconv1DTest, TransformationTest) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(Deconv1DTests,
-                         Deconv1DTest,
+INSTANTIATE_TEST_SUITE_P(DeconvDecomposition1DTests,
+                         DeconvDecomposition1DTest,
                          ::testing::Values(
-                             // 3D Static tests
+                             // 3D Static tests (2-input variant)
                              DeconvTestParams{ov::PartialShape{1, 128, 100},
                                               ov::Shape{128, 64, 5},
                                               1,
                                               ov::op::PadType::EXPLICIT,
                                               true,
+                                              false,
                                               "Static3D_Stride1"},
+                             // 3D Static test (3-input variant with output shape)
+                             DeconvTestParams{ov::PartialShape{1, 128, 100},
+                                              ov::Shape{128, 64, 5},
+                                              1,
+                                              ov::op::PadType::EXPLICIT,
+                                              true,
+                                              true,
+                                              "Static3D_WithOutputShape"},
                              // 3D Dynamic tests
                              DeconvTestParams{ov::PartialShape{1, 2, -1},
                                               ov::Shape{2, 2, 3},
                                               1,
                                               ov::op::PadType::EXPLICIT,
                                               true,
+                                              false,
                                               "Dynamic3D_Simple"},
                              DeconvTestParams{ov::PartialShape{1, 128, -1},
                                               ov::Shape{128, 64, 5},
                                               1,
                                               ov::op::PadType::EXPLICIT,
                                               true,
+                                              false,
                                               "Dynamic3D_Large"},
                              DeconvTestParams{ov::PartialShape{1, 128, ov::Dimension::dynamic()},
                                               ov::Shape{128, 64, 5},
                                               2,
                                               ov::op::PadType::SAME_UPPER,
                                               true,
+                                              false,
                                               "Dynamic3D_AutoPad_Stride2"},
+                             // 3D Dynamic test (3-input variant)
+                             DeconvTestParams{ov::PartialShape{1, 128, -1},
+                                              ov::Shape{128, 64, 5},
+                                              2,
+                                              ov::op::PadType::EXPLICIT,
+                                              true,
+                                              true,
+                                              "Dynamic3D_WithOutputShape_Stride2"},
                              // 4D Negative test
                              DeconvTestParams{ov::PartialShape{1, 128, 100, 100},
                                               ov::Shape{128, 64, 5, 5},
                                               1,
                                               ov::op::PadType::EXPLICIT,
                                               false,  // Should NOT transform
+                                              false,
                                               "Static4D_NotTransformed"}),
                          [](const testing::TestParamInfo<DeconvTestParams>& info) {
                              return info.param.test_name;

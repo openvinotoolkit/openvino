@@ -38,6 +38,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
@@ -47,9 +48,33 @@ namespace ov::intel_cpu {
 Deconv1DDecomposition::Deconv1DDecomposition() {
     auto input_pattern = ov::pass::pattern::any_input();
     auto weights_pattern = ov::pass::pattern::any_input();
-    auto deconv_1d =
-        ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>({input_pattern, weights_pattern},
-                                                                          ov::pass::pattern::consumers_count(1));
+
+    // Predicate to check for 3D tensors (1D deconv)
+    auto is_1d_deconv = [](const ov::Output<ov::Node>& output) -> bool {
+        auto deconv = ov::as_type_ptr<ov::op::v1::ConvolutionBackpropData>(output.get_node_shared_ptr());
+        if (!deconv)
+            return false;
+
+        auto input_shape = deconv->get_input_partial_shape(0);
+        auto weights_shape = deconv->get_input_partial_shape(1);
+
+        // Only match 1D deconv (3D tensors)
+        return input_shape.rank().is_static() && input_shape.rank().get_length() == 3 &&
+               weights_shape.rank().is_static() && weights_shape.rank().get_length() == 3;
+    };
+
+    // ConvolutionBackpropData may have 2 or 3 inputs
+    auto deconv_2_inputs = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>(
+        {input_pattern, weights_pattern},
+        [is_1d_deconv](const ov::Output<ov::Node>& output) {
+            return is_1d_deconv(output);
+        });
+    auto deconv_3_inputs = ov::pass::pattern::wrap_type<ov::op::v1::ConvolutionBackpropData>(
+        {input_pattern, weights_pattern, ov::pass::pattern::any_input()},
+        [is_1d_deconv](const ov::Output<ov::Node>& output) {
+            return is_1d_deconv(output);
+        });
+    auto deconv_1d = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{deconv_2_inputs, deconv_3_inputs});
 
     ov::matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto node = m.get_match_root();
@@ -60,12 +85,6 @@ Deconv1DDecomposition::Deconv1DDecomposition() {
 
         auto input_shape = deconv->get_input_partial_shape(0);
         auto weights_shape = deconv->get_input_partial_shape(1);
-
-        // Only apply to 1D deconv (3D tensors)
-        if (!input_shape.rank().is_static() || input_shape.rank().get_length() != 3 ||
-            !weights_shape.rank().is_static() || weights_shape.rank().get_length() != 3) {
-            return false;
-        }
 
         auto input = deconv->input_value(0);
         auto weights = deconv->input_value(1);
