@@ -8,6 +8,8 @@
 
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
+#include "llm_prefix_caching.hpp"
+
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
@@ -57,6 +59,8 @@ private:
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids);
 
+    int64_t checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids, size_t block_size);
+
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids);
@@ -90,6 +94,8 @@ private:
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
+
+    std::shared_ptr<PrefixCacheManager> m_prefix_cache;
 };
 
 }  // namespace npuw
