@@ -82,7 +82,6 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generat
                                            const Xbyak_aarch64::XReg& ptr_reg,
                                            const std::vector<Xbyak_aarch64::XReg>& aux_regs,
                                            size_t runtime_offset) {
-    // Safety assertions as suggested
     OV_CPU_JIT_EMITTER_ASSERT(aux_regs.size() >= 3, "aux_regs must contain at least 3 registers");
 
     // Assert that ptr_reg is not in aux_regs
@@ -154,20 +153,15 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
     const auto sp_size = rnd_up(mem_ptrs.size() * gpr_length, sp_alignment);
     h->sub(h->sp, h->sp, sp_size);
 
-    // Push all pointers with offsets onto stack
+    // Generate stack offsets for sequential storage
+    std::vector<size_t> stack_offsets;
+    stack_offsets.reserve(mem_ptrs.size());
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
-        const auto& ptr_reg = mem_ptrs[i];
-        int32_t stack_offset = i * gpr_length;
-
-        if (ov::snippets::utils::is_dynamic_value(memory_offsets[i])) {
-            // Dynamic offset: read from runtime parameters
-            size_t runtime_offset = GET_OFF(buffer_offsets) + buffer_ids[i] * sizeof(size_t);
-            push_ptr_with_runtime_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, runtime_offset);
-        } else {
-            // Static offset: add compile-time constant
-            push_ptr_with_static_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, memory_offsets[i]);
-        }
+        stack_offsets.push_back(i * gpr_length);
     }
+
+    // Use the common function to push pointers with offsets to stack
+    push_ptrs_with_offsets_to_stack(h, mem_ptrs, memory_offsets, buffer_ids, aux_regs, stack_offsets);
 
     // Load back the adjusted pointers to specified registers
     for (size_t i = 0; i < load_regs.size() && i < mem_ptrs.size(); i++) {
@@ -187,22 +181,18 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == memory_offsets.size(), "mem_ptrs and memory_offsets size mismatch");
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == buffer_ids.size(), "mem_ptrs and buffer_ids size mismatch");
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == stack_offsets.size(), "mem_ptrs and stack_offsets size mismatch");
-    OV_CPU_JIT_EMITTER_ASSERT(aux_regs.size() >= 3, "aux_regs must contain at least 3 registers");
 
     // Store all pointers with offsets to their specific stack locations
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         const auto& ptr_reg = mem_ptrs[i];
         auto stack_offset = static_cast<int32_t>(stack_offsets[i]);
 
-        if (i < memory_offsets.size() && ov::snippets::utils::is_dynamic_value(memory_offsets[i])) {
-            if (i < buffer_ids.size() && !ov::snippets::utils::is_dynamic_value(buffer_ids[i]) && buffer_ids[i] < 24) {
-                // Dynamic offset: read from runtime parameters
-                size_t runtime_offset = GET_OFF(buffer_offsets) + buffer_ids[i] * sizeof(size_t);
-                push_ptr_with_runtime_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, runtime_offset);
-            } else {
-                // Invalid buffer ID, store with zero offset
-                push_ptr_with_static_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, 0);
-            }
+        if (ov::snippets::utils::is_dynamic_value(memory_offsets[i])) {
+            OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(buffer_ids[i]),
+                            "In dynamic case Buffer ID must be defined");
+            // Dynamic offset: read from runtime parameters
+            size_t runtime_offset = GET_OFF(buffer_offsets) + buffer_ids[i] * sizeof(size_t);
+            push_ptr_with_runtime_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, runtime_offset);
         } else {
             // Static offset: add compile-time constant
             size_t offset = (i < memory_offsets.size()) ? memory_offsets[i] : 0;

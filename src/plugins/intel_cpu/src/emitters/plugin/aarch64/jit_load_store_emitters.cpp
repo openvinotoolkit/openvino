@@ -29,19 +29,18 @@ using cpu_isa_t = dnnl::impl::cpu::aarch64::cpu_isa_t;
 // Helper function to get max_offset and alignment for different register types
 template <typename RegType>
 static std::pair<int, int> get_load_store_limits() {
-    // Default fallback
     int max_offset = 4095;
     int alignment = 1;
 
     if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
         max_offset = 65520;  // 4095 * 16
         alignment = 16;
-    } else if constexpr (std::is_same_v<RegType, SReg>) {
-        max_offset = 16380;
-        alignment = 4;
     } else if constexpr (std::is_same_v<RegType, DReg>) {
         max_offset = 32760;
         alignment = 8;
+    } else if constexpr (std::is_same_v<RegType, SReg>) {
+        max_offset = 16380;
+        alignment = 4;
     } else if constexpr (std::is_same_v<RegType, HReg>) {
         max_offset = 8190;
         alignment = 2;

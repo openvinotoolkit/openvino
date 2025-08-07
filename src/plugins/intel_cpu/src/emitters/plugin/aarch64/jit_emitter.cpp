@@ -272,38 +272,40 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
         }
     }
 
-    // 2. SIMD and Floating-Point registers
-    // 2.1. store pair registers
-    int prev_reg_idx = -1;
-    size_t ignore_registers_count = 0;
-    for (const auto reg_idx : vec_regs) {
-        if (ignore_vec_regs.find(reg_idx) != ignore_vec_regs.end()) {
-            ignore_registers_count++;
-            continue;
-        }
-        if (prev_reg_idx == -1) {
-            prev_reg_idx = static_cast<int>(reg_idx);
-            continue;
-        }
-        const auto shift = ov::intel_cpu::rnd_up(get_vec_length() * 2, sp_alignment);
-        h->stp(Xbyak_aarch64::QReg(prev_reg_idx),
-               Xbyak_aarch64::QReg(reg_idx),
-               pre_ptr(h->sp, -static_cast<int32_t>(shift)));
-        prev_reg_idx = -1;
-    }
+    // 2. SIMD and Floating-Point registers - optimized to allocate stack space once
+    const auto store_vec_regs_size = vec_regs.size() - ignore_vec_regs.size();
+    if (store_vec_regs_size > 0) {
+        // Calculate total stack space needed for all vector registers (align once)
+        const auto total_vec_shift = ov::intel_cpu::rnd_up(get_vec_length() * store_vec_regs_size, sp_alignment);
 
-    // 2.1. store the remaining register
-    if (prev_reg_idx != -1) {
-        if (ignore_vec_regs.find(prev_reg_idx) == ignore_vec_regs.end()) {
-            const auto shift = ov::intel_cpu::rnd_up(get_vec_length(), sp_alignment);
-            h->str(Xbyak_aarch64::QReg(prev_reg_idx), pre_ptr(h->sp, -static_cast<int32_t>(shift)));
-        } else {
-            ignore_registers_count++;
+        // Single stack allocation for all vector registers
+        h->sub(h->sp, h->sp, total_vec_shift);
+
+        // Store vector registers using stack offset (preserving original order)
+        const auto last = store_vec_regs_size % 2;
+        int32_t current_offset = 0;
+
+        // Collect non-ignored registers
+        std::vector<size_t> active_regs;
+        for (const auto reg_idx : vec_regs) {
+            if (ignore_vec_regs.find(reg_idx) == ignore_vec_regs.end()) {
+                active_regs.push_back(reg_idx);
+            }
+        }
+
+        // Store pairs
+        for (size_t i = 0; i < (active_regs.size() - last); i += 2) {
+            h->stp(Xbyak_aarch64::QReg(active_regs[i]),
+                   Xbyak_aarch64::QReg(active_regs[i + 1]),
+                   Xbyak_aarch64::ptr(h->sp, current_offset));
+            current_offset += static_cast<int32_t>(get_vec_length() * 2);
+        }
+
+        // Store the remaining register
+        if (last != 0) {
+            h->str(Xbyak_aarch64::QReg(active_regs[active_regs.size() - 1]), Xbyak_aarch64::ptr(h->sp, current_offset));
         }
     }
-
-    OPENVINO_ASSERT(ignore_registers_count == ignore_vec_regs.size(),
-                    "ignored registers size is not equal actual ignored registers count");
 }
 
 void jit_emitter::restore_context(const std::unordered_set<size_t>& ignore_vec_regs) const {
@@ -313,42 +315,44 @@ void jit_emitter::restore_context(const std::unordered_set<size_t>& ignore_vec_r
 void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
                                   const std::vector<size_t>& vec_regs,
                                   const std::unordered_set<size_t>& ignore_vec_regs) const {
-    // 1. SIMD and Floating-Point registers
-    // 1.1. restore the remaining register
-    auto v_last = (vec_regs.size() - ignore_vec_regs.size()) % 2;
-    if (v_last != 0) {
-        for (size_t i = 0; i < vec_regs.size(); i++) {
-            const auto reg_idx = vec_regs.size() - 1 - i;
-            if (ignore_vec_regs.find(reg_idx) != ignore_vec_regs.end()) {
-                v_last++;
-                continue;
+    // 1. SIMD and Floating-Point registers - optimized to deallocate stack space once
+    const auto save_vec_regs_size = vec_regs.size() - ignore_vec_regs.size();
+    if (save_vec_regs_size > 0) {
+        // Restore vector registers using stack offset (reverse order to match original behavior)
+        const auto last = save_vec_regs_size % 2;
+        if (last != 0) {
+            int32_t current_offset = get_vec_length() * save_vec_regs_size - get_vec_length();
+            // Find the last non-ignored register
+            for (size_t i = 0; i < vec_regs.size(); i++) {
+                const auto reg_idx = vec_regs.size() - 1 - i;
+                if (ignore_vec_regs.find(reg_idx) != ignore_vec_regs.end()) {
+                    continue;
+                }
+                h->ldr(Xbyak_aarch64::QReg(reg_idx), Xbyak_aarch64::ptr(h->sp, current_offset));
+                break;
             }
+        }
 
-            const auto shift = ov::intel_cpu::rnd_up(get_vec_length(), sp_alignment);
-            h->ldr(Xbyak_aarch64::QReg(reg_idx), post_ptr(h->sp, shift));
-            break;
+        // Collect non-ignored registers
+        std::vector<size_t> active_regs;
+        for (const auto reg_idx : vec_regs) {
+            if (ignore_vec_regs.find(reg_idx) == ignore_vec_regs.end()) {
+                active_regs.push_back(reg_idx);
+            }
         }
-    }
-    // 1.2. restore pair registers
-    size_t ignore_registers_count = 0;
-    int prev_reg_idx = -1;
-    for (size_t i = v_last; i < vec_regs.size(); i++) {
-        const auto reg_idx = vec_regs.size() - 1 - i;
-        if (ignore_vec_regs.find(reg_idx) != ignore_vec_regs.end()) {
-            ignore_registers_count++;
-            continue;
-        }
-        if (prev_reg_idx == -1) {
-            prev_reg_idx = static_cast<int>(reg_idx);
-            continue;
-        }
-        const auto shift = ov::intel_cpu::rnd_up(get_vec_length() * 2, sp_alignment);
-        h->ldp(Xbyak_aarch64::QReg(reg_idx), Xbyak_aarch64::QReg(prev_reg_idx), post_ptr(h->sp, shift));
-        prev_reg_idx = -1;
-    }
 
-    OPENVINO_ASSERT(ignore_registers_count == ignore_vec_regs.size(),
-                    "ignored registers size is not equal actual ignored registers count");
+        // Restore pairs in reverse order
+        for (size_t i = last; i < active_regs.size(); i += 2) {
+            int32_t current_offset = get_vec_length() * (active_regs.size() - (i + 2));
+            h->ldp(Xbyak_aarch64::QReg(active_regs[active_regs.size() - 1 - (i + 1)]),
+                   Xbyak_aarch64::QReg(active_regs[active_regs.size() - 1 - i]),
+                   Xbyak_aarch64::ptr(h->sp, current_offset));
+        }
+
+        const auto total_vec_shift = ov::intel_cpu::rnd_up(get_vec_length() * save_vec_regs_size, sp_alignment);
+        // Single stack deallocation for all vector registers
+        h->add(h->sp, h->sp, total_vec_shift);
+    }
 
     // 2. General-purpose Registers - optimized to deallocate stack space once
     const auto save_gpr_regs_size = gpr_regs.size();

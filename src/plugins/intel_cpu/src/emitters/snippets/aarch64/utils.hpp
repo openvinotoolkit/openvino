@@ -85,6 +85,7 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generato
 
 /**
  * @brief Push multiple data pointers on stack with offsets and load them back to specified registers
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
  * @param h generator
  * @param mem_ptrs vector of registers containing data pointers
  * @param memory_offsets vector of memory offsets (can be dynamic or static)
@@ -103,6 +104,7 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
  * @brief Push multiple data pointers to specific stack offsets with applied memory offsets
  * This is designed for struct-based calling conventions where pointers need to be stored
  * at specific stack locations rather than loaded back to registers.
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
  * @param h generator
  * @param mem_ptrs vector of registers containing data pointers
  * @param memory_offsets vector of memory offsets (can be dynamic or static)

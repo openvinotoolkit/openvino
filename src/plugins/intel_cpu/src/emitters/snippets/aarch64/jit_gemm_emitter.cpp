@@ -79,8 +79,6 @@ void jit_gemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
 void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const {
     const auto& call_address_reg = get_call_address_reg();
-    const auto& callee_saved_reg = get_callee_saved_reg();
-
     std::unordered_set<size_t> exclude_spill = {};
     store_context(exclude_spill);
 
@@ -96,7 +94,7 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
     // Collect used register indices to avoid conflicts with auxiliary registers
-    std::vector<size_t> used_gpr_idxs = {call_address_reg.getIdx(), callee_saved_reg.getIdx()};
+    std::vector<size_t> used_gpr_idxs = {call_address_reg.getIdx()};
     for (const auto& reg : mem_ptrs) {
         used_gpr_idxs.push_back(reg.getIdx());
     }
