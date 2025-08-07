@@ -847,7 +847,6 @@ Example:
     <skip_config>
         <message>compiled_blob test use `CACHE_MODE` which is not supported on NPU</message>
         <filters>
-            <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_regular_blob/.*</filter>
             <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_weightless_blob_but_no_weights/.*</filter>
             <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.compile_from_cached_weightless_blob_use_weight_hint/.*</filter>
             <filter>.*smoke_BehaviorTests/OVCompiledModelBaseTest.use_blob_hint_has_priority_over_cache/.*</filter>
