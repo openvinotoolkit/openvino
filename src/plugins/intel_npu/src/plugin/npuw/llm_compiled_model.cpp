@@ -1350,6 +1350,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
+        write(model_stream, m_max_lora_rank);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1557,6 +1558,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
+        read(model_stream, compiled->m_max_lora_rank);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
