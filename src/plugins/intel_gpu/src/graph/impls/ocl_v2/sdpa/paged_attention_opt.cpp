@@ -268,7 +268,6 @@ public:
         jit.make("PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         jit.make("SUBGROUP_SIZE", subgroup_size);
         jit.make("SLIDING_WINDOW_SIZE", desc->sliding_window);
-        jit.make("HEADS_PER_WI", 1);
 
         bool is_kv_compressed = get_kv_compressed(params);
         jit.make("IS_KV_COMPRESSED", is_kv_compressed);
@@ -452,6 +451,7 @@ public:
         auto heads_per_wi = get_heads_per_wi(kv_group_size);
 
         // GQA
+        jit.remove("HEADS_PER_WI");
         jit.make("HEADS_PER_WI", heads_per_wi);
         jit.make("ITERATIONS_PER_KV_HEADS_GROUP", ceil_div(kv_group_size, heads_per_wi));
         jit.make("HEADS_LEFTOVERS_NUM", kv_group_size % heads_per_wi);
@@ -486,6 +486,7 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
         jit.make("SDPA_STAGE_1", 1);
+        jit.make("HEADS_PER_WI", 1);
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -542,6 +543,7 @@ public:
         auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
         jit.make("SDPA_STAGE_0", 1);
         jit.make("MULTI_TOKENS_PROCESSING", 1);
+        jit.make("HEADS_PER_WI", 1);
 
         const auto desc = params.typed_desc<paged_attention>();
         const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
@@ -632,6 +634,7 @@ public:
         auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
         jit.make("SDPA_STAGE_1", 1);
         jit.make("MULTI_TOKENS_PROCESSING", 1);
+        jit.make("HEADS_PER_WI", 1);
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -688,6 +691,7 @@ public:
     [[nodiscard]] JitConstants get_jit_constants(const kernel_impl_params& params) const override {
         auto jit = PagedAttentionGeneratorBase::get_jit_constants(params);
         jit.make("SDPA_STAGE_2", 1);
+        jit.make("HEADS_PER_WI", 1);
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
