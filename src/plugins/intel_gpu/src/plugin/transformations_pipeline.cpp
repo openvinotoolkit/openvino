@@ -1228,7 +1228,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
-        if (device_info.supports_immad) {
+        if (device_info.supports_immad && config.get_use_onednn()) {
             bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();
