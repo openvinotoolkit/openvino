@@ -25,7 +25,8 @@ struct Evaluate : element::NoAction<bool> {
                              const int64_t one_hot_axis,
                              const char* const on_value,
                              const char* const off_value,
-                             const int64_t axis) {
+                             const int64_t axis,
+                             const v1::OneHot::NegativeIndicesMode mode) {
         reference::one_hot(indices.data<const T>(),
                            indices_shape,
                            output_data,
@@ -33,7 +34,8 @@ struct Evaluate : element::NoAction<bool> {
                            one_hot_axis,
                            axis,
                            on_value,
-                           off_value);
+                           off_value,
+                           mode);
         return true;
     }
 };
@@ -44,9 +46,11 @@ OneHot::OneHot(const Output<Node>& indices,
                const Output<Node>& depth,
                const Output<Node>& on_value,
                const Output<Node>& off_value,
-               int64_t axis)
+               int64_t axis,
+               NegativeIndicesMode mode)
     : Op({indices, depth, on_value, off_value}),
-      m_axis(axis) {
+      m_axis(axis),
+      m_negative_indices_mode(mode) {
     mark_as_precision_sensitive(input(1));
     constructor_validate_and_infer_types();
 }
@@ -85,13 +89,14 @@ void OneHot::validate_and_infer_types() {
 bool OneHot::visit_attributes(AttributeVisitor& visitor) {
     OV_OP_SCOPE(v1_OneHot_visit_attributes);
     visitor.on_attribute("axis", m_axis);
+    visitor.on_attribute("negative_indices_mode", m_negative_indices_mode);
     return true;
 }
 
 std::shared_ptr<Node> OneHot::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v1_OneHot_clone_with_new_inputs);
     check_new_args_count(this, new_args);
-    return std::make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis);
+    return std::make_shared<v1::OneHot>(new_args.at(0), new_args.at(1), new_args.at(2), new_args.at(3), m_axis, m_negative_indices_mode);
 }
 
 bool OneHot::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
@@ -129,7 +134,8 @@ bool OneHot::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
                       output.get_shape()[axis],
                       on_value,
                       off_value,
-                      axis);
+                      axis,
+                      get_negative_indices_mode());
 }
 
 bool OneHot::has_evaluate() const {
@@ -149,4 +155,20 @@ void OneHot::set_axis(int64_t axis) {
 }
 }  // namespace v1
 }  // namespace op
+
+std::ostream& operator<<(std::ostream& s, const op::v1::OneHot::NegativeIndicesMode& mode) {
+    return s << as_string(mode);
+}
+
+template <>
+OPENVINO_API EnumNames<op::v1::OneHot::NegativeIndicesMode>& EnumNames<op::v1::OneHot::NegativeIndicesMode>::get() {
+    static auto enum_names = EnumNames<op::v1::OneHot::NegativeIndicesMode>(
+        "op::v1::OneHot::NegativeIndicesMode",
+        {{"ignore_negative", op::v1::OneHot::NegativeIndicesMode::IGNORE_NEGATIVE},
+         {"normalize", op::v1::OneHot::NegativeIndicesMode::NORMALIZE}});
+    return enum_names;
+}
+
+AttributeAdapter<op::v1::OneHot::NegativeIndicesMode>::~AttributeAdapter() = default;
+
 }  // namespace ov
