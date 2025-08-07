@@ -69,17 +69,15 @@ Output<Node> low_precision_subgraph(const NodeContext& context,
                                     const Output<Node>& x,
                                     const Output<Node>& weights,
                                     const Output<Node>& zero_points,
-                                    const Output<Node>& scales) {
+                                    const Output<Node>& scales,
+                                    const Output<Node>& out_shape) {
     auto new_qweight = context.mark_node(std::make_shared<v0::Convert>(weights, scales.get_element_type()));
     auto new_qzeros = context.mark_node(std::make_shared<v0::Convert>(zero_points, scales.get_element_type()));
 
     auto w_s = context.mark_node(std::make_shared<v1::Subtract>(new_qweight, new_qzeros));
     auto weight = context.mark_node(std::make_shared<v1::Multiply>(w_s, scales));
     auto weight_shape = weights.get_shape();
-    if (weight_shape.size() > 2) {
-        auto out_shape = v0::Constant::create(element::i32,
-                                              {2},
-                                              std::vector<int32_t>{static_cast<int32_t>(weights.get_shape()[0]), -1});
+    if (out_shape.get_node() != nullptr) {
         weight = context.mark_node(std::make_shared<v1::Reshape>(weight, out_shape, false));
     }
     weight = context.mark_node(std::make_shared<v1::ConvertLike>(weight, x));
@@ -154,7 +152,9 @@ OutputVector translate_linear_awq(const NodeContext& context) {
     auto new_scales_shape =
         v0::Constant::create(element::i32, {3}, std::vector<uint64_t>{scales_shape[0], 1, scales_shape[1]});
     auto new_scales = context.mark_node(std::make_shared<v1::Reshape>(scales, new_scales_shape, false));
-    auto weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales);
+    auto out_shape =
+        v0::Constant::create(element::i32, {2}, std::vector<int32_t>{static_cast<int32_t>(qweight.get_shape()[0]), -1});
+    auto weight = low_precision_subgraph(context, x, new_qweight, new_qzeros, new_scales, out_shape);
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, false));
     if (!context.input_is_none(6)) {
@@ -187,7 +187,7 @@ OutputVector translate_linear_bitnet(const NodeContext& context) {
     }
     new_weight->set_friendly_name(constant->get_friendly_name());
     auto zero_point = context.mark_node(std::make_shared<v0::Constant>(element::u2, Shape{}, 1));
-    auto mm_weight = low_precision_subgraph(context, x, new_weight, zero_point, scales);
+    auto mm_weight = low_precision_subgraph(context, x, new_weight, zero_point, scales, {});
 
     auto matmul = context.mark_node(std::make_shared<v0::MatMul>(x, mm_weight, false, true));
     if (!context.input_is_none(3)) {
