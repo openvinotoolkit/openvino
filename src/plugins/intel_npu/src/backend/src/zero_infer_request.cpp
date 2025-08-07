@@ -900,12 +900,16 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       levelZeroOutput->data(),
-                                                      levelZeroOutput->get_byte_size());
+                                                      levelZeroOutput->get_byte_size(),
+                                                      levelZeroOutput->get_strides(),
+                                                      levelZeroOutput->get_shape());
 
                     _pipeline->update_graph_arguments(
                         _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
                         levelZeroOutput->data(),
-                        levelZeroOutput->get_byte_size());
+                        levelZeroOutput->get_byte_size(),
+                        levelZeroOutput->get_strides(),
+                        levelZeroOutput->get_shape());
 
                     zeroState->reset_zero_tensor_updated_flag();
                 }
