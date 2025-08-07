@@ -404,10 +404,17 @@ void ov::npuw::LLMInferRequest::apply_lora() {
         if (state_tensor->get_size() == 0) {
             // Generate without LoRA:
             // the size of applied LoRA tensor from GenAI is 0
+
+            // Initialize a new tensor for inference
+            // Note: Clearing data in inference requests may lead to a segmentation fault on Linux systems
             auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-            fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
-            auto kvcache_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
-            fill_tensor<float>(kvcache_lora_in_tensor, 0.0f);
+            auto new_tensor_for_infer = ov::get_tensor_impl(
+                ov::Tensor(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape()));
+            fill_tensor<float>(new_tensor_for_infer, 0.0f);
+
+            // Set new tensor for inference
+            m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), new_tensor_for_infer);
+            m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), new_tensor_for_infer);
         } else {
             // Generate with LoRA
             auto infer_tensor_shape = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name))->get_shape();
