@@ -3,6 +3,8 @@
 //
 
 #include <memory>
+#include <queue>
+#include <unordered_set>
 
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
@@ -45,8 +47,8 @@
 #include "transformations/utils/utils.hpp"
 #include "disable_fp16_comp_for_periodic_funcs.hpp"
 
-// Modified checking method to check whether the data type of sin/cos is propagated through
-// input/output nodes based on the is_propagate_through_node function from ngraph pass's convert precision.
+// Uses propagate_through_ops whitelist from mark_subgraph_to_keep_in_mixed_precision in convert precision pass
+// to ensure consistent behavior with OpenVINO's existing mixed precision logic.
 static bool is_propagate_through_node(const std::shared_ptr<ov::Node>& node) {
     return ov::is_type<ov::op::v0::Squeeze>(node) ||
            ov::is_type<ov::op::v0::Unsqueeze>(node) ||
@@ -106,32 +108,42 @@ ov::intel_gpu::DisableFP16CompressionForPeriodicFuncs::DisableFP16CompressionFor
         OPENVINO_ASSERT(current_node && !current_node->inputs().empty(),
                         "current_node should not be null and have inputs");
 
-        // Traverse the input chain to find the first value-modifying node
-        while (current_node) {
-            /*
-            * Move to the first input node, the reason that we only traverse first input:
-            * 1. Sin/Cos operations have only one input containing the actual data
-            * 2. For non-value-modifying operations (reshape, transpose, etc.), input[0] contains the actual data
-            *    while other inputs (input[1], input[2]...) are metadata for:
-            *    - Shape information (target shape for reshape)
-            *    - Index information (axes for transpose, gather indices)
-            *    - Broadcasting parameters (broadcast shape)
-            *    These metadata inputs don't affect the actual data values, only how the data is arranged or accessed
-            * 3. Since we're tracking the data flow that affects numerical precision,
-            *    we only need to follow the path of actual data (input[0])
-            */
-            current_node = current_node->get_input_node_shared_ptr(0);  // Follow only the first input
+        // Traverse the input chain to find the first non-propagate-through nodes
+        std::queue<std::shared_ptr<ov::Node>> nodes_to_process;
+        std::unordered_set<std::shared_ptr<ov::Node>> visited;
+
+        nodes_to_process.push(current_node);
+        visited.insert(current_node);
+
+        /*
+        * Use BFS to traverse input chain and find non-propagate-through nodes
+        * to apply disable_fp16_compression, preventing fp16 precision data loss.
+        */
+        while (!nodes_to_process.empty()) {
+            current_node = nodes_to_process.front();
+            nodes_to_process.pop();
+
             if (!current_node || current_node->inputs().empty()) {
-                break;
+                continue;
             }
 
-            if (ov::fp16_compression_is_disabled(current_node)) {
-                break;
+            if (ov::fp16_compression_is_disabled(current_node)
+                && (node->get_friendly_name() != current_node->get_friendly_name())) {
+                continue;
             }
 
             if (!is_propagate_through_node(current_node)) {
                 ov::disable_fp16_compression(current_node);
-                break;
+                continue;
+            }
+
+            // For propagate-through nodes, add all input nodes to processing queue
+            for (size_t i = 0; i < current_node->inputs().size(); ++i) {
+                auto input_node = current_node->get_input_node_shared_ptr(i);
+                if (input_node && visited.find(input_node) == visited.end()) {
+                    nodes_to_process.push(input_node);
+                    visited.insert(input_node);
+                }
             }
         }
 
