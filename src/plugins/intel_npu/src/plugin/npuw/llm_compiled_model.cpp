@@ -125,7 +125,8 @@ private:
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
-        auto fake_convert = opp::optional<ov::op::v13::FakeConvert>({concat->output(0), opp::any_input(), opp::any_input()});
+        auto fake_convert =
+            opp::optional<ov::op::v13::FakeConvert>({concat->output(0), opp::any_input(), opp::any_input()});
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, fake_convert});
 
@@ -163,7 +164,8 @@ private:
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
-        auto fake_convert = opp::optional<ov::op::v13::FakeConvert>({concat->output(0), opp::any_input(), opp::any_input()});
+        auto fake_convert =
+            opp::optional<ov::op::v13::FakeConvert>({concat->output(0), opp::any_input(), opp::any_input()});
 
         // only difference is that broadcast wrapped into unsquese/reshape, while transposed tensor didn't change
         const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
