@@ -838,7 +838,22 @@ void ov::npuw::LLMInferRequest::infer() {
     OPENVINO_ASSERT(ov::element::i64 == position_ids->get_element_type());
 
     // NB: Check the sequence length provided for input_ids
-    // in order to distinguish prefill / generate stages
+    //     and start position idx in order to distinguish prefill
+    //     and generate stages.
+    // Notes for Speculative Decoding:
+    // 1. If model is a draft one in speculative decoding setting,
+    //    we expect it to be launched for more than 1 token only once,
+    //    while all other candidates to be generated consequentively
+    //    on previous token output.
+    // 2. If model is a main one in speculative decoding setting,
+    //    then it will be launched on multiple tokens at every iteration.
+    //    However, only the first iteration will take the input prompt
+    //    of variable length, while others will be launched on fixed
+    //    number of candidates, that can be easily done in generate phase
+    //    if generate model is reshaped to output kvcache for such fixed
+    //    number of candidates. To differentiate prefill and generate
+    //    calls for main model, we just check that start position id
+    //    is 0, meaning this is the first input prompt.
     if (input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] > 1 && position_ids->data<int64_t>()[0] == 0) {
         infer_prefill(input_ids, attention_mask, position_ids);
     } else {
