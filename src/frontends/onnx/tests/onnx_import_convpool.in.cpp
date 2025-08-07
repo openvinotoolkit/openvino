@@ -334,7 +334,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_dilations_include_pad_
     const auto model = convert_model("average_pool_2d_dilations_include_pad_ceil_mode.onnx");
 
     auto test_case = ov::test::TestCase(model, s_device);
-    std::vector<float> input_data(1*1*32*32);
+    std::vector<float> input_data(1 * 1 * 32 * 32);
     std::iota(std::begin(input_data), std::end(input_data), 0.0f);
     test_case.add_input<float>(input_data);
     test_case.add_expected_output<float>(
