@@ -9,6 +9,7 @@
 namespace ov::intel_cpu::riscv64 {
 
 class jit_exp_emitter;
+class jit_tanh_emitter;
 
 class jit_abs_emitter : public jit_emitter {
 public:
@@ -307,6 +308,8 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
+    std::unique_ptr<jit_tanh_emitter> tanh_emitter{nullptr};
+
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <cpu_isa_t isa>
@@ -781,6 +784,8 @@ public:
     size_t aux_vecs_count() const override;
     size_t aux_fp_gprs_count() const override;
 
+    void emit_data() const override;
+
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
@@ -788,7 +793,6 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
-    void emit_data() const override;
 
     void register_table_entries() override;
 
@@ -851,6 +855,8 @@ public:
         const std::shared_ptr<ov::Node>& node = nullptr);
 
 private:
+    std::unique_ptr<jit_sigmoid_emitter> sigmoid_emitter{nullptr};
+
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
     template <cpu_isa_t isa>

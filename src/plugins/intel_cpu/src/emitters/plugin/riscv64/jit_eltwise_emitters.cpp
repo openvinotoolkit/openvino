@@ -975,6 +975,7 @@ jit_gelu_tanh_emitter::jit_gelu_tanh_emitter(jit_generator_t* host,
                                              const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
+    tanh_emitter = std::make_unique<jit_tanh_emitter>(host, host_isa, exec_prc_);
 }
 
 jit_gelu_tanh_emitter::jit_gelu_tanh_emitter(jit_generator_t* host,
@@ -982,6 +983,7 @@ jit_gelu_tanh_emitter::jit_gelu_tanh_emitter(jit_generator_t* host,
                                              const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
+    tanh_emitter = std::make_unique<jit_tanh_emitter>(host, host_isa, exec_prc_);
 }
 
 size_t jit_gelu_tanh_emitter::get_inputs_num() const {
@@ -1008,7 +1010,7 @@ void jit_gelu_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for GELU_TANH");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for GELU_TANH");
     }
 }
 
@@ -1033,12 +1035,12 @@ void jit_gelu_tanh_emitter::register_table_entries() {
 
 std::set<std::vector<element::Type>> jit_gelu_tanh_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32}};
 }
 
 void jit_gelu_tanh_emitter::emit_data() const {
-    //todo tanh emitter
     jit_emitter::emit_data();
+    tanh_emitter->emit_data();
 }
 
 /// GREATER EQUAL ///
@@ -2461,6 +2463,7 @@ jit_tanh_emitter::jit_tanh_emitter(jit_generator_t* host,
                                    const element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {
     prepare_table();
+    sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc_);
 }
 
 jit_tanh_emitter::jit_tanh_emitter(jit_generator_t* host,
@@ -2468,6 +2471,7 @@ jit_tanh_emitter::jit_tanh_emitter(jit_generator_t* host,
                                    const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
+    sigmoid_emitter = std::make_unique<jit_sigmoid_emitter>(host, host_isa, exec_prc_);
 }
 
 size_t jit_tanh_emitter::get_inputs_num() const {
@@ -2475,18 +2479,15 @@ size_t jit_tanh_emitter::get_inputs_num() const {
 }
 
 size_t jit_tanh_emitter::aux_gprs_count() const {
-    //todo
-    return 1;
+    return sigmoid_emitter->aux_gprs_count() + 1LU;
 }
 
 size_t jit_tanh_emitter::aux_fp_gprs_count() const {
-    //todo
-    return 1;
+    return std::max<size_t>(sigmoid_emitter->aux_fp_gprs_count(), 1LU);
 }
 
 size_t jit_tanh_emitter::aux_vecs_count() const {
-    //todo
-    return 1;
+    return sigmoid_emitter->aux_vecs_count();
 }
 
 void jit_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -2494,7 +2495,7 @@ void jit_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for TANH");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for TANH");
     }
 }
 
@@ -2504,27 +2505,36 @@ void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
-    //auto one = FReg(aux_fp_gpr_idxs[0]);
-    //load_table_val("one", one);
+    auto fp = FReg(aux_fp_gpr_idxs[0]);
+    
+    load_table_val("two", fp);
+    h->vfmul_vf(dst, src, fp);
 
-    //h->vmv_v_x(dst, zero);
-    //h->vmfge_vv(mask_vreg(), src0, src1);
-    //h->vfadd_vf(dst, dst, one, VM::masked);
+    sigmoid_emitter->emit_code({static_cast<size_t>(dst.getIdx())},
+                               {static_cast<size_t>(dst.getIdx())},
+                               aux_vec_idxs,
+                               aux_gpr_idxs,
+                               aux_fp_gpr_idxs);
+
+    load_table_val("two", fp);
+    h->vfmul_vf(dst, dst, fp);
+    load_table_val("one", fp);
+    h->vfsub_vf(dst, dst, fp);
 }
 
 void jit_tanh_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
-    push_arg_entry_of("half", 0x3f000000);
+    push_arg_entry_of("two", 0x40000000);
 }
 
 std::set<std::vector<element::Type>> jit_tanh_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
-    return {{element::f32, element::f32}};
+    return {{element::f32}};
 }
 
 void jit_tanh_emitter::emit_data() const {
-    //todo sigmoid
     jit_emitter::emit_data();
+    sigmoid_emitter->emit_data();
 }
 
 #undef CONST_1_F
