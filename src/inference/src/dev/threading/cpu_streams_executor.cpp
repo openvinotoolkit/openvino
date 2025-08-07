@@ -109,9 +109,21 @@ struct CPUStreamsExecutor::Impl {
             auto stream_processors = _impl->_config.get_stream_processor_ids();
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
+            int tbb_version;
+#    if (TBB_INTERFACE_VERSION < 12000)
+            tbb_version = tbb::TBB_runtime_interface_version();
+#    else
+            tbb_version = TBB_runtime_interface_version();
+#    endif
             if (stream_type == STREAM_WITHOUT_PARAM) {
+                int version_major = tbb_version / 100;
+                int version_minor = tbb_version % 100;
+                bool support_core_types = false;
+                if ((version_major == 120 && version_minor >= 26) || (version_major == 121 && version_minor >= 31)) {
+                    support_core_types = true;
+                }
                 auto core_types = tbb::info::core_types();
-                if (core_types.size() > 2) {  // size should be 3 on PTL
+                if (support_core_types && core_types.size() > 2) {  // size should be 3 on PTL
                     _taskArena.reset(
                         new custom::task_arena{custom::task_arena::constraints{}
                                                    .set_max_concurrency(concurrency)
@@ -128,12 +140,6 @@ struct CPUStreamsExecutor::Impl {
                 auto real_numa_node_id = _numaNodeId;
 #    else
                 auto real_numa_node_id = get_org_numa_id(_numaNodeId);
-                int tbb_version;
-#        if (TBB_INTERFACE_VERSION < 12000)
-                tbb_version = tbb::TBB_runtime_interface_version();
-#        else
-                tbb_version = TBB_runtime_interface_version();
-#        endif
                 if (tbb_version >= 12040) {
                     real_numa_node_id = _numaNodeId;
                 }
