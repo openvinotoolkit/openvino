@@ -17,6 +17,8 @@
 
 namespace py = pybind11;
 
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+
 void PyOp::validate_and_infer_types() {
     PYBIND11_OVERRIDE(void, ov::op::Op, validate_and_infer_types);
 }
@@ -50,7 +52,13 @@ const ov::op::Op::type_info_t& PyOp::get_type_info() const {
 }
 
 bool PyOp::evaluate(ov::TensorVector& output_values, const ov::TensorVector& input_values) const {
-    PYBIND11_OVERRIDE(bool, ov::op::Op, evaluate, output_values, input_values);
+    py::gil_scoped_acquire gil;  // Acquire the GIL while in this scope.
+    py::function overrided_py_method = pybind11::get_override(this, "evaluate");
+
+    if (overrided_py_method) {
+        return static_cast<py::bool_>(overrided_py_method(&output_values, &input_values));  // Call the Python function.
+    }
+    return true;
 }
 
 bool PyOp::has_evaluate() const {
