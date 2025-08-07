@@ -27,13 +27,7 @@ class PadLayerGPUTest : public testing::WithParamInterface<PadLayerGPUTestParamS
                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PadLayerGPUTestParamSet> obj) {
-        InputShape shapes;
-        ov::element::Type model_type;
-        std::vector<int64_t> padsBegin, padsEnd;
-        ov::op::PadMode padMode;
-        float argPadValue;
-        std::vector<ov::test::utils::InputLayerType> inputLayerTypes;
-        std::tie(shapes, model_type, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = obj.param;
+        const auto& [shapes, model_type, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode] = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -58,10 +52,11 @@ protected:
     float argPadValue;
 
     void SetUp() override {
-        InputShape shapes;
-        ov::op::PadMode padMode;
-        std::vector<ov::test::utils::InputLayerType> inputLayerTypes;
-        std::tie(shapes, inType, padsBegin, padsEnd, argPadValue, inputLayerTypes, padMode) = this->GetParam();
+        const auto& [shapes, _inType, _padsBegin, _padsEnd, _argPadValue, inputLayerTypes, padMode] = this->GetParam();
+        inType = _inType;
+        padsBegin = _padsBegin;
+        padsEnd = _padsEnd;
+        argPadValue = _argPadValue;
 
         targetDevice = ov::test::utils::DEVICE_GPU;
 

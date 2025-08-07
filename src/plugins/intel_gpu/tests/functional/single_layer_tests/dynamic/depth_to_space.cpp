@@ -25,11 +25,7 @@ class DepthToSpaceLayerGPUTest : public testing::WithParamInterface<DepthToSpace
                                  virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<DepthToSpaceLayerGPUTestParams> obj) {
-        InputShape shapes;
-        ov::element::Type inType;
-        DepthToSpace::DepthToSpaceMode mode;
-        std::size_t blockSize;
-        std::tie(shapes, inType, mode, blockSize) = obj.param;
+        const auto& [shapes, inType, mode, blockSize] = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -55,10 +51,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ov::op::v0::DepthToSpace::DepthToSpaceMode mode;
-        std::size_t blockSize;
-        std::tie(shapes, inType, mode, blockSize) = this->GetParam();
+        const auto& [shapes, _inType, mode, blockSize] = this->GetParam();
+        inType = _inType;
 
         targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes({shapes});

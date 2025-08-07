@@ -33,17 +33,9 @@ class TensorIteratorWithConfigTest : public testing::WithParamInterface<TensorIt
                                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<TensorIteratorWithConfigParams> &obj) {
-        size_t seq_lengths;
-        size_t batch;
-        size_t hidden_size;
         size_t input_size = 10;
-        size_t sequence_axis;
-        ov::test::utils::TensorIteratorBody ti_body;
-        float clip;
-        ov::op::RecurrentSequenceDirection direction;
-        ov::element::Type model_type;
-        std::string target_device;
-        std::tie(seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, model_type, target_device) = obj.param;
+
+        const auto& [seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, model_type, target_device] = obj.param;
         std::vector<std::vector<size_t>> inputShapes = {};
 
         switch (ti_body) {
@@ -82,16 +74,10 @@ public:
 
 protected:
     void SetUp() override {
-        size_t seq_lengths;
-        size_t batch;
-        size_t hidden_size;
         size_t input_size = 10;
-        size_t sequence_axis;
-        ov::test::utils::TensorIteratorBody ti_body;
-        float clip;
-        ov::op::RecurrentSequenceDirection direction;
-        ov::element::Type model_type;
-        std::tie(seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, model_type, targetDevice) = this->GetParam();
+
+        const auto& [seq_lengths, batch, hidden_size, sequence_axis, clip, ti_body, direction, model_type, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
 
         std::vector<std::vector<size_t>> inputShapes;
         auto tensor_iterator = std::make_shared<ov::op::v0::TensorIterator>();

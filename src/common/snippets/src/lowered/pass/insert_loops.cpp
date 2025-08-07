@@ -52,14 +52,14 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
                                                         out_num,
                                                         loop_id);
 
-    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
-    const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_bounds.first, loop_id);
+    const auto [loop_begin_bound, loop_end_bound] = loop_manager->get_loop_bounds(linear_ir, loop_id);
+    const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_begin_bound, loop_id);
 
     const auto loop_begin_expr =
-        *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_bounds.first);
+        *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_begin_bound);
     // Add LoopBegin port connector
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
-    linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
+    linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_end_bound);
 }
 
 bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
