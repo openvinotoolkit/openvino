@@ -271,16 +271,12 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
                     y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
                 } else if (is_reflection) {
-                    // For REFLECTION mode with align_corners=false, don't reflect continuous coordinates
-                    // Reflection will be applied to discrete indices after rounding
-                    if (!attrs.align_corners) {
-                        x_padded = x;
-                        y_padded = y;
-                    } else {
-                        // For align_corners=true, apply reflection to continuous coordinates
-                        x_padded = apply_reflection(x, w_in_f);
-                        y_padded = apply_reflection(y, h_in_f);
-                    }
+                    // PyTorch's reference implementation (grid_sampler.cpp / compute_source_index())
+                    // always does exactly one reflection on the continuous value and never re-reflects 
+                    // the rounded index. Apply reflection to continuous coordinates for both 
+                    // align_corners variants.
+                    x_padded = apply_reflection(x, w_in_f);
+                    y_padded = apply_reflection(y, h_in_f);
                 } else {
                     // zeros padding - use original coordinates
                     x_padded = x;
@@ -300,57 +296,7 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
                 }
                 
-                // Apply discrete index reflection for REFLECTION mode
-                if (is_reflection) {
-                    if (!attrs.align_corners) {
-                        // Helper lambda for discrete index reflection with align_corners=false
-                        auto reflect_discrete_nearest = [&](const std::shared_ptr<ov::Node>& idx,
-                                                             const std::shared_ptr<ov::Node>& size_f) {
-                            // period = 2 * size
-                            auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
-                            auto period_minus_1 = std::make_shared<ov::op::v1::Subtract>(two_size, const_1);
-                            
-                            // Proper modulo: ((idx mod period) + period) mod period
-                            auto mod1 = std::make_shared<ov::op::v1::FloorMod>(idx, two_size);
-                            auto mod1_plus_period = std::make_shared<ov::op::v1::Add>(mod1, two_size);
-                            auto mod2 = std::make_shared<ov::op::v1::FloorMod>(mod1_plus_period, two_size);
-                            
-                            // If mod2 >= size, use (period - 1 - mod2)
-                            auto need_reflect = std::make_shared<ov::op::v1::GreaterEqual>(mod2, size_f);
-                            auto reflected_val = std::make_shared<ov::op::v1::Subtract>(period_minus_1, mod2);
-                            return std::make_shared<ov::op::v1::Select>(need_reflect, reflected_val, mod2);
-                        };
-                        
-                        x_idx = reflect_discrete_nearest(x_idx, w_in_f);
-                        y_idx = reflect_discrete_nearest(y_idx, h_in_f);
-                    } else {
-                        // For align_corners=true, also need discrete reflection but with different period
-                        auto reflect_discrete_align = [&](const std::shared_ptr<ov::Node>& idx,
-                                                          const std::shared_ptr<ov::Node>& size_f) {
-                            // period = 2 * (size - 1) for align_corners=true
-                            auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
-                            auto period = std::make_shared<ov::op::v1::Multiply>(const_2, size_minus_1);
-                            
-                            // Proper modulo: ((idx mod period) + period) mod period
-                            auto mod1 = std::make_shared<ov::op::v1::FloorMod>(idx, period);
-                            auto mod1_plus_period = std::make_shared<ov::op::v1::Add>(mod1, period);
-                            auto r = std::make_shared<ov::op::v1::FloorMod>(mod1_plus_period, period);
-                            
-                            // If r >= size, use (period - r)
-                            auto need_reflect = std::make_shared<ov::op::v1::GreaterEqual>(r, size_f);
-                            auto reflected_val = std::make_shared<ov::op::v1::Subtract>(period, r);
-                            std::shared_ptr<ov::Node> reflected_idx = std::make_shared<ov::op::v1::Select>(need_reflect, reflected_val, r);
-                            
-                            // Clamp to [0, size-1] to handle edge cases
-                            reflected_idx = std::make_shared<ov::op::v1::Maximum>(reflected_idx, const_0);
-                            reflected_idx = std::make_shared<ov::op::v1::Minimum>(reflected_idx, size_minus_1);
-                            return reflected_idx;
-                        };
-                        
-                        x_idx = reflect_discrete_align(x_idx, w_in_f);
-                        y_idx = reflect_discrete_align(y_idx, h_in_f);
-                    }
-                }
+                // No discrete index reflection needed - reflection was already applied to continuous coordinates
                 
                 // Use helper function to gather values
                 result = gather_values(x_idx, y_idx);
