@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -151,7 +152,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
     enum csinn_api_enum shl_api = CSINN_RVV;
     switch (shlEltwiseAttrs.data.algo) {
     case Algorithm::EltwiseAdd:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        params = std::make_unique<ShlDisoParams>(sess, shl_api);
         initFunc = [&]() {
             return csinn_add_init(srcTensors[0].get(),
                                   srcTensors[1].get(),
@@ -166,7 +167,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         };
         break;
     case Algorithm::EltwiseSubtract:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        params = std::make_unique<ShlDisoParams>(sess, shl_api);
         initFunc = [&]() {
             return csinn_sub_init(srcTensors[0].get(),
                                   srcTensors[1].get(),
@@ -181,7 +182,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         };
         break;
     case Algorithm::EltwiseMultiply:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        params = std::make_unique<ShlDisoParams>(sess, shl_api);
         initFunc = [&]() {
             return csinn_mul_init(srcTensors[0].get(),
                                   srcTensors[1].get(),
@@ -196,7 +197,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         };
         break;
     case Algorithm::EltwiseDivide:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        params = std::make_unique<ShlDisoParams>(sess, shl_api);
         initFunc = [&]() {
             return csinn_div_init(srcTensors[0].get(),
                                   srcTensors[1].get(),
@@ -211,7 +212,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         };
         break;
     case Algorithm::EltwiseMaximum:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        params = std::make_unique<ShlDisoParams>(sess, shl_api);
         initFunc = [&]() {
             return csinn_maximum_init(srcTensors[0].get(),
                                       srcTensors[1].get(),
@@ -226,7 +227,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         };
         break;
     case Algorithm::EltwiseMinimum:
-        params = ov::intel_cpu::make_unique<ShlDisoParams>(sess, shl_api);
+        params = std::make_unique<ShlDisoParams>(sess, shl_api);
         initFunc = [&]() {
             return csinn_minimum_init(srcTensors[0].get(),
                                       srcTensors[1].get(),
@@ -241,7 +242,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         };
         break;
     case Algorithm::EltwiseExp:
-        params = ov::intel_cpu::make_unique<ShlSisoParams>(sess, shl_api);
+        params = std::make_unique<ShlSisoParams>(sess, shl_api);
         initFunc = [&]() {
             return csinn_exp_init(srcTensors[0].get(),
                                   dstTensors[0].get(),
@@ -252,7 +253,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         };
         break;
     case Algorithm::EltwiseClamp:
-        params = ov::intel_cpu::make_unique<ShlClipParams>(sess,
+        params = std::make_unique<ShlClipParams>(sess,
                                                            shl_api,
                                                            shlEltwiseAttrs.data.alpha,
                                                            shlEltwiseAttrs.data.beta);
@@ -267,7 +268,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         break;
     case Algorithm::EltwiseRelu:
         if (shlEltwiseAttrs.data.alpha == 0) {
-            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api);
+            params = std::make_unique<ShlReluParams>(sess, shl_api);
             initFunc = [&]() {
                 return csinn_relu_init(srcTensors[0].get(),
                                        dstTensors[0].get(),
@@ -279,7 +280,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
                                   static_cast<csinn_relu_params*>(params->get()));
             };
         } else {
-            params = ov::intel_cpu::make_unique<ShlReluParams>(sess, shl_api, shlEltwiseAttrs.data.alpha);
+            params = std::make_unique<ShlReluParams>(sess, shl_api, shlEltwiseAttrs.data.alpha);
             initFunc = [&]() {
                 return csinn_leaky_relu_init(srcTensors[0].get(),
                                              dstTensors[0].get(),
@@ -293,7 +294,7 @@ bool ShlEltwiseExecutor::init(const std::vector<MemoryDescPtr>& srcDescs, const 
         }
         break;
     case Algorithm::EltwisePrelu:
-        params = ov::intel_cpu::make_unique<ShlPReluParams>(sess, shl_api);
+        params = std::make_unique<ShlPReluParams>(sess, shl_api);
         initFunc = [&]() {
             return csinn_prelu_init(srcTensors[0].get(),
                                     srcTensors[1].get(),
