@@ -17,7 +17,6 @@
 #include <vector>
 
 #include "emitters/utils.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/general_utils.h"
