@@ -367,7 +367,14 @@ std::size_t Gather::hash() const {
     for (const auto& dim : t.get_shape()) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
     }
-    seed ^= std::hash<std::string>()(ov::util::to_string(t)) + 0x9e3779b9;
+    auto ttype = t.get_element_type();
+    NPUW_ASSERT(ttype == ov::element::f8e4m3 || ttype == ov::element::f8e5m2 || ttype == ov::element::f8e8m0);
+    std::vector<uint8_t> t_data(t.get_size());
+    std::memcpy(t_data.data(), static_cast<uint8_t*>(t.data()), t.get_size());
+    seed ^= t_data.size();
+    for (const auto& el : t_data) {
+        seed ^= std::hash<uint8_t>()(el) + 0x9e3779b9;
+    }
     seed ^= dst_type.hash() + 0x9e3779b9;
     for (const auto& dim : dst_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
@@ -376,9 +383,20 @@ std::size_t Gather::hash() const {
 }
 
 bool Gather::operator==(const Gather& other) const {
+    auto ttype = t.get_element_type();
+    NPUW_ASSERT(ttype == ov::element::f8e4m3 || ttype == ov::element::f8e5m2 || ttype == ov::element::f8e8m0);
+    std::vector<uint8_t> t_data(t.get_size());
+    std::memcpy(t_data.data(), static_cast<uint8_t*>(t.data()), t.get_size());
+
+    auto ttype_other = other.t.get_element_type();
+    NPUW_ASSERT(ttype_other == ov::element::f8e4m3 || ttype_other == ov::element::f8e5m2 ||
+                ttype_other == ov::element::f8e8m0);
+    std::vector<uint8_t> t_other_data(other.t.get_size());
+    std::memcpy(t_other_data.data(), static_cast<uint8_t*>(other.t.data()), other.t.get_size());
+
     return (w == other.w && t.get_element_type() == other.t.get_element_type() &&
-            t.get_shape() == other.t.get_shape() && ov::util::to_string(t) == ov::util::to_string(other.t) &&
-            dst_type == other.dst_type && dst_shape == other.dst_shape);
+            t.get_shape() == other.t.get_shape() && t_data == t_other_data && dst_type == other.dst_type &&
+            dst_shape == other.dst_shape);
 }
 
 ov::Tensor Gather::eval() const {
