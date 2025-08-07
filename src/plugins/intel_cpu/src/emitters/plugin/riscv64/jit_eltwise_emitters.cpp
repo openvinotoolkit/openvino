@@ -916,7 +916,7 @@ void jit_gelu_erf_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
     if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
         emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
     } else {
-        OPENVINO_THROW("Can't create jit eltwise kernel for GELU ERF");
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for GELU ERF");
     }
 }
 
@@ -929,6 +929,8 @@ void jit_gelu_erf_emitter::register_table_entries() {
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_gelu_erf_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                     const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
@@ -991,18 +993,15 @@ size_t jit_gelu_tanh_emitter::get_inputs_num() const {
 }
 
 size_t jit_gelu_tanh_emitter::aux_gprs_count() const {
-    //todo
-    return 1;
+    return std::max<size_t>(tanh_emitter->aux_gprs_count(), 1LU) + 1LU;
 }
 
 size_t jit_gelu_tanh_emitter::aux_fp_gprs_count() const {
-    //todo
-    return 1;
+    return std::max<size_t>(tanh_emitter->aux_fp_gprs_count(), 1LU);
 }
 
 size_t jit_gelu_tanh_emitter::aux_vecs_count() const {
-    //todo
-    return 1;
+    return std::max<size_t>(tanh_emitter->aux_vecs_count() + 1LU, 2LU);
 }
 
 void jit_gelu_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1017,20 +1016,47 @@ void jit_gelu_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_gelu_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
-    //auto one = FReg(aux_fp_gpr_idxs[0]);
-    //load_table_val("one", one);
+    auto aux0 = VReg(aux_vec_idxs[0]);
+    auto aux1 = VReg(aux_vec_idxs[1]);
+    auto fp0 = FReg(aux_fp_gpr_idxs[0]);
+    auto tmp = Reg(aux_gpr_idxs[0]);
 
-    //h->vmv_v_x(dst, zero);
-    //h->vmfge_vv(mask_vreg(), src0, src1);
-    //h->vfadd_vf(dst, dst, one, VM::masked);
+    // compute G(x) = sqrt_root_two_over_pi * x * (1 + fitting_const * x * x)
+    h->vfmul_vv(aux0, src, src);
+    load_table_val("gelu_tanh_fitting_const", fp0);
+    load_table_val("one", aux1, tmp);
+    h->vfmacc_vf(aux1, fp0, aux0);
+    h->vfmul_vv(aux1, src, aux1);
+    load_table_val("gelu_tanh_sqrt_two_over_pi", fp0);
+    h->vfmul_vf(aux0, aux1, fp0);
+
+    auto tanh_aux_vec_idxs = aux_vec_idxs;
+    tanh_aux_vec_idxs.erase(
+        std::find(tanh_aux_vec_idxs.begin(), tanh_aux_vec_idxs.end(), static_cast<size_t>(aux0.getIdx())));
+    tanh_emitter->emit_code({static_cast<size_t>(aux0.getIdx())},
+                            {static_cast<size_t>(aux0.getIdx())},
+                            tanh_aux_vec_idxs,
+                            aux_gpr_idxs,
+                            aux_fp_gpr_idxs);
+
+    // compute 0.5 * x * (1 + tanh(G(x)))
+    load_table_val("one", fp0);
+    h->vfadd_vf(aux0, aux0, fp0);
+    load_table_val("half", fp0);
+    h->vfmul_vf(aux0, aux0, fp0);
+    h->vfmul_vv(dst, src, aux0);
 }
 
 void jit_gelu_tanh_emitter::register_table_entries() {
     push_arg_entry_of("one", CONST_1_F);
     push_arg_entry_of("half", 0x3f000000);
+    push_arg_entry_of("gelu_tanh_fitting_const", 0x3d372713);
+    push_arg_entry_of("gelu_tanh_sqrt_two_over_pi", 0x3f4c422a);
 }
 
 std::set<std::vector<element::Type>> jit_gelu_tanh_emitter::get_supported_precisions(
@@ -2502,6 +2528,8 @@ void jit_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
 template <ov::intel_cpu::riscv64::cpu_isa_t isa>
 void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
                                      const std::vector<size_t>& out_vec_idxs) const {
+    OV_CPU_JIT_EMITTER_ASSERT(exec_prc_ == ov::element::f32, "Unsupported precision: ", exec_prc_);
+
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
