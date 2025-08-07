@@ -59,11 +59,11 @@ public:
 
     // ~InferRequestWrapper() = default;
 
-    std::vector<ov::Tensor> get_input_tensors() {
+    ov::TensorVector get_input_tensors() {
         return get_tensors_from(m_inputs);
     }
 
-    std::vector<ov::Tensor> get_output_tensors() {
+    ov::TensorVector get_output_tensors() {
         return get_tensors_from(m_outputs);
     }
 
@@ -86,8 +86,8 @@ public:
     std::shared_ptr<Time::time_point> m_end_time;
 
 private:
-    inline std::vector<ov::Tensor> get_tensors_from(const std::vector<ov::Output<const ov::Node>>& v) {
-        std::vector<ov::Tensor> tensors;
+    inline ov::TensorVector get_tensors_from(const std::vector<ov::Output<const ov::Node>>& v) {
+        ov::TensorVector tensors;
         tensors.reserve(v.size());
 
         for (auto&& node : v) {
