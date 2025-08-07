@@ -999,7 +999,7 @@ size_t jit_gelu_tanh_emitter::aux_fp_gprs_count() const {
 }
 
 size_t jit_gelu_tanh_emitter::aux_vecs_count() const {
-    return std::max<size_t>(tanh_emitter->aux_vecs_count() + 1LU, 2LU);
+    return std::max<size_t>(tanh_emitter->aux_vecs_count(), 1LU) + 1LU;
 }
 
 void jit_gelu_tanh_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
@@ -1019,8 +1019,8 @@ void jit_gelu_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
-    auto aux0 = VReg(aux_vec_idxs[0]);
-    auto aux1 = VReg(aux_vec_idxs[1]);
+    auto aux0 = VReg(aux_vec_idxs[std::max<size_t>(tanh_emitter->aux_vecs_count(), 1LU)]);
+    auto aux1 = VReg(aux_vec_idxs[0]);
     auto fp0 = FReg(aux_fp_gpr_idxs[0]);
     auto tmp = Reg(aux_gpr_idxs[0]);
 
@@ -1033,12 +1033,9 @@ void jit_gelu_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     load_table_val("gelu_tanh_sqrt_two_over_pi", fp0);
     h->vfmul_vf(aux0, aux1, fp0);
 
-    auto tanh_aux_vec_idxs = aux_vec_idxs;
-    tanh_aux_vec_idxs.erase(
-        std::find(tanh_aux_vec_idxs.begin(), tanh_aux_vec_idxs.end(), static_cast<size_t>(aux0.getIdx())));
     tanh_emitter->emit_code({static_cast<size_t>(aux0.getIdx())},
                             {static_cast<size_t>(aux0.getIdx())},
-                            tanh_aux_vec_idxs,
+                            {aux_vec_idxs.begin(), aux_vec_idxs.begin() + tanh_emitter->aux_vecs_count()},
                             aux_gpr_idxs,
                             aux_fp_gpr_idxs);
 
@@ -2503,7 +2500,7 @@ size_t jit_tanh_emitter::aux_gprs_count() const {
 }
 
 size_t jit_tanh_emitter::aux_fp_gprs_count() const {
-    return std::max<size_t>(sigmoid_emitter->aux_fp_gprs_count(), 1LU);
+    return sigmoid_emitter->aux_fp_gprs_count() + 1LU;
 }
 
 size_t jit_tanh_emitter::aux_vecs_count() const {
@@ -2526,7 +2523,7 @@ void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
     auto src = VReg(in_vec_idxs[0]);
     auto dst = VReg(out_vec_idxs[0]);
 
-    auto fp = FReg(aux_fp_gpr_idxs[0]);
+    auto fp = FReg(aux_fp_gpr_idxs[sigmoid_emitter->aux_fp_gprs_count()]);
 
     load_table_val("two", fp);
     h->vfmul_vf(dst, src, fp);
@@ -2535,9 +2532,8 @@ void jit_tanh_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs, const st
                                {static_cast<size_t>(dst.getIdx())},
                                aux_vec_idxs,
                                aux_gpr_idxs,
-                               aux_fp_gpr_idxs);
+                               {aux_fp_gpr_idxs.begin(), aux_fp_gpr_idxs.begin() + sigmoid_emitter->aux_fp_gprs_count()});
 
-    load_table_val("two", fp);
     h->vfmul_vf(dst, dst, fp);
     load_table_val("one", fp);
     h->vfsub_vf(dst, dst, fp);
