@@ -114,14 +114,42 @@ KVCacheConcat::KVCacheConcat(const std::shared_ptr<Model>& model) {
         copy_runtime_info(read_value, read_value_convert);
 
         // Manual gather validation is called in order to propagate low precision through it
-        pattern_map.at(gather_m).get_node_shared_ptr()->validate_and_infer_types();
+        const auto gather_node = pattern_map.at(gather_m).get_node_shared_ptr();
+        gather_node->validate_and_infer_types();
 
-        // downconvert subgraph is removed from kv cache branch
-        OPENVINO_ASSERT(replace_output_update_name(pattern_map.at(downconvert_cache), pattern_map.at(gather_m)),
-                        "Failed to remove downconvert subgraph from kv cache branch.");
+        auto build_reverse_fake_convert = [&](ov::Output<ov::Node> input) {
+            auto clone_constant = [&](const std::shared_ptr<Node>& node) {
+                return pattern_map.at(node).get_node_shared_ptr()->clone_with_new_inputs({});
+            };
 
-        // Assign is reconnected directly to kv concat
-        const auto new_assign = assign->copy_with_new_inputs({pattern_map.at(kv_concat)});
+            auto upconvert_node = pattern_map.at(upconvert).get_node_shared_ptr()->clone_with_new_inputs({input});
+            std::shared_ptr<ov::Node> up_sub_node = upconvert_node;
+            if (pattern_map.count(up_shift)) {
+                up_sub_node = std::make_shared<v1::Subtract>(upconvert_node, clone_constant(up_shift));
+            }
+            auto up_mul_node = std::make_shared<v1::Multiply>(up_sub_node, clone_constant(up_scale));
+            auto down_mul_node = std::make_shared<v1::Multiply>(up_mul_node, clone_constant(down_scale_cache));
+            std::shared_ptr<ov::Node> down_sub_node = down_mul_node;
+            if (pattern_map.count(down_shift_cache)) {
+                down_sub_node = std::make_shared<v1::Subtract>(down_mul_node, clone_constant(down_shift_cache));
+            }
+            auto downconvert_node =
+                pattern_map.at(downconvert_cache).get_node_shared_ptr()->clone_with_new_inputs({down_sub_node});
+            copy_runtime_info(
+                input.get_node_shared_ptr(),
+                {upconvert_node, up_sub_node, up_mul_node, down_mul_node, down_sub_node, downconvert_node});
+            return downconvert_node;
+        };
+
+        // Note: we create "reverse" fake convert here (low precision on input-output, high precision (e.g. f32) inside)
+        // in order to keep quantization parameters on concat inputs and output
+        auto reverse_fc_before_concat = build_reverse_fake_convert(gather_node);
+        auto reverse_fc_after_concat = build_reverse_fake_convert(pattern_map.at(kv_concat));
+        OPENVINO_ASSERT(replace_output_update_name(pattern_map.at(downconvert_cache), reverse_fc_before_concat),
+                        "Failed to replace downconvert subgraph from kv cache branch.");
+
+        // Assign is reconnected to the reverse fake convert output
+        const auto new_assign = assign->copy_with_new_inputs({reverse_fc_after_concat});
         model->remove_sink(as_type_ptr<Sink>(assign));
         model->add_sinks({as_type_ptr<Sink>(new_assign)});
 

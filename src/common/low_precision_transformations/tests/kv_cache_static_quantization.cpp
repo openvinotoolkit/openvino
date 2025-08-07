@@ -214,20 +214,10 @@ std::shared_ptr<ov::Model> KVCacheStaticQuantization::get_model_ref(ov::element:
                                    stateful ? low_precision : original_precision,
                                    qkv_order,
                                    num_groups);
-    std::shared_ptr<ov::Node> concat_k_input = params[1];
-    std::shared_ptr<ov::Node> concat_v_input = params[2];
-
-    if (stateful) {
-        auto in_beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{batch});
-        in_beam_idx->set_friendly_name("beam_idx");
-        params.push_back(in_beam_idx);
-
-        concat_k_input = make_kv_rearrange(params[1], in_beam_idx, qkv_order[0]);
-        concat_v_input = make_kv_rearrange(params[2], in_beam_idx, qkv_order[0]);
-    }
-
-    auto fake_convert_downconvert = [original_precision,
-                                     low_precision](const ov::Output<ov::Node>& input, float scale, float shift) {
+    auto fake_convert_downconvert = [&](const ov::Output<ov::Node>& input,
+                                        float scale,
+                                        float shift,
+                                        bool skip_clamp = false) {
         auto downconvert = input;
         auto fake_convert_scale = v0::Constant::create(original_precision, ov::Shape{}, {scale});
         downconvert = std::make_shared<v1::Multiply>(input, fake_convert_scale);
@@ -235,25 +225,53 @@ std::shared_ptr<ov::Model> KVCacheStaticQuantization::get_model_ref(ov::element:
             auto fake_convert_shift = v0::Constant::create(original_precision, ov::Shape{}, {shift});
             downconvert = std::make_shared<v1::Subtract>(downconvert, fake_convert_shift);
         }
-        const auto [lower_bound, upper_bound] = [&]() {
-            switch (low_precision) {
-            case ov::element::f8e4m3:
-                return std::make_pair(static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest()),
-                                      static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max()));
-            case ov::element::f8e5m2:
-                return std::make_pair(static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest()),
-                                      static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max()));
-            default:
-                OPENVINO_THROW("Unsupported destination element type: ", low_precision);
-            }
-        }();
-        downconvert = std::make_shared<v0::Clamp>(downconvert, lower_bound, upper_bound);
+        if (!skip_clamp) {
+            const auto [lower_bound, upper_bound] = [&]() {
+                switch (low_precision) {
+                case ov::element::f8e4m3:
+                    return std::make_pair(static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest()),
+                                          static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max()));
+                case ov::element::f8e5m2:
+                    return std::make_pair(static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest()),
+                                          static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max()));
+                default:
+                    OPENVINO_THROW("Unsupported destination element type: ", low_precision);
+                }
+            }();
+            downconvert = std::make_shared<v0::Clamp>(downconvert, lower_bound, upper_bound);
+        }
         return std::make_shared<v0::Convert>(downconvert, low_precision);
+    };
+
+    auto fake_convert_upconvert = [original_precision](const ov::Output<ov::Node>& input, float scale, float shift) {
+        auto upconvert = input;
+        upconvert = std::make_shared<v0::Convert>(input, original_precision);
+        if (shift != 0.f) {
+            auto fake_convert_shift = v0::Constant::create(original_precision, ov::Shape{}, {shift});
+            upconvert = std::make_shared<v1::Subtract>(upconvert, fake_convert_shift);
+        }
+        auto fake_convert_scale = v0::Constant::create(original_precision, ov::Shape{}, {scale});
+        return std::make_shared<v1::Multiply>(upconvert, fake_convert_scale);
+    };
+
+    // Create upconvert→downconvert ("reverse" fake convert: low precision on input-output, fp32 inside)
+    auto create_reverse_build_convert = [&](std::shared_ptr<ov::Node> rearranged_input) {
+        auto upconvert_result = fake_convert_upconvert(rearranged_input, 1.0f / scale, -shift);
+        return fake_convert_downconvert(upconvert_result, scale, shift, true);
     };
 
     int64_t concat_axis = qkv_order[2];
     ov::OutputVector concat_k_inputs, concat_v_inputs;
     if (stateful) {
+        auto in_beam_idx = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{batch});
+        in_beam_idx->set_friendly_name("beam_idx");
+        params.push_back(in_beam_idx);
+
+        auto rearranged_k = make_kv_rearrange(params[1], in_beam_idx, qkv_order[0]);
+        auto rearranged_v = make_kv_rearrange(params[2], in_beam_idx, qkv_order[0]);
+
+        auto concat_k_input = create_reverse_build_convert(rearranged_k);
+        auto concat_v_input = create_reverse_build_convert(rearranged_v);
         // In case of stateful model, the whole KV cache subgraph has low precision after LPT,
         // so no fownconvert subgraph is needed.
         concat_k_inputs = {concat_k_input, fake_convert_downconvert(params[3], scale, shift)};
@@ -268,25 +286,22 @@ std::shared_ptr<ov::Model> KVCacheStaticQuantization::get_model_ref(ov::element:
     auto concat_k = std::make_shared<v0::Concat>(concat_k_inputs, concat_axis);
     auto concat_v = std::make_shared<v0::Concat>(concat_v_inputs, concat_axis);
 
-    auto fake_convert_upconvert =
-        [original_precision](const ov::Output<ov::Node>& input, float scale, float shift) -> std::shared_ptr<ov::Node> {
-        auto upconvert = input;
-        upconvert = std::make_shared<v0::Convert>(input, original_precision);
-        if (shift != 0.f) {
-            auto fake_convert_shift = v0::Constant::create(original_precision, ov::Shape{}, {shift});
-            upconvert = std::make_shared<v1::Subtract>(upconvert, fake_convert_shift);
-        }
-        auto fake_convert_scale = v0::Constant::create(original_precision, ov::Shape{}, {scale});
-        return std::make_shared<v1::Multiply>(upconvert, fake_convert_scale);
-    };
-    // Note: upconvert part contains opposite scale and shift
-    auto upconvert_k = fake_convert_upconvert(concat_k, 1.f / scale, -shift);
-    auto upconvert_v = fake_convert_upconvert(concat_v, 1.f / scale, -shift);
+    std::shared_ptr<ov::Node> result_input_k = concat_k;
+    std::shared_ptr<ov::Node> result_input_v = concat_v;
+    if (stateful) {
+        // Add reverse fake convert before assign
+        result_input_k = create_reverse_build_convert(concat_k);
+        result_input_v = create_reverse_build_convert(concat_v);
+    }
 
-    auto present_k = std::make_shared<v0::Result>(stateful ? concat_k : upconvert_k);
+    // Note: upconvert part contains opposite scale and shift
+    auto upconvert_k = fake_convert_upconvert(result_input_k, 1.f / scale, -shift);
+    auto upconvert_v = fake_convert_upconvert(result_input_v, 1.f / scale, -shift);
+
+    auto present_k = std::make_shared<v0::Result>(stateful ? result_input_k : upconvert_k);
     present_k->set_friendly_name("present_k");
 
-    auto present_v = std::make_shared<v0::Result>(stateful ? concat_v : upconvert_v);
+    auto present_v = std::make_shared<v0::Result>(stateful ? result_input_v : upconvert_v);
     present_v->set_friendly_name("present_v");
 
     std::shared_ptr<ov::Node> q = params[0];
