@@ -96,7 +96,7 @@ PrimListConstructPadReplacer::PrimListConstructPadReplacer() {
             mode = "constant";
             input_node = pad_op->input_value(0);
             padding = pad_op->input_value(1);
-            if (pad_op->get_input_size() > 2){
+            if (pad_op->get_input_size() > 2) {
                 pad_value = pad_op->input_value(2);
             } else {
                 pad_value = v0::Constant::create(element::f32, Shape{}, {0});
