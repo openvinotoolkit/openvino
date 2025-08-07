@@ -222,10 +222,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
+    ov::npuw::PartitioningContext ctx;
     // Identify based on compiler version, user config and pattern
-    auto use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+    ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
 
-    auto partitioning = getPartitioning(model, m_cfg, use_host_gather_quant);
+    auto partitioning = getPartitioning(model, m_cfg, ctx);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -534,7 +535,7 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     LOG_INFO("Identifying best HOST_GATHER config value...");
     LOG_BLOCK();
     // Check if was explicitly specified
-    auto it_hg = properties.find("NPUW_HOST_GATHER");
+    auto it_hg = properties.find(intel_npu::npuw::partitioning::host_gather.name());
     std::optional<bool> explicit_hg_value;
     if (it_hg != properties.end()) {
         explicit_hg_value = it_hg->second.as<bool>();
@@ -560,15 +561,15 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
     // or vice versa. This would lead to worse performance. Consider adding this check to LLMCompiledModel
     // as well, since there we have uncut model.
     // Head or tail
-    bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
+    const bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
 
     // Check the compiler version
     const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
-    bool compiler_version_enough =
+    const bool compiler_version_enough =
         !npu_devices.empty() &&
         get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version) >= ONEAPI_MAKE_VERSION(7, 21);
 
-    bool can_enable_hgq = pattern_matched && (compiler_version_enough || npu_devices.empty());
+    const bool can_enable_hgq = pattern_matched && (compiler_version_enough || npu_devices.empty());
 
     // Now make a decision based on the checks above
     if (!explicit_hg_value) {
