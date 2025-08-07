@@ -165,95 +165,9 @@ ov::pass::RoPEFusionFlux::RoPEFusionFlux() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
-using symbol_variant = std::variant<float, int32_t, int64_t, std::string>;
-
-static std::string ParseSymbolVariant(std::vector<symbol_variant> values) {
-    std::vector<std::string> symbol_strings;
-    symbol_strings.reserve(values.size());
-    for (auto& value : values) {
-        if (std::holds_alternative<float>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<float>(value)));
-        } else if (std::holds_alternative<int>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<int>(value)));
-        } else if (std::holds_alternative<int32_t>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<int32_t>(value)));
-        } else if (std::holds_alternative<int64_t>(value)) {
-            symbol_strings.push_back(std::to_string(std::get<int64_t>(value)));
-        } else {
-            symbol_strings.push_back(std::get<std::string>(value));
-        }
-    }
-
-    return ov::util::join(symbol_strings);
-}
-
-static std::shared_ptr<ov::Node> NewGenSlice(std::shared_ptr<ov::Node> data,
-                                             symbol_variant start,
-                                             symbol_variant stop,
-                                             symbol_variant step,
-                                             size_t axis) {
-    auto slice_start = ParseSymbolVariant({start});
-    auto slice_stop = ParseSymbolVariant({stop});
-    auto slice_step = ParseSymbolVariant({step});
-    auto slice_axis = ParseSymbolVariant({static_cast<int64_t>(axis)});
-
-    auto opt1 = pattern::wrap_type<ov::opset8::Slice>({data, slice_start, slice_stop, slice_step, slice_axis});
-
-    std::vector<symbol_variant> vbegin(axis + 1, 0);
-    std::vector<symbol_variant> vend(axis + 1, 0);
-    std::vector<symbol_variant> vstride(axis + 1, 1);
-
-    vbegin[axis] = start;
-    vend[axis] = stop;
-    vstride[axis] = step;
-
-    auto begin = ParseSymbolVariant(vbegin);
-    auto end = ParseSymbolVariant(vend);
-    auto stride = ParseSymbolVariant(vstride);
-
-    std::vector<int64_t> begin_mask(axis + 1, 1);
-    std::vector<int64_t> end_mask(axis + 1, 1);
-    std::vector<int64_t> new_axis_mask;
-    std::vector<int64_t> shrink_axis_mask;
-    std::vector<int64_t> ellipsis_mask;
-
-    begin_mask[axis] = 0;
-    end_mask[axis] = 0;
-
-    auto opt2 = pattern::wrap_type<ov::op::v1::StridedSlice>({data, begin, end, stride},
-                                                             {{"begin_mask", begin_mask},
-                                                              {"end_mask", end_mask},
-                                                              {"new_axis_mask", new_axis_mask},
-                                                              {"shrink_axis_mask", shrink_axis_mask},
-                                                              {"ellipsis_mask", ellipsis_mask}});
-
-    return opt1 | opt2;
-}
-
-static std::shared_ptr<ov::Node> NewGenStridedSlice(std::shared_ptr<ov::Node> data,
-                                                    const pattern::PatternOp& start,
-                                                    const pattern::PatternOp& stop,
-                                                    const pattern::PatternOp& step,
-                                                    size_t axis) {
-    std::vector<int64_t> begin_mask(axis + 1, 1);
-    std::vector<int64_t> end_mask(axis + 1, 1);
-    std::vector<int64_t> new_axis_mask;
-    std::vector<int64_t> shrink_axis_mask;
-    std::vector<int64_t> ellipsis_mask;
-
-    begin_mask[axis] = 0;
-    end_mask[axis] = 0;
-
-    return pattern::wrap_type<ov::op::v1::StridedSlice>({data, start, stop, step},
-                                                        {{"begin_mask", begin_mask},
-                                                         {"end_mask", end_mask},
-                                                         {"new_axis_mask", new_axis_mask},
-                                                         {"shrink_axis_mask", shrink_axis_mask},
-                                                         {"ellipsis_mask", ellipsis_mask}});
-}
 
 ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
-    using namespace ov::op;
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTNEOX);
 
     // rope pattern matching triggers a little design flaw:
@@ -334,6 +248,7 @@ ov::pass::RoPEFusionGPTNEOX::RoPEFusionGPTNEOX() {
 }
 
 ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionCosSinPreprocess);
 
     auto cos_const = pattern::wrap_type<v0::Constant>(pattern::type_matches(element::f32));
@@ -415,6 +330,7 @@ ov::pass::RoPEFusionCosSinPreprocess::RoPEFusionCosSinPreprocess() {
 
 // only a fraction of head_size is rotary-embedded
 ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionIOSlicing);
     auto int32_max = std::numeric_limits<std::int32_t>::max();
     auto data = pattern::any_input(pattern::rank_equals(4));
@@ -462,6 +378,7 @@ ov::pass::RoPEFusionIOSlicing::RoPEFusionIOSlicing() {
 
 // gptneox-preprocess of input data
 ov::pass::RoPEFusionPreprocess::RoPEFusionPreprocess() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionPreprocess);
 
     // Pattern for input to be sliced (for models with combined QKV projection)
@@ -534,6 +451,7 @@ static std::shared_ptr<ov::Node> repeat_interleave_pattern(const ov::Output<ov::
 }
 
 ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionGPTJ);
 
     auto gather_sin_cos = pattern::any_input(pattern::type_matches(ov::element::f32));
@@ -654,6 +572,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
 }
 
 ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
     //  [seq_length, batch_size, input_size(will be cropped to match hidden state size)]
@@ -849,7 +768,7 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
 }
 
 ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
-    using namespace ov::op;
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLMHF);
 
     auto qk_linear = pattern::any_input(pattern::shape_matches("[?, 1, ?]"));
@@ -925,7 +844,7 @@ ov::pass::RoPEFusionChatGLMHF::RoPEFusionChatGLMHF() {
 }
 
 ov::pass::RoPEFusionQwen::RoPEFusionQwen(int split_output_id) {
-    using namespace ov::op;
+    using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionQwen);
 
     // rotary_emb_cos & rotary_emb_sin are sliced by present kv-length (past-kv-length + cur_len)
