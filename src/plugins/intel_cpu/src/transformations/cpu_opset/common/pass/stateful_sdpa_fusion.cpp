@@ -343,7 +343,7 @@ bool SDPASubgraphFusion::run_on_model(const std::shared_ptr<ov::Model>& f) {
 
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::SimplifyGatherShapeOf);
     CPU_REGISTER_PASS_COMMON(ctx_manager, ov::pass::transpose_sinking::TSShapeOfForward);
-    ctx_manager.register_pass<StatefulSDPAFusion>();
+    CPU_REGISTER_PASS_COMMON(ctx_manager, StatefulSDPAFusion);
     // TODO: remove the following after snippets support patterns with dynamic shapes
     CPU_REGISTER_PASS_X64(ctx_manager, ov::intel_cpu::SDPAFuseTransposeReshape);
 
