@@ -36,7 +36,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
       _levelZeroOutputTensors(output_tensors) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
     _logger.debug("DynamicPipeline - initialize started");
-    (void*)batch_size;  // Unused parameter, but kept for compatibility
+    (void*)(batch_size);  // Unused parameter, but kept for compatibility
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
                         _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
@@ -231,8 +231,6 @@ void DynamicPipeline::push() {
     auto commandQueueHandle = _graph->get_command_queue()->handle();
     for (size_t i = 0; i < _command_lists.size(); ++i) {
         OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PUSH, itt::domains::LevelZeroBackend, "Pipeline", "push");
-
-        auto& commandLists = _command_lists.at(i);
 
         ze_fence_handle_t fence = nullptr;
         ze_event_handle_t event = nullptr;

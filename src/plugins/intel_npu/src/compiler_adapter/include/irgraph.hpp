@@ -74,6 +74,7 @@ public:
                                                             const Config& config) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
+    ze_graph_handle_t get_handle() const override;
     void set_argument_property(uint32_t argi,
                                const void* argv,
                                const ov::Strides& strides,

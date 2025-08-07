@@ -130,8 +130,14 @@ public:
     void initializeGraph(uint64_t command_queue_group_ordinal) override;
     uint64_t getNumSubgraphs() override { return _numOfSubgraphs; }
     void executeGraph(std::vector<MemRefType*>& inputs, std::vector<MemRefType*>& outputs, const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
-    void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, IRGraph::GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
-    void getBinding(IRGraph::GraphArguments& binding);
+    void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                      IRGraph::GraphArguments& args,
+                      std::vector<ze_command_list_handle_t>& commandLists,
+                      ze_command_queue_handle_t commandQueue,
+                      ze_fence_handle_t inferenceFence,
+                      ze_event_handle_t event,
+                      ze_graph_profiling_pool_handle_t profiling) override;
+    void getBinding(IRGraph::GraphArguments& binding) override;
     virtual ~IRGraphImpl() {}
 public:
     std::unique_ptr<mlir::MLIRContext> _context;
@@ -304,7 +310,7 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
         inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
         // Now MemRefType only support 4 dimension
         size_t shapesSize = shapes.size();
-        for (int i = 0; i < 4; i++) {
+        for (size_t i = 0; i < 4; i++) {
             if (i < shapesSize) {
                 inputs[argi]->sizes[i] = shapes[i];
             } else {
@@ -314,7 +320,7 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
         }
 
         size_t stridesSize = strides.size();
-        for (int i = 0; i < 4; i++) {
+        for (size_t i = 0; i < 4; i++) {
             if (i < stridesSize) {
                 inputs[argi]->strides[i] = strides[i];
             } else {
@@ -331,7 +337,7 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
 
             // Now MemRefType only support 4 dimension
             size_t shapesSize = shapes.size();
-            for (int i = 0; i < 4; i++) {
+            for (size_t i = 0; i < 4; i++) {
                 if (i < shapesSize) {
                     outputs[idx]->sizes[i] = shapes[i];
                 } else {
@@ -341,7 +347,7 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
             }
 
             size_t stridesSize = strides.size();
-            for (int i = 0; i < 4; i++) {
+            for (size_t i = 0; i < 4; i++) {
                 if (i < stridesSize) {
                     outputs[idx]->strides[i] = strides[i];
                 } else {
@@ -503,6 +509,11 @@ void IRGraph::set_argument_value(uint32_t argi, const void* argv) const {
     _impl->setArgumentValue(argi, argv);
 }
 
+ze_graph_handle_t IRGraph::get_handle() const {
+    _logger.warning("IRGraph does not support get_handle() method.");
+    return nullptr;
+}
+
 void IRGraph::set_argument_property(uint32_t argi,
                                     const void* argv,
                                     const ov::Strides& strides,
@@ -622,34 +633,35 @@ void IRGraph::initialize(const Config& config) {
 }
 
 bool IRGraph::release_blob(const Config& config) {
-    if (!_blobAllocatedByPlugin) {
-        return false;
-    }
+    _logger.warning("Release blob is skipped, no handle for IRGraph");
+    // if (!_blobAllocatedByPlugin) {
+    //     return false;
+    // }
 
-    if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
-        config.get<PERF_COUNT>()) {
-        return false;
-    }
+    // if (_blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8 ||
+    //     config.get<PERF_COUNT>()) {
+    //     return false;
+    // }
 
-    ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_handle, &properties);
+    // ze_graph_properties_2_t properties = {};
+    // properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
+    // _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_handle, &properties);
 
-    if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
-        return false;
-    }
+    // if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
+    //     return false;
+    // }
 
-    _blob = std::nullopt;
-    _logger.debug("Blob is released");
+    // _blob = std::nullopt;
+    // _logger.debug("Blob is released");
 
     return true;
 };
 
 IRGraph::~IRGraph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
-    if (_handle != nullptr) {
-        _handle = nullptr;
-    }
+    // if (_handle != nullptr) {
+    //     _handle = nullptr;
+    // }
 
     if (!_last_submitted_event.empty()) {
         _last_submitted_event.clear();
