@@ -767,3 +767,29 @@ TEST(prepare_primitive_fusing, fuse_by_priotizing_to_parent_in_fusing_history) {
     ASSERT_FALSE(has_node(*program, "eltw5"));
     ASSERT_FALSE(has_node(*program, "eltw6"));
 }
+
+TEST(prepare_primitive_fusing, dont_fuse_bias_when_multiple_users) {
+    auto& engine = get_test_engine();
+    auto in_layout = layout{ ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx };
+    auto weights = engine.allocate_memory({ ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx });
+    auto bias = engine.allocate_memory({ ov::PartialShape{1, 1, 1, 1}, data_types::f32, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(data("weights", weights));
+    topology.add(data("bias", bias));
+    topology.add(convolution("conv", input_info("input"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(activation("act", input_info("conv"), activation_func::relu));
+    topology.add(eltwise("eltw", { input_info("conv"), input_info("bias") }, eltwise_mode::sum));
+    topology.add(reorder("reorder_act", input_info("act"), format::bfyx, data_types::f32));
+    topology.add(reorder("reorder_eltw", input_info("eltw"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+
+    program_wrapper::apply_opt_pass<prepare_primitive_fusing>(*prog);
+
+    ASSERT_TRUE(has_node(*prog, "eltw"));
+    ASSERT_TRUE(has_node(*prog, "conv"));
+}

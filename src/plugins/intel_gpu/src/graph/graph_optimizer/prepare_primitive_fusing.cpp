@@ -309,6 +309,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
             continue;
 
+        if (replace_candidate.users.size() > 1)
+            continue;
+
         auto fuse_bias_f = [&p](program_node& prev_node, program_node& new_node, program_node& bias_node, program_node& eltw_node) {
             auto eltw_id = eltw_node.id();
             p.replace(prev_node, new_node);
