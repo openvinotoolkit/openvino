@@ -242,7 +242,7 @@ private:
 /// Greater///
 class jit_greater_emitter : public jit_emitter {
 public:
-    jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc = element::f32);
+    jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
     jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
