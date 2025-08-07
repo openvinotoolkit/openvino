@@ -109,10 +109,7 @@ Context::PPtr Context::unpack(const Context::PPtr& w, const Context::PPtr& s, ov
     return new_param;
 }
 
-Context::PPtr Context::gather_cb4(const Context::PPtr& w,
-                                  const ov::Tensor& t,
-                                  ov::element::Type type,
-                                  const void* orig_lut_ptr) {
+Context::PPtr Context::gather_cb4(const Context::PPtr& w, const ov::Tensor& t, ov::element::Type type) {
     const auto& w_shape = w->get_shape();
 
     Context::PPtr new_param;
@@ -123,7 +120,7 @@ Context::PPtr Context::gather_cb4(const Context::PPtr& w,
     }
 
     NPUW_ASSERT(new_param);
-    params_to_nf4_gather[new_param] = {w, t, orig_lut_ptr};
+    params_to_nf4_gather[new_param] = {w, t};
     return new_param;
 }
 

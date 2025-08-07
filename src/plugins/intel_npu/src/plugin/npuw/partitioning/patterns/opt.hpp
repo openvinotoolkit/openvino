@@ -57,10 +57,9 @@ struct Context {
     struct DQNF4Gather {
         PPtr w;
         ov::Tensor t;
-        const void* orig_lut_ptr;
     };
     std::map<PPtr, DQNF4Gather> params_to_nf4_gather;
-    PPtr gather_cb4(const PPtr& w, const ov::Tensor& t, ov::element::Type type, const void* orig_lut_ptr);
+    PPtr gather_cb4(const PPtr& w, const ov::Tensor& t, ov::element::Type type);
 
     struct Gather {
         PPtr pnew, pold, pids;

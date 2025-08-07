@@ -2016,11 +2016,8 @@ void Partitioner::optimize(const std::string& func_name) {
             ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
                 auto& funcall = func_group.refs[f_idx].get();
                 LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
-                funcall._lazy_closure.push_back(LazyTensor(cw,
-                                                           tensor_to_gather.t,
-                                                           p.first->get_element_type(),
-                                                           p.first->get_shape(),
-                                                           tensor_to_gather.orig_lut_ptr));
+                funcall._lazy_closure.push_back(
+                    LazyTensor(cw, tensor_to_gather.t, p.first->get_element_type(), p.first->get_shape()));
                 // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                 funcall._closure.push_back(ov::Tensor());
                 // FIXME: in some cases we might have DCOFF and DQ enabled together. This

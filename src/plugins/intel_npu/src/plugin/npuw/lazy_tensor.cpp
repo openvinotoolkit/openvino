@@ -367,7 +367,7 @@ std::size_t Gather::hash() const {
     for (const auto& dim : t.get_shape()) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
     }
-    seed ^= std::hash<const void*>()(orig_lut_ptr) + 0x9e3779b9;
+    seed ^= std::hash<std::string>()(ov::util::to_string(t)) + 0x9e3779b9;
     seed ^= dst_type.hash() + 0x9e3779b9;
     for (const auto& dim : dst_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
@@ -377,8 +377,8 @@ std::size_t Gather::hash() const {
 
 bool Gather::operator==(const Gather& other) const {
     return (w == other.w && t.get_element_type() == other.t.get_element_type() &&
-            t.get_shape() == other.t.get_shape() && orig_lut_ptr == other.orig_lut_ptr && dst_type == other.dst_type &&
-            dst_shape == other.dst_shape);
+            t.get_shape() == other.t.get_shape() && ov::util::to_string(t) == ov::util::to_string(other.t) &&
+            dst_type == other.dst_type && dst_shape == other.dst_shape);
 }
 
 ov::Tensor Gather::eval() const {
