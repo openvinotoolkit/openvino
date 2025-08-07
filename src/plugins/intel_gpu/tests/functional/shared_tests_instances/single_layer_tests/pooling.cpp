@@ -37,8 +37,7 @@ const auto maxPool_ExplicitPad_FloorRounding_Params =
                        ::testing::ValuesIn(padEnds),
                        ::testing::Values(ov::op::RoundingType::FLOOR),
                        ::testing::Values(ov::op::PadType::EXPLICIT),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(smoke_MaxPool_ExplicitPad_FloorRounding,
                          PoolingLayerTest,
@@ -110,15 +109,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_ExplicitPad_FloorRounding,
 
 ////* ========== Avg Pooling V16 ========== */
 /* +========== Explicit Pad Ceil Rounding ========== */
-const auto avgPoolV16ExplicitPadCeilRoundingParams = ::testing::Combine(
-    ::testing::ValuesIn(kernels),
-    ::testing::Values(std::vector<size_t>({1, 1})),
-    ::testing::ValuesIn(dilations),
-    ::testing::ValuesIn(padBegins),
-    ::testing::ValuesIn(padEnds),
-    ::testing::Values(ov::op::RoundingType::CEIL),
-    ::testing::Values(ov::op::PadType::EXPLICIT),
-    ::testing::Values(true, false));
+const auto avgPoolV16ExplicitPadCeilRoundingParams = ::testing::Combine(::testing::ValuesIn(kernels),
+                                                                        ::testing::Values(std::vector<size_t>({1, 1})),
+                                                                        ::testing::ValuesIn(dilations),
+                                                                        ::testing::ValuesIn(padBegins),
+                                                                        ::testing::ValuesIn(padEnds),
+                                                                        ::testing::Values(ov::op::RoundingType::CEIL),
+                                                                        ::testing::Values(ov::op::PadType::EXPLICIT),
+                                                                        ::testing::Values(true, false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_AvgPoolV16_ExplicitPad_CeilRounding,
                          AvgPoolingV16LayerTest,
@@ -157,8 +155,7 @@ const auto allPools_ValidPad_Params =
                        ::testing::Values(ov::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
                        // TODO: PadType::VALID seems not to ignore padBegins
                        ::testing::Values(ov::op::PadType::VALID),
-                       ::testing::Values(false)  // placeholder value - exclude pad not applicable for max pooling
-    );
+                       ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_SUITE_P(smoke_MAX_and_AVGPool_ValidPad,
                          PoolingLayerTest,
