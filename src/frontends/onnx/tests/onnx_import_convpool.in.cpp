@@ -330,6 +330,24 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_empty_auto_pad) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_average_pool_2d_dilations_include_pad_ceil_mode) {
+    const auto model = convert_model("average_pool_2d_dilations_include_pad_ceil_mode.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    std::vector<float> input_data(1*1*32*32);
+    std::iota(std::begin(input_data), std::end(input_data), 0.0f);
+    test_case.add_input<float>(input_data);
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 9, 9},
+        {132.0f, 135.0f, 138.0f, 141.0f, 144.0f, 147.0f, 150.0f, 153.0f, 155.0f, 228.0f, 231.0f, 234.0f, 237.0f, 240.0f,
+         243.0f, 246.0f, 249.0f, 251.0f, 324.0f, 327.0f, 330.0f, 333.0f, 336.0f, 339.0f, 342.0f, 345.0f, 347.0f, 420.0f,
+         423.0f, 426.0f, 429.0f, 432.0f, 435.0f, 438.0f, 441.0f, 443.0f, 516.0f, 519.0f, 522.0f, 525.0f, 528.0f, 531.0f,
+         534.0f, 537.0f, 539.0f, 612.0f, 615.0f, 618.0f, 621.0f, 624.0f, 627.0f, 630.0f, 633.0f, 635.0f, 708.0f, 711.0f,
+         714.0f, 717.0f, 720.0f, 723.0f, 726.0f, 729.0f, 731.0f, 804.0f, 807.0f, 810.0f, 813.0f, 816.0f, 819.0f, 822.0f,
+         825.0f, 827.0f, 868.0f, 871.0f, 874.0f, 877.0f, 880.0f, 883.0f, 886.0f, 889.0f, 891.0f});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_pool_empty_auto_pad) {
     const auto model = convert_model("max_pool_empty_auto_pad.onnx");
 
