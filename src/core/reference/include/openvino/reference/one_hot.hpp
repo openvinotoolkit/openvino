@@ -20,7 +20,6 @@ void one_hot(const INPUT_TYPE* indices,
              const char* off_value,
              const op::v1::OneHot::NegativeIndicesMode mode) {
     const bool is_mode_normalize = mode == op::v1::OneHot::NegativeIndicesMode::NORMALIZE;
-    std::cout << "is_mode_normalize=" << is_mode_normalize << std::endl;
     const size_t num_ind = shape_size(indices_shape);
     // Step 1: Set off_value to the output.
     for (auto p = out; p < out + num_ind * depth * out_elem_size; p += out_elem_size)
