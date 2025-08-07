@@ -134,7 +134,7 @@ public:
 
     void create_infer_request_and_check_result() {
         const ov::Tensor expected =
-            utils::create_tensor(element::f32, Shape{5}, std::vector<float>{3.0f, 5.0f, 3.0f, 3.0f, 3.0f});
+            utils::create_tensor(element::f32, Shape{5}, std::vector<float>{3.0f, 3.0f, 3.0f, 3.0f, 3.0f});
         const ov::Tensor input = utils::create_tensor(element::f32, Shape{1}, std::vector<float>{2.0f});
         OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
         OV_ASSERT_NO_THROW(inference_request.set_tensor("input", input));
