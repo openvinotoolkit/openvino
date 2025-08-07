@@ -5,6 +5,7 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 
 #include <ze_api.h>
+#include <ze_mem_import_system_memory_ext.h>
 
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -43,6 +44,10 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
 #ifdef _WIN32
         if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32) {
             _external_memory_support = true;
+        }
+
+        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
+            _mmaped_file_support = true;
         }
 #else
         if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF) {
@@ -120,7 +125,8 @@ ZeroRemoteTensor::~ZeroRemoteTensor() {
 bool ZeroRemoteTensor::deallocate() noexcept {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF:
-    case MemType::SHARED_BUF: {
+    case MemType::SHARED_BUF:
+    case MemType::MMAPED_FILE: {
         if (_data) {
             auto result = zeMemFree(_init_structs->getContext(), _data);
             if (ZE_RESULT_SUCCESS != result) {
@@ -143,18 +149,19 @@ bool ZeroRemoteTensor::deallocate() noexcept {
     }
 }
 
+static ze_host_mem_alloc_flags_t to_alloc_flag(TensorType tensor_type) {
+    if (tensor_type == TensorType::INPUT) {
+        return ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
+    }
+    return 0;
+}
+
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF: {
         size_t size = (bytes + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
 
-        ze_host_mem_alloc_desc_t desc = {};
-        if (_tensor_type == TensorType::INPUT) {
-            ze_host_mem_alloc_flag_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
-            desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, static_cast<ze_host_mem_alloc_flags_t>(flag)};
-        } else {
-            desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
-        }
+        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, to_alloc_flag(_tensor_type)};
         THROW_ON_FAIL_FOR_LEVELZERO(
             "zeMemAllocHost",
             zeMemAllocHost(_init_structs->getContext(), &desc, size, utils::STANDARD_PAGE_SIZE, &_data));
@@ -167,8 +174,8 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
 
         // set up the request to import the external memory handle
 #ifdef _WIN32
-        // in the case of the Windows platform memory is locked by the D3D12 memory management - using zeMemAllocDevice
-        // to import memory
+        // in the case of the Windows platform memory is locked by the D3D12 memory management - using
+        // zeMemAllocDevice to import memory
         ze_external_memory_import_win32_handle_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_WIN32,
                                                                   nullptr,
                                                                   ZE_EXTERNAL_MEMORY_TYPE_FLAG_OPAQUE_WIN32,
@@ -183,8 +190,8 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                                      _init_structs->getDevice(),
                                                      &_data));
 #else
-        // in the case of Linux platforms memory could be changed after allocation - using zeMemAllocHost for importing
-        // memory
+        // in the case of Linux platforms memory could be changed after allocation - using zeMemAllocHost for
+        // importing memory
         ze_external_memory_import_fd_t memory_import = {ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_FD,
                                                         nullptr,
                                                         ZE_EXTERNAL_MEMORY_TYPE_FLAG_DMA_BUF,
@@ -194,6 +201,28 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             "zeMemAllocHost",
             zeMemAllocHost(_init_structs->getContext(), &desc, bytes, utils::STANDARD_PAGE_SIZE, &_data));
 #endif
+        break;
+    }
+    case MemType::MMAPED_FILE: {
+        if (!_mmaped_file_support) {
+            OPENVINO_THROW("Remote tensor functionality is not supported with this driver version");
+        }
+
+        // safe to align up even though we're importing since a memory mapped file will always have the last page
+        // assigned to it.
+        size_t aligned_size = (bytes + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
+        _ze_external_memory_import_system_memory_t memory_import = {
+            ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
+            nullptr,
+            const_cast<void*>(_mem),
+            aligned_size};
+
+        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC,
+                                         &memory_import,
+                                         to_alloc_flag(_tensor_type)};
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeMemAllocHost",
+            zeMemAllocHost(_init_structs->getContext(), &desc, aligned_size, utils::STANDARD_PAGE_SIZE, &_data));
         break;
     }
     default:
@@ -217,6 +246,7 @@ void ZeroRemoteTensor::update_properties() {
 
         break;
     case MemType::SHARED_BUF:
+    case MemType::MMAPED_FILE:
         _properties = {mem_type(_mem_type), mem_handle(_data)};
 
         break;
