@@ -123,6 +123,8 @@ private:
     format get_expected_format(deconvolution_node const& node);
     format get_expected_format(quantize_node const& node);
 
+    void set_onednn_dyn_conv_preferred_format(convolution_node& node);
+
     bool is_depthwise(const convolution_node& node) const;
     format imad_case(convolution_node const& node) const;
 

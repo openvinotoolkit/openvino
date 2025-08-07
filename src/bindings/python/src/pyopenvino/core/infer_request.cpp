@@ -17,7 +17,7 @@ namespace py = pybind11;
 
 inline py::object run_sync_infer(InferRequestWrapper& self, bool share_outputs, bool decode_strings) {
     {
-        py::gil_scoped_release release;
+        ConditionalGILScopedRelease release;
         *self.m_start_time = Time::now();
         self.m_request->infer();
         *self.m_end_time = Time::now();
@@ -46,7 +46,7 @@ void regclass_InferRequest(py::module m) {
             Set tensors using given keys.
 
             :param inputs: Data to set on tensors.
-            :type inputs: Dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
+            :type inputs: dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
         )");
 
     cls.def(
@@ -68,7 +68,7 @@ void regclass_InferRequest(py::module m) {
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
                             Total size of tensors needs to match with input's size.
-            :type tensors: List[openvino.Tensor]
+            :type tensors: list[openvino.Tensor]
         )");
 
     cls.def(
@@ -91,7 +91,7 @@ void regclass_InferRequest(py::module m) {
             :param tensors: Input tensors for batched infer request. The type of each tensor
                             must match the model input element type and shape (except batch dimension).
                             Total size of tensors needs to match with input's size.
-            :type tensors: List[openvino.Tensor]
+            :type tensors: list[openvino.Tensor]
             :rtype: None
         )");
 
@@ -109,7 +109,7 @@ void regclass_InferRequest(py::module m) {
             Set output tensors using given indexes.
 
             :param outputs: Data to set on output tensors.
-            :type outputs: Dict[int, openvino.Tensor]
+            :type outputs: dict[int, openvino.Tensor]
         )");
 
     // Python API exclusive function
@@ -126,7 +126,7 @@ void regclass_InferRequest(py::module m) {
             Set input tensors using given indexes.
 
             :param inputs: Data to set on output tensors.
-            :type inputs: Dict[int, openvino.Tensor]
+            :type inputs: dict[int, openvino.Tensor]
         )");
 
     cls.def(
@@ -143,7 +143,7 @@ void regclass_InferRequest(py::module m) {
             :param tensors:  Input tensors for batched infer request. The type of each tensor
                              must match the model input element type and shape (except batch dimension).
                              Total size of tensors needs to match with input's size.
-            :type tensors: List[openvino.Tensor]
+            :type tensors: list[openvino.Tensor]
         )");
 
     cls.def(
@@ -185,7 +185,7 @@ void regclass_InferRequest(py::module m) {
             :param inputs: Data to set on single input tensor.
             :type inputs: openvino.Tensor
             :return: Dictionary of results from output tensors with ports as keys.
-            :rtype: Dict[openvino.ConstOutput, numpy.array]
+            :rtype: dict[openvino.ConstOutput, numpy.array]
         )");
 
     // Overload for general case, it accepts dict of inputs that are pairs of (key, value).
@@ -213,9 +213,9 @@ void regclass_InferRequest(py::module m) {
             GIL is released while running the inference.
 
             :param inputs: Data to set on input tensors.
-            :type inputs: Dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
+            :type inputs: dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
             :return: Dictionary of results from output tensors with ports as keys.
-            :rtype: Dict[openvino.ConstOutput, numpy.array]
+            :rtype: dict[openvino.ConstOutput, numpy.array]
         )");
 
     // Overload for single input, it will throw error if a model has more than one input.
@@ -231,7 +231,7 @@ void regclass_InferRequest(py::module m) {
                     PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function to pass `userdata` into!", 1);
                 }
             }
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             *self.m_start_time = Time::now();
             self.m_request->start_async();
         },
@@ -270,7 +270,7 @@ void regclass_InferRequest(py::module m) {
                     PyErr_WarnEx(PyExc_RuntimeWarning, "There is no callback function!", 1);
                 }
             }
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             *self.m_start_time = Time::now();
             self.m_request->start_async();
         },
@@ -286,7 +286,7 @@ void regclass_InferRequest(py::module m) {
             running will lead to throwing exceptions.
 
             :param inputs: Data to set on input tensors.
-            :type inputs: Dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
+            :type inputs: dict[Union[int, str, openvino.ConstOutput], openvino.Tensor]
             :param userdata: Any data that will be passed inside callback call.
             :type userdata: Any
         )");
@@ -303,11 +303,11 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "wait",
         [](InferRequestWrapper& self) {
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.m_request->wait();
         },
         R"(
-            Waits for the result to become available. 
+            Waits for the result to become available.
             Blocks until the result becomes available.
 
             GIL is released while running this function.
@@ -316,7 +316,7 @@ void regclass_InferRequest(py::module m) {
     cls.def(
         "wait_for",
         [](InferRequestWrapper& self, const int timeout) {
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             return self.m_request->wait_for(std::chrono::milliseconds(timeout));
         },
         py::arg("timeout"),
@@ -352,7 +352,7 @@ void regclass_InferRequest(py::module m) {
                     OPENVINO_THROW("Caught exception: ", e.what());
                 }
                 // Acquire GIL, execute Python function
-                py::gil_scoped_acquire acquire;
+                ConditionalGILScopedAcquire acquire;
                 (*callback_sp)(self.m_userdata);
             });
         },
@@ -609,7 +609,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->get_profiling_info();
         },
-        py::call_guard<py::gil_scoped_release>(),
+        CallGuardConditionalGILRelease(),
         R"(
             Queries performance is measured per layer to get feedback on what
             is the most time-consuming operation, not all plugins provide
@@ -617,8 +617,8 @@ void regclass_InferRequest(py::module m) {
 
             GIL is released while running this function.
 
-            :return: List of profiling information for operations in model.
-            :rtype: List[openvino.ProfilingInfo]
+            :return: list of profiling information for operations in model.
+            :rtype: list[openvino.ProfilingInfo]
         )");
 
     cls.def(
@@ -626,14 +626,14 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->query_state();
         },
-        py::call_guard<py::gil_scoped_release>(),
+        CallGuardConditionalGILRelease(),
         R"(
             Gets state control interface for given infer request.
 
             GIL is released while running this function.
 
-            :return: List of VariableState objects.
-            :rtype: List[openvino.VariableState]
+            :return: list of VariableState objects.
+            :rtype: list[openvino.VariableState]
         )");
 
     cls.def(
@@ -677,7 +677,7 @@ void regclass_InferRequest(py::module m) {
         R"(
             Gets all inputs of a compiled model which was used to create this InferRequest.
 
-            :rtype: List[openvino.ConstOutput]
+            :rtype: list[openvino.ConstOutput]
         )");
 
     cls.def_property_readonly(
@@ -688,7 +688,7 @@ void regclass_InferRequest(py::module m) {
         R"(
             Gets all outputs of a compiled model which was used to create this InferRequest.
 
-            :rtype: List[openvino.ConstOutput]
+            :rtype: list[openvino.ConstOutput]
         )");
 
     cls.def_property_readonly("input_tensors",
@@ -696,7 +696,7 @@ void regclass_InferRequest(py::module m) {
                               R"(
                                 Gets all input tensors of this InferRequest.
                                 
-                                :rtype: List[openvino.Tensor]
+                                :rtype: list[openvino.Tensor]
                               )");
 
     cls.def_property_readonly("output_tensors",
@@ -705,7 +705,7 @@ void regclass_InferRequest(py::module m) {
 
                                 Gets all output tensors of this InferRequest.
                                 
-                                :rtype: List[openvino.Tensor]
+                                :rtype: list[openvino.Tensor]
                               )");
 
     cls.def_property_readonly(
@@ -715,7 +715,7 @@ void regclass_InferRequest(py::module m) {
         },
         R"(
             Gets latency of this InferRequest.
-            
+
             :rtype: float
         )");
 
@@ -724,7 +724,7 @@ void regclass_InferRequest(py::module m) {
         [](InferRequestWrapper& self) {
             return self.m_request->get_profiling_info();
         },
-        py::call_guard<py::gil_scoped_release>(),
+        CallGuardConditionalGILRelease(),
         R"(
             Performance is measured per layer to get feedback on the most time-consuming operation.
             Not all plugins provide meaningful data!
@@ -732,7 +732,7 @@ void regclass_InferRequest(py::module m) {
             GIL is released while running this function.
             
             :return: Inference time.
-            :rtype: List[openvino.ProfilingInfo]
+            :rtype: list[openvino.ProfilingInfo]
         )");
 
     cls.def_property_readonly(
@@ -746,7 +746,7 @@ void regclass_InferRequest(py::module m) {
             Note: All string-based data is decoded by default.
 
             :return: Dictionary of results from output tensors with ports as keys.
-            :rtype: Dict[openvino.ConstOutput, numpy.array]
+            :rtype: dict[openvino.ConstOutput, numpy.array]
         )");
 
     cls.def("__repr__", [](const InferRequestWrapper& self) {

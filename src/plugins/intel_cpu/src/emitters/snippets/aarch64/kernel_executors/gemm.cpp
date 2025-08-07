@@ -4,9 +4,21 @@
 
 #include "gemm.hpp"
 
-#include "openvino/core/parallel.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <utility>
+
+#include "emitters/snippets/brgemm_generic.hpp"
+#include "emitters/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_utils.hpp"
-#include "transformations/tpp/common/op/brgemm.hpp"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -22,7 +34,7 @@ bool GemmKernelKaiConfig::operator==(const GemmKernelKaiConfig& rhs) const {
 GemmKaiKernelExecutor::GemmKaiKernelExecutor(GemmKernelKaiConfig config)
     : snippets::KernelExecutor<GemmKernelKaiConfig, GemmCompiledKernel>(std::move(config)) {}
 
-void GemmKaiKernelExecutor::update_kernel(const GemmKernelKaiConfig& config,
+void GemmKaiKernelExecutor::update_kernel([[maybe_unused]] const GemmKernelKaiConfig& config,
                                           std::shared_ptr<GemmCompiledKernel>& kernel) const {
     if (kernel == nullptr) {
         // universal kernel could be used in any config and shape, as excuted peice by peice as binary call.

@@ -21,8 +21,9 @@ jobs:
 
       - name: Install clang-format-18
         run: |
-          sudo apt update
-          sudo apt --assume-yes install clang-format-18
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -41,9 +42,6 @@ jobs:
           level: warning
           fail_level: error
           filter_mode: nofilter
-          exclude: |
-              "*/thirdparty/*"
-              "./temp/*"
 
   clang-format-aarch64:
     runs-on: ubuntu-24.04
@@ -57,8 +55,11 @@ jobs:
 
       - name: Install clang-format-18 and cross-compilation dependencies
         run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
           sudo apt update
-          sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons clang-format-18
+          sudo apt --assume-yes install binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu g++-aarch64-linux-gnu scons
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -77,9 +78,6 @@ jobs:
           level: warning
           fail_level: error
           filter_mode: nofilter
-          exclude: |
-              "*/thirdparty/*"
-              "./temp/*"
 
   clang-format-riscv64:
     runs-on: ubuntu-24.04
@@ -93,8 +91,11 @@ jobs:
 
       - name: Install clang-format-18 and cross-compilation dependencies
         run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
           sudo apt update
-          sudo apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu clang-format-18
+          sudo apt --assume-yes install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu binutils-riscv64-linux-gnu
 
       # Run cmake with extra options to cover as much source code as possible:
       # - -DENABLE_PROFILING_ITT=ON -DSELECTIVE_BUILD=COLLECT to enable codestyle check for ITT collector
@@ -112,9 +113,6 @@ jobs:
           level: warning
           fail_level: error
           filter_mode: nofilter
-          exclude: |
-              "*/thirdparty/*"
-              "./temp/*"
 
   ShellCheck:
     runs-on: ubuntu-22.04

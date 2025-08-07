@@ -9,7 +9,8 @@ import sys
 import traceback
 from multiprocessing import Process, Queue, TimeoutError, ProcessError
 from queue import Empty as QueueEmpty
-from typing import Callable, Union
+from typing import Union
+from collections.abc import Callable
 
 if platform.system() == "Darwin":
     # Fix for MacOS

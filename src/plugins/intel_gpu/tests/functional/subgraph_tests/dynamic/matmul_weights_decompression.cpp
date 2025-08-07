@@ -322,6 +322,7 @@ protected:
 };
 
 TEST_P(MatmulWeightsDecompression, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED(); // This is necessary because of check_results
     run();
     check_results();
 }

@@ -15,6 +15,8 @@
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/variable_state.hpp"
 
+#include "lora_inst.h"
+
 #include <cmath>
 
 using namespace cldnn;
@@ -37,7 +39,7 @@ struct lora_test_params {
 
 class LoraFusingsTest : public ::BaseFusingTest<lora_test_params> {
 public:
-    void execute(lora_test_params& p) {
+    void execute(lora_test_params& p, std::string check_dyn_impl_name = "") {
         cfg_not_fused.set_property(allow_new_shape_infer(true));
         cfg_fused.set_property(allow_new_shape_infer(true));
 
@@ -73,6 +75,13 @@ public:
         network_not_fused.set_variable("var_b", var_b);
 
         compare(network_not_fused, network_fused, p);
+
+        if (!check_dyn_impl_name.empty()) {
+            auto inst = network_fused.get_primitive(check_dyn_impl_name);
+            auto impl = inst->get_impl();
+            ASSERT_TRUE(impl != nullptr);
+            ASSERT_TRUE(impl->is_dynamic());
+        }
     }
 
     layout get_lora_input_layout(lora_test_params& p, bool is_dynamic = false) {
@@ -143,8 +152,8 @@ TEST_P(lora_act_eltw, basic) {
         reorder("reorder_bfyx", input_info("eltw"), p.planar_format, data_types::f32)
     );
 
-    tolerance = p.input_type == data_types::f16 ? 2e-2f : 1e-5f;
-    execute(p);
+    tolerance = 1e-5f;
+    execute(p, "lora");
 }
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, lora_act_eltw, ::testing::ValuesIn(std::vector<lora_test_params>{

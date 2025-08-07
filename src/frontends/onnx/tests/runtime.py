@@ -5,7 +5,7 @@
 """Provide a layer of abstraction for an OpenVINO runtime environment."""
 
 import logging
-from typing import Dict, List, Union
+from typing import Union
 
 import numpy as np
 
@@ -51,7 +51,7 @@ class Runtime(object):
         self.backend = Core()
         assert backend_name in self.backend.available_devices, 'The requested device "' + backend_name + '" is not supported!'
 
-    def set_config(self, config: Dict[str, str]) -> None:
+    def set_config(self, config: dict[str, str]) -> None:
         """Set the runtime configuration."""
         self.backend.set_property(device_name=self.backend_name, properties=config)
 
@@ -126,7 +126,7 @@ class Computation(object):
         params_string = ", ".join([param.name for param in self.parameters])
         return f"<Computation: {self.model.get_name()}({params_string})>"
 
-    def __call__(self, *input_values: NumericData) -> List[NumericData]:
+    def __call__(self, *input_values: NumericData) -> list[NumericData]:
         """Run computation on input values and return result."""
         # Input validation
         if len(input_values) < len(self.parameters):

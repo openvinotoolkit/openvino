@@ -8,11 +8,7 @@
 namespace ov {
 namespace test {
 std::string ExperimentalDetectronTopKROIsLayerTest::getTestCaseName(const testing::TestParamInfo<ExperimentalDetectronTopKROIsTestParams>& obj) {
-    std::vector<InputShape> shapes;
-    int64_t max_rois;
-    ElementType model_type;
-    std::string device_name;
-    std::tie(shapes, max_rois, model_type, device_name) = obj.param;
+    const auto& [shapes, max_rois, model_type, device_name] = obj.param;
 
     std::ostringstream result;
     if (shapes.front().first.size() != 0) {
@@ -36,11 +32,7 @@ std::string ExperimentalDetectronTopKROIsLayerTest::getTestCaseName(const testin
 }
 
 void ExperimentalDetectronTopKROIsLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    int64_t max_rois;
-    ElementType model_type;
-    std::string targetName;
-    std::tie(shapes, max_rois, model_type, targetName) = this->GetParam();
+    const auto& [shapes, max_rois, model_type, targetName] = this->GetParam();
 
     inType = outType = model_type;
     targetDevice = targetName;

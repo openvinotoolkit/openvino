@@ -29,7 +29,7 @@ namespace ov::intel_cpu {
 
 class BinaryEltwiseTppEmitter : public TppEmitter {
 public:
-    BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+    BinaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                             dnnl::impl::cpu::x64::cpu_isa_t isa,
                             const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override {
@@ -51,7 +51,7 @@ protected:
 
 class UnaryEltwiseTppEmitter : public TppEmitter {
 public:
-    UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+    UnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                            dnnl::impl::cpu::x64::cpu_isa_t isa,
                            const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override {
@@ -76,7 +76,7 @@ protected:
 
 class ReduceTppEmitter : public UnaryEltwiseTppEmitter {
 public:
-    ReduceTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+    ReduceTppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                      dnnl::impl::cpu::x64::cpu_isa_t isa,
                      const ov::snippets::lowered::ExpressionPtr& expr);
 };
@@ -85,7 +85,7 @@ class ReferenceUnaryEltwiseTppEmitter : public UnaryEltwiseTppEmitter {
 public:
     // Note: can create template to suppport different executor signatures
     using executor_function = std::function<float(float)>;
-    ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator* h,
+    ReferenceUnaryEltwiseTppEmitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                                     const ov::snippets::lowered::ExpressionPtr& expr,
                                     executor_function executor)

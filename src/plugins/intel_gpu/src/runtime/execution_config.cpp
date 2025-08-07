@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "openvino/core/any.hpp"
@@ -204,6 +205,18 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
                 }
             }
         }
+
+        // w/a : key_by_channel quant mode does not support cache rotation yet
+        // CVS-170994
+        if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            const size_t rotated_block_indices_idx = paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES;
+            auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(paged_attn_op->get_input_node_shared_ptr(rotated_block_indices_idx));
+            bool has_rotated_blocks = rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic();
+            if (has_rotated_blocks && m_key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
+                m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+            }
+        }
     };
 
     for (const auto& op : ops) {
@@ -211,6 +224,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
 
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
         if (is_paged_attention_model || !info.supports_immad) {
             // Enable KV-cache compression by default for:
@@ -222,10 +236,22 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     }
 
+    if (!is_set_by_user(ov::internal::key_cache_quant_mode) || get_key_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
+        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    }
+
+    if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
+        m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    } else if (get_value_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
+        GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
+            << "Switching to BY_TOKEN mode." << std::endl;
+        m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    }
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
     if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
         m_could_use_flashattn_v2 = false;
     }
+
     m_optimize_data = true;
 }
 

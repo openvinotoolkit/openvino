@@ -146,6 +146,10 @@ which do not require specifying quantization parameters:
 * TheBloke/Llama-2-7B-Chat-GPTQ
 * Qwen/Qwen2-7B-Instruct-GPTQ-Int4
 
+.. note::
+
+   Pre-converted models optimized for NPU are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
+     
 
 Run generation using OpenVINO GenAI
 ###############################################################################################
@@ -285,6 +289,7 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 * To export a blob with weights you need to pass ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
 * If the blob is exported as weightless you also need to either provide
   ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object``.
+* Ahead-of-time import in weightless mode has been optimized to consume less memory than during regular compilation or using ``CACHE_DIR``.
 
 .. tab-set::
 

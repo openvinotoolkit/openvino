@@ -37,7 +37,7 @@ private:
     void initFromInputs() override;
     void getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
 
-    const size_t OFFSETS_IDX = 2lu;
+    const size_t OFFSETS_IDX = 2LU;
 
     const int* indicesData_ = nullptr;
     const int* offsetsData_ = nullptr;

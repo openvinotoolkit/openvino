@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "layer_transformation.hpp"
-
-#include <string>
-#include <sstream>
-#include <memory>
-
-#include "low_precision/low_precision.hpp"
-
 #include <gtest/gtest.h>
+
+#include <memory>
+#include <sstream>
+#include <string>
+
+#include "layer_transformation.hpp"
+#include "low_precision/low_precision.hpp"
+#include "openvino/op/fake_convert.hpp"
 #include "ov_lpt_models/common/builders.hpp"
 
 using namespace testing;
@@ -116,3 +116,13 @@ INSTANTIATE_TEST_SUITE_P(
     IsFunctionQuantizedTransformation,
     ::testing::ValuesIn(testValues),
     IsFunctionQuantizedTransformation::getTestCaseName);
+
+TEST_F(LayerTransformation, isFunctionQuantizedFakeConvert) {
+    const auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape({1, 3, 16, 16}));
+    const auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {3.0f});
+    const auto fakeConvert = std::make_shared<ov::op::v13::FakeConvert>(input, scale, ov::element::f8e4m3);
+    const auto model = std::make_shared<ov::Model>(fakeConvert, ov::ParameterVector{input});
+
+    const bool isQuantized = ov::pass::low_precision::LowPrecision::isFunctionQuantized(model, {}, true);
+    ASSERT_TRUE(isQuantized);
+}

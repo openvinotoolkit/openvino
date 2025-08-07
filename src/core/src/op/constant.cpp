@@ -281,7 +281,9 @@ void Constant::set_unused_bits(void* buffer) const {
         if (element::is_bit_type(m_element_type)) {
             constexpr size_t storage_unit_byte_size = 1;
             const auto not_aligned_elements = num_elements % (8 / m_element_type.bitwidth());
-            const uint8_t not_used_bits_mask = 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
+            const uint8_t not_used_bits_mask = element::is_lsb_packed(m_element_type)
+                                                   ? 0xff << (m_element_type.bitwidth() * not_aligned_elements)
+                                                   : 0xff >> (m_element_type.bitwidth() * not_aligned_elements);
             reinterpret_cast<uint8_t*>(buffer)[byte_size - storage_unit_byte_size] &= ~not_used_bits_mask;
         } else if (element::is_nibble_type(m_element_type) && (num_elements % 2)) {
             constexpr size_t storage_unit_byte_size = 1;

@@ -197,7 +197,7 @@ CommonDispatchData PermuteKernel_f_y_axes::SetDefault(const permute_params& para
 
 bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     if (!Parent::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto is_swapping_f_with_y = [](const std::vector<uint16_t>& order) {
@@ -222,17 +222,17 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
     const auto feature_div = GetDivisor(in.Feature().v);
     const auto y_div = GetDivisor(in.Y().v);
     if (feature_div == 1 || y_div == 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     if (in.X().v > 1 && GetDivisor(in.X().v) == 1) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     if (!is_swapping_f_with_y(params.order)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (in_layout != out_layout) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Accept only supported blocked layouts and SIMD sizes.
@@ -242,7 +242,7 @@ bool PermuteKernel_f_y_axes::Validate(const Params& p) const {
         const auto subgroup_size = Is3DTranspose(params) ? feature_block_size : tile_size;
         if (!(IsSIMDSizeSupported(params.engineInfo, subgroup_size) &&
               (in_layout == DataLayout::b_fs_yx_fsv32 || in_layout == DataLayout::b_fs_yx_fsv16))) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
 

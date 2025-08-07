@@ -4,7 +4,7 @@
 
 #include "gather_uni_kernel.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -16,6 +16,7 @@
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -65,8 +66,8 @@ const unsigned jitGatherKernelBase::incVec[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 
 
 template <x64::cpu_isa_t isa>
 jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
-    : jitGatherKernelBase(jcp, x64::cpu_isa_traits<isa>::vlen, indicesTypeSize),
-      x64::jit_generator(jit_name()) {
+    : jitGatherKernelBase(jcp, x64::cpu_isa_traits_t<isa>::vlen, indicesTypeSize),
+      x64::jit_generator_t(jit_name()) {
     if (jcp.dataTypeSize == 2) {
         dataTypeShift = 1;
     } else if (jcp.dataTypeSize == 4) {
@@ -89,11 +90,11 @@ jitUniGatherKernel<isa>::jitUniGatherKernel(const jGatherConfParams& jcp)
 
 template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::create_ker() {
-    auto code = x64::jit_generator::create_kernel();
-    if (code != dnnl::impl::status::success) {
-        OPENVINO_THROW("Could not create Gather kernel. Error code: ", std::to_string(code));
-    }
-    ker_ = (decltype(ker_))jit_ker();
+    auto code = x64::jit_generator_t::create_kernel();
+    OPENVINO_ASSERT(code == dnnl::impl::status::success,
+                    "Could not create Gather kernel. Error code: ",
+                    std::to_string(code));
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <x64::cpu_isa_t isa>
@@ -1088,7 +1089,7 @@ void jitUniGatherKernel<x64::avx512_core>::fillRestWorkMask(Vmask& kDstMask,
     jge(lKmov);
     Xbyak::Reg8 rShift(Xbyak::Operand::CL);
     mov(rShift, idxElPerVec);
-    sub(rShift, rWorkRest);
+    sub(Xbyak::Reg64(rShift.getIdx()), rWorkRest);
     shr(rOnes, rShift);
     L(lKmov);
     kmovw(kDstMask, rOnes);
@@ -1187,17 +1188,13 @@ void jitUniGatherKernel<x64::avx2>::fillVlenVector() {
 template <x64::cpu_isa_t isa>
 bool jitUniGatherKernel<isa>::isSupportedConfiguration(uint64_t afterAxisSize) {
     if (!jcp.dynamicShapes && afterAxisSize <= idxElPerVec) {
-        if (afterAxisSize > 1 && isa == x64::avx2 && (jcp.dataTypeSize == 1 || jcp.dataTypeSize == 2)) {
-            // There are no enough registers for these cases.
-            return false;
-        }
-
-        return true;
+        // There are no enough registers for these cases.
+        const bool isSmallDataType = (jcp.dataTypeSize == 1 || jcp.dataTypeSize == 2);
+        const bool isAvx2WithBlockedAfterAxis = (afterAxisSize > 1 && isa == x64::avx2);
+        const bool incompatible_config = isAvx2WithBlockedAfterAxis && isSmallDataType;
+        return !incompatible_config;
     }
-    if (jcp.dynamicShapes && afterAxisSize == 1) {
-        return true;
-    }
-    return false;
+    return static_cast<bool>(jcp.dynamicShapes && afterAxisSize == 1);
 }
 
 template struct jitUniGatherKernel<x64::avx2>;

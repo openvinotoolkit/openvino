@@ -27,9 +27,8 @@ void OVClassCompiledModelEmptyPropertiesTests::SetUp() {
 }
 
 std::string OVClassCompiledModelPropertiesTests::getTestCaseName(testing::TestParamInfo<PropertiesParams> obj) {
-    std::string targetDevice;
-    AnyMap properties;
-    std::tie(targetDevice, properties) = obj.param;
+    const auto& [_targetDevice, properties] = obj.param;
+    auto targetDevice = _targetDevice;
     std::replace(targetDevice.begin(), targetDevice.end(), ':', '.');
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << "_";
@@ -55,9 +54,8 @@ void OVClassCompiledModelPropertiesTests::TearDown() {
 
 // check properties
 std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::TestParamInfo<OvPropertiesParams> obj) {
-    std::string target_device;
-    std::pair<ov::AnyMap, std::string> userConfig;
-    std::tie(target_device, userConfig) = obj.param;
+    const auto& [_target_device, userConfig] = obj.param;
+    auto target_device = _target_device;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     auto compileModelProperties = userConfig.first;
     std::ostringstream result;
@@ -71,8 +69,9 @@ std::string OVCompileModelGetExecutionDeviceTests::getTestCaseName(testing::Test
 
 void OVCompileModelGetExecutionDeviceTests::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    std::pair<ov::AnyMap, std::string> userConfig;
-    std::tie(target_device, userConfig) = GetParam();
+
+    const auto& [_target_device, userConfig] = GetParam();
+    target_device = _target_device;
     compileModelProperties = userConfig.first;
     expectedDeviceName = userConfig.second;
     model = ov::test::utils::make_conv_pool_relu();
@@ -164,9 +163,8 @@ TEST_P(OVClassCompiledModelPropertiesDefaultTests, CheckDefaultValues) {
 }
 
 std::string OVClassCompiledModelGetPropertyTest_Priority::getTestCaseName(testing::TestParamInfo<PriorityParams> obj) {
-    std::string target_device;
-    ov::AnyMap userConfig;
-    std::tie(target_device, userConfig) = obj.param;
+    const auto& [_target_device, userConfig] = obj.param;
+    auto target_device = _target_device;
     std::replace(target_device.begin(), target_device.end(), ':', '.');
     auto compileModelProperties = userConfig;
     std::ostringstream result;

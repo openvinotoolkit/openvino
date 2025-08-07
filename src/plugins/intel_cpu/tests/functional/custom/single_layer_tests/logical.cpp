@@ -20,11 +20,8 @@ class LogicalLayerCPUTest : public testing::WithParamInterface<LogicalLayerCPUTe
                             virtual public ov::test::SubgraphBaseTest,
                             public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LogicalLayerCPUTestParamSet> obj) {
-        ov::test::LogicalTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<LogicalLayerCPUTestParamSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
         std::ostringstream result;
         result << ov::test::LogicalLayerTest::getTestCaseName(
             testing::TestParamInfo<ov::test::LogicalTestParams>(basicParamsSet, 0));
@@ -36,20 +33,12 @@ public:
 
 protected:
     void SetUp() override {
-        ov::test::LogicalTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
-
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-
-        std::vector<ov::test::InputShape> inputShapes;
-        ov::test::utils::LogicalTypes logicalOpType;
-        ov::test::utils::InputLayerType secondInputType;
-        ov::element::Type netPrecision;
         std::string targetName;
-        std::map<std::string, std::string> additional_config;
-        std::tie(inputShapes, logicalOpType, secondInputType, netPrecision, targetDevice, additional_config) =
+        const auto& [inputShapes, logicalOpType, secondInputType, netPrecision, _targetDevice, additional_config] =
             basicParamsSet;
+        targetDevice = _targetDevice;
         init_input_shapes(inputShapes);
 
         selectedType = getPrimitiveType() + "_" + ov::element::Type(inType).get_type_name();

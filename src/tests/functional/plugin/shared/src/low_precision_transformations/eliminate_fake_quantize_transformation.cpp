@@ -16,9 +16,7 @@
 namespace LayerTestsDefinitions {
 
 std::string EliminateFakeQuantizeTransformation::getTestCaseName(const testing::TestParamInfo<EliminateFakeQuantizeTransformationParams>& obj) {
-    std::string targetDevice;
-    EliminateFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = obj.param;
+    const auto& [targetDevice, testValues] = obj.param;
 
     std::ostringstream result;
     result << targetDevice << "_" <<
@@ -29,8 +27,8 @@ std::string EliminateFakeQuantizeTransformation::getTestCaseName(const testing::
 }
 
 void EliminateFakeQuantizeTransformation::SetUp() {
-    EliminateFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = this->GetParam();
+    const auto& [_targetDevice, testValues] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(testValues.inputShape);
 
@@ -51,8 +49,8 @@ TEST_P(EliminateFakeQuantizeTransformation, CompareWithRefImpl) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
     run();
 
-    EliminateFakeQuantizeTransformationTestValues testValues;
-    std::tie(targetDevice, testValues) = this->GetParam();
+    const auto& [_targetDevice, testValues] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const auto& rtInfo = LayerTransformation::get_runtime_info();
 

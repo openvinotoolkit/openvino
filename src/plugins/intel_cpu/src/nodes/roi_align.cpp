@@ -4,12 +4,10 @@
 
 #include "roi_align.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>
 #include <cmath>
-#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -18,18 +16,13 @@
 #include <openvino/op/roi_align.hpp>
 #include <string>
 #include <tuple>
-#include <type_traits>
-#include <unordered_map>
 #include <utility>
 #include <utils/bfloat16.hpp>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -47,6 +40,19 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+#    include <type_traits>
+#    include <unordered_map>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_emitter.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
+#endif
+
 using namespace dnnl;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu;
@@ -62,16 +68,16 @@ using ngAlignedMode = ov::op::v9::ROIAlign::AlignedMode;
 #    define GET_OFF(field) offsetof(jit_roi_align_call_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator {
+struct jit_uni_roi_align_kernel_f32 : public jit_uni_roi_align_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_roi_align_kernel_f32);
 
     explicit jit_uni_roi_align_kernel_f32(jit_roi_align_params jcp)
         : jit_uni_roi_align_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     };
 
     void generate() override {
@@ -99,8 +105,8 @@ private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    const int v_len = cpu_isa_traits<isa>::vlen;
-    const int x_len = cpu_isa_traits<sse41>::vlen;
+    const int v_len = cpu_isa_traits_t<isa>::vlen;
+    const int x_len = cpu_isa_traits_t<sse41>::vlen;
     const int v_step = v_len / sizeof(float);
     const int x_step = x_len / sizeof(float);
 
@@ -505,7 +511,7 @@ private:
         Xbyak::Label tail_loop_label;
         Xbyak::Label tail_loop_end_label;
 
-        int lane = v_len / cpu_isa_traits<sse41>::vlen;
+        int lane = v_len / cpu_isa_traits_t<sse41>::vlen;
         uni_vpxor(vmm_dst, vmm_dst, vmm_dst);
         L(main_loop_label);
         {
@@ -635,9 +641,8 @@ private:
     // gather bf16 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
     // bf16 is needed from avx512_core
     void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
-        if (!std::is_same<Vmm, Xbyak::Zmm>::value) {
-            OPENVINO_THROW("bf16 is only supported from avx512_core platform for ROIAlign node.");
-        }
+        OPENVINO_ASSERT((std::is_same<Vmm, Xbyak::Zmm>::value),
+                        "bf16 is only supported from avx512_core platform for ROIAlign node.");
         sub(rsp, v_len);
         uni_vmovdqu(ptr[rsp], vmm_idx);
         for (int i = 0; i < v_step; i++) {
@@ -754,42 +759,40 @@ ROIAlign::ROIAlign(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
 }
 
 void ROIAlign::getSupportedDescriptors() {
-    if (getParentEdges().size() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 3, "has incorrect number of input edges: ", getParentEdges().size());
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges: ", getChildEdges().size());
 
-    if (getInputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(0).getRank() == 4,
+                    "doesn't support 0th input with rank: ",
+                    getInputShapeAtPort(0).getRank());
 
-    if (getInputShapeAtPort(1).getRank() != 2) {
-        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(1).getRank() == 2,
+                    "doesn't support 1st input with rank: ",
+                    getInputShapeAtPort(1).getRank());
 
-    if (getInputShapeAtPort(2).getRank() != 1) {
-        THROW_CPU_NODE_ERR("doesn't support 2nd input with rank: ", getInputShapeAtPort(2).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(2).getRank() == 1,
+                    "doesn't support 2nd input with rank: ",
+                    getInputShapeAtPort(2).getRank());
 
-    if (getOutputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getOutputShapeAtPort(0).getRank() == 4,
+                    "doesn't support output with rank: ",
+                    getOutputShapeAtPort(0).getRank());
 
     const auto& proposalsDims = getInputShapeAtPort(1).getDims();
-    if (proposalsDims[1] != 4) {
-        THROW_CPU_NODE_ERR("has invalid shape on 1st input: [", proposalsDims[0], ",", proposalsDims[1], "]");
-    }
+    CPU_NODE_ASSERT(proposalsDims[1] == 4,
+                    "has invalid shape on 1st input: [",
+                    proposalsDims[0],
+                    ",",
+                    proposalsDims[1],
+                    "]");
 
     const auto& indexesDims = getInputShapeAtPort(2).getDims();
-    if (!dimsEqualWeak(proposalsDims[0], indexesDims[0])) {
-        THROW_CPU_NODE_ERR("has different sizes of inputs for proposals (",
-                           proposalsDims[0],
-                           ") and indexes (",
-                           indexesDims[0],
-                           ")");
-    }
+    CPU_NODE_ASSERT(dimsEqualWeak(proposalsDims[0], indexesDims[0]),
+                    "has different sizes of inputs for proposals (",
+                    proposalsDims[0],
+                    ") and indexes (",
+                    indexesDims[0],
+                    ")");
 }
 
 void ROIAlign::createJitKernel(const ov::element::Type& dataPrec, const ROIAlignLayoutType& selectLayout) {
@@ -869,12 +872,8 @@ void ROIAlign::initSupportedPrimitiveDescriptors() {
 void ROIAlign::createPrimitive() {
     auto srcMemPtr = getSrcMemoryAtPort(0);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("has null input memory");
-    }
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("has null destination memory");
-    }
+    CPU_NODE_ASSERT(srcMemPtr, "has null input memory");
+    CPU_NODE_ASSERT(dstMemPtr, "has null destination memory");
 
     if (!roi_align_kernel) {
         ROIAlignLayoutType selectedLayout = ROIAlignLayoutType::nspc;
@@ -907,9 +906,9 @@ struct ROIAlign::ROIAlignExecute {
 void ROIAlign::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
-    if (!((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32))) {
-        THROW_CPU_NODE_ERR("doesn't support demanded precisions");
-    }
+    CPU_NODE_ASSERT(
+        ((inputPrec == dnnl_bf16 && outputPrec == dnnl_bf16) || (inputPrec == dnnl_f32 && outputPrec == dnnl_f32)),
+        "doesn't support demanded precisions");
 
     ROIAlignContext ctx = {*this};
 
@@ -998,11 +997,11 @@ void ROIAlign::executeSpecified() {
         int roiOff = n * 4;
         const float* srcRoiPtr = &srcRoi[roiOff];
         int roiBatchInd = srcRoiIdx[n];
-        if (roiBatchInd < -1) {  // -1 means switched off region
-            THROW_CPU_NODE_ERR("Batch index cannot be less, than -1");
-        } else if (static_cast<size_t>(roiBatchInd) >= inputDimVector[0]) {
-            THROW_CPU_NODE_ERR("Demanded batch (id = ", roiBatchInd, ") doesn't exist");
-        }
+        CPU_NODE_ASSERT(roiBatchInd >= -1, "Batch index cannot be less, than -1");
+        CPU_NODE_ASSERT(static_cast<size_t>(roiBatchInd) < inputDimVector[0],
+                        "Demanded batch (id = ",
+                        roiBatchInd,
+                        ") doesn't exist");
 
         float x1 = (srcRoiPtr[0] + offset_src) * spatialScale + offset_dst;
         float y1 = (srcRoiPtr[1] + offset_src) * spatialScale + offset_dst;
@@ -1015,8 +1014,8 @@ void ROIAlign::executeSpecified() {
             roiHeight = std::max(roiHeight, 1.0F);
             roiWidth = std::max(roiWidth, 1.0F);
         }
-        float binHeight = roiHeight / pooledH;
-        float binWidth = roiWidth / pooledW;
+        float binHeight = roiHeight / static_cast<float>(pooledH);
+        float binWidth = roiWidth / static_cast<float>(pooledW);
 
         auto samplingRatioX = samplingRatio == 0 ? static_cast<int>(ceil(binWidth)) : samplingRatio;
         auto samplingRatioY = samplingRatio == 0 ? static_cast<int>(ceil(binHeight)) : samplingRatio;
@@ -1024,8 +1023,8 @@ void ROIAlign::executeSpecified() {
         uint64_t numSamplesInBin = static_cast<uint64_t>(samplingRatioX) * samplingRatioY;
         numSamples[n] = numSamplesInBin;
 
-        float sampleDistanceX = binWidth / samplingRatioX;
-        float sampleDistanceY = binHeight / samplingRatioY;
+        float sampleDistanceX = binWidth / static_cast<float>(samplingRatioX);
+        float sampleDistanceY = binHeight / static_cast<float>(samplingRatioY);
         // prepare arrays for sampling points and weights
         size_t paramsSize = BLIParamsNum * numSamplesInBin * binCount;
         weightsTbl[n] = std::vector<float>(paramsSize, 0.F);
@@ -1048,10 +1047,13 @@ void ROIAlign::executeSpecified() {
             for (int xBinInd = 0; xBinInd < pooledW; ++xBinInd) {
                 // run into bin
                 for (int ySampleInd = 0; ySampleInd < samplingRatioY; ySampleInd++) {
-                    float sampleY = y1 + yBinInd * binHeight + sampleDistanceY * (0.5F + ySampleInd);
+                    float sampleY = y1 + static_cast<float>(yBinInd) * binHeight +
+                                    sampleDistanceY * (0.5F + static_cast<float>(ySampleInd));
                     for (int xSampleInd = 0; xSampleInd < samplingRatioX; xSampleInd++) {
-                        float sampleX = x1 + xBinInd * binWidth + sampleDistanceX * (0.5F + xSampleInd);
-                        if (sampleX < -1.0 || sampleX > W || sampleY < -1.0 || sampleY > H) {
+                        float sampleX = x1 + static_cast<float>(xBinInd) * binWidth +
+                                        sampleDistanceX * (0.5F + static_cast<float>(xSampleInd));
+                        if (sampleX < -1.0F || sampleX > static_cast<float>(W) || sampleY < -1.0F ||
+                            sampleY > static_cast<float>(H)) {
                             // For this sample we save 4 index of (0,0) and 4 weight of 0
                             if (!isPlainFmt) {
                                 auto startPoint = reinterpret_cast<size_t>(&srcData[batchSrcOffset]);
@@ -1127,9 +1129,7 @@ void ROIAlign::executeSpecified() {
         }
     });
 
-    if (realRois == 0) {
-        THROW_CPU_NODE_ERR("realRois must be greater than 0");
-    }
+    CPU_NODE_ASSERT(realRois > 0, "realRois must be greater than 0");
 
     if (roi_align_kernel) {
         if (!isPlainFmt) {
@@ -1148,7 +1148,7 @@ void ROIAlign::executeSpecified() {
                 arg.weights = static_cast<const float*>(&weightsTbl[n][binOffset]);
                 arg.work_amount = C;
                 arg.num_samples = numSamplesROI;
-                float numSamplesInBinInvert = 1.F / numSamplesROI;
+                float numSamplesInBinInvert = 1.0F / static_cast<float>(numSamplesROI);
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
                 auto* threadBuf = static_cast<float*>(
                     &workingBuf[static_cast<size_t>(parallel_get_thread_num()) * static_cast<size_t>(bufSize)]);
@@ -1179,7 +1179,7 @@ void ROIAlign::executeSpecified() {
                 // buffer with absolute index
                 arg.buffer = static_cast<void*>(&srcIndexTbl[n][paramOffset]);
                 arg.weights = static_cast<const float*>(&weightsTbl[n][paramOffset]);
-                float numSamplesInBinInvert = 1.F / numSamplesROI;
+                float numSamplesInBinInvert = 1.0F / static_cast<float>(numSamplesROI);
                 arg.scale = static_cast<const float*>(&numSamplesInBinInvert);
                 arg.num_samples = numSamplesROI;
                 (*roi_align_kernel)(&arg);
@@ -1194,7 +1194,7 @@ void ROIAlign::executeSpecified() {
             size_t binOffset = yBinInd * pooledW + xBinInd;
             size_t binDstOffset = n * batchOutputStride + cIdx * binCount + binOffset;
             int paramOffset = binOffset * BLIParamsNum * numSamplesROI;
-            float numSamplesInBinInvert = 1.F / numSamplesROI;
+            float numSamplesInBinInvert = 1.0F / static_cast<float>(numSamplesROI);
 
             float pooledValue = 0;
             for (auto binSampleInd = 0; binSampleInd < numSamplesROI; binSampleInd++) {

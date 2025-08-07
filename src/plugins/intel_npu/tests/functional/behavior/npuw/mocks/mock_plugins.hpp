@@ -126,6 +126,13 @@ public:
                          std::shared_ptr<ov::ICompiledModel>(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties));
+    MOCK_CONST_METHOD2_T(import_model,
+                         std::shared_ptr<ov::ICompiledModel>(const ov::Tensor& model,
+                                                             const ov::AnyMap& properties));
+    MOCK_CONST_METHOD3_T(import_model,
+                         std::shared_ptr<ov::ICompiledModel>(const ov::Tensor& model,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties));
     MOCK_CONST_METHOD2_T(query_model,
                          ov::SupportedOpsMap(const std::shared_ptr<const ov::Model>& model,
                                              const ov::AnyMap& properties));
