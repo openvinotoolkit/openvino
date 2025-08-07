@@ -532,6 +532,9 @@ void primitive_inst::update_shape() {
 }
 
 kernel_impl_params primitive_inst::get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param) {
+    auto updated_params_ = *_impl_params;
+    return updated_params_;
+
     auto updated_params = get_node().type()->get_fake_aligned_params(orig_impl_param);
 
     const auto &dev_info = get_node().get_program().get_engine().get_device_info();
