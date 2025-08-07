@@ -20,6 +20,11 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
 public:
     static constexpr const char* output_embeds = "npuw_output_embed";
 
+    static constexpr uint32_t whisper_batch_dim = 0u;
+    static constexpr uint32_t whisper_seq_len_dim = 2u;
+    static constexpr uint32_t whisper_max_prompt_size = 4u;
+    static constexpr uint32_t whisper_kvcache_size = 448u;
+
     struct KVCacheDesc {
         uint32_t max_prompt_size = 0u;
         uint32_t total_size = 0u;

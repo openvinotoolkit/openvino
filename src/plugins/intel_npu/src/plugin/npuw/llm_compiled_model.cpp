@@ -307,11 +307,6 @@ public:
 };
 
 namespace {
-constexpr uint32_t WHISPER_BATCH_DIM = 0u;
-constexpr uint32_t WHISPER_SEQ_LEN_DIM = 2u;
-constexpr uint32_t WHISPER_MAX_PROMPT_SIZE = 4u;
-constexpr uint32_t WHISPER_KVCACHE_SIZE = 448u;
-
 uint32_t align_to(uint32_t value, uint32_t alignment) {
     return (value + alignment - 1) & ~(alignment - 1);
 }
@@ -779,6 +774,7 @@ bool check_if_whisper_model(const std::shared_ptr<ov::Model>& model) {
             return true;
         }
     }
+    return false;
 }
 }  // namespace
 
@@ -934,8 +930,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     uint32_t whisper_lhs_seq_size = 0; // Not applicable for LLMs/VLMs
     if (m_is_whisper) {
-        axes = KVAxesPosition{WHISPER_BATCH_DIM, WHISPER_SEQ_LEN_DIM};
-        m_kvcache_desc = KVCacheDesc{WHISPER_MAX_PROMPT_SIZE, WHISPER_KVCACHE_SIZE, 0u, WHISPER_SEQ_LEN_DIM};
+        axes = KVAxesPosition{whisper_batch_dim, whisper_seq_len_dim};
+        m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim};
         whisper_lhs_seq_size = static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
 
         ov::npuw::util::prepare_whisper_prefill_model(prefill_model, m_kvcache_desc.max_prompt_size, whisper_lhs_seq_size); // Whisper decoder model

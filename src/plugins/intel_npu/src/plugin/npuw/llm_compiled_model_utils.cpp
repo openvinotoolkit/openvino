@@ -458,6 +458,14 @@ void set_name(std::shared_ptr<ov::Node> result, const std::string& name) {
     result->get_output_tensor(0).set_names({name});
 }
 
+bool is_fake_cvt_to_key_tensor(const ov::Input<ov::Node>& reader) {
+    auto fc_reader = reader.get_node()->outputs()[0].get_target_inputs();
+    // FakeConvert node has only 1 consumer
+    OPENVINO_ASSERT(fc_reader.size() == 1);
+    // FakeConvert -> SDPA : 'key' tensor is input with index 1 to SDPA
+    return fc_reader.begin()->get_index() == 1;
+}
+
 void expose_runtime_states_as_outputs(std::shared_ptr<ov::Model>& model) {
     // Find all ReadValue nodes
     ov::NodeVector read_value_nodes;
@@ -486,8 +494,12 @@ void expose_runtime_states_as_outputs(std::shared_ptr<ov::Model>& model) {
             bool is_fake_cvt = strstr(reader.get_node()->get_type_name(), "FakeConvert") != nullptr;
             if (strstr(reader.get_node()->get_type_name(), "ScaledDotProductAttention") != nullptr || is_fake_cvt) {
                 auto sdpa_in = reader;
+
+                // In case there's additional FakeConvert node(fp8): ReadValue -> FakeConvert -> SDPA
+                auto is_fc_key_tensor = is_fake_cvt ? is_fake_cvt_to_key_tensor(reader) : false;
+
                 // Remove ReadValue, store new Result and Assign
-                auto key_or_value = (sdpa_in.get_index() == 1 || is_fake_cvt) ? "key" : "value";
+                auto key_or_value = (sdpa_in.get_index() == 1 || is_fc_key_tensor) ? "key" : "value";
                 auto [result, assign] = remove_encoder_attn_read_value(rv_node, rv_in.get_source_output(), sdpa_in);
                 auto normalized_name = transform_key_value_name(
                     rv_node->inputs()[0].get_source_output().get_node()->get_friendly_name(),
@@ -562,12 +574,14 @@ void expose_runtime_states_as_inputs(std::shared_ptr<ov::Model>& model) {
                 assigns.push_back(assign_node);
             } else if (strstr(rv_reader.get_node()->get_type_name(), "ScaledDotProductAttention") != nullptr || is_fake_cvt) {
                 auto sdpa_in = rv_reader;
-                auto sdpa_node = rv_reader.get_node();
 
                 auto shape = rv_node->get_output_partial_shape(0);
                 auto new_param = std::make_shared<ov::op::v0::Parameter>(rv_node->get_output_element_type(0), shape);
                 
-                auto key_or_value = (sdpa_in.get_index() == 1 || is_fake_cvt) ? "key" : "value";
+                // In case there's additional FakeConvert node(fp8): ReadValue -> FakeConvert -> SDPA
+                auto is_fc_key_tensor = is_fake_cvt ? is_fake_cvt_to_key_tensor(rv_reader) : false;
+
+                auto key_or_value = (sdpa_in.get_index() == 1 || is_fc_key_tensor) ? "key" : "value";
                 auto normalized_name = transform_key_value_name(sdpa_in.get_node()->get_friendly_name(),
                                                                     "past_key_values",
                                                                     ".encoder.",
