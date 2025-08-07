@@ -13,8 +13,9 @@
 #include "openvino/pass/pass.hpp"
 
 namespace pugi {
-class xml_node;
+class xml_node;  // NCC
 }
+
 
 namespace ov::util {
 class XmlSerializer;
