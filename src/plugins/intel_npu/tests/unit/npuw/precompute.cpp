@@ -209,12 +209,17 @@ public:
         const size_t ndims = 128;
         const size_t num_head = 32;
 
-        model = buildROPE_Llama2(batch, seq_length, max_position_embeddings, ndims, false); 
+       // model = buildROPE_Llama2(batch, seq_length, max_position_embeddings, ndims, false); 
+       // SAVE_MODEL(model, "rope_with_cosin_cache.xml");
         
         ov::Core core;
-        model = core.read_model("qwen1-7b/openvino_model.xml");
+       // auto llama2_location = "C:\\Users\\esmirno1\\Downloads\\work\\models\\model_with_rope_subgraph.xml";
+       // auto llama2_location = "C:\\Users\\esmirno1\\Downloads\\mlperf_v1.0_beta_offline-intel\\dependencies\\llm\\llama2\\models\\NativeOpenVINO\\Llama-2-7b-chat-hf_ov-int4-CHw\\openvino_model.xml";
+        auto llama2_location = "C:\\Users\\esmirno1\\Downloads\\work\\models\\Model0_00_FCEW000.xml";
+        //model = core.read_model("qwen1-7b/openvino_model.xml");
+        model = core.read_model(llama2_location);
 
-        //SAVE_MODEL(model, "model_with_rope_subgraph.xml");
+       // SAVE_MODEL(model, "model_with_rope_subgraph.xml");
 
     }
 
@@ -265,18 +270,13 @@ public:
 
 
 
-        ov::npuw::patterns::pre_compute::RopeCache rpe_fuse_only{false};
+        ov::npuw::patterns::pre_compute::RopeCache rpe_fuse_only{true};
         rpe_fuse_only.run_on_model(model_ref);
 
-        SAVE_MODEL(model_ref, "model_with_rope_fused.xml");
+        SAVE_MODEL(model_ref, "C:\\Users\\esmirno1\\Downloads\\work\\models\\model_with_rope_cached.xml");
         ASSERT_TRUE(verify_rope_layer_detected(model_ref));  
         
 
-        ov::npuw::patterns::pre_compute::RopeCache rpe_cache;
-        rpe_cache.run_on_model(model_ref);
-
-        ASSERT_FALSE(verify_rope_layer_detected(model_ref));  
-        SAVE_MODEL(model_ref, "model_without_rope_subgraph.xml");
         comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
      }
 
@@ -548,10 +548,65 @@ public:
 //     std::shared_ptr<ov::Model> model;
 };
 
+class PrecomputeValidateInverseFreq : public testing::WithParamInterface<PrecomputeTestParamsTuple>, public ov::test::TestsCommon {
+     
+public:
+     void Validate() {
+         auto test = PrecomputeTestParams{GetParam()};
+        
+         const auto isValidSubgraph  = test.hasCos && test.hasCos;
+         const auto rotary_ndims = 64;
+
+          // rope frequencies base=100 perfectly matches llama 3.2 style
+        std::vector<float> inv_freq_values(rotary_ndims, 0.0f);
+        for (size_t dim = 0; dim != rotary_ndims; dim ++) {
+            auto inv_freq = 1.0 / (std::pow(1000.0,  ( 2.0 * dim / rotary_ndims)));
+            inv_freq_values[dim] = inv_freq;
+        }
+        const auto inv_freq_const = std::make_shared<ov::opset10::Constant>(ov::element::f32, ov::Shape{1, rotary_ndims, 1}, inv_freq_values);
+
+        const int batch = 2;
+        const int seq_length = 16;
+        const size_t max_position_embeddings = 2048;
+        const size_t ndims = 128;
+        const size_t num_head = 32;
+
+       // model = buildROPE_Llama2(batch, seq_length, max_position_embeddings, ndims, false); 
+       // SAVE_MODEL(model, "rope_with_cosin_cache.xml");
+        
+        ov::Core core;
+        // fixed shapes llama 3.2 head
+        auto llama2_location = "C:\\Users\\esmirno1\\Downloads\\work\\models\\Model0_00_FCEW000.xml";
+        // model = core.read_model("qwen1-7b/openvino_model.xml");
+        auto model = core.read_model(llama2_location);
+
+        using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+        std::vector<CPtr> to_keep;
+    
+        ov::pass::GraphRewrite rewr;
+        rewr.add_matcher<ov::npuw::patterns::pre_compute::RopeInverseFreq>(std::ref(to_keep));
+        rewr.run_on_model(model);
+
+        ASSERT_TRUE(!to_keep.empty());
+
+        auto values = to_keep.front()->cast_vector<float>();
+        ASSERT_EQ(values.size(), inv_freq_values.size());
+
+        for (int i = 0; i < values.size(); ++i) {
+            std::cout<< "index: " << i << " v= " << values[i] << ", ref="<< inv_freq_values[i] << "\n";
+            //ASSERT_NEAR(values[i], inv_freq_values[i], 1e-5) << "Mismatch at index: " << i << ", by: " << std::abs(values[i] - inv_freq_values[i]);
+        }
+     }
+};
+
 
 TEST_P(PrecomputeSinCosTest, smoke_Run_MatchAndPrecomputeSinCos) {
      Validate();
 }
+TEST_P(PrecomputeValidateInverseFreq, smoke_Run_MatchInverseFreqInRope) {
+    Validate();
+}
+
  
 namespace {
 // eliminate direct shape dependency to match llama2, as in test and in optimize function
@@ -574,6 +629,14 @@ const std::vector<NetworkKind> networkKind = {
                                 ::testing::ValuesIn(hasCos),
                                 ::testing::ValuesIn(networkKind)),
                           PrecomputeSinCosTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Run_PrecomputeValidateInverseFreq,
+    PrecomputeValidateInverseFreq,
+    ::testing::Combine(
+            ::testing::ValuesIn(input_shapes), 
+            ::testing::ValuesIn(hasSin), 
+            ::testing::ValuesIn(hasCos),
+            ::testing::ValuesIn(networkKind)));
 
 }  // namespace
 

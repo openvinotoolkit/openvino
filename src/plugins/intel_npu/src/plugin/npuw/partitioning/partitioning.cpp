@@ -21,6 +21,7 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "patterns/dcoff.hpp"
 #include "patterns/opt.hpp"
+#include "patterns/pre_compute.hpp"
 #include "traits.hpp"
 
 namespace ov {
@@ -322,6 +323,7 @@ public:
     void saveTinyConstants(const std::string& func_name);
     void saveScaleFactors(const std::string& func_name);
     void saveRepeatedConstants(const std::string& func_name);
+    void saveInverseFreqConstants(const std::string& func_name);
     void matchParameters(const std::string& func_name);
     void matchResults(const std::string& func_name);
     void createFunction(const std::string& func_name);
@@ -1304,6 +1306,34 @@ void Partitioner::saveScaleFactors(const std::string& func_name) {
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI1>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI2>(std::ref(to_keep));
     rewr.add_matcher<ov::npuw::patterns::SymmZP::CWAI3>(std::ref(to_keep));
+    rewr.run_on_model(model_group.front());
+
+    for (auto&& const_to_keep : to_keep) {
+        LOG_DEBUG("[KEEP] " << const_to_keep);
+        func_group.consts_to_keep.insert(const_to_keep);
+    }
+    LOG_VERB("Done");
+}
+
+void Partitioner::saveInverseFreqConstants(const std::string& func_name) {
+    if (!cfg.get<::intel_npu::NPUW_CACHE_RPE_SUBGRAPH>()) {
+        // No need to preserve as constants
+        return;
+    }
+    // A special step in the CWAI pipeline - mark the inverse frequences
+    // tensors to be preserved in the function bodies
+
+    LOG_VERB("Preserve inverse frequencies for " << func_name << " in model " << model->get_friendly_name() << "...");
+    LOG_BLOCK();
+
+    auto& func_group = all_functions.at(func_name);
+    auto& model_group = func_group.mdls;
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    std::vector<CPtr> to_keep;
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::pre_compute::RopeInverseFreq>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -2344,6 +2374,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 p.propagateConvertsOut(func_group);
                 p.sanityCheck(func_group);
                 p.saveRepeatedConstants(func_group);
+                p.saveInverseFreqConstants(func_group);
                 p.matchParameters(func_group);
                 p.matchResults(func_group);
                 p.matchRepeatedSubgraphs(func_group);
@@ -2362,6 +2393,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
                 LOG_INFO("CWAI: Process function " << func_group << "...");
                 LOG_BLOCK();
                 p.saveTinyConstants(func_group);
+                p.saveInverseFreqConstants(func_group);
                 p.saveScaleFactors(func_group);
                 p.createFunction(func_group);
                 p.decompressionCutOff(func_group);

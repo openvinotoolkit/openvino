@@ -128,7 +128,7 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
         rewr.run_on_model(model);
     }
-    if (cfg_get<::intel_npu::NPUW_PRECOMPUTE_LPKERNELS>(props)) {
+    if (cfg_get<::intel_npu::NPUW_CACHE_RPE_SUBGRAPH>(props)) {
         ov::npuw::patterns::pre_compute::RopeCache rpe_cacher;
         rpe_cacher.run_on_model(model);
     }
@@ -1692,11 +1692,11 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL),
                           BIND(npuw::partitioning::par_matmul_merge_dims, NPUW_PMM),
                           BIND(npuw::partitioning::slice_out, NPUW_SLICE_OUT),
-                          BIND(npuw::partitioning::pre_compute, NPUW_PRECOMPUTE_LPKERNELS),
                           BIND(npuw::partitioning::spatial, NPUW_SPATIAL),
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
+                          BIND(npuw::partitioning::cache_rope, NPUW_CACHE_RPE_SUBGRAPH),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),

@@ -212,14 +212,6 @@ static constexpr ov::Property<bool> slice_out{"NPUW_SLICE_OUT"};
 
 /**
  * @brief
- * Type: bool.
- * convert low-precision fp16 kernels, that might give incorrect results into precomputed consts & gather
- * Default value: true.
- */
-static constexpr ov::Property<bool> pre_compute{"NPUW_PRECOMPUTE_LPKERNELS"};
-
-/**
- * @brief
  * Type: boolean.
  * Enable spatial execution for selected subgraphs. Requires COMPUTE isolation.
  * Default value: false
@@ -257,6 +249,15 @@ static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
  * Default value: true.
  */
 static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
+
+
+/**
+ * @brief
+ * Type: boolean
+ * convert low-precision fp16 kernels, that might give incorrect results into precomputed consts & gather
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> cache_rope{"NPUW_CACHE_RPE_SUBGRAPH"};
 
 /**
  * @brief
