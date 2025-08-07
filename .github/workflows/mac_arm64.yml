@@ -19,14 +19,14 @@ on:
      - '**/conformance/**'
    branches:
      - 'releases/**'
-  pull_request:
-   paths-ignore:
-     - '**/docs/**'
-     - 'docs/**'
-     - '**/**.md'
-     - '**.md'
-     - '**/layer_tests_summary/**'
-     - '**/conformance/**'
+  # pull_request:
+  #  paths-ignore:
+  #    - '**/docs/**'
+  #    - 'docs/**'
+  #    - '**/**.md'
+  #    - '**.md'
+  #    - '**/layer_tests_summary/**'
+  #    - '**/conformance/**'
 
 concurrency:
   # github.ref is not unique in post-commit
