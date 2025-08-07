@@ -547,8 +547,8 @@ bool Eltwise::isWithBroadcast() {
 
 void Eltwise::init() {
     if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
-        float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
-        float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
+        const float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        const float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
         auto& gamma = m_attrs.data.gamma;
 
         if (gamma < lowest) {
