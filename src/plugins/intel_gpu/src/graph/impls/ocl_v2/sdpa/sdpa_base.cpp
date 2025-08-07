@@ -212,7 +212,11 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", desc->attn_mask_val.value());
             jit.make("HAS_ATTN_MASK_INPUT", 0);
         } else {
-            jit.make("HAS_ATTN_MASK_INPUT", data_inputs_num > attn_mask_id);
+            const bool has_attn_mask_input = data_inputs_num > attn_mask_id;
+            jit.make("HAS_ATTN_MASK_INPUT", has_attn_mask_input);
+            if (has_attn_mask_input && params.get_input_layout(attn_mask_id).data_type == ov::element::u8) {
+                jit.make("ATTN_MASK_TYPE_UCHAR", 1);
+            }
         }
 
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
