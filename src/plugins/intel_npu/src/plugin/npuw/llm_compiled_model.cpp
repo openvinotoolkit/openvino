@@ -773,10 +773,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
     model->reshape(new_shapes);
 }
 
-void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, const uint32_t& batch_dim) {
-    // We have only one input with dynamic shapes: output of Slice operation, and this output
-    // should have "1" for dimension representing number of embeddings to send to the matmul.
-    // Batch size should be also equal "1" for NPU.
+void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, const uint32_t& batch_dim,
+                                   std::size_t max_generation_token_len) {
+    // We have only one input with dynamic shapes: output embeds.
+    // Output embeds should have "max_generation_token_len" for dimension representing number of embeddings
+    // to send to the matmul. Batch size should be equal "1" for NPU.
     const auto& input = lm_head_model->input(0);
     const auto& partial_shape = input.get_partial_shape();
     NPUW_ASSERT(partial_shape.size() == 3);
@@ -786,7 +787,7 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, con
     // Left dynamic axis will be for number of embeddings
     for (auto i = 0; i < new_shape.rank().get_length(); i++) {
         if (new_shape[i].is_dynamic()) {
-            new_shape[i] = 1;
+            new_shape[i] = max_generation_token_len;
             // Sanity check that only one left dimension is dynamic, as
             // another one should contain embedding space rank
             break;
@@ -796,7 +797,8 @@ void reshape_sliced_head_to_static(std::shared_ptr<ov::Model> lm_head_model, con
     lm_head_model->reshape(new_shape);
 }
 
-void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_dim) {
+void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_dim,
+                      std::size_t max_generation_token_len) {
     std::shared_ptr<ov::Node> embed_result;
     for (auto&& output : model->outputs()) {
         if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
@@ -813,8 +815,8 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model, const uint32_t& batch_di
         if (shape.size() == 3) {
             uint32_t num_embeds_dim = 1 - batch_dim;
             if (shape[num_embeds_dim] > 1) {
-                std::vector<int32_t> start_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)),
-                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)),
+                std::vector<int32_t> start_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - max_generation_token_len)),
+                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - max_generation_token_len)),
                                                0};
                 std::vector<int32_t> stop_pos{static_cast<int32_t>(batch_dim * (shape[num_embeds_dim] - 1)) + 1,
                                               static_cast<int32_t>(num_embeds_dim * (shape[num_embeds_dim] - 1)) + 1,
@@ -1122,11 +1124,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     reshape_to_static(kvcache_model, m_kvcache_desc.max_generation_token_len, m_kvcache_desc.total_size, axes);
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
-        // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
-        // the Prefill model:
-        slice_out_embeds(prefill_model, axes.batch);
+        // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
+        // so only apply slice to the Prefill model:
+        slice_out_embeds(prefill_model, axes.batch, m_kvcache_desc.max_generation_token_len);
         LOG_DEBUG("Make LM head model with static shapes");
-        reshape_sliced_head_to_static(lm_head_model, axes.batch);
+        reshape_sliced_head_to_static(lm_head_model, axes.batch, m_kvcache_desc.max_generation_token_len);
     }
 
     LOG_DEBUG("5.1, decompose GroupQueryAttention OP");
