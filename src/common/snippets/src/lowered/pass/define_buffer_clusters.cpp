@@ -12,7 +12,6 @@
 #include <limits>
 #include <memory>
 #include <set>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -137,8 +136,7 @@ void DefineBufferClusters::parse_loop(const LoopManagerPtr& loop_manager, const 
     const auto& loop_end = ov::as_type_ptr<op::LoopEnd>(expr->get_node());
     const auto& loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_end->get_id());
 
-    BufferMap input_buffers, output_buffers;
-    std::tie(input_buffers, output_buffers) = get_direct_buffers(loop_info, expr);
+    auto [input_buffers, output_buffers] = get_direct_buffers(loop_info, expr);
 
     for (const auto& in : input_buffers) {
         create_new_cluster(in.first);
