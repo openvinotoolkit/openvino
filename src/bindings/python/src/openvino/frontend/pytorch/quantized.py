@@ -34,7 +34,7 @@ def patch_quantized(model: torch.nn.Module) -> None:
     Raises:
         RuntimeError: If the quantization type is unknown.
     """
-    def fp32_tensor(*shape):
+    def fp32_tensor(*shape: int) -> torch.Tensor:
         return torch.full(shape, 0.5, dtype=torch.float32)
 
     quant_type = detect_quantized_model(model)
