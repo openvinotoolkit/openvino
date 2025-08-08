@@ -117,6 +117,6 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
                                      const std::vector<size_t>& memory_offsets,
                                      const std::vector<size_t>& buffer_ids,
                                      const std::vector<Xbyak_aarch64::XReg>& aux_regs,
-                                     const std::vector<size_t>& stack_offsets);
+                                     const std::vector<int32_t>& stack_offsets);
 
 }  // namespace ov::intel_cpu::aarch64::utils

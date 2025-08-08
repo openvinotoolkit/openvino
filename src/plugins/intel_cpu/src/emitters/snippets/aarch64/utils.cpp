@@ -146,6 +146,8 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
                                      const std::vector<size_t>& buffer_ids,
                                      const std::vector<Xbyak_aarch64::XReg>& aux_regs,
                                      const std::vector<Xbyak_aarch64::XReg>& load_regs) {
+    OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == load_regs.size(), "mem_ptrs and load_regs size mismatch");
+
     const size_t gpr_length = 8;     // 64-bit register length
     const size_t sp_alignment = 16;  // AArch64 stack alignment requirement
 
@@ -154,18 +156,18 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
     h->sub(h->sp, h->sp, sp_size);
 
     // Generate stack offsets for sequential storage
-    std::vector<size_t> stack_offsets;
+    std::vector<int32_t> stack_offsets;
     stack_offsets.reserve(mem_ptrs.size());
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
-        stack_offsets.push_back(i * gpr_length);
+        stack_offsets.push_back(static_cast<int32_t>(i * gpr_length));
     }
 
     // Use the common function to push pointers with offsets to stack
     push_ptrs_with_offsets_to_stack(h, mem_ptrs, memory_offsets, buffer_ids, aux_regs, stack_offsets);
 
     // Load back the adjusted pointers to specified registers
-    for (size_t i = 0; i < load_regs.size() && i < mem_ptrs.size(); i++) {
-        h->ldr(load_regs[i], Xbyak_aarch64::ptr(h->sp, static_cast<int32_t>(i * gpr_length)));
+    for (size_t i = 0; i < mem_ptrs.size(); i++) {
+        h->ldr(load_regs[i], Xbyak_aarch64::ptr(h->sp, stack_offsets[i]));
     }
 
     // Restore stack pointer
@@ -177,7 +179,7 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
                                      const std::vector<size_t>& memory_offsets,
                                      const std::vector<size_t>& buffer_ids,
                                      const std::vector<Xbyak_aarch64::XReg>& aux_regs,
-                                     const std::vector<size_t>& stack_offsets) {
+                                     const std::vector<int32_t>& stack_offsets) {
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == memory_offsets.size(), "mem_ptrs and memory_offsets size mismatch");
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == buffer_ids.size(), "mem_ptrs and buffer_ids size mismatch");
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == stack_offsets.size(), "mem_ptrs and stack_offsets size mismatch");
@@ -185,7 +187,7 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
     // Store all pointers with offsets to their specific stack locations
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
         const auto& ptr_reg = mem_ptrs[i];
-        auto stack_offset = static_cast<int32_t>(stack_offsets[i]);
+        int32_t stack_offset = stack_offsets[i];
 
         if (ov::snippets::utils::is_dynamic_value(memory_offsets[i])) {
             OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(buffer_ids[i]),
@@ -195,7 +197,7 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
             push_ptr_with_runtime_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, runtime_offset);
         } else {
             // Static offset: add compile-time constant
-            size_t offset = (i < memory_offsets.size()) ? memory_offsets[i] : 0;
+            size_t offset = memory_offsets[i];
             push_ptr_with_static_offset_on_stack(h, stack_offset, ptr_reg, aux_regs, offset);
         }
     }

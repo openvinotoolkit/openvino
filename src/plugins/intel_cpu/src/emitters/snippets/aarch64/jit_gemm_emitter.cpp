@@ -85,11 +85,11 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     auto reserved_stack_size = ov::intel_cpu::rnd_up(sizeof(GemmKaiKernelExecutor::call_args), sp_alignment);
     emit_stack_preserve(reserved_stack_size);
 
-    const size_t A_offset = offsetof(GemmKaiKernelExecutor::call_args, A);
-    const size_t B_offset = offsetof(GemmKaiKernelExecutor::call_args, B);
-    const size_t C_offset = offsetof(GemmKaiKernelExecutor::call_args, C);
+    const auto A_offset = static_cast<int32_t>(offsetof(GemmKaiKernelExecutor::call_args, A));
+    const auto B_offset = static_cast<int32_t>(offsetof(GemmKaiKernelExecutor::call_args, B));
+    const auto C_offset = static_cast<int32_t>(offsetof(GemmKaiKernelExecutor::call_args, C));
 
-    const std::vector<size_t> gemm_args_offsets = {A_offset, B_offset, C_offset};
+    const std::vector<int32_t> gemm_args_offsets = {A_offset, B_offset, C_offset};
 
     const auto& mem_ptrs = utils::transform_idxs_to_regs(mem_ptrs_idxs);
 
