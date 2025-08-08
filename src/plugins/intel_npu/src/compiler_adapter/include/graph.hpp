@@ -56,9 +56,9 @@ public:
 
     const std::optional<std::size_t> get_batch_size() const override;
 
-    std::optional<size_t> determine_dynamic_batch_size(const std::shared_ptr<ov::ITensor>& tensor,
+    std::optional<size_t> determine_dynamic_batch_size(size_t index,
+                                                       const std::shared_ptr<ov::ITensor>& tensor,
                                                        const std::optional<size_t> batchSize = std::nullopt,
-                                                       const std::optional<size_t> index = std::nullopt,
                                                        const bool isInput = true) const override;
 
     uint32_t get_unique_id() override;

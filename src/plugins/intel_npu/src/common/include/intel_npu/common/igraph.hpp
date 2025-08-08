@@ -63,9 +63,9 @@ public:
 
     virtual const std::optional<std::size_t> get_batch_size() const = 0;
 
-    virtual std::optional<size_t> determine_dynamic_batch_size(const std::shared_ptr<ov::ITensor>& tensor,
+    virtual std::optional<size_t> determine_dynamic_batch_size(size_t index,
+                                                               const std::shared_ptr<ov::ITensor>& tensor,
                                                                const std::optional<size_t> batchSize = std::nullopt,
-                                                               const std::optional<size_t> index = std::nullopt,
                                                                const bool isInput = true) const = 0;
 
     virtual uint32_t get_unique_id() = 0;

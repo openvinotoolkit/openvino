@@ -367,7 +367,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     auto batchSizeCandidate =
-        _graph->determine_dynamic_batch_size(tensor._ptr, std::nullopt, foundPort.idx, foundPort.is_input());
+        _graph->determine_dynamic_batch_size(foundPort.idx, tensor._ptr, std::nullopt, foundPort.is_input());
 
     if (foundPort.is_input()) {
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
@@ -455,7 +455,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     _logger.debug("ZeroInferRequest::set_tensors: %zu", tensors.size());
 
-    auto batchSize = _graph->determine_dynamic_batch_size(nullptr, tensors.size(), foundPort.idx);
+    auto batchSize = _graph->determine_dynamic_batch_size(foundPort.idx, nullptr, tensors.size());
 
     // Check if batch has been changed
     if (batchSize.has_value()) {
