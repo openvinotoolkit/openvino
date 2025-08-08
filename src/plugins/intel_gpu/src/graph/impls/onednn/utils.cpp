@@ -345,6 +345,20 @@ dnnl::memory::desc layout_to_memory_desc(cldnn::layout l, dnnl::memory::format_t
         dims.push_back(l.get_tensor().count() / l.feature());
     } else if (flatten) {
         dims = flatten_tensor(l.get_tensor());
+    } else if (has_mem_flag(flags, mem_flags::fc_grouped_3d)) {
+//        dims.push_back(l.batch());
+//        dims.push_back(l.feature());
+//        dims.push_back(l.spatial(1));
+//        target_fmt = dnnl::memory::format_tag::acb;
+        use_strides = 1;
+        auto padded_dims = l.get_padded_dims();
+        dnnl::memory::dims strides;
+        strides.push_back(1);
+        strides.push_back(padded_dims[0]);
+        strides.push_back(padded_dims[0] * padded_dims[1]);
+        dnnl::memory::data_type dt = convert_data_type(l.data_type);
+        dnnl::memory::desc res(dims, dt, strides);
+        return res;
     } else {
         // clDNN expresses 3d tensor with 4d format. This code is to use 3d format on oneDNN for such case.
         // However, if the memory::desc to be converted is related to another blocked format, it should be expanded to a 4d tensor.
