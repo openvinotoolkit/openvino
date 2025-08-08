@@ -18,19 +18,8 @@
 namespace ov {
 namespace test {
 std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(const testing::TestParamInfo<ctcGreedyDecoderSeqLenParams>& obj) {
-    std::vector<InputShape> shapes;
-    int sequenceLengths;
-    ov::element::Type dataPrecision, indicesPrecision;
-    int blankIndex;
-    bool mergeRepeated;
-    std::string targetDevice;
-    std::tie(shapes,
-             sequenceLengths,
-             dataPrecision,
-             indicesPrecision,
-             blankIndex,
-             mergeRepeated,
-             targetDevice) = obj.param;
+    const auto& [shapes, sequenceLengths, dataPrecision, indicesPrecision, blankIndex, mergeRepeated, targetDevice] =
+        obj.param;
 
     std::ostringstream result;
 
@@ -57,23 +46,15 @@ std::string CTCGreedyDecoderSeqLenLayerTest::getTestCaseName(const testing::Test
 }
 
 void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    int sequenceLengths;
-    ov::element::Type model_type, indices_type;
-    int blankIndex;
-    bool mergeRepeated;
-    std::tie(shapes,
-             sequenceLengths,
-             model_type,
-             indices_type,
-             blankIndex,
-             mergeRepeated,
-             targetDevice) = GetParam();
+    const auto& [shapes, sequenceLengths, model_type, indices_type, _blankIndex, mergeRepeated, _targetDevice] =
+        GetParam();
+    targetDevice = _targetDevice;
+    auto blankIndex = _blankIndex;
     init_input_shapes(shapes);
 
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 
-    const auto sequenceLenNode = [&] {
+    const auto sequenceLenNode = [&, sequenceLengths = sequenceLengths, indices_type = indices_type] {
         const size_t B = targetStaticShapes[0][0][0];
         const size_t T = targetStaticShapes[0][0][1];
 
@@ -96,7 +77,7 @@ void CTCGreedyDecoderSeqLenLayerTest::SetUp() {
     int C = targetStaticShapes[0][0][2];
     blankIndex = std::min(blankIndex, C - 1);
 
-    const auto blankIndexNode = [&] {
+    const auto blankIndexNode = [&, indices_type = indices_type] {
         if (indices_type == element::i32) {
             const auto blankIdxDataI32 = std::vector<int32_t>{blankIndex};
             return std::make_shared<ov::op::v0::Constant>(indices_type, ov::Shape{1}, blankIdxDataI32);

@@ -23,7 +23,8 @@ public:
                                const ov::SoPtr<ov::ITensor>& tensor,
                                size_t tensor_index,
                                size_t related_tensor_index,
-                               const Config& config);
+                               const Config& config,
+                               bool external_memory_standard_allocation_supported);
 
     void set_state(const ov::SoPtr<ov::ITensor>& new_state) override;
 
@@ -41,7 +42,7 @@ public:
     size_t get_related_tensor_index() const;
 
     /**
-     * @brief Get acknowledge if the tensor was updated
+     * @brief Get acknowledgment if the tensor was updated
      */
     bool tensor_was_updated() const;
 
@@ -51,7 +52,7 @@ public:
     void reset_tensor_updated_flag();
 
     /**
-     * @brief Get acknowledge if the zero tensor was updated
+     * @brief Get acknowledgment if the zero tensor was updated
      * @details In case the memory was allocated in the same level zero context update the zero tensor
      */
     bool zero_tensor_should_be_updated() const;
@@ -60,6 +61,16 @@ public:
      * @brief Reset zero tensor updated flag
      */
     void reset_zero_tensor_updated_flag();
+
+    /**
+     * @brief Get acknowledgment if the zero tensor can be imported
+     */
+    bool zero_tensor_should_be_imported() const;
+
+    /**
+     * @brief Reset zero tensor imported flag
+     */
+    void reset_tensor_imported_flag();
 
     ~ZeroVariableState() override = default;
 
@@ -70,7 +81,11 @@ private:
 
     bool _tensor_updated = false;
     bool _zero_tensor_updated = false;
+    bool _tensor_should_be_imported = false;
 
+    bool _external_memory_standard_allocation_supported = false;
+
+    const Config _config;
     Logger _logger;
 };
 
