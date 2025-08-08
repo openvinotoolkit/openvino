@@ -968,7 +968,8 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     }
     case activation_func::softplus: {
-        jit.add(make_jit_constant(macro_def, log(exp(input) + one)));
+        const JitTerm input_f = out_dt == ov::element::f16 ? JitTerm{"(float)input"} : input;
+        jit.add(make_jit_constant(macro_def, log(exp(input_f) + one)));
         break;
     }
     case activation_func::softsign: {

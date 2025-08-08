@@ -1290,9 +1290,8 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            jitConstants.AddConstant(MakeJitConstant(
-                    macro_def,
-                    log(exp(input) + one).str()));
+            const JitTerm input_f = out_dt == Datatype::F16 ? JitTerm{"(float)input"} : input;
+            jitConstants.AddConstant(MakeJitConstant(macro_def, log(exp(input_f) + one).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
