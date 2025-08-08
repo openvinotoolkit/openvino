@@ -297,12 +297,12 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
                 y_pad = reflect_coord(ctx, ctx.y, h_in_f, attrs.align_corners);
             }
 
-            // 2) Then round to nearest integer pixel (banker's rounding - HALF_TO_EVEN)
-            std::shared_ptr<Node> x_idx = std::make_shared<op::v5::Round>(x_pad, op::v5::Round::RoundMode::HALF_TO_EVEN);
-            std::shared_ptr<Node> y_idx = std::make_shared<op::v5::Round>(y_pad, op::v5::Round::RoundMode::HALF_TO_EVEN);
+            // 2) Then round to nearest integer pixel using floor(x + 0.5) to match reference
+            std::shared_ptr<Node> x_idx = std::make_shared<op::v0::Floor>(std::make_shared<op::v1::Add>(x_pad, ctx.c0_5));
+            std::shared_ptr<Node> y_idx = std::make_shared<op::v0::Floor>(std::make_shared<op::v1::Add>(y_pad, ctx.c0_5));
 
-            // 3) Apply clamping for BORDER mode and safety clamping for REFLECTION
-            if (is_border || is_reflection) {
+            // 3) Apply clamping for all modes to avoid out-of-bounds reads in GatherND
+            if (is_border || is_reflection || is_zeros) {
                 auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
                 auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
                 x_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(x_idx, ctx.c0), w_m1);
@@ -312,13 +312,17 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
             auto result = gather_hw(ctx, x_idx, y_idx);
 
             if (is_zeros) {
-                // Build mask on **continuous** coords (no clamp/reflect), per spec
+                // Build mask based on continuous coords with half-pixel margin
+                // Valid range for NEAREST: x ∈ [-0.5, w-0.5], y ∈ [-0.5, h-0.5]
+                auto x_plus_half = std::make_shared<op::v1::Add>(x_pad, ctx.c0_5);
+                auto y_plus_half = std::make_shared<op::v1::Add>(y_pad, ctx.c0_5);
+                
                 auto x_ok = std::make_shared<op::v1::LogicalAnd>(
-                    std::make_shared<op::v1::GreaterEqual>(ctx.x, ctx.c0),
-                    std::make_shared<op::v1::Less>(ctx.x, w_in_f));
+                    std::make_shared<op::v1::GreaterEqual>(x_plus_half, ctx.c0),
+                    std::make_shared<op::v1::LessEqual>(x_plus_half, w_in_f));
                 auto y_ok = std::make_shared<op::v1::LogicalAnd>(
-                    std::make_shared<op::v1::GreaterEqual>(ctx.y, ctx.c0),
-                    std::make_shared<op::v1::Less>(ctx.y, h_in_f));
+                    std::make_shared<op::v1::GreaterEqual>(y_plus_half, ctx.c0),
+                    std::make_shared<op::v1::LessEqual>(y_plus_half, h_in_f));
                 auto ok     = std::make_shared<op::v1::LogicalAnd>(x_ok, y_ok);
                 auto mask   = std::make_shared<op::v0::Convert>(ok, ctx.element_type);
                 auto mask_e = std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1}));
