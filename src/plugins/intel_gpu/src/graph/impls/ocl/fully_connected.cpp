@@ -27,6 +27,9 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
         if (params.is_initialized) {
             // Assumption that kernel data contains already reshaped 2d weights
             auto crop_to_2d = [](const ov::PartialShape& shape) {
+                // TODO // taylor temporal trick  must be modified
+                if (shape[2] != 1)
+                    return ov::PartialShape({shape[0], shape[1], shape[2]});
                 return ov::PartialShape({shape[0], shape[1]});
             };
 
@@ -108,10 +111,10 @@ public:
                 input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature, primitive->input_size));
                 input0_layout.format = format::bfyx;
             }
-            if (input1_pshape.size() != 2) {
-                input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature, primitive->weights_rank));
-                // input1_layout.format = format::bfyx;
-            }
+//            if (input1_pshape.size() != 2) {
+//                input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature, primitive->weights_rank));
+//                // input1_layout.format = format::bfyx;
+//            }
 
             std::vector<layout> layouts{input0_layout, input1_layout};
 
@@ -172,7 +175,15 @@ public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
         auto updated_impl_param = update_impl_params(impl_param);
+//        std::cout << __FILE__ << " : " << __LINE__ << " updated_impl_param : " << updated_impl_param.input_layouts[1].to_short_string() << std::endl;
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
+//        std::cout << __FILE__ << " : " << __LINE__ << "  params.weight : " << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  OFM :" << params.weights.OFM().v << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  IFM :" << params.weights.IFM().v << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  Z :" << params.weights.Z().v << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  Y :" << params.weights.Y().v << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  X :" << params.weights.X().v << std::endl;
+// 
         params.allowInputReordering = true;
 
         bool commpressed = primitive->decompression_scale.is_valid();
@@ -210,6 +221,13 @@ public:
 
         params.dynamic_quantization_group_size =
             impl_param.get_program().get_config().get_dynamic_quantization_group_size();
+
+//        std::cout << __FILE__ << " : " << __LINE__ << "  params.weight : " << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  OFM :" << params.weights.OFM().v << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  IFM :" << params.weights.IFM().v << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  Z :" << params.weights.Z().v << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  Y :" << params.weights.Y().v << std::endl;
+//        std::cout << __FILE__ << " : " << __LINE__ << "  X :" << params.weights.X().v << std::endl;
 
         return params;
     }
