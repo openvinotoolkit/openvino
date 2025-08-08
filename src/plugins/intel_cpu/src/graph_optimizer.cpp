@@ -3449,41 +3449,42 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
         return;
     }
 
-    const std::vector<Type> kStartTypes = {Type::Eltwise, Type::MVN};
-    const std::vector<Type> kPathTypes = {Type::Reshape, Type::Concatenation, Type::Split};
+    // Nodes that support output precision fusion, reducing internal node computation to original output precision (can
+    // be extended)
+    auto supportFuseConvert = [](Type type) {
+        return ov::intel_cpu::any_of(type, Type::Eltwise, Type::MVN);
+    };
+    // nodes which support in-place execution (can be extended)
+    auto supportInPlace = [](Type type) {
+        return ov::intel_cpu::any_of(type, Type::Reshape, Type::Concatenation, Type::Split);
+    };
 
     std::function<bool(const NodePtr&)> suitableForTailOptimization;
     suitableForTailOptimization = [&](const NodePtr& node) -> bool {
         const NodePtr& cur = node;
         std::unordered_set<NodePtr> visited;
         while (cur) {
-            if (visited.count(cur)) {
+            if (!visited.insert(cur).second)
                 break;
-            }
-            visited.insert(cur);
 
             size_t parentNum = cur->getParentEdges().size();
             if (parentNum == 0) {
                 return false;
             }
-            bool allParentSuitable = true;
             for (size_t i = 0; i < parentNum; ++i) {
                 auto parent = cur->getParentEdgeAt(i)->getParent();
                 if (!parent) {
                     return false;
                 }
-                if ((std::find(kStartTypes.begin(), kStartTypes.end(), parent->getType()) != kStartTypes.end()) &&
-                    tailNodesMap.count(parent) != 0U) {
+                if (supportFuseConvert(parent->getType()) && tailNodesMap.count(parent) != 0U) {
                     continue;
                 }
-                if ((std::find(kPathTypes.begin(), kPathTypes.end(), parent->getType()) != kPathTypes.end()) &&
-                    tailNodesMap.count(parent) != 0U) {
+                if (supportInPlace(parent->getType()) && tailNodesMap.count(parent) != 0U) {
                     if (!parent->isInPlace()) {
                         return false;
                     }
                     if (!suitableForTailOptimization(parent)) {
-                        allParentSuitable = false;
-                        break;
+                        return false;
                     }
                 } else {
                     // all parents must be suitable for tail optimization,otherwise convert maybe move to parent node
@@ -3491,7 +3492,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                     return false;
                 }
             }
-            return allParentSuitable;
+            return true;
         }
         return false;
     };
@@ -3513,7 +3514,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                 continue;
             }
             tailNodesMap[parent] = true;
-            if (std::find(kStartTypes.begin(), kStartTypes.end(), parent->getType()) != kStartTypes.end()) {
+            if (supportFuseConvert(parent->getType())) {
                 for (size_t j = 0; j < parent->getOriginalOutputsNumber(); ++j) {
                     parent->setOriginalOutputPrecisionAtPort(j, outputPrecision);
                 }
@@ -3555,8 +3556,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                     if (!p) {
                         continue;
                     }
-                    if ((std::find(kPathTypes.begin(), kPathTypes.end(), p->getType()) != kPathTypes.end()) &&
-                        tailNodesMap.count(parent) != 0U) {
+                    if (supportInPlace(p->getType()) && tailNodesMap.count(parent) != 0U) {
                         if (!p->isInPlace()) {
                             // if FuseConvert method implement, we can fuse the following convert into this node
                             auto* concat = dynamic_cast<node::Concat*>(p.get());
@@ -3571,7 +3571,7 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
                             suitableCase = true;
                             continue;
                         }
-                    } else if (std::find(kStartTypes.begin(), kStartTypes.end(), p->getType()) != kStartTypes.end()) {
+                    } else if (supportFuseConvert(p->getType())) {
                         suitableCase = true;
                         continue;
                     }
