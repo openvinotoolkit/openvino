@@ -25,8 +25,8 @@ class TRANSFORMATIONS_API EinsumDecomposition;
 class ov::pass::EinsumDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("EinsumDecomposition");
-    EinsumDecomposition(bool check_const=false);
+    EinsumDecomposition(bool check_const = false);
 
 private:
-    bool m_check_const; // store the flag
+    bool m_check_const;  // store the flag
 };
