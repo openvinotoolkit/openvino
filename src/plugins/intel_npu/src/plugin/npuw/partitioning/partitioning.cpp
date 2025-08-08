@@ -1961,6 +1961,7 @@ void Partitioner::optimize(const std::string& func_name) {
             ov::pass::GraphRewrite rewr2;
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherDQ>(std::ref(ctx));
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherCB4>(std::ref(ctx));
             rewr2.run_on_model(f._model);
         }
 
@@ -1999,6 +2000,31 @@ void Partitioner::optimize(const std::string& func_name) {
                     // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                     funcall._closure.push_back(ov::Tensor());
                 }
+            });
+        }
+
+        // Gather NF4 closures in compile time, where requested
+        for (auto&& p : ctx.params_to_nf4_gather) {
+            const auto& tensor_to_gather = p.second;
+            auto w_idx = f._model->get_parameter_index(tensor_to_gather.w);
+
+            // Need to add a new parameter right away, since it's going to be processed by the unpack below
+            f._model->add_parameters({p.first});
+            to_remove.push_back(tensor_to_gather.w);
+            to_remove_idx.insert(w_idx);
+
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
+                funcall._lazy_closure.push_back(
+                    LazyTensor(cw, tensor_to_gather.t, p.first->get_element_type(), p.first->get_shape()));
+                // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
+                funcall._closure.push_back(ov::Tensor());
+                // FIXME: in some cases we might have DCOFF and DQ enabled together. This
+                // might lead to DQ passes finding patterns  and running remap on closures unconditionally.
+                // It assigns some closures to be calculated instead of keeping the lazy ones.
+                // Here we remember lazy closure not to be unpacked in compile time in DCOFF.
+                funcall._is_lazy_unpack.push_back(false);
             });
         }
 
