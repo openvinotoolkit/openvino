@@ -919,18 +919,6 @@ std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisio
     return {{element::f32, element::f32}};
 }
 
-size_t jit_floor_mod_emitter::get_inputs_num() const {
-    return 2;
-}
-
-size_t jit_floor_mod_emitter::aux_vecs_count() const {
-    return 2;
-}
-
-size_t jit_floor_mod_emitter::aux_fp_gprs_count() const {
-    return 1;
-}
-
 /// GELU ERF ///
 jit_gelu_erf_emitter::jit_gelu_erf_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                            ov::intel_cpu::riscv64::cpu_isa_t host_isa,
