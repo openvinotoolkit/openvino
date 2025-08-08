@@ -4,6 +4,7 @@
 
 #include "transformations/common_optimizations/fuse_rotary_positional_embeddings.hpp"
 
+#include <climits>
 #include <cstdint>
 #include <limits>
 #include <variant>
@@ -18,12 +19,15 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_elements.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/strided_slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
@@ -39,11 +43,10 @@
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
-#include "transformations/utils/gen_pattern.hpp"
 #include "transformations/utils/utils.hpp"
 
-using namespace ov::gen_pattern;
 using namespace ov::pass;
+using namespace ov::pass::pattern;
 using namespace ov::op;
 
 ov::pass::RoPEFusion::RoPEFusion(bool support_2d_rope) : m_support_2d_rope(support_2d_rope) {}
@@ -63,18 +66,15 @@ bool ov::pass::RoPEFusion::run_on_model(const std::shared_ptr<ov::Model>& model)
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionIOSlicing>();
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionPreprocess>();
 
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0);
-    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1);
+    symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(false);
     if (m_support_2d_rope) {
-        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(0, true);
-        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(1, true);
+        symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLM>(true);
         symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionChatGLMHF>();
     }
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(0);
     symbolic_ctx_manager->register_pass<ov::pass::RoPEFusionQwen>(1);
 
     symbolic_ctx_manager->register_pass<ov::pass::RoPEShareCosSin>();
-
     return symbolic_optimizations.run_on_model(model);
 }
 
@@ -571,7 +571,7 @@ ov::pass::RoPEFusionGPTJ::RoPEFusionGPTJ() {
     this->register_matcher(m, callback);
 }
 
-ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope) {
+ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(const bool support_2d_rope) {
     using namespace ov::op::util;
     MATCHER_SCOPE(RoPEFusionChatGLM);
 
@@ -586,9 +586,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
     auto qkv_proj =
         pattern::wrap_type<v1::VariadicSplit>({qkv_linear, -1, {"total_size_q", "total_size_k", "total_size_v"}});
     qkv_proj->set_output_size(3);
-    auto cur_key =
-        pattern::wrap_type<v1::Reshape>({qkv_proj->output(split_output_id), {"0", "0", "head_cnt", "head_size"}},
-                                        {{"special_zero", true}});
+    auto reshape_pattern_const = pattern::wrap_type<v0::Constant>(pattern::value_matches("0, 0, head_cnt, head_size"));
+    auto cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj, reshape_pattern_const}, {{"special_zero", true}});
     std::shared_ptr<ov::Node> input_key = nullptr;
     // Extended the RoPE to a two-dimensional form to accommodate the 2D positional encoding in GLM.
     // Calculate positional embedding independent of batch and each head
@@ -597,9 +596,8 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         // For Models, where SDPA to PagedAttention transformation was applied,
         // all sequences have the size == 1, we move sequences to the batch, this is the PagedAttention specific,
         // so seq_length dim will be always 1, this means that Transpose is unnecessary and Reshape op can be used.
-        auto transposed_cur_key =
-            pattern::wrap_type<v1::Reshape>({qkv_proj->output(split_output_id), {"-1", "head_cnt", "1", "head_size"}},
-                                            {{"special_zero", false}});
+        auto transposed_cur_key = pattern::wrap_type<v1::Reshape>({qkv_proj, {"-1", "head_cnt", "1", "head_size"}},
+                                                                  {{"special_zero", false}});
         // Transpose for SDPA version:
         input_key = pattern::wrap_type<v1::Transpose>({cur_key, {0, 2, 1, 3}}) | transposed_cur_key;
     } else {
@@ -733,14 +731,18 @@ ov::pass::RoPEFusionChatGLM::RoPEFusionChatGLM(int split_output_id, const bool s
         config.head_cnt = static_cast<size_t>(head_cnt.i());
         config.head_size = static_cast<size_t>(head_size.i());
 
-        if (split_output_id == 0) {
-            // query : split_output_id == 0
+        const auto& qkv_proj_node = pattern_map.at(qkv_proj);
+        const size_t qkv_proj_output_id = qkv_proj_node.get_index();
+        if (qkv_proj_output_id == 0) {
+            // query : split output id == 0
             config.slice_start = 0;
             config.slice_stop = static_cast<size_t>(total_size_q.i());
-        } else {
-            // key : split_output_id == 1
+        } else if (qkv_proj_output_id == 1) {
+            // key : split output id == 1
             config.slice_start = static_cast<size_t>(total_size_q.i());
             config.slice_stop = static_cast<size_t>(config.slice_start + static_cast<size_t>(total_size_k.i()));
+        } else {
+            return false;
         }
 
         if (ov::is_type<opset1::Reshape>(root)) {

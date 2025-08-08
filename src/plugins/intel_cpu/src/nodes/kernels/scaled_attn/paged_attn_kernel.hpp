@@ -1560,7 +1560,7 @@ void dot_product_block_quantized_by_dims(TA* a,
                 svfloat32_t va;
                 pg_a = svwhilelt_b32(i, group_size);
                 pg_f16 = svand_z(svptrue_b16(), svwhilelt_b16(svcnth() / 2, svcnth()), svwhilelt_b16(i, group_size));
-                if constexpr (std::is_same<TA, ov::float16>::value) {
+                if constexpr (std::is_same_v<TA, ov::float16>) {
                     auto load_src = svld1_f16(pg_f16, reinterpret_cast<float16_t*>(a + dst_offset + i));
                     auto src_interleave = svzip1_f16(load_src, scratch);
                     va = svcvt_f32_f16_z(pg_a, src_interleave);
