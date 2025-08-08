@@ -810,6 +810,7 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     load_table_val("neg_one", fp1);
     h->vfadd_vf(dst, dst, fp1, VM::masked);
 }
+
 std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
@@ -825,6 +826,18 @@ jit_floor_mod_emitter::jit_floor_mod_emitter(jit_generator_t* host,
                                              const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
+}
+
+size_t jit_floor_mod_emitter::get_inputs_num() const {
+    return 2;
+}
+
+size_t jit_floor_mod_emitter::aux_vecs_count() const {
+    return 2;
+}
+
+size_t jit_floor_mod_emitter::aux_fp_gprs_count() const {
+    return 1;
 }
 
 void jit_floor_mod_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
