@@ -116,19 +116,22 @@ struct CPUStreamsExecutor::Impl {
             tbb_version = TBB_runtime_interface_version();
 #    endif
             if (stream_type == STREAM_WITHOUT_PARAM) {
-                int version_major = tbb_version / 100;
-                int version_minor = tbb_version % 100;
+                int version_major = tbb_version / 10;
+                int version_patch = tbb_version % 10;
                 bool support_core_types = false;
-                if ((version_major == 120 && version_minor >= 26) || (version_major == 121 && version_minor >= 31)) {
+                if ((version_major == TBB_VERSION_MAJOR_CORE_TYPES_WINDOWS &&
+                     version_patch >= TBB_VERSION_PATCH_CORE_TYPES_WINDOWS) ||
+                    (version_major == TBB_VERSION_MAJOR_CORE_TYPES_LINUX &&
+                     version_patch >= TBB_VERSION_PATCH_CORE_TYPES_LINUX)) {
                     support_core_types = true;
                 }
                 auto core_types = tbb::info::core_types();
-                if (support_core_types && core_types.size() > 2) {  // size should be 3 on PTL
-                    _taskArena.reset(
-                        new custom::task_arena{custom::task_arena::constraints{}
-                                                   .set_max_concurrency(concurrency)
-                                                   .set_max_threads_per_core(max_threads_per_core)
-                                                   .set_core_types({core_types.end() - 2, core_types.end()})});
+                if (support_core_types && core_types.size() >= MIN_CORE_TYPES_FOR_PTL) {
+                    _taskArena.reset(new custom::task_arena{
+                        custom::task_arena::constraints{}
+                            .set_max_concurrency(concurrency)
+                            .set_max_threads_per_core(max_threads_per_core)
+                            .set_core_types({core_types.end() - MIN_CORE_TYPES_FOR_PTL + 1, core_types.end()})});
                 } else {
                     _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                                 .set_max_concurrency(concurrency)
