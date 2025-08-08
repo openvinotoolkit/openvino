@@ -156,8 +156,8 @@ void ZeGraphExtWrappers::setGraphArgumentValue(const GraphDescriptor& graphDescr
 void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
                                          uint32_t commandQueueGroupOrdinal) const {
     if (_zeroInitStruct->getGraphDdiTable().version() < ZE_GRAPH_EXT_VERSION_1_8) {
-        _logger.debug("Use initialize_graph_through_command_list for ext version smaller than 1.8");
-        initialize_graph_through_command_list(graphDescriptor._handle, commandQueueGroupOrdinal);
+        _logger.debug("Use initializeGraphThroughCommandList for ext version smaller than 1.8");
+        initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
     } else {
         _logger.debug("Initialize graph based on graph properties for ext version larger than 1.8");
         ze_graph_properties_2_t properties = {};
@@ -171,33 +171,33 @@ void ZeGraphExtWrappers::initializeGraph(const GraphDescriptor& graphDescriptor,
         }
 
         if (properties.initStageRequired & ZE_GRAPH_STAGE_COMMAND_LIST_INITIALIZE) {
-            initialize_graph_through_command_list(graphDescriptor._handle, commandQueueGroupOrdinal);
+            initializeGraphThroughCommandList(graphDescriptor._handle, commandQueueGroupOrdinal);
         }
     }
 }
 
-void ZeGraphExtWrappers::initialize_graph_through_command_list(ze_graph_handle_t graphHandle,
-                                                               uint32_t commandQueueGroupOrdinal) const {
-    _logger.debug("initialize_graph_through_command_list init start - create graph_command_list");
-    CommandList graph_command_list(_zeroInitStruct, commandQueueGroupOrdinal);
-    _logger.debug("initialize_graph_through_command_list - create graph_command_queue");
-    std::shared_ptr<CommandQueue> graph_command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                                                       ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
-                                                                                       commandQueueGroupOrdinal,
-                                                                                       false);
-    _logger.debug("initialize_graph_through_command_list - create fence");
-    Fence fence(graph_command_queue);
+void ZeGraphExtWrappers::initializeGraphThroughCommandList(ze_graph_handle_t graphHandle,
+                                                           uint32_t commandQueueGroupOrdinal) const {
+    _logger.debug("initializeGraphThroughCommandList init start - create graphCommandList");
+    CommandList graphCommandList(_zeroInitStruct, commandQueueGroupOrdinal);
+    _logger.debug("initializeGraphThroughCommandList - create graphCommandQueue");
+    std::shared_ptr<CommandQueue> graphCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                                                     ZE_COMMAND_QUEUE_PRIORITY_NORMAL,
+                                                                                     commandQueueGroupOrdinal,
+                                                                                     false);
+    _logger.debug("initializeGraphThroughCommandList - create fence");
+    Fence fence(graphCommandQueue);
 
-    _logger.debug("initialize_graph_through_command_list - performing appendGraphInitialize");
-    graph_command_list.appendGraphInitialize(graphHandle);
-    _logger.debug("initialize_graph_through_command_list - closing graph command list");
-    graph_command_list.close();
+    _logger.debug("initializeGraphThroughCommandList - performing appendGraphInitialize");
+    graphCommandList.appendGraphInitialize(graphHandle);
+    _logger.debug("initializeGraphThroughCommandList - closing graph command list");
+    graphCommandList.close();
 
-    _logger.debug("initialize_graph_through_command_list - performing executeCommandList");
-    graph_command_queue->executeCommandList(graph_command_list, fence);
-    _logger.debug("initialize_graph_through_command_list - performing hostSynchronize");
+    _logger.debug("initializeGraphThroughCommandList - performing executeCommandList");
+    graphCommandQueue->executeCommandList(graphCommandList, fence);
+    _logger.debug("initializeGraphThroughCommandList - performing hostSynchronize");
     fence.hostSynchronize();
-    _logger.debug("initialize_graph_through_command_list - hostSynchronize completed");
+    _logger.debug("initializeGraphThroughCommandList - hostSynchronize completed");
 }
 
 // Parse the result string of query from format <name_0><name_1><name_2> to unordered_set of string

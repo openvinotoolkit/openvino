@@ -581,7 +581,7 @@ void WeightlessGraph::run_pipeline(const size_t initIndex) {
 }
 
 void WeightlessGraph::set_weights_inputs() {
-    for (const auto& desc : _input_descriptors) {
+    for (const auto& desc : _inputDescriptors) {
         if (!isMainInputWeightsName(desc.info.name)) {
             continue;
         }

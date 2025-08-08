@@ -11,6 +11,38 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
+namespace {
+constexpr std::size_t BATCH_AXIS = 0;
+constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
+
+std::optional<size_t> extract_batch_impl(const ov::Shape& shape,
+                                         std::optional<ov::PartialShape> partial_shape,
+                                         size_t index) {
+    if (partial_shape.has_value()) {
+        if (partial_shape.value()[index].is_dynamic()) {
+            return shape[index];
+        }
+        return std::nullopt;
+    }
+    return shape[index];
+}
+
+std::optional<size_t> extract_batch(const ze_graph_argument_layout_t& nLayout,
+                                    const ov::Shape& shape,
+                                    std::optional<ov::PartialShape> partial_shape = std::nullopt) {
+    if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NHWC ||
+        nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC ||
+        nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NC) {
+        return extract_batch_impl(shape, partial_shape.has_value() ? partial_shape : std::nullopt, 0);
+    } else if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_CN) {
+        return extract_batch_impl(shape, partial_shape.has_value() ? partial_shape : std::nullopt, 1);
+    }
+
+    return std::nullopt;
+}
+
+}  // namespace
+
 namespace intel_npu {
 
 Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
@@ -22,10 +54,12 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const bool blobIsPersistent,
              const ov::SoPtr<ICompiler>& compiler,
              const bool calledFromWeightlessGraph)
-    : IGraph(std::move(metadata), config, std::move(blob)),
+    : IGraph(),
       _zeGraphExt(zeGraphExt),
       _zeroInitStruct(zeroInitStruct),
       _graphDesc(graphDesc),
+      _metadata(std::move(metadata)),
+      _blob(std::move(blob)),
       _blobIsPersistent(blobIsPersistent),
       _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
@@ -38,6 +72,50 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
         // Will be called at a later stage from WeightlessGraph::initialize() in order to save some memory
         initialize(config);
     }
+}
+
+const NetworkMetadata& Graph::get_metadata() const {
+    return _metadata;
+}
+
+void Graph::update_network_name(std::string_view name) {
+    _metadata.name = name;
+}
+
+const std::vector<ArgumentDescriptor>& Graph::get_input_descriptors() const {
+    return _inputDescriptors;
+}
+
+const std::vector<ArgumentDescriptor>& Graph::get_output_descriptors() const {
+    return _outputDescriptors;
+}
+
+const std::shared_ptr<CommandQueue>& Graph::get_command_queue() const {
+    return _commandQueue;
+}
+
+uint32_t Graph::get_command_queue_group_ordinal() const {
+    return _commandQueueGroupOrdinal;
+}
+
+void Graph::set_workload_type(const ov::WorkloadType workloadType) const {
+    if (_commandQueue == nullptr) {
+        return;
+    }
+
+    ze_command_queue_workload_type_t zeWorkloadType;
+    switch (workloadType) {
+    case ov::WorkloadType::DEFAULT:
+        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
+        break;
+    case ov::WorkloadType::EFFICIENT:
+        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
+        break;
+    default:
+        OPENVINO_THROW("Unknown value for WorkloadType!");
+    }
+
+    _commandQueue->setWorkloadType(zeWorkloadType);
 }
 
 ze_graph_handle_t Graph::get_handle() const {
@@ -139,21 +217,20 @@ void Graph::initialize(const Config& config) {
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
         if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
-            _input_descriptors.push_back(ArgumentDescriptor{arg3, index});
-            _logger.debug("got pfnGetArgumentProperties3 for input: %s", _input_descriptors.back().to_string().c_str());
+            _inputDescriptors.push_back(ArgumentDescriptor{arg3, index});
+            _logger.debug("got pfnGetArgumentProperties3 for input: %s", _inputDescriptors.back().to_string().c_str());
         } else {
-            _output_descriptors.push_back(ArgumentDescriptor{arg3, index});
+            _outputDescriptors.push_back(ArgumentDescriptor{arg3, index});
             _logger.debug("got pfnGetArgumentProperties3 for output: %s",
-                          _output_descriptors.back().to_string().c_str());
+                          _outputDescriptors.back().to_string().c_str());
         }
     }
 
-    _input_descriptors.shrink_to_fit();
-    _output_descriptors.shrink_to_fit();
+    _inputDescriptors.shrink_to_fit();
+    _outputDescriptors.shrink_to_fit();
 
-    _command_queue_group_ordinal =
-        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    _commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
     uint32_t command_queue_options = 0;
 
@@ -170,16 +247,16 @@ void Graph::initialize(const Config& config) {
         command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
-    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    _command_queue_group_ordinal,
-                                                    command_queue_options);
+    _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                   zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                   _commandQueueGroupOrdinal,
+                                                   command_queue_options);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
     }
 
-    _zeGraphExt->initializeGraph(_graphDesc, _command_queue_group_ordinal);
+    _zeGraphExt->initializeGraph(_graphDesc, _commandQueueGroupOrdinal);
     _logger.debug("Graph initialize finish");
 
     //  We are allowed to release the original blob because weights were loaded in NPU memory during
@@ -187,13 +264,13 @@ void Graph::initialize(const Config& config) {
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
-    _batch_size = get_batch_size(_metadata, {}, {});
+    _batchSize = get_batch_size({});
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
+        auto number_of_command_lists = _batchSize.has_value() ? *_batchSize : 1;
 
-        _last_submitted_event.resize(number_of_command_lists);
+        _lastSubmittedEvent.resize(number_of_command_lists);
     }
 }
 
@@ -217,18 +294,187 @@ bool Graph::release_blob(const Config& config) {
     return true;
 };
 
+void Graph::set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
+    _lastSubmittedEvent[indexOfCommandList] = event;
+}
+
+const std::shared_ptr<Event>& Graph::get_last_submitted_event(size_t indexOfCommandList) const {
+    return _lastSubmittedEvent[indexOfCommandList];
+}
+
+void Graph::resize_last_submitted_event(size_t batch) {
+    _lastSubmittedEvent.resize(batch);
+}
+
+void Graph::set_batch_size(std::size_t batch) {
+    _batchSize = batch;
+}
+
+uint32_t Graph::get_unique_id() {
+    return _uniqueId++;
+}
+
+void Graph::set_last_submitted_id(uint32_t id_index) {
+    _lastSubmittedId = id_index;
+}
+
+uint32_t Graph::get_last_submitted_id() const {
+    return _lastSubmittedId;
+}
+
+std::optional<size_t> Graph::determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                                  const std::optional<size_t> index,
+                                                  const bool isInput = true) const {
+    if (get_batch_size() > 1) {
+        return get_batch_size();
+    }
+
+    if (tensors.empty()) {
+        return std::nullopt;  // Return std::nullopt if no input tensors are set
+    }
+
+    const auto& first_tensor = tensors.at(0);
+    if (!first_tensor) {
+        return std::nullopt;  // Return std::nullopt if the first tensor is null
+    }
+
+    const auto& first_shape = first_tensor->get_shape();
+    if (first_shape.empty()) {
+        return std::nullopt;  // Return std::nullopt if the shape is empty
+    }
+
+    if (!_metadata.inputs.at(0).shapeFromIRModel.has_value()) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    if (!index.has_value()) {
+        return std::nullopt;
+    }
+
+    auto& desc = isInput ? _inputDescriptors.at(*index) : _outputDescriptors.at(*index);
+
+    // A first dimensionin shape  may be appeared 'C' as well.
+    // We need to get batch Idx and determine a true batch value here.
+    // Let's use input_output_info as a helper.
+    const ov::PartialShape& firstPartialShape = *_metadata.inputs.at(0).shapeFromIRModel;
+    auto candidateBatchSizeIfExist = extract_batch(desc.info.networkLayout, first_shape, firstPartialShape);
+    if (!candidateBatchSizeIfExist.has_value()) {
+        return std::nullopt;  // Return std::nullopt if there is no batch dimension
+    }
+    const size_t candidateBatchSize = candidateBatchSizeIfExist.value();
+    _logger.debug("Candidate batch size: %zu, shape: %s", candidateBatchSize, first_shape.to_string().c_str());
+    auto checkBatchSizeConsistency = [candidateBatchSize, &desc](const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
+        for (const auto& tensor : tensors) {
+            if (!tensor) {
+                return false;  // Tensor is null
+            }
+
+            const auto& shape = tensor->get_shape();
+            if (shape.empty()) {
+                return false;  // Inconsistent batch size
+            }
+
+            auto batchIfExist = extract_batch(desc.info.networkLayout, shape);
+            if (!batchIfExist.has_value()) {
+                return false;  // no batch size to check
+            }
+
+            if (batchIfExist.value() != candidateBatchSize) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (!checkBatchSizeConsistency(tensors)) {
+        _logger.warning("Inconsistent batch sizes in input tensors");
+        return std::nullopt;  // Return std::nullopt if batch sizes are inconsistent
+    }
+
+    _logger.debug("Determined batch size: %zu", candidateBatchSize);
+
+    return candidateBatchSize;
+}
+
+std::optional<size_t> Graph::get_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
+                                            const std::optional<size_t> index,
+                                            const bool isInput) {
+    if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
+    if (firstOutputShape.is_dynamic()) {
+        _logger.debug(
+            "Networks using dynamic batch are handled by the plugin. Let's determine batch size over tensors: %zu",
+            tensors.size());
+        return !tensors.empty() ? determine_batch_size(tensors, index, isInput) : std::nullopt;
+    }
+    if (firstOutputShape.rank().get_length() == 0) {
+        _logger.warning("Networks using rank 0 shapes for inputs/outputs are not supported when batching is "
+                        "handled by the plugin");
+        return std::nullopt;
+    }
+
+    const size_t candidateBatchSize = firstOutputShape[BATCH_AXIS].get_max_length();
+    if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
+        for (const IODescriptor& descriptor : descriptors) {
+            OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
+                            "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
+
+            const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
+            const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
+
+            if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
+                *shapeFromCompiler.begin() != DEFAULT_BATCH_SIZE) {
+                return false;
+            }
+
+            if (!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor) {
+                if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
+                    *shapeFromIRModel.begin() != candidateBatchSize) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
+    if (!checkDescriptorsUseCandidateBatchSize(_metadata.inputs) ||
+        !checkDescriptorsUseCandidateBatchSize(_metadata.outputs)) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    _logger.debug("Batching is handled by the plugin");
+
+    return candidateBatchSize;
+}
+
+const std::optional<std::size_t> Graph::get_batch_size() const {
+    return _batchSize;
+}
+
 Graph::~Graph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_zeGraphExt != nullptr) {
         _zeGraphExt->destroyGraph(_graphDesc);
     }
 
-    if (!_last_submitted_event.empty()) {
-        _last_submitted_event.clear();
+    if (!_lastSubmittedEvent.empty()) {
+        _lastSubmittedEvent.clear();
     }
 
-    if (_command_queue != nullptr) {
-        _command_queue.reset();
+    if (_commandQueue != nullptr) {
+        _commandQueue.reset();
     }
 }
 
