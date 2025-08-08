@@ -12,6 +12,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 #if defined(__APPLE__)
@@ -151,42 +152,33 @@ static std::string getDeviceFullName() {
             if (brand_string.empty()) {
                 auto vendor_from_impl = [](const std::string& hex) -> const char* {
                     // Map common implementer IDs (see Linux arch/arm64/include/asm/sysreg.h / MIDR)
+                    static const std::unordered_map<uint32_t, const char*> vendor_map = {
+                        {0x41, "ARM"},
+                        {0x42, "Broadcom"},
+                        {0x43, "Cavium"},
+                        {0x44, "DEC"},
+                        {0x46, "Fujitsu"},
+                        {0x48, "HiSilicon"},
+                        {0x49, "Infineon"},
+                        {0x4C, "Motorola"},
+                        {0x4D, "MediaTek"},
+                        {0x4E, "NVIDIA"},
+                        {0x50, "Applied Micro"},
+                        {0x51, "Qualcomm"},
+                        {0x53, "Samsung"},
+                        {0x56, "Marvell"},
+                        {0x61, "Apple"},
+                        {0x69, "Intel"},
+                        {0x7A, "Allwinner"},
+                        {0xC0, "Ampere"},
+                    };
+
                     if (hex.length() >= 3) {
-                        auto id = std::stoul(hex, nullptr, 16);
-                        switch (id) {
-                        case 0x41:
-                            return "ARM";
-                        case 0x42:
-                            return "Broadcom";
-                        case 0x43:
-                            return "Cavium";
-                        case 0x44:
-                            return "DEC";
-                        case 0x46:
-                            return "Fujitsu";
-                        case 0x48:
-                            return "HiSilicon";
-                        case 0x49:
-                            return "Infineon";
-                        case 0x4D:
-                            return "Motorola";
-                        case 0x4E:
-                            return "NVIDIA";
-                        case 0x50:
-                            return "Applied Micro";
-                        case 0x51:
-                            return "Qualcomm";
-                        case 0x53:
-                            return "Samsung";
-                        case 0x56:
-                            return "Marvell";
-                        case 0x61:
-                            return "Apple";
-                        case 0x69:
-                            return "Intel";
-                        case 0xC0:
-                            return "Ampere";
-                        default:
+                        try {
+                            auto id = std::stoul(hex, nullptr, 16);
+                            auto it = vendor_map.find(id);
+                            return it != vendor_map.end() ? it->second : nullptr;
+                        } catch (const std::exception&) {
                             return nullptr;
                         }
                     }
