@@ -52,7 +52,7 @@ public:
 
     virtual void set_workload_type(const ov::WorkloadType workloadType) const = 0;
 
-    std::mutex& IGraph::get_mutex() {
+    std::mutex& get_mutex() {
         return _mutex;
     }
 
