@@ -224,8 +224,7 @@ void Pipeline::push() {
     _logger.debug("Pipeline - push() completed");
 };
 
-void Pipeline::pull( size_t num_command_lists )
-{
+void Pipeline::pull(size_t num_command_lists) {
     _logger.debug("Pipeline - pull() started");
     OV_ITT_TASK_CHAIN(ZERO_PIPELINE_IP_PULL, itt::domains::LevelZeroBackend, "Pipeline", "pull");
 

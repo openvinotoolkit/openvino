@@ -9,7 +9,6 @@
 #include <string_view>
 
 #include "graph.hpp"
-#include "irgraph.hpp"
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -20,6 +19,7 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
+#include "irgraph.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
