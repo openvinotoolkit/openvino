@@ -16,7 +16,6 @@ namespace pugi {
 class xml_node;  // NCC
 }
 
-
 namespace ov::util {
 class XmlSerializer;
 class ConstantWriter;
