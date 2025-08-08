@@ -474,72 +474,70 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     get_user_inputs(foundPort.idx).resize(tensors.size());
     get_user_inputs(foundPort.idx) = tensors;
 
-    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
-        if (batchSize.has_value()) {
-            for (size_t i = 0; i < tensors.size(); i++) {
-                auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensors[i]._ptr);
+    if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0) && batchSize.has_value()) {
+        for (size_t i = 0; i < tensors.size(); i++) {
+            auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensors[i]._ptr);
 
-                get_level_zero_inputs(foundPort.idx).resize(tensors.size());
-                void* data = nullptr;
+            get_level_zero_inputs(foundPort.idx).resize(tensors.size());
+            void* data = nullptr;
 
-                if (remoteTensor == nullptr) {
-                    bool levelZeroTensorCreated = false;
+            if (remoteTensor == nullptr) {
+                bool levelZeroTensorCreated = false;
 
-                    OV_ITT_TASK_NEXT(SET_TENSORS, "check_data_allocation");
-                    if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_initStructs->getContext(),
-                                                                               tensors[i]->data())) {
-                        _logger.debug("ZeroInferRequest::set_tensors - tensor was created in the same L0 context");
-
-                        get_level_zero_input(foundPort.idx, i) = tensors.at(i)._ptr;
-                        levelZeroTensorCreated = true;
-                    } else {
-                        if (_externalMemoryStandardAllocationSupported &&
-                            utils::memory_and_size_aligned_to_standard_page_size(tensors.at(i)->data(),
-                                                                                 tensors.at(i)->get_byte_size())) {
-                            _logger.debug("ZeroInferRequest::set_tensors - import memory from a system memory pointer");
-                            auto hostMemSharedAllocator =
-                                zeroMemory::HostMemSharedAllocator(_initStructs,
-                                                                   tensors.at(i)._ptr,
-                                                                   ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
-                            get_level_zero_input(foundPort.idx, i) =
-                                std::make_shared<ZeroTensor>(_initStructs,
-                                                             _config,
-                                                             tensors.at(i)->get_element_type(),
-                                                             tensors.at(i)->get_shape(),
-                                                             hostMemSharedAllocator);
-
-                            levelZeroTensorCreated = true;
-                        }
-                    }
-
-                    if (!levelZeroTensorCreated) {
-                        _logger.debug("ZeroInferRequest::set_tensors - tensor wasn't created in the same L0 context, "
-                                      "create a L0 tensor");
-
-                        get_level_zero_input(foundPort.idx, i) = allocate_tensor(_metadata.inputs.at(foundPort.idx),
-                                                                                 foundPort.idx,
-                                                                                 true,
-                                                                                 *_inputAllocator,
-                                                                                 batchSize);
-                    }
-
-                    data = get_level_zero_input(foundPort.idx, i)->data();
-                } else {
-                    _logger.debug("ZeroInferRequest::set_tensors - remote tensor is used");
-
-                    data = remoteTensor->get_original_memory();
+                OV_ITT_TASK_NEXT(SET_TENSORS, "check_data_allocation");
+                if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_initStructs->getContext(),
+                                                                           tensors[i]->data())) {
+                    _logger.debug("ZeroInferRequest::set_tensors - tensor was created in the same L0 context");
 
                     get_level_zero_input(foundPort.idx, i) = tensors.at(i)._ptr;
+                    levelZeroTensorCreated = true;
+                } else {
+                    if (_externalMemoryStandardAllocationSupported &&
+                        utils::memory_and_size_aligned_to_standard_page_size(tensors.at(i)->data(),
+                                                                             tensors.at(i)->get_byte_size())) {
+                        _logger.debug("ZeroInferRequest::set_tensors - import memory from a system memory pointer");
+                        auto hostMemSharedAllocator =
+                            zeroMemory::HostMemSharedAllocator(_initStructs,
+                                                               tensors.at(i)._ptr,
+                                                               ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED);
+                        get_level_zero_input(foundPort.idx, i) =
+                            std::make_shared<ZeroTensor>(_initStructs,
+                                                         _config,
+                                                         tensors.at(i)->get_element_type(),
+                                                         tensors.at(i)->get_shape(),
+                                                         hostMemSharedAllocator);
+
+                        levelZeroTensorCreated = true;
+                    }
                 }
 
-                if (_pipelineIsCreated && !_pipelineNeedsReallocation) {
-                    OPENVINO_ASSERT(data, "Empty buffer");
-                    OV_ITT_TASK_NEXT(SET_TENSORS, "updateCommandList");
+                if (!levelZeroTensorCreated) {
+                    _logger.debug("ZeroInferRequest::set_tensors - tensor wasn't created in the same L0 context, "
+                                  "create a L0 tensor");
 
-                    _pipeline->update_graph_arguments_batching(_graph->get_input_descriptors().at(foundPort.idx).idx,
-                                                               data,
-                                                               i);
+                    get_level_zero_input(foundPort.idx, i) = allocate_tensor(_metadata.inputs.at(foundPort.idx),
+                                                                             foundPort.idx,
+                                                                             true,
+                                                                             *_inputAllocator,
+                                                                             batchSize);
                 }
+
+                data = get_level_zero_input(foundPort.idx, i)->data();
+            } else {
+                _logger.debug("ZeroInferRequest::set_tensors - remote tensor is used");
+
+                data = remoteTensor->get_original_memory();
+
+                get_level_zero_input(foundPort.idx, i) = tensors.at(i)._ptr;
+            }
+
+            if (_pipelineIsCreated && !_pipelineNeedsReallocation) {
+                OPENVINO_ASSERT(data, "Empty buffer");
+                OV_ITT_TASK_NEXT(SET_TENSORS, "updateCommandList");
+
+                _pipeline->update_graph_arguments_batching(_graph->get_input_descriptors().at(foundPort.idx).idx,
+                                                           data,
+                                                           i);
             }
         }
     }
