@@ -56,10 +56,12 @@ std::shared_ptr<ov::cache::CacheManager> CompiledModel::get_or_create_cache_mana
     std::lock_guard<std::mutex> lock(m_cache_mgr_mutex);
     if (m_cache_manager)
         return m_cache_manager;
-    // Construct from this compiled model (public handle)
-    ov::CompiledModel api_cm(
-        std::const_pointer_cast<CompiledModel>(std::static_pointer_cast<const CompiledModel>(shared_from_this())));
-    m_cache_manager = std::make_shared<ov::cache::CacheManager>(api_cm);
+    // Gather engine metadata
+    auto exec_devices_any = this->get_property(ov::execution_devices);
+    auto exec_devices = exec_devices_any.as<std::vector<std::string>>();
+    auto ctx = this->get_context();  // SoPtr<IRemoteContext> (may be empty)
+    // Construct from runtime model + metadata (engine-scoped)
+    m_cache_manager = std::make_shared<ov::cache::CacheManager>(m_model, exec_devices, ctx);
     return m_cache_manager;
 }
 

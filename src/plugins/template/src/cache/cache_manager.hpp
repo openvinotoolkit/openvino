@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "openvino/runtime/compiled_model.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -21,8 +21,10 @@ namespace ov { namespace cache {
  */
 class CacheManager {
 public:
-    // Construct from compiled model metadata (no request coupling)
-    explicit CacheManager(const ov::CompiledModel& compiled_model);
+    // Construct from runtime model & engine metadata (no request coupling)
+    CacheManager(const std::shared_ptr<const ov::Model>& runtime_model,
+                 const std::vector<std::string>& execution_devices,
+                 const ov::SoPtr<ov::IRemoteContext>& context);
 
     size_t get_num_decoder_layers() const;
     std::string get_device() const;

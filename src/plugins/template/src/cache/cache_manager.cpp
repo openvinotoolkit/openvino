@@ -14,21 +14,22 @@ static bool is_gpu_device(const std::string& d) {
     return d.find("GPU") != std::string::npos;
 }
 
-CacheManager::CacheManager(const ov::CompiledModel& compiled_model) {
-    std::vector<std::string> execution_devices = compiled_model.get_property(ov::execution_devices);
+CacheManager::CacheManager(const std::shared_ptr<const ov::Model>& runtime_model,
+                           const std::vector<std::string>& execution_devices,
+                           const ov::SoPtr<ov::IRemoteContext>& context) {
     const bool all_gpu_device = std::all_of(execution_devices.begin(), execution_devices.end(), is_gpu_device);
     OPENVINO_ASSERT(all_gpu_device || execution_devices.size() == 1,
                     "Continuous batching: execution device is expected to be single CPU / single GPU / multi GPUs");
-    m_device = execution_devices[0];
+    m_device = execution_devices.empty() ? std::string{} : execution_devices[0];
 
     // Suggested defaults (match pre-existing logic)
     m_block_size = all_gpu_device ? 16 : 32;
 
-    if (all_gpu_device) {
-        m_context = compiled_model.get_context();
+    if (all_gpu_device && context) {
+        m_context = context;
     }
 
-    for (const auto& input : compiled_model.inputs()) {
+    for (const auto& input : runtime_model->inputs()) {
         for (const auto& name : input.get_names()) {
             auto cache_precision = input.get_element_type();
             ov::PartialShape pshape;
@@ -149,7 +150,6 @@ ov::Tensor CacheManager::get_value_cache(size_t decoder_layer_id) const {
 }
 
 size_t CacheManager::get_v_head_size(size_t) const {
-    // If values head size differs, extend this
     return !m_value_shapes.empty() ? m_value_shapes[0][3].get_length() : m_k_head_size;
 }
 
