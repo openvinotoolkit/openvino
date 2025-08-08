@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <unordered_map>
@@ -1086,7 +1087,6 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
         size_t dstOffset = 0;
         // sliceIdx is the updating index of src data vec, sliceIdx = dstOffset / (srcBlockND[k] * datasize)
         // sliceIdx should be in range 0 to (srcBlockND[0] / srcBlockND[k] - 1)
-        int64_t sliceIdx = -1;
         for (size_t i = 0; i < k; i++) {
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
             if (idxValue < 0) {
@@ -1095,7 +1095,7 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
-        sliceIdx = dstOffset / srcBlockND[k];
+        size_t sliceIdx = dstOffset / srcBlockND[k];
         // Exception must be thrown according to the specification
         CPU_NODE_ASSERT(dstOffset < elementsCount,
                         " indices contain values that points to non-existing data tensor element");
