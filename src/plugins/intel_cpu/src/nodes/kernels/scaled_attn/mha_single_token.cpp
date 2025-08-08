@@ -1460,8 +1460,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                     for (size_t iwork = start; iwork < end; ++iwork) {
                         auto* p = past_k_scale_zp.ptr<float>(pk, 0, h_group);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                        if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
-                            std::is_same<T2, ov::float16>::value) {
+                        if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
+                            std::is_same_v<T2, ov::float16>) {
                             auto p_k = present_key.ptr<ov::float16>(0, h_group, pk);
                             prefetch_bytes(S, _MM_HINT_T0, 4096, p_k);
                             auto _qk = dot_product_fp16(query.ptr<ov::float16>(0, h_group),
@@ -1500,8 +1500,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         auto b_kv = beams ? beams.ptr<int32_t>(b)[pk] : b;
                         auto* p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                        if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
-                            std::is_same<T2, ov::float16>::value) {
+                        if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
+                            std::is_same_v<T2, ov::float16>) {
                             auto p_k = present_key.ptr<ov::float16>(b_kv, h_group, pk);
                             auto _qk = dot_product_fp16(query.ptr<ov::float16>(b, h_group),
                                                         p_k,
@@ -1540,8 +1540,8 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
                         auto* p = past_k_scale_zp.ptr<float>(pk, b_kv, h_group);
                         for (size_t h = h_group * h_each_group_len; h < (h_group + 1) * h_each_group_len; h++) {
 #if defined(__ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
-                            if (std::is_same<T3, ov::float16>::value && std::is_same<T, ov::float16>::value &&
-                                std::is_same<T2, ov::float16>::value) {
+                            if (std::is_same_v<T3, ov::float16> && std::is_same_v<T, ov::float16> &&
+                                std::is_same_v<T2, ov::float16>) {
                                 auto p_k = present_key.ptr<ov::float16>(b_kv, h_group, pk);
                                 auto _qk = dot_product_fp16(query.ptr<ov::float16>(b, h, pq),
                                                             p_k,

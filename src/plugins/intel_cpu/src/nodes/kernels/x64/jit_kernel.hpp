@@ -734,7 +734,7 @@ void jit_kernel::copy(const Xbyak::Address& dst, const Xbyak::Reg64& src, const 
 
 template <typename DstT, size_t N, typename SrcT>
 void jit_kernel::load(const variable<DstT[N]>& dst, const variable<SrcT>& src, size_t length) {
-    static_assert(std::is_same<typename variable<SrcT>::reg_type, const Xbyak::Reg64>::value,
+    static_assert(std::is_same_v<typename variable<SrcT>::reg_type, const Xbyak::Reg64>,
                   "Source register must be Reg64");
 
     using src_type = std::remove_cv_t<std::remove_pointer_t<SrcT>>;
@@ -774,7 +774,7 @@ void jit_kernel::load(const variable<DstT[N]>& dst, const variable<SrcT>& src, c
 
 template <typename DstT, typename SrcT, size_t N>
 void jit_kernel::store(const variable<DstT>& dst, const variable<SrcT[N]>& src, size_t length) {
-    static_assert(std::is_same<typename variable<DstT>::reg_type, const Xbyak::Reg64>::value,
+    static_assert(std::is_same_v<typename variable<DstT>::reg_type, const Xbyak::Reg64>,
                   "Destination register must be Reg64");
 
     using src_type = std::remove_cv_t<std::remove_pointer_t<SrcT>>;

@@ -273,9 +273,9 @@ void dequant(TDST* dst,
 }
 
 #    if defined(HAVE_AVX512F)
-template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template <
+    typename T,
+    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
 static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -297,9 +297,9 @@ static void pack_32x32_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
     }
 }
 
-template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template <
+    typename T,
+    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
 static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);
@@ -318,9 +318,9 @@ static void pack_32x16_kernel(T* dst, T* src, size_t dst_stride, size_t src_stri
     }
 }
 
-template <typename T,
-          typename = typename std::
-              enable_if<(std::is_same<T, ov::bfloat16>::value || std::is_same<T, ov::float16>::value), bool>::type>
+template <
+    typename T,
+    typename = typename std::enable_if<(std::is_same_v<T, ov::bfloat16> || std::is_same_v<T, ov::float16>), bool>::type>
 static void pack_32xK_kernel(T* dst, T* src, size_t dst_stride, size_t src_stride, size_t K) {
     static const uint64_t idx[8] = {0, 4, 1, 5, 2, 6, 3, 7};
     auto midx = _mm512_loadu_si512(idx);

@@ -612,8 +612,8 @@ private:
 
     // gather f32 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
     void gather_f32(Vmm& vmm_src, const reg64_t& reg_src, const Vmm& vmm_idx) {
-        constexpr bool is_ymm = std::is_same<Vmm, Xbyak::Ymm>::value;
-        constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
+        constexpr bool is_ymm = std::is_same_v<Vmm, Xbyak::Ymm>;
+        constexpr bool is_zmm = std::is_same_v<Vmm, Xbyak::Zmm>;
 
         if (is_zmm) {
             kxnord(k_mask, k_mask, k_mask);
@@ -641,7 +641,7 @@ private:
     // gather bf16 data from reg_src with vmm_idx(data_size) to vmm_src with f32 precision
     // bf16 is needed from avx512_core
     void gather_bf16_to_f32_zmm(Vmm vmm_src, const reg64_t reg_src, const Vmm vmm_idx) {
-        OPENVINO_ASSERT((std::is_same<Vmm, Xbyak::Zmm>::value),
+        OPENVINO_ASSERT((std::is_same_v<Vmm, Xbyak::Zmm>),
                         "bf16 is only supported from avx512_core platform for ROIAlign node.");
         sub(rsp, v_len);
         uni_vmovdqu(ptr[rsp], vmm_idx);

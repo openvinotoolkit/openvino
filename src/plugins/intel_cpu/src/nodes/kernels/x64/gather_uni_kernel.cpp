@@ -787,7 +787,7 @@ template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc) {
     if (is_real16_to_f32) {
         // keep reg_dst, incremented outside
-        constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
+        constexpr bool is_zmm = std::is_same_v<Vmm, Xbyak::Zmm>;
         Xbyak::Ymm ymmSrc(vmmSrc.getIdx());
         Xbyak::Xmm xmmSrc(vmmSrc.getIdx());
         if (is_zmm) {
