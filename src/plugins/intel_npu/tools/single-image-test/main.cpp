@@ -1656,7 +1656,7 @@ bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThres
                   << std::endl;
     } else {
         OPENVINO_ASSERT(numberOfLabeledClasses == 0, "Unexpected error, numberOfLabeledClasses < 0");
-        std::cout << "Number of labeled classes is zero!" << std::endl;
+        std::cout << "WARNING: Number of labeled classes is zero!" << std::endl;
     }
 
     return stateValue;
