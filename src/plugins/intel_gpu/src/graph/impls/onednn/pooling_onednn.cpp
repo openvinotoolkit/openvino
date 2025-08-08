@@ -38,7 +38,7 @@ protected:
         auto pads_begin_shape = prim->pads_begin;
         auto pads_end_shape = prim->pads_end;
         auto dilation_shape = prim->dilation;
-        if (dilation_shape.empty()) dilation_shape.resize(stride_shape.size(), 0);
+        if (dilation_shape.empty()) dilation_shape.resize(stride_shape.size(), 1);
 
         kernel_shape.resize(std::max<size_t>(2, prim->size.size()), 1);
         stride_shape.resize(std::max<size_t>(2, prim->stride.size()), 1);
