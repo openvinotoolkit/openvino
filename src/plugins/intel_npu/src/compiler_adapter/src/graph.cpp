@@ -33,9 +33,9 @@ std::optional<size_t> extract_batch(const ze_graph_argument_layout_t& nLayout,
     if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NHWC ||
         nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC ||
         nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NC) {
-        return extract_batch_impl(shape, partial_shape.has_value() ? partial_shape : std::nullopt, 0);
+        return extract_batch_impl(shape, partial_shape, 0);
     } else if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_CN) {
-        return extract_batch_impl(shape, partial_shape.has_value() ? partial_shape : std::nullopt, 1);
+        return extract_batch_impl(shape, partial_shape, 1);
     }
 
     return std::nullopt;
@@ -232,25 +232,25 @@ void Graph::initialize(const Config& config) {
     _commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                                         ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-    uint32_t command_queue_options = 0;
+    uint32_t commandQueueOptions = 0;
 
     if (config.has<TURBO>() && config.get<TURBO>()) {
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
             _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
-            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
         config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
-        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
     _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
                                                    _commandQueueGroupOrdinal,
-                                                   command_queue_options);
+                                                   commandQueueOptions);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
@@ -264,13 +264,13 @@ void Graph::initialize(const Config& config) {
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
-    _batchSize = get_batch_size({});
+    _batchSize = determine_batch_size();
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        auto number_of_command_lists = _batchSize.has_value() ? *_batchSize : 1;
+        auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
-        _lastSubmittedEvent.resize(number_of_command_lists);
+        _lastSubmittedEvent.resize(numberOfCommandLists);
     }
 }
 
@@ -310,6 +310,10 @@ void Graph::set_batch_size(std::size_t batch) {
     _batchSize = batch;
 }
 
+void Graph::reset_last_batch_size() {
+    _batchSize.reset();
+}
+
 uint32_t Graph::get_unique_id() {
     return _uniqueId++;
 }
@@ -322,25 +326,13 @@ uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
 }
 
-std::optional<size_t> Graph::determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
-                                                  const std::optional<size_t> index,
-                                                  const bool isInput = true) const {
-    if (get_batch_size() > 1) {
-        return get_batch_size();
-    }
-
-    if (tensors.empty()) {
-        return std::nullopt;  // Return std::nullopt if no input tensors are set
-    }
-
-    const auto& first_tensor = tensors.at(0);
-    if (!first_tensor) {
-        return std::nullopt;  // Return std::nullopt if the first tensor is null
-    }
-
-    const auto& first_shape = first_tensor->get_shape();
-    if (first_shape.empty()) {
-        return std::nullopt;  // Return std::nullopt if the shape is empty
+std::optional<size_t> Graph::determine_dynamic_batch_size(const std::shared_ptr<ov::ITensor>& tensor,
+                                                          const std::optional<size_t> batchSize,
+                                                          const std::optional<size_t> index,
+                                                          const bool isInput) const {
+    if (tensor == nullptr && !batchSize.has_value()) {
+        _logger.debug("Batch size is not provided and tensor is null, returning std::nullopt");
+        return std::nullopt;
     }
 
     if (!_metadata.inputs.at(0).shapeFromIRModel.has_value()) {
@@ -348,8 +340,22 @@ std::optional<size_t> Graph::determine_batch_size(const std::vector<ov::SoPtr<ov
         return std::nullopt;
     }
 
+    const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
+    if (!firstOutputShape.is_dynamic()) {
+        return std::nullopt;
+    }
+
     if (!index.has_value()) {
         return std::nullopt;
+    }
+
+    ov::Shape firstShape;
+
+    if (tensor != nullptr) {
+        firstShape = tensor->get_shape();
+        if (firstShape.empty()) {
+            return std::nullopt;  // Return std::nullopt if the shape is empty
+        }
     }
 
     auto& desc = isInput ? _inputDescriptors.at(*index) : _outputDescriptors.at(*index);
@@ -358,48 +364,19 @@ std::optional<size_t> Graph::determine_batch_size(const std::vector<ov::SoPtr<ov
     // We need to get batch Idx and determine a true batch value here.
     // Let's use input_output_info as a helper.
     const ov::PartialShape& firstPartialShape = *_metadata.inputs.at(0).shapeFromIRModel;
-    auto candidateBatchSizeIfExist = extract_batch(desc.info.networkLayout, first_shape, firstPartialShape);
-    if (!candidateBatchSizeIfExist.has_value()) {
-        return std::nullopt;  // Return std::nullopt if there is no batch dimension
+
+    std::optional<size_t> candidateBatchSize = std::nullopt;
+
+    if (batchSize.has_value()) {
+        candidateBatchSize = batchSize.value();
+    } else {
+        candidateBatchSize = extract_batch(desc.info.networkLayout, firstShape, firstPartialShape);
     }
-    const size_t candidateBatchSize = candidateBatchSizeIfExist.value();
-    _logger.debug("Candidate batch size: %zu, shape: %s", candidateBatchSize, first_shape.to_string().c_str());
-    auto checkBatchSizeConsistency = [candidateBatchSize, &desc](const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
-        for (const auto& tensor : tensors) {
-            if (!tensor) {
-                return false;  // Tensor is null
-            }
-
-            const auto& shape = tensor->get_shape();
-            if (shape.empty()) {
-                return false;  // Inconsistent batch size
-            }
-
-            auto batchIfExist = extract_batch(desc.info.networkLayout, shape);
-            if (!batchIfExist.has_value()) {
-                return false;  // no batch size to check
-            }
-
-            if (batchIfExist.value() != candidateBatchSize) {
-                return false;
-            }
-        }
-        return true;
-    };
-
-    if (!checkBatchSizeConsistency(tensors)) {
-        _logger.warning("Inconsistent batch sizes in input tensors");
-        return std::nullopt;  // Return std::nullopt if batch sizes are inconsistent
-    }
-
-    _logger.debug("Determined batch size: %zu", candidateBatchSize);
 
     return candidateBatchSize;
 }
 
-std::optional<size_t> Graph::get_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
-                                            const std::optional<size_t> index,
-                                            const bool isInput) {
+std::optional<size_t> Graph::determine_batch_size() {
     if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
@@ -407,11 +384,9 @@ std::optional<size_t> Graph::get_batch_size(const std::vector<ov::SoPtr<ov::ITen
 
     const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape.is_dynamic()) {
-        _logger.debug(
-            "Networks using dynamic batch are handled by the plugin. Let's determine batch size over tensors: %zu",
-            tensors.size());
-        return !tensors.empty() ? determine_batch_size(tensors, index, isInput) : std::nullopt;
+        return std::nullopt;
     }
+
     if (firstOutputShape.rank().get_length() == 0) {
         _logger.warning("Networks using rank 0 shapes for inputs/outputs are not supported when batching is "
                         "handled by the plugin");

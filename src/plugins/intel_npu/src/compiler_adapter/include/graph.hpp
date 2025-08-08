@@ -53,24 +53,24 @@ public:
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
     void resize_last_submitted_event(size_t batch) override;
     void set_batch_size(std::size_t batch) override;
+    void reset_last_batch_size() override;
+
+    const std::optional<std::size_t> get_batch_size() const override;
+
+    std::optional<size_t> determine_dynamic_batch_size(const std::shared_ptr<ov::ITensor>& tensor,
+                                                       const std::optional<size_t> batchSize = std::nullopt,
+                                                       const std::optional<size_t> index = std::nullopt,
+                                                       const bool isInput = true) const override;
 
     uint32_t get_unique_id() override;
     void set_last_submitted_id(uint32_t id_index) override;
     uint32_t get_last_submitted_id() const override;
 
-    const std::optional<std::size_t> get_batch_size() const override;
-
-    std::optional<size_t> get_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
-                                         const std::optional<size_t> index = {},
-                                         const bool isInput = true) override;
-
     ~Graph() override;
 
 protected:
-    std::optional<size_t> determine_batch_size(const std::vector<ov::SoPtr<ov::ITensor>>& inputTensors,
-                                               const std::optional<size_t> index,
-                                               const bool isInput) const;
     bool release_blob(const Config& config);
+    std::optional<size_t> determine_batch_size();
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
