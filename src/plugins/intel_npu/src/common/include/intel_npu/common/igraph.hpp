@@ -60,7 +60,6 @@ public:
     virtual const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const = 0;
     virtual void resize_last_submitted_event(size_t batch) = 0;
     virtual void set_batch_size(std::size_t batch) = 0;
-    virtual void reset_last_batch_size() = 0;
 
     virtual const std::optional<std::size_t> get_batch_size() const = 0;
 
