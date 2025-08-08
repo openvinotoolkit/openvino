@@ -1320,7 +1320,7 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSliceMixedTypes) {
     auto data_pshape = ov::PartialShape{10, 5, 5, 10};
     auto data_type = ov::element::f32;
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(data_type, data_pshape);
+        auto data = std::make_shared<ov::op::v0::Parameter>(data_type, data_pshape);
 
         auto slice_0 = make_slice(data, 1, 10, 1, 0);
         auto slice_1 = make_slice(slice_0, -1, 1, -1, 1, element::i32);
@@ -1330,7 +1330,7 @@ TEST_F(TransformationTestsF, SliceSequenceToSingleSliceMixedTypes) {
         manager.register_pass<ov::pass::SliceSequenceToSingleSlice>();
     }
     {
-        auto data = std::make_shared<ov::opset8::Parameter>(data_type, data_pshape);
+        auto data = std::make_shared<ov::op::v0::Parameter>(data_type, data_pshape);
         auto slice = std::make_shared<ov::op::v8::Slice>(
             data,
             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {1, -1, -7}),
