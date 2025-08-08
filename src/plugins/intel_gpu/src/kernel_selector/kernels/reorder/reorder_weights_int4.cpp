@@ -122,8 +122,10 @@ bool ReorderWeightsKernelInt4::Validate(const Params& params) const {
         }
     }
 
-    OPENVINO_ASSERT((input.LogicalSize() == input.OFM().v * input.IFM().v
-                    && output.LogicalSize() == output.OFM().v * output.IFM().v),
+    // but why doing this for oiyx => ioyx?
+    // weight is already transposed. 
+    OPENVINO_ASSERT((input.LogicalSize() == input.OFM().v * input.IFM().v * input.Y().v
+                    && output.LogicalSize() == output.OFM().v * output.IFM().v * output.Y().v),
                     "Reorder weight i4 only supports 2D input/output, except when adding padding for the same shape(WeightsLayout::oiyx).");
 
     bool supported_case = input.GetLayout() == WeightsLayout::oiyx && output.GetLayout() == WeightsLayout::os_iyx_osv32;
