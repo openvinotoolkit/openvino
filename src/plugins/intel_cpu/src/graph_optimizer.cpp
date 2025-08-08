@@ -3459,37 +3459,40 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
         return ov::intel_cpu::any_of(type, Type::Reshape, Type::Concatenation, Type::Split);
     };
 
+    auto isParentSuitableForTailOpt = [&](const NodePtr& parent) -> bool {
+        if (!parent)
+            return false;
+        if (supportFuseConvert(parent->getType()) && tailNodesMap.count(parent) != 0U) {
+            return true;
+        }
+        if (supportInPlace(parent->getType()) && tailNodesMap.count(parent) != 0U) {
+            if (!parent->isInPlace())
+                return false;
+            return true;
+        }
+        return false;
+    };
+
     std::function<bool(const NodePtr&)> suitableForTailOptimization;
     suitableForTailOptimization = [&](const NodePtr& node) -> bool {
-        const NodePtr& cur = node;
         std::unordered_set<NodePtr> visited;
+        const NodePtr& cur = node;
         while (cur) {
             if (!visited.insert(cur).second)
                 break;
-
             size_t parentNum = cur->getParentEdges().size();
             if (parentNum == 0) {
                 return false;
             }
             for (size_t i = 0; i < parentNum; ++i) {
                 auto parent = cur->getParentEdgeAt(i)->getParent();
-                if (!parent) {
+                if (!isParentSuitableForTailOpt(parent)) {
                     return false;
                 }
-                if (supportFuseConvert(parent->getType()) && tailNodesMap.count(parent) != 0U) {
-                    continue;
-                }
                 if (supportInPlace(parent->getType()) && tailNodesMap.count(parent) != 0U) {
-                    if (!parent->isInPlace()) {
-                        return false;
-                    }
                     if (!suitableForTailOptimization(parent)) {
                         return false;
                     }
-                } else {
-                    // all parents must be suitable for tail optimization,otherwise convert maybe move to parent node
-                    // path
-                    return false;
                 }
             }
             return true;
