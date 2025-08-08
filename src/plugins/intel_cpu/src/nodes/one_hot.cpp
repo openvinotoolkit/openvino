@@ -65,6 +65,7 @@ OneHot::OneHot(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         depth = depthNode->cast_vector<uint32_t>()[0];
     }
     axis = static_cast<int32_t>(oneHot->get_axis());
+    is_mode_normalize = oneHot->get_negative_indices_mode() == ov::op::v1::OneHot::NegativeIndicesMode::NORMALIZE;
 
     VectorDims srcDims = getInputShapeAtPort(INDICES_ID).getDims();
     if (ov::is_scalar(srcDims)) {
@@ -135,7 +136,7 @@ void OneHot::one_hot(size_t prefix_size, size_t suffix_size) {
         out_type* dst_dataPtr = &dst_data[prefix_idx * depth * suffix_size];
         for (std::size_t suffix_idx = 0; suffix_idx < suffix_size; ++suffix_idx, ++src_dataPtr, ++dst_dataPtr) {
             const in_type val = *src_dataPtr;
-            const in_type mapped_val = val < 0 ? static_cast<in_type>(depth) + val : val;
+            const in_type mapped_val = (val < 0 && is_mode_normalize) ? static_cast<in_type>(depth) + val : val;
             if (mapped_val >= 0 && mapped_val <= static_cast<in_type>(depth) - 1) {
                 dst_dataPtr[mapped_val * suffix_size] = on_val;
             }
