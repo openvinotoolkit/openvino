@@ -11,6 +11,8 @@
 
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/remote_context.hpp"
+#include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace ov { namespace cache {
@@ -58,7 +60,7 @@ private:
     size_t m_num_decoder_layers = 0;
     std::string m_device;
     size_t m_block_size = 0;
-    ov::RemoteContext m_context;
+    ov::SoPtr<ov::IRemoteContext> m_context;
 
     std::vector<ov::element::Type> m_key_precisions, m_value_precisions;
     std::vector<ov::PartialShape> m_key_shapes, m_value_shapes;

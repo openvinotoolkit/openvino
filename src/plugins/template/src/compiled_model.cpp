@@ -57,8 +57,7 @@ std::shared_ptr<ov::cache::CacheManager> CompiledModel::get_or_create_cache_mana
     if (m_cache_manager)
         return m_cache_manager;
     // Gather engine metadata
-    auto exec_devices_any = this->get_property(ov::execution_devices);
-    auto exec_devices = exec_devices_any.as<std::vector<std::string>>();
+    auto exec_devices = this->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
     auto ctx = this->get_context();  // SoPtr<IRemoteContext> (may be empty)
     // Construct from runtime model + metadata (engine-scoped)
     m_cache_manager = std::make_shared<ov::cache::CacheManager>(m_model, exec_devices, ctx);

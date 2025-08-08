@@ -7,6 +7,8 @@
 #include <cstring>
 #include <numeric>
 
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/remote_tensor.hpp"
 namespace ov {
 namespace cache {
 
@@ -109,8 +111,10 @@ void CacheManager::allocate_cache_if_needed(size_t num_kv_blocks) {
 
         ov::Tensor key_cache, value_cache;
         if (m_context) {
-            key_cache = m_context.create_tensor(get_key_cache_precision(decoder_layer_id), key_cache_shape);
-            value_cache = m_context.create_tensor(get_value_cache_precision(decoder_layer_id), value_cache_shape);
+            auto key_remote   = m_context->create_tensor(get_key_cache_precision(decoder_layer_id), key_cache_shape);
+            auto value_remote = m_context->create_tensor(get_value_cache_precision(decoder_layer_id), value_cache_shape);
+            key_cache   = ov::make_tensor(key_remote);
+            value_cache = ov::make_tensor(value_remote);
         } else {
             key_cache = ov::Tensor(get_key_cache_precision(decoder_layer_id), key_cache_shape);
             value_cache = ov::Tensor(get_value_cache_precision(decoder_layer_id), value_cache_shape);

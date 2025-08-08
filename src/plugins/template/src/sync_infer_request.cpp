@@ -88,7 +88,8 @@ static void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
 
 std::vector<ScoresPort> ScoresLocator::find(const std::shared_ptr<const CompiledModel>& cm) {
     std::vector<ScoresPort> res;
-    const auto& results = cm->get_model()->get_results();
+    auto runtime = cm->get_runtime_model();
+    const auto& results = runtime->get_results();
     for (size_t i = 0; i < results.size(); ++i) {
         size_t lid = 0;
         bool matched = false;
@@ -100,12 +101,9 @@ std::vector<ScoresPort> ScoresLocator::find(const std::shared_ptr<const Compiled
             }
         }
         if (!matched) {
-            for (const auto& name : results[i]->get_friendly_names()) {
-                if (is_scores_output_name(name, lid)) {
-                    matched = true;
-                    break;
-                }
-            }
+            const auto& fname = results[i]->get_friendly_name();
+            if (is_scores_output_name(fname, lid))
+                matched = true;
         }
         if (matched)
             res.push_back(ScoresPort{i, lid});
@@ -348,10 +346,17 @@ void InferRequest::ensure_kv_cache_bound() {
 
         for (const auto& in : get_inputs()) {
             for (const auto& n : in.get_names()) {
-                if (n == kname)
-                    set_tensor(in, m_cache_mgr->get_key_cache(l));
+                if (n == kname) {
+                       ov::Tensor t = m_cache_mgr->get_key_cache(l);
+                       auto it = ov::get_tensor_impl(t); // SoPtr<ITensor>
+                       set_tensor(in, it);
+                   }
                 else if (n == vname)
-                    set_tensor(in, m_cache_mgr->get_value_cache(l));
+                    {
+                        ov::Tensor t = m_cache_mgr->get_value_cache(l);
+                        auto it = ov::get_tensor_impl(t); // SoPtr<ITensor>
+                        set_tensor(in, it);
+                    }
             }
         }
     }

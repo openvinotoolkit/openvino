@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-#include "cache_eviction.hpp"
-#include "cache_manager.hpp"
+#include "cache/cache_eviction.hpp"
+#include "cache/cache_manager.hpp"
 #include "executable.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/itt.hpp"
