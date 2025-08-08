@@ -1092,7 +1092,7 @@ void Transformations::PostLpt() {
                 std::string errorMsg;
                 return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
             },
-            MLPFusion);
+            MLPFusionPass);
 
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0) {
