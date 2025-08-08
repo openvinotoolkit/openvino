@@ -105,8 +105,6 @@ void jit_gemm_emitter::emit_call(const std::vector<size_t>& mem_ptrs_idxs) const
     // Use the new helper function to push all pointers with offsets to their stack locations
     utils::push_ptrs_with_offsets_to_stack(h, mem_ptrs, m_memory_offsets, m_buffer_ids, aux_gprs, gemm_args_offsets);
 
-    // Note: scratch field was removed per earlier review feedback, so we don't need to zero it
-
     Xbyak_aarch64::XReg x0(0);
     Xbyak_aarch64::XReg x1(1);
 

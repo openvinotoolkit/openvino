@@ -109,7 +109,7 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
  * @param mem_ptrs vector of registers containing data pointers
  * @param memory_offsets vector of memory offsets (can be dynamic or static)
  * @param buffer_ids vector of buffer IDs for runtime offset calculation
- * @param aux_regs vector of available auxiliary registers (must contain >= 3 registers, no overlap with mem_ptrs)
+ * @param aux_regs vector of available auxiliary registers
  * @param stack_offsets vector of stack offsets where adjusted pointers should be stored
  */
 void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,

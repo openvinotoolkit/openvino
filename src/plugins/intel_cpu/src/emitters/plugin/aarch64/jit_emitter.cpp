@@ -248,15 +248,23 @@ void jit_emitter::store_context(const std::unordered_set<size_t>& ignore_registe
 void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
                                 const std::vector<size_t>& vec_regs,
                                 const std::unordered_set<size_t>& ignore_vec_regs) const {
-    // 1. General-purpose Registers - optimized to allocate stack space once
     const auto store_gpr_regs_size = gpr_regs.size();
+    const auto store_vec_regs_size = vec_regs.size() - ignore_vec_regs.size();
+
+    // Calculate total stack space needed for both GPR and vector registers
+    const auto total_gpr_shift =
+        store_gpr_regs_size > 0 ? ov::intel_cpu::rnd_up(get_gpr_length() * store_gpr_regs_size, sp_alignment) : 0;
+    const auto total_vec_shift =
+        store_vec_regs_size > 0 ? ov::intel_cpu::rnd_up(get_vec_length() * store_vec_regs_size, sp_alignment) : 0;
+    const auto total_shift = total_gpr_shift + total_vec_shift;
+
+    if (total_shift > 0) {
+        // Single stack allocation for both GPR and vector registers
+        h->sub(h->sp, h->sp, total_shift);
+    }
+
+    // 1. Store General-purpose Registers
     if (store_gpr_regs_size > 0) {
-        // Calculate total stack space needed for all GPR registers (align once)
-        const auto total_gpr_shift = ov::intel_cpu::rnd_up(get_gpr_length() * store_gpr_regs_size, sp_alignment);
-
-        // Single stack allocation for all GPR registers
-        h->sub(h->sp, h->sp, total_gpr_shift);
-
         // Store GPR registers using stack offset (preserving original order)
         const auto last = store_gpr_regs_size % 2;
         int32_t current_offset = 0;
@@ -271,18 +279,11 @@ void jit_emitter::store_context(const std::vector<size_t>& gpr_regs,
         }
     }
 
-    // 2. SIMD and Floating-Point registers - optimized to allocate stack space once
-    const auto store_vec_regs_size = vec_regs.size() - ignore_vec_regs.size();
+    // 2. Store SIMD and Floating-Point registers
     if (store_vec_regs_size > 0) {
-        // Calculate total stack space needed for all vector registers (align once)
-        const auto total_vec_shift = ov::intel_cpu::rnd_up(get_vec_length() * store_vec_regs_size, sp_alignment);
-
-        // Single stack allocation for all vector registers
-        h->sub(h->sp, h->sp, total_vec_shift);
-
-        // Store vector registers using stack offset (preserving original order)
+        // Store vector registers using stack offset after GPR registers (preserving original order)
         const auto last = store_vec_regs_size % 2;
-        int32_t current_offset = 0;
+        auto current_offset = static_cast<int32_t>(total_gpr_shift);
 
         // Collect non-ignored registers
         std::vector<size_t> active_regs;
@@ -314,8 +315,17 @@ void jit_emitter::restore_context(const std::unordered_set<size_t>& ignore_vec_r
 void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
                                   const std::vector<size_t>& vec_regs,
                                   const std::unordered_set<size_t>& ignore_vec_regs) const {
-    // 1. SIMD and Floating-Point registers - load from stack in same order as stored (v0 to v31)
+    const auto save_gpr_regs_size = gpr_regs.size();
     const auto save_vec_regs_size = vec_regs.size() - ignore_vec_regs.size();
+
+    // Calculate total stack space (matching store_context)
+    const auto total_gpr_shift =
+        save_gpr_regs_size > 0 ? ov::intel_cpu::rnd_up(get_gpr_length() * save_gpr_regs_size, sp_alignment) : 0;
+    const auto total_vec_shift =
+        save_vec_regs_size > 0 ? ov::intel_cpu::rnd_up(get_vec_length() * save_vec_regs_size, sp_alignment) : 0;
+    const auto total_shift = total_gpr_shift + total_vec_shift;
+
+    // 1. Restore SIMD and Floating-Point registers - load from stack in same order as stored (v0 to v31)
     if (save_vec_regs_size > 0) {
         // Collect non-ignored registers
         std::vector<size_t> active_regs;
@@ -325,9 +335,9 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
             }
         }
 
-        // Restore vector registers using same order as stored
+        // Restore vector registers using same order as stored, offset after GPR registers
         const auto last = active_regs.size() % 2;
-        int32_t current_offset = 0;
+        auto current_offset = static_cast<int32_t>(total_gpr_shift);
 
         // Restore pairs in same order as stored
         for (size_t i = 0; i < (active_regs.size() - last); i += 2) {
@@ -341,14 +351,9 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
         if (last != 0) {
             h->ldr(Xbyak_aarch64::QReg(active_regs[active_regs.size() - 1]), Xbyak_aarch64::ptr(h->sp, current_offset));
         }
-
-        const auto total_vec_shift = ov::intel_cpu::rnd_up(get_vec_length() * save_vec_regs_size, sp_alignment);
-        // Single stack deallocation for all vector registers
-        h->add(h->sp, h->sp, total_vec_shift);
     }
 
-    // 2. General-purpose Registers - load from stack in same order as stored (x0 to x31)
-    const auto save_gpr_regs_size = gpr_regs.size();
+    // 2. Restore General-purpose Registers - load from stack in same order as stored (x0 to x31)
     if (save_gpr_regs_size > 0) {
         // Restore GPR registers using same order as stored
         const auto last = save_gpr_regs_size % 2;
@@ -366,10 +371,11 @@ void jit_emitter::restore_context(const std::vector<size_t>& gpr_regs,
         if (last != 0) {
             h->ldr(Xbyak_aarch64::XReg(gpr_regs[save_gpr_regs_size - 1]), Xbyak_aarch64::ptr(h->sp, current_offset));
         }
+    }
 
-        const auto total_gpr_shift = ov::intel_cpu::rnd_up(get_gpr_length() * save_gpr_regs_size, sp_alignment);
-        // Single stack deallocation for all GPR registers
-        h->add(h->sp, h->sp, total_gpr_shift);
+    if (total_shift > 0) {
+        // Single stack deallocation for both GPR and vector registers
+        h->add(h->sp, h->sp, total_shift);
     }
 }
 

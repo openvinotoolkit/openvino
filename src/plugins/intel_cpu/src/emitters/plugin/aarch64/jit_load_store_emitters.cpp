@@ -59,6 +59,8 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
 
     if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
         if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
+            // Create QReg from register index to ensure proper 128-bit SIMD register access
+            // VReg is an alias for QReg, but explicit QReg construction guarantees correct instruction encoding
             h->ldr(QReg(dst.getIdx()), ptr(src, static_cast<uint32_t>(offset)));
         } else {
             h->ldr(dst, ptr(src, static_cast<uint32_t>(offset)));
@@ -67,6 +69,7 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
         // Use add_imm which handles register allocation internally
         h->add_imm(h->X_DEFAULT_ADDR, src, offset, h->X_TMP_0);
         if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
+            // Create QReg from register index to ensure proper 128-bit SIMD register access
             h->ldr(QReg(dst.getIdx()), ptr(h->X_DEFAULT_ADDR));
         } else {
             h->ldr(dst, ptr(h->X_DEFAULT_ADDR));
@@ -81,6 +84,8 @@ static void store_with_offset_check(jit_generator* h, const RegType& src, const 
 
     if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
         if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
+            // Create QReg from register index to ensure proper 128-bit SIMD register access
+            // VReg is an alias for QReg, but explicit QReg construction guarantees correct instruction encoding
             h->str(QReg(src.getIdx()), ptr(dst, static_cast<uint32_t>(offset)));
         } else {
             h->str(src, ptr(dst, static_cast<uint32_t>(offset)));
@@ -89,6 +94,7 @@ static void store_with_offset_check(jit_generator* h, const RegType& src, const 
         // Use add_imm which handles register allocation internally
         h->add_imm(h->X_DEFAULT_ADDR, dst, offset, h->X_TMP_0);
         if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
+            // Create QReg from register index to ensure proper 128-bit SIMD register access
             h->str(QReg(src.getIdx()), ptr(h->X_DEFAULT_ADDR));
         } else {
             h->str(src, ptr(h->X_DEFAULT_ADDR));
