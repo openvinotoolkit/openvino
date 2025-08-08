@@ -137,7 +137,7 @@ static std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
     }
 }
 
-// Reflection for discrete indices (float tensors, потом конвертим там где надо)
+// Reflection for discrete indices (float tensors, will be converted to int32 where needed)
 static std::shared_ptr<Node> reflect_index(const Ctx& ctx,
                                            const std::shared_ptr<Node>& idx,
                                            const std::shared_ptr<Node>& size_f,
@@ -146,11 +146,13 @@ static std::shared_ptr<Node> reflect_index(const Ctx& ctx,
     if (align_corners) {
         auto size_m1 = std::make_shared<op::v1::Subtract>(size_f, ctx.c1);
         auto two_sm1 = std::make_shared<op::v1::Multiply>(ctx.c2, size_m1);
-        auto abs_i   = std::make_shared<op::v0::Abs>(idx);
-        auto r       = std::make_shared<op::v1::FloorMod>(abs_i, two_sm1);
-        auto flipped = std::make_shared<op::v1::Subtract>(two_sm1, r);
-        auto cond    = std::make_shared<op::v1::GreaterEqual>(r, size_f);
-        auto ref     = std::make_shared<op::v1::Select>(cond, flipped, r);
+        // Use positive modulo: ((idx % period) + period) % period
+        auto mod1    = std::make_shared<op::v1::FloorMod>(idx, two_sm1);
+        auto mod2    = std::make_shared<op::v1::FloorMod>(
+                           std::make_shared<op::v1::Add>(mod1, two_sm1), two_sm1);
+        auto flipped = std::make_shared<op::v1::Subtract>(two_sm1, mod2);
+        auto cond    = std::make_shared<op::v1::GreaterEqual>(mod2, size_f);
+        auto ref     = std::make_shared<op::v1::Select>(cond, flipped, mod2);
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, ref);
     } else {
         auto two_s   = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
@@ -287,24 +289,25 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
             auto h_in_f = std::make_shared<op::v0::Convert>(ctx.h_in, ctx.calc_type);
             auto w_in_f = std::make_shared<op::v0::Convert>(ctx.w_in, ctx.calc_type);
 
-            std::shared_ptr<Node> x_cont = ctx.x;
-            std::shared_ptr<Node> y_cont = ctx.y;
-
+            // 1) For REFLECTION: reflect continuous coords first
+            std::shared_ptr<Node> x_pad = ctx.x;
+            std::shared_ptr<Node> y_pad = ctx.y;
             if (is_reflection) {
-                // reflect **continuous** coordinates
-                x_cont = reflect_coord(ctx, x_cont, w_in_f, attrs.align_corners);
-                y_cont = reflect_coord(ctx, y_cont, h_in_f, attrs.align_corners);
-            } else if (is_border) {
-                // clamp **continuous** coordinates for BORDER
-                auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
-                auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
-                x_cont = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(x_cont, ctx.c0), w_m1);
-                y_cont = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(y_cont, ctx.c0), h_m1);
+                x_pad = reflect_coord(ctx, ctx.x, w_in_f, attrs.align_corners);
+                y_pad = reflect_coord(ctx, ctx.y, h_in_f, attrs.align_corners);
             }
 
-            // nearest = floor(x + 0.5), not HALF_AWAY_FROM_ZERO
-            auto x_idx = std::make_shared<op::v0::Floor>(std::make_shared<op::v1::Add>(x_cont, ctx.c0_5));
-            auto y_idx = std::make_shared<op::v0::Floor>(std::make_shared<op::v1::Add>(y_cont, ctx.c0_5));
+            // 2) Then round to nearest integer pixel (banker's rounding - HALF_TO_EVEN)
+            std::shared_ptr<Node> x_idx = std::make_shared<op::v5::Round>(x_pad, op::v5::Round::RoundMode::HALF_TO_EVEN);
+            std::shared_ptr<Node> y_idx = std::make_shared<op::v5::Round>(y_pad, op::v5::Round::RoundMode::HALF_TO_EVEN);
+
+            // 3) Apply clamping for BORDER mode and safety clamping for REFLECTION
+            if (is_border || is_reflection) {
+                auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
+                auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
+                x_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(x_idx, ctx.c0), w_m1);
+                y_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(y_idx, ctx.c0), h_m1);
+            }
 
             auto result = gather_hw(ctx, x_idx, y_idx);
 
