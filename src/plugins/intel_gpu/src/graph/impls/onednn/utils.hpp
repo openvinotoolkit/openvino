@@ -42,6 +42,7 @@ enum class mem_flags : uint32_t {
     use_strides  = 1 << 1,
     need_blocked = 1 << 2,
     grouped      = 1 << 3,
+    fc_grouped_3d  = 1 << 4,
 };
 
 dnnl::memory::desc layout_to_memory_desc(cldnn::layout l,

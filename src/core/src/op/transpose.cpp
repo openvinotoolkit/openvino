@@ -113,16 +113,16 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
         } else if ((arg_type == ov::element::i4 || arg_type == ov::element::u4) && arg.get_shape().size() == 3) {
             // only when transpose abc=>acb
             const auto out_batch = out_shape[0];
-            const auto out_shape_d0 = out_shape[1];
-            const auto out_shape_d1 = out_shape[2];
+            const auto dest_y = out_shape[1];
+            const auto dest_x = out_shape[2];
             for (size_t b = 0; b < out_batch; ++b) {
-                size_t batch_off = out_shape_d0 * out_shape_d1 * b;
-                for (size_t i = 0; i < out_shape_d0; i++) {
+                size_t batch_off = dest_y * dest_x * b /2;
+                for (size_t i = 0; i < dest_y; i++) {
                     size_t in_off = i;
-                    for (size_t j = 0; j < out_shape_d1; j++) {
+                    for (size_t j = 0; j < dest_x; j++) {
                         out_ptr.copy_from(in_ptr + batch_off + in_off);
                         ++out_ptr;
-                        in_off += out_shape_d0;
+                        in_off += dest_y;
                     }
                 }
             }

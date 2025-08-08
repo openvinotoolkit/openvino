@@ -540,11 +540,9 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
             // ConvertU4WeightsZeroPointToScalar pass generates scalar const layer
             return false;
         }
-
-        // Group for scale_idx is always 1, whereas zero_point_idx is 0.
-        auto groups_idx = (dep_pshape.size() > 1) ? 1 : 0;
+        size_t rank = dep_pshape.size();
+        auto groups_idx = rank - 1;
         auto groups_count = dep_pshape[groups_idx].get_length();
-
         return groups_count > 1;
     };
 
