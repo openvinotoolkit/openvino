@@ -1,6 +1,8 @@
 import pytest
 import torch
 import numpy as np
+import numpy.testing as npt
+import openvino as ov
 from pytorch_layer_test_class import PytorchLayerTest
 
 
@@ -24,13 +26,29 @@ class TestUniform(PytorchLayerTest):
     @pytest.mark.parametrize("input_shape", [(2, 3), (4, 5)])
     @pytest.mark.parametrize("dtype", [np.float32, np.float64])
     @pytest.mark.parametrize("from_val,to_val", [(0.0, 1.0), (-1.0, 1.0)])
-    def test_uniform(
-        self, input_shape, dtype, from_val, to_val, ie_device, precision, ir_version
-    ):
-        self._test(
-            *self.create_model(from_val, to_val),
-            ie_device,
-            precision,
-            ir_version,
-            kwargs_to_prepare_input={"input_shape": input_shape, "dtype": dtype},
+    
+    def test_uniform(self, input_shape, dtype, from_val, to_val, ie_device, precision, ir_version):
+        fw_model, ref_net, op_type = self.create_model(from_val, to_val)
+        inputs = self._prepare_input(input_shape=input_shape, dtype=dtype)
+        example_input = tuple(torch.from_numpy(inp) for inp in inputs)
+
+        ov_model = ov.convert_model(
+            input_model=fw_model,
+            example_input=example_input,
+            input=[inp.shape for inp in example_input],
         )
+
+        if ie_device == 'GPU' and precision == 'FP32':
+            config = {'INFERENCE_PRECISION_HINT': 'f32'}
+        else:
+            config = {}
+        compiled_model = ov.Core().compile_model(ov_model, ie_device, config)
+
+        fw_output = model(*example_input).detach().numpy()
+        ov_output = compiled_model(inputs)[0]
+
+        x_min, x_max = from_val, to_val
+        hist_fw, _ = np.histogram(fw_output, bins=100, range=(x_min, x_max))
+        hist_ov, _ = np.histogram(ov_output, bins=100, range=(x_min, x_max))
+
+        npt.assert_allclose(hist_fw, hist_ov, atol=0.2 * hist_fw.max(), rtol=0.2)
