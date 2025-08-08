@@ -19,8 +19,8 @@ namespace intel_npu {
 class IRGraph final : public IGraph {
 public:
     struct MemRefType {
-        const void *basePtr;
-        const void *data;
+        const void* basePtr;
+        const void* data;
         int64_t offset;
         int64_t sizes[4];
         int64_t strides[4];
@@ -49,7 +49,10 @@ public:
         using MemRefType = IRGraph::MemRefType;
 
     public:
-        virtual void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs) = 0;
+        virtual void initialize(std::optional<ov::Tensor>& blob,
+                                NetworkMetadata& metadata,
+                                std::vector<ArgumentDescriptor>& inputs,
+                                std::vector<ArgumentDescriptor>& outputs) = 0;
         virtual void setArgumentValue(uint32_t argi, const void* argv) = 0;
         virtual void setArgumentProperty(uint32_t argi,
                                          const void* argv,
@@ -58,15 +61,21 @@ public:
         virtual uint64_t getNumSubgraphs() = 0;
         virtual void initializeGraph(uint64_t command_queue_group_ordinal) = 0;
         virtual void getBinding(GraphArguments& binding) = 0;
-        virtual void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t fence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) = 0;
-        virtual ~Impl() {};
+        virtual void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                                  GraphArguments& args,
+                                  std::vector<ze_command_list_handle_t>& commandLists,
+                                  ze_command_queue_handle_t commandQueue,
+                                  ze_fence_handle_t fence,
+                                  ze_event_handle_t event,
+                                  ze_graph_profiling_pool_handle_t profiling) = 0;
+        virtual ~Impl(){};
     };
 
     IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-          std::optional<ov::Tensor> blob,
-          bool blobAllocatedByPlugin,
-          const Config& config,
-          const ov::SoPtr<ICompiler>& compiler = {nullptr});
+            std::optional<ov::Tensor> blob,
+            bool blobAllocatedByPlugin,
+            const Config& config,
+            const ov::SoPtr<ICompiler>& compiler = {nullptr});
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -84,11 +93,17 @@ public:
 
     ~IRGraph() override;
 
-    void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
+    void execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                 GraphArguments& args,
+                 std::vector<ze_command_list_handle_t>& commandLists,
+                 ze_command_queue_handle_t commandQueue,
+                 ze_fence_handle_t inferenceFence,
+                 ze_event_handle_t event,
+                 ze_graph_profiling_pool_handle_t profiling);
 
     void getBinding(GraphArguments& args);
-private:
 
+private:
     bool release_blob(const Config& config);
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
@@ -104,9 +119,9 @@ private:
     std::unique_ptr<Impl> _impl;
 };
 
-#endif // NPU_LLVM_BACKEND
+#endif  // NPU_LLVM_BACKEND
 
-inline bool is_dynamic_shape_blob( const ov::Tensor& blob ) {
+inline bool is_dynamic_shape_blob(const ov::Tensor& blob) {
     // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
     // Check If blob is ELF, if not, create Graph for LLVM IR
 

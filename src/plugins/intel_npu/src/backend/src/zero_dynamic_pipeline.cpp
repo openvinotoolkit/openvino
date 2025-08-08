@@ -3,25 +3,25 @@
 //
 
 #ifdef NPU_LLVM_BACKEND
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable: 4146 4267 4244 4996)
-#endif
+#    ifdef _MSC_VER
+#        pragma warning(push)
+#        pragma warning(disable : 4146 4267 4244 4996)
+#    endif
 
-#include "zero_dynamic_pipeline.hpp"
+#    include "zero_dynamic_pipeline.hpp"
 
-#include <ze_api.h>
-#include <ze_graph_ext.h>
+#    include <ze_api.h>
+#    include <ze_graph_ext.h>
 
-#include <sstream>
+#    include <sstream>
 
-#include "intel_npu/common/itt.hpp"
-#include "intel_npu/config/options.hpp"
-#include "intel_npu/prefix.hpp"
-#include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
-#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
-#include "intel_npu/utils/zero/zero_types.hpp"
+#    include "intel_npu/common/itt.hpp"
+#    include "intel_npu/config/options.hpp"
+#    include "intel_npu/prefix.hpp"
+#    include "intel_npu/utils/logger/logger.hpp"
+#    include "intel_npu/utils/zero/zero_api.hpp"
+#    include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#    include "intel_npu/utils/zero/zero_types.hpp"
 
 namespace intel_npu {
 
@@ -76,8 +76,9 @@ DynamicPipeline::DynamicPipeline(const Config& config,
 
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
-        _command_lists.emplace_back(
-            std::make_unique<PipelinedCommandLists>(num_of_subgraphs, _init_structs, _graph->get_command_queue_group_ordinal()));
+        _command_lists.emplace_back(std::make_unique<PipelinedCommandLists>(num_of_subgraphs,
+                                                                            _init_structs,
+                                                                            _graph->get_command_queue_group_ordinal()));
     }
 
     if (_sync_output_with_fences) {
@@ -207,7 +208,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     }
 }
 
-void DynamicPipeline::PipelinedCommandLists::bind( IRGraph* graph ) {
+void DynamicPipeline::PipelinedCommandLists::bind(IRGraph* graph) {
     graph->getBinding(_binding);
 }
 
@@ -236,8 +237,7 @@ void DynamicPipeline::push() {
         ze_event_handle_t event = nullptr;
         if (_sync_output_with_fences) {
             fence = _fences.at(i)->handle();
-        }
-        else {
+        } else {
             // TODO
         }
 
@@ -264,7 +264,14 @@ void DynamicPipeline::push() {
             std::cout << std::endl;
         }
 
-        dynamic_cast<IRGraph*>(_graph.get())->execute(_init_structs, command_lists->getBinding(), command_lists->getHandles(), commandQueueHandle, fence, event, nullptr);
+        dynamic_cast<IRGraph*>(_graph.get())
+            ->execute(_init_structs,
+                      command_lists->getBinding(),
+                      command_lists->getHandles(),
+                      commandQueueHandle,
+                      fence,
+                      event,
+                      nullptr);
     }
 
     _logger.debug("DynamicPipeline - push() completed");
@@ -353,8 +360,7 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
 
 }  // namespace intel_npu
 
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
+#    ifdef _MSC_VER
+#        pragma warning(pop)
+#    endif
 #endif
