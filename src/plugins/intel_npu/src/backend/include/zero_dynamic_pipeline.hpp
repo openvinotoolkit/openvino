@@ -3,35 +3,36 @@
 //
 #ifdef NPU_LLVM_BACKEND
 
-#pragma once
+#    pragma once
 
-#include <mlir/ExecutionEngine/ExecutionEngine.h>
-#include <mlir/ExecutionEngine/MemRefUtils.h>
+#    include <mlir/ExecutionEngine/ExecutionEngine.h>
+#    include <mlir/ExecutionEngine/MemRefUtils.h>
 
-#include "intel_npu/common/igraph.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
-#include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "zero_memory.hpp"
-#include "zero_pipeline.hpp"
-#include "zero_profiling.hpp"
-#include "zero_tensor.hpp"
-#include "irgraph.hpp"
+#    include "intel_npu/common/igraph.hpp"
+#    include "intel_npu/utils/zero/zero_utils.hpp"
+#    include "intel_npu/utils/zero/zero_wrappers.hpp"
+#    include "irgraph.hpp"
+#    include "zero_memory.hpp"
+#    include "zero_pipeline.hpp"
+#    include "zero_profiling.hpp"
+#    include "zero_tensor.hpp"
 
 namespace intel_npu {
 
 struct DynamicPipeline : public Pipeline {
-    struct PipelinedCommandLists {    
+    struct PipelinedCommandLists {
         mutable IRGraph::GraphArguments _binding;
 
         std::vector<std::unique_ptr<CommandList>> _commandLists;
         // to store command list handles to pass it to ExecutionEngine
         std::vector<ze_command_list_handle_t> _commandListHandles;
-        
-        PipelinedCommandLists(size_t numCommandLists, const std::shared_ptr<ZeroInitStructsHolder>& init_structs, const uint32_t& group_ordinal) {
+
+        PipelinedCommandLists(size_t numCommandLists,
+                              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+                              const uint32_t& group_ordinal) {
             _commandLists.reserve(numCommandLists);
             for (size_t i = 0; i < numCommandLists; i++) {
-                _commandLists.emplace_back(
-                    std::make_unique<CommandList>(init_structs, group_ordinal));
+                _commandLists.emplace_back(std::make_unique<CommandList>(init_structs, group_ordinal));
             }
 
             for (size_t i = 0; i < numCommandLists; i++) {
@@ -39,9 +40,13 @@ struct DynamicPipeline : public Pipeline {
             }
         }
 
-        size_t size() const { return _commandListHandles.size(); }
+        size_t size() const {
+            return _commandListHandles.size();
+        }
 
-        ze_command_list_handle_t* data() { return _commandListHandles.data(); }
+        ze_command_list_handle_t* data() {
+            return _commandListHandles.data();
+        }
 
         void bind(IRGraph* graph);
 
@@ -88,8 +93,7 @@ struct DynamicPipeline : public Pipeline {
                     }
                 }
 
-            }
-            else {
+            } else {
                 uint32_t output_index = arg_index - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
                     _binding._outputs[output_index]->setArg(arg_value);
@@ -168,4 +172,4 @@ protected:
 
 }  // namespace intel_npu
 
-#endif // NPU_LLVM_BACKEND
+#endif  // NPU_LLVM_BACKEND

@@ -8,7 +8,6 @@
 #include <string>
 
 #include "graph.hpp"
-#include "irgraph.hpp"
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
@@ -17,13 +16,13 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
+#include "irgraph.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
 #include "weightless_graph.hpp"
-#include "irgraph.hpp"
 
 namespace {
 
@@ -109,7 +108,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
     }
 #endif
 
-    GraphDescriptor graphDesc;;
+    GraphDescriptor graphDesc;
+    ;
 
     if (_zeGraphExt) {
         // Depending on the config, we may get an error when trying to get the graph handle from the compiled

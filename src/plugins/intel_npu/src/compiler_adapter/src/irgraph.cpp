@@ -4,48 +4,47 @@
 
 #ifdef NPU_LLVM_BACKEND
 
-#pragma once 
+#    pragma once
 
+#    include "irgraph.hpp"
 
-#include "irgraph.hpp"
+#    include "intel_npu/config/options.hpp"
+#    include "intel_npu/utils/zero/zero_api.hpp"
+#    include "openvino/runtime/make_tensor.hpp"
 
-#include "intel_npu/config/options.hpp"
-#include "intel_npu/utils/zero/zero_api.hpp"
-#include "openvino/runtime/make_tensor.hpp"
-
-#pragma warning(push)
-#pragma warning(disable: 4244 4267 4146 4996)
-#include <llvm/Support/Error.h>
-#include <llvm/Support/InitLLVM.h>
-#include <llvm/Support/SourceMgr.h>
-#include <llvm/Support/TargetSelect.h>
-#include <mlir/ExecutionEngine/ExecutionEngine.h>
-#include <mlir/ExecutionEngine/MemRefUtils.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/IR/DialectRegistry.h>
-#include <mlir/IR/MLIRContext.h>
-#include <mlir/Parser/Parser.h>
-#include <mlir/Support/LLVM.h>
-#include <mlir/Target/LLVMIR/Dialect/All.h>
-#pragma warning(pop)
+#    pragma warning(push)
+#    pragma warning(disable : 4244 4267 4146 4996)
+#    include <llvm/Support/Error.h>
+#    include <llvm/Support/InitLLVM.h>
+#    include <llvm/Support/SourceMgr.h>
+#    include <llvm/Support/TargetSelect.h>
+#    include <mlir/ExecutionEngine/ExecutionEngine.h>
+#    include <mlir/ExecutionEngine/MemRefUtils.h>
+#    include <mlir/IR/BuiltinOps.h>
+#    include <mlir/IR/DialectRegistry.h>
+#    include <mlir/IR/MLIRContext.h>
+#    include <mlir/Parser/Parser.h>
+#    include <mlir/Support/LLVM.h>
+#    include <mlir/Target/LLVMIR/Dialect/All.h>
+#    pragma warning(pop)
 
 namespace intel_npu {
 
-#if defined(_WIN32)
-#define MLIR_RUNNER_UTILS_FILE_NAME "mlir_runner_utils.dll"
-#define MLIR_C_RUNNER_UTILS_FILE_NAME "mlir_c_runner_utils.dll"
-#define MLIR_ZERO_WRAPPER_FILE_NAME "level_zero_wrapper.dll"
-#else
-#define MLIR_RUNNER_UTILS_FILE_NAME "libmlir_runner_utils.so"
-#define MLIR_C_RUNNER_UTILS_FILE_NAME "libmlir_c_runner_utils.so"
-#define MLIR_ZERO_WRAPPER_FILE_NAME "liblevel_zero_wrapper.so"
-#endif
+#    if defined(_WIN32)
+#        define MLIR_RUNNER_UTILS_FILE_NAME   "mlir_runner_utils.dll"
+#        define MLIR_C_RUNNER_UTILS_FILE_NAME "mlir_c_runner_utils.dll"
+#        define MLIR_ZERO_WRAPPER_FILE_NAME   "level_zero_wrapper.dll"
+#    else
+#        define MLIR_RUNNER_UTILS_FILE_NAME   "libmlir_runner_utils.so"
+#        define MLIR_C_RUNNER_UTILS_FILE_NAME "libmlir_c_runner_utils.so"
+#        define MLIR_ZERO_WRAPPER_FILE_NAME   "liblevel_zero_wrapper.so"
+#    endif
 
 void IRGraph::MemRefType::setArg(const void* arg) {
     basePtr = data = arg;
 }
 
-void IRGraph::MemRefType::setSize( const intel_npu::IODescriptor& desc) {
+void IRGraph::MemRefType::setSize(const intel_npu::IODescriptor& desc) {
     // Note: check difference between shape from compiler and shape from IR.
     const auto& shape = desc.shapeFromCompiler.get_shape();
     for (size_t i = 0; i < shape.size(); ++i)
@@ -77,10 +76,11 @@ IRGraph::GraphArguments& IRGraph::GraphArguments::operator=(const GraphArguments
 
         _inputs.resize(args._inputs.size());
     }
-    
+
     auto& inputs = args._inputs;
     for (size_t i = 0; i < inputs.size(); ++i) {
-        if (_inputs[i] == nullptr) _inputs[i] = new MemRefType();
+        if (_inputs[i] == nullptr)
+            _inputs[i] = new MemRefType();
         *_inputs[i] = *inputs[i];
     }
 
@@ -96,7 +96,8 @@ IRGraph::GraphArguments& IRGraph::GraphArguments::operator=(const GraphArguments
 
     auto& outputs = args._outputs;
     for (size_t i = 0; i < outputs.size(); ++i) {
-        if (_outputs[i] == nullptr) _outputs[i] = new MemRefType();
+        if (_outputs[i] == nullptr)
+            _outputs[i] = new MemRefType();
         *_outputs[i] = *outputs[i];
     }
 
@@ -119,17 +120,34 @@ public:
 
 public:
     IRGraphImpl() = default;
-    void initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs) override;
-    std::unique_ptr<mlir::ExecutionEngine> createExecutionEngine(const std::string& entryName, std::optional<ov::Tensor>& blob, mlir::MLIRContext* context);
-    void initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs);
+    void initialize(std::optional<ov::Tensor>& blob,
+                    NetworkMetadata& metadata,
+                    std::vector<ArgumentDescriptor>& inputs,
+                    std::vector<ArgumentDescriptor>& outputs) override;
+    std::unique_ptr<mlir::ExecutionEngine> createExecutionEngine(const std::string& entryName,
+                                                                 std::optional<ov::Tensor>& blob,
+                                                                 mlir::MLIRContext* context);
+    void initializeIRGraphExecution(std::optional<ov::Tensor>& blob,
+                                    NetworkMetadata& metadata,
+                                    std::vector<ArgumentDescriptor>& inputs,
+                                    std::vector<ArgumentDescriptor>& outputs);
     void setArgumentValue(uint32_t argi, const void* argv) override;
     void setArgumentProperty(uint32_t argi,
                              const void* argv,
                              const ov::Strides strides,
                              const ov::Shape& shapes) override;
     void initializeGraph(uint64_t command_queue_group_ordinal) override;
-    uint64_t getNumSubgraphs() override { return _numOfSubgraphs; }
-    void executeGraph(std::vector<MemRefType*>& inputs, std::vector<MemRefType*>& outputs, const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling);
+    uint64_t getNumSubgraphs() override {
+        return _numOfSubgraphs;
+    }
+    void executeGraph(std::vector<MemRefType*>& inputs,
+                      std::vector<MemRefType*>& outputs,
+                      const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                      std::vector<ze_command_list_handle_t>& commandLists,
+                      ze_command_queue_handle_t commandQueue,
+                      ze_fence_handle_t inferenceFence,
+                      ze_event_handle_t event,
+                      ze_graph_profiling_pool_handle_t profiling);
     void executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                       IRGraph::GraphArguments& args,
                       std::vector<ze_command_list_handle_t>& commandLists,
@@ -139,6 +157,7 @@ public:
                       ze_graph_profiling_pool_handle_t profiling) override;
     void getBinding(IRGraph::GraphArguments& binding) override;
     virtual ~IRGraphImpl() {}
+
 public:
     std::unique_ptr<mlir::MLIRContext> _context;
     mlir::DialectRegistry _registry;
@@ -151,8 +170,10 @@ public:
 
 bool IRGraphImpl::_initializedMLIR = false;
 
-void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& arg_inputs, std::vector<ArgumentDescriptor>& arg_outputs)
-{
+void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob,
+                             NetworkMetadata& metadata,
+                             std::vector<ArgumentDescriptor>& arg_inputs,
+                             std::vector<ArgumentDescriptor>& arg_outputs) {
     if (_initializedMLIR == false) {
         llvm::InitializeNativeTarget();
         llvm::InitializeNativeTargetAsmPrinter();
@@ -164,19 +185,19 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
 
     _context = std::make_unique<mlir::MLIRContext>(_registry);
     initializeIRGraphExecution(blob, metadata, arg_inputs, arg_outputs);
-    
-    _binding._inputs.resize( arg_inputs.size());
-   
+
+    _binding._inputs.resize(arg_inputs.size());
+
     auto& inputs = _binding._inputs;
-    for (size_t i = 0;i < inputs.size(); ++i) {
+    for (size_t i = 0; i < inputs.size(); ++i) {
         inputs[i] = new MemRefType();
         inputs[i]->setSize(metadata.inputs[i]);
         inputs[i]->updateStride();
     }
-    
+
     _binding._outputs.resize(arg_outputs.size());
     auto& outputs = _binding._outputs;
-    for (size_t i = 0;i < outputs.size(); ++i) {
+    for (size_t i = 0; i < outputs.size(); ++i) {
         outputs[i] = new MemRefType();
         outputs[i]->setSize(metadata.outputs[i]);
         outputs[i]->updateStride();
@@ -196,18 +217,19 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob, NetworkMetadata& m
     }
 }
 
-std::unique_ptr<mlir::ExecutionEngine> IRGraphImpl::createExecutionEngine(const std::string& entryName, std::optional<ov::Tensor>& blob, mlir::MLIRContext* context) {
-    
+std::unique_ptr<mlir::ExecutionEngine> IRGraphImpl::createExecutionEngine(const std::string& entryName,
+                                                                          std::optional<ov::Tensor>& blob,
+                                                                          mlir::MLIRContext* context) {
     auto blobPtr = reinterpret_cast<const uint8_t*>(blob.value().data());
     auto blobSize = blob.value().get_byte_size();
-    
+
     // Metadata<METADATA_VERSION_X_X> is stored after LLVM code in CompiledModel::export_model
     // So, the file size needs to be adjusted to avoid compilation error
     auto getLLVMIRSize = [](const uint8_t* llvmIR, size_t size) {
-        if (size == 0 || llvmIR == nullptr) return 0ULL;    
-        for (size_t index = size - 1 ; index >= 0; --index) {
-            if (llvmIR[index] == static_cast<uint8_t>('}'))
-            {
+        if (size == 0 || llvmIR == nullptr)
+            return 0ULL;
+        for (size_t index = size - 1; index >= 0; --index) {
+            if (llvmIR[index] == static_cast<uint8_t>('}')) {
                 return index + 1ULL;
             }
         }
@@ -225,19 +247,19 @@ std::unique_ptr<mlir::ExecutionEngine> IRGraphImpl::createExecutionEngine(const 
         OPENVINO_THROW("Failed to parse LLVM IR");
     }
 
-    //std::cout << "Creating JITTargetMachineBuilder" << std::endl;
+    // std::cout << "Creating JITTargetMachineBuilder" << std::endl;
     auto tmBuilderOrError = llvm::orc::JITTargetMachineBuilder::detectHost();
     if (!tmBuilderOrError) {
         OPENVINO_THROW("Failed to detect host");
     }
-    //std::cout << "Creating TargetMachine for " << tmBuilderOrError->getCPU() << std::endl;
-    //std::cout << "Target triple " << tmBuilderOrError->getTargetTriple().normalize() << std::endl;
+    // std::cout << "Creating TargetMachine for " << tmBuilderOrError->getCPU() << std::endl;
+    // std::cout << "Target triple " << tmBuilderOrError->getTargetTriple().normalize() << std::endl;
 
     auto tmOrError = tmBuilderOrError->createTargetMachine();
     if (!tmOrError) {
         OPENVINO_THROW("Failed to create TargetMachine");
     }
-    //std::cout << "TargetMachine created" << std::endl;
+    // std::cout << "TargetMachine created" << std::endl;
 
     mlir::ExecutionEngineOptions engineOptions;
     engineOptions.jitCodeGenOptLevel = llvm::CodeGenOptLevel::None;
@@ -248,12 +270,12 @@ std::unique_ptr<mlir::ExecutionEngine> IRGraphImpl::createExecutionEngine(const 
     sharedLibs.push_back(MLIR_ZERO_WRAPPER_FILE_NAME);
     engineOptions.sharedLibPaths = sharedLibs;
     engineOptions.enableObjectDump = true;
-    //std::cout << "Creating engine" << std::endl;
+    // std::cout << "Creating engine" << std::endl;
     auto expectedEngine = mlir::ExecutionEngine::create(*module, engineOptions, std::move(tmOrError.get()));
     if (!expectedEngine) {
         OPENVINO_THROW("Failed to create ExecutionEngine");
     }
-    //std::cout << "Engine created" << std::endl;
+    // std::cout << "Engine created" << std::endl;
     auto engine = std::move(*expectedEngine);
     auto expectedFPtr = engine->lookupPacked(entryName);
 
@@ -268,13 +290,16 @@ void IRGraphImpl::getBinding(IRGraph::GraphArguments& binding) {
     binding = _binding;
 }
 
-void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob, NetworkMetadata& metadata, std::vector<ArgumentDescriptor>& inputs, std::vector<ArgumentDescriptor>& outputs) {
+void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob,
+                                             NetworkMetadata& metadata,
+                                             std::vector<ArgumentDescriptor>& inputs,
+                                             std::vector<ArgumentDescriptor>& outputs) {
     const std::string adapterPrefix = std::string("_mlir_ciface_");
     const std::string entryName = "main";
     const std::string adapterName = adapterPrefix + entryName;
     _engine = createExecutionEngine(adapterName, blob, _context.get());
     std::string getNetworkMetadataFuncName = "get_network_metadata";
-    
+
     // Get metadata and number of graph
     auto error = _engine->invoke(getNetworkMetadataFuncName, &metadata, &_numOfSubgraphs, &inputs, &outputs);
     if (error) {
@@ -286,13 +311,11 @@ void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob, Ne
     metadata.bindRelatedDescriptors();
 }
 
-void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv)
-{
+void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
     auto inputs = _binding._inputs;
     if (argi < inputs.size()) {
         inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
-    }
-    else {
+    } else {
         auto outputs = _binding._outputs;
         auto idx = argi - inputs.size();
         if (idx < outputs.size()) {
@@ -363,22 +386,19 @@ void IRGraphImpl::initializeGraph(uint64_t ordinal) {
     // TODO
 }
 
-
-llvm::Error invokePacked(
-    std::unique_ptr<mlir::ExecutionEngine>& engine,
-    const std::string& adapterName,
-    std::vector<IRGraphImpl::MemRefType*>& inputs,
-    std::vector<IRGraphImpl::MemRefType*>& outputs,
-    ze_context_handle_t ctx,
-    ze_device_handle_t device,
-    ze_graph_dditable_ext_t* graphDdiTableExt,
-    ze_command_list_handle_t* commandLists,
-    uint64_t numCommandLists,
-    ze_command_queue_handle_t commandQueue,
-    ze_fence_handle_t inferenceFence,
-    ze_event_handle_t event)
-{
-    mlir::SmallVector<void *> packedArgs;
+llvm::Error invokePacked(std::unique_ptr<mlir::ExecutionEngine>& engine,
+                         const std::string& adapterName,
+                         std::vector<IRGraphImpl::MemRefType*>& inputs,
+                         std::vector<IRGraphImpl::MemRefType*>& outputs,
+                         ze_context_handle_t ctx,
+                         ze_device_handle_t device,
+                         ze_graph_dditable_ext_t* graphDdiTableExt,
+                         ze_command_list_handle_t* commandLists,
+                         uint64_t numCommandLists,
+                         ze_command_queue_handle_t commandQueue,
+                         ze_fence_handle_t inferenceFence,
+                         ze_event_handle_t event) {
+    mlir::SmallVector<void*> packedArgs;
     for (auto& input : inputs) {
         mlir::ExecutionEngine::Argument<IRGraphImpl::MemRefType*>::pack(packedArgs, input);
     }
@@ -399,30 +419,51 @@ llvm::Error invokePacked(
     return engine->invokePacked(adapterName, packedArgs);
 }
 
-void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, IRGraph::GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t fence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling) {
+void IRGraphImpl::executeGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                               IRGraph::GraphArguments& args,
+                               std::vector<ze_command_list_handle_t>& commandLists,
+                               ze_command_queue_handle_t commandQueue,
+                               ze_fence_handle_t fence,
+                               ze_event_handle_t event,
+                               ze_graph_profiling_pool_handle_t profiling) {
     executeGraph(args._inputs, args._outputs, zeroInitStruct, commandLists, commandQueue, fence, event, profiling);
 }
 
-void IRGraphImpl::executeGraph(std::vector<MemRefType*>& inputMefRefs, std::vector<MemRefType*>& outputMemRefs,
-    const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t fence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t) {
-
+void IRGraphImpl::executeGraph(std::vector<MemRefType*>& inputMefRefs,
+                               std::vector<MemRefType*>& outputMemRefs,
+                               const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                               std::vector<ze_command_list_handle_t>& commandLists,
+                               ze_command_queue_handle_t commandQueue,
+                               ze_fence_handle_t fence,
+                               ze_event_handle_t event,
+                               ze_graph_profiling_pool_handle_t) {
     auto contextHandle = zeroInitStruct->getContext();
     auto deviceHandle = zeroInitStruct->getDevice();
     auto ddiTableHandle = zeroInitStruct->getGraphDdiTable().getImpl();
     const std::string adapterName = "_mlir_ciface_main";
 
-    auto error = invokePacked(_engine, adapterName, inputMefRefs, outputMemRefs, contextHandle, deviceHandle,
-        ddiTableHandle, commandLists.data(), commandLists.size(), (ze_command_queue_handle_t) commandQueue, fence, event);
+    auto error = invokePacked(_engine,
+                              adapterName,
+                              inputMefRefs,
+                              outputMemRefs,
+                              contextHandle,
+                              deviceHandle,
+                              ddiTableHandle,
+                              commandLists.data(),
+                              commandLists.size(),
+                              (ze_command_queue_handle_t)commandQueue,
+                              fence,
+                              event);
 
     if (error)
         OPENVINO_THROW("Error invoking main: " + llvm::toString(std::move(error)));
 }
 
 IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-             std::optional<ov::Tensor> blob,
-             bool blobAllocatedByPlugin,
-             const Config& config,
-             const ov::SoPtr<ICompiler>& compiler)
+                 std::optional<ov::Tensor> blob,
+                 bool blobAllocatedByPlugin,
+                 const Config& config,
+                 const ov::SoPtr<ICompiler>& compiler)
     : IGraph(config, std::move(blob)),
       _zeroInitStruct(zeroInitStruct),
       _blobAllocatedByPlugin(blobAllocatedByPlugin),
@@ -444,7 +485,6 @@ IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
 }
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IRGraph::export_blob(std::ostream& stream) const {
-
     const uint8_t* blobPtr = nullptr;
     size_t blobSize = 0;
 
@@ -489,7 +529,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IRGraph::export_blob(s
 }
 
 std::vector<ov::ProfilingInfo> IRGraph::process_profiling_output(const std::vector<uint8_t>& profData,
-                                                               const Config& config) const {
+                                                                 const Config& config) const {
     if (_compiler == nullptr) {
         OPENVINO_THROW("Profiling post-processing is not supported.");
     }
@@ -530,9 +570,8 @@ void IRGraph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (_command_queue = nullptr) {
-
         _logger.debug("Graph initialize without graph handle");
-        
+
         _command_queue_group_ordinal =
             zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                     ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
@@ -612,7 +651,7 @@ void IRGraph::initialize(const Config& config) {
     }
 
     // TODO
-    // invoke for graph intialization 
+    // invoke for graph intialization
     // engine->invoke("initialization")
 
     _logger.debug("Graph initialize finish");
@@ -672,22 +711,28 @@ IRGraph::~IRGraph() {
     }
 }
 
-void IRGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct, IRGraph::GraphArguments& args, std::vector<ze_command_list_handle_t>& commandLists, ze_command_queue_handle_t commandQueue, ze_fence_handle_t inferenceFence, ze_event_handle_t event, ze_graph_profiling_pool_handle_t profiling)
-{
+void IRGraph::execute(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
+                      IRGraph::GraphArguments& args,
+                      std::vector<ze_command_list_handle_t>& commandLists,
+                      ze_command_queue_handle_t commandQueue,
+                      ze_fence_handle_t inferenceFence,
+                      ze_event_handle_t event,
+                      ze_graph_profiling_pool_handle_t profiling) {
     auto impl = reinterpret_cast<IRGraphImpl*>(_impl.get());
 
-    if (impl == nullptr) return;
+    if (impl == nullptr)
+        return;
 
     impl->executeGraph(zeroInitStruct, args, commandLists, commandQueue, inferenceFence, event, profiling);
 }
 
-void IRGraph::getBinding( GraphArguments& args )
-{
+void IRGraph::getBinding(GraphArguments& args) {
     auto impl = reinterpret_cast<IRGraphImpl*>(_impl.get());
-    
-    if (impl == nullptr) return;
-    
+
+    if (impl == nullptr)
+        return;
+
     impl->getBinding(args);
 }
 }  // namespace intel_npu
-#endif // NPU_LLVM_BACKEND
+#endif  // NPU_LLVM_BACKEND
