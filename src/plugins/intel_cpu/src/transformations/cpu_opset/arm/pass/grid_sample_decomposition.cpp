@@ -222,81 +222,139 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 return std::make_shared<ov::op::v8::GatherND>(data_nhwc, indices, 0);
             };
             
-            // Helper function for reflection padding - unified float implementation
-            auto apply_reflection = [&](const std::shared_ptr<ov::Node>& coord,
-                                       const std::shared_ptr<ov::Node>& size_f) -> std::shared_ptr<ov::Node> {
-                // Special handling for size==1: always return 0 (the only valid pixel coordinate)
+            // Periodic reflection function for continuous coordinates
+            // Handles both align_corners=true and align_corners=false with proper formulas
+            auto reflect_coord = [&](const std::shared_ptr<ov::Node>& coord,
+                                    const std::shared_ptr<ov::Node>& size_f,
+                                    bool align_corners) -> std::shared_ptr<ov::Node> {
+                // Special handling for size==1: always return 0
                 auto size_is_one = std::make_shared<ov::op::v1::Equal>(size_f, const_1);
                 
-                // Determine boundaries for continuous reflection domain
-                std::shared_ptr<ov::Node> lo, hi;
-                if (attrs.align_corners) {
-                    lo = const_0;  // 0
-                    hi = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);  // size - 1
+                if (align_corners) {
+                    // align_corners=true: period = 2 * (size - 1)
+                    // Correct formula: (size - 1) - abs((coord % period) - (size - 1))
+                    auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
+                    auto period = std::make_shared<ov::op::v1::Multiply>(const_2, size_minus_1);
+                    
+                    // Use Maximum to avoid division by zero when size==1 (period==0)
+                    auto period_safe = std::make_shared<ov::op::v1::Maximum>(period, const_1);
+                    
+                    auto r = std::make_shared<ov::op::v1::FloorMod>(coord, period_safe);
+                    auto d = std::make_shared<ov::op::v1::Subtract>(r, size_minus_1);
+                    auto abs_d = std::make_shared<ov::op::v0::Abs>(d);
+                    auto reflected = std::make_shared<ov::op::v1::Subtract>(size_minus_1, abs_d);
+                    
+                    return std::make_shared<ov::op::v1::Select>(size_is_one, const_0, reflected);
                 } else {
-                    lo = std::make_shared<ov::op::v1::Multiply>(const_0_5, 
-                        ov::op::v0::Constant::create(calc_type, {}, {-1.0F}));  // -0.5
-                    hi = std::make_shared<ov::op::v1::Subtract>(size_f, const_0_5);  // size - 0.5
+                    // align_corners=false: reflect around [-0.5, size-0.5], period = 2*size
+                    auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
+                    
+                    // Shift so the interval starts at 0: x' ∈ [0, size]
+                    auto shifted = std::make_shared<ov::op::v1::Add>(coord, const_0_5);
+                    
+                    // Modulo into [0, 2*size)
+                    auto mod = std::make_shared<ov::op::v1::FloorMod>(shifted, two_size);
+                    
+                    // Reflect the second half back: if mod > size, use 2*size - mod
+                    auto need_reflect = std::make_shared<ov::op::v1::Greater>(mod, size_f);
+                    auto reflected_val = std::make_shared<ov::op::v1::Subtract>(two_size, mod);
+                    auto reflected = std::make_shared<ov::op::v1::Select>(need_reflect, reflected_val, mod);
+                    
+                    // Shift back to [-0.5, size-0.5]
+                    auto result = std::make_shared<ov::op::v1::Subtract>(reflected, const_0_5);
+                    
+                    // Size==1 special case stays the same
+                    return std::make_shared<ov::op::v1::Select>(size_is_one, const_0, result);
                 }
+            };
+            
+            // Helper for discrete index reflection (used after floor/ceil operations)
+            auto reflect_index_i32 = [&](const std::shared_ptr<ov::Node>& idx,
+                                        const std::shared_ptr<ov::Node>& size_f,
+                                        bool align_corners) -> std::shared_ptr<ov::Node> {
+                auto size_is_one = std::make_shared<ov::op::v1::Equal>(size_f, const_1);
                 
-                // Calculate period m = hi - lo
-                auto m = std::make_shared<ov::op::v1::Subtract>(hi, lo);
-                
-                // For non-zero m, apply triangular wave reflection: lo + (m - |r - m|)
-                // where r = FloorMod(coord - lo, 2*m)
-                auto coord_shifted = std::make_shared<ov::op::v1::Subtract>(coord, lo);
-                auto two_m = std::make_shared<ov::op::v1::Multiply>(const_2, m);
-                auto r = std::make_shared<ov::op::v1::Mod>(coord_shifted, two_m);
-                auto r_minus_m = std::make_shared<ov::op::v1::Subtract>(r, m);
-                auto abs_r_minus_m = std::make_shared<ov::op::v0::Abs>(r_minus_m);
-                auto m_minus_abs = std::make_shared<ov::op::v1::Subtract>(m, abs_r_minus_m);
-                auto reflected = std::make_shared<ov::op::v1::Add>(lo, m_minus_abs);
-                
-                // Return 0 if size==1, otherwise return reflected coordinate
-                return std::make_shared<ov::op::v1::Select>(size_is_one, const_0, reflected);
+                if (align_corners) {
+                    // align_corners=true: reflect using modulo 2*(size-1)
+                    auto size_minus_1 = std::make_shared<ov::op::v1::Subtract>(size_f, const_1);
+                    auto two_size_minus_2 = std::make_shared<ov::op::v1::Multiply>(const_2, size_minus_1);
+                    
+                    // Apply absolute value first
+                    auto abs_idx = std::make_shared<ov::op::v0::Abs>(idx);
+                    
+                    // r = abs_idx % two_size_minus_2
+                    auto r = std::make_shared<ov::op::v1::FloorMod>(abs_idx, two_size_minus_2);
+                    
+                    // reflected = (r >= size) ? (two_size_minus_2 - r) : r
+                    auto flipped = std::make_shared<ov::op::v1::Subtract>(two_size_minus_2, r);
+                    auto cond = std::make_shared<ov::op::v1::GreaterEqual>(r, size_f);
+                    auto reflected = std::make_shared<ov::op::v1::Select>(cond, flipped, r);
+                    
+                    return std::make_shared<ov::op::v1::Select>(size_is_one, const_0, reflected);
+                } else {
+                    // align_corners=false: period = 2 * size
+                    auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
+                    auto period_minus_1 = std::make_shared<ov::op::v1::Subtract>(two_size, const_1);
+                    
+                    // Proper modulo: ((idx mod period) + period) mod period
+                    auto mod1 = std::make_shared<ov::op::v1::FloorMod>(idx, two_size);
+                    auto mod1_plus_period = std::make_shared<ov::op::v1::Add>(mod1, two_size);
+                    auto mod2 = std::make_shared<ov::op::v1::FloorMod>(mod1_plus_period, two_size);
+                    
+                    // If mod2 >= size, use period_minus_1 - mod2
+                    auto need_reflect = std::make_shared<ov::op::v1::GreaterEqual>(mod2, size_f);
+                    auto reflected_val = std::make_shared<ov::op::v1::Subtract>(period_minus_1, mod2);
+                    auto result = std::make_shared<ov::op::v1::Select>(need_reflect, reflected_val, mod2);
+                    
+                    return std::make_shared<ov::op::v1::Select>(size_is_one, const_0, result);
+                }
             };
             
             std::shared_ptr<ov::Node> result;
             
             if (is_nearest) {
                 // NEAREST interpolation
-                // Apply padding first, then round for NEAREST mode
-                std::shared_ptr<ov::Node> x_padded, y_padded;
-                if (is_border) {
-                    // Use Maximum/Minimum instead of Clamp to avoid float literal issues
-                    auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
-                    auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
-                    x_padded = std::make_shared<ov::op::v1::Maximum>(x, const_0);
-                    y_padded = std::make_shared<ov::op::v1::Maximum>(y, const_0);
-                    x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
-                    y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
-                } else if (is_reflection) {
-                    // PyTorch's reference implementation (grid_sampler.cpp / compute_source_index())
-                    // always does exactly one reflection on the continuous value and never re-reflects 
-                    // the rounded index. Apply reflection to continuous coordinates for both 
-                    // align_corners variants.
-                    x_padded = apply_reflection(x, w_in_f);
-                    y_padded = apply_reflection(y, h_in_f);
-                } else {
-                    // zeros padding - use original coordinates
-                    x_padded = x;
-                    y_padded = y;
-                }
-                
-                // Apply rounding for NEAREST mode to match PyTorch behavior
                 std::shared_ptr<ov::Node> x_idx, y_idx;
-                if (attrs.align_corners) {
-                    // PyTorch uses round() with HALF_AWAY_FROM_ZERO for align_corners=true
-                    // This properly handles negative coordinates (e.g., -0.5 -> -1, not 0)
+                
+                if (is_reflection) {
+                    // For REFLECTION mode with NEAREST: round first, then reflect the discrete index
+                    // This matches PyTorch behavior where reflection happens on integer indices
+                    auto x_rounded = std::make_shared<ov::op::v5::Round>(x, ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+                    auto y_rounded = std::make_shared<ov::op::v5::Round>(y, ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
+                    
+                    // Apply reflection to the rounded indices
+                    x_idx = reflect_index_i32(x_rounded, w_in_f, attrs.align_corners);
+                    y_idx = reflect_index_i32(y_rounded, h_in_f, attrs.align_corners);
+                    // No clamping needed - reflection already ensures indices are in [0, size-1]
+                } else {
+                    // BORDER and ZEROS modes: apply padding/clamping before rounding
+                    std::shared_ptr<ov::Node> x_padded = x, y_padded = y;
+                    
+                    if (is_border) {
+                        // Clamp continuous coordinates to [0, size-1] before rounding
+                        auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
+                        auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
+                        x_padded = std::make_shared<ov::op::v1::Maximum>(x_padded, const_0);
+                        x_padded = std::make_shared<ov::op::v1::Minimum>(x_padded, w_minus_1);
+                        y_padded = std::make_shared<ov::op::v1::Maximum>(y_padded, const_0);
+                        y_padded = std::make_shared<ov::op::v1::Minimum>(y_padded, h_minus_1);
+                    }
+                    // For ZEROS: use original coordinates, will apply mask later
+                    
+                    // Round to nearest integer
                     x_idx = std::make_shared<ov::op::v5::Round>(x_padded, ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
                     y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
-                } else {
-                    // PyTorch uses round() with HALF_TO_EVEN for align_corners=false
-                    x_idx = std::make_shared<ov::op::v5::Round>(x_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
-                    y_idx = std::make_shared<ov::op::v5::Round>(y_padded, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
+                    
+                    // For BORDER: additional clamp after rounding to handle edge cases
+                    if (is_border) {
+                        auto w_minus_1 = std::make_shared<ov::op::v1::Subtract>(w_in_f, const_1);
+                        auto h_minus_1 = std::make_shared<ov::op::v1::Subtract>(h_in_f, const_1);
+                        x_idx = std::make_shared<ov::op::v1::Maximum>(x_idx, const_0);
+                        x_idx = std::make_shared<ov::op::v1::Minimum>(x_idx, w_minus_1);
+                        y_idx = std::make_shared<ov::op::v1::Maximum>(y_idx, const_0);
+                        y_idx = std::make_shared<ov::op::v1::Minimum>(y_idx, h_minus_1);
+                    }
                 }
-                
-                // No discrete index reflection needed - reflection was already applied to continuous coordinates
                 
                 // Use helper function to gather values
                 result = gather_values(x_idx, y_idx);
@@ -336,17 +394,10 @@ GridSampleDecomposition::GridSampleDecomposition() {
                     x_padded = x;
                     y_padded = y;
                 } else if (is_reflection) {
-                    // For REFLECTION mode
-                    if (!attrs.align_corners) {
-                        // For align_corners=false: DO NOT reflect continuous coordinates
-                        // Just use them as-is, reflection will be applied to discrete indices later
-                        x_padded = x;
-                        y_padded = y;
-                    } else {
-                        // For align_corners=true, apply reflection to continuous coordinates
-                        x_padded = apply_reflection(x, w_in_f);
-                        y_padded = apply_reflection(y, h_in_f);
-                    }
+                    // For REFLECTION mode: apply periodic reflection to continuous coordinates
+                    // This ensures proper behavior for both align_corners variants
+                    x_padded = reflect_coord(x, w_in_f, attrs.align_corners);
+                    y_padded = reflect_coord(y, h_in_f, attrs.align_corners);
                 } else {
                     // zeros padding - use original coordinates
                     x_padded = x;
@@ -359,60 +410,10 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 std::shared_ptr<ov::Node> x1 = std::make_shared<ov::op::v1::Add>(x0, const_1);
                 std::shared_ptr<ov::Node> y1 = std::make_shared<ov::op::v1::Add>(y0, const_1);
                 
-                // Compute interpolation weights
-                std::shared_ptr<ov::Node> dx, dy;
-                
-                // For REFLECTION with align_corners=false, apply discrete reflection to indices
-                if (is_reflection && !attrs.align_corners) {
-                    // Helper lambda for discrete index reflection with S==1 handling
-                    auto reflect_index = [&](const std::shared_ptr<ov::Node>& idx, 
-                                            const std::shared_ptr<ov::Node>& size_f) {
-                        // Check if size == 1
-                        auto is_size_one = std::make_shared<ov::op::v1::Equal>(size_f, const_1);
-                        
-                        // Period is 2*size for align_corners=false
-                        auto two_size = std::make_shared<ov::op::v1::Multiply>(const_2, size_f);
-                        
-                        // Proper modulo: r = ((idx % period) + period) % period
-                        auto mod1 = std::make_shared<ov::op::v1::FloorMod>(idx, two_size);
-                        auto mod2 = std::make_shared<ov::op::v1::Add>(mod1, two_size);
-                        auto r = std::make_shared<ov::op::v1::FloorMod>(mod2, two_size);
-                        
-                        // If r >= size: r = (period - 1) - r
-                        auto period_minus_1 = std::make_shared<ov::op::v1::Subtract>(two_size, const_1);
-                        auto flipped = std::make_shared<ov::op::v1::Subtract>(period_minus_1, r);
-                        auto cond = std::make_shared<ov::op::v1::GreaterEqual>(r, size_f);
-                        auto reflected = std::make_shared<ov::op::v1::Select>(cond, flipped, r);
-                        
-                        // Return 0 if size==1, otherwise return reflected
-                        return std::make_shared<ov::op::v1::Select>(is_size_one, const_0, reflected);
-                    };
-                    
-                    // Apply reflection to all four indices
-                    x0 = reflect_index(x0, w_in_f);
-                    x1 = reflect_index(x1, w_in_f);
-                    y0 = reflect_index(y0, h_in_f);
-                    y1 = reflect_index(y1, h_in_f);
-                    
-                    // Compute dx, dy from the reflected continuous coordinates (x_padded, y_padded)
-                    // dx = x_padded - floor(x_padded)
-                    auto x_floor = std::make_shared<ov::op::v0::Floor>(x_padded);
-                    auto y_floor = std::make_shared<ov::op::v0::Floor>(y_padded);
-                    dx = std::make_shared<ov::op::v1::Subtract>(x_padded, x_floor);
-                    dy = std::make_shared<ov::op::v1::Subtract>(y_padded, y_floor);
-                    
-                    // Clamp dx, dy to [0, 1-eps] for stability
-                    auto const_eps = ov::op::v0::Constant::create(calc_type, {}, {1e-7F});
-                    auto one_minus_eps = std::make_shared<ov::op::v1::Subtract>(const_1, const_eps);
-                    dx = std::make_shared<ov::op::v1::Maximum>(dx, const_0);
-                    dx = std::make_shared<ov::op::v1::Minimum>(dx, one_minus_eps);
-                    dy = std::make_shared<ov::op::v1::Maximum>(dy, const_0);
-                    dy = std::make_shared<ov::op::v1::Minimum>(dy, one_minus_eps);
-                } else {
-                    // Standard dx, dy computation
-                    dx = std::make_shared<ov::op::v1::Subtract>(x_padded, x0);
-                    dy = std::make_shared<ov::op::v1::Subtract>(y_padded, y0);
-                }
+                // Compute interpolation weights from the reflected continuous coordinates
+                // This ensures weights are correctly computed from the reflected positions
+                auto dx = std::make_shared<ov::op::v1::Subtract>(x_padded, x0);
+                auto dy = std::make_shared<ov::op::v1::Subtract>(y_padded, y0);
                 auto one_minus_dx = std::make_shared<ov::op::v1::Subtract>(const_1, dx);
                 auto one_minus_dy = std::make_shared<ov::op::v1::Subtract>(const_1, dy);
                 
@@ -423,8 +424,16 @@ GridSampleDecomposition::GridSampleDecomposition() {
                 weights.push_back(std::make_shared<ov::op::v1::Multiply>(one_minus_dx, dy)); // w10
                 weights.push_back(std::make_shared<ov::op::v1::Multiply>(dx, dy)); // w11
                 
-                // For reflection/border padding, discrete coordinates are already correct
-                // For zeros padding, we need to apply clamping only for safe indexing
+                // For reflection mode, apply discrete index reflection
+                if (is_reflection) {
+                    // Reflect discrete indices to handle edge cases where floor(x_padded) < 0 or > size-1
+                    x0 = reflect_index_i32(x0, w_in_f, attrs.align_corners);
+                    x1 = reflect_index_i32(x1, w_in_f, attrs.align_corners);
+                    y0 = reflect_index_i32(y0, h_in_f, attrs.align_corners);
+                    y1 = reflect_index_i32(y1, h_in_f, attrs.align_corners);
+                }
+                
+                // Store corner indices (now properly reflected if needed)
                 std::vector<std::shared_ptr<ov::Node>> x_coords = {x0, x1, x0, x1};
                 std::vector<std::shared_ptr<ov::Node>> y_coords = {y0, y0, y1, y1};
                 
@@ -544,9 +553,9 @@ GridSampleDecomposition::GridSampleDecomposition() {
                         x_padded = x;
                         y_padded = y;
                     } else {
-                        // align_corners=true: use existing apply_reflection
-                        x_padded = apply_reflection(x, w_in_f);
-                        y_padded = apply_reflection(y, h_in_f);
+                        // align_corners=true: use periodic reflection
+                        x_padded = reflect_coord(x, w_in_f, attrs.align_corners);
+                        y_padded = reflect_coord(y, h_in_f, attrs.align_corners);
                     }
                 } else {
                     // ZEROS padding - NEVER clamp continuous coordinates
@@ -887,6 +896,7 @@ GridSampleDecomposition::GridSampleDecomposition() {
             */
             
             // Preserve runtime info
+            // Note: result has already been transposed back to NCHW on line 857
             result->set_friendly_name(grid_sample->get_friendly_name());
             ov::copy_runtime_info(grid_sample, result);
             ov::replace_node_update_name(grid_sample, result);
@@ -896,6 +906,18 @@ GridSampleDecomposition::GridSampleDecomposition() {
     
     auto m = std::make_shared<ov::pass::pattern::Matcher>(grid_sample_pattern, "GridSampleDecomposition");
     register_matcher(m, callback);
+}
+
+// Register transformation passes for each mode
+// These are just empty implementations since all the logic is in GridSampleDecomposition
+// We rely on the GridSampleDecomposition to handle all modes
+GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
+}
+
+GridSampleDecompositionBilinear::GridSampleDecompositionBilinear() {
+}
+
+GridSampleDecompositionBicubic::GridSampleDecompositionBicubic() {
 }
 
 }  // namespace intel_cpu
