@@ -3460,15 +3460,14 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
     };
 
     auto isParentSuitableForTailOpt = [&](const NodePtr& parent) -> bool {
-        if (!parent)
+        if (!parent) {
             return false;
+        }
         if (supportFuseConvert(parent->getType()) && tailNodesMap.count(parent) != 0U) {
             return true;
         }
         if (supportInPlace(parent->getType()) && tailNodesMap.count(parent) != 0U) {
-            if (!parent->isInPlace())
-                return false;
-            return true;
+            return parent->isInPlace();
         }
         return false;
     };
@@ -3478,8 +3477,9 @@ void GraphOptimizer::TailNodesPrecisionOptimize(Graph& graph) {
         std::unordered_set<NodePtr> visited;
         const NodePtr& cur = node;
         while (cur) {
-            if (!visited.insert(cur).second)
+            if (!visited.insert(cur).second) {
                 break;
+            }
             size_t parentNum = cur->getParentEdges().size();
             if (parentNum == 0) {
                 return false;
