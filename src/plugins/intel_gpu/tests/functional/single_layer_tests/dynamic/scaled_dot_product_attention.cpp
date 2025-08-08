@@ -47,16 +47,8 @@ protected:
 };
 
 std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo<ScaledAttnGPUTestParams>& obj) {
-    ov::element::Type inType;
-    std::vector<InputShape> inputShapes;
-    std::vector<std::vector<int64_t>> input_transpose;
-    bool is_causal;
-    bool has_attn;
-    bool is_attn_const;
-    bool has_scale;
-    bool is_scale_const;
     bool transpose_enable;
-    std::tie(inType, inputShapes, is_causal, has_attn, is_attn_const, has_scale, is_scale_const, input_transpose) = obj.param;
+    const auto& [inType, inputShapes, is_causal, has_attn, is_attn_const, has_scale, is_scale_const, input_transpose] = obj.param;
 
     transpose_enable = (input_transpose.size() != 0);
     std::ostringstream result;
@@ -83,13 +75,15 @@ std::string ScaledAttnLayerGPUTest::getTestCaseName(const testing::TestParamInfo
 }
 
 void ScaledAttnLayerGPUTest::SetUp() {
-    ov::element::Type inType;
-    std::vector<InputShape> inputShapes;
-    std::vector<std::vector<int64_t>> input_transpose;
-
     targetDevice = ov::test::utils::DEVICE_GPU;
 
-    std::tie(inType, inputShapes, is_causal, has_attn, is_attn_const, has_scale, is_scale_const, input_transpose) = this->GetParam();
+    const auto& [inType, _inputShapes, _is_causal, _has_attn, _is_attn_const, _has_scale, _is_scale_const, input_transpose] = this->GetParam();
+    is_causal = _is_causal;
+    has_attn = _has_attn;
+    is_attn_const = _is_attn_const;
+    has_scale = _has_scale;
+    is_scale_const = _is_scale_const;
+    auto inputShapes = _inputShapes;
 
     transpose_prepare(inputShapes, input_transpose);
     init_input_shapes(inputShapes);
@@ -276,15 +270,6 @@ void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 }
 
 TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
-    ov::element::Type inType;
-    std::vector<InputShape> inputShapes;
-    std::vector<std::vector<int64_t>> input_transpose;
-    bool is_causal;
-    bool has_attn;
-    bool is_attn_const;
-    bool has_scale;
-    bool is_scale_const;
-    std::tie(inType, inputShapes, is_causal, has_attn, is_attn_const, has_scale, is_scale_const, input_transpose) = this->GetParam();
     run();
 }
 

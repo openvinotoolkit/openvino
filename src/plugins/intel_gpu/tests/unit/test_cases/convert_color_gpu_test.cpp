@@ -484,8 +484,8 @@ void createReferenceDataI420(const T* arg_y, const T* arg_u, const T* arg_v, U* 
                 auto uv_index = (h / 2) * (image_w / 2) + (w / 2);
                 auto u_val = static_cast<float>(u_ptr[uv_index]);
                 auto v_val = static_cast<float>(v_ptr[uv_index]);
-                T r, g, b;
-                std::tie(r, g, b) = yuv_pixel_to_rgb<U>(y_val, u_val, v_val);
+
+                const auto& [r, g, b] = yuv_pixel_to_rgb<U>(y_val, u_val, v_val);
                 if (rgb_color_format) {
                     out[y_index * 3] = r;
                     out[y_index * 3 + 1] = g;
