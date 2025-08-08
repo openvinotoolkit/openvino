@@ -12,16 +12,16 @@
 #include <string>
 #include <vector>
 
+#include "cache_eviction.hpp"
+#include "cache_manager.hpp"
 #include "executable.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/ivariable_state.hpp"
 
-#include "cache_manager.hpp"
-#include "cache_eviction.hpp"
-
-namespace ov { namespace template_plugin {
+namespace ov {
+namespace template_plugin {
 
 class CompiledModel;
 
@@ -77,4 +77,5 @@ private:
     void register_scores_and_evict();
 };
 
-}} // namespace ov::template_plugin
+}  // namespace template_plugin
+}  // namespace ov

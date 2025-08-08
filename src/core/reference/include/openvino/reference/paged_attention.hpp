@@ -20,7 +20,7 @@
 #include "openvino/op/util/attr_types.hpp"
 
 #ifndef PA_DEBUG
-#define PA_DEBUG 0
+#    define PA_DEBUG 0
 #endif
 
 namespace ov::reference {
@@ -65,7 +65,12 @@ void debug_print_tensor_recursive(const T* data,
         std::cout << std::string(indent, ' ') << "]";
     }
 #else
-    (void)data; (void)shape; (void)dim; (void)offset; (void)prefix; (void)indent;
+    (void)data;
+    (void)shape;
+    (void)dim;
+    (void)offset;
+    (void)prefix;
+    (void)indent;
 #endif
 }
 
@@ -83,7 +88,9 @@ void debug_print_tensor(const T* data, const std::vector<size_t>& shape, const s
     debug_print_tensor_recursive(data, shape, 0, 0, name, 0);
     std::cout << "\n\n";
 #else
-    (void)data; (void)shape; (void)name;
+    (void)data;
+    (void)shape;
+    (void)name;
 #endif
 }
 
@@ -99,7 +106,9 @@ void debug_print_vector(const T* data, size_t length, const std::string& name) {
     }
     std::cout << " ]\n\n";
 #else
-    (void)data; (void)length; (void)name;
+    (void)data;
+    (void)length;
+    (void)name;
 #endif
 }
 
@@ -113,7 +122,8 @@ void debug_print_scalar(const T& value, const std::string& name) {
 #if PA_DEBUG
     std::cout << name << ": " << std::fixed << std::setprecision(6) << value << "\n\n";
 #else
-    (void)value; (void)name;
+    (void)value;
+    (void)name;
 #endif
 }
 
@@ -121,7 +131,8 @@ inline void debug_print_int_scalar(const int32_t& value, const std::string& name
 #if PA_DEBUG
     std::cout << name << ": " << value << "\n\n";
 #else
-    (void)value; (void)name;
+    (void)value;
+    (void)name;
 #endif
 }
 
@@ -129,7 +140,8 @@ inline void debug_print_size_t_scalar(const size_t& value, const std::string& na
 #if PA_DEBUG
     std::cout << name << ": " << value << "\n\n";
 #else
-    (void)value; (void)name;
+    (void)value;
+    (void)name;
 #endif
 }
 
@@ -693,9 +705,7 @@ void paged_attention(T* out,    // Output attention result
             debug_print_int_scalar(total_keys, "    total_keys");
 
             // Sliding window boundary: keep only last W tokens
-            const int32_t keep_from = (ctx.sliding_window > 0)
-                                        ? std::max(0, total_keys - ctx.sliding_window)
-                                        : 0;
+            const int32_t keep_from = (ctx.sliding_window > 0) ? std::max(0, total_keys - ctx.sliding_window) : 0;
 
             // Raw scores vector
             std::vector<T> scores(total_keys, T(0));
@@ -799,9 +809,8 @@ void paged_attention(T* out,    // Output attention result
 #endif
 
                 // Write per-head scores into [B_tokens, H, max_ctx]
-                size_t score_idx =
-                    (token_idx * ctx.num_heads + head) * static_cast<size_t>(ctx.max_context_length) +
-                    static_cast<size_t>(k);
+                size_t score_idx = (token_idx * ctx.num_heads + head) * static_cast<size_t>(ctx.max_context_length) +
+                                   static_cast<size_t>(k);
                 score[score_idx] = scores[k];
             }
 
@@ -834,4 +843,3 @@ void paged_attention(T* out,    // Output attention result
 }
 
 }  // namespace ov::reference
-

@@ -16,31 +16,31 @@ bool evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) {
 
     ov::reference::paged_attention<T>(outputs[0].data<T>(),
                                       outputs[1].data<T>(),
-                                      inputs[0].data<T>(),         // q
-                                      inputs[1].data<T>(),         // k
-                                      inputs[2].data<T>(),         // v
-                                      inputs[3].data<T>(),         // kc
-                                      inputs[4].data<T>(),         // vc
-                                      inputs[5].data<int32_t>(),   // pl
-                                      inputs[6].data<int32_t>(),   // sb
-                                      inputs[7].data<int32_t>(),   // bi
-                                      inputs[8].data<int32_t>(),   // bib
-                                      inputs[9].data<T>(),         // sc
-                                      inputs[10].data<int32_t>(),  // sw
-                                      inputs[11].data<T>(),        // as
-                                      inputs[12].data<int32_t>(),  // mcl
+                                      inputs[0].data<T>(),                                       // q
+                                      inputs[1].data<T>(),                                       // k
+                                      inputs[2].data<T>(),                                       // v
+                                      inputs[3].data<T>(),                                       // kc
+                                      inputs[4].data<T>(),                                       // vc
+                                      inputs[5].data<int32_t>(),                                 // pl
+                                      inputs[6].data<int32_t>(),                                 // sb
+                                      inputs[7].data<int32_t>(),                                 // bi
+                                      inputs[8].data<int32_t>(),                                 // bib
+                                      inputs[9].data<T>(),                                       // sc
+                                      inputs[10].data<int32_t>(),                                // sw
+                                      inputs[11].data<T>(),                                      // as
+                                      inputs[12].data<int32_t>(),                                // mcl
                                       has_rotation ? inputs[rot + 0].data<int32_t>() : nullptr,  // rbi
                                       has_rotation ? inputs[rot + 1].data<int32_t>() : nullptr,  // rd
-                                      has_rotation ? inputs[rot + 2].data<T>()        : nullptr,  // trl
-                                      inputs[0].get_shape(),                                      // qs
-                                      inputs[1].get_shape(),                                      // ks
-                                      inputs[2].get_shape(),                                      // vs
-                                      inputs[3].get_shape(),                                      // kcs
-                                      inputs[4].get_shape(),                                      // vcs
-                                      inputs[5].get_shape(),                                      // pls
-                                      has_rotation ? inputs[rot + 0].get_shape() : ov::Shape{},   // rbis
-                                      has_rotation ? inputs[rot + 1].get_shape() : ov::Shape{},   // rds
-                                      has_rotation ? inputs[rot + 2].get_shape() : ov::Shape{}    // rtls
+                                      has_rotation ? inputs[rot + 2].data<T>() : nullptr,        // trl
+                                      inputs[0].get_shape(),                                     // qs
+                                      inputs[1].get_shape(),                                     // ks
+                                      inputs[2].get_shape(),                                     // vs
+                                      inputs[3].get_shape(),                                     // kcs
+                                      inputs[4].get_shape(),                                     // vcs
+                                      inputs[5].get_shape(),                                     // pls
+                                      has_rotation ? inputs[rot + 0].get_shape() : ov::Shape{},  // rbis
+                                      has_rotation ? inputs[rot + 1].get_shape() : ov::Shape{},  // rds
+                                      has_rotation ? inputs[rot + 2].get_shape() : ov::Shape{}   // rtls
     );
     return true;
 }

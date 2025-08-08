@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "compiled_model.hpp"
 #include "itt.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/op/util/multi_subgraph_base.hpp"
@@ -23,7 +24,6 @@
 #include "remote_tensor.hpp"
 #include "template/remote_tensor.hpp"
 #include "variable_state.hpp"
-#include "compiled_model.hpp"
 
 using Time = std::chrono::high_resolution_clock;
 
@@ -43,18 +43,23 @@ void allocate_tensor_impl(ov::SoPtr<ov::ITensor>& tensor,
 bool is_scores_output_name(const std::string& n, size_t& layer_id_out) {
     // Expected: contains "paged_attention.scores.<id>"
     auto pos = n.find("paged_attention.scores.");
-    if (pos == std::string::npos) return false;
+    if (pos == std::string::npos)
+        return false;
     auto dot = n.find_last_of('.');
-    if (dot == std::string::npos || dot + 1 >= n.size()) return false;
+    if (dot == std::string::npos || dot + 1 >= n.size())
+        return false;
     try {
         layer_id_out = static_cast<size_t>(std::stoul(n.substr(dot + 1)));
         return true;
-    } catch (...) { return false; }
+    } catch (...) {
+        return false;
+    }
 }
 
-} // namespace
+}  // namespace
 
-namespace ov { namespace template_plugin {
+namespace ov {
+namespace template_plugin {
 
 static void collect_variables(const std::shared_ptr<ov::Model>& ov_model,
                               ov::op::util::VariableContext& variable_context,
@@ -85,27 +90,34 @@ std::vector<ScoresPort> ScoresLocator::find(const std::shared_ptr<const Compiled
     std::vector<ScoresPort> res;
     const auto& results = cm->get_model()->get_results();
     for (size_t i = 0; i < results.size(); ++i) {
-        size_t lid = 0; bool matched = false;
+        size_t lid = 0;
+        bool matched = false;
         const auto& tens = results[i]->get_input_source_output(0).get_tensor();
         for (const auto& name : tens.get_names()) {
-            if (is_scores_output_name(name, lid)) { matched = true; break; }
+            if (is_scores_output_name(name, lid)) {
+                matched = true;
+                break;
+            }
         }
         if (!matched) {
             for (const auto& name : results[i]->get_friendly_names()) {
-                if (is_scores_output_name(name, lid)) { matched = true; break; }
+                if (is_scores_output_name(name, lid)) {
+                    matched = true;
+                    break;
+                }
             }
         }
-        if (matched) res.push_back(ScoresPort{i, lid});
+        if (matched)
+            res.push_back(ScoresPort{i, lid});
     }
-    std::sort(res.begin(), res.end(), [](const ScoresPort& a, const ScoresPort& b){
+    std::sort(res.begin(), res.end(), [](const ScoresPort& a, const ScoresPort& b) {
         return a.layer_id < b.layer_id;
     });
     return res;
 }
 
 // ! [infer_request:ctor]
-InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& model)
-    : ov::ISyncInferRequest(model) {
+InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& model) : ov::ISyncInferRequest(model) {
     auto requestID = std::to_string(model->m_request_id.fetch_add(1));
     std::string name = model->m_model->get_friendly_name() + "_Req" + requestID;
     m_profiling_task = {
@@ -149,10 +161,8 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& model)
     const size_t block_size = m_cache_mgr ? m_cache_mgr->get_block_size() : 32;
     const size_t num_layers = m_cache_mgr ? m_cache_mgr->get_num_decoder_layers() : m_scores_ports.size();
     const auto& cfg = model->m_eviction_cfg;
-    m_eviction = std::make_unique<ov::cache::CacheEvictionAlgorithm>(cfg,
-                                                                     block_size,
-                                                                     num_layers,
-                                                                     cfg.snapkv_window_size);
+    m_eviction =
+        std::make_unique<ov::cache::CacheEvictionAlgorithm>(cfg, block_size, num_layers, cfg.snapkv_window_size);
 }
 // ! [infer_request:ctor]
 
@@ -326,26 +336,30 @@ void InferRequest::cancel() {
 // -------------------- NEW HELPERS --------------------
 
 void InferRequest::ensure_kv_cache_bound() {
-    if (!m_cache_mgr) return;
+    if (!m_cache_mgr)
+        return;
     // minimal capacity to start
     m_cache_mgr->allocate_cache_if_needed(1);
 
     const size_t layers = m_cache_mgr->get_num_decoder_layers();
     for (size_t l = 0; l < layers; ++l) {
-        const std::string kname = "key_cache."   + std::to_string(l);
+        const std::string kname = "key_cache." + std::to_string(l);
         const std::string vname = "value_cache." + std::to_string(l);
 
         for (const auto& in : get_inputs()) {
             for (const auto& n : in.get_names()) {
-                if (n == kname) set_tensor(in, m_cache_mgr->get_key_cache(l));
-                else if (n == vname) set_tensor(in, m_cache_mgr->get_value_cache(l));
+                if (n == kname)
+                    set_tensor(in, m_cache_mgr->get_key_cache(l));
+                else if (n == vname)
+                    set_tensor(in, m_cache_mgr->get_value_cache(l));
             }
         }
     }
 }
 
 void InferRequest::register_scores_and_evict() {
-    if (!m_eviction) return;
+    if (!m_eviction)
+        return;
 
     ov::cache::AttentionScoresForEachDecoderLayer per_layer_scores;
     per_layer_scores.resize(m_scores_ports.size());
@@ -365,4 +379,5 @@ void InferRequest::register_scores_and_evict() {
     //  - release pages to a free list (would require adding acquire/release API).
 }
 
-}} // namespace ov::template_plugin
+}  // namespace template_plugin
+}  // namespace ov

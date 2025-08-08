@@ -19,7 +19,8 @@
 // forward declaration
 void transform_model(const std::shared_ptr<ov::Model>& model);
 
-namespace ov { namespace template_plugin {
+namespace ov {
+namespace template_plugin {
 
 CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                              const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -53,17 +54,17 @@ void CompiledModel::compile_model(const std::shared_ptr<ov::Model>& model) {
 
 std::shared_ptr<ov::cache::CacheManager> CompiledModel::get_or_create_cache_manager_locked() const {
     std::lock_guard<std::mutex> lock(m_cache_mgr_mutex);
-    if (m_cache_manager) return m_cache_manager;
+    if (m_cache_manager)
+        return m_cache_manager;
     // Construct from this compiled model (public handle)
-    ov::CompiledModel api_cm(std::const_pointer_cast<CompiledModel>(
-        std::static_pointer_cast<const CompiledModel>(shared_from_this())));
+    ov::CompiledModel api_cm(
+        std::const_pointer_cast<CompiledModel>(std::static_pointer_cast<const CompiledModel>(shared_from_this())));
     m_cache_manager = std::make_shared<ov::cache::CacheManager>(api_cm);
     return m_cache_manager;
 }
 
 std::shared_ptr<ov::ISyncInferRequest> CompiledModel::create_sync_infer_request() const {
-    return std::make_shared<InferRequest>(
-        std::static_pointer_cast<const CompiledModel>(shared_from_this()));
+    return std::make_shared<InferRequest>(std::static_pointer_cast<const CompiledModel>(shared_from_this()));
 }
 
 std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() const {
@@ -72,11 +73,11 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     // Ensure shared CacheManager exists
     (void)get_or_create_cache_manager_locked();
 
-    auto async_infer_request = std::make_shared<AsyncInferRequest>(
-        std::static_pointer_cast<InferRequest>(internal_request),
-        get_task_executor(),
-        get_template_plugin()->m_waitExecutor,
-        get_callback_executor());
+    auto async_infer_request =
+        std::make_shared<AsyncInferRequest>(std::static_pointer_cast<InferRequest>(internal_request),
+                                            get_task_executor(),
+                                            get_template_plugin()->m_waitExecutor,
+                                            get_callback_executor());
 
     return async_infer_request;
 }
@@ -180,4 +181,5 @@ void CompiledModel::export_model(std::ostream& model_stream) const {
     }
 }
 
-}} // namespace ov::template_plugin
+}  // namespace template_plugin
+}  // namespace ov

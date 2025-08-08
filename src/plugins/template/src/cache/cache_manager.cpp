@@ -7,7 +7,8 @@
 #include <cstring>
 #include <numeric>
 
-namespace ov { namespace cache {
+namespace ov {
+namespace cache {
 
 static bool is_gpu_device(const std::string& d) {
     return d.find("GPU") != std::string::npos;
@@ -15,8 +16,7 @@ static bool is_gpu_device(const std::string& d) {
 
 CacheManager::CacheManager(const ov::CompiledModel& compiled_model) {
     std::vector<std::string> execution_devices = compiled_model.get_property(ov::execution_devices);
-    const bool all_gpu_device =
-        std::all_of(execution_devices.begin(), execution_devices.end(), is_gpu_device);
+    const bool all_gpu_device = std::all_of(execution_devices.begin(), execution_devices.end(), is_gpu_device);
     OPENVINO_ASSERT(all_gpu_device || execution_devices.size() == 1,
                     "Continuous batching: execution device is expected to be single CPU / single GPU / multi GPUs");
     m_device = execution_devices[0];
@@ -66,9 +66,15 @@ ov::Shape CacheManager::set_kv_blocks(ov::PartialShape pshape, size_t num_kv_blo
     return pshape.get_shape();
 }
 
-size_t CacheManager::get_num_decoder_layers() const { return m_num_decoder_layers; }
-std::string CacheManager::get_device() const { return m_device; }
-size_t CacheManager::get_block_size() const { return m_block_size; }
+size_t CacheManager::get_num_decoder_layers() const {
+    return m_num_decoder_layers;
+}
+std::string CacheManager::get_device() const {
+    return m_device;
+}
+size_t CacheManager::get_block_size() const {
+    return m_block_size;
+}
 
 ov::element::Type CacheManager::get_key_cache_precision(size_t decoder_layer_id) const {
     OPENVINO_ASSERT(decoder_layer_id < m_key_precisions.size());
@@ -79,16 +85,20 @@ ov::element::Type CacheManager::get_value_cache_precision(size_t decoder_layer_i
     return m_value_precisions[decoder_layer_id];
 }
 
-size_t CacheManager::get_block_size_in_bytes() const { return m_block_size_in_bytes; }
+size_t CacheManager::get_block_size_in_bytes() const {
+    return m_block_size_in_bytes;
+}
 
 size_t CacheManager::sub_byte_data_type_multiplier(const ov::element::Type data_type) {
-    if (data_type == ov::element::i4 || data_type == ov::element::u4) return 2;
+    if (data_type == ov::element::i4 || data_type == ov::element::u4)
+        return 2;
     return 1;
 }
 
 void CacheManager::allocate_cache_if_needed(size_t num_kv_blocks) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    if (m_num_allocated_kv_blocks >= num_kv_blocks) return;
+    if (m_num_allocated_kv_blocks >= num_kv_blocks)
+        return;
 
     m_num_allocated_kv_blocks = num_kv_blocks;
 
@@ -111,7 +121,7 @@ void CacheManager::allocate_cache_if_needed(size_t num_kv_blocks) {
                     size_t size = src.get_size();
                     std::memcpy(dst.data(), src.data(), size / sub_byte_data_type_multiplier(dst.get_element_type()));
                 } else {
-                    ov::Tensor roi(dst, ov::Coordinate{0,0,0,0}, src.get_shape());
+                    ov::Tensor roi(dst, ov::Coordinate{0, 0, 0, 0}, src.get_shape());
                     src.copy_to(roi);
                 }
             };
@@ -176,4 +186,5 @@ void CacheManager::copy_blocks(const std::map<size_t, std::list<size_t>>& block_
     }
 }
 
-}} // namespace ov::cache
+}  // namespace cache
+}  // namespace ov

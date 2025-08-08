@@ -52,7 +52,6 @@ TEST(type_prop, paged_attention_static_14_inputs) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{3, 4}));
 }
 
-
 TEST(type_prop, paged_attention_static_17_inputs_eviction_per_block) {
     const auto query = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
     const auto key = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{3, 4});
