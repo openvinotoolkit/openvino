@@ -54,6 +54,13 @@ struct Context {
     PPtr unpack(const PPtr& w, const PPtr& z, const PPtr& s, ov::element::Type type);
     PPtr unpack(const PPtr& w, const PPtr& s, ov::element::Type type);
 
+    struct DQNF4Gather {
+        PPtr w;
+        ov::Tensor t;
+    };
+    std::map<PPtr, DQNF4Gather> params_to_nf4_gather;
+    PPtr gather_cb4(const PPtr& w, const ov::Tensor& t, ov::element::Type type);
+
     struct Gather {
         PPtr pnew, pold, pids;
     };
@@ -183,6 +190,12 @@ class HostGatherDQ : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherDQ");
     HostGatherDQ(Context::Ref ctx);
+};
+
+class HostGatherCB4 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherCB4");
+    HostGatherCB4(Context::Ref ctx);
 };
 
 // Tail vocab unpacks
