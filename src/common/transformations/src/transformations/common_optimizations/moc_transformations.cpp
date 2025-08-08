@@ -165,11 +165,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, Validate)
     // the order is important
-    const char* enable_einsum = std::getenv("OV_ENABLE_EINSUM_DECOMPOSITION");
-    if (enable_einsum) {
-        REGISTER_PASS(manager, EinsumDecomposition)
-    }
-
+    REGISTER_PASS(manager, EinsumDecomposition, true)
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves

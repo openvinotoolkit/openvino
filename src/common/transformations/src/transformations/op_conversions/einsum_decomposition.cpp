@@ -1291,13 +1291,28 @@ void fix_inputs_with_0d_ellipsis(ov::OutputVector& input_nodes,
 /// 8. Transpose dimensions to match the layout required by the output subscript.
 /// 9. Replace the original Einsum node with the last node from the decomposed sub-graph,
 ///    preserving the original node's name and runtime information.
-ov::pass::EinsumDecomposition::EinsumDecomposition() {
+ov::pass::EinsumDecomposition::EinsumDecomposition(bool check_const)
+    : m_check_const(check_const) {
     MATCHER_SCOPE(EinsumDecomposition);
     auto einsum = ov::pass::pattern::wrap_type<ov::op::v7::Einsum>();
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
         auto einsum_node = ov::as_type_ptr<ov::op::v7::Einsum>(m.get_match_root());
         if (!einsum_node) {
             return false;
+        }
+
+        if (m_check_const) {
+            bool has_const = false;
+            for (auto& input : einsum_node->input_values()) {
+                auto node_ptr = input.get_node_shared_ptr();
+                auto constant_ptr = ov::as_type_ptr<ov::op::v0::Constant>(node_ptr);
+                if (constant_ptr) {
+                    has_const = true;
+                    break;
+                } 
+            }
+            if (!has_const) 
+                return false;
         }
 
         // Parse the Einsum equation to get input and output subscripts
