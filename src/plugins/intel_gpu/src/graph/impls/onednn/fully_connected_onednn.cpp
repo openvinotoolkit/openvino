@@ -68,15 +68,25 @@ protected:
             if (prim->decompression_scale.is_valid()) {
                 auto decompression_scale_idx = idx++;
                 auto scale_mem = instance.dep_memory_ptr(decompression_scale_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
-                args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
+                if (scale_mem->get_layout().get_partial_shape().size() == 3) {
+                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::fc_grouped_3d);
+                    args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
+                } else {
+                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+                    args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
+                }
             }
 
             if (prim->decompression_zero_point.is_valid()) {
                 auto decompression_zp_idx = idx++;
                 auto zp_mem = instance.dep_memory_ptr(decompression_zp_idx);
-                dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
-                args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
+                if (zp_mem->get_layout().get_partial_shape().size() == 3) { 
+                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::fc_grouped_3d);
+                    args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
+                } else {
+                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
+                    args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
+                }
             }
             bool is_dyn_quan_input = instance.get_input_layout(0).data_type == data_types::i8 || instance.get_input_layout(0).data_type == data_types::u8;
 
@@ -382,15 +392,20 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                auto ifm = arg.get_dependency(1).get_output_layout().get_dim(1);
-                auto ngroups = scale_layout.get_dim(1);
+                int rank = scale_layout.get_partial_shape().size();
+                auto ifm = arg.get_dependency(rank - 1).get_output_layout().get_dim(1);
+//                auto ngroups = scale_layout.get_dim(1);
+                auto ngroups = scale_layout.get_dim(rank - 1);
                 group_size = ifm / ngroups;
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 32 == 0),
                     "[GPU] group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
                 } else if (ngroups == 1) {
-                    attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
+                    if (rank == 2)
+                        attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
+                    else if (rank == 3)
+                        attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, {group_size, 1}, ds_data_type);
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
                     attr->set_scales(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, ds_data_type);
@@ -405,9 +420,14 @@ public:
                 if (dzp_layout.count() == 1) {
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, dzp_data_type);
                 } else {
-                    auto ngroups = dzp_layout.get_dim(1);
+                    //auto ngroups = dzp_layout.get_dim(1);
+                    int rank = dzp_layout.get_partial_shape().size();
+                    auto ngroups = dzp_layout.get_dim(rank - 1);
                     if (ngroups == 1) {
-                        attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
+                        if (rank == 2)
+                            attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
+                        else
+                            attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, {group_size, 1}, dzp_data_type);
                     } else {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, grouped, {group_size, 1}, dzp_data_type);
                     }
