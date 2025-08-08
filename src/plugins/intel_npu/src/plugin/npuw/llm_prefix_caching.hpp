@@ -16,7 +16,9 @@
 namespace ov {
 namespace npuw {
 
-static constexpr size_t BLOCK_SIZE = 8;
+// static constexpr size_t BLOCK_SIZE = 8;
+// TODO: this value should be equal with prefill chunk size
+static constexpr size_t BLOCK_SIZE = 256;
 
 // KV cache tensors for all layers per token
 using KVCachePerToken = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
