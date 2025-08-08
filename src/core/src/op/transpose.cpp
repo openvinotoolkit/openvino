@@ -45,7 +45,7 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
     OV_OP_SCOPE(v1_Transpose_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2);
-    std::cout << "!!!!Transpose weight!!!" << std::endl;
+//    std::cout << "!!!!Transpose weight!!!" << std::endl;
 
     const auto& order = inputs[ORDER];
     if (order.get_element_type().is_integral()) {
