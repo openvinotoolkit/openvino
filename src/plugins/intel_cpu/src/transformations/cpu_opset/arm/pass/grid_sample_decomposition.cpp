@@ -286,53 +286,38 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
             const bool is_zeros      = attrs.padding_mode == v9::GridSample::PaddingMode::ZEROS;
             const bool is_reflection = attrs.padding_mode == v9::GridSample::PaddingMode::REFLECTION;
 
-            std::shared_ptr<Node> x_idx, y_idx;
+            auto h_in_f = std::make_shared<v0::Convert>(ctx.h_in, ctx.calc_type);
+            auto w_in_f = std::make_shared<v0::Convert>(ctx.w_in, ctx.calc_type);
+
+            std::shared_ptr<Node> x_cont = ctx.x;
+            std::shared_ptr<Node> y_cont = ctx.y;
+
             if (is_reflection) {
-                auto xr = std::make_shared<v5::Round>(ctx.x, v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
-                auto yr = std::make_shared<v5::Round>(ctx.y, v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
-                // reflect discrete indices (in float)
-                auto h_in_f = std::make_shared<v0::Convert>(ctx.h_in, ctx.calc_type);
-                auto w_in_f = std::make_shared<v0::Convert>(ctx.w_in, ctx.calc_type);
-                x_idx = reflect_index(ctx, xr, w_in_f, attrs.align_corners);
-                y_idx = reflect_index(ctx, yr, h_in_f, attrs.align_corners);
-            } else {
-                auto x_pad = ctx.x;
-                auto y_pad = ctx.y;
-                if (is_border) {
-                    auto h_in_f = std::make_shared<v0::Convert>(ctx.h_in, ctx.calc_type);
-                    auto w_in_f = std::make_shared<v0::Convert>(ctx.w_in, ctx.calc_type);
-                    auto w_m1   = std::make_shared<v1::Subtract>(w_in_f, ctx.c1);
-                    auto h_m1   = std::make_shared<v1::Subtract>(h_in_f, ctx.c1);
-                    x_pad = std::make_shared<v1::Minimum>(std::make_shared<v1::Maximum>(x_pad, ctx.c0), w_m1);
-                    y_pad = std::make_shared<v1::Minimum>(std::make_shared<v1::Maximum>(y_pad, ctx.c0), h_m1);
-                }
-                x_idx = std::make_shared<v5::Round>(x_pad, v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
-                y_idx = std::make_shared<v5::Round>(y_pad, v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
-                if (is_border) {
-                    auto h_in_f = std::make_shared<v0::Convert>(ctx.h_in, ctx.calc_type);
-                    auto w_in_f = std::make_shared<v0::Convert>(ctx.w_in, ctx.calc_type);
-                    auto w_m1   = std::make_shared<v1::Subtract>(w_in_f, ctx.c1);
-                    auto h_m1   = std::make_shared<v1::Subtract>(h_in_f, ctx.c1);
-                    x_idx = std::make_shared<v1::Minimum>(std::make_shared<v1::Maximum>(x_idx, ctx.c0), w_m1);
-                    y_idx = std::make_shared<v1::Minimum>(std::make_shared<v1::Maximum>(y_idx, ctx.c0), h_m1);
-                }
+                // reflect **continuous** coordinates
+                x_cont = reflect_coord(ctx, x_cont, w_in_f, attrs.align_corners);
+                y_cont = reflect_coord(ctx, y_cont, h_in_f, attrs.align_corners);
+            } else if (is_border) {
+                // clamp **continuous** coordinates for BORDER
+                auto w_m1 = std::make_shared<v1::Subtract>(w_in_f, ctx.c1);
+                auto h_m1 = std::make_shared<v1::Subtract>(h_in_f, ctx.c1);
+                x_cont = std::make_shared<v1::Minimum>(std::make_shared<v1::Maximum>(x_cont, ctx.c0), w_m1);
+                y_cont = std::make_shared<v1::Minimum>(std::make_shared<v1::Maximum>(y_cont, ctx.c0), h_m1);
             }
+
+            // nearest = floor(x + 0.5), not HALF_AWAY_FROM_ZERO
+            auto x_idx = std::make_shared<v0::Floor>(std::make_shared<v1::Add>(x_cont, ctx.c0_5));
+            auto y_idx = std::make_shared<v0::Floor>(std::make_shared<v1::Add>(y_cont, ctx.c0_5));
 
             auto result = gather_hw(ctx, x_idx, y_idx);
 
             if (is_zeros) {
-                auto x_i32 = std::make_shared<v0::Convert>(x_idx, element::i32);
-                auto y_i32 = std::make_shared<v0::Convert>(y_idx, element::i32);
-                auto w_i32 = ctx.w_in; // already i32
-                auto h_i32 = ctx.h_in;
-                auto zero  = v0::Constant::create(element::i32, {}, {0});
-
+                // Build mask on **continuous** coords (no clamp/reflect), per spec
                 auto x_ok = std::make_shared<v1::LogicalAnd>(
-                    std::make_shared<v1::GreaterEqual>(x_i32, zero),
-                    std::make_shared<v1::Less>(x_i32, w_i32));
+                    std::make_shared<v1::GreaterEqual>(ctx.x, ctx.c0),
+                    std::make_shared<v1::Less>(ctx.x, w_in_f));
                 auto y_ok = std::make_shared<v1::LogicalAnd>(
-                    std::make_shared<v1::GreaterEqual>(y_i32, zero),
-                    std::make_shared<v1::Less>(y_i32, h_i32));
+                    std::make_shared<v1::GreaterEqual>(ctx.y, ctx.c0),
+                    std::make_shared<v1::Less>(ctx.y, h_in_f));
                 auto ok     = std::make_shared<v1::LogicalAnd>(x_ok, y_ok);
                 auto mask   = std::make_shared<v0::Convert>(ok, ctx.element_type);
                 auto mask_e = std::make_shared<v0::Unsqueeze>(mask, v0::Constant::create(element::i32, {}, {-1}));
