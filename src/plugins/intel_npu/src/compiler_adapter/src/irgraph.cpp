@@ -654,7 +654,7 @@ bool IRGraph::release_blob(const Config& config) {
     // _blob = std::nullopt;
     // _logger.debug("Blob is released");
 
-    return true;
+    return false;
 };
 
 IRGraph::~IRGraph() {
