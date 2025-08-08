@@ -449,9 +449,13 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                 Algorithm::EltwiseErf,
                 Algorithm::EltwiseExp,
                 Algorithm::EltwiseFloor,
+                Algorithm::EltwiseFloorMod,
                 Algorithm::EltwiseGeluErf,
+                Algorithm::EltwiseGeluTanh,
                 Algorithm::EltwiseHsigmoid,
                 Algorithm::EltwiseHswish,
+                Algorithm::EltwiseLess,
+                Algorithm::EltwiseLogicalOr,
                 Algorithm::EltwiseEqual,
                 Algorithm::EltwiseLessEqual,
                 Algorithm::EltwiseGreaterEqual,
@@ -471,7 +475,8 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                 Algorithm::EltwiseRelu,
                 Algorithm::EltwiseSigmoid,
                 Algorithm::EltwiseSqrt,
-                Algorithm::EltwiseSubtract)) {
+                Algorithm::EltwiseSubtract,
+                Algorithm::EltwiseTanh)) {
         return false;
     }
 

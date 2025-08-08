@@ -28,14 +28,8 @@ class GatherElementsPaddingInputTest : public testing::WithParamInterface<Gather
                      virtual public ov::test::SubgraphBaseStaticTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<GatherElementsPaddingInputParams> obj) {
-        std::tuple<std::vector<ov::Shape>, std::vector<int64_t>, std::vector<size_t>> input_params;
-        std::vector<ov::Shape> input_shape;
-        std::vector<int64_t> axis;
-        std::vector<size_t> numSplits;
-        ov::element::Type input_precision;
-
-        std::tie(input_params, input_precision) = obj.param;
-        std::tie(input_shape, axis, numSplits) = input_params;
+        const auto& [input_params, input_precision] = obj.param;
+        const auto& [input_shape, axis, numSplits] = input_params;
 
         std::ostringstream result;
         result << "IS=(";
@@ -46,12 +40,9 @@ public:
 
 protected:
     int64_t axis_gatherElements;
-    std::shared_ptr<ov::Model> init_subgraph(std::tuple<std::vector<ov::Shape>, std::vector<int64_t>, std::vector<size_t>>& input_params,
+    std::shared_ptr<ov::Model> init_subgraph(const std::tuple<std::vector<ov::Shape>, std::vector<int64_t>, std::vector<size_t>>& input_params,
                                              const ov::element::Type input_precision) {
-        std::vector<ov::Shape> input_shape;
-        std::vector<int64_t> axis;
-        std::vector<size_t> numSplits;
-        std::tie(input_shape, axis, numSplits) = input_params;
+        const auto& [input_shape, axis, numSplits] = input_params;
 
         int64_t axis_variadicSplit = axis[0];
         axis_gatherElements = axis[1];
@@ -79,10 +70,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        std::tuple<std::vector<ov::Shape>, std::vector<int64_t>, std::vector<size_t>> input_params;
-        ov::element::Type input_precision;
-
-        std::tie(input_params, input_precision) = GetParam();
+        const auto& [input_params, input_precision] = GetParam();
 
         inType = outType = input_precision;
         function = init_subgraph(input_params, input_precision);

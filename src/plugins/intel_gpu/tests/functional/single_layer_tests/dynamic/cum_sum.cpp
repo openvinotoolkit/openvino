@@ -25,12 +25,7 @@ class CumSumLayerGPUTest : public testing::WithParamInterface<CumSumLayerGPUPara
                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<CumSumLayerGPUParamSet> obj) {
-        ov::element::Type model_type;
-        InputShape shapes;
-        std::int64_t axis;
-        bool exclusive;
-        bool reverse;
-        std::tie(model_type, shapes, axis, exclusive, reverse) = obj.param;
+        const auto& [model_type, shapes, axis, exclusive, reverse] = obj.param;
 
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -47,12 +42,7 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ov::element::Type model_type;
-        InputShape shapes;
-        std::int64_t axis;
-        bool exclusive;
-        bool reverse;
-        std::tie(model_type, shapes, axis, exclusive, reverse) = this->GetParam();
+        const auto& [model_type, shapes, axis, exclusive, reverse] = this->GetParam();
 
         init_input_shapes({shapes});
 
