@@ -59,7 +59,7 @@ private:
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids);
 
-    int64_t checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids, size_t block_size);
+    uint64_t checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids, size_t block_size);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
