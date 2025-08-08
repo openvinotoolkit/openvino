@@ -335,45 +335,23 @@ std::optional<size_t> Graph::determine_dynamic_batch_size(const std::shared_ptr<
         return std::nullopt;
     }
 
-    if (!_metadata.inputs.at(0).shapeFromIRModel.has_value()) {
-        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+    if (!_metadata.inputs.at(0).shapeFromIRModel.has_value() ||
+        !_metadata.outputs.at(0).shapeFromIRModel.value().is_dynamic() || !index.has_value()) {
         return std::nullopt;
     }
 
-    const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
-    if (!firstOutputShape.is_dynamic()) {
-        return std::nullopt;
+    if (batchSize.has_value()) {
+        return batchSize.value();
     }
 
-    if (!index.has_value()) {
+    if (tensor == nullptr || tensor->get_shape().empty()) {
         return std::nullopt;
-    }
-
-    ov::Shape firstShape;
-
-    if (tensor != nullptr) {
-        firstShape = tensor->get_shape();
-        if (firstShape.empty()) {
-            return std::nullopt;  // Return std::nullopt if the shape is empty
-        }
     }
 
     auto& desc = isInput ? _inputDescriptors.at(*index) : _outputDescriptors.at(*index);
-
-    // A first dimensionin shape  may be appeared 'C' as well.
-    // We need to get batch Idx and determine a true batch value here.
-    // Let's use input_output_info as a helper.
     const ov::PartialShape& firstPartialShape = *_metadata.inputs.at(0).shapeFromIRModel;
 
-    std::optional<size_t> candidateBatchSize = std::nullopt;
-
-    if (batchSize.has_value()) {
-        candidateBatchSize = batchSize.value();
-    } else {
-        candidateBatchSize = extract_batch(desc.info.networkLayout, firstShape, firstPartialShape);
-    }
-
-    return candidateBatchSize;
+    return extract_batch(desc.info.networkLayout, tensor->get_shape(), firstPartialShape);
 }
 
 std::optional<size_t> Graph::determine_batch_size() {
@@ -383,13 +361,7 @@ std::optional<size_t> Graph::determine_batch_size() {
     }
 
     const ov::PartialShape& firstOutputShape = *_metadata.outputs.at(0).shapeFromIRModel;
-    if (firstOutputShape.is_dynamic()) {
-        return std::nullopt;
-    }
-
-    if (firstOutputShape.rank().get_length() == 0) {
-        _logger.warning("Networks using rank 0 shapes for inputs/outputs are not supported when batching is "
-                        "handled by the plugin");
+    if (firstOutputShape.is_dynamic() || firstOutputShape.rank().get_length() == 0) {
         return std::nullopt;
     }
 
