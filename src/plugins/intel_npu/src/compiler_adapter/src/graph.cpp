@@ -310,10 +310,6 @@ void Graph::set_batch_size(std::size_t batch) {
     _batchSize = batch;
 }
 
-void Graph::reset_last_batch_size() {
-    _batchSize.reset();
-}
-
 uint32_t Graph::get_unique_id() {
     return _uniqueId++;
 }

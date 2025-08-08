@@ -53,7 +53,6 @@ public:
     const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
     void resize_last_submitted_event(size_t batch) override;
     void set_batch_size(std::size_t batch) override;
-    void reset_last_batch_size() override;
 
     const std::optional<std::size_t> get_batch_size() const override;
 
