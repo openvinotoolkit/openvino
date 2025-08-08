@@ -875,7 +875,9 @@ size_t jit_greater_emitter::aux_fp_gprs_count() const {
     return 1;
 }
 
-std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node)
+std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(const std::shared_ptr<ov::Node>& node){
+    return {{element::f32, element::f32}};
+}
 
 size_t jit_floor_mod_emitter::get_inputs_num() const {
     return 2;
