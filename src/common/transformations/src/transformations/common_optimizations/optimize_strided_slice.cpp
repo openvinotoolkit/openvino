@@ -96,9 +96,12 @@ std::shared_ptr<Node> concat_boundaries(const Output<Node>& lhs, const Output<No
     auto rhs_dtype = rhs.get_element_type();
     auto _lhs = lhs;
     auto _rhs = rhs;
-    if (lhs_dtype.is_static() && rhs_dtype.is_static() && lhs_dtype != rhs_dtype) {
-        // Assuming both are integer types
-        auto common_dtype = lhs_dtype.bitwidth() > rhs_dtype.bitwidth() ? lhs_dtype : rhs_dtype;
+    if (lhs_dtype.is_static() && rhs_dtype.is_static() && lhs_dtype.is_integral_number() &&
+        rhs_dtype.is_integral_number() && lhs_dtype != rhs_dtype) {
+        auto common_dtype = (lhs_dtype.bitwidth() > rhs_dtype.bitwidth() ||
+                             (lhs_dtype.bitwidth() == rhs_dtype.bitwidth() && lhs_dtype.is_signed()))
+                                ? lhs_dtype
+                                : rhs_dtype;
         if (lhs_dtype != common_dtype) {
             auto new_lhs = std::make_shared<ov::op::v0::Convert>(_lhs, common_dtype);
             _lhs = ov::op::util::try_fold_unary_output(new_lhs);
@@ -414,7 +417,7 @@ ov::pass::SliceSequenceToSingleSlice::SliceSequenceToSingleSlice() {
 
         auto axes_1_values = const_axes_1->cast_vector<int64_t>();
         auto axes_2_values = const_axes_2->cast_vector<int64_t>();
-        
+
         // normalize axes
         auto rank = slice_1->input_value(0).get_partial_shape().rank();
         for (size_t i = 0; i < axes_1_values.size(); ++i) {
