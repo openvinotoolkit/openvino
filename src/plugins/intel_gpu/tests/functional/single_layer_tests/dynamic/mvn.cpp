@@ -28,16 +28,9 @@ class MvnLayerGPUTest : public testing::WithParamInterface<MvnLayerGPUTestParamS
                         virtual public ov::test::SubgraphBaseTest {
 public:
    static std::string getTestCaseName(testing::TestParamInfo<MvnLayerGPUTestParamSet> obj) {
-       basicGPUMvnParams basicParamsSet;
-       ov::element::Type inputPrecision;
-       std::tie(basicParamsSet, inputPrecision) = obj.param;
+       const auto& [basicParamsSet, inputPrecision] = obj.param;
 
-       InputShape inputShapes;
-       ov::element::Type netPrecision;
-       std::vector<int> axes;
-       bool normalizeVariance;
-       double eps;
-       std::tie(inputShapes, netPrecision, axes, normalizeVariance, eps) = basicParamsSet;
+       const auto& [inputShapes, netPrecision, axes, normalizeVariance, eps] = basicParamsSet;
 
        std::ostringstream result;
        result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -57,16 +50,9 @@ protected:
    void SetUp() override {
        targetDevice = ov::test::utils::DEVICE_GPU;
 
-       basicGPUMvnParams basicParamsSet;
-       ov::element::Type inPrc;
-       std::tie(basicParamsSet, inPrc) = this->GetParam();
+       const auto& [basicParamsSet, inPrc] = this->GetParam();
 
-       InputShape inputShapes;
-       ov::element::Type netPrecision;
-       std::vector<int> axes;
-       bool normalizeVariance;
-       double eps;
-       std::tie(inputShapes, netPrecision, axes, normalizeVariance, eps) = basicParamsSet;
+       const auto& [inputShapes, netPrecision, axes, normalizeVariance, eps] = basicParamsSet;
 
        init_input_shapes({inputShapes});
 
