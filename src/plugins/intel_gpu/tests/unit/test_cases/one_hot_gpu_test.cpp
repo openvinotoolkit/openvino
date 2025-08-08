@@ -825,18 +825,13 @@ TEST(one_hot_gpu_i64, bfzyx_ax3) {
     ASSERT_EQ(test_is_correct, true);
 }
 
-TEST(one_hot_gpu, negative_indices) {
-    auto& engine = get_test_engine();
-
+static void PerformNegativeIndicesModeTest(cldnn::engine& engine, const std::vector<float>& expected, bool is_mode_normalize) {
     const int64_t depth = 4;
     const int64_t axis = 4;
     const float on_value = 3.0f;
     const float off_value = 1.0f;
 
     std::vector<int32_t> indices = {0, -1, -2, 12, -3};
-    std::vector<float> expected = {
-        3.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 3.f, 1.f, 1.f, 3.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 3.f, 1.f, 1.f,
-    };
 
     auto input_layout = cldnn::layout({cldnn::data_types::i32, cldnn::format::bfyx, cldnn::tensor(1, 1, 5, 1)});
     auto input_mem = engine.allocate_memory(input_layout);
@@ -844,7 +839,15 @@ TEST(one_hot_gpu, negative_indices) {
 
     cldnn::topology topology;
     topology.add(cldnn::input_layout("input", input_layout));
-    topology.add(cldnn::one_hot("one_hot", input_info("input"), cldnn::tensor(1, 1, 4, 5, 1), cldnn::data_types::f32, axis, depth, on_value, off_value));
+    topology.add(cldnn::one_hot("one_hot",
+                                input_info("input"),
+                                cldnn::tensor(1, 1, 4, 5, 1),
+                                cldnn::data_types::f32,
+                                axis,
+                                depth,
+                                is_mode_normalize,
+                                on_value,
+                                off_value));
 
     cldnn::network network(engine, topology);
     network.set_input_data("input", input_mem);
@@ -855,6 +858,26 @@ TEST(one_hot_gpu, negative_indices) {
     for (size_t i = 0; i < expected.size(); ++i) {
         ASSERT_FLOAT_EQ(output_ptr[i], expected[i]) << "Mismatch at index " << i << ": expected " << expected[i] << ", got " << output_ptr[i] << std::endl;
     }
+}
+
+TEST(one_hot_gpu, negative_indices_mode_normalize) {
+    auto& engine = get_test_engine();
+
+    std::vector<float> expected = {
+        3.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 3.f, 1.f, 1.f, 3.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 3.f, 1.f, 1.f,
+    };
+
+    PerformNegativeIndicesModeTest(engine, expected, true);
+}
+
+TEST(one_hot_gpu, negative_indices_mode_ignore_negative) {
+    auto& engine = get_test_engine();
+
+    std::vector<float> expected = {
+        3.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f,
+    };
+
+    PerformNegativeIndicesModeTest(engine, expected, false);
 }
 
 TEST(one_hot_error, basic_error_wrong_axis) {

@@ -35,7 +35,7 @@ KERNEL(one_hot_ref)(const __global INPUT0_TYPE* input,
 
     // Put in the 1; ignore bad input values
     INPUT0_TYPE val = input[GET_COORDS_INDEX(INPUT0, in_coords)];
-    const INPUT0_TYPE mapped_index = (val < 0) ? (ONE_HOT_LIMIT + val) : val;
+    const INPUT0_TYPE mapped_index = (val < 0 && INDICES_NORMALIZE_MODE) ? (ONE_HOT_LIMIT + val) : val;
     if (mapped_index >= 0 && mapped_index < ONE_HOT_LIMIT) {
         out_coords[ONE_HOT_AXIS] = mapped_index;
         output[GET_COORDS_INDEX(OUTPUT, out_coords)] = TO_OUTPUT_TYPE(ON_VALUE);
