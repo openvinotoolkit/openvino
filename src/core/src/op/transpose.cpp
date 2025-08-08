@@ -45,6 +45,7 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
     OV_OP_SCOPE(v1_Transpose_evaluate);
     OPENVINO_ASSERT(outputs.size() == 1);
     OPENVINO_ASSERT(inputs.size() == 2);
+    std::cout << "!!!!Transpose weight!!!" << std::endl;
 
     const auto& order = inputs[ORDER];
     if (order.get_element_type().is_integral()) {
@@ -116,11 +117,15 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
             const auto dest_y = out_shape[1];
             const auto dest_x = out_shape[2];
             for (size_t b = 0; b < out_batch; ++b) {
-                size_t batch_off = dest_y * dest_x * b /2;
+                size_t batch_off = dest_y * dest_x * b;
+                uint8_t* out_batch_base = static_cast<uint8_t*>(out.data()) + batch_off/2;
+                uint8_t* in_batch_base = (static_cast<uint8_t*>(const_cast<void*>(arg.data()))) + batch_off/2;
+                auto out_ptr = int4_iterator(out_batch_base);
+                auto in_ptr = int4_iterator(in_batch_base);
                 for (size_t i = 0; i < dest_y; i++) {
                     size_t in_off = i;
                     for (size_t j = 0; j < dest_x; j++) {
-                        out_ptr.copy_from(in_ptr + batch_off + in_off);
+                        out_ptr.copy_from(in_ptr + in_off);
                         ++out_ptr;
                         in_off += dest_y;
                     }
