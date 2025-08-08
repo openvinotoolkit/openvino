@@ -225,6 +225,7 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Exp) ||
             (activation_type == utils::ActivationTypes::Floor) ||
             (activation_type == utils::ActivationTypes::GeluErf) ||
+            (activation_type == utils::ActivationTypes::GeluTanh) ||
             (activation_type == utils::ActivationTypes::HSigmoid) ||
             (activation_type == utils::ActivationTypes::HSwish) ||
             (activation_type == utils::ActivationTypes::Mish) ||
@@ -233,7 +234,8 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
             (activation_type == utils::ActivationTypes::Relu) ||
             (activation_type == utils::ActivationTypes::PReLu) ||
             (activation_type == utils::ActivationTypes::Sigmoid) ||
-            (activation_type == utils::ActivationTypes::Sqrt))
+            (activation_type == utils::ActivationTypes::Sqrt) ||
+            (activation_type == utils::ActivationTypes::Tanh))
             return "jit";
     }
 #if defined(OV_CPU_WITH_SHL)
