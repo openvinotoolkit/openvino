@@ -5,6 +5,7 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -40,18 +41,15 @@ public:
 };
 
 /**
- * @brief GridSampleDecomposition is a composite transformation that applies
- * the appropriate decomposition based on the interpolation mode.
+ * @brief GridSampleDecomposition is a composite transformation that registers
+ * all three GridSample decomposition passes (Nearest, Bilinear, Bicubic).
  * 
- * The decomposition follows these steps:
- * 1. Denormalize grid coordinates from [-1, 1] to pixel coordinates
- * 2. Find neighboring integer coordinates using Floor (for interpolation modes)
- * 3. Apply appropriate padding mode (zeros, border, reflection)
- * 4. Extract pixel values using GatherND
- * 5. Calculate interpolation weights (for bilinear/bicubic)
- * 6. Compute weighted sum to get final result
+ * This pass registers the following transformations:
+ * - GridSampleDecompositionNearest
+ * - GridSampleDecompositionBilinear  
+ * - GridSampleDecompositionBicubic
  */
-class GridSampleDecomposition : public ov::pass::MatcherPass {
+class GridSampleDecomposition : public ov::pass::GraphRewrite {
 public:
     OPENVINO_RTTI("GridSampleDecomposition", "0");
     GridSampleDecomposition();
