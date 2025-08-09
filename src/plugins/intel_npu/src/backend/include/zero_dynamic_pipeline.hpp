@@ -93,6 +93,10 @@ struct DynamicPipeline : public Pipeline {
                         _binding._inputs[arg_index]->strides[i] = 1;
                     }
                 }
+
+                // Need stride based on element but not byte
+                _binding._inputs[arg_index]->updateStride();
+
                 std::cout << "Updated to MemRefType: " << _binding._inputs[arg_index] << std::endl;
 
             } else {
@@ -121,6 +125,10 @@ struct DynamicPipeline : public Pipeline {
                             _binding._outputs[output_index]->strides[i] = 1;
                         }
                     }
+
+                    // Need stride based on element but not byte
+                    _binding._outputs[output_index]->updateStride();
+
                     std::cout << "Updated to MemRefType: " << _binding._outputs[output_index] << std::endl;
                 }
             }
