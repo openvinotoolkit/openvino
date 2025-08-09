@@ -705,14 +705,18 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     auto tokens_num_after_prefix_caching_opt = checkBlocksInCacheWithPrecedingHash(input_ids, BLOCK_SIZE);
     remaining_prompts = tokens_num_after_prefix_caching_opt;
     kvcache_desc.num_stored_tokens = static_cast<uint32_t>(input_prompt_len - remaining_prompts);
-    uint32_t hashed_block_id = 0;
     size_t prefix_hash = 0;
     size_t token_idx = 0;
-    bool restore_prefix_cache = tokens_num_after_prefix_caching_opt < input_prompt_len;
-    if (restore_prefix_cache && (tokens_num_after_prefix_caching_opt > chunk_prompt_len)) {
-        // TODO: Remove this and verify the case
-        OPENVINO_THROW("Unexpected tokens_num_after_prefix_caching_opt: ", tokens_num_after_prefix_caching_opt);
+    if (kvcache_desc.num_stored_tokens != 0) {
+        // Prefix caching
+        // Calculate prefix hash for token [0, kvcache_desc.num_stored_tokens - 1]
+        for (size_t i = 0; i < token_idx; ++i) {
+            const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + i * input_ids_elem_size;
+            prefix_hash = std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
+        }
+        token_idx = kvcache_desc.num_stored_tokens;
     }
+    bool restore_prefix_cache = tokens_num_after_prefix_caching_opt < input_prompt_len;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -835,12 +839,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                 auto block = std::make_shared<KVBlock>();
                 block->token_start = token_idx - block_size;
                 block->addBlock(token_hashes, kvcache_block);
-                hashed_block_id++;
-
-                std::cout << "[prefix caching]Got a full block, block id: " << hashed_block_id << " token_start:" << block->token_start << " block hash: " << block->block_hash << std::endl;
-                // printBlocKVCache(current_token_kv_cache);
 
                 m_prefix_cache->putBlock(block);
+                std::cout << "[prefix caching]Got a full block, block id: " << block->block_id << " token_start:" << block->token_start << " block hash: " << block->block_hash << std::endl;
+                // printBlocKVCache(current_token_kv_cache);
             }
         }
 
