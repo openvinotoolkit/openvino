@@ -591,8 +591,27 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     }
 }
 
+std::vector<size_t> calculateHashes(const ov::SoPtr<ov::ITensor>& input_ids) {
+    const char* data = reinterpret_cast<const char*>(input_ids->data());
+    const auto data_elem_size = input_ids->get_element_type().size();
+    size_t total_size = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+
+    std::vector<size_t> prompt_hashes(total_size);
+
+    size_t prefix_hash = 0;
+    for (size_t i = 0; i < total_size; ++i) {
+        const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + i * data_elem_size;
+        size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, data_elem_size));
+        prefix_hash = prefix_hash * 31 + token_hash;
+        prompt_hashes[i] = prefix_hash;
+    }
+
+    return prompt_hashes;
+}
+
 uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids,
-                                                                        size_t block_size) {
+                                                                        size_t block_size,
+                                                                        const std::vector<size_t>& prompt_hashes) {
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
     const char* data = reinterpret_cast<const char*>(input_ids->data());
@@ -602,20 +621,12 @@ uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov
 
     uint64_t orig_token_num = total_size;
     uint64_t cached_token_num = 0;
-    size_t prefix_hash = 0;
     size_t token_idx = 0;
     for (size_t block_index = 0; block_index < num_blocks; ++block_index) {
-        size_t block_start = block_index * block_size;
-        size_t current_block_size = std::min(block_size, total_size - block_start);  // Handle last block size
-
-        // 1. 计算整个 block 的哈希（使用滚动哈希）
         std::vector<size_t> token_hashes(block_size);
         {
             for (size_t i = 0; i < block_size; ++i) {
-                const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + token_idx * data_elem_size;
-                size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, data_elem_size));
-                prefix_hash = prefix_hash * 31 + token_hash;  // 滚动哈希
-                token_hashes[i] = prefix_hash;
+                token_hashes[i] = prompt_hashes[token_idx];
                 // std::cout << "[match cache]token_idx: " << token_idx << " token_hash: " << token_hashes[i] <<
                 // std::endl;
                 token_idx++;
@@ -685,23 +696,13 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
     uint64_t remaining_prompts = input_prompt_len;
-    auto tokens_num_after_prefix_caching_opt = checkBlocksInCacheWithPrecedingHash(input_ids, BLOCK_SIZE);
+
+    auto prompt_hashes = calculateHashes(input_ids);
+    auto tokens_num_after_prefix_caching_opt =
+        checkBlocksInCacheWithPrecedingHash(input_ids, BLOCK_SIZE, prompt_hashes);
     remaining_prompts = tokens_num_after_prefix_caching_opt;
     kvcache_desc.num_stored_tokens = static_cast<uint32_t>(input_prompt_len - remaining_prompts);
-    size_t prefix_hash = 0;
-    size_t token_idx = 0;
-    if (kvcache_desc.num_stored_tokens != 0) {
-        // Prefix caching
-        // Calculate prefix hash for token [0, kvcache_desc.num_stored_tokens - 1]
-        for (size_t i = 0; i < kvcache_desc.num_stored_tokens; ++i) {
-            const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + i * input_ids_elem_size;
-            auto token_hash = std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
-            prefix_hash = prefix_hash * 31 + token_hash;
-        }
-        token_idx = kvcache_desc.num_stored_tokens;
-
-        // std::cout << "[Prefix init]token_idx: " << token_idx << " prefix_hash: " << prefix_hash << std::endl;
-    }
+    size_t token_idx = kvcache_desc.num_stored_tokens;
     bool restore_prefix_cache = tokens_num_after_prefix_caching_opt < input_prompt_len;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
@@ -782,12 +783,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                 std::vector<size_t> token_hashes(block_size);
                 {
                     for (size_t i = 0; i < block_size; ++i) {
-                        const char* token_data =
-                            reinterpret_cast<const char*>(input_ids->data()) + token_idx * input_ids_elem_size;
-                        size_t token_hash =
-                            std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
-                        prefix_hash = prefix_hash * 31 + token_hash;  // 滚动哈希
-                        token_hashes[i] = prefix_hash;
+                        token_hashes[i] = prompt_hashes[token_idx];
                         // std::cout << "[prefix caching]token_idx: " << token_idx << " token_hash: " << token_hashes[i]
                         // << std::endl;
                         token_idx++;
