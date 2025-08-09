@@ -104,7 +104,6 @@ protected:
     bool evaluate_once = false;
     bool are_ptr_increments_dynamic = false;
     bool are_final_offsets_dynamic = false;
-    bool are_ptr_shifts_dynamic = false;
 };
 
 /* ============================================================== */

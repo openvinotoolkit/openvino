@@ -27,6 +27,7 @@ public:
     jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                             dnnl::impl::cpu::x64::cpu_isa_t isa,
                             std::set<snippets::Reg> live_regs);
+
     // Note: we need at least one register to allocate a gpr to store the callable address
     size_t aux_gprs_count() const override {
         return 1;
