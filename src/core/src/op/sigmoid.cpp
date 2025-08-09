@@ -61,6 +61,7 @@ bool Sigmoid::has_evaluate() const {
     switch (get_input_element_type(0)) {
     case element::f16:
     case element::f32:
+    case element::f64:
     case element::i32:
     case element::i64:
     case element::u32:
