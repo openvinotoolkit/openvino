@@ -182,6 +182,10 @@ Context::PPtr Context::host_gather_unpack_quant(const Context::PPtr& ids,
     return new_param;
 }
 
+bool Context::found_host_gather_quant() const {
+    return params_to_quant_gather_unpack.has_value();
+}
+
 namespace opp = ov::pass::pattern;
 namespace uat = ov::npuw::util::at;
 
@@ -1355,13 +1359,14 @@ DQUnpackDictGatherGQi::DQUnpackDictGatherGQi(Context::Ref ctx) {
 // compile-time converts asymmetric MM to fp16, do the same thing here
 // Overall it's a combination of DQUnpackDictGather and HostGather
 // but we do unpack and gather in the runtime.
-HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
+template <typename WType>
+HostGatherQuantAsymm<WType>::HostGatherQuantAsymm(Context::Ref ctx, bool verify_only) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
-    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qzerop = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qweight = opp::wrap_type<WType>();
+    auto qzerop = opp::wrap_type<WType>();
+    auto qcoeff = opp::wrap_type<WType>();
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
     auto qgthrz = opp::wrap_type<ov::op::v8::Gather>({qzerop, cvtids, opp::any_input()});
     auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, cvtids, opp::any_input()});
@@ -1395,6 +1400,11 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
 
         if (out_len >= 2048 && (matched_out_mul.get_target_inputs().size() > 1 ||
                                 ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_mul)))) {
+            if (verify_only) {
+                // No transformations needed, just set dummy QuantizedGather
+                ctx.get().params_to_quant_gather_unpack = Context::QuantizedGather{};
+                return false;  // root hasn't changed
+            }
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
@@ -1424,16 +1434,20 @@ HostGatherQuantAsymm::HostGatherQuantAsymm(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qcvtm, "HostGatherQuantAsymm"), std::move(callback));
 }
 
+template class HostGatherQuantAsymm<ov::op::v0::Parameter>;
+template class HostGatherQuantAsymm<ov::op::v0::Constant>;
+
 // This is a follow-up to DQLiftGatherSymGQ step, which happens if the respective
 // block (mainly, a head) was turned a function (e.g. with FUNCALL_FOR_ALL)
 // Overall it's a combination of DQUnpackDictGatherGQi and HostGatherDQ
 // but we do unpack and gather in the runtime.
-HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
+template <typename WType>
+HostGatherQuantSymm<WType>::HostGatherQuantSymm(Context::Ref ctx, bool verify_only) {
     auto pids = opp::wrap_type<ov::op::v0::Parameter>();
     auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
 
-    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qcoeff = opp::wrap_type<ov::op::v0::Parameter>();
+    auto qweight = opp::wrap_type<WType>();
+    auto qcoeff = opp::wrap_type<WType>();
     auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
     auto qgthrs = opp::wrap_type<ov::op::v8::Gather>({qcoeff, cvtids, opp::any_input()});
 
@@ -1473,6 +1487,11 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
              qweight_type == ov::element::f8e8m0) &&
             (matched_out_reshape.get_target_inputs().size() > 1 ||
              ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_reshape)))) {
+            if (verify_only) {
+                // No transformations needed, just set dummy QuantizedGather
+                ctx.get().params_to_quant_gather_unpack = Context::QuantizedGather{};
+                return false;  // root hasn't changed
+            }
             auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
             auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
             auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
@@ -1499,59 +1518,8 @@ HostGatherQuantSymm::HostGatherQuantSymm(Context::Ref ctx) {
     register_matcher(std::make_shared<opp::Matcher>(qcvtm, "HostGatherQuantSymm"), std::move(callback));
 }
 
-// Overall it's a combination of DQUnpackDictGather and HostGather
-// but we do unpack and gather in the runtime.
-HostGatherQuant::HostGatherQuant(Context::Ref ctx) {
-    auto pids = opp::wrap_type<ov::op::v0::Parameter>();
-    auto cvtids = opp::optional<ov::op::v0::Convert>({pids->output(0)});
-
-    auto qweight = opp::wrap_type<ov::op::v0::Parameter>();
-    auto qgthrw = opp::wrap_type<ov::op::v8::Gather>({qweight, cvtids, opp::any_input()});
-
-    auto callback = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
-        auto out_shape = node_to_output.at(qgthrw).get_shape();
-        auto& matched_out_qweight = node_to_output.at(qweight);
-        auto qweight_type = matched_out_qweight.get_element_type();
-
-        const auto& matched_out_gather = node_to_output.at(qgthrw);
-
-        auto sole_reader = [](ov::Output<ov::Node> out) {
-            const auto readers = out.get_target_inputs();
-            NPUW_ASSERT(readers.size() >= 1);
-            return readers.begin()->get_node();
-        };
-
-        if (out_shape.back() >= 2048 && (matched_out_gather.get_target_inputs().size() > 1 ||
-                                         ov::is_type<ov::op::v0::Convert>(sole_reader(matched_out_gather)))) {
-            auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
-            auto matched_node_ids = node_to_output.at(pids).get_node_shared_ptr();
-            const auto& matched_out_gthr = node_to_output.at(qgthrw);
-            auto matched_qweight = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_qweight);
-            auto matched_ids = std::static_pointer_cast<ov::op::v0::Parameter>(matched_node_ids);
-
-            if (qweight_type == ov::element::f32) {
-                ctx.get().to_f16(matched_qweight);
-            }
-
-            auto new_param =
-                ctx.get().host_gather_unpack_quant(matched_ids, matched_qweight, nullptr, nullptr, ov::element::f16);
-            std::shared_ptr<ov::Node> new_cvt;
-            if (qweight_type == ov::element::f16) {
-                new_cvt = new_param;
-            } else {
-                new_cvt = std::make_shared<ov::op::v0::Convert>(new_param, ov::element::f32);
-            }
-            NPUW_ASSERT(new_cvt);
-            for (auto&& r : matched_out_gthr.get_target_inputs()) {
-                r.replace_source_output(new_cvt);
-            }
-            return true;  // root has changed
-        }
-        return false;  // root hasn't changed
-    };
-    register_matcher(std::make_shared<opp::Matcher>(qgthrw, "HostGatherQuant"), std::move(callback));
-}
+template class HostGatherQuantSymm<ov::op::v0::Parameter>;
+template class HostGatherQuantSymm<ov::op::v0::Constant>;
 
 // Identify the case* where the FP16/32 vocab tensor is gathered with
 // input_ids and the embedding size is high. In this case, substitute
@@ -1949,7 +1917,7 @@ CompressDictMatMulf32::CompressDictMatMulf32(Context::Ref ctx) {
 //     Const(S) ---------------------> Multiply -> to(f32) -> MatMul -> Result
 //     ???(Act) -------------------------------------------->
 
-PreserveConstDictMatMulCWu::PreserveConstDictMatMulCWu(PreserveConstDictMatMulCWu::Results to_keep) {
+PreserveConstDictMatMulAsymm::PreserveConstDictMatMulAsymm(PreserveConstDictMatMulAsymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qzerop = opp::wrap_type<ov::op::v0::Constant>();
@@ -1968,10 +1936,7 @@ PreserveConstDictMatMulCWu::PreserveConstDictMatMulCWu(PreserveConstDictMatMulCW
 
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
         auto matched_node_qzerop = node_to_output.at(qzerop).get_node_shared_ptr();
-        auto matched_node_cvtz = node_to_output.at(qcvtz).get_node_shared_ptr();
-        auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
-        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
@@ -1986,19 +1951,18 @@ PreserveConstDictMatMulCWu::PreserveConstDictMatMulCWu(PreserveConstDictMatMulCW
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qzerop);
             to_keep.get().push_back(matched_qcoeff);
-
             return false;  // root hasn't changed
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulCWu"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulAsymm"), std::move(callback));
 }
 
 //     Const(W) ---> to(f16) --->
 //     Const(S) ----------------> Multiply -> MatMul -> Result
 //     ???(Act) ---------------------------->
 
-PreserveConstDictMatMulCWf8::PreserveConstDictMatMulCWf8(PreserveConstDictMatMulCWf8::Results to_keep) {
+PreserveConstDictMatMulSymm::PreserveConstDictMatMulSymm(PreserveConstDictMatMulSymm::Results to_keep) {
     auto qweight = opp::wrap_type<ov::op::v0::Constant>();
     auto qcoeff = opp::wrap_type<ov::op::v0::Constant>();
     auto qcvtw = opp::wrap_type<ov::op::v0::Convert>({qweight});
@@ -2012,10 +1976,8 @@ PreserveConstDictMatMulCWf8::PreserveConstDictMatMulCWf8(PreserveConstDictMatMul
         auto& node_to_output = m.get_pattern_value_map();
 
         auto matched_node_qweight = node_to_output.at(qweight).get_node_shared_ptr();
-        auto matched_node_cvtw = node_to_output.at(qcvtw).get_node_shared_ptr();
         auto matched_node_qcoeff = node_to_output.at(qcoeff).get_node_shared_ptr();
         auto matched_node_matmul = node_to_output.at(qmm).get_node_shared_ptr();
-        auto matched_node_qmuls = node_to_output.at(qmuls).get_node_shared_ptr();
 
         auto matched_qweight = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qweight);
         auto matched_qcoeff = std::static_pointer_cast<ov::op::v0::Constant>(matched_node_qcoeff);
@@ -2029,12 +1991,11 @@ PreserveConstDictMatMulCWf8::PreserveConstDictMatMulCWf8(PreserveConstDictMatMul
             qcoeff_shape[1] == 1 && !matched_matmul->get_transpose_a() && matched_matmul->get_transpose_b()) {
             to_keep.get().push_back(matched_qweight);
             to_keep.get().push_back(matched_qcoeff);
-
             return false;  // root hasn't changed
         }
         return false;  // root hasn't changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulCWf8"), std::move(callback));
+    register_matcher(std::make_shared<opp::Matcher>(qres, "OptPreserveConstDictMatMulSymm"), std::move(callback));
 }
 
 SliceLastMatmul::SliceLastMatmul() {
