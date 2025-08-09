@@ -25,6 +25,11 @@ public:
         uint32_t num_stored_tokens = 0u;
         uint32_t dim = 0u;
         bool v_tensors_transposed = false;
+        // TODO: As of now KV-cache blocks that are converted from states to
+        // model's I/O are appended to original model's I/O at the end,
+        // thus it is safe to loop over KVCache I/O blocks just using some
+        // start offsets.
+        std::size_t start_idx_in_outputs = 0u;
     };
 
     LLMCompiledModel(const std::shared_ptr<ov::Model>& model,

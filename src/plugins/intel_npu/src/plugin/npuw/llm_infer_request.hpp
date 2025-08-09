@@ -10,6 +10,22 @@
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
+template <>
+struct std::hash<ov::Output<const ov::Node>> {
+    std::size_t operator()(const ov::Output<const ov::Node>& port) const {
+        using std::hash;
+        using std::size_t;
+        using std::string;
+
+        // Compute individual hash values for first,
+        // second and third and combine them using XOR
+        // and bit shifting:
+
+        return ((hash<std::size_t>()(port.get_index()) ^ (hash<const ov::Node*>()(port.get_node()) << 1)) >> 1) ^
+               (hash<std::string>()(port.get_any_name()) << 1);
+    }
+};
+
 namespace ov {
 namespace npuw {
 
@@ -60,6 +76,8 @@ private:
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids);
 
+    void update_out_tensors_from(std::shared_ptr<ov::IAsyncInferRequest> request);
+
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids);
@@ -73,16 +91,15 @@ private:
     // This infer request is optional, so can be null.
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
-    ov::SoPtr<ov::ITensor> m_logits;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_kvcache_out_ports;
-    ov::Output<const ov::Node> m_lm_head_logits_port;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
+    std::unordered_map<ov::Output<const ov::Node>, ov::SoPtr<ov::ITensor>> m_out_tensors;
 
     bool m_generate_initialized = false;
 };
