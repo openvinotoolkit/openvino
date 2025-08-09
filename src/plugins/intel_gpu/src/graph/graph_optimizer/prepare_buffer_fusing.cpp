@@ -251,6 +251,11 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         } else {
             if (concat_out_l.batch() > 1)
                 return false;
+            const auto& dims_order = concat_out_l.format.dims_order();
+            for (auto dim : dims_order) {
+                if (dim == 0) continue;
+                return dim == 1;
+            }
         }
     }
     return true;
