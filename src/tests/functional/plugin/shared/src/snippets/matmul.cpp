@@ -5,6 +5,7 @@
 #include "snippets/matmul.hpp"
 
 #include "common_test_utils/common_utils.hpp"
+#include <common_test_utils/ov_tensor_utils.hpp>
 #include "functional_test_utils/skip_tests_config.hpp"
 #include "subgraph_matmul.hpp"
 
@@ -45,6 +46,25 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
     }
     return result.str();
 }
+
+void MatMulBase::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    const auto& model_inputs = function->inputs();
+
+    for (int i = 0; i < model_inputs.size(); ++i) {
+        const auto& model_input = model_inputs[i];
+        ov::Tensor tensor;
+        ov::test::utils::InputGenerateData in_data;
+        // To avoid big relative errors in the vicinity of zero, only positive values are generated for bf16 precision
+        in_data.start_from = model_input.get_element_type() == ov::element::bf16 ? 0 : -1;
+        in_data.range = 2;
+        in_data.resolution = 256;
+        tensor =
+            ov::test::utils::create_and_fill_tensor(model_input.get_element_type(), targetInputStaticShapes[i], in_data);
+        inputs.insert({model_input.get_node_shared_ptr(), tensor});
+    }
+}
+
 
 void MatMul::SetUp() {
     const auto& [input_shapes,
