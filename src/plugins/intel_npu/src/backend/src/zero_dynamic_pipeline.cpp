@@ -128,7 +128,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             //     static_cast<unsigned char*>(data) +
             //         (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
 
-            std::cout << desc.idx << std::endl;
+            std::cout << " update tensor property for input desc index:" << desc.idx << std::endl;
             irGraph->set_argument_property(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
@@ -154,7 +154,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             //     static_cast<unsigned char*>(data) +
             //         (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
 
-            std::cout << desc.idx << std::endl;
+            std::cout << " update tensor property for output desc index:" << std::endl;
             irGraph->set_argument_property(
                 desc.idx,
                 static_cast<unsigned char*>(data) +

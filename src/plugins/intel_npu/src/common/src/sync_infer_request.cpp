@@ -349,27 +349,31 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
         tensor = create_tensor(descriptor.precision, allocatedTensorShape, allocator);
     }
 
+    std::cout << "Tensor info after allocate_tensor() : " << std::endl;
+    std::cout << "shape: " << tensor->get_shape().to_string() << " strides: " << tensor->get_strides()
+              << " element type:" << tensor->get_element_type() << std::endl;
+
     if (isInput) {
         if (get_user_input(index) == nullptr) {
             get_user_input(index) = tensor;
         }
-#ifdef NPU_LLVM_BACKEND
-        else {
-            auto& userInput = get_user_input(index);
-            if (get_user_inputs(index).size() > 1) {
-                // Batch is used. the shape of user input buffer shall be the real shape
-                // TODO: check
-            }
-            std::cout << "userInput size: " << userInput->get_byte_size()
-                      << " L0 tensor size: " << tensor->get_byte_size() << std::endl;
-            if (userInput->get_byte_size() > tensor->get_byte_size()) {
-                std::cout << "ERROR: userInput size is larger than allocated L0 tensor size" << std::endl;
-            }
-            std::cout << "L0 tensor shape change from " << tensor->get_shape().to_string() << " to "
-                      << userInput->get_shape().to_string() << std::endl;
-            tensor->set_shape(userInput->get_shape());
-        }
-#endif
+        // #ifdef NPU_LLVM_BACKEND
+        //         else {
+        //             auto& userInput = get_user_input(index);
+        //             if (get_user_inputs(index).size() > 1) {
+        //                 // Batch is used. the shape of user input buffer shall be the real shape
+        //                 // TODO: check
+        //             }
+        //             std::cout << "userInput size: " << userInput->get_byte_size()
+        //                       << " L0 tensor size: " << tensor->get_byte_size() << std::endl;
+        //             if (userInput->get_byte_size() > tensor->get_byte_size()) {
+        //                 std::cout << "ERROR: userInput size is larger than allocated L0 tensor size" << std::endl;
+        //             }
+        //             std::cout << "L0 tensor shape change from " << tensor->get_shape().to_string() << " to "
+        //                       << userInput->get_shape().to_string() << std::endl;
+        //             tensor->set_shape(userInput->get_shape());
+        //         }
+        // #endif
 
         if (descriptor.isStateInput) {
             add_state(descriptor, index);
@@ -378,19 +382,19 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
         if (_userOutputTensors.at(index) == nullptr) {
             _userOutputTensors.at(index) = tensor;
         }
-#ifdef NPU_LLVM_BACKEND
-        else {
-            auto& userOutput = _userOutputTensors.at(index);
-            std::cout << "userOutput size: " << userOutput->get_byte_size()
-                      << " L0 tensor size: " << tensor->get_byte_size() << std::endl;
-            if (userOutput->get_byte_size() > tensor->get_byte_size()) {
-                std::cout << "ERROR: userOutput size is larger than allocated L0 tensor size" << std::endl;
-            }
-            std::cout << "L0 tensor shape change from " << tensor->get_shape().to_string() << " to "
-                      << userOutput->get_shape().to_string() << std::endl;
-            tensor->set_shape(userOutput->get_shape());
-        }
-#endif
+        // #ifdef NPU_LLVM_BACKEND
+        //         else {
+        //             auto& userOutput = _userOutputTensors.at(index);
+        //             std::cout << "userOutput size: " << userOutput->get_byte_size()
+        //                       << " L0 tensor size: " << tensor->get_byte_size() << std::endl;
+        //             if (userOutput->get_byte_size() > tensor->get_byte_size()) {
+        //                 std::cout << "ERROR: userOutput size is larger than allocated L0 tensor size" << std::endl;
+        //             }
+        //             std::cout << "L0 tensor shape change from " << tensor->get_shape().to_string() << " to "
+        //                       << userOutput->get_shape().to_string() << std::endl;
+        //             tensor->set_shape(userOutput->get_shape());
+        //         }
+        // #endif
     }
 
     return tensor;
