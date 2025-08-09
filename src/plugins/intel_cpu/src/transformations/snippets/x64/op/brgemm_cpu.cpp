@@ -30,6 +30,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
@@ -165,7 +166,7 @@ size_t BrgemmCPU::get_offset_scratch() const {
 }
 
 bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
-    Brgemm::visit_attributes(visitor);
+    MemoryAccess::visit_attributes(visitor);
     auto config = m_config;
     visitor.on_attribute("BrgemmConfig", config);
     m_post_ops_config.visit_attributes(visitor);

@@ -36,7 +36,6 @@ public:
         return get_input_offset(0);
     }
 
-    bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
     void validate_and_infer_types() override;
     const ov::Dimension& get_bcast_dimension() {

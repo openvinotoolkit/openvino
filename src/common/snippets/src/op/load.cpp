@@ -46,10 +46,6 @@ void Load::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-bool Load::visit_attributes(AttributeVisitor& visitor) {
-    return MemoryAccess::visit_attributes(visitor);
-}
-
 std::shared_ptr<Node> Load::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(Load);
     check_new_args_count(this, new_args);
