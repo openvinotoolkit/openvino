@@ -219,8 +219,8 @@ public:
         auto prog = network->get_program();
         ASSERT_NE(prog, nullptr);
 
-        ASSERT_TRUE(check_subgraph(prog->get_node("read_value_1"), *prog, {"transpose_k_proj", "reshape_k_proj", "fc_k_proj", "convert_k_proj"}));
-        ASSERT_TRUE(check_subgraph(prog->get_node("read_value_2"), *prog, {"transpose_v_proj", "reshape_v_proj", "fc_v_proj", "convert_v_proj", "add_data"}));
+        ASSERT_TRUE(check_subgraph(prog->get_node("read_value_1"), *prog, {"transpose_k_proj", "reshape_k_proj", "fc_k_proj", "convert_k_proj_weights_reorder_1"}));
+        ASSERT_TRUE(check_subgraph(prog->get_node("read_value_2"), *prog, {"transpose_v_proj", "reshape_v_proj", "fc_v_proj", "convert_v_proj_weights_reorder_0", "add_data"}));
     }
 };
 
