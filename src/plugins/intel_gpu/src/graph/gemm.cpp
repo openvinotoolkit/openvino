@@ -215,7 +215,7 @@ std::vector<layout> gemm_inst::transform_input_layouts(const std::shared_ptr<con
     auto input0_pshape = input_layouts[0].get_partial_shape();
     auto input1_pshape = input_layouts[1].get_partial_shape();
 
-    bool reordered = primitive->input_rank > 4 || primitive->weight_rank > 4;
+    bool reordered = primitive->input_rank > 4 && primitive->weight_rank > 4;
     size_t output_rank = std::max(primitive->input_rank, primitive->weight_rank);
 
     size_t input_format_rank = input_layouts[0].get_rank();
@@ -260,7 +260,8 @@ layout gemm_inst::transform_output_layout(const std::shared_ptr<const gemm> prim
 
     auto updated_output_layout = output_layout;
     auto output_rank = output_layout.get_partial_shape().size();
-    if (output_rank < 4) {
+    bool reordered = (primitive->input_rank != output_rank) || (primitive->weight_rank != output_rank);
+    if (output_rank < 4 || reordered) {
         ov::PartialShape transposed_input0_pshape = transpose_pshape(input_layouts[0].get_partial_shape(), primitive->input0_transpose_order);
         ov::PartialShape transposed_input1_pshape = transpose_pshape(input_layouts[1].get_partial_shape(), primitive->input1_transpose_order);
 
