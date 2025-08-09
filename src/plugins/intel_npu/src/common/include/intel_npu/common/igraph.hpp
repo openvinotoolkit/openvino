@@ -55,6 +55,9 @@ public:
 
     const NetworkMetadata& get_metadata() const;
     virtual ze_graph_handle_t get_handle() const = 0;
+    virtual bool use_dynamic_pipeline() {
+        return false;
+    }
 
     void update_network_name(std::string_view name);
 

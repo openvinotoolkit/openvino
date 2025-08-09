@@ -71,6 +71,7 @@ struct DynamicPipeline : public Pipeline {
                                       const ov::Strides& strides,
                                       const ov::Shape& shapes) {
             if (arg_index < _binding._inputs.size()) {
+                std::cout << "Orig tensor MemType:" << _binding._inputs[arg_index] << std::endl;
                 _binding._inputs[arg_index]->setArg(arg_value);
                 // Now MemRefType only support 4 dimension
                 size_t shapesSize = shapes.size();
@@ -92,10 +93,12 @@ struct DynamicPipeline : public Pipeline {
                         _binding._inputs[arg_index]->strides[i] = 1;
                     }
                 }
+                std::cout << "Updated to MemRefType: " << _binding._inputs[arg_index] << std::endl;
 
             } else {
                 uint32_t output_index = arg_index - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
+                    std::cout << "Orig output tensor MemType:" << _binding._outputs[output_index] << std::endl;
                     _binding._outputs[output_index]->setArg(arg_value);
 
                     // Now MemRefType only support 4 dimension
@@ -118,6 +121,7 @@ struct DynamicPipeline : public Pipeline {
                             _binding._outputs[output_index]->strides[i] = 1;
                         }
                     }
+                    std::cout << "Updated to MemRefType: " << _binding._outputs[output_index] << std::endl;
                 }
             }
         }

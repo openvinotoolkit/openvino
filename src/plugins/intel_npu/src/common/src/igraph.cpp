@@ -213,6 +213,11 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata,
         return std::nullopt;
     }
 
+    if (use_dynamic_pipeline()) {
+        _logger.debug("Not support batch for dynamic pipeline now, return nullptr");
+        return std::nullopt;
+    }
+
     const ov::PartialShape& firstOutputShape = *metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape.is_dynamic()) {
         _logger.debug(
