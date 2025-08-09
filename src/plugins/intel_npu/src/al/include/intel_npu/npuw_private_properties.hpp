@@ -433,6 +433,14 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
 
 /**
  * @brief
+ * Type: uint32_t.
+ * Desirable max LoRA rank.
+ * Default value: 32.
+ */
+static constexpr ov::Property<uint32_t> max_lora_rank{"NPUW_LLM_MAX_LORA_RANK"};
+
+/**
+ * @brief
  * FIXME: Should be removed.
  * Type: bool.
  * Tell NPUW to apply values transpose optimization for the model.
