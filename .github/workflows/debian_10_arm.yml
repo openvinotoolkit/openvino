@@ -54,7 +54,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-8gb-arm-docker-build
+    runs-on: aks-linux-4-cores-8gb-arm-docker-build-staging
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -88,7 +88,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb-arm'
+      runner: 'aks-linux-16-cores-32gb-arm-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.debian_10_arm }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
@@ -119,7 +119,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_cxx_unit_tests.yml
     with:
-      runner: 'aks-linux-8-cores-16gb-arm'
+      runner: 'aks-linux-8-cores-16gb-arm-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       os: 'debian_10'
@@ -132,7 +132,7 @@ jobs:
     with:
       # Additional investigation needed why CPU functional tests are failing on v6 VM size's version,
       # so leave it as it is for now
-      runner: 'aks-linux-16-cores-arm'
+      runner: 'aks-linux-16-cores-arm-staging'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.debian_10_arm }}
       python-version: '3.7'
       scope: ${{ github.event_name == 'workflow_dispatch' && 'nightly' || 'smoke' }}
