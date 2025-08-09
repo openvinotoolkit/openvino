@@ -9,137 +9,8 @@
 #include "llm_compiled_model.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "util_xarch.hpp"
-
+#include "util_infer_request.hpp"
 namespace {
-
-template <typename T>
-void fill_tensor(ov::SoPtr<ov::ITensor> tensor, T fill_val, size_t offset = 0u) {
-    T* tensor_data = tensor->data<T>();
-    std::fill(tensor_data + offset, tensor_data + tensor->get_size(), fill_val);
-}
-
-void fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
-    auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
-    std::fill_n(tensor_data, tensor->get_byte_size(), fill_val);
-}
-
-ov::SoPtr<ov::ITensor> make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
-                                         uint32_t dim,
-                                         uint32_t start_pos,
-                                         uint32_t end_pos) {
-    ov::Shape start_shape(std::vector<size_t>(tensor->get_shape().size(), 0u));
-    start_shape[dim] = start_pos;
-    ov::Shape end_shape = tensor->get_shape();
-    end_shape[dim] = end_pos;
-    return ov::get_tensor_impl(ov::Tensor(ov::make_tensor(tensor), start_shape, end_shape));
-}
-
-void copy_by_planes(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor) {
-    // [1, H, S1, E] -> [1, H, S2, E]
-    const int N = 0;
-    const int H = 1;
-    const int S = 2;
-    const int E = 3;
-
-    OPENVINO_ASSERT(src_tensor->get_shape()[N] == dst_tensor->get_shape()[N]);
-    OPENVINO_ASSERT(src_tensor->get_shape()[H] == dst_tensor->get_shape()[H]);
-    OPENVINO_ASSERT(src_tensor->get_shape()[E] == dst_tensor->get_shape()[E]);
-    OPENVINO_ASSERT(src_tensor->get_element_type() == dst_tensor->get_element_type());
-    OPENVINO_ASSERT(src_tensor->get_shape()[N] == 1u);
-    OPENVINO_ASSERT(src_tensor->get_shape().size() == 4u);
-
-    const auto* src_tensor_data = reinterpret_cast<uint8_t*>(src_tensor->data());
-    auto* dst_tensor_data = reinterpret_cast<uint8_t*>(dst_tensor->data());
-
-    const auto num_planes = src_tensor->get_shape()[H];
-    const auto src_plane_stride = src_tensor->get_strides()[H];
-    const auto dst_plane_stride = dst_tensor->get_strides()[H];
-    const auto plane_size_in_bytes = src_tensor->get_strides()[S] * src_tensor->get_shape()[S];
-
-    for (size_t i = 0; i < num_planes; ++i) {
-        std::copy_n(src_tensor_data, plane_size_in_bytes, dst_tensor_data);
-        dst_tensor_data += dst_plane_stride;
-        src_tensor_data += src_plane_stride;
-    }
-}
-
-void copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::SoPtr<ov::ITensor>& dst) {
-    /*
-      src/dst layout: [1, heads, emb_size, seq_len]
-
-      X[*,i] - embedding for i-th token,
-      Instead of copy columns, copy rows X[i,*]
-
-      [[X00 X01 ... X0n]      [[X00 X01 ... X0n]
-       [X10 X11 ... X1n]       [X10 X11 ... X1n]
-       [X20 X21 ... X2n]  ...  [X20 X21 ... X2n]
-             ...                     ...
-       [Xm0 Xm1 ... Xmn]]      [Xm0 Xm1 ... Xmn]]
-    */
-
-    const auto& src_shape = src->get_shape();
-
-    OPENVINO_ASSERT(src_shape.size() == 4u);
-    OPENVINO_ASSERT(src_shape == dst->get_shape());
-    OPENVINO_ASSERT(src->get_byte_size() == dst->get_byte_size());
-
-    const auto& src_strides = src->get_strides();
-    const auto& dst_strides = dst->get_strides();
-    const auto elem_size = src->get_byte_size() / src->get_size();
-
-    const auto C = src_shape[1];
-    const auto H = src_shape[2];
-    const auto W = src_shape[3];
-
-    const auto IS_H = src_strides[2];
-    const auto OS_H = dst_strides[2];
-
-    const size_t chunk_byte_size = W * elem_size;
-
-    const auto* src_p = static_cast<uint8_t*>(src->data());
-    auto* dst_p = static_cast<uint8_t*>(dst->data());
-
-    for (size_t i = 0; i < C * H; ++i) {
-        const size_t src_offset = i * IS_H;
-        const size_t dst_offset = i * OS_H;
-        std::copy_n(src_p + src_offset, chunk_byte_size, dst_p + dst_offset);
-    }
-}
-
-void copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim) {
-    if (kv_dim == 3u) {
-        // Asserting that we work with last dimenston here:
-        const auto& src_shape = src_tensor->get_shape();
-        OPENVINO_ASSERT(src_shape.size() == 4);
-        // If last dimenstion of src_tensor is equal to 1, then we can squeeze
-        // src_shape from [1, heads, d_v, seq_len=1] to [heads, d_v].
-        // We can then treat src_tensor as a continuous tensor of row value vectors
-        // for multiple heads, while dst_tensor will still have [1, heads, d_v, seq_len!=1],
-        // shape, awaiting updates at column dimension, as value vectors are columns now.
-        if (src_shape[kv_dim] == 1 && src_tensor->is_continuous()) {
-            ov::npuw::util::XARCH::copy_row_as_column(src_tensor, dst_tensor);
-        } else {
-            copy_columns_by_row_chunks(src_tensor, dst_tensor);
-        }
-    } else if (kv_dim == 2u) {
-        copy_by_planes(src_tensor, dst_tensor);
-    } else {
-        src_tensor->copy_to(dst_tensor._ptr);
-    }
-}
-
-std::optional<ov::Output<const ov::Node>> find_port_by_name(const std::vector<ov::Output<const ov::Node>>& ports,
-                                                            const std::string& name) {
-    auto it = std::find_if(ports.begin(), ports.end(), [&](const auto& port) {
-        return port.get_names().count(name) != 0;
-    });
-    if (it == ports.end()) {
-        return std::nullopt;
-    }
-    return std::make_optional(*it);
-}
-
 void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const ov::SoPtr<ov::ITensor>& position_ids) {
     // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni uses 3D position_ids [3, BATCH, SEQ_LEN]
     // The first dimension (3) represents the three components of position encoding: time, height, and width
@@ -194,12 +65,12 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         init_tensor(output_port);
     }
 
-    auto input_ids_port = find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::input_ids);
+    auto input_ids_port = ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::input_ids);
     if (input_ids_port.has_value()) {
         m_input_ids_name = layer_names::input_ids;
     } else {
         OPENVINO_ASSERT(
-            find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::inputs_embeds).has_value());
+            ov::npuw::util::find_port_by_name(compiled_model->m_prefill_compiled->inputs(), layer_names::inputs_embeds).has_value());
         m_input_ids_name = layer_names::inputs_embeds;
     }
 
@@ -260,7 +131,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                 continue;
             }
             auto kvcache_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(input_name));
-            fill_tensor<ov::float16>(kvcache_in_tensor, 0);
+            ov::npuw::util::fill_tensor<ov::float16>(kvcache_in_tensor, 0);
         }
     }
 
@@ -289,9 +160,9 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
 }
 
 void ov::npuw::LLMInferRequest::prepare_for_new_conversation() {
-    fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
-    fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
-    fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
+    ov::npuw::util::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
+    ov::npuw::util::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
+    ov::npuw::util::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
     m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = 0u;
 }
 
@@ -334,36 +205,36 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
                 auto prefill_past_kv_chunks =
-                    make_tensor_slice(prefill_past_kv, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                    ov::npuw::util::make_tensor_slice(prefill_past_kv, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
 
                 auto kvcache_past_kv_chunks =
-                    make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
+                    ov::npuw::util::make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, static_cast<uint32_t>(tokens_in_past_chunks));
 
-                copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, kv_dim);
+                ov::npuw::util::copy_tensor_by_dim(prefill_past_kv_chunks, kvcache_past_kv_chunks, kv_dim);
             }
 
             // Copy part 2 KV results
             auto prefill_present_kv_chunk =
-                make_tensor_slice(prefill_out_tensor,
-                                  kv_dim,
-                                  static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
-                                  static_cast<uint32_t>(prefill_chunk_size));
+                ov::npuw::util::make_tensor_slice(prefill_out_tensor,
+                                                  kv_dim,
+                                                  static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
+                                                  static_cast<uint32_t>(prefill_chunk_size));
 
-            auto kvcache_last_kv_chunk = make_tensor_slice(kvcache_in_tensor,
-                                                           kv_dim,
-                                                           static_cast<uint32_t>(tokens_in_past_chunks),
-                                                           kvcache_desc.num_stored_tokens);
+            auto kvcache_last_kv_chunk = ov::npuw::util::make_tensor_slice(kvcache_in_tensor,
+                                                                           kv_dim,
+                                                                           static_cast<uint32_t>(tokens_in_past_chunks),
+                                                                           kvcache_desc.num_stored_tokens);
 
-            copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, kv_dim);
+            ov::npuw::util::copy_tensor_by_dim(prefill_present_kv_chunk, kvcache_last_kv_chunk, kv_dim);
         } else {
-            auto prefill_out_slice = make_tensor_slice(prefill_out_tensor,
-                                                       kv_dim,
-                                                       kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
-                                                       kvcache_desc.max_prompt_size);
+            auto prefill_out_slice = ov::npuw::util::make_tensor_slice(prefill_out_tensor,
+                                                                       kv_dim,
+                                                                       kvcache_desc.max_prompt_size - kvcache_desc.num_stored_tokens,
+                                                                       kvcache_desc.max_prompt_size);
 
-            auto kvcache_in_slice = make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+            auto kvcache_in_slice = ov::npuw::util::make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
 
-            copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, kv_dim);
+            ov::npuw::util::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, kv_dim);
         }
     }
     LOG_DEBUG("Done.");
@@ -392,12 +263,12 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
         const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
                                  ? 3u
                                  : kvcache_desc.dim;
-        auto dst_slice = make_tensor_slice(dst_tensor,
-                                           kv_dim,
-                                           kvcache_desc.num_stored_tokens - num_tokens,
-                                           kvcache_desc.num_stored_tokens);
+        auto dst_slice = ov::npuw::util::make_tensor_slice(dst_tensor,
+                                                           kv_dim,
+                                                           kvcache_desc.num_stored_tokens - num_tokens,
+                                                           kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
-        copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        ov::npuw::util::copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
     }
     LOG_DEBUG("Done.");
 }
@@ -416,7 +287,7 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
 
         auto chunk_prefill_kvcache_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
 
-        fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
+        ov::npuw::util::fill_tensor<ov::float16>(chunk_prefill_kvcache_in_tensor, 0);
     }
 }
 
@@ -450,7 +321,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // We will populate current_prompts_len on the right side of attention mask for the processing tokens
             // If the current prompt length is smaller than the chunk prompt length,
             // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
-            fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
+            ov::npuw::util::fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
         }
         std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
                     current_prompts_len,
@@ -468,10 +339,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // Copy postion ids with considering the 3D position_ids
         auto last_dim = position_ids->get_shape().size() - 1;
         auto actual_position_ids_slice =
-            make_tensor_slice(position_ids,
-                              static_cast<uint32_t>(last_dim),
-                              kvcache_desc.num_stored_tokens,
-                              kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
+            ov::npuw::util::make_tensor_slice(position_ids,
+                                              static_cast<uint32_t>(last_dim),
+                                              kvcache_desc.num_stored_tokens,
+                                              kvcache_desc.num_stored_tokens + static_cast<uint32_t>(current_prompts_len));
         pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
 
         m_prefill_request->infer();
@@ -579,7 +450,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 
         LOG_DEBUG("Prepare attention mask pattern.");
         auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
-        fill_tensor<int64_t>(kv_attn_mask, 0);
+        ov::npuw::util::fill_tensor<int64_t>(kv_attn_mask, 0);
         // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
         //       We can safely set this "1" once and then copy on one "1" less in the infer_generate().
         kv_attn_mask->data<int64_t>()[m_npuw_llm_compiled_model->m_kvcache_desc.total_size - 1] = 1;
@@ -635,10 +506,10 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
 void ov::npuw::LLMInferRequest::infer() {
     const auto& inputs = get_inputs();
 
-    auto input_ids = get_tensor(find_port_by_name(inputs, m_input_ids_name).value());
-    auto attention_mask = get_tensor(find_port_by_name(inputs, layer_names::attention_mask).value());
+    auto input_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, m_input_ids_name).value());
+    auto attention_mask = get_tensor(ov::npuw::util::find_port_by_name(inputs, layer_names::attention_mask).value());
     // FIXME: position_ids might be optional for some models!
-    auto position_ids = get_tensor(find_port_by_name(inputs, layer_names::position_ids).value());
+    auto position_ids = get_tensor(ov::npuw::util::find_port_by_name(inputs, layer_names::position_ids).value());
 
     // NB: For VLM, the "inputs_embeds" contains float values (embeddings)
     OPENVINO_ASSERT(ov::element::f32 == input_ids->get_element_type() ||

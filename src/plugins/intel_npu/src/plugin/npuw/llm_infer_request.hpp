@@ -13,7 +13,7 @@
 namespace ov {
 namespace npuw {
 
-class LLMInferRequest final : public ov::ISyncInferRequest {
+class LLMInferRequest : public ov::ISyncInferRequest {
 public:
     struct layer_names {
         static constexpr const char* input_ids = "input_ids";
@@ -40,8 +40,8 @@ public:
         return {};
     }
 
-private:
-    void prepare_for_new_conversation();
+protected:
+    virtual void prepare_for_new_conversation();
 
     void clear_chunk_prefill_kv_cache();
 
