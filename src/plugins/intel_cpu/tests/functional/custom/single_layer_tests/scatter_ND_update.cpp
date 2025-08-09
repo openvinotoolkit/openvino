@@ -148,6 +148,14 @@ const std::vector<ScatterNDUpdateLayerParams> scatterParams = {
     },
     ScatterNDUpdateLayerParams{
         ScatterNDUpdateShapes{
+            {{-1, -1, -1}, {{10, 9, 11}}},
+            {{8, 2}, {{8, 2}}},
+            {{-1, -1}, {{8, 11}}}
+        },
+        IndicesValues{0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1}
+    },
+    ScatterNDUpdateLayerParams{
+        ScatterNDUpdateShapes{
             {{{3, 10}, -1, {3, 9}, -1}, {{10, 9, 9, 11}, {7, 5, 3, 12}, {3, 4, 9, 8}}},
             {{2, 3}, {{2, 3}, {2, 3}, {2, 3}}},
             {{{2, 4}, -1}, {{2, 11}, {2, 12}, {2, 8}}}
