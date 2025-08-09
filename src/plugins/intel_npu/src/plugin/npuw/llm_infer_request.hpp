@@ -9,7 +9,6 @@
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
-
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
