@@ -17,6 +17,9 @@ JitConstants NormalizeKernelBase::GetJitConstants(const normalize_params& np) co
         MakeJitConstant("THRESHOLD", 0.0001f),
     });
 
+    if (np.normMode == NormalizeMode::WITHIN_SPATIAL) {
+        jit.AddConstants({MakeJitConstant("NORM_AXIS", np.axis)});
+        }
     auto activation_dt = GetActivationType(np);
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     if (!np.fused_ops.empty()) {
@@ -33,7 +36,9 @@ NormalizeKernelBase::DispatchData NormalizeKernelBase::SetDefault(const normaliz
 
     DispatchData dispatchData;
     if (params.normMode == NormalizeMode::WITHIN_SPATIAL) {
-        dispatchData.gws = {output.X().v, output.Y().v, output.Batch().v};
+        std::vector<size_t> gws = {output.X().v, output.Y().v, output.Feature().v, output.Batch().v};
+        gws.erase(gws.begin() + (3 - params.axis));  // Remove the axis dimension
+        dispatchData.gws = gws;
     } else {
         dispatchData.gws = {output.Batch().v, 1, 1};
     }

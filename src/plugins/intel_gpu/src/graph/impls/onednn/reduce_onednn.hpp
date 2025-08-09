@@ -59,10 +59,6 @@ struct ReduceImplementationManager : public ImplementationManager {
         const auto& in_layout = reduce_node.get_input_layout(0);
         const auto& out_layout = reduce_node.get_output_layout(0);
         auto in_dt = in_layout.data_type;
-        auto out_dt = out_layout.data_type;
-
-        if (in_dt == data_types::f32 && out_dt == data_types::f32)
-            return false;
 
         static const std::vector<format::type> supported_formats = {
             format::any,
