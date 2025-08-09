@@ -361,6 +361,10 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
                 inputs[argi]->strides[i] = 1;
             }
         }
+
+        // Need stride based on element but not byte
+        inputs[argi]->updateStride();
+
         std::cout << "After change: " << *(inputs[argi]) << std::endl;
 
     } else {
@@ -391,6 +395,10 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
                     outputs[idx]->strides[i] = 1;
                 }
             }
+
+            // Need stride based on element but not byte
+            outputs[idx]->updateStride();
+
             std::cout << "After change: " << *(outputs[idx]) << std::endl;
         }
     }
