@@ -390,7 +390,7 @@ available options and parameters:
                                     Optional. Batch size value. If not specified, the batch size value is determined from Intermediate Representation
 
               -shape SHAPE          Optional. Set shape for input. For example, "input1[1,3,224,224],input2[1,4]" or "[1,3,224,224]" in case of one input size. This parameter
-                                    affect model Parameter shape, can be dynamic. For dynamic dimesions use symbol `?`, `-1` or range `low.. up`.
+                                    affect model Parameter shape, can be dynamic. For dynamic dimensions use symbol `?`, `-1` or range `low.. up`.
 
               -data_shape DATA_SHAPE
                                     Optional. Optional if model shapes are all static (original ones or set by -shape).Required if at least one input shape is dynamic and input
@@ -528,7 +528,7 @@ available options and parameters:
                 -h, --help                    Print the usage message
                 -m  <path>                    Required. Path to an .xml/.onnx file with a trained model or to a .blob files with a trained compiled model.
                 -i  <path>                    Optional. Path to a folder with images and/or binaries or to specific image or binary file.
-                                          In case of dynamic shapes models with several inputs provide the same number of files for each input (except cases with single file for any input)   :"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for    fillling input with random data, "image_info" - for filling input with image size.
+                                          In case of dynamic shapes models with several inputs provide the same number of files for each input (except cases with single file for any input)   :"input1:1.jpg input2:1.bin", "input1:1.bin,2.bin input2:3.bin input3:4.bin,5.bin ". Also you can pass specific keys for inputs: "random" - for    filling input with random data, "image_info" - for filling input with image size.
                                           You should specify either one files set to be used for all inputs (without providing input names) or separate files sets for every input of model    (providing inputs names).
                                           Currently supported data types: bmp, bin, npy.
                                           If OPENCV is enabled, this functionality is extended with the following data types:
@@ -542,7 +542,7 @@ available options and parameters:
                                           Using explicit 'nstreams' or other device-specific options, please set hint to 'none'
                 -niter  <integer>             Optional. Number of iterations. If not specified, the number of iterations is calculated depending on a device.
                 -max_irate <float>            Optional. Maximum inference rate by frame per second.
-                                          If not specified, default value is 0, the inference will run at maximium rate depending on a device capabilities.
+                                          If not specified, default value is 0, the inference will run at maximum rate depending on a device capabilities.
                                           Tweaking this value allow better accuracy in power usage measurement by limiting the execution.
                 -t                            Optional. Time in seconds to execute topology.
 
