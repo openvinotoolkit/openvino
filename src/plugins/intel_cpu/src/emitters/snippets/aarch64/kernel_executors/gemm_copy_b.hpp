@@ -35,7 +35,7 @@ public:
     [[nodiscard]] std::string to_string() const override;
 #endif
 
-    void update(size_t N, size_t K);
+    void update(size_t N, size_t K, size_t stride);
 
     [[nodiscard]] size_t hash() const override {
         return m_hash;
@@ -46,6 +46,9 @@ public:
     }
     [[nodiscard]] size_t get_K() const {
         return m_K;
+    }
+    [[nodiscard]] size_t get_stride() const {
+        return m_stride;
     }
     [[nodiscard]] size_t get_n_blk_size() const {
         return m_static_params->wei_N_blk;
@@ -76,6 +79,7 @@ private:
     std::shared_ptr<StaticParams> m_static_params;
     size_t m_N = 0;
     size_t m_K = 0;
+    size_t m_stride = 0;
     size_t m_hash{SIZE_MAX};
 };
 
