@@ -260,10 +260,6 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
     return std::make_pair(low_rank_dim, full_rank_dim);
 }
 
-constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
-
-constexpr std::size_t kStartOutputKVCacheLayers = 1;
-
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
@@ -591,42 +587,6 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     }
 }
 
-std::vector<size_t> calculateHashes(const ov::SoPtr<ov::ITensor>& input_ids) {
-    const char* data = reinterpret_cast<const char*>(input_ids->data());
-    const auto data_elem_size = input_ids->get_element_type().size();
-    size_t total_size = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
-
-    std::vector<size_t> prompt_hashes(total_size);
-
-    size_t prefix_hash = 0;
-    for (size_t i = 0; i < total_size; ++i) {
-        const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + i * data_elem_size;
-        size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, data_elem_size));
-        prefix_hash = prefix_hash * 31 + token_hash;
-        prompt_hashes[i] = prefix_hash;
-    }
-
-    return prompt_hashes;
-}
-
-std::unordered_map<std::string, std::string> createOutputToInputNameMap(
-    const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
-    std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports) {
-    std::unordered_map<std::string, std::string> input_name_map;
-    for (std::size_t i = kStartOutputKVCacheLayers; i < compiled_model->outputs().size(); ++i) {
-        const auto& output_name = compiled_model->outputs()[i].get_any_name();
-        std::string input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
-        if (in_ports.find(input_name) == in_ports.end()) {
-            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-            continue;
-        }
-
-        input_name_map[output_name] = input_name;
-    }
-
-    return input_name_map;
-}
-
 uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
                                                           size_t block_size,
                                                           const std::vector<size_t>& prompt_hashes,
@@ -660,7 +620,7 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::IT
         uint64_t block_hash = token_hashes.back();
 
         std::shared_ptr<KVBlock> retrieved_block;
-        if (!m_prefix_cache->getBlock(block_hash, retrieved_block)) {
+        if (!m_prefix_cache->get_block(block_hash, retrieved_block)) {
             std::cout << "[Cache miss] Block not found with block hash: " << block_hash << std::endl;
             break;
         }
@@ -743,10 +703,10 @@ void ov::npuw::LLMInferRequest::store_blocks_in_cache(
         // 3. Create a new KVBlock with token hashes and KV cache tensors
         auto block = std::make_shared<KVBlock>();
         block->token_start = token_idx - block_size;
-        block->addBlock(token_hashes, kvcache_block);
+        block->add_Block(token_hashes, kvcache_block);
 
         // 4. Store block in cache
-        m_prefix_cache->putBlock(block);
+        m_prefix_cache->put_block(block);
         std::cout << "[prefix caching]Got a full block, block id: " << block->block_id
                   << " token_start:" << block->token_start << " block hash: " << block->block_hash << std::endl;
     }
@@ -773,11 +733,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     uint64_t remaining_prompts = input_prompt_len;
 
-    auto prompt_hashes = calculateHashes(input_ids);
+    auto prompt_hashes = calculate_hashes(input_ids);
 
     const auto& prefill_compiled = m_prefill_request->get_compiled_model();
     std::unordered_map<std::string, std::string> input_name_map =
-        createOutputToInputNameMap(prefill_compiled, m_prefill_in_ports);
+        create_output_to_input_name_mapping(prefill_compiled, m_prefill_in_ports);
 
     auto restored_token_num = restore_cached_blocks(input_ids, BLOCK_SIZE, prompt_hashes, input_name_map);
 
@@ -861,7 +821,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     }
     LOG_DEBUG("Done.");
 
-    m_prefix_cache->printCacheStatus();
+    m_prefix_cache->print_cache_status();
 }
 
 void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,

@@ -10,6 +10,7 @@
 #include <regex>
 #include <unordered_map>
 
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -31,7 +32,6 @@ struct KVBlock {
     size_t ref_count;
     bool is_full;
 
-    size_t num_layers;
     BlocKVCache block_kv_cache;
 
     KVBlock() : token_start(0), ref_count(0), is_full(false), block_hash(0) {
@@ -39,41 +39,45 @@ struct KVBlock {
     }
 
     /**
-     * @brief 一次性添加整个 block 的 token 数据
-     * @param token_hashes block 中所有 token 的哈希值
-     * @param kv_tensors block 中所有 token 的 KV 缓存数据
-     * @return 是否成功添加
+     * @brief Add the entire block's token data
+     * @param token_hashes Hash values of all tokens in the block
+     * @param kv_tensors KV cache data for all tokens in the block
+     * @return Whether the addition was successful
      */
-    bool addBlock(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors) {
-        // 检查输入有效性
+    bool add_Block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors) {
+        // Check input validity
         if (token_hashes.empty()) {
             return false;
         }
 
-        // 检查是否超出了 block 容量
+        // Check if the block size exceeds capacity
         if (token_hashes.size() > BLOCK_SIZE) {
             return false;
         }
 
-        // 直接赋值
+        // Direct assignment
         this->token_hashes = token_hashes;
         this->block_kv_cache = kv_tensors;
         this->ref_count = token_hashes.size();
         this->is_full = (this->ref_count == BLOCK_SIZE);
 
-        // 计算 block 的哈希值
-        this->block_hash = computeBlockHash(token_hashes);
+        // Compute the block's hash value
+        this->block_hash = compute_block_hash(token_hashes);
 
         return true;
     }
 
     /**
-     * @brief 计算 block 的哈希值
-     * @param token_hashes block 中所有 token 的哈希值
-     * @return block 的哈希值
+     * @brief Compute the block's hash value
+     * @param token_hashes Hash values of all tokens in the block
+     * @return The block's hash value
+     *
+     * Note: The block hash is derived from the last token hash in the sequence,
+     * as each token hash is calculated based on preceding tokens, ensuring
+     * a cumulative representation of the block's content.
      */
-    uint64_t computeBlockHash(const std::vector<uint64_t>& token_hashes) const {
-        // Use the last token hash as block hash given token hash is calculated with preceding tokens
+    uint64_t compute_block_hash(const std::vector<uint64_t>& token_hashes) const {
+        // Use the last token hash as the block hash, given token hash is calculated with preceding tokens
         return token_hashes.back();
     }
 };
@@ -82,25 +86,28 @@ class PrefixCacheManager {
 public:
     PrefixCacheManager(size_t max_cache_size = 1000) : max_cache_size(max_cache_size) {}
 
-    // Put block to cache
-    void putBlock(const std::shared_ptr<KVBlock>& block);
+    // Add a block to the cache
+    void put_block(const std::shared_ptr<KVBlock>& block);
 
-    // Get block from cache by hash
-    bool getBlock(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
+    // Retrieve a block from the cache by hash
+    bool get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
 
-    void printCacheStatus(bool verbose = false);
+    // Print the current status of the cache
+    void print_cache_status(bool verbose = false) const;
 
 private:
     size_t max_cache_size;
 
-    // hash to KV blocks
+    // Mapping from hash to KV blocks
     std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> cache_map;
 
+    // LRU list to track the least recently used blocks
     std::list<std::shared_ptr<KVBlock>> lru_list;
 
     std::mutex mutex;
 
-    void updateLRU(const std::shared_ptr<KVBlock>& block);
+    // Update the LRU list
+    void update_lru(const std::shared_ptr<KVBlock>& block);
 };
 
 static void printTensorShape(const ov::SoPtr<ov::ITensor>& tensor) {
@@ -133,6 +140,12 @@ static void printBlocKVCache(const BlocKVCache& kv_info) {
         std::cout << "----------------------------------------" << std::endl;
     }
 }
+
+std::vector<size_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
+
+std::unordered_map<std::string, std::string> create_output_to_input_name_mapping(
+    const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
+    const std::unordered_map<std::string, ov::Output<const ov::Node>>& in_ports);
 
 }  // namespace npuw
 }  // namespace ov
