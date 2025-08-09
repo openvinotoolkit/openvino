@@ -73,6 +73,7 @@ struct Context {
         PPtr pids;
     };
     std::optional<QuantizedGather> params_to_quant_gather_unpack;
+    bool found_host_gather_quant() const;
     PPtr host_gather_unpack_quant(const PPtr& ids, const PPtr& w, const PPtr& z, const PPtr& s, ov::element::Type type);
 
     using Ref = std::reference_wrapper<Context>;
@@ -162,22 +163,18 @@ public:
     DQUnpackDictGatherGQi(Context::Ref ctx);
 };
 
+template <typename WType = ov::op::v0::Parameter>
 class HostGatherQuantAsymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantAsymm");
-    HostGatherQuantAsymm(Context::Ref ctx);
+    HostGatherQuantAsymm(Context::Ref ctx, bool verify_only = false);
 };
 
+template <typename WType = ov::op::v0::Parameter>
 class HostGatherQuantSymm : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuantSymm");
-    HostGatherQuantSymm(Context::Ref ctx);
-};
-
-class HostGatherQuant : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::HostGatherQuant");
-    HostGatherQuant(Context::Ref ctx);
+    HostGatherQuantSymm(Context::Ref ctx, bool verify_only = false);
 };
 
 class HostGather : public ov::pass::MatcherPass {
@@ -225,24 +222,24 @@ public:
 };
 
 // Tail vocab transformations
-class PreserveConstDictMatMulCWu : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulAsymm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulCWu");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulAsymm");
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulCWu(Results to_keep);
+    PreserveConstDictMatMulAsymm(Results to_keep);
 };
 
-class PreserveConstDictMatMulCWf8 : public ov::pass::MatcherPass {
+class PreserveConstDictMatMulSymm : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulCWf8");
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::opt::PreserveConstDictMatMulSymm");
 
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    PreserveConstDictMatMulCWf8(Results to_keep);
+    PreserveConstDictMatMulSymm(Results to_keep);
 };
 
 // Slice last Matmul
