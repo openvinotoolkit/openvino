@@ -34,7 +34,7 @@ void GatedMLP::SetUp() {
     setInferenceType(prc);
 }
 
-std::string GatedMLP::getTestCaseName(testing::TestParamInfo<ov::test::snippets::GatedMLPParams> obj) {
+std::string GatedMLP::getTestCaseName(const testing::TestParamInfo<ov::test::snippets::GatedMLPParams>& obj) {
     auto [shapes, weightFormat, ActType, prc, num_nodes, num_subgraphs, target_device, additional_config] = obj.param;
     auto [inputShape, weightsShapes] = shapes;
 

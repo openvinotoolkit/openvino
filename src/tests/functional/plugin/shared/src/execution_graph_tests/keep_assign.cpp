@@ -13,8 +13,8 @@
 
 namespace ExecutionGraphTests {
 
-std::string ExecGraphKeepAssignNode::getTestCaseName(testing::TestParamInfo<std::string> obj) {
-    std::string targetDevice = obj.param;
+std::string ExecGraphKeepAssignNode::getTestCaseName(const testing::TestParamInfo<std::string>& obj) {
+    const std::string& targetDevice = obj.param;
     return "Dev=" + targetDevice;
 }
 
