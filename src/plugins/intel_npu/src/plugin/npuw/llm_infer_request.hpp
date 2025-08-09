@@ -58,11 +58,6 @@ private:
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids);
 
-    uint64_t checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids,
-                                                 size_t block_size,
-                                                 const std::vector<size_t>& prompt_hashes,
-                                                 std::unordered_map<std::string, std::string> input_name_map);
-
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids);
@@ -97,7 +92,17 @@ private:
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
 
+    // Support prefix caching
     std::shared_ptr<PrefixCacheManager> m_prefix_cache;
+    uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                                   size_t block_size,
+                                   const std::vector<size_t>& prompt_hashes,
+                                   std::unordered_map<std::string, std::string> input_name_map);
+    void store_blocks_in_cache(size_t current_prompts_len,
+                               const std::vector<size_t>& prompt_hashes,
+                               size_t& token_idx,
+                               const ov::SoPtr<ov::ITensor>& input_ids,
+                               const std::unordered_map<std::string, std::string>& input_name_map);
 };
 
 }  // namespace npuw
