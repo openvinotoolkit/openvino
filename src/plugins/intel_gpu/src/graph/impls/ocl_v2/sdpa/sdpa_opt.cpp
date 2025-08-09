@@ -207,11 +207,14 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     }
 
     auto data_inputs_num = get_data_inputs_num(*desc);
-    // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
+    // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs and u8 attn mask
     const auto mask_idx = 3lu;
-    if (!desc->attn_mask_val.has_value() && data_inputs_num > mask_idx && !params.get_input_layout(mask_idx).is_dynamic() &&
-        params.get_input_layout(mask_idx).count() == 1) {
-        return false;
+    const bool has_attn_mask_input = data_inputs_num > mask_idx;
+    if (!desc->attn_mask_val.has_value() && has_attn_mask_input) {
+        if (params.get_input_layout(mask_idx).data_type == ov::element::u8)
+            return false;
+        if (!params.get_input_layout(mask_idx).is_dynamic() && params.get_input_layout(mask_idx).count() == 1)
+            return false;
     }
     if (q_layout.get_partial_shape()[mask_idx].get_length() > 256) {
         return false;

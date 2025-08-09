@@ -433,7 +433,11 @@ KERNEL(sdpa_opt)(
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
+#if ATTN_MASK_TYPE_UCHAR
+                        qk_val[seq_idx] += (attn_mask[attn_mask_offset] == 0 ? INPUT0_VAL_MIN : INPUT0_VAL_ZERO);
+#else
                         qk_val[seq_idx] += attn_mask[attn_mask_offset];
+#endif
 #elif defined(STATIC_SCALAR_ATTN_MASK_VALUE)
                         qk_val[seq_idx] += STATIC_SCALAR_ATTN_MASK_VALUE;
 #endif
@@ -771,13 +775,21 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
         if (source_seq_idx + SUBGROUP_SIZE <= (uint)SOURCE_SEQ_LEN) {
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
+#if ATTN_MASK_TYPE_UCHAR
+                mask_vec[i] = mask_val == 0 ? INPUT0_VAL_MIN : INPUT0_VAL_ZERO;
+#else
                 mask_vec[i] = mask_val;
+#endif
             }
         } else {
             const uint max_mask_offset = min(source_seq_idx + SUBGROUP_SIZE, (uint)SOURCE_SEQ_LEN);
             for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 const INPUT3_TYPE mask_val = source_seq_idx + i < max_mask_offset ? attn_mask[attn_mask_offset + i] : NAN;
+#if ATTN_MASK_TYPE_UCHAR
+                mask_vec[i] = mask_val == 0 ? INPUT0_VAL_MIN : INPUT0_VAL_ZERO;
+#else
                 mask_vec[i] = mask_val;
+#endif
             }
         }
     }
