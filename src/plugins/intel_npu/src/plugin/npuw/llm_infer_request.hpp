@@ -15,6 +15,10 @@
 namespace ov {
 namespace npuw {
 
+constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
+
+constexpr std::size_t kStartOutputKVCacheLayers = 1;
+
 class LLMInferRequest final : public ov::ISyncInferRequest {
 public:
     struct layer_names {
