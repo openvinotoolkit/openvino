@@ -94,6 +94,7 @@ std::string ComparisonLayerCPUTest::getPrimitiveType(const utils::ComparisonType
                                         utils::ComparisonTypes::NOT_EQUAL,
                                         utils::ComparisonTypes::LESS,
                                         utils::ComparisonTypes::LESS_EQUAL,
+                                        utils::ComparisonTypes::GREATER,
                                         utils::ComparisonTypes::GREATER_EQUAL))
             return "jit";
     }
