@@ -23,6 +23,7 @@ public:
         static constexpr const char* past_key_values = "past_key_values";
         static constexpr const char* output_embeds = "npuw_output_embed";
         static constexpr const char* logits = "logits";
+        static constexpr const char* hidden_states = "hidden_states";
     };
 
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
@@ -74,6 +75,8 @@ private:
     std::shared_ptr<ov::IAsyncInferRequest> m_lm_head_request;
     std::shared_ptr<LLMCompiledModel> m_npuw_llm_compiled_model;
     ov::SoPtr<ov::ITensor> m_logits;
+    // NB: The hidden_states output is specific to the Qwen2.5 Omni Thinker LLM
+    ov::SoPtr<ov::ITensor> m_hidden_states;
 
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_in_ports;
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_prefill_out_ports;

@@ -593,9 +593,18 @@ std::shared_ptr<ov::Model> cvt_kvcache_to_fp16(const std::shared_ptr<ov::Model>&
 }
 
 std::shared_ptr<ov::Model> redirect_new_kv_to_output(const std::shared_ptr<ov::Model>& model) {
-    const auto kStartOutputKVCacheLayers = 1u;
-    for (std::size_t i = kStartOutputKVCacheLayers; i < model->outputs().size(); ++i) {
+    for (std::size_t i = 0; i < model->outputs().size(); ++i) {
         auto kvout = model->output(i);
+        auto output_name = kvout.get_any_name();
+
+        if (output_name.find("logits") != std::string::npos) {
+            continue;
+        }
+
+        if (output_name == "hidden_states") {
+            continue;
+        }
+
         auto kvrslt = kvout.get_node();
         auto kvcat = kvrslt->inputs()[0].get_source_output().get_node();
         auto kvval = kvcat->inputs()[1].get_source_output();
