@@ -13,7 +13,7 @@
 
 namespace intel_npu {
 
-struct Pipeline final {
+struct Pipeline {
 public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
@@ -22,16 +22,34 @@ public:
              const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
              size_t batch_size = 1);
 
+    Pipeline(const Config& config,
+             const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
+             const std::shared_ptr<IGraph>& graph,
+             std::string logName);
+
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
     ~Pipeline() = default;
 
-    void push();
-    void pull();
-    void reset() const;
+    virtual void push();
 
-    void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
-    void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
+    void pull(size_t num_command_lists);
+
+    virtual void pull();
+
+    virtual void reset() const;
+
+    virtual void update_graph_arguments(uint32_t arg_index,
+                                        const void* arg_data,
+                                        size_t byte_size,
+                                        [[maybe_unused]] const ov::Strides& strides,
+                                        [[maybe_unused]] const ov::Shape& shapes);
+
+    virtual void update_graph_arguments_batching(uint32_t arg_index,
+                                                 const void* arg_data,
+                                                 [[maybe_unused]] const ov::Strides& strides,
+                                                 [[maybe_unused]] const ov::Shape& shapes,
+                                                 size_t command_list_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 
@@ -55,12 +73,14 @@ protected:
     size_t _number_of_command_lists;
 
     std::shared_ptr<CommandQueue> _command_queue;
-    std::vector<std::unique_ptr<CommandList>> _command_lists;
     std::vector<std::unique_ptr<Fence>> _fences;
     std::shared_ptr<EventPool> _event_pool;
     std::vector<std::shared_ptr<Event>> _events;
     bool _sync_output_with_fences = true;
     Logger _logger;
+
+private:
+    std::vector<std::unique_ptr<CommandList>> _command_lists;
 };
 
 }  // namespace intel_npu

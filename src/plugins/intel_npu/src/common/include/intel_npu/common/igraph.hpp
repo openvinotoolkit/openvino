@@ -32,6 +32,8 @@ class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph(NetworkMetadata metadata, const Config& config, std::optional<ov::Tensor> blob);
 
+    IGraph(const Config& config, std::optional<ov::Tensor> blob);
+
     /**
      * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
      * later be used for importing the model.
@@ -53,6 +55,9 @@ public:
 
     const NetworkMetadata& get_metadata() const;
     virtual ze_graph_handle_t get_handle() const = 0;
+    virtual bool use_dynamic_pipeline() {
+        return false;
+    }
 
     void update_network_name(std::string_view name);
 
@@ -74,7 +79,7 @@ public:
     uint32_t get_unique_id();
     void set_last_submitted_id(uint32_t id_index);
     uint32_t get_last_submitted_id() const;
-
+    uint64_t get_num_subgraphs() const;
     const std::optional<std::size_t> get_batch_size() const;
     std::optional<size_t> determine_batch_size(const NetworkMetadata& metadata,
                                                const std::vector<ov::SoPtr<ov::ITensor>>& input_tensors,
@@ -104,6 +109,12 @@ protected:
      */
 
     NetworkMetadata _metadata;
+
+    /**
+     * @brief Stores the number of subgraphs for dynamic models
+     * @note the number of subgraphs will be one for static models
+     */
+    uint64_t _num_of_subgraphs = 1;
 
     std::vector<ArgumentDescriptor> _input_descriptors;
     std::vector<ArgumentDescriptor> _output_descriptors;

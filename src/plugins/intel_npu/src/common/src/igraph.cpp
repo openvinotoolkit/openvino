@@ -51,6 +51,10 @@ IGraph::IGraph(NetworkMetadata metadata, const Config& config, std::optional<ov:
       _blob(std::move(blob)),
       _logger("IGraph", config.get<LOG_LEVEL>()) {}
 
+IGraph::IGraph(const Config& config, std::optional<ov::Tensor> blob)
+    : _blob(std::move(blob)),
+      _logger("IGraph", config.get<LOG_LEVEL>()) {}
+
 const NetworkMetadata& IGraph::get_metadata() const {
     return _metadata;
 }
@@ -209,6 +213,11 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata,
         return std::nullopt;
     }
 
+    if (use_dynamic_pipeline()) {
+        _logger.debug("Not support batch for dynamic pipeline now, return nullptr");
+        return std::nullopt;
+    }
+
     const ov::PartialShape& firstOutputShape = *metadata.outputs.at(0).shapeFromIRModel;
     if (firstOutputShape.is_dynamic()) {
         _logger.debug(
@@ -265,6 +274,10 @@ std::optional<size_t> IGraph::get_batch_size(const NetworkMetadata& metadata,
 
 const std::optional<std::size_t> IGraph::get_batch_size() const {
     return _batch_size;
+}
+
+uint64_t IGraph::get_num_subgraphs() const {
+    return _num_of_subgraphs;
 }
 
 }  // namespace intel_npu
