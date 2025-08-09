@@ -252,14 +252,6 @@ static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief
- * Type: boolean
- * When applicable, do embedding gather on host but leave it quantized.
- * Default value: false.
- */
-static constexpr ov::Property<bool> gather_quant{"NPUW_HOST_GATHER_QUANT"};
-
-/**
- * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"

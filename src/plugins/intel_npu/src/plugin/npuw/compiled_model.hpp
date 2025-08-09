@@ -100,6 +100,8 @@ private:
     void log_device_dist() const;
     void implement_properties();
 
+    bool should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& properties) const;
+
     // For full deserialization flow with weights
     void reconstruct_closure();
     // For weightless serialization flow

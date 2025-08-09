@@ -147,7 +147,13 @@ struct Partitioning {
     float total_gflops = 0.f;
 };
 
-Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& config);
+struct PartitioningContext {
+    bool use_host_gather_quant = false;
+};
+
+Partitioning getPartitioning(const std::shared_ptr<ov::Model>& model,
+                             ::intel_npu::Config& config,
+                             const PartitioningContext& ctx = {});
 
 }  // namespace npuw
 }  // namespace ov
