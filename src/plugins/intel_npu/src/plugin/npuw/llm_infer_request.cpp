@@ -614,51 +614,61 @@ uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov
 
     const char* data = reinterpret_cast<const char*>(input_ids->data());
     const auto data_elem_size = input_ids->get_element_type().size();
-    size_t total_size = input_ids->get_size(); // Assuming get_size() returns the total size in bytes
+    size_t total_size = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
     size_t num_blocks = (total_size + block_size - 1) / block_size; // Calculate number of blocks
 
-    uint64_t orig_token_num = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    uint64_t orig_token_num = total_size;
     uint64_t cached_token_num = 0;
-    uint32_t restored_token_id = 0;
+    size_t prefix_hash = 0;
+    size_t token_idx = 0;
     for (size_t block_index = 0; block_index < num_blocks; ++block_index) {
-        size_t offset = block_index * block_size;
-        size_t current_block_size = std::min(block_size, total_size - offset); // Handle last block size
+        size_t block_start = block_index * block_size;
+        size_t current_block_size = std::min(block_size, total_size - block_start); // Handle last block size
 
-        // Compute block hash with preceding hash
-        uint64_t block_hash = std::hash<std::string_view>{}(std::string_view(data, (block_index + 1) * block_size * data_elem_size));
+        // 1. 计算整个 block 的哈希（使用滚动哈希）
+        std::vector<size_t> token_hashes(block_size);
+        {
+            for (size_t i = 0; i < block_size; ++i) {
+                const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + token_idx * data_elem_size;
+                size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, data_elem_size));
+                prefix_hash = prefix_hash * 31 + token_hash; // 滚动哈希
+                token_hashes[i] = prefix_hash;
+                token_idx++;
+            }
+        }
+        uint64_t block_hash = token_hashes.back();
 
         std::shared_ptr<KVBlock> retrieved_block;
-        if (m_prefix_cache->getBlock(block_hash, retrieved_block)) {
-            std::cout << "[Cache hit] Block found with block hash: " << block_hash << std::endl;
-
-            for (auto kv_per_token : retrieved_block->kv_cache_tensors) {
-                for (auto kv_per_layer : kv_per_token) {
-                    auto kv_out_name = kv_per_layer.first;
-                    const auto& kv_in_name = std::regex_replace(kv_out_name, std::regex("present"), "past_key_values");
-                    if (m_prefill_in_ports.find(kv_in_name) == m_prefill_in_ports.end()) {
-                        OPENVINO_THROW("Invalid tensor name: ", kv_out_name);
-                        continue;
-                    }
-
-                    auto kv_tensor = kv_per_layer.second;
-                    const auto& kv_dim = (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                 ? 3u
-                                 : kvcache_desc.dim;
-
-                    auto kv_dst_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(kv_in_name));
-                    auto kv_dst_slice = make_tensor_slice(kv_dst_tensor,
-                                           kv_dim,
-                                           restored_token_id,
-                                           restored_token_id + 1);
-                    copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim);
-                }
-                restored_token_id ++;
-            }
-            cached_token_num += block_size;
-        } else {
+        if (!m_prefix_cache->getBlock(block_hash, retrieved_block)) {
             std::cout << "[Cache miss] Block not found with block hash: " << block_hash << std::endl;
             break;
         }
+
+        // Cache hit
+        auto token_start = retrieved_block->token_start;
+        BlocKVCache block_kv_cache = retrieved_block->block_kv_cache;
+        std::cout << "[Cache hit] Block found with block hash: " << block_hash << " token_start: " << token_start << std::endl;
+        for (auto kv_per_layer : block_kv_cache) {
+            auto kv_out_name = kv_per_layer.first;
+            const auto& kv_in_name = std::regex_replace(kv_out_name, std::regex("present"), "past_key_values");
+            if (m_prefill_in_ports.find(kv_in_name) == m_prefill_in_ports.end()) {
+                OPENVINO_THROW("Invalid tensor name: ", kv_out_name);
+                continue;
+            }
+
+            auto kv_tensor = kv_per_layer.second;
+            const auto& kv_dim = (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                            ? 3u
+                            : kvcache_desc.dim;
+
+            auto kv_dst_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(kv_in_name));
+            auto kv_dst_slice = make_tensor_slice(kv_dst_tensor,
+                                    kv_dim,
+                                    static_cast<uint32_t>(token_start),
+                                    static_cast<uint32_t>(token_start + block_size));
+            copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim);
+        }
+        cached_token_num += block_size;
     }
 
     uint64_t token_num_to_be_prefilled = orig_token_num - cached_token_num;
@@ -693,14 +703,16 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     uint64_t remaining_prompts = input_prompt_len;
     auto tokens_num_after_prefix_caching_opt = checkBlocksInCacheWithPrecedingHash(input_ids, BLOCK_SIZE);
-    if (tokens_num_after_prefix_caching_opt < input_prompt_len) {
-        if (tokens_num_after_prefix_caching_opt > chunk_prompt_len) {
-            OPENVINO_THROW("Unexpected tokens_num_after_prefix_caching_opt: ", kvcache_desc.max_prompt_size);
-        }
-    }
     remaining_prompts = tokens_num_after_prefix_caching_opt;
     kvcache_desc.num_stored_tokens = static_cast<uint32_t>(input_prompt_len - remaining_prompts);
-    uint32_t hashed_token_id = 0;
+    uint32_t hashed_block_id = 0;
+    size_t prefix_hash = 0;
+    size_t token_idx = 0;
+    bool restore_prefix_cache = tokens_num_after_prefix_caching_opt < input_prompt_len;
+    if (restore_prefix_cache && (tokens_num_after_prefix_caching_opt > chunk_prompt_len)) {
+        // TODO: Remove this and verify the case
+        OPENVINO_THROW("Unexpected tokens_num_after_prefix_caching_opt: ", tokens_num_after_prefix_caching_opt);
+    }
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -722,7 +734,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
 
         // Populate the attention mask for prefix caching -- kvcache_desc.num_stored_tokens has been cached already
-        if (tokens_num_after_prefix_caching_opt < input_prompt_len) {
+        if (restore_prefix_cache) {
+            restore_prefix_cache = false;
             std::copy_n(attention_mask->data<int64_t>(),
                     kvcache_desc.num_stored_tokens,
                     attn_mask_in_tensor->data<int64_t>());
@@ -754,69 +767,79 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         m_prefill_request->infer();
 
         {
-            // Copy kv cache for prefix caching
+            // 定义 block 的最大 token 数
 
-            // Create a new KVBlock
-            auto block = std::make_shared<KVBlock>();
-
-            // Add tokens to the KVBlock
             const auto& prefill_compiled = m_prefill_request->get_compiled_model();
-            for (size_t idx = 0; idx < current_prompts_len; ++idx) {
-                // Calculate hash for current token and preceding tokens
-                auto hashed_token_len = hashed_token_id + 1;
-                auto token_hash = std::hash<std::string_view>{}(std::string_view(reinterpret_cast<const char*>(input_ids->data()), (hashed_token_len) * input_ids_elem_size));
 
-                auto current_token_kv_cache = KVCachePerToken();
+            // 预处理 input_name 替换（避免循环内重复计算）
+            std::unordered_map<std::string, std::string> input_name_cache;
+            for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
+                const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
+                std::string input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+                if (m_prefill_in_ports.find(input_name) == m_prefill_in_ports.end()) {
+                    LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+                    continue;
+                }
+
+                input_name_cache[output_name] = input_name;
+            }
+
+            // process tokens in current chunk block by block
+            for (size_t block_start = 0; block_start < current_prompts_len; block_start += BLOCK_SIZE) {
+                // 计算当前 block 的 token 数量（可能小于 BLOCK_SIZE
+                size_t block_size = std::min(BLOCK_SIZE, current_prompts_len - block_start);
+                if (block_size < BLOCK_SIZE) {
+                    // Not a full block, drop it.
+                    break;
+                }
+                
+                // 1. 计算整个 block 的哈希（使用滚动哈希）
+                std::vector<size_t> token_hashes(block_size);
+                {
+                    for (size_t i = 0; i < block_size; ++i) {
+                        const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + token_idx * input_ids_elem_size;
+                        size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
+                        // std::cout << "[prefix caching]token_idx: " << token_idx << " token_hash: " << token_hash << std::endl;
+                        prefix_hash = prefix_hash * 31 + token_hash; // 滚动哈希
+                        token_hashes[i] = prefix_hash;
+                        token_idx ++;
+                    }
+                }
+
+                // 2. 批量分配 KV 缓存
+                auto kvcache_block = BlocKVCache();
                 for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
                     const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
-                    const auto& input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
-                    if (m_prefill_in_ports.find(input_name) == m_prefill_in_ports.end()) {
-                        // FIXME: Totally wrong debug message. input_name is an invalid name of input layer.
-                        LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-                        continue;
-                    }
+                    const auto& input_name = input_name_cache.at(output_name);
 
                     const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                 ? 3u
-                                 : kvcache_desc.dim;
+                                        ? 3u
+                                        : kvcache_desc.dim;
 
+                    // 批量切片：一次性切片整个 block 的范围
                     auto kv_src_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
                     auto kv_src_slice = make_tensor_slice(kv_src_tensor,
                                            kv_dim,
-                                           static_cast<uint32_t>(idx),
-                                           static_cast<uint32_t>(idx + 1));
+                                           static_cast<uint32_t>(block_start),
+                                           static_cast<uint32_t>(block_start + block_size));
 
                     auto new_tensor_elem_type = kv_src_slice->get_element_type();
                     auto new_tensor_shape = kv_src_slice->get_shape();
                     auto new_kv_tensor = ov::get_tensor_impl(ov::Tensor(new_tensor_elem_type, new_tensor_shape));
                     copy_tensor_by_dim(kv_src_slice, new_kv_tensor, kv_dim);
 
-                    current_token_kv_cache.push_back(std::make_pair(output_name, new_kv_tensor));
+                    kvcache_block.push_back(std::make_pair(output_name, new_kv_tensor));
                 }
 
-                hashed_token_id++;
+                // 3. 将 block 添加到 KVBlock 中
+                auto block = std::make_shared<KVBlock>();
+                block->token_start = token_idx - block_size;
+                block->addBlock(token_hashes, kvcache_block);
+                hashed_block_id++;
 
-                if (!block->addToken(token_hash, current_token_kv_cache)) {
-                    // Block is full, compute hash and store it
-                    m_prefix_cache->putBlock(block);
-                    // std::cout << "[prefix caching]Block is full. block hash: " << block->block_hash << std::endl;
+                std::cout << "[prefix caching]Got a full block, block id: " << hashed_block_id << " token_start:" << block->token_start << " block hash: " << block->block_hash << std::endl;
+                // printBlocKVCache(current_token_kv_cache);
 
-                    // Create a new block for remaining tokens
-                    block = std::make_shared<KVBlock>();
-                    block->addToken(token_hash, current_token_kv_cache);
-                }
-
-                // Print some information of the last token in the block
-                if (block->is_full) {
-                    std::cout << "[prefix caching]Got a full block, token_id: " << hashed_token_id << " token_hash: " << token_hash << std::endl;
-                    // printKVCachePerToken(current_token_kv_cache);
-                }
-            }
-
-            // Store the last block if it is full
-            // Drop the non-full block
-            // TODO: Cache the non-full block
-            if (block->is_full) {
                 m_prefix_cache->putBlock(block);
             }
         }
