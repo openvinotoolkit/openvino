@@ -44,8 +44,7 @@ struct KVBlock {
      * @param kv_tensors block 中所有 token 的 KV 缓存数据
      * @return 是否成功添加
      */
-    bool addBlock(const std::vector<uint64_t>& token_hashes, 
-                  const BlocKVCache& kv_tensors) {
+    bool addBlock(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors) {
         // 检查输入有效性
         if (token_hashes.empty()) {
             return false;
@@ -79,17 +78,15 @@ struct KVBlock {
     }
 };
 
-
 class PrefixCacheManager {
 public:
-    PrefixCacheManager(size_t max_cache_size = 1000)
-        : max_cache_size(max_cache_size) {}
+    PrefixCacheManager(size_t max_cache_size = 1000) : max_cache_size(max_cache_size) {}
 
     // Put block to cache
     void putBlock(const std::shared_ptr<KVBlock>& block);
 
     // Get block from cache by hash
-    bool getBlock(uint64_t combined_hash,std::shared_ptr<KVBlock>& out_block);
+    bool getBlock(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
 
     void printCacheStatus(bool verbose = false);
 
