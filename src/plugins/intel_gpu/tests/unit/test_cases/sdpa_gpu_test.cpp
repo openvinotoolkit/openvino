@@ -26,7 +26,7 @@
 
 using namespace cldnn;
 using namespace ::tests;
-
+// #define ENABLE_ONEDNN_FOR_GPU
 namespace  {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 struct sdpa_test_params {
@@ -230,23 +230,6 @@ struct sdpa_gpu_test : public ::testing::TestWithParam<sdpa_test_params> {
             auto ret = cosineSimilarity(ref_data, opt_data);
             ASSERT_GE(ret, 0.95f);
         }
-    }
-
-    float cosineSimilarity(cldnn::mem_lock<ov::float16, mem_lock_type::read>& vec1, cldnn::mem_lock<ov::float16, mem_lock_type::read>& memLockVec2) {
-        if (vec1.size() != memLockVec2.size()) {
-            return -1.0f;
-        }
-
-        float dotProduct = std::inner_product(vec1.begin(), vec1.end(), memLockVec2.begin(), 0.0f);
-
-        float magnitude1 = std::sqrt(std::inner_product(vec1.begin(), vec1.end(), vec1.begin(), 0.0f));
-        float magnitude2 = std::sqrt(std::inner_product(memLockVec2.begin(), memLockVec2.end(), memLockVec2.begin(), 0.0f));
-
-        if (magnitude1 == 0.0f || magnitude2 == 0.0f) {
-            return -1.0f;
-        }
-
-        return dotProduct / (magnitude1 * magnitude2);
     }
 
     static std::string
