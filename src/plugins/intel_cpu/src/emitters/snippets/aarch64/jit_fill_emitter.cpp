@@ -62,18 +62,7 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    const size_t supported_et_size = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / exec_prc_.size();
-    if (offset == supported_et_size) {
-        // WA: since AssignRegisters doesn't support inplace logic, Fill ops with offset = register_capacity can't be
-        // removed from the LIR
-        // TODO: when inplace is supported, remove such Fill ops from the LIR and remove this logic.
-        // Ticket: 126270
-        auto src = in[0];
-        auto dst = out[0];
-        if (src != dst) {
-            h->mov(Xbyak_aarch64::VReg16B(dst), Xbyak_aarch64::VReg16B(src));
-        }
-    } else if (is_full_reg()) {
+    if (is_full_reg()) {
         fill_full<isa>(out);
     } else {
         fill_tail<isa>(in, out);
