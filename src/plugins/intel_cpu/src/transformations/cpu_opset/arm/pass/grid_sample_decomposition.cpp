@@ -66,6 +66,8 @@ struct Ctx {
     std::shared_ptr<Node> c0, c1, c2, c0_5;
     // Coordinates (normalized -> pixel coords, without padding/reflection)
     std::shared_ptr<Node> x, y;
+    // Original normalized coordinates from grid [-1, 1]
+    std::shared_ptr<Node> x_norm, y_norm;
     // Data NHWC for GatherND
     std::shared_ptr<Node> data_nhwc;
 };
@@ -126,14 +128,27 @@ static std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
         auto ref = std::make_shared<op::v1::Subtract>(size_m1, ad);
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, ref);
     } else {
+        // For align_corners=false: handle negative coords by transforming them
+        // PyTorch formula: negative coords are transformed as -coord - 1
+        auto is_negative = std::make_shared<op::v1::Less>(coord, ctx.c0);
+        auto neg_coord = std::make_shared<op::v0::Negative>(coord);
+        auto neg_minus_one = std::make_shared<op::v1::Subtract>(neg_coord, ctx.c1);
+        auto coord_positive = std::make_shared<op::v1::Select>(is_negative, neg_minus_one, coord);
+        
         auto two_size = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
-        auto shifted  = std::make_shared<op::v1::Add>(coord, ctx.c0_5);
-        auto mod      = std::make_shared<op::v1::FloorMod>(shifted, two_size);
-        auto need_ref = std::make_shared<op::v1::Greater>(mod, size_f);
-        auto ref_val  = std::make_shared<op::v1::Subtract>(two_size, mod);
-        auto ref      = std::make_shared<op::v1::Select>(need_ref, ref_val, mod);
-        auto res      = std::make_shared<op::v1::Subtract>(ref, ctx.c0_5);
-        return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, res);
+        // Safe period to avoid division by zero
+        auto two_size_safe = std::make_shared<op::v1::Maximum>(two_size, ctx.c1);
+        
+        // Use positive modulo on the transformed coordinate
+        auto mod = std::make_shared<op::v1::FloorMod>(coord_positive, two_size_safe);
+        
+        auto need_ref = std::make_shared<op::v1::GreaterEqual>(mod, size_f);
+        // Reflect: 2*size - 1 - mod
+        auto two_size_m1 = std::make_shared<op::v1::Subtract>(two_size_safe, ctx.c1);
+        auto ref_val = std::make_shared<op::v1::Subtract>(two_size_m1, mod);
+        auto result = std::make_shared<op::v1::Select>(need_ref, ref_val, mod);
+        
+        return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, result);
     }
 }
 
@@ -146,19 +161,23 @@ static std::shared_ptr<Node> reflect_index(const Ctx& ctx,
     if (align_corners) {
         auto size_m1 = std::make_shared<op::v1::Subtract>(size_f, ctx.c1);
         auto two_sm1 = std::make_shared<op::v1::Multiply>(ctx.c2, size_m1);
+        // Guard against division by zero when size==1
+        auto period_safe = std::make_shared<op::v1::Maximum>(two_sm1, ctx.c1);
         // Use positive modulo: ((idx % period) + period) % period
-        auto mod1    = std::make_shared<op::v1::FloorMod>(idx, two_sm1);
+        auto mod1    = std::make_shared<op::v1::FloorMod>(idx, period_safe);
         auto mod2    = std::make_shared<op::v1::FloorMod>(
-                           std::make_shared<op::v1::Add>(mod1, two_sm1), two_sm1);
+                           std::make_shared<op::v1::Add>(mod1, period_safe), period_safe);
         auto flipped = std::make_shared<op::v1::Subtract>(two_sm1, mod2);
         auto cond    = std::make_shared<op::v1::GreaterEqual>(mod2, size_f);
         auto ref     = std::make_shared<op::v1::Select>(cond, flipped, mod2);
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, ref);
     } else {
         auto two_s   = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
-        auto per_m1  = std::make_shared<op::v1::Subtract>(two_s, ctx.c1);
-        auto mod1    = std::make_shared<op::v1::FloorMod>(idx, two_s);
-        auto mod2    = std::make_shared<op::v1::FloorMod>(std::make_shared<op::v1::Add>(mod1, two_s), two_s);
+        // Safe period to avoid division by zero
+        auto two_s_safe = std::make_shared<op::v1::Maximum>(two_s, ctx.c1);
+        auto per_m1  = std::make_shared<op::v1::Subtract>(two_s_safe, ctx.c1);
+        auto mod1    = std::make_shared<op::v1::FloorMod>(idx, two_s_safe);
+        auto mod2    = std::make_shared<op::v1::FloorMod>(std::make_shared<op::v1::Add>(mod1, two_s_safe), two_s_safe);
         auto need_rf = std::make_shared<op::v1::GreaterEqual>(mod2, size_f);
         auto ref_val = std::make_shared<op::v1::Subtract>(per_m1, mod2);
         auto res     = std::make_shared<op::v1::Select>(need_rf, ref_val, mod2);
@@ -182,7 +201,7 @@ static bool decompose_impl(
 
     Ctx ctx{};
     ctx.element_type = data.get_element_type();
-    ctx.calc_type    = ctx.element_type.is_real() ? ctx.element_type : element::f32;
+    ctx.calc_type    = element::f32;  // Always use f32 for coordinate calculations
 
     // ShapeOf components
     auto dshape = std::make_shared<op::v3::ShapeOf>(data, element::i32);
@@ -219,6 +238,10 @@ static bool decompose_impl(
     auto x_grid = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {0}), axis3);
     auto y_grid = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {1}), axis3);
 
+    // Save original normalized coordinates for ZEROS mask
+    ctx.x_norm = x_grid;
+    ctx.y_norm = y_grid;
+
     // Normalization [-1,1] -> pixels (without padding/reflection - that's the mode builder's job)
     if (gs->get_attributes().align_corners) {
         auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
@@ -230,15 +253,16 @@ static bool decompose_impl(
                     std::make_shared<op::v1::Divide>(std::make_shared<op::v1::Add>(y_grid, ctx.c1), ctx.c2),
                     h_m1);
     } else {
+        // PyTorch formula for align_corners=false: ((x + 1) * W - 1) / 2
+        auto x_p1_w = std::make_shared<op::v1::Multiply>(
+                        std::make_shared<op::v1::Add>(x_grid, ctx.c1), w_in_f);
+        auto y_p1_h = std::make_shared<op::v1::Multiply>(
+                        std::make_shared<op::v1::Add>(y_grid, ctx.c1), h_in_f);
         ctx.x = std::make_shared<op::v1::Divide>(
-                    std::make_shared<op::v1::Subtract>(
-                        std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(x_grid, ctx.c1), w_in_f),
-                        ctx.c1),
+                    std::make_shared<op::v1::Subtract>(x_p1_w, ctx.c1),
                     ctx.c2);
         ctx.y = std::make_shared<op::v1::Divide>(
-                    std::make_shared<op::v1::Subtract>(
-                        std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(y_grid, ctx.c1), h_in_f),
-                        ctx.c1),
+                    std::make_shared<op::v1::Subtract>(y_p1_h, ctx.c1),
                     ctx.c2);
     }
 
@@ -282,51 +306,64 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
             return false;
 
         return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) -> std::shared_ptr<Node> {
-            const bool is_border     = attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER;
             const bool is_zeros      = attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS;
             const bool is_reflection = attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION;
 
             auto h_in_f = std::make_shared<op::v0::Convert>(ctx.h_in, ctx.calc_type);
             auto w_in_f = std::make_shared<op::v0::Convert>(ctx.w_in, ctx.calc_type);
 
-            // 1) For REFLECTION: reflect continuous coords first
-            std::shared_ptr<Node> x_pad = ctx.x;
-            std::shared_ptr<Node> y_pad = ctx.y;
+            // 1) Round to the nearest integer pixel using Round (banker's rounding like lrint)
+            // This matches the reference implementation which uses std::lrint
+            std::shared_ptr<Node> x_idx = std::make_shared<op::v5::Round>(ctx.x, op::v5::Round::RoundMode::HALF_TO_EVEN);
+            std::shared_ptr<Node> y_idx = std::make_shared<op::v5::Round>(ctx.y, op::v5::Round::RoundMode::HALF_TO_EVEN);
+            
+            // 2) For REFLECTION: apply reflection to integer indices
+            // The reference implementation applies reflection AFTER rounding to integers
             if (is_reflection) {
-                x_pad = reflect_coord(ctx, ctx.x, w_in_f, attrs.align_corners);
-                y_pad = reflect_coord(ctx, ctx.y, h_in_f, attrs.align_corners);
+                x_idx = reflect_index(ctx, x_idx, w_in_f, attrs.align_corners);
+                y_idx = reflect_index(ctx, y_idx, h_in_f, attrs.align_corners);
             }
+            
+            // 3) ALWAYS clamp indices to valid range [0, size-1] for safety
+            // This is necessary because reflection can produce indices outside bounds 
+            // (especially for align_corners=true with small sizes)
+            auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
+            auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
+            
+            // Store unclamped indices for ZEROS mask check (before reflection)
+            auto x_idx_unclamped = std::make_shared<op::v5::Round>(ctx.x, op::v5::Round::RoundMode::HALF_TO_EVEN);
+            auto y_idx_unclamped = std::make_shared<op::v5::Round>(ctx.y, op::v5::Round::RoundMode::HALF_TO_EVEN);
+            
+            // Always clamp for safe memory access
+            x_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(x_idx, ctx.c0), w_m1);
+            y_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(y_idx, ctx.c0), h_m1);
 
-            // 2) Then round to nearest integer pixel using floor(x + 0.5) to match reference
-            std::shared_ptr<Node> x_idx = std::make_shared<op::v0::Floor>(std::make_shared<op::v1::Add>(x_pad, ctx.c0_5));
-            std::shared_ptr<Node> y_idx = std::make_shared<op::v0::Floor>(std::make_shared<op::v1::Add>(y_pad, ctx.c0_5));
-
-            // 3) Apply clamping for all modes to avoid out-of-bounds reads in GatherND
-            if (is_border || is_reflection || is_zeros) {
-                auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
-                auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
-                x_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(x_idx, ctx.c0), w_m1);
-                y_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(y_idx, ctx.c0), h_m1);
-            }
-
-            auto result = gather_hw(ctx, x_idx, y_idx);
-
+            std::shared_ptr<Node> result;
+            
             if (is_zeros) {
-                // Build mask based on continuous coords with half-pixel margin
-                // Valid range for NEAREST: x ∈ [-0.5, w-0.5], y ∈ [-0.5, h-0.5]
-                auto x_plus_half = std::make_shared<op::v1::Add>(x_pad, ctx.c0_5);
-                auto y_plus_half = std::make_shared<op::v1::Add>(y_pad, ctx.c0_5);
+                // Gather with clamped indices (safe memory access)
+                result = gather_hw(ctx, x_idx, y_idx);
                 
-                auto x_ok = std::make_shared<op::v1::LogicalAnd>(
-                    std::make_shared<op::v1::GreaterEqual>(x_plus_half, ctx.c0),
-                    std::make_shared<op::v1::LessEqual>(x_plus_half, w_in_f));
-                auto y_ok = std::make_shared<op::v1::LogicalAnd>(
-                    std::make_shared<op::v1::GreaterEqual>(y_plus_half, ctx.c0),
-                    std::make_shared<op::v1::LessEqual>(y_plus_half, h_in_f));
-                auto ok     = std::make_shared<op::v1::LogicalAnd>(x_ok, y_ok);
+                // Build mask based on *unclamped rounded indices* for NEAREST mode (PyTorch behavior)
+                // For NEAREST, a sample is inside if: 0 <= floor(x+0.5) <= W-1
+                auto x_ge_0  = std::make_shared<op::v1::GreaterEqual>(x_idx_unclamped, ctx.c0);
+                auto x_le_w1 = std::make_shared<op::v1::LessEqual>(x_idx_unclamped, w_m1);
+                auto y_ge_0  = std::make_shared<op::v1::GreaterEqual>(y_idx_unclamped, ctx.c0);
+                auto y_le_h1 = std::make_shared<op::v1::LessEqual>(y_idx_unclamped, h_m1);
+                
+                auto x_in_idx = std::make_shared<op::v1::LogicalAnd>(x_ge_0, x_le_w1);
+                auto y_in_idx = std::make_shared<op::v1::LogicalAnd>(y_ge_0, y_le_h1);
+                
+                // No special handling for degenerate axes in NEAREST mode
+                // The mask is based purely on whether rounded indices are in bounds
+                auto ok = std::make_shared<op::v1::LogicalAnd>(x_in_idx, y_in_idx);
+
                 auto mask   = std::make_shared<op::v0::Convert>(ok, ctx.element_type);
                 auto mask_e = std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1}));
                 result = std::make_shared<op::v1::Multiply>(result, mask_e);
+            } else {
+                // For BORDER and REFLECTION, indices are already clamped
+                result = gather_hw(ctx, x_idx, y_idx);
             }
 
             return result; // NHWC
