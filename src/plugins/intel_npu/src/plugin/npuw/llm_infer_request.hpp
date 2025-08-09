@@ -60,7 +60,8 @@ private:
 
     uint64_t checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids,
                                                  size_t block_size,
-                                                 const std::vector<size_t>& prompt_hashes);
+                                                 const std::vector<size_t>& prompt_hashes,
+                                                 std::unordered_map<std::string, std::string> input_name_map);
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,

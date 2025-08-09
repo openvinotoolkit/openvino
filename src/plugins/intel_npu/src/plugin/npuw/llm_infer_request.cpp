@@ -609,9 +609,29 @@ std::vector<size_t> calculateHashes(const ov::SoPtr<ov::ITensor>& input_ids) {
     return prompt_hashes;
 }
 
-uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids,
-                                                                        size_t block_size,
-                                                                        const std::vector<size_t>& prompt_hashes) {
+std::unordered_map<std::string, std::string> createOutputToInputNameMap(
+    const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
+    std::unordered_map<std::string, ov::Output<const ov::Node>> in_ports) {
+    std::unordered_map<std::string, std::string> input_name_map;
+    for (std::size_t i = kStartOutputKVCacheLayers; i < compiled_model->outputs().size(); ++i) {
+        const auto& output_name = compiled_model->outputs()[i].get_any_name();
+        std::string input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
+        if (in_ports.find(input_name) == in_ports.end()) {
+            LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
+            continue;
+        }
+
+        input_name_map[output_name] = input_name;
+    }
+
+    return input_name_map;
+}
+
+uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(
+    const ov::SoPtr<ov::ITensor>& input_ids,
+    size_t block_size,
+    const std::vector<size_t>& prompt_hashes,
+    std::unordered_map<std::string, std::string> input_name_map) {
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
     const char* data = reinterpret_cast<const char*>(input_ids->data());
@@ -648,11 +668,7 @@ uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov
                   << std::endl;
         for (auto kv_per_layer : block_kv_cache) {
             auto kv_out_name = kv_per_layer.first;
-            const auto& kv_in_name = std::regex_replace(kv_out_name, std::regex("present"), "past_key_values");
-            if (m_prefill_in_ports.find(kv_in_name) == m_prefill_in_ports.end()) {
-                OPENVINO_THROW("Invalid tensor name: ", kv_out_name);
-                continue;
-            }
+            const auto& kv_in_name = input_name_map[kv_out_name];
 
             auto kv_tensor = kv_per_layer.second;
             const auto& kv_dim = (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
@@ -698,8 +714,13 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     uint64_t remaining_prompts = input_prompt_len;
 
     auto prompt_hashes = calculateHashes(input_ids);
+
+    const auto& prefill_compiled = m_prefill_request->get_compiled_model();
+    std::unordered_map<std::string, std::string> input_name_map =
+        createOutputToInputNameMap(prefill_compiled, m_prefill_in_ports);
+
     auto tokens_num_after_prefix_caching_opt =
-        checkBlocksInCacheWithPrecedingHash(input_ids, BLOCK_SIZE, prompt_hashes);
+        checkBlocksInCacheWithPrecedingHash(input_ids, BLOCK_SIZE, prompt_hashes, input_name_map);
     remaining_prompts = tokens_num_after_prefix_caching_opt;
     kvcache_desc.num_stored_tokens = static_cast<uint32_t>(input_prompt_len - remaining_prompts);
     size_t token_idx = kvcache_desc.num_stored_tokens;
@@ -755,21 +776,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         {
             // 定义 block 的最大 token 数
 
-            const auto& prefill_compiled = m_prefill_request->get_compiled_model();
-
-            // 预处理 input_name 替换（避免循环内重复计算）
-            std::unordered_map<std::string, std::string> input_name_cache;
-            for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
-                const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
-                std::string input_name = std::regex_replace(output_name, std::regex("present"), "past_key_values");
-                if (m_prefill_in_ports.find(input_name) == m_prefill_in_ports.end()) {
-                    LOG_DEBUG("Input name " << input_name << " doesn't contain kv cache. Skipping.");
-                    continue;
-                }
-
-                input_name_cache[output_name] = input_name;
-            }
-
             // process tokens in current chunk block by block
             for (size_t block_start = 0; block_start < current_prompts_len; block_start += BLOCK_SIZE) {
                 // 计算当前 block 的 token 数量（可能小于 BLOCK_SIZE
@@ -794,7 +800,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                 auto kvcache_block = BlocKVCache();
                 for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
                     const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
-                    const auto& input_name = input_name_cache.at(output_name);
+                    const auto& input_name = input_name_map.at(output_name);
 
                     const auto& kv_dim =
                         (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
