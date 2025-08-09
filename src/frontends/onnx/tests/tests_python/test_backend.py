@@ -232,10 +232,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_momentum_multiple_cpu",
     ),
     (
-        xfail_issue_73538,
-        "OnnxBackendNodeModelTest.test_onehot_negative_indices_cpu",
-    ),
-    (
         xfail_issue_33488,
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
         "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",

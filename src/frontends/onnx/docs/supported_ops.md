@@ -122,7 +122,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |NonMaxSuppression                                       |10                      |11, 10                          |                                |
 |                        |NonZero                                                 |9                       |13, 9                           |                                |
 |                        |Not                                                     |1                       |1                               |                                |
-|                        |OneHot                                                  |9                       |11, 9                           |                                |
+|                        |OneHot                                                  |11, 9                   |11, 9                           |                                |
 |                        |Optional                                                |                        |15                              |                                |
 |                        |OptionalGetElement                                      |                        |18, 15                          |                                |
 |                        |OptionalHasElement                                      |                        |18, 15                          |                                |
