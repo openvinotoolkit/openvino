@@ -1011,6 +1011,12 @@ void network::transfer_memory_to_device(std::shared_ptr<primitive_inst> instance
         return;
 
     if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+        // usm_device memory does not provide performance benefits on the LNL platform
+        if (get_engine().get_device_info().arch == gpu_arch::xe2 &&
+            get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
+            return;
+        }
+
         // Allocate and transfer memory
         auto device_mem = inst_mem.get_engine()->allocate_memory(inst_mem.get_layout(), allocation_type::usm_device, false);
         device_mem->copy_from(get_stream(), inst_mem);
