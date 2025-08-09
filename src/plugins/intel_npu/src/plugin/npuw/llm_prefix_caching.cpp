@@ -15,8 +15,6 @@ void PrefixCacheManager::putBlock(const std::shared_ptr<KVBlock>& block) {
         return;
     }
 
-    block->block_hash = block->computeHash();
-
     std::shared_ptr<KVBlock> retrieved_block;
     if (getBlock(block->block_hash, retrieved_block)) {
         // Block has been cached
@@ -76,7 +74,7 @@ void PrefixCacheManager::printCacheStatus(bool verbose) {
             std::cout << "  Block index: " << block->block_id << std::endl;
             if (verbose) {
                 std::cout << "  Last token KV info: " << std::endl;
-                printKVCachePerToken(block->kv_cache_tensors.back());
+                printBlocKVCache(block->block_kv_cache);
             }
             // Add more details as needed
         } else {
