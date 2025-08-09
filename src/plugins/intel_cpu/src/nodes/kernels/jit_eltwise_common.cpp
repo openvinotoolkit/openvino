@@ -43,8 +43,7 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
                                                           const std::vector<element::Type>& exec_precisions_priority) {
     ov::element::Type exec_prc = ov::element::dynamic;
 
-    std::set<std::vector<element::Type>> supported_precision_intersection =
-        get_supported_precisions(eltwise_data.front().algo);
+    std::set<std::vector<element::Type>> supported_precisions = get_supported_precisions(eltwise_data.front().algo);
 
     // for element-wise operations all inputs must to have the same precisions
     auto has_same_precision = [](const std::vector<element::Type>& precisions) {
@@ -53,9 +52,7 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         });
     };
 
-    assert(std::all_of(supported_precision_intersection.begin(),
-                       supported_precision_intersection.end(),
-                       has_same_precision));
+    assert(std::all_of(supported_precisions.begin(), supported_precisions.end(), has_same_precision));
 
     for (size_t i = 1; i < eltwise_data.size(); ++i) {
         std::set<std::vector<element::Type>> prcs = get_supported_precisions(eltwise_data[i].algo);
@@ -64,9 +61,9 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         OPENVINO_ASSERT(std::all_of(prcs.begin(), prcs.end(), has_same_precision),
                         "for element-wise nodes all precisions have to be equal");
 
-        set_intersection(supported_precision_intersection, prcs, prcs_intersect);
+        set_intersection(supported_precisions, prcs, prcs_intersect);
 
-        supported_precision_intersection = prcs_intersect;
+        supported_precisions = prcs_intersect;
     }
 
     // To select the most suitable precision from inputs are mixed-precision
@@ -91,8 +88,8 @@ ov::element::Type eltwise_precision_helper::get_precision(const size_t inputs_nu
         if (input_precision != prc) {
             continue;
         }
-        if (std::any_of(supported_precision_intersection.begin(),
-                        supported_precision_intersection.end(),
+        if (std::any_of(supported_precisions.begin(),
+                        supported_precisions.end(),
                         [&prc](const std::vector<element::Type>& precisions) {
                             // L56 has the check that all precisions are equal
                             // So only check the first one
