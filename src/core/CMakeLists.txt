@@ -17,6 +17,7 @@ file(GLOB_RECURSE DEV_HEADERS ${OV_CORE_DEV_API_PATH}/*.hpp)
 
 add_subdirectory(reference)
 add_subdirectory(shape_inference)
+add_subdirectory(xml_util)
 
 set(MIXED_SRC
     "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime/allocator.cpp"
