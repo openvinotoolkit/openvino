@@ -633,9 +633,11 @@ uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov
                 size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, data_elem_size));
                 prefix_hash = prefix_hash * 31 + token_hash; // 滚动哈希
                 token_hashes[i] = prefix_hash;
+                // std::cout << "[match cache]token_idx: " << token_idx << " token_hash: " << token_hashes[i] << std::endl;
                 token_idx++;
             }
         }
+        // block hash is the hash of last token in block
         uint64_t block_hash = token_hashes.back();
 
         std::shared_ptr<KVBlock> retrieved_block;
@@ -705,11 +707,14 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     if (kvcache_desc.num_stored_tokens != 0) {
         // Prefix caching
         // Calculate prefix hash for token [0, kvcache_desc.num_stored_tokens - 1]
-        for (size_t i = 0; i < token_idx; ++i) {
+        for (size_t i = 0; i < kvcache_desc.num_stored_tokens; ++i) {
             const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + i * input_ids_elem_size;
-            prefix_hash = std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
+            auto token_hash = std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
+            prefix_hash = prefix_hash * 31 + token_hash;
         }
         token_idx = kvcache_desc.num_stored_tokens;
+
+        // std::cout << "[Prefix init]token_idx: " << token_idx << " prefix_hash: " << prefix_hash << std::endl;
     }
     bool restore_prefix_cache = tokens_num_after_prefix_caching_opt < input_prompt_len;
     while (remaining_prompts > 0) {
@@ -793,9 +798,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                     for (size_t i = 0; i < block_size; ++i) {
                         const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + token_idx * input_ids_elem_size;
                         size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
-                        // std::cout << "[prefix caching]token_idx: " << token_idx << " token_hash: " << token_hash << std::endl;
                         prefix_hash = prefix_hash * 31 + token_hash; // 滚动哈希
                         token_hashes[i] = prefix_hash;
+                        // std::cout << "[prefix caching]token_idx: " << token_idx << " token_hash: " << token_hashes[i] << std::endl;
                         token_idx ++;
                     }
                 }
