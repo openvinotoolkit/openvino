@@ -591,13 +591,14 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     }
 }
 
-uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids, size_t block_size) {
+uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov::SoPtr<ov::ITensor>& input_ids,
+                                                                        size_t block_size) {
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
     const char* data = reinterpret_cast<const char*>(input_ids->data());
     const auto data_elem_size = input_ids->get_element_type().size();
     size_t total_size = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
-    size_t num_blocks = (total_size + block_size - 1) / block_size; // Calculate number of blocks
+    size_t num_blocks = (total_size + block_size - 1) / block_size;  // Calculate number of blocks
 
     uint64_t orig_token_num = total_size;
     uint64_t cached_token_num = 0;
@@ -605,7 +606,7 @@ uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov
     size_t token_idx = 0;
     for (size_t block_index = 0; block_index < num_blocks; ++block_index) {
         size_t block_start = block_index * block_size;
-        size_t current_block_size = std::min(block_size, total_size - block_start); // Handle last block size
+        size_t current_block_size = std::min(block_size, total_size - block_start);  // Handle last block size
 
         // 1. 计算整个 block 的哈希（使用滚动哈希）
         std::vector<size_t> token_hashes(block_size);
@@ -613,9 +614,10 @@ uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov
             for (size_t i = 0; i < block_size; ++i) {
                 const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + token_idx * data_elem_size;
                 size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, data_elem_size));
-                prefix_hash = prefix_hash * 31 + token_hash; // 滚动哈希
+                prefix_hash = prefix_hash * 31 + token_hash;  // 滚动哈希
                 token_hashes[i] = prefix_hash;
-                // std::cout << "[match cache]token_idx: " << token_idx << " token_hash: " << token_hashes[i] << std::endl;
+                // std::cout << "[match cache]token_idx: " << token_idx << " token_hash: " << token_hashes[i] <<
+                // std::endl;
                 token_idx++;
             }
         }
@@ -631,7 +633,8 @@ uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov
         // Cache hit
         auto token_start = retrieved_block->token_start;
         BlocKVCache block_kv_cache = retrieved_block->block_kv_cache;
-        std::cout << "[Cache hit] Block found with block hash: " << block_hash << " token_start: " << token_start << std::endl;
+        std::cout << "[Cache hit] Block found with block hash: " << block_hash << " token_start: " << token_start
+                  << std::endl;
         for (auto kv_per_layer : block_kv_cache) {
             auto kv_out_name = kv_per_layer.first;
             const auto& kv_in_name = std::regex_replace(kv_out_name, std::regex("present"), "past_key_values");
@@ -642,14 +645,14 @@ uint64_t ov::npuw::LLMInferRequest::checkBlocksInCacheWithPrecedingHash(const ov
 
             auto kv_tensor = kv_per_layer.second;
             const auto& kv_dim = (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                            ? 3u
-                            : kvcache_desc.dim;
+                                     ? 3u
+                                     : kvcache_desc.dim;
 
             auto kv_dst_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(kv_in_name));
             auto kv_dst_slice = make_tensor_slice(kv_dst_tensor,
-                                    kv_dim,
-                                    static_cast<uint32_t>(token_start),
-                                    static_cast<uint32_t>(token_start + block_size));
+                                                  kv_dim,
+                                                  static_cast<uint32_t>(token_start),
+                                                  static_cast<uint32_t>(token_start + block_size));
             copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim);
         }
         cached_token_num += block_size;
@@ -668,7 +671,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     LOG_DEBUG("Calling chunked inference for prefill model.");
     LOG_BLOCK();
 
-    std::cout << "infer_chunked_prefill: input token len is " << input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM] << std::endl;
+    std::cout << "infer_chunked_prefill: input token len is " << input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]
+              << std::endl;
 
     const auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
     const auto input_ids_elem_size = input_ids->get_element_type().size();
@@ -723,8 +727,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         if (restore_prefix_cache) {
             restore_prefix_cache = false;
             std::copy_n(attention_mask->data<int64_t>(),
-                    kvcache_desc.num_stored_tokens,
-                    attn_mask_in_tensor->data<int64_t>());
+                        kvcache_desc.num_stored_tokens,
+                        attn_mask_in_tensor->data<int64_t>());
         }
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
@@ -773,17 +777,20 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                     // Not a full block, drop it.
                     break;
                 }
-                
+
                 // 1. 计算整个 block 的哈希（使用滚动哈希）
                 std::vector<size_t> token_hashes(block_size);
                 {
                     for (size_t i = 0; i < block_size; ++i) {
-                        const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + token_idx * input_ids_elem_size;
-                        size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
-                        prefix_hash = prefix_hash * 31 + token_hash; // 滚动哈希
+                        const char* token_data =
+                            reinterpret_cast<const char*>(input_ids->data()) + token_idx * input_ids_elem_size;
+                        size_t token_hash =
+                            std::hash<std::string_view>{}(std::string_view(token_data, input_ids_elem_size));
+                        prefix_hash = prefix_hash * 31 + token_hash;  // 滚动哈希
                         token_hashes[i] = prefix_hash;
-                        // std::cout << "[prefix caching]token_idx: " << token_idx << " token_hash: " << token_hashes[i] << std::endl;
-                        token_idx ++;
+                        // std::cout << "[prefix caching]token_idx: " << token_idx << " token_hash: " << token_hashes[i]
+                        // << std::endl;
+                        token_idx++;
                     }
                 }
 
@@ -793,16 +800,17 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                     const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
                     const auto& input_name = input_name_cache.at(output_name);
 
-                    const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
-                                        ? 3u
-                                        : kvcache_desc.dim;
+                    const auto& kv_dim =
+                        (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                            ? 3u
+                            : kvcache_desc.dim;
 
                     // 批量切片：一次性切片整个 block 的范围
                     auto kv_src_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
                     auto kv_src_slice = make_tensor_slice(kv_src_tensor,
-                                           kv_dim,
-                                           static_cast<uint32_t>(block_start),
-                                           static_cast<uint32_t>(block_start + block_size));
+                                                          kv_dim,
+                                                          static_cast<uint32_t>(block_start),
+                                                          static_cast<uint32_t>(block_start + block_size));
 
                     auto new_tensor_elem_type = kv_src_slice->get_element_type();
                     auto new_tensor_shape = kv_src_slice->get_shape();
@@ -818,7 +826,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                 block->addBlock(token_hashes, kvcache_block);
 
                 m_prefix_cache->putBlock(block);
-                std::cout << "[prefix caching]Got a full block, block id: " << block->block_id << " token_start:" << block->token_start << " block hash: " << block->block_hash << std::endl;
+                std::cout << "[prefix caching]Got a full block, block id: " << block->block_id
+                          << " token_start:" << block->token_start << " block hash: " << block->block_hash << std::endl;
                 // printBlocKVCache(current_token_kv_cache);
             }
         }
