@@ -33,6 +33,20 @@ public:
         void setArg(const void* arg);
         void setSize(const intel_npu::IODescriptor& descriptor);
         void updateStride();
+
+        friend std::ostream& operator<<(std::ostream& os, const MemRefType& memRef) {
+            os << "BasePtr: " << memRef.basePtr << ", Data: " << memRef.data << ", Offset: " << memRef.offset
+               << ", Sizes: [";
+            for (int64_t size : memRef.sizes) {
+                os << size << " ";
+            }
+            os << "], Strides: [";
+            for (int64_t stride : memRef.strides) {
+                os << stride << " ";
+            }
+            os << "]";
+            return os;
+        }
     };
 
     struct GraphArguments {
@@ -84,6 +98,9 @@ public:
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
     ze_graph_handle_t get_handle() const override;
+    bool use_dynamic_pipeline() override {
+        return true;
+    }
     void set_argument_property(uint32_t argi,
                                const void* argv,
                                const ov::Strides& strides,
