@@ -29,12 +29,13 @@ namespace gpu::xetla::group {
 /// @brief Epilogue policy for tile_op + store C fusion.
 /// @tparam tile_op_t_ Is the tile_op functor.
 /// @tparam arch_tag_ Is the HW architecture.
-template <typename tile_op_t_, gpu_arch arch_tag_>
+template <typename tile_op_t_, gpu_arch arch_tag_,
+        msg_type msg_type_c_ = msg_type::block_2d>
 struct epilogue_policy_tile_op {
     using tile_op_t = tile_op_t_;
     static constexpr gpu_arch arch_tag = arch_tag_;
+    static constexpr msg_type msg_type_c = msg_type_c_;
 };
-
 /// @} xetla_epilogue
 
 } // namespace gpu::xetla::group

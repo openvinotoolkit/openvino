@@ -8,6 +8,7 @@
 #include "common_test_utils/node_builders/convolution.hpp"
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
+#include "shared_test_classes/base/utils/ranges.hpp"
 #include "template/properties.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/matmul.hpp"
@@ -16,6 +17,10 @@
 
 namespace ov {
 namespace test {
+
+bool LoraPatternBase::is_low_precision(ov::element::Type net_type) const {
+    return net_type.size() <= 2;
+}
 
 void LoraPatternBase::run_test_empty_tensors() {
     compile_model();
@@ -34,7 +39,40 @@ void LoraPatternBase::run_test_empty_tensors() {
     ov::test::utils::compare(tx_result, tz_result);
 }
 
+void LoraPatternMatmul::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    inputs.clear();
+    ov::test::utils::ModelRange modelRange;
+    modelRange.find_mode_ranges(function);
+
+    auto itTargetShape = targetInputStaticShapes.begin();
+    for (const auto &param : function->get_parameters()) {
+        std::shared_ptr<ov::Node> inputNode = param;
+        for (size_t i = 0; i < param->get_output_size(); i++) {
+            for (const auto &node : param->get_output_target_inputs(i)) {
+                std::shared_ptr<ov::Node> nodePtr = node.get_node()->shared_from_this();
+                for (size_t port = 0; port < nodePtr->get_input_size(); ++port) {
+                    if (nodePtr->get_input_node_ptr(port)->shared_from_this() == inputNode->shared_from_this()) {
+                        if (is_low_precision(nodePtr->get_input_element_type(port))) {
+                            const auto& tensor = ov::test::utils::create_and_fill_tensor_real_distribution(
+                                nodePtr->get_input_element_type(port), *itTargetShape, -2.f, 2.f, 0);
+                            inputs.insert({param, tensor});
+                        } else {
+                            inputs.insert({param, modelRange.generate_input(nodePtr, port, *itTargetShape)});
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        itTargetShape++;
+    }
+}
+
 void LoraPatternBase::run_test_random_tensors(ov::element::Type net_type, size_t lora_rank) {
+    if (net_type == ov::element::f16) {
+        GTEST_SKIP() << "Skipping test for f16 - accuracy issues on devices without DPAS";
+    }
+
     compile_model();
     inferRequest = compiledModel.create_infer_request();
     ASSERT_TRUE(inferRequest);
@@ -127,6 +165,7 @@ std::string LoraPatternMatmul::getTestCaseName(testing::TestParamInfo<LoraMatMul
     result << "LoraRank=" << lora_rank << "_";
     result << "netType=" << net_type << "_";
     result << "targetDevice=" << device_name;
+    result << "datatype=" << net_type.get_type_name();
 
     return result.str();
 }
