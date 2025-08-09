@@ -132,30 +132,33 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
     auto reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
     XReg aux_gpr = is_offset_runtime ? XReg(static_cast<int>(aux_gpr_idxs.back())) : XReg(0);
 
-    XReg data_reg(0);
-    if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
-        data_reg = XReg(in_idxs[0]);
-    } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
-        data_reg = XReg(out_idxs[0]);
-    } else {
-        OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
-    }
+    std::vector<size_t> eff_in = in_idxs;
+    std::vector<size_t> eff_out = out_idxs;
 
     if (is_offset_runtime) {
+        XReg data_reg(0);
+        if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
+            data_reg = XReg(in_idxs[0]);
+        } else if (in_out_type_ == emitter_in_out_map::vec_to_gpr) {
+            data_reg = XReg(out_idxs[0]);
+        } else {
+            OV_CPU_JIT_EMITTER_THROW("unsupported in_out_type");
+        }
+
         // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
         h->ldr(aux_gpr,
                ptr(reg_runtime_params,
                    static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
-        // bump the pointer
-        h->add(data_reg, data_reg, aux_gpr);
+        h->add(h->X_DEFAULT_ADDR, data_reg, aux_gpr);
+
+        if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
+            eff_in[0] = static_cast<size_t>(h->X_DEFAULT_ADDR.getIdx());
+        } else {  // vec_to_gpr
+            eff_out[0] = static_cast<size_t>(h->X_DEFAULT_ADDR.getIdx());
+        }
     }
 
-    emit_impl(in_idxs, out_idxs);
-
-    if (is_offset_runtime) {
-        // subtract back so we leave the pointer unchanged for the caller
-        h->sub(data_reg, data_reg, aux_gpr);
-    }
+    emit_impl(eff_in, eff_out);
 
     emitter_postamble();
 }
