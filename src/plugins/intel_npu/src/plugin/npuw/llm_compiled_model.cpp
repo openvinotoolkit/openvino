@@ -1022,6 +1022,12 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
     auto sinks = model->get_sinks();
     for (size_t i = 0; i < sinks.size(); ++i) {
         if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
+            auto variable_name = assign->get_variable_id();
+            if (!ov::npuw::matchLoRAMatMulAString(variable_name) && !ov::npuw::matchLoRAMatMulBString(variable_name) &&
+                !ov::npuw::matchLoRAMatMulAlphaString(variable_name)) {
+                continue;
+            }
+
             auto read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(assign->get_input_node_shared_ptr(0));
             OPENVINO_ASSERT(read_value, "Can't find ReadValue");
             readValues.push_back(read_value);
