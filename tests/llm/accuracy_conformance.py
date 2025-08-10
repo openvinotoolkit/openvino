@@ -50,6 +50,8 @@ NUMBER_OF_SAMPLES = 15
 METRIC_OF_INTEREST = "similarity"
 PREC_INT8 = "INT8"
 PREC_INT4 = "INT4"
+GPU_SUFFIX = 0   # Suffix to append to device name (e.g., '.1' for GPU.1). To be replaced by option
+DO_NOT_CLEANUP = False
 
 def get_reference(model_id, device, precision):
     """Get reference value from catalog"""
@@ -68,13 +70,11 @@ def get_tmp_dir():
         # Use fixed directory by default (could use tempfile.mkdtemp for true temporary)
         tmp_dir = os.path.join(os.getcwd(), "test_models_cache")
         os.makedirs(tmp_dir, exist_ok=True)
-        logger.info(f"Using directory: {tmp_dir}")
-        return tmp_dir
     else:
         # Use temp directory when cleanup is disabled
         tmp_dir = tempfile.mkdtemp(dir=os.getcwd())
-        logger.info(f"Using persistent directory (no cleanup): {tmp_dir}")
-        return tmp_dir
+    logger.info(f"Using directory: {tmp_dir}")
+    return tmp_dir
 
 tmp_dir = get_tmp_dir()
 
