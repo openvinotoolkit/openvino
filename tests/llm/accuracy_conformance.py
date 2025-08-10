@@ -103,6 +103,7 @@ def init_test_scope():
         ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
 
         int8_model_path = get_model_path(model_id, PREC_INT8)
+        # If directory exists, do not quantize again. It is for local development purpose. CI should re-generate it everytime.
         if not os.path.exists(int8_model_path):
             logger.info(f'Saving int8 OpenVINO model: {int8_model_path}')
             ov_model = OVModelForCausalLM.from_pretrained(model_path, load_in_8bit=True)
@@ -192,7 +193,7 @@ def test_accuracy_conformance(model_id, precision, device):
     set_seed(42)
     _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())
     metric = all_metrics[METRIC_OF_INTEREST].values[0]
-    evaluator.dump_predictions(os.path.join(tmp_dir, f"{get_model_path(model_id, precision)}_{actual_device}target.csv"))
+    evaluator.dump_predictions(os.path.join(tmp_dir, f"{get_model_path(model_id, precision)}_{actual_device}_target.csv"))
 
     # Get expected values from catalog (use original device for lookup)
     expected_reference = get_reference(model_id, device, precision)
