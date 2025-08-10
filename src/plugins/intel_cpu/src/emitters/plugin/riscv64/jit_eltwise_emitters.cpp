@@ -928,7 +928,7 @@ size_t jit_greater_emitter::aux_fp_gprs_count() const {
 }
 
 std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(
-    const std::shared_ptr<ov::Node>& node) {
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
 
