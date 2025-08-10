@@ -150,7 +150,7 @@ const std::vector<ov::element::Type> model_types = {
     ov::element::f32,
 };
 
-const std::vector<int64_t> axes = {0, 3};
+const std::vector<int64_t> axes = {0, 1, 3};
 const std::vector<int64_t> k = {3, 5, 7};
 
 const std::vector<ov::op::v1::TopK::Mode> modes = {

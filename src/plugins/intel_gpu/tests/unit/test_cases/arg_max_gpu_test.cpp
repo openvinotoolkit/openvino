@@ -13,6 +13,9 @@
 
 #include "program_wrapper.h"
 
+#include <algorithm>
+#include <numeric>
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -975,6 +978,105 @@ TEST(arg_max_min_gpu, dynamic) {
     ASSERT_EQ(output_ptr.size(), out_size);
     for (uint32_t i = 0; i < out_size; i++) {
         ASSERT_FLOAT_EQ(output_ptr[i], i < (out_size / 2) ? 0 : 1);
+    }
+}
+
+TEST(arg_max_min_gpu, dynamic_local_memory) {
+    const int32_t x_size = 1, y_size = 1, feature_num = 8, batch_num = 16;
+    auto& engine = get_test_engine();
+    const int top_k = 2;
+    auto input_layout_dynamic = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto input_layout_static = layout{ov::PartialShape{batch_num, feature_num, y_size, x_size}, data_types::f32, format::bfyx};
+
+    layout mutableLayout = {data_types::i32, format::bfyx, {1, 1, 1, 1}};
+    auto input = engine.allocate_memory(input_layout_static);
+    const std::vector<float> topk_vec = {2};
+    auto top_k_input = engine.allocate_memory(mutableLayout);
+    set_values(top_k_input, topk_vec);
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(data("const", top_k_input));
+    topology.add(arg_max_min("arg_max", { input_info("input"), input_info("const") }, ov::op::TopKMode::MAX, top_k, 1,
+          ov::op::TopKSortType::SORT_INDICES, true, true, data_types::f32, 2));
+    topology.add(permute("permute_1", input_info("arg_max", 0), {0, 1, 2, 3}));
+    topology.add(permute("permute_2", input_info("arg_max", 1), {0, 1, 2, 3}));
+    topology.add(concatenation("concat", { input_info("permute_1"), input_info("permute_2") }, 0));
+
+    std::vector<float> input_vec = {/*b0f0 - b0f7*/ 0.000266, 0.000106, 0.000300, 0.000202, 0.000033, 0.000050, 0.000136, 0.000161,
+                                    /*b1f0 - b1f7*/ 0.000059, 0.000104, 0.000264, 0.000212, 0.000096, 0.000148, 0.000066, 0.000120,
+                                    /*b2f0 - b2f7*/ 0.000118, 0.000204, 0.000286, 0.000362, 0.000089, 0.000102, 0.000223, 0.000187,
+                                    /*b3f0 - b3f7*/ 0.000156, 0.000205, 0.000154, 0.000072, 0.000069, 0.000279, 0.000141, 0.000117,
+                                    /*b4f0 - b4f7*/ 0.000144, 0.000163, 0.000116, 0.000171, 0.000128, 0.000124, 0.000295, 0.000078,
+                                    /*b5f0 - b5f7*/ 0.000189, 0.000180, 0.000448, 0.000198, 0.000117, 0.000060, 0.000153, 0.000137,
+                                    /*b6f0 - b6f7*/ 0.000203, 0.000210, 0.000099, 0.000101, 0.000047, 0.000059, 0.000102, 0.000128,
+                                    /*b7f0 - b7f7*/ 0.000131, 0.000146, 0.000078, 0.000317, 0.000326, 0.000411, 0.000113, 0.000093,
+                                    /*b8f0 - b8f7*/ 0.000110, 0.000046, 0.000342, 0.000231, 0.000333, 0.000071, 0.000199, 0.000209,
+                                    /*b9f0 - b9f7*/ 0.000190, 0.000139, 0.000209, 0.000018, 0.000317, 0.000111, 0.000054, 0.000078,
+                                    /*b10f0 - b10f7*/ 0.000218, 0.000126, 0.000243, 0.000105, 0.000128, 0.000120, 0.000070, 0.000054,
+                                    /*b11f0 - b11f7*/ 0.000091, 0.000212, 0.000179, 0.000159, 0.000112, 0.000098, 0.000242, 0.000292,
+                                    /*b12f0 - b12f7*/ 0.000080, 0.000084, 0.000197, 0.000068, 0.000157, 0.000181, 0.000150, 0.000084,
+                                    /*b13f0 - b13f7*/ 0.000149, 0.000299, 0.000061, 0.000122, 0.000091, 0.000083, 0.000277, 0.000335,
+                                    /*b14f0 - b14f7*/ 0.000094, 0.000128, 0.000088, 0.000208, 0.000364, 0.000202, 0.000116, 0.000168,
+                                    /*b15f0 - b15f7*/ 0.000128, 0.000160, 0.000126, 0.000089, 0.000322, 0.000112, 0.000253, 0.000218};
+
+
+
+    set_values(input, input_vec);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto inst = network.get_primitive("arg_max");
+    auto impl = inst->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+
+    auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "concat");
+
+    const int out_size = y_size * batch_num * x_size * top_k * 2;
+    auto output = outputs.at("concat").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    // Calculate ref top K with values and indices
+    std::vector<float> ref_result_values;
+    std::vector<size_t> ref_result_indices;
+
+    size_t k = std::min<size_t>(2, feature_num);
+    for (size_t i = 0; i < batch_num; i++) {
+        std::vector<std::pair<size_t, float>> indexValues;
+        indexValues.reserve(feature_num);
+
+        for (size_t j = 0; j < feature_num; j++) {
+            indexValues.emplace_back(j, input_vec.at(i * feature_num + j));
+        }
+
+        std::partial_sort(indexValues.begin(), indexValues.begin() + k, indexValues.end(),
+            [](const std::pair<size_t, float>&a, const std::pair<size_t, float>&b) {
+                return a.second > b.second;
+               }
+            );
+
+        std::sort(indexValues.begin(), indexValues.begin() + k,
+            [](const std::pair<size_t, float>&a, const std::pair<size_t, float>&b) {
+                return a.first < b.first;
+               }
+            );
+
+        for (size_t elem = 0; elem < top_k; elem++) {
+            ref_result_values.push_back(indexValues[elem].second);
+            ref_result_indices.push_back(indexValues[elem].first);
+        }
+    }
+
+    ASSERT_EQ(output_ptr.size(), out_size);
+    for (uint32_t i = 0; i < out_size/2; i++) {
+        ASSERT_FLOAT_EQ(output_ptr[i], ref_result_values[i]);
+        ASSERT_EQ(output_ptr[i + top_k * batch_num], ref_result_indices[i]);
     }
 }
 
