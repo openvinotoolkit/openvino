@@ -507,8 +507,14 @@ std::vector<std::string> disabledTestPatterns() {
 #if !defined(OPENVINO_ARCH_ARM64)
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
-    // smoke_Snippets test cases are not supported on arm64 platforms, except for listed below
-    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise|_Convert|_Transpose|_FQDecomposition_|_BroadcastSelect|_Select|_MatMul/|_MatMulBias|_Reduce|_Softmax|_AddSoftmax).*)");
+    retVector.emplace_back(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)");
+    retVector.emplace_back(R"(smoke_Snippets_FullyConnectedTransposeB/MatMulTransposeB.*)");
+    retVector.emplace_back(R"(smoke_Snippets_GatedMLP_f32.*)");
+    retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
+    retVector.emplace_back(R"(smoke_Snippets_MHA.*)");
+    retVector.emplace_back(R"(smoke_Snippets_MLP_SEQ.*)");
+    retVector.emplace_back(R"(smoke_Snippets_MatMulTransposeB.*)");
+    retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
     retVector.emplace_back(R"(smoke_Snippets_TransposeMatMulBias.*)");
 #endif
 #if defined(_WIN32)
