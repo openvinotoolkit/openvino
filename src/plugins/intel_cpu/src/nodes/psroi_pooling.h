@@ -21,9 +21,9 @@ class PSROIPooling : public Node {
 public:
     PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override{};
+    void createPrimitive() override {};
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
 
@@ -51,7 +51,7 @@ private:
     // for Deformable PSROIPolling
     bool noTrans;
     int partSize = 1;
-    float transStd = 1.f;
+    float transStd = 1.F;
 
     void unpackParams(const BlockedMemoryDesc& srcDesc,
                       const BlockedMemoryDesc& dstDesc,

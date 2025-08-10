@@ -4,31 +4,46 @@
 
 #include "snippets/pass/transpose_decomposition.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "transformations/utils/utils.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/store.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 using namespace lowered;
 
 bool TransposeDecomposition::is_supported_transpose(const Output<Node>& transpose_out) {
     const auto transpose = ov::as_type_ptr<const ov::opset1::Transpose>(transpose_out.get_node_shared_ptr());
-    if (!transpose)
+    if (!transpose) {
         return false;
+    }
     const auto order = ov::as_type_ptr<const ov::opset1::Constant>(transpose->get_input_node_shared_ptr(1));
-    if (!order)
+    if (!order) {
         return false;
+    }
     return is_supported_transpose_order(order->cast_vector<int32_t>());
 }
 
 bool TransposeDecomposition::is_supported_transpose_order(const std::vector<int32_t>& order) {
     const auto size = order.size();
-    if (size > 0)
+    if (size > 0) {
         return order.back() != static_cast<int32_t>(size - 1);
+    }
     return true;
 }
 
@@ -51,12 +66,14 @@ TransposeDecomposition::TransposeDecomposition() {
 
         const auto order =
             ov::as_type_ptr<ov::op::v0::Constant>(pattern_to_output.at(match_order).get_node_shared_ptr());
-        if (transformation_callback(transpose))
+        if (transformation_callback(transpose)) {
             return false;
+        }
 
         auto order_value = order->cast_vector<int>();
-        if (!is_supported_transpose_order(order_value))
+        if (!is_supported_transpose_order(order_value)) {
             return false;
+        }
 
         // number of elements that can be processed on every iteration. For 0,1,2,3 -> 0,2,3,1 we can guarantee only
         // scalar access
@@ -73,7 +90,7 @@ TransposeDecomposition::TransposeDecomposition() {
         PortDescriptorUtils::set_port_descriptor(store->input(0), subtensor);
         PortDescriptorUtils::set_port_descriptor(store->output(0), subtensor);
 
-        for (auto& input : transpose->output(0).get_target_inputs()) {
+        for (const auto& input : transpose->output(0).get_target_inputs()) {
             input.replace_source_output(store->output(0));
         }
 
@@ -84,6 +101,4 @@ TransposeDecomposition::TransposeDecomposition() {
     register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

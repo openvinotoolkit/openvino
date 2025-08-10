@@ -4,13 +4,14 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/rtti.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 /**
  * @interface UpdateMemoryAccessCounts
  * @brief The pass changes counts of all MemoryAccess ops
@@ -21,7 +22,7 @@ namespace pass {
  */
 class UpdateMemoryAccessCounts : public pass::RangedPass {
 public:
-    UpdateMemoryAccessCounts(size_t count);
+    explicit UpdateMemoryAccessCounts(size_t count);
     OPENVINO_RTTI("UpdateMemoryAccessCounts", "", RangedPass);
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
     std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
@@ -38,7 +39,7 @@ private:
  */
 class SetFillOffset : public pass::RangedPass {
 public:
-    SetFillOffset(size_t offset);
+    explicit SetFillOffset(size_t offset);
     OPENVINO_RTTI("SetFillOffset", "", RangedPass);
     bool run(LinearIR& linear_ir, LinearIR::constExprIt begin, LinearIR::constExprIt end) override;
     std::shared_ptr<pass::PassBase> merge(const std::shared_ptr<pass::PassBase>& other) override;
@@ -64,7 +65,4 @@ public:
         const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
 };
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

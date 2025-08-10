@@ -282,7 +282,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
         } else {
-            cldnn::tensor::value_type out_features = node->get_output_layout().feature();
+            ov::Dimension::value_type out_features = node->get_output_layout().feature();
             bool is_3d_fc = false;
 
             // Change out_features value to proper dimension for 3D FC case
@@ -307,6 +307,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         auto& replace_candidate = eltw_node.get_dependency(non_const_dep_idx);
 
         if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
+            continue;
+
+        if (replace_candidate.users.size() > 1)
             continue;
 
         auto fuse_bias_f = [&p](program_node& prev_node, program_node& new_node, program_node& bias_node, program_node& eltw_node) {
@@ -715,7 +718,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
         auto lora_supports_fusings = [&](lora_node& node) -> bool {
             const auto& lora_dep = node.get_dependency(0);
-            return lora_dep.get_users().size() == 1;
+            bool lora_is_single_user = lora_dep.get_users().size() == 1;
+
+            size_t lora_count = (node.get_kernel_impl_params()->desc->input_size() - 2) / 3;
+            bool is_simple_lora = lora_count == 1;
+
+            return lora_is_single_user && is_simple_lora;
         };
 
         auto fuse_activation_f = [&](activation_node& activation_node) {
@@ -859,7 +867,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             auto out_layout = quantize_node.get_output_layout();
             auto in_layout = input_data.get_output_layout();
-            if (in_layout.is_dynamic() || out_layout.is_dynamic())
+
+            // In dynamic shape, quantize-fusion is enabled in only onednn convolution.
+            if ((in_layout.is_dynamic() || out_layout.is_dynamic()) &&
+                (!input_data.is_type<convolution>() || (input_data.is_type<convolution>() && !lo.has_all_enabled_onednn_impls_optimization_attribute())))
                 return;
 
             auto out_dt = out_layout.data_type;
@@ -880,11 +891,11 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                            ((out_dt == data_types::f32 || out_dt == data_types::f16)  ||
                             in_layout.format == format::b_fs_yx_fsv16 ||
                             in_layout.format == format::bs_fs_yx_bsv32_fsv16 ||
-                            (lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
-                             !is_grouped_conv(input_data.as<convolution>())) ||
                            // Avoid fusing to b_fs_yx_fsv16 (and similar) kernels
                            (lo.has_all_enabled_onednn_impls_optimization_attribute()) ||
-                           (in_dt_is_i8_u8 && out_dt_is_i8_u8));
+                           (in_dt_is_i8_u8 && out_dt_is_i8_u8) ||
+                           (lo.should_select_b_fs_yx_fsv16_layout(input_data.as<convolution>(), input_data.get_input_layout(1)) &&
+                            !is_grouped_conv(input_data.as<convolution>())));
 
             should_fuse |= input_data.is_type<pooling>() && quantize_node.get_scale_shift_opt();
 
@@ -1157,7 +1168,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
                     && !fused_node->is_type<fully_connected>()
-                    && !fused_node->is_type<convolution>())
+                    && !fused_node->is_type<convolution>()
+                    && !fused_node->is_type<gemm>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))

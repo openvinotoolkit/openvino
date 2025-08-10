@@ -4,10 +4,23 @@
 
 #include "gemm_copy_b.hpp"
 
-#include "openvino/core/parallel.hpp"
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+
+#include "emitters/utils.hpp"
+#include "kai/ukernels/matmul/pack/kai_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon.h"
+#include "openvino/core/except.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/aarch64/op/gemm_utils.hpp"
-#include "transformations/tpp/common/op/brgemm.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::aarch64 {
 
@@ -23,11 +36,11 @@ bool GemmCopyBKernelKaiConfig::operator==(const GemmCopyBKernelKaiConfig& rhs) c
 }
 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
-    return !ov::snippets::utils::one_of(0ul, m_N, m_K) || is_empty();
+    return !ov::snippets::utils::any_of(0UL, m_N, m_K) || is_empty();
 }
 
 bool GemmCopyBKernelKaiConfig::is_empty() const {
-    return everyone_is(0ul, m_N, m_K);
+    return all_of(0UL, m_N, m_K);
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -45,7 +58,7 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
 void GemmCopyBKernelKaiConfig::update(size_t N, size_t K) {
     // If one of the dims is zero, it means that GemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (ov::snippets::utils::one_of(0ul, N, K)) {
+    if (ov::snippets::utils::any_of(0UL, N, K)) {
         m_N = 0;
         m_K = 0;
     } else {
@@ -103,7 +116,7 @@ void GemmCopyBKaiKernelExecutor::update_kernel(const GemmCopyBKernelKaiConfig& c
 }
 
 void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::ExpressionPtr& expr,
-                                               const ov::snippets::lowered::LinearIRCPtr& linear_ir,
+                                               [[maybe_unused]] const ov::snippets::lowered::LinearIRCPtr& linear_ir,
                                                GemmCopyBKernelKaiConfig& config) const {
     const auto& in0_shape = snippets::utils::get_planar_vdims(expr->get_input_port(0));
     int64_t N = *in0_shape.rbegin();

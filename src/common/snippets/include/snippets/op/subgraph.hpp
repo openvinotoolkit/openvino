@@ -4,22 +4,36 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
 #include <memory>
 #include <openvino/core/model.hpp>
 #include <openvino/op/util/sub_graph_base.hpp>
+#include <string>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "snippets/generator.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/pass/manager.hpp"
-#include "snippets/pass/positioned_pass.hpp"
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/debug_caps_config.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Subgraph
@@ -76,9 +90,9 @@ public:
 
     Subgraph() = default;
 
-    Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
+    explicit Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 
-    Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
+    explicit Subgraph(const NodeVector& args, const std::shared_ptr<ov::Model>& body);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -157,10 +171,11 @@ public:
     static auto is_domain_sensitive_op(const std::shared_ptr<ov::Node>& op) -> bool;
     static auto is_shape_infer_op(const std::shared_ptr<ov::Node>& op) -> bool;
 
-    void data_flow_transformations(const BlockedShapeVector& blocked_input_shapes = {},
-                                   const std::vector<ov::element::Type>& input_precisions = {},
-                                   const std::vector<ov::element::Type>& output_precisions = {},
-                                   const std::vector<snippets::pass::Manager::PositionedPassBase>& = {}) const;
+    void data_flow_transformations(
+        const BlockedShapeVector& blocked_input_shapes = {},
+        const std::vector<ov::element::Type>& input_precisions = {},
+        const std::vector<ov::element::Type>& output_precisions = {},
+        const std::vector<snippets::pass::Manager::PositionedPassBase>& backend_passes = {}) const;
 
     void control_flow_transformations(
         size_t min_parallel_work_amount = 8,
@@ -176,7 +191,7 @@ public:
         const BlockedShapeVector& blocked_input_shapes = {},
         const std::vector<ov::element::Type>& input_precisions = {},
         const std::vector<ov::element::Type>& output_precisions = {},
-        const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_passes = {},
+        const std::vector<snippets::pass::Manager::PositionedPassBase>& data_flow_backend_passes = {},
         const std::shared_ptr<lowered::pass::PassConfig>& lowered_pass_config =
             std::make_shared<lowered::pass::PassConfig>(),
         const std::vector<snippets::lowered::pass::PassPipeline::PositionedPassLowered>& lowered_backend_passes = {},
@@ -272,6 +287,4 @@ auto inline update_out_tensor_name(const std::shared_ptr<ov::snippets::op::Subgr
     }
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

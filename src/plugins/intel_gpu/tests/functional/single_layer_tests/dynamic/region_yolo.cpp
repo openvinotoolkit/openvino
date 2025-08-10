@@ -34,12 +34,7 @@ class RegionYoloLayerGPUTest : public testing::WithParamInterface<RegionYoloGPUT
                                virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<RegionYoloGPUTestParam> obj) {
-        InputShape shapes;
-        regionYoloAttributes attributes;
-        std::vector<int64_t> mask;
-        ov::element::Type model_type;
-        std::string targetName;
-        std::tie(shapes, attributes, mask, model_type, targetName) = obj.param;
+        const auto& [shapes, attributes, mask, model_type, targetName] = obj.param;
 
         std::ostringstream result;
         result << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
@@ -59,11 +54,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        regionYoloAttributes attributes;
-        std::vector<int64_t> mask;
-        ov::element::Type model_type;
-        std::tie(shapes, attributes, mask, model_type, targetDevice) = this->GetParam();
+        const auto& [shapes, attributes, mask, model_type, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({ shapes });
 

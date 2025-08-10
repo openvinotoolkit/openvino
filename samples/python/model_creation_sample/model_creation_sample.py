@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import logging as log
 import sys
-import typing
 from functools import reduce
 
 import numpy as np
@@ -17,7 +16,7 @@ from data import digits
 def create_model(model_path: str) -> ov.Model:
     """Create a model on the fly from the source code using openvino."""
 
-    def shape_and_length(shape: list) -> typing.Tuple[list, int]:
+    def shape_and_length(shape: list) -> tuple[list, int]:
         length = reduce(lambda x, y: x * y, shape)
         return shape, length
 

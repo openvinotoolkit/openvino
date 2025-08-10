@@ -22,14 +22,8 @@ using LRNParams = std::tuple<
 
 class LRNLayerCPUTest : public testing::WithParamInterface<LRNParams>, public ov::test::SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<LRNParams> obj) {
-        ElementType inputPrecision;
-        InputShape inputShapes;
-        double alpha, beta, bias;
-        size_t size;
-        std::vector<int64_t> axes;
-        std::tie(inputPrecision, inputShapes, alpha, beta, bias, size, axes) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<LRNParams>& obj) {
+        const auto& [inputPrecision, inputShapes, alpha, beta, bias, size, axes] = obj.param;
         std::ostringstream result;
         result << inputPrecision << "_" << "IS=" << ov::test::utils::partialShape2str({ inputShapes.first }) << "_" << "TS=(";
         for (const auto& shape : inputShapes.second) {
@@ -43,13 +37,7 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        ElementType inputPrecision;
-        InputShape inputShapes;
-        double alpha, beta, bias;
-        size_t size;
-        std::vector<int64_t> axes;
-        std::tie(inputPrecision, inputShapes, alpha, beta, bias, size, axes) = this->GetParam();
-
+        const auto& [inputPrecision, inputShapes, alpha, beta, bias, size, axes] = this->GetParam();
         init_input_shapes({ inputShapes });
         selectedType = makeSelectedTypeStr("ref_any", inputPrecision);
 

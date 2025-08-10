@@ -4,10 +4,20 @@
 
 #include "snippets/pass/transform_convert.hpp"
 
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
 
 ov::snippets::pass::TransformConvertToConvertTruncation::TransformConvertToConvertTruncation() {
     MATCHER_SCOPE(TransformConvertToConvertTruncation);

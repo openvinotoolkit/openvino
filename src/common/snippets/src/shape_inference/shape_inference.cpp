@@ -3,50 +3,74 @@
 //
 #include "snippets/shape_inference/shape_inference.hpp"
 
+#include <memory>
 #include <openvino/op/parameter.hpp>
 #include <openvino/op/result.hpp>
 #include <openvino/op/util/binary_elementwise_arithmetic.hpp>
 #include <openvino/op/util/binary_elementwise_comparison.hpp>
 #include <openvino/op/util/binary_elementwise_logical.hpp>
 #include <openvino/op/util/unary_elementwise_arithmetic.hpp>
-#include <snippets/snippets_isa.hpp>
+#include <string>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/nop.hpp"
+#include "snippets/op/perf_count.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reg_spill.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 using ShapeInferPtr = IShapeInferSnippetsFactory::ShapeInferPtr;
 
 ShapeInferPtr IShapeInferSnippetsFactory::make(const ov::DiscreteTypeInfo& key, const std::shared_ptr<ov::Node>& op) {
     const auto& maker_iter = registry.find(key);
-    if (maker_iter != registry.end())
+    if (maker_iter != registry.end()) {
         return maker_iter->second(op);
+    }
     return get_specific_op_shape_infer(key, op);
 }
 
-ShapeInferPtr IShapeInferSnippetsFactory::get_specific_op_shape_infer(const ov::DiscreteTypeInfo& key,
-                                                                      const std::shared_ptr<ov::Node>& op) const {
+ShapeInferPtr IShapeInferSnippetsFactory::get_specific_op_shape_infer(
+    [[maybe_unused]] const ov::DiscreteTypeInfo& key,
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& op) const {
     return {};
 }
 
-#define SHAPE_INFER_PREDEFINED(OP, InferType)                                \
-    {                                                                        \
-        OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
-            return std::make_shared<InferType>();                            \
-        }                                                                    \
-    }
-#define SHAPE_INFER_OP_SPECIFIC(OP)                                          \
-    {                                                                        \
-        OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
-            return std::make_shared<OP::ShapeInfer>(n);                      \
-        }                                                                    \
-    }
-#define SHAPE_INFER_OP_SPECIFIC_EXTERNAL(OP, InferType)                      \
-    {                                                                        \
-        OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
-            return std::make_shared<InferType>(n);                           \
-        }                                                                    \
-    }
+#define SHAPE_INFER_PREDEFINED(OP, InferType)                                              \
+    {OP::get_type_info_static(), []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) { \
+         return std::make_shared<InferType>();                                             \
+     }}
+#define SHAPE_INFER_OP_SPECIFIC(OP)                                       \
+    {OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
+         return std::make_shared<OP::ShapeInfer>(n);                      \
+     }}
+#define SHAPE_INFER_OP_SPECIFIC_EXTERNAL(OP, InferType)                   \
+    {OP::get_type_info_static(), [](const std::shared_ptr<ov::Node>& n) { \
+         return std::make_shared<InferType>(n);                           \
+     }}
 
 const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry{
     SHAPE_INFER_PREDEFINED(op::ConvertTruncation, PassThroughShapeInfer),
@@ -96,19 +120,20 @@ std::shared_ptr<IShapeInferSnippets> make_shape_inference(const std::shared_ptr<
                                                           const std::shared_ptr<IShapeInferSnippetsFactory>& factory) {
     if (!factory) {
         return nullptr;
-    } else if (auto shape_infer = factory->make(op->get_type_info(), op)) {
-        return shape_infer;
-    } else if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op)) {
-        return std::make_shared<PassThroughShapeInfer>();
-    } else if (ov::is_type_any_of<ov::op::util::BinaryElementwiseArithmetic,
-                                  ov::op::util::BinaryElementwiseComparison,
-                                  ov::op::util::BinaryElementwiseLogical>(op)) {
-        return std::make_shared<NumpyBroadcastShapeInfer>();
-    } else {
-        OPENVINO_THROW("Operation type " + std::string(op->get_type_info().name) +
-                       " is not supported in Snippets shape inference pipeline");
     }
+    if (auto shape_infer = factory->make(op->get_type_info(), op)) {
+        return shape_infer;
+    }
+    if (ov::is_type<ov::op::util::UnaryElementwiseArithmetic>(op)) {
+        return std::make_shared<PassThroughShapeInfer>();
+    }
+    if (ov::is_type_any_of<ov::op::util::BinaryElementwiseArithmetic,
+                           ov::op::util::BinaryElementwiseComparison,
+                           ov::op::util::BinaryElementwiseLogical>(op)) {
+        return std::make_shared<NumpyBroadcastShapeInfer>();
+    }
+    OPENVINO_THROW("Operation type " + std::string(op->get_type_info().name) +
+                   " is not supported in Snippets shape inference pipeline");
 }
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets

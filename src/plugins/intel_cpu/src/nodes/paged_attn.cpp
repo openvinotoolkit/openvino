@@ -16,7 +16,6 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "kernels/scaled_attn/executor_pa.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
 #include "nodes/common/blocked_desc_creator.h"
@@ -30,8 +29,13 @@
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
-using namespace ov::Extensions::Cpu;
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#    include "kernels/scaled_attn/executor_pa.hpp"
+
 using namespace ov::Extensions::Cpu::XARCH;
+#endif
+
+using namespace ov::Extensions::Cpu;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
@@ -88,8 +92,7 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(rtPrecision, getInputShapeAtPort(PagedAttentionExecutor::ID_V)));
 
-    CPU_NODE_ASSERT(orgInputNumber == 14 || orgInputNumber == 17,
-                    "The input number of PagedAttention should be 14 or 17.");
+    CPU_NODE_ASSERT(orgInputNumber == 20U, "The input number of PagedAttention should be 20.");
     // kvcache, float, []
     auto past_key_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_KCACHE);
     auto past_value_input_mem_precision = getOriginalInputPrecisionAtPort(PagedAttentionExecutor::ID_VCACHE);
@@ -142,23 +145,33 @@ void PagedAttention::initSupportedPrimitiveDescriptors() {
         creatorsMap.at(LayoutType::ncsp)
             ->createSharedDesc(ov::element::i32,
                                getInputShapeAtPort(PagedAttentionExecutor::ID_SCORE_AGGREGATION_WINDOW)));
-
-    if (orgInputNumber == 17) {
-        // rotated_block_indices, int, [num_rotated_blocks || 0]
-        config.inConfs[PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::i32,
-                                   getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES)));
-        // rotation_deltas, int, [num_rotated_blocks, block_size || 1] || [0]
-        config.inConfs[PagedAttentionExecutor::ID_ROTATION_DELTAS].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_DELTAS)));
-        // rotation_trig_lut, float, [max_context_len, embedding_size (aka S) || 0]
-        config.inConfs[PagedAttentionExecutor::ID_ROTATION_TRIG_LUT].setMemDesc(
-            creatorsMap.at(LayoutType::ncsp)
-                ->createSharedDesc(ov::element::f32,
-                                   getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_TRIG_LUT)));
-    }
+    // rotated_block_indices, int, [num_rotated_blocks || 0]
+    config.inConfs[PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATED_BLOCK_INDICES)));
+    // rotation_deltas, int, [num_rotated_blocks, block_size || 1] || [0]
+    config.inConfs[PagedAttentionExecutor::ID_ROTATION_DELTAS].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_DELTAS)));
+    // rotation_trig_lut, float, [max_context_len, embedding_size (aka S) || 0]
+    config.inConfs[PagedAttentionExecutor::ID_ROTATION_TRIG_LUT].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_ROTATION_TRIG_LUT)));
+    // xattention_threshold, float, [B_seq]
+    config.inConfs[PagedAttentionExecutor::ID_XATTENTION_THRESHOLD].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::f32, getInputShapeAtPort(PagedAttentionExecutor::ID_XATTENTION_THRESHOLD)));
+    // xattention_block_size, float, []
+    config.inConfs[PagedAttentionExecutor::ID_XATTENTION_BLOCK_SIZE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_XATTENTION_BLOCK_SIZE)));
+    // xattention_stride, int, []
+    config.inConfs[PagedAttentionExecutor::ID_XATTENTION_STRIDE].setMemDesc(
+        creatorsMap.at(LayoutType::ncsp)
+            ->createSharedDesc(ov::element::i32,
+                               getInputShapeAtPort(PagedAttentionExecutor::ID_XATTENTION_BLOCK_SIZE)));
 
     supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::ref_any);
 }
@@ -170,7 +183,7 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
     // for non-x86 platform, by-channel quantization is disabled
     // By default, by-channel should only be enabled when precision is integral
     bool byChannel = precision.is_integral() && isKey;
-    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_HIDDEN) {
+    if (!precision.is_integral() || mode == Config::CacheQuantMode::BY_TOKEN) {
         byChannel = false;
     }
 #if defined(OPENVINO_ARCH_ARM64)
@@ -195,13 +208,12 @@ void PagedAttention::createPrimitive() {
         bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
         bool quantValuebyChannel =
             isQuantByChannel(cpuConfig.valueCacheQuantMode, cpuConfig.valueCachePrecision, false);
-        return make_pa_executor(rtPrecision,
-                                kCachePrecision,
-                                vCachePrecision,
-                                cpuConfig.keyCacheGroupSize,
-                                cpuConfig.valueCacheGroupSize,
-                                quantKeybyChannel,
-                                quantValuebyChannel);
+        PagedAttnQuantParams params{cpuConfig.keyCacheGroupSize,
+                                    cpuConfig.valueCacheGroupSize,
+                                    quantKeybyChannel,
+                                    quantValuebyChannel,
+                                    cpuConfig.enableSageAttn};
+        return make_pa_executor(rtPrecision, kCachePrecision, vCachePrecision, params);
 #else
         return nullptr;
 #endif
@@ -210,7 +222,7 @@ void PagedAttention::createPrimitive() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
     if (!result.first) {
-        THROW_CPU_NODE_ERR("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
+        CPU_NODE_THROW("AttentionExecutor creation fails with precision " + rtPrecision.to_string());
     }
     m_executor = result.first;
 }
@@ -266,14 +278,15 @@ bool PagedAttention::isSupportedOperation(const std::shared_ptr<const ov::Node>&
     try {
         auto vCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_VCACHE);
         auto kCachePrecision = op->get_input_element_type(PagedAttentionExecutor::ID_KCACHE);
-        if (one_of(vCachePrecision,
+        if (any_of(vCachePrecision,
                    ov::element::u4,
                    ov::element::u8,
                    ov::element::f32,
                    ov::element::f16,
                    ov::element::bf16)) {
-            if (!one_of(kCachePrecision,
+            if (none_of(kCachePrecision,
                         ov::element::u4,
+                        ov::element::i8,
                         ov::element::u8,
                         ov::element::f16,
                         ov::element::f32,

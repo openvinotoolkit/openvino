@@ -4,11 +4,22 @@
 
 #include "snippets/op/rank_normalization.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/op/shape_infer_op.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 RankNormalization::RankNormalization(const Output<Node>& data, size_t num_prepend, size_t num_append)
     : ShapeInferOp({data}),
@@ -26,7 +37,7 @@ void RankNormalization::validate_and_infer_types() {
     auto new_shape = get_input_partial_shape(0);
     // Note: other values are not allowed, only planar + blocked layout combination can be normalized.
     NODE_VALIDATION_CHECK(this,
-                          utils::one_of(m_num_append, 0lu, 1lu),
+                          utils::any_of(m_num_append, 0LU, 1LU),
                           "num_append could be only 0 or 1, other values are not allowed.");
     new_shape.insert(new_shape.begin(), m_num_prepend, Dimension(1));
     new_shape.insert(new_shape.end(), m_num_append, Dimension(1));
@@ -55,6 +66,4 @@ IShapeInferSnippets::Result RankNormalization::ShapeInfer::infer(const std::vect
     return {{out_shape}, ShapeInferStatus::success};
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

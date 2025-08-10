@@ -4,15 +4,25 @@
 
 #include "snippets/lowered/pass/extract_loop_invariants.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <unordered_set>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/op/scalar.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 namespace {
 
 // Sort Loop IDs by execution order of these Loops
@@ -20,8 +30,9 @@ std::vector<size_t> get_reordered_loop_ids(const LoopManagerPtr& loop_manager) {
     const auto& loop_map = loop_manager->get_map();
     std::vector<size_t> loop_ids_need_extract;
     loop_ids_need_extract.reserve(loop_map.size());
-    for (const auto& p : loop_map)
+    for (const auto& p : loop_map) {
         loop_ids_need_extract.push_back(p.first);
+    }
 
     auto sorter = [&](size_t lhs, size_t rhs) {
         const auto lhs_last_expr =
@@ -32,10 +43,12 @@ std::vector<size_t> get_reordered_loop_ids(const LoopManagerPtr& loop_manager) {
         // IDs.
         if (lhs_last_expr == rhs_last_expr) {
             for (const auto& id : lhs_last_expr->get_loop_ids()) {
-                if (id == lhs)
+                if (id == lhs) {
                     return false;
-                if (id == rhs)
+                }
+                if (id == rhs) {
                     return true;
+                }
             }
             OPENVINO_THROW("Incorrect Loop IDs");
         } else {
@@ -61,9 +74,8 @@ int64_t get_stride_after_move_outer(const LoopPort& loop_port) {
     int64_t stride = utils::get_stride(shape_dim_idx, shape);
     if (utils::is_dynamic_value(stride) || utils::is_dynamic_value(shape[shape_dim_idx])) {
         return utils::get_dynamic_value<int64_t>();
-    } else {
-        return stride * static_cast<int64_t>(shape[shape_dim_idx]);
     }
+    return stride * static_cast<int64_t>(shape[shape_dim_idx]);
 }
 
 bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPtr& inner_loop_info, size_t loop_id) {
@@ -71,13 +83,15 @@ bool is_extraction_applicable(const ExpressionPtr& expr, const UnifiedLoopInfoPt
     // We cannot extract Expression from the outermost or any intermediate Loop with other Loops inside
     const auto& loop_ids = expr->get_loop_ids();
     OPENVINO_ASSERT(!loop_ids.empty(), "Expression must be in a Loop");
-    if (loop_ids.back() != loop_id)
+    if (loop_ids.back() != loop_id) {
         return false;
+    }
 
     const auto& expr_input_ports = expr->get_input_ports();
     const auto& input_port_size = expr_input_ports.size();
-    if (input_port_size == 0)
+    if (input_port_size == 0) {
         return false;
+    }
 
     for (size_t i = 0; i < input_port_size; ++i) {
         const auto& parent = expr->get_input_port_connector(i)->get_source().get_expr();
@@ -158,8 +172,8 @@ void update_loop_ports(const ExpressionPtr& expr, const LoopManagerPtr& loop_man
 std::vector<ExpressionPtr> get_loop_input_exprs(const std::vector<LoopPort>& loop_in_ports) {
     std::vector<ExpressionPtr> input_exprs;
     std::unordered_set<ExpressionPtr> seen_exprs;
-    for (size_t port_num = 0; port_num < loop_in_ports.size(); ++port_num) {
-        const auto& expr = loop_in_ports[port_num].get_expr_port()->get_expr();
+    for (const auto& loop_in_port : loop_in_ports) {
+        const auto& expr = loop_in_port.get_expr_port()->get_expr();
         if (seen_exprs.count(expr) == 0) {
             input_exprs.push_back(expr);
             seen_exprs.insert(expr);
@@ -180,8 +194,7 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
         for (const auto& port_expr : potential_extractable_exprs) {
             if (is_extraction_applicable(port_expr, inner_loop_info, inner_loop_id)) {
                 status = true;
-                LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
-                std::tie(inner_loop_begin_pos, inner_loop_end_pos) =
+                auto [inner_loop_begin_pos, inner_loop_end_pos] =
                     loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
 
                 // extract scalar on inputs if there are
@@ -208,22 +221,23 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
                         // while() to start again.
             }
         }
-        if (inner_loop_input_ports.size() == 0 && inner_loop_info->get_output_ports().size() == 0) {
+        if (inner_loop_input_ports.empty() && inner_loop_info->get_output_ports().empty()) {
             // If the loop becomes empty (inner_loop_input_ports is ref) after extraction, remove it from loop_manager
             loop_manager->remove_loop_info(inner_loop_id);
             break;
         }
         // no more extractable expr in this loop after go through all potential_extractable_exprs, done for this loop.
-        if (!expr_extracted)
+        if (!expr_extracted) {
             continue_to_extract = false;
+        }
     }
     return status;
 }
 }  // namespace
 
 bool ExtractLoopInvariants::run(LinearIR& linear_ir,
-                                lowered::LinearIR::constExprIt begin,
-                                lowered::LinearIR::constExprIt end) {
+                                [[maybe_unused]] lowered::LinearIR::constExprIt begin,
+                                [[maybe_unused]] lowered::LinearIR::constExprIt end) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::ExtractLoopInvariants")
     bool modified = false;
 
@@ -236,7 +250,4 @@ bool ExtractLoopInvariants::run(LinearIR& linear_ir,
     return modified;
 }
 
-}  // namespace pass
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered::pass

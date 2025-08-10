@@ -5,12 +5,43 @@
 #include "snippets/op/subgraph.hpp"
 
 #include <algorithm>
-#include <array>
+#include <cassert>
+#include <cstddef>
+#include <functional>
+#include <map>
 #include <memory>
+#include <ostream>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/broadcast.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/group_normalization.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/binary_elementwise_arithmetic.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/constant_folding.hpp"
-#include "ov_ops/type_relaxed.hpp"
+#include "openvino/pass/pass_config.hpp"
+#include "snippets/generator.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/linear_ir_builder.hpp"
 #include "snippets/lowered/pass/allocate_buffers.hpp"
@@ -33,6 +64,7 @@
 #include "snippets/lowered/pass/normalize_loop_ids.hpp"
 #include "snippets/lowered/pass/optimize_domain.hpp"
 #include "snippets/lowered/pass/optimize_loop_single_evaluation.hpp"
+#include "snippets/lowered/pass/pass.hpp"
 #include "snippets/lowered/pass/pass_config.hpp"
 #include "snippets/lowered/pass/reduce_decomposition.hpp"
 #include "snippets/lowered/pass/set_dynamic_wa_to_outermost_loop.hpp"
@@ -44,6 +76,8 @@
 #include "snippets/lowered/pass/validate_shapes.hpp"
 #include "snippets/lowered/pass/validate_unified_loops.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/shape_infer_op.hpp"
 #include "snippets/pass/align_element_types.hpp"
 #include "snippets/pass/broadcast_to_movebroadcast.hpp"
 #include "snippets/pass/canonicalization.hpp"
@@ -59,15 +93,16 @@
 #include "snippets/pass/transpose_decomposition.hpp"
 #include "snippets/remarks.hpp"
 #include "snippets/runtime_configurator.hpp"
+#include "snippets/shape_inference/shape_infer_instances.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/debug_caps_config.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/utils/utils.hpp"
 
 using namespace std;
 using namespace ov::op::util;
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 void Subgraph::set_generator(std::shared_ptr<ov::snippets::Generator> generator) {
     m_generator = std::move(generator);
@@ -149,10 +184,12 @@ auto Subgraph::get_estimated_buffer_count(const ov::NodeVector& ops) -> size_t {
         } else if (const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op)) {
             // Since all buffers around Matmul must be unique, we explicitely add values to the vector without any
             // checks
-            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0)))
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(0))) {
                 used_precision_size.push_back(matmul->get_input_element_type(0).size());
-            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1)))
+            }
+            if (!ov::is_type<ov::op::v0::Parameter>(matmul->get_input_node_shared_ptr(1))) {
                 used_precision_size.push_back(matmul->get_input_element_type(1).size());
+            }
 
             const auto consumers = matmul->get_output_target_inputs(0);
             if (std::none_of(consumers.begin(), consumers.end(), [](const ov::Input<ov::Node>& in) {
@@ -172,10 +209,12 @@ Subgraph::Subgraph(const OutputVector& args, const std::shared_ptr<ov::Model>& b
     SubGraphOp::set_function(body);
     init_config();
     constructor_validate_and_infer_types();
-    for (size_t i = 0; i < body->get_parameters().size(); ++i)
+    for (size_t i = 0; i < body->get_parameters().size(); ++i) {
         m_input_descriptions[0].push_back(std::make_shared<InvariantInputDescription>(i, i));
-    for (size_t i = 0; i < body->get_output_size(); ++i)
+    }
+    for (size_t i = 0; i < body->get_output_size(); ++i) {
         m_output_descriptions[0].push_back(std::make_shared<BodyOutputDescription>(i, i));
+    }
     m_transformations_allowed = false;
     m_shape_infer = std::make_shared<OVShapeInfer>(body);
 }
@@ -263,7 +302,7 @@ auto Subgraph::wrap_node_as_subgraph(const std::shared_ptr<ov::Node>& node) -> s
     auto body = create_body(node->get_friendly_name(), body_results, body_parameters);
     auto subgraph = build_subgraph(node, subgraph_inputs, body);
 
-    size_t hidden_data_count = 0lu;
+    size_t hidden_data_count = 0LU;
     if (auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(node)) {
         hidden_data_count += utils::get_non_scalar_constant_count_for_fq(fq_node);
     }
@@ -314,12 +353,14 @@ IShapeInferSnippets::Result Subgraph::OVShapeInfer::infer(const std::vector<Vect
     const ResultVector& results = m_ov_body->get_results();
     OPENVINO_ASSERT(parameters.size() == input_shapes.size(),
                     "Got invalid number of input shapes to reshape subgraph body");
-    for (size_t i = 0; i < parameters.size(); ++i)
+    for (size_t i = 0; i < parameters.size(); ++i) {
         parameters[i]->set_partial_shape(utils::vdims_to_pshape(input_shapes[i].get()));
+    }
     m_ov_body->validate_nodes_and_infer_types();
     std::vector<VectorDims> outputDims;
-    for (const auto& res : results)
+    for (const auto& res : results) {
         outputDims.emplace_back(utils::pshape_to_vdims(res->get_input_partial_shape(0)));
+    }
     m_last_result = {outputDims, ShapeInferStatus::success};
     return m_last_result;
 }
@@ -344,16 +385,18 @@ VectorDims Subgraph::infer_master_shape() {
         }
     }
 
-    if (output_dims.size() == 1)
+    if (output_dims.size() == 1) {
         return output_dims.front();
+    }
 
     const auto& default_broadcasting = std::make_shared<NumpyBroadcastShapeInfer>();
     // Note: we have to convert vector<VectorDims> to vector<reference_wrapper<const VectorDims>>
     // because of shape inference interface
     std::vector<std::reference_wrapper<const VectorDims>> inputs;
     inputs.reserve(output_dims.size());
-    for (const auto& d : output_dims)
+    for (const auto& d : output_dims) {
         inputs.emplace_back(d);
+    }
     return default_broadcasting->infer(inputs).dims.front();
 }
 
@@ -381,7 +424,7 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     ov::OutputVector subgraph_node_inputs;
     for (const auto& input : input_values()) {
         auto new_input = std::make_shared<ov::opset1::Parameter>(input.get_element_type(), input.get_partial_shape());
-        subgraph_node_inputs.push_back(new_input);
+        subgraph_node_inputs.emplace_back(new_input);
     }
     std::shared_ptr<ov::Model> new_body = body_ptr()->clone();
     auto result = std::make_shared<snippets::op::Subgraph>(subgraph_node_inputs, new_body);
@@ -389,13 +432,16 @@ std::shared_ptr<Subgraph> Subgraph::clone() const {
     // so we have to cast away constness to copy runtime info
     ov::copy_runtime_info(const_pointer_cast<Node>(shared_from_this()), result);
     result->set_friendly_name(get_friendly_name());
-    if (m_linear_ir)
+    if (m_linear_ir) {
         result->m_linear_ir = lowered::LinearIRBuilder().clone(m_linear_ir);
-    if (m_shape_infer_linear_ir)
+    }
+    if (m_shape_infer_linear_ir) {
         result->m_shape_infer_linear_ir = lowered::LinearIRBuilder().clone(m_shape_infer_linear_ir);
+    }
     // Note: we don't update shapeInfer here, since it's initialized in the constructor
-    if (m_generator)
+    if (m_generator) {
         result->m_generator = m_generator->clone();
+    }
     return result;
 }
 
@@ -411,10 +457,12 @@ void Subgraph::data_flow_transformations(
     // If subgraph has its own specific canonicalization, which is different with common behavior, will skip the this
     // common one. for example in GN, scale and bias shape [c] are canonicalized to [1,c,1,1], not [1,1,1,c]. Common
     // canonicalization is disabled in this case.
-    if (blocked_input_shapes.empty() || config.m_has_broadcast_sensitive_ops)
+    if (blocked_input_shapes.empty() || config.m_has_broadcast_sensitive_ops) {
         pass_config->disable<snippets::pass::Canonicalization>();
-    if (input_precisions.empty() || output_precisions.empty())
+    }
+    if (input_precisions.empty() || output_precisions.empty()) {
         pass_config->disable<snippets::pass::AlignElementTypes>();
+    }
 
     ov::snippets::pass::Manager manager(pass_config, "SnippetsDataFlowManager");
     manager.register_pass<snippets::pass::Canonicalization>(blocked_input_shapes);
@@ -575,7 +623,7 @@ snippets::Schedule Subgraph::generate(const void* compile_params) const {
     }
 
     auto lowering_result = m_generator->generate(linear_ir, compile_params);
-    return {std::move(lowering_result)};
+    return Schedule{std::move(lowering_result)};
 }
 
 const std::shared_ptr<RuntimeConfigurator>& Subgraph::get_runtime_configurator() const {
@@ -591,27 +639,25 @@ const std::shared_ptr<RuntimeConfig>& Subgraph::update_runtime_config() const {
 void Subgraph::print() const {
     INTERNAL_OP_SCOPE(Subgraph);
     remark(13) << "subgraph " << this->get_friendly_name() << " " << this->get_type_name() << " which contains "
-               << body_ptr()->get_ops().size() << " nodes" << std::endl;
+               << body_ptr()->get_ops().size() << " nodes" << '\n';
 
     int qqq = 0;
     for (const auto& op : body_ptr()->get_ordered_ops()) {
         remark(13) << "op " << qqq++ << " " << op->get_friendly_name() << " (" << op->get_type_name() << ") " << op
-                   << std::endl;
+                   << '\n';
     }
 
     for (auto& in : this->inputs()) {
         remark(13) << "  -> " << in.get_source_output().get_node_shared_ptr()->get_friendly_name() << " "
-                   << in.get_source_output().get_node_shared_ptr() << std::endl;
+                   << in.get_source_output().get_node_shared_ptr() << '\n';
     }
 
     for (auto& out : this->outputs()) {
-        for (auto& user : out.get_target_inputs()) {
-            remark(13) << " <- " << user.get_node()->get_friendly_name() << " " << user.get_node() << std::endl;
+        for (const auto& user : out.get_target_inputs()) {
+            remark(13) << " <- " << user.get_node()->get_friendly_name() << " " << user.get_node() << '\n';
         }
-        remark(13) << std::endl;
+        remark(13) << '\n';
     }
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

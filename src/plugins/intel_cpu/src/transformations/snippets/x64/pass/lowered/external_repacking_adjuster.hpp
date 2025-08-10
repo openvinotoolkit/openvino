@@ -20,16 +20,12 @@
 
 namespace ov::intel_cpu::pass {
 
-class InitRepackedConstantInputs;
-
 /**
  * @class BrgemmExternalRepackingAdjuster
  * @brief A runtime optimizer that creates the memory descs for BRGEMM inputs which require external repacking.
  * The generated memory descs are stored in the CPU runtime config.
  */
 class BrgemmExternalRepackingAdjuster : public ov::snippets::lowered::pass::RuntimeOptimizer {
-    friend class InitRepackedConstantInputs;
-
 public:
     OPENVINO_RTTI("BrgemmExternalRepackingAdjuster", "", RuntimeOptimizer)
     BrgemmExternalRepackingAdjuster() = default;
@@ -43,8 +39,12 @@ public:
 
 private:
     using RepackExecutorPtr = std::shared_ptr<BrgemmCopyBKernelExecutor>;
-    static VectorDims get_blk_order(size_t shape_rank);
-    static VectorDims get_blk_shape(const VectorDims& planar_shape, size_t wei_n_blk, size_t wei_k_blk);
+    static CpuBlockedMemoryDescPtr get_desc(const ov::snippets::VectorDims& planar_shape,
+                                            const ov::element::Type& prc,
+                                            size_t wei_k_blk,
+                                            size_t wei_n_blk,
+                                            bool are_wei_blocked,
+                                            bool is_transposed);
 
     static void update_kernel(const RepackExecutorPtr& executor,
                               const VectorDims& shape,

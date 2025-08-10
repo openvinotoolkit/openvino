@@ -84,9 +84,7 @@ static std::tuple<std::shared_ptr<Model>, std::shared_ptr<Node>, std::shared_ptr
 }
 
 TEST(PassConfig, EnableDisablePasses1) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestModelPass>();
@@ -97,9 +95,7 @@ TEST(PassConfig, EnableDisablePasses1) {
 }
 
 TEST(PassConfig, EnableDisablePasses2) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestModelPass>();
@@ -120,9 +116,7 @@ TEST(PassConfig, EnableDisablePasses2) {
 }
 
 TEST(PassConfig, EnableDisablePasses3) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestModelPass>();
@@ -136,9 +130,7 @@ TEST(PassConfig, EnableDisablePasses3) {
 }
 
 TEST(PassConfig, EnableDisablePasses4) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestModelPass>();
@@ -158,9 +150,7 @@ TEST(PassConfig, EnableDisablePasses4) {
 }
 
 TEST(PassConfig, EnableDisablePasses5) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestGraphRewritePass>();
@@ -171,9 +161,7 @@ TEST(PassConfig, EnableDisablePasses5) {
 }
 
 TEST(PassConfig, EnableDisablePasses6) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestGraphRewritePass>();
@@ -194,9 +182,7 @@ TEST(PassConfig, EnableDisablePasses6) {
 }
 
 TEST(PassConfig, EnableDisablePasses7) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestGraphRewritePass>();
@@ -210,9 +196,7 @@ TEST(PassConfig, EnableDisablePasses7) {
 }
 
 TEST(PassConfig, EnableDisablePasses8) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestGraphRewritePass>();
@@ -233,9 +217,7 @@ TEST(PassConfig, EnableDisablePasses8) {
 }
 
 TEST(PassConfig, EnableDisablePasses9) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     auto anchor = manager.register_pass<pass::GraphRewrite>();
@@ -291,9 +273,7 @@ public:
 };
 
 TEST(PassConfig, EnableDisablePasses10) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     manager.register_pass<TestNestedGraphRewrite>();
@@ -315,9 +295,7 @@ TEST(PassConfig, EnableDisablePasses10) {
 }
 
 TEST(PassConfig, EnableDisablePasses11) {
-    std::shared_ptr<Model> f;
-    std::shared_ptr<Node> relu, sigmoid;
-    std::tie(f, relu, sigmoid) = get_test_function();
+    const auto& [f, relu, sigmoid] = get_test_function();
 
     pass::Manager manager;
     auto anchor = manager.register_pass<pass::GraphRewrite>();

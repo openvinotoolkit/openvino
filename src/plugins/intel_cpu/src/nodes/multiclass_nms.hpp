@@ -28,7 +28,7 @@ class MultiClassNms : public Node {
 public:
     MultiClassNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
@@ -65,12 +65,12 @@ private:
 
     int m_nmsRealTopk = 0;
     int m_nmsTopK = 0;
-    float m_iouThreshold = 0.0f;
-    float m_scoreThreshold = 0.0f;
+    float m_iouThreshold = 0.0F;
+    float m_scoreThreshold = 0.0F;
 
     int32_t m_backgroundClass = 0;
     int32_t m_keepTopK = 0;
-    float m_nmsEta = 0.0f;
+    float m_nmsEta = 0.0F;
     bool m_normalized = true;
 
     bool m_outStaticShape = false;

@@ -2,6 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
@@ -11,8 +20,7 @@
 #    include "openvino/op/op.hpp"
 #    include "openvino/runtime/threading/thread_local.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 namespace op {
 class PerfCountEnd;
@@ -62,7 +70,7 @@ private:
  */
 class CSVDumper : public Dumper {
 public:
-    CSVDumper(const std::string csv_path);
+    explicit CSVDumper(std::string csv_path);
     ~CSVDumper() override;
 
     void update(const op::PerfCountEnd* node) override;
@@ -83,11 +91,10 @@ namespace op {
 class PerfCountBeginBase : public ov::op::Op {
 public:
     OPENVINO_OP("PerfCountBeginBase", "SnippetsOpset");
-    PerfCountBeginBase(const std::vector<Output<Node>>& args);
+    explicit PerfCountBeginBase(const std::vector<Output<Node>>& args);
     PerfCountBeginBase() = default;
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 
 protected:
     void validate_and_infer_types_except_PerfCountEnd();
@@ -101,11 +108,10 @@ protected:
 class PerfCountEndBase : public ov::op::Op {
 public:
     OPENVINO_OP("PerfCountEndBase", "SnippetsOpset");
-    PerfCountEndBase(const std::vector<Output<Node>>& args);
+    explicit PerfCountEndBase(const std::vector<Output<Node>>& args);
     PerfCountEndBase() = default;
 
     void validate_and_infer_types() override;
-    bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
 /**
@@ -135,11 +141,11 @@ private:
 class PerfCountEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountEnd", "SnippetsOpset", PerfCountEndBase);
-    PerfCountEnd(const Output<Node>& pc_begin,
-                 std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
-                 const std::string& params = "");
-    PerfCountEnd();
-    ~PerfCountEnd();
+    explicit PerfCountEnd(const Output<Node>& pc_begin,
+                          std::vector<std::shared_ptr<utils::Dumper>> dumpers = {},
+                          const std::string& params = "");
+    PerfCountEnd() = default;
+    ~PerfCountEnd() override;
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
@@ -163,6 +169,6 @@ private:
 };
 
 }  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets
+
 #endif  // SNIPPETS_DEBUG_CAPS

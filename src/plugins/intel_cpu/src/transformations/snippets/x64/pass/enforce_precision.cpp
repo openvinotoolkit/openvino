@@ -26,6 +26,7 @@
 #include "snippets/pass/propagate_precision.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::intel_cpu::pass;
 
@@ -41,12 +42,12 @@ EnforcePrecision::EnforcePrecision(
     OPENVINO_ASSERT(source != target, "source and target precisions have to be different");
 }
 
-bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(EnforcePrecision);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EnforcePrecision")
 
     bool was_updated = false;
-    for (const auto& op : f->get_ordered_ops()) {
+    for (const auto& op : m->get_ordered_ops()) {
         ov::op::util::process_subgraph(*this, op);
 
         const auto& precisions = get_supported_precisions(op);
@@ -74,8 +75,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
                 if ((supported_precisions[index] == target) && (actual_precisions[index] == source)) {
                     // actual input precision has to be enforced: at least one port has to be handled
                     port_has_to_be_handled = true;
-                } else if ((supported_precisions[index] != element::dynamic) &&
-                           (supported_precisions[index] != actual_precisions[index])) {
+                } else if (none_of(supported_precisions[index], element::dynamic, actual_precisions[index])) {
                     // actual input precision is not enforced but not supported, operation has to be ignored
                     op_is_appropriate = false;
                     break;

@@ -48,13 +48,19 @@ namespace intel_npu {
 void registerNPUWOptions(OptionsDesc& desc);
 void registerNPUWLLMOptions(OptionsDesc& desc);
 
-#define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode)                     \
-    struct Name final : OptionBase<Name, Type> {                                    \
-        static std::string_view key() { return ov::intel_npu::PropertyKey.name(); } \
-                                                                                    \
-        static Type defaultValue() { return DefaultValue; }                         \
-                                                                                    \
-        static OptionMode mode() { return OptionMode::Mode; }                       \
+#define DEFINE_OPT(Name, Type, DefaultValue, PropertyKey, Mode) \
+    struct Name final : OptionBase<Name, Type> {                \
+        static std::string_view key() {                         \
+            return ov::intel_npu::PropertyKey.name();           \
+        }                                                       \
+                                                                \
+        static Type defaultValue() {                            \
+            return DefaultValue;                                \
+        }                                                       \
+                                                                \
+        static OptionMode mode() {                              \
+            return OptionMode::Mode;                            \
+        }                                                       \
     };
 
 DEFINE_OPT(NPU_USE_NPUW, bool, false, use_npuw, RunTime);
@@ -103,6 +109,8 @@ DEFINE_OPT(NPUW_LLM_SEQ_LEN_DIM, uint32_t, 2, npuw::llm::seq_len_dim, RunTime);
 DEFINE_OPT(NPUW_LLM_MAX_PROMPT_LEN, uint32_t, 1024, npuw::llm::max_prompt_len, RunTime);
 DEFINE_OPT(NPUW_LLM_MIN_RESPONSE_LEN, uint32_t, 128, npuw::llm::min_response_len, RunTime);
 DEFINE_OPT(NPUW_LLM_OPTIMIZE_V_TENSORS, bool, true, npuw::llm::optimize_v_tensors, RunTime);
+DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, uint64_t, 256, npuw::llm::prefill_chunk_size, RunTime);
+DEFINE_OPT(NPUW_LLM_SHARED_HEAD, bool, true, npuw::llm::shared_lm_head, CompileTime);
 
 namespace npuw {
 namespace llm {
@@ -121,7 +129,7 @@ struct NPUW_LLM_PREFILL_HINT final : OptionBase<NPUW_LLM_PREFILL_HINT, ::intel_n
     }
 
     static ::intel_npu::npuw::llm::PrefillHint defaultValue() {
-        return ::intel_npu::npuw::llm::PrefillHint::STATIC;
+        return ::intel_npu::npuw::llm::PrefillHint::DYNAMIC;
     }
 
     static ::intel_npu::npuw::llm::PrefillHint parse(std::string_view val) {

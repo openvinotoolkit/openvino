@@ -33,7 +33,7 @@ public:
     PerfCountRdtscBegin();
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& inputs) const override;
 
-    uint64_t start_count = 0ul;
+    uint64_t start_count = 0UL;
 };
 
 /**
@@ -44,7 +44,7 @@ public:
 class PerfCountRdtscEnd : public PerfCountEndBase {
 public:
     OPENVINO_OP("PerfCountRdtscEnd", "SnippetsOpset", PerfCountEndBase);
-    PerfCountRdtscEnd(const Output<Node>& pc_begin);
+    explicit PerfCountRdtscEnd(const Output<Node>& pc_begin);
     PerfCountRdtscEnd() = default;
     ~PerfCountRdtscEnd() override {
         double avg = 0;
@@ -65,8 +65,8 @@ public:
     // in each call, PerfCountRdtscEnd get end_count, then total_duration += end_count - start_count, and iteration++.
     // in destructor of PerfCountRdtscEnd, output the perf info
     // accumulation is cycle count
-    uint64_t accumulation = 0ul;
-    uint64_t iteration = 0ul;
+    uint64_t accumulation = 0UL;
+    uint64_t iteration = 0UL;
 };
 
 }  // namespace ov::intel_cpu

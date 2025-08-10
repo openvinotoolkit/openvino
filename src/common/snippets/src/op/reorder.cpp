@@ -4,18 +4,29 @@
 
 #include "snippets/op/reorder.hpp"
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/shape_infer_op.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
-Reorder::Reorder(const Output<Node>& arg, std::vector<size_t> order) : ShapeInferOp({arg}) {
-    custom_constructor_validate_and_infer_types(std::move(order));
+Reorder::Reorder(const Output<Node>& arg, const std::vector<size_t>& order) : ShapeInferOp({arg}) {
+    custom_constructor_validate_and_infer_types(order);
 }
 
-void Reorder::custom_constructor_validate_and_infer_types(std::vector<size_t> order) {
+void Reorder::custom_constructor_validate_and_infer_types(const std::vector<size_t>& order) {
     INTERNAL_OP_SCOPE(Reorder_constructor_validate_and_infer_types);
 
     const auto& input_pshape = get_input_partial_shape(0);
@@ -60,6 +71,4 @@ IShapeInferSnippets::Result Reorder::ShapeInfer::infer(const std::vector<VectorD
     return {{ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_target_order)}, ShapeInferStatus::success};
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

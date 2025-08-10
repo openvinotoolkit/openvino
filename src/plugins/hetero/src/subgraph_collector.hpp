@@ -89,5 +89,7 @@ SubgraphsMappingInfo mask_model_subgraphs_by_ops(std::shared_ptr<ov::Model>& mod
                                                  const bool dump_dot_files = false,
                                                  const std::string default_device = "");
 
+void fix_submodel_with_paged_attention(std::shared_ptr<ov::Model>& model);
+
 }  // namespace hetero
 }  // namespace ov

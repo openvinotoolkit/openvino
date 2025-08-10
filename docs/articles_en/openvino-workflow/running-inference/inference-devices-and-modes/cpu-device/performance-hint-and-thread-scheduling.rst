@@ -7,27 +7,26 @@ Performance Hints and Thread Scheduling
                  on performance hints automatically.
 
 To simplify the configuration of hardware devices, it is recommended to use the
-ov::hint::PerformanceMode::LATENCY and ov::hint::PerformanceMode::THROUGHPUT
-:doc:`high-level performance hints <../../optimize-inference/high-level-performance-hints>`. Both performance hints ensure optimal portability
-and scalability of applications across various platforms and models.
+``ov::hint::PerformanceMode::LATENCY`` and ``ov::hint::PerformanceMode::THROUGHPUT``
+:doc:`high-level performance hints <../../optimize-inference/high-level-performance-hints>`. 
+Both performance hints ensure optimal portability and scalability of applications across various platforms and models.
 
 - ``ov::inference_num_threads`` limits the number of logical processors used for CPU inference.
-  If the number set by the user is greater than the number of logical processors on the platform,
-  the multi-threading scheduler only uses the platform number for CPU inference.
+  If the value exceeds the number of the available processors on the platform,
+  the multi-threading scheduler only uses the available ones.
 - ``ov::num_streams`` limits the number of infer requests that can be run in parallel.
-  If the number set by the user is greater than the number of inference threads, multi-threading
-  scheduler only uses the number of inference threads to ensure that there is at least
-  one thread per stream.
+  If it exceeds the number of available inference threads, multi-threading
+  scheduler uses the number of available threads to ensure each stream has at least one thread.
 - ``ov::hint::scheduling_core_type`` specifies the type of CPU cores for CPU inference when
   the user runs inference on a hybrid platform that includes both Performance-cores (P-cores)
   and Efficient-cores (E-cores). If the user platform only has one type of CPU core, this
   property has no effect, and CPU inference always uses this unique core type.
 - ``ov::hint::enable_hyper_threading`` limits the use of one or two logical processors per CPU
-  core when the platform has CPU hyperthreading enabled.
+  core when the platform has CPU hyper-threading enabled.
   If there is only one logical processor per CPU core, such as Efficient-cores, this
   property has no effect, and CPU inference uses all logical processors.
-- ``ov::hint::enable_cpu_pinning`` enables CPU pinning during CPU inference.
-  If the user enables this property but the inference scenario does not support it, this
+- ``ov::hint::enable_cpu_pinning`` enables CPU pinning during inference.
+  If the inference scenario does not support pinning, this
   property will be disabled during model compilation.
 
 For additional details on the above configurations, refer to
@@ -37,12 +36,11 @@ Latency Hint
 #####################
 
 In this scenario, the default setting of ``ov::hint::scheduling_core_type`` is determined by
-the model precision and the ratio of P-cores and E-cores.
+the model precision and the ratio of P-cores to E-cores.
 
 .. note::
 
-    P-cores is short for Performance-cores and E-cores stands for Efficient-cores. These
-    types of cores are available starting with the 12th Gen Intel® Core™ processors.
+    Performance-cores (P-cores) and Efficient-cores (E-cores) are available starting with the 12th Gen Intel® Core™ processors.
 
 .. _core_type_latency:
 
@@ -84,22 +82,22 @@ Then the default settings for low-level performance properties on Windows and Li
     - Both P-cores and E-cores are used for the Latency Hint on Intel® Core™ Ultra Processors
       on Windows, except in the case of large language models.
     - In case hyper-threading is enabled, two logical processors share the hardware resources
-      of one CPU core. OpenVINO does not expect to use both logical processors in one stream
+      of one CPU core. OpenVINO does not use both logical processors in one stream
       for a single infer request. So ``ov::hint::enable_hyper_threading`` is set to
       ``No`` in this scenario.
     - ``ov::hint::enable_cpu_pinning`` is disabled by default on Windows and macOS, and
-      enabled on Linux. Such default settings are aligned with typical workloads running
-      in the corresponding environments to guarantee better out-of-the-box (OOB) performance.
+      enabled on Linux. The default settings are aligned with typical workloads
+      in each environment to guarantee better out-of-the-box (OOB) performance.
 
 .. note::
 
    Starting from 5th Gen Intel Xeon Processors, new microarchitecture enabled new sub-NUMA clusters
    feature. A sub-NUMA cluster (SNC) can create two or more localization domains (numa nodes)
    within a socket by BIOS configuration. 
-   By default OpenVINO with latency hint uses single socket for inference. Although such
-   behavior allows to achive best performance for most of the models, there might be corner
-   cases which require manual tuning of ``ov::num_streams`` and ``ov::hint::enable_hyper_threading parameters``.
-   Please find more detail about `Sub-NUMA Clustering <https://www.intel.com/content/www/us/en/developer/articles/technical/xeon-processor-scalable-family-technical-overview.html>`__ 
+   By default OpenVINO with latency hint uses single socket for inference. While this
+   behavior provides the best performance for most models, there may be corner
+   cases that require manual tuning of ``ov::num_streams`` and ``ov::hint::enable_hyper_threading parameters``.
+   For more details, see `Sub-NUMA Clustering <https://www.intel.com/content/www/us/en/developer/articles/technical/xeon-processor-scalable-family-technical-overview.html>`__ 
 
 Throughput Hint
 #####################
@@ -174,7 +172,7 @@ perform multi-threading scheduling based on the limited available CPU.
    Intel® x86-64 CPU on Linux and Windows in the current release.
 
 In some use cases, OpenVINO Runtime will enable CPU thread pinning by default for better performance.
-Users can also turn this feature on or off using the property ``ov::hint::enable_cpu_pinning``.
+You can turn this feature on or off using the property ``ov::hint::enable_cpu_pinning``.
 Disabling thread pinning may be beneficial in complex applications where several workloads
 are executed in parallel.
 
@@ -213,7 +211,7 @@ while other application logic uses OpenMP) will cause both to occupy CPU cores f
 
 Recommended solutions:
 
-- The most effective way is to use oneTBB for all computations made in the pipeline.
+- Use oneTBB for all computations in the pipeline for the best effect.
 - Rebuild OpenVINO with OpenMP if other application logic uses OpenMP.
 - Limit the number of threads for OpenVINO and other parts and let OS do the scheduling.
 - If other application logic uses OpenMP, set the environment variable `OMP_WAIT_POLICY <https://gcc.gnu.org/onlinedocs/libgomp/OMP_005fWAIT_005fPOLICY.html>`__ to `PASSIVE` to disable OpenMP `busy-wait <https://gcc.gnu.org/onlinedocs/libgomp/GOMP_005fSPINCOUNT.html>`__.

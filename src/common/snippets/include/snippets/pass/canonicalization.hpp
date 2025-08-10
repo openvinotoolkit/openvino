@@ -4,14 +4,16 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 #include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
-#include "transformations_visibility.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /**
  * @interface Canonicalization
@@ -34,6 +36,4 @@ private:
     bool m_has_dynamic_inputs = false;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

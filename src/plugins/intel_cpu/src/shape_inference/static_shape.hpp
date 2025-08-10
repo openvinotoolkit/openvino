@@ -41,6 +41,12 @@ constexpr bool is_static_shape_adapter() {
     return std::is_same_v<U, StaticShapeRef> || std::is_same_v<U, StaticShape>;
 }
 
+// NOLINTBEGIN(google-explicit-constructor)
+
+// Implicit conversion is intentionally allowed (explicit constructor disabled)
+// because StaticDimension is used quite intensively throughout the codebase
+// and requiring explicit conversions would make the code more verbose.
+
 /**
  * @brief The static shape adapter by copy value to VectorDims.
  *
@@ -252,8 +258,7 @@ public:
     }
 
     template <class T>
-    [[nodiscard]] [[nodiscard]] constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(
-        const T& other) const {
+    [[nodiscard]] constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
@@ -300,6 +305,8 @@ public:
 private:
     const TDims* m_dims = nullptr;
 };
+
+// NOLINTEND(google-explicit-constructor)
 
 template <class T>
 std::enable_if_t<is_static_shape_adapter<T>(), std::ostream&> operator<<(std::ostream& out, const T& shape) {

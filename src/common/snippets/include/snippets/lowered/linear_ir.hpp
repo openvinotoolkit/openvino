@@ -4,20 +4,33 @@
 
 #pragma once
 
+#include <cassert>
+#include <cstddef>
 #include <list>
+#include <memory>
+#include <set>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expression_factory.hpp"
+#include "snippets/lowered/expression_port.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/target_machine.hpp"
 #ifdef SNIPPETS_DEBUG_CAPS
 #    include "snippets/utils/debug_caps_config.hpp"
 #endif
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 class Config {
 public:
@@ -61,7 +74,7 @@ public:
     using exprReverseIt = container::reverse_iterator;
     using constExprReverseIt = container::const_reverse_iterator;
 
-    LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
+    explicit LinearIR(Config config = {}, const std::shared_ptr<IShapeInferSnippetsFactory>& factory = {});
     LinearIR(const std::shared_ptr<ov::Model>& m,
              const std::shared_ptr<IShapeInferSnippetsFactory>& factory,
              Config config = {});
@@ -207,7 +220,7 @@ public:
      */
     template <typename T>
     exprIt insert_node(const std::shared_ptr<ov::Node>& new_node,
-                       const std::vector<T>& inputs,
+                       const std::vector<T>& args,
                        const std::vector<size_t>& loop_ids,
                        bool update_loop_ports,
                        const constExprIt& place,
@@ -243,14 +256,13 @@ public:
      * @param args ov::Node constructor arguments
      * @return Pair of iterator on the inserted expr and the constructed node.
      */
-    template <typename T,
-              typename... Args,
-              typename std::enable_if<std::is_base_of<ov::Node, T>::value, bool>::type = true>
+    template <typename T, typename... Args, std::enable_if_t<std::is_base_of_v<ov::Node, T>, bool> = true>
     std::pair<constExprIt, std::shared_ptr<T>> insert_node(constExprIt pos, Args&&... args) {
         const auto node = std::make_shared<T>(std::forward<Args>(args)...);
         const auto expr_it = insert(pos, node);
-        if (node->is_dynamic())
+        if (node->is_dynamic()) {
             expr_it->get()->updateShapes();
+        }
         return std::make_pair(expr_it, node);
     }
 
@@ -331,9 +343,7 @@ public:
      * @param args ov::Node constructor arguments
      * @return Pair of iterator on the inserted expr and the constructed node.
      */
-    template <typename T,
-              typename... Args,
-              typename std::enable_if<std::is_base_of<ov::Node, T>::value, bool>::type = true>
+    template <typename T, typename... Args, std::enable_if_t<std::is_base_of_v<ov::Node, T>, bool> = true>
     std::pair<constExprIt, std::shared_ptr<T>> push_node(Args&&... args) {
         return insert_node<T>(end(), std::forward<Args>(args)...);
     }
@@ -368,13 +378,13 @@ private:
     // return execution number for new expression which will be inserted before `insert_pos`
     double get_inserted_expr_exec_num(constExprIt insertion_pos) const;
 
-    container m_expressions{};
+    container m_expressions;
     std::unordered_map<std::shared_ptr<Node>, std::shared_ptr<Expression>> m_node2expression_map;
     // Note: Parameters and Results are stored in the order of Subgraph inputs/outputs
-    std::vector<ExpressionPtr> m_parameter_expressions{};
-    std::vector<ExpressionPtr> m_result_expressions{};
+    std::vector<ExpressionPtr> m_parameter_expressions;
+    std::vector<ExpressionPtr> m_result_expressions;
     // Note: BufferExpressions are not stored in the order of execution numbers
-    std::vector<BufferExpressionPtr> m_buffer_expressions{};
+    std::vector<BufferExpressionPtr> m_buffer_expressions;
     Config m_config{};
     LoopManagerPtr m_loop_manager;
     std::shared_ptr<IShapeInferSnippetsFactory> m_shape_infer_factory = nullptr;
@@ -395,6 +405,4 @@ iterator LinearIR::find(iterator begin, iterator end, const ExpressionPtr& targe
     return found;
 }
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

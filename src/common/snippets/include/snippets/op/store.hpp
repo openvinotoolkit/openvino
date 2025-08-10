@@ -4,12 +4,17 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/op/memory_access.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Store
@@ -23,7 +28,7 @@ class Store : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Store", "SnippetsOpset");
 
-    Store(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
+    explicit Store(const Output<Node>& x, size_t count = 1LU, size_t offset = 0LU);
     Store() = default;
 
     size_t get_offset() const {
@@ -45,6 +50,4 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

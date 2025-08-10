@@ -4,7 +4,7 @@
 import os
 from utils.helpers import CfgManager, fetchAppOutput, getActualPath
 from utils.helpers import getMeaningfullCommitTail, extractModelPath
-from utils.helpers import handleCommit, getBlobDiff
+from utils.helpers import handleCommit, getBlobDiff, applySubstitutionRules, simpleSubstitute
 from utils.helpers import getCommitLogger, CashError, CfgError,\
 CmdError, PreliminaryAnalysisError
 from utils.break_validator import checkStability
@@ -17,6 +17,7 @@ class NopMode(Mode):
     # helpful with mode-ignorant traversal (brute force)
     def __init__(self, cfg):
         self.msg = "default"
+        self.onlyMsg = 'onlyMsg' in cfg['runConfig'] and cfg['runConfig']['onlyMsg']
         super().__init__(cfg)
 
     def checkCfg(self, cfg):
@@ -33,11 +34,166 @@ class NopMode(Mode):
         handleCommit(commit, cfg)
         checkOut = fetchAppOutput(cfg, commit)
         commitLogger.info(checkOut)
+        if not self.onlyMsg:
+            print("current commit: {}".format(commit))
+            print(checkOut)
         return
 
     def printResult(self):
+        # if CS launched with template we use custom representation
+        # if not, as default we print msg attribute
         print(self.msg)
         self.outLogger.info(self.msg)
+
+
+class CrossCheckMode(Mode):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+
+    def checkCfg(self, cfg):
+        self.par_1 = cfg["runConfig"]["par_1"]
+        self.par_2 = cfg["runConfig"]["par_2"]
+        # todo: extend for another metrics
+        self.outPattern = r'{spec}:\s*([0-9]*[.][0-9]*)\s*{measure}'.format(
+                spec='Throughput', measure='FPS')
+        super().checkCfg(cfg)
+
+    def getPseudoMetric(self, commit, cfg):
+        commit = commit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, commit)
+        self.commonLogger.info("New commit: {commit}".format(
+            commit=commit)
+        )
+        handleCommit(commit, cfg)
+        fullOutput = ""
+        simpleSubstitute(cfg, "actualPar", "$.runConfig.par_1", "$.appCmd")
+
+        # run first app
+        checkOut = fetchAppOutput(cfg, commit)
+        foundThroughput = re.search(
+                self.outPattern, checkOut, flags=re.MULTILINE
+            ).group(1)
+        self.firstThroughput = foundThroughput
+        self.firstModel = cfg['appCmd']
+        fullOutput = checkOut
+        simpleSubstitute(cfg, "actualPar", "$.runConfig.par_2", "$.appCmd")
+
+        # run second app
+        checkOut = fetchAppOutput(cfg, commit)
+        foundThroughput = re.search(
+                self.outPattern, checkOut, flags=re.MULTILINE
+            ).group(1)
+        self.secondThroughput = foundThroughput
+        self.secondModel = cfg['appCmd']
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
+
+        fullOutput = fullOutput + checkOut
+
+        commitLogger.info(fullOutput)
+
+    def printResult(self):
+        if self.cfg['template'] == 'common_template':
+            for pathcommit in self.commitPath.getList():
+                commitInfo = self.getCommitInfo(pathcommit)
+                print(commitInfo)
+                self.outLogger.info(commitInfo)
+        else:
+            from utils.templates.common import CommonTemplate
+            tmpl = CommonTemplate.getTemplate(self.cfg['template'])
+            tmpl.printResult(self.commitPath, self.outLogger, self.getCommitInfo)
+
+
+    def setOutputInfo(self, pathCommit):
+        pathCommit.firstThroughput = self.firstThroughput
+        pathCommit.firstModel = self.firstModel
+        pathCommit.secondThroughput = self.secondThroughput
+        pathCommit.secondModel = self.secondModel
+
+    def getCommitInfo(self, commit):
+        return "{hash}, throughput_1 = {t1}, throughput_2 = {t2}".format(
+            hash=commit.cHash,
+            t1=commit.firstThroughput,
+            t2=commit.secondThroughput)
+
+
+class ModelCompilationMode(Mode):
+    def __init__(self, cfg):
+        super().__init__(cfg)
+
+    def checkCfg(self, cfg):
+        self.par_1 = cfg["runConfig"]["par_1"]
+        self.par_2 = cfg["runConfig"]["par_2"]
+        # todo: extend for another metrics
+        self.outPattern = r'{spec}\s*([0-9]*[.][0-9]*)\s*{measure}'.format(
+                spec='Compile model took', measure='ms')
+        super().checkCfg(cfg)
+
+    def getPseudoMetric(self, commit, cfg):
+        commit = commit.replace('"', "")
+        commitLogger = getCommitLogger(cfg, commit)
+        self.commonLogger.info("New commit: {commit}".format(
+            commit=commit)
+        )
+        handleCommit(commit, cfg)
+        fullOutput = ""
+        simpleSubstitute(cfg, "actualPar", "$.runConfig.par_1", "$.appCmd")
+
+        # run first app
+        checkOut = fetchAppOutput(cfg, commit)
+        foundThroughput = re.search(
+                self.outPattern, checkOut, flags=re.MULTILINE
+            ).group(1)
+        self.firstThroughput = foundThroughput
+        self.firstModel = cfg['appCmd']
+        fullOutput = checkOut
+        simpleSubstitute(cfg, "actualPar", "$.runConfig.par_2", "$.appCmd")
+
+        # run second app
+        checkOut = fetchAppOutput(cfg, commit)
+        foundThroughput = re.search(
+                self.outPattern, checkOut, flags=re.MULTILINE
+            ).group(1)
+        self.secondThroughput = foundThroughput
+        self.secondModel = cfg['appCmd']
+        pc = Mode.CommitPath.PathCommit(
+            commit,
+            Mode.CommitPath.CommitState.DEFAULT
+        )
+        self.setOutputInfo(pc)
+        self.commitPath.accept(self.traversal, pc)
+
+        fullOutput = fullOutput + checkOut
+
+        commitLogger.info(fullOutput)
+
+    def printResult(self):
+        if self.cfg['template'] == 'common_template':
+            for pathcommit in self.commitPath.getList():
+                commitInfo = self.getCommitInfo(pathcommit)
+                print(commitInfo)
+                self.outLogger.info(commitInfo)
+        else:
+            from utils.templates.common import CommonTemplate
+            tmpl = CommonTemplate.getTemplate(self.cfg['template'])
+            tmpl.printResult(self.commitPath, self.outLogger, self.getCommitInfo)
+
+
+    def setOutputInfo(self, pathCommit):
+        pathCommit.firstThroughput = self.firstThroughput
+        pathCommit.firstModel = self.firstModel
+        pathCommit.secondThroughput = self.secondThroughput
+        pathCommit.secondModel = self.secondModel
+
+    def getCommitInfo(self, commit):
+        return "{hash}, throughput_1 = {t1}, throughput_2 = {t2}".format(
+            hash=commit.cHash,
+            t1=commit.firstThroughput,
+            t2=commit.secondThroughput)
 
 
 class CheckOutputMode(Mode):
@@ -534,7 +690,6 @@ class CompareBlobsMode(Mode):
          # option of automatic matching of comparing blobs i.e.
          # blob_for_node_1_commit_1.ieb <--> blob_for_node_1_commit_2.ieb
          # blob_for_node_2_commit_1.ieb <--> blob_for_node_2_commit_2.ieb
-        self.autoMatch = False
 
     def prepareRun(self, list, cfg):
         # we need to exclude initial prerun-cash handling, as it may

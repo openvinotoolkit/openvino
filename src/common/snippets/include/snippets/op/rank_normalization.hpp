@@ -4,12 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/op/op.hpp"
 #include "shape_infer_op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface RankNormalization
@@ -55,6 +63,4 @@ private:
     size_t m_num_append = 0;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

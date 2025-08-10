@@ -3,9 +3,10 @@
 #
 
 if(ENABLE_CLANG_FORMAT)
-    set(CLANG_FORMAT_REQUIRED_VERSION 15 CACHE STRING "Clang-format version to use")
+    set(CLANG_FORMAT_REQUIRED_VERSION 18 CACHE STRING "Clang-format version to use")
     set(CLANG_FORMAT_FILENAME clang-format-${CLANG_FORMAT_REQUIRED_VERSION} clang-format)
     find_host_program(CLANG_FORMAT NAMES ${CLANG_FORMAT_FILENAME} PATHS ENV PATH)
+    message(STATUS "Found clang-format: ${CLANG_FORMAT}")
     if(CLANG_FORMAT)
         execute_process(COMMAND ${CLANG_FORMAT} ${CMAKE_CURRENT_SOURCE_DIR} ARGS --version OUTPUT_VARIABLE CLANG_VERSION)
         if(NOT CLANG_VERSION)

@@ -4,31 +4,105 @@
 
 #include "cpu_generator.hpp"
 
-#include <memory>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
+#include <common/c_types_map.hpp>
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <set>
+#include <utility>
+#include <vector>
+
+#include "cache/multi_cache.h"
 #include "emitters/plugin/aarch64/jit_conversion_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_fill_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_gemm_copy_b_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_gemm_emitter.hpp"
+#include "emitters/snippets/aarch64/jit_horizon_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/aarch64/jit_loop_emitters.hpp"
 #include "emitters/snippets/aarch64/jit_memory_emitters.hpp"
-#include "emitters/snippets/cpu_kernel_executor_table.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
-#include "emitters/utils.hpp"
 #include "jit_snippets_emitters.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/ceiling.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/erf.hpp"
+#include "openvino/op/exp.hpp"
+#include "openvino/op/floor.hpp"
+#include "openvino/op/floor_mod.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/minimum.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/mod.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/negative.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/power.hpp"
 #include "openvino/op/prelu.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/round.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/sigmoid.hpp"
 #include "openvino/op/sqrt.hpp"
+#include "openvino/op/squared_difference.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/xor.hpp"
 #include "snippets/emitter.hpp"
+#include "snippets/generator.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reorder.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/store.hpp"
+#include "snippets/op/vector_buffer.hpp"
+#include "snippets/runtime_configurator.hpp"
+#include "snippets/target_machine.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/common/op/fused_mul_add.hpp"
+#include "utils/general_utils.h"
 
 #ifdef SNIPPETS_LIBXSMM_TPP
 #    include "emitters/tpp/aarch64/jit_brgemm_emitter.hpp"
@@ -37,89 +111,90 @@
 
 namespace ov {
 
-#define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                         \
-    {                                                                                                \
-        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                      \
-        },                                                                                           \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                return e_type::get_supported_precisions(n);                                          \
-            }                                                                                        \
-    }
+#define CREATE_SNIPPETS_EMITTER(e_type, ...)                                                      \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         return std::make_shared<e_type>(h.get(), isa, expr, ##__VA_ARGS__);                      \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         return e_type::get_supported_precisions(n);                                              \
+     }}
 
-#define CREATE_CPU_EMITTER(e_type)                                                                   \
-    {                                                                                                \
-        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            return std::make_shared<e_type>(h.get(), isa, expr->get_node());                         \
-        },                                                                                           \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                return e_type::get_supported_precisions(n);                                          \
-            }                                                                                        \
-    }
+#define CREATE_CPU_EMITTER(e_type)                                                                \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         return std::make_shared<e_type>(h.get(), isa, expr->get_node());                         \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         return e_type::get_supported_precisions(n);                                              \
+     }}
 
-#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                              \
-    {                                                                                                \
-        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            const auto& n = expr->get_node();                                                        \
-            const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
-            if (gelu == nullptr) {                                                                   \
-                OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
-            }                                                                                        \
-            const auto approximationMode = gelu->get_approximation_mode();                           \
-            if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
-                return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
-            } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {                   \
-                return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
-            } else {                                                                                 \
-                OPENVINO_THROW("Unsupported Gelu approximation mode");                               \
-            }                                                                                        \
-        },                                                                                           \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                             \
-                if (gelu == nullptr) {                                                               \
-                    OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                \
-                }                                                                                    \
-                const auto approximationMode = gelu->get_approximation_mode();                       \
-                if (approximationMode == ov::op::GeluApproximationMode::ERF) {                       \
-                    return e_type_erf::get_supported_precisions(n);                                  \
-                } else if (approximationMode == ov::op::GeluApproximationMode::TANH) {               \
-                    return e_type_tanh::get_supported_precisions(n);                                 \
-                } else {                                                                             \
-                    OPENVINO_THROW("Unsupported Gelu approximation mode");                           \
-                }                                                                                    \
-            }                                                                                        \
-    }
+#define CREATE_GELU_V7_EMITTER(e_type_erf, e_type_tanh)                                           \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         const auto& n = expr->get_node();                                                        \
+         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
+         if (gelu == nullptr) {                                                                   \
+             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
+         }                                                                                        \
+         const auto approximationMode = gelu->get_approximation_mode();                           \
+         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
+             return std::make_shared<e_type_erf>(h.get(), isa, n);                                \
+         }                                                                                        \
+         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
+             return std::make_shared<e_type_tanh>(h.get(), isa, n);                               \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         const auto& gelu = ov::as_type_ptr<ov::op::v7::Gelu>(n);                                 \
+         if (gelu == nullptr) {                                                                   \
+             OPENVINO_THROW("Can't cast to ov::op::v7::Gelu");                                    \
+         }                                                                                        \
+         const auto approximationMode = gelu->get_approximation_mode();                           \
+         if (approximationMode == ov::op::GeluApproximationMode::ERF) {                           \
+             return e_type_erf::get_supported_precisions(n);                                      \
+         }                                                                                        \
+         if (approximationMode == ov::op::GeluApproximationMode::TANH) {                          \
+             return e_type_tanh::get_supported_precisions(n);                                     \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Gelu approximation mode");                                   \
+     }}
 
-#define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                       \
-    {                                                                                                \
-        [this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
-            const auto& n = expr->get_node();                                                        \
-            const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
-            if (round == nullptr) {                                                                  \
-                OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
-            }                                                                                        \
-            const auto roundingMode = round->get_mode();                                             \
-            if (roundingMode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {                 \
-                return std::make_shared<e_type_from_zero>(h.get(), isa, n);                          \
-            } else if (roundingMode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                 \
-                return std::make_shared<e_type_even>(h.get(), isa, n);                               \
-            } else {                                                                                 \
-                OPENVINO_THROW("Unsupported Round mode");                                            \
-            }                                                                                        \
-        },                                                                                           \
-            [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
-                const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                           \
-                if (round == nullptr) {                                                              \
-                    OPENVINO_THROW("Can't cast to ov::op::v5::Round");                               \
-                }                                                                                    \
-                if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {        \
-                    return e_type_from_zero::get_supported_precisions(n);                            \
-                } else if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {        \
-                    return e_type_even::get_supported_precisions(n);                                 \
-                }                                                                                    \
-                OPENVINO_THROW("Unsupported Round mode");                                            \
-            }                                                                                        \
-    }
+#define CREATE_ROUND_V5_EMITTER(e_type_from_zero, e_type_even)                                    \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         const auto& n = expr->get_node();                                                        \
+         const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
+         if (round == nullptr) {                                                                  \
+             OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
+         }                                                                                        \
+         const auto roundingMode = round->get_mode();                                             \
+         if (roundingMode == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {                 \
+             return std::make_shared<e_type_from_zero>(h.get(), isa, n);                          \
+         }                                                                                        \
+         if (roundingMode == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                        \
+             return std::make_shared<e_type_even>(h.get(), isa, n);                               \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Round mode");                                                \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         const auto& round = ov::as_type_ptr<ov::op::v5::Round>(n);                               \
+         if (round == nullptr) {                                                                  \
+             OPENVINO_THROW("Can't cast to ov::op::v5::Round");                                   \
+         }                                                                                        \
+         if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO) {            \
+             return e_type_from_zero::get_supported_precisions(n);                                \
+         }                                                                                        \
+         if (round->get_mode() == ov::op::v5::Round::RoundMode::HALF_TO_EVEN) {                   \
+             return e_type_even::get_supported_precisions(n);                                     \
+         }                                                                                        \
+         OPENVINO_THROW("Unsupported Round mode");                                                \
+     }}
+
+#define CREATE_UNDEFINED_EMITTER(supported_precisions)                                                         \
+    {[]([[maybe_unused]] const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         return nullptr;                                                                                       \
+     },                                                                                                        \
+     []([[maybe_unused]] const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {         \
+         return supported_precisions;                                                                          \
+     }}
 
 class jit_snippet : public dnnl::impl::cpu::aarch64::jit_generator {
 public:
@@ -161,7 +236,10 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v0::Result::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::VectorBuffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
+    jitters[snippets::op::Buffer::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::RankNormalization::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
+    jitters[snippets::op::Reshape::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
+    jitters[snippets::op::Reorder::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_nop_emitter);
     jitters[snippets::op::BroadcastMove::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_broadcast_move_emitter);
     jitters[snippets::op::ConvertTruncation::get_type_info_static()] =
         CREATE_CPU_EMITTER(jit_convert_truncation_emitter);
@@ -170,6 +248,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
 
     // memory access
     jitters[snippets::op::Load::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_memory_emitter);
+    jitters[snippets::op::LoadReorder::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_memory_emitter);
     jitters[snippets::op::BroadcastLoad::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_load_broadcast_emitter);
     jitters[snippets::op::Store::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_store_memory_emitter);
 
@@ -186,6 +265,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v1::Multiply::get_type_info_static()] = CREATE_CPU_EMITTER(jit_multiply_emitter);
     jitters[snippets::op::PowerStatic::get_type_info_static()] = CREATE_CPU_EMITTER(jit_power_static_emitter);
     jitters[op::v1::Power::get_type_info_static()] = CREATE_CPU_EMITTER(jit_power_dynamic_emitter);
+    jitters[op::v0::SquaredDifference::get_type_info_static()] = CREATE_CPU_EMITTER(jit_squared_difference_emitter);
     jitters[op::v1::Subtract::get_type_info_static()] = CREATE_CPU_EMITTER(jit_subtract_emitter);
     jitters[op::v0::Xor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_xor_emitter);
 
@@ -193,7 +273,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[op::v1::Equal::get_type_info_static()] = CREATE_CPU_EMITTER(jit_equal_emitter);
     jitters[op::v1::Greater::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_emitter);
     jitters[op::v1::GreaterEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_greater_equal_emitter);
+    jitters[op::v1::Less::get_type_info_static()] = CREATE_CPU_EMITTER(jit_less_emitter);
     jitters[op::v1::LessEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_less_equal_emitter);
+    jitters[op::v1::NotEqual::get_type_info_static()] = CREATE_CPU_EMITTER(jit_not_equal_emitter);
 
     // Logical ops
     jitters[op::v1::LogicalAnd::get_type_info_static()] = CREATE_CPU_EMITTER(jit_logical_and_emitter);
@@ -206,6 +288,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
     jitters[ov::op::v0::Ceiling::get_type_info_static()] = CREATE_CPU_EMITTER(jit_ceiling_emitter);
     jitters[ov::op::v0::Clamp::get_type_info_static()] = CREATE_CPU_EMITTER(jit_clamp_emitter);
     jitters[ov::op::v0::Elu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_elu_emitter);
+    jitters[ov::op::v0::Erf::get_type_info_static()] = CREATE_CPU_EMITTER(jit_erf_emitter);
     jitters[ov::op::v0::Exp::get_type_info_static()] = CREATE_CPU_EMITTER(jit_exp_emitter);
     jitters[ov::op::v0::Floor::get_type_info_static()] = CREATE_CPU_EMITTER(jit_floor_emitter);
     jitters[ov::op::v1::FloorMod::get_type_info_static()] = CREATE_CPU_EMITTER(jit_floor_mod_emitter);
@@ -214,6 +297,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
         CREATE_GELU_V7_EMITTER(jit_gelu_erf_emitter, jit_gelu_tanh_emitter);
     jitters[ov::op::v4::HSwish::get_type_info_static()] = CREATE_CPU_EMITTER(jit_hswish_emitter);
     jitters[ov::op::v4::Mish::get_type_info_static()] = CREATE_CPU_EMITTER(jit_mish_emitter);
+    jitters[ov::op::v0::Negative::get_type_info_static()] = CREATE_CPU_EMITTER(jit_negative_emitter);
     jitters[ov::op::v0::PRelu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_prelu_emitter);
     jitters[ov::op::v0::Relu::get_type_info_static()] = CREATE_CPU_EMITTER(jit_relu_emitter);
     jitters[ov::op::v5::Round::get_type_info_static()] =
@@ -232,6 +316,11 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
         CREATE_SNIPPETS_EMITTER(jit_brgemm_emitter, configurator->get_kernel_executor_table(), compiled_kernel_cache);
 #endif
 
+    // reductions
+    jitters[ov::snippets::op::ReduceMax::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
+    jitters[ov::snippets::op::ReduceSum::get_type_info_static()] = CREATE_UNDEFINED_EMITTER({{ov::element::f32}});
+    jitters[ov::snippets::op::HorizonMax::get_type_info_static()] = CREATE_CPU_EMITTER(jit_horizon_max_emitter);
+    jitters[ov::snippets::op::HorizonSum::get_type_info_static()] = CREATE_CPU_EMITTER(jit_horizon_sum_emitter);
     // control flow
     jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_static_emitter);
     jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_dynamic_emitter);
@@ -288,7 +377,7 @@ std::vector<snippets::Reg> CPUTargetMachine::get_gp_reg_pool() const {
     std::vector<snippets::Reg> reg_pool;
     for (size_t i = 0; i < num_gp_regs; i++) {
         // Note: more details on the usage of reserved registers in aarch64/jit_kernel_emitter.cpp
-        if (!one_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
+        if (none_of(i, Operand::SP, Operand::X18, Operand::X23, Operand::X24, Operand::X28, Operand::X29)) {
             reg_pool.emplace_back(snippets::RegType::gpr, i);
         }
     }

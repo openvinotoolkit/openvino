@@ -4,11 +4,26 @@
 
 #include "snippets/pass/validate.hpp"
 
+#include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/transpose.hpp"
 #include "snippets/itt.hpp"
@@ -18,16 +33,14 @@
 #include "snippets/pass/fq_decomposition.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 namespace {
-#define VALIDATE(op, op_type, validator)                                                                        \
-    if (ov::is_type<op_type>(op))                                                                               \
-        OPENVINO_ASSERT(validator(op),                                                                          \
-                        "Snippets validation of OV body has been failed: " + std::string(op->get_type_name()) + \
-                            " op " + op->get_friendly_name() + " is not supported");                            \
+#define VALIDATE(op, op_type, validator)                                                                          \
+    if (ov::is_type<op_type>(op))                                                                                 \
+        OPENVINO_ASSERT(validator(op),                                                                            \
+                        "Snippets validation of OV body has been failed: " + std::string((op)->get_type_name()) + \
+                            " op " + (op)->get_friendly_name() + " is not supported");                            \
     else
 
 }  // namespace
@@ -68,7 +81,7 @@ bool Validate::is_supported_softmax(const std::shared_ptr<const ov::Node>& op) {
     return axis == softmax_rank.get_length() - 1;
 }
 
-bool Validate::is_supported_fq(const std::shared_ptr<const ov::Node>& node) {
+bool Validate::is_supported_fq([[maybe_unused]] const std::shared_ptr<const ov::Node>& node) {
     // FQ is decomposed into ops in CommonFakeQuantizeDecomposition pass
     return m_pass_config->is_disabled<ov::snippets::pass::CommonFakeQuantizeDecomposition>();
 }
@@ -80,7 +93,7 @@ bool Validate::is_supported_transpose(const std::shared_ptr<const ov::Node>& nod
            (consumers.size() == 1 && ov::is_type<ov::op::v0::Result>(consumers.cbegin()->get_node()));
 }
 
-bool Validate::is_supported_op(const std::shared_ptr<const ov::Node>& node) {
+bool Validate::is_supported_op([[maybe_unused]] const std::shared_ptr<const ov::Node>& node) {
     return false;
 }
 
@@ -101,6 +114,4 @@ bool Validate::run_on_model(const std::shared_ptr<ov::Model>& m) {
     return true;
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

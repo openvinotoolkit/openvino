@@ -197,7 +197,8 @@ struct convert<UniformGenerator::Ptr> {
         if (!node["high"]) {
             THROW_ERROR("Uniform distribution must have \"high\" attribute");
         }
-        generator = std::make_shared<UniformGenerator>(node["low"].as<double>(), node["high"].as<double>());
+        int seed = node["seed"] ? node["seed"].as<int>() : 0xffffffff;
+        generator = std::make_shared<UniformGenerator>(node["low"].as<double>(), node["high"].as<double>(), seed);
         return true;
     }
 };

@@ -8,9 +8,7 @@
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Brgemm
@@ -20,22 +18,22 @@ namespace op {
 class Brgemm : virtual public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Brgemm", "SnippetsOpset");
-    Brgemm(const Output<Node>& A,
-           const Output<Node>& B,
-           const size_t offset_a = 0lu,
-           const size_t offset_b = 0lu,
-           const size_t offset_c = 0lu,
-           std::vector<size_t> layout_a = {},
-           std::vector<size_t> layout_b = {},
-           std::vector<size_t> layout_c = {});
-    Brgemm(const Output<Node>& A,
-           const Output<Node>& B,
-           const PortDescriptor& desc_a,
-           const PortDescriptor& desc_b,
-           const PortDescriptor& desc_c,
-           std::vector<size_t> layout_a = {},
-           std::vector<size_t> layout_b = {},
-           std::vector<size_t> layout_c = {});
+    explicit Brgemm(const Output<Node>& A,
+                    const Output<Node>& B,
+                    size_t offset_a = 0LU,
+                    size_t offset_b = 0LU,
+                    size_t offset_c = 0LU,
+                    const std::vector<size_t>& layout_a = {},
+                    const std::vector<size_t>& layout_b = {},
+                    const std::vector<size_t>& layout_c = {});
+    explicit Brgemm(const Output<Node>& A,
+                    const Output<Node>& B,
+                    const PortDescriptor& desc_a,
+                    const PortDescriptor& desc_b,
+                    const PortDescriptor& desc_c,
+                    const std::vector<size_t>& layout_a = {},
+                    const std::vector<size_t>& layout_b = {},
+                    const std::vector<size_t>& layout_c = {});
     Brgemm() = default;
 
     size_t get_offset_a() const {
@@ -60,16 +58,14 @@ public:
 
 protected:
     virtual ov::element::Type get_output_type() const;
-    std::vector<ov::PartialShape> get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs) const;
-    ov::PartialShape infer_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes) const;
+    static std::vector<ov::PartialShape> get_planar_input_shapes(const std::vector<ov::Input<ov::Node>>& inputs);
+    static ov::PartialShape infer_output_partial_shape(const std::vector<ov::PartialShape>& input_shapes);
     ov::PartialShape get_planar_output_shape(const ov::PartialShape& output_shape) const;
 
 private:
-    void custom_constructor_validate_and_infer_types(std::vector<size_t> layout_a,
-                                                     std::vector<size_t> layout_b,
-                                                     std::vector<size_t> layout_c);
+    void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
+                                                     const std::vector<size_t>& layout_b,
+                                                     const std::vector<size_t>& layout_c);
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

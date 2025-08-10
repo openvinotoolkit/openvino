@@ -4,18 +4,37 @@
 
 #include "snippets/runtime_configurator.hpp"
 
-#include "snippets/lowered/pass/compute_buffer_allocation_size.hpp"
-#include "snippets/lowered/pass/init_loops.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/kernel_executor_table.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/insert_specific_iterations.hpp"
 #include "snippets/lowered/pass/mha_parallel_wa_optimizer.hpp"
+#include "snippets/lowered/pass/runtime_optimizer.hpp"
 #include "snippets/lowered/pass/solve_buffer_memory.hpp"
-#include "snippets/pass/split_dimension_m.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/op/reorder.hpp"
 #include "snippets/utils/loop_utils.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 using namespace ov::snippets::pass;
 using namespace ov::snippets::lowered;
@@ -28,16 +47,15 @@ std::string RuntimeConfig::to_string() const {
         << "tensor_rank: " << tensor_rank << "\n"
         << "tile_rank: " << tile_rank << "\n"
         << "master_shape: " << ov::Shape(master_shape) << "\n";
-    out << "io_data_offsets: "
-        << "\n";
-    for (size_t i = 0; i < io_data_offsets.size(); ++i)
+    out << "io_data_offsets: " << "\n";
+    for (size_t i = 0; i < io_data_offsets.size(); ++i) {
         out << "\t[" << i << "]" << ov::Shape(io_data_offsets[i]) << "\n";
+    }
     out << "buffer_scratchpad_size: " << buffer_scratchpad_size << "\n";
-    out << "buffer_cluster_offsets: "
-        << "\n";
-    for (size_t i = 0; i < buffer_cluster_offsets.size(); ++i)
-        out << "buffer_cluster_offsets: "
-            << "\n";
+    out << "buffer_cluster_offsets:\n";
+    for (size_t i = 0; i < buffer_cluster_offsets.size(); ++i) {
+        out << "\t[" << i << "] " << buffer_cluster_offsets[i] << "\n";
+    }
     return out.str();
 }
 #endif
@@ -52,8 +70,9 @@ void RuntimeConfigurator::reset_kernel_executor_table() const {
 
 const std::shared_ptr<RuntimeConfig>& RuntimeConfigurator::get_updated_config(const lowered::LinearIRCPtr& linear_ir) {
     // First initialization
-    if (m_io_num == 0)
+    if (m_io_num == 0) {
         initialization(linear_ir);
+    }
 
     update(linear_ir);
     // Note: after 'update' is finished, io_shapes can be corrupted, so we move it to latest_shapes to avoid copying
@@ -78,8 +97,9 @@ void RuntimeConfigurator::update(const lowered::LinearIRCPtr& linear_ir) {
     m_config->master_shape = linear_ir->get_master_shape();
     m_config->io_shapes = extract_shapes();
     m_config->io_layouts = extract_layouts();
-    if (linear_ir->is_dynamic())
+    if (linear_ir->is_dynamic()) {
         update_loop_info(linear_ir);
+    }
 
     m_intermediate_optimizers.run(*linear_ir);
 
@@ -184,7 +204,7 @@ void RuntimeConfigurator::init_buffer_info(const lowered::LinearIRCPtr& linear_i
         const auto& cluster_id = p.first;
         const auto& cluster = p.second;
 
-        OPENVINO_ASSERT(cluster.size() > 0, "Incorrect size of buffer cluster");
+        OPENVINO_ASSERT(!cluster.empty(), "Incorrect size of buffer cluster");
         size_t cluster_offset = (*cluster.cbegin())->get_offset();
         m_config->buffer_cluster_offsets[cluster_id] = cluster_offset;
     }
@@ -210,8 +230,9 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
                                                                             decomposed_loop_type,
                                                                             current_work_amount)) {
         expanded_loop_info->set_work_amount(0);
-        if (expanded_loop_info->is_evaluate_once())
+        if (expanded_loop_info->is_evaluate_once()) {
             expanded_loop_info->set_increment(0);
+        }
         return;
     }
 
@@ -229,8 +250,9 @@ void RuntimeConfigurator::update_expanded_loop_info(const lowered::ExpandedLoopI
     if (expanded_loop_info->is_evaluate_once()) {
         expanded_loop_info->set_increment(work_amount);
         // work_amount is equal to increment in cases with `evaluate_once`
-        for (size_t i = 0; i < updated_finalization_offsets.size(); ++i)
+        for (size_t i = 0; i < updated_finalization_offsets.size(); ++i) {
             updated_finalization_offsets[i] += ptr_increments[i] * work_amount;
+        }
     } else {
         expanded_loop_info->update_ptr_increments(ptr_increments);
     }
@@ -283,8 +305,9 @@ void RuntimeConfigurator::update_buffer_scratchpad_size(const lowered::LinearIRC
         for (const auto& buffer_expr : cluster) {
             // No need to calculate allocation size of Buffers which are in Loops with `work_amount = 0` - they won't be
             // executed
-            if (is_not_executed(buffer_expr))
+            if (is_not_executed(buffer_expr)) {
                 continue;
+            }
             buffer_expr->init_allocation_size(loop_manager, m_config->tile_rank);
             const auto& allocation_size = buffer_expr->get_allocation_size();
             OPENVINO_ASSERT(!utils::is_dynamic_value(allocation_size), "Buffer scratchpad size must be defined!");
@@ -320,10 +343,12 @@ void RuntimeConfigurator::update_data_offsets() const {
         //    offsets: s1*s3, s3,       0,  1
         const auto& shape = shapes[i];
         OPENVINO_ASSERT(m_config->tensor_rank >= shape.size(), "Incorrect tensor rank!");
-        if (shape == m_config->latest_shapes[i])
+        if (shape == m_config->latest_shapes[i]) {
             continue;
-        if (utils::is_dynamic_vdims(shape))
+        }
+        if (utils::is_dynamic_vdims(shape)) {
             return;
+        }
 
         const auto idx_stride = m_config->tensor_rank - shape.size();
         compute_offsets(shape, i, idx_stride);
@@ -345,15 +370,17 @@ void RuntimeConfigurator::update_data_offsets() const {
 
 std::vector<VectorDims> RuntimeConfigurator::extract_shapes() const {
     std::vector<VectorDims> shapes(m_io_num);
-    for (size_t i = 0; i < m_io_num; ++i)
+    for (size_t i = 0; i < m_io_num; ++i) {
         shapes[i] = m_io_descs[i]->get_shape();
+    }
     return shapes;
 }
 
 std::vector<std::vector<size_t>> RuntimeConfigurator::extract_layouts() const {
     std::vector<std::vector<size_t>> layouts(m_io_num);
-    for (size_t i = 0; i < m_io_num; ++i)
+    for (size_t i = 0; i < m_io_num; ++i) {
         layouts[i] = m_io_descs[i]->get_layout();
+    }
     return layouts;
 }
 
@@ -382,5 +409,4 @@ RuntimeConfigurator::UnifiedLoopInfoRtParams RuntimeConfigurator::get_loop_runti
     });
     return rt_params;
 }
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets

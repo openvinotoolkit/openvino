@@ -215,8 +215,11 @@ private:
     void add_gru_weights_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
         cldnn::program_node&, size_t);
     void add_lstm_bias_reorder(primitive_id input_id, std::shared_ptr<WeightsReorderParams> reorder_params, program& p, cldnn::program_node&, \
-                               cldnn::program_node&);
+                               cldnn::program_node&, size_t);
     reorder_factory& _rf;
+
+    std::map<reorder_cache_key, program_node*> _cached_lstm_weights_reorder;
+    std::map<reorder_cache_key, program_node*> _cached_lstm_bias_reorder;
 };
 
 class propagate_constants : public base_pass {
@@ -323,6 +326,12 @@ public:
             return;
         }
 
+        // If this dependency is already there, exit early
+        const auto& mem_deps = node->get_memory_dependencies();
+        if (mem_deps.find(static_cast<uint32_t>(dep->get_unique_id())) != mem_deps.end()) {
+            return;
+        }
+
         // LoRA can reuse the memory of the previous node, but not be optimized
         // Therefore, the dependency of LoRA must also be the dependency of the current node
         if (dep->is_type<lora>()) {
@@ -330,8 +339,8 @@ public:
             dep->get_dependency(0).add_memory_dependency(*node);
         }
 
-        if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) && ((node->can_be_optimized() && !node->is_runtime_skippable())
-            || !dep->can_be_optimized())) {
+        if ((!dep->can_be_optimized() || !dep->is_runtime_skippable()) &&
+            ((node->can_be_optimized() && !node->is_runtime_skippable()) || !dep->can_be_optimized())) {
             node->add_memory_dependency(*dep);
         } else {
             if (node->is_runtime_skippable() || dep->is_runtime_skippable() || dep->can_be_optimized()) {

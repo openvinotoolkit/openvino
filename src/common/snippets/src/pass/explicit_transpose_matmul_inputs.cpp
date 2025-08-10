@@ -4,11 +4,30 @@
 
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_input.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/transpose.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/util/pp.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/op/subgraph.hpp"
 
 bool ov::snippets::pass::ExplicitTransposeMatMulInputs::are_weights_scalar(const std::shared_ptr<ov::Node>& node) {
     const auto inputs = node->inputs();
@@ -23,8 +42,9 @@ void ov::snippets::pass::ExplicitTransposeMatMulInputs::extract(const ov::Input<
     while (!transpose && !ov::is_type<ov::op::v0::Parameter>(parent)) {
         // We can set supported order and transposed_<a|b>=false only if ops have scalar shapes to avoid shape
         // mismatching
-        if (!are_weights_scalar(parent))
+        if (!are_weights_scalar(parent)) {
             break;
+        }
 
         parent = parent->get_input_node_shared_ptr(0);
         transpose = ov::as_type_ptr<ov::op::v1::Transpose>(parent);
@@ -86,8 +106,9 @@ ov::snippets::pass::ExplicitTransposeMatMulInputs::ExplicitTransposeMatMulInputs
                          bool rewritten = false;
 
                          auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(root);
-                         if (!matmul)
+                         if (!matmul) {
                              return false;
+                         }
 
                          if (matmul->get_transpose_a()) {
                              extract(matmul->input(0));

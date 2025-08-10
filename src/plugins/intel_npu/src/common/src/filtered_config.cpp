@@ -34,7 +34,7 @@ void FilteredConfig::update(const ConfigMap& options, OptionMode mode) {
             const auto opt = _desc->get(p.first, mode);
             _impl[opt.key().data()] = opt.validateAndParse(p.second);
         } else {
-            OPENVINO_THROW("[ NOT_FOUND ] Option " + p.first + " is not supported for current configuration");
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + p.first + "' is not supported for current configuration");
         }
     }
 }
@@ -80,9 +80,10 @@ void FilteredConfig::addOrUpdateInternal(std::string key, std::string value) {
     auto log = Logger::global().clone("Config");
     if (_internal_compiler_configs.count(key) != 0) {
         log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
-        _internal_compiler_configs.at(key) = value;
+        _internal_compiler_configs.at(key) = std::move(value);
     } else {
         // manual insert
+        log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
         _internal_compiler_configs.insert(std::make_pair(key, value));  // insert new
     }
 }
@@ -99,7 +100,7 @@ std::string FilteredConfig::toStringForCompilerInternal() const {
     std::stringstream resultStream;
 
     for (auto it = _internal_compiler_configs.cbegin(); it != _internal_compiler_configs.cend(); ++it) {
-        resultStream << it->first << "=\"" << it->second << "\"";
+        resultStream << " " << it->first << "=\"" << it->second << "\"";
     }
 
     return resultStream.str();

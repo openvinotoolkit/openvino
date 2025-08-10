@@ -62,9 +62,7 @@ static IEB_HEADER prepare_header(const MemoryDesc& desc) {
 
     header.precision = static_cast<char>(ov::element::Type_t(desc.getPrecision()));
 
-    if (desc.getShape().getRank() > 7) {
-        OPENVINO_THROW("Dumper support max 7D blobs");
-    }
+    OPENVINO_ASSERT(desc.getShape().getRank() <= 7, "Dumper support max 7D blobs");
 
     header.ndims = desc.getShape().getRank();
     const auto& dims = desc.getShape().getStaticDims();
@@ -78,15 +76,11 @@ static IEB_HEADER prepare_header(const MemoryDesc& desc) {
 }
 
 static DnnlBlockedMemoryDesc parse_header(IEB_HEADER& header) {
-    if (header.magic[0] != IEB_MAGIC[0] || header.magic[1] != IEB_MAGIC[1] || header.magic[2] != IEB_MAGIC[2] ||
-        header.magic[3] != IEB_MAGIC[3]) {
-        OPENVINO_THROW("Dumper cannot parse file. Wrong format.");
-    }
-
-    if (header.ver[0] != 0 || header.ver[1] != 1) {
-        OPENVINO_THROW("Dumper cannot parse file. Unsupported IEB format version.");
-    }
-
+    OPENVINO_ASSERT(header.magic[0] == IEB_MAGIC[0] && header.magic[1] == IEB_MAGIC[1] &&
+                        header.magic[2] == IEB_MAGIC[2] && header.magic[3] == IEB_MAGIC[3],
+                    "Dumper cannot parse file. Wrong format.");
+    OPENVINO_ASSERT(header.ver[0] == 0 && header.ver[1] == 1,
+                    "Dumper cannot parse file. Unsupported IEB format version.");
     const auto prc = static_cast<ov::element::Type_t>(header.precision);
     VectorDims dims(header.ndims);
     for (int i = 0; i < header.ndims; i++) {
@@ -152,10 +146,7 @@ void BlobDumper::prepare_plain_data(const MemoryPtr& memory, std::vector<uint8_t
 }
 
 void BlobDumper::dump(std::ostream& stream) const {
-    if (memory == nullptr) {
-        OPENVINO_THROW("Dumper cannot dump. Memory is not allocated.");
-    }
-
+    OPENVINO_ASSERT(memory, "Dumper cannot dump. Memory is not allocated.");
     IEB_HEADER header = prepare_header(memory->getDesc());
     std::vector<uint8_t> data;
     prepare_plain_data(this->memory, data);
@@ -170,22 +161,18 @@ void BlobDumper::dump(std::ostream& stream) const {
 }
 
 void BlobDumper::dumpAsTxt(std::ostream& stream) const {
-    if (memory == nullptr) {
-        OPENVINO_THROW("Dumper cannot dump. Memory is not allocated.");
-    }
-
+    OPENVINO_ASSERT(memory, "Dumper cannot dump. Memory is not allocated.");
     const auto& desc = memory->getDesc();
     const auto dims = desc.getShape().getStaticDims();
     size_t data_size = desc.getShape().getElementsCount();
 
     // Header like "U8 4D shape: 2 3 224 224 ()
-    stream << memory->getDesc().getPrecision().get_type_name() << " " << dims.size() << "D "
-           << "shape: ";
+    stream << memory->getDesc().getPrecision().get_type_name() << " " << dims.size() << "D " << "shape: ";
     for (size_t d : dims) {
         stream << d << " ";
     }
-    stream << "(" << data_size << ")"
-           << " by address" << std::hex << memory->getDataAs<const int64_t>() << std::dec << '\n';
+    stream << "(" << data_size << ")" << " by address" << std::hex << memory->getDataAs<const int64_t>() << std::dec
+           << '\n';
 
     const void* ptr = memory->getData();
 
@@ -297,9 +284,7 @@ BlobDumper BlobDumper::read(std::istream& stream) {
 BlobDumper BlobDumper::read(const std::string& file_path) {
     std::ifstream file;
     file.open(file_path);
-    if (!file.is_open()) {
-        OPENVINO_THROW("Dumper cannot open file ", file_path);
-    }
+    OPENVINO_ASSERT(file.is_open(), "Dumper cannot open file ", file_path);
 
     auto res = read(file);
     file.close();
@@ -309,9 +294,7 @@ BlobDumper BlobDumper::read(const std::string& file_path) {
 void BlobDumper::dump(const std::string& dump_path) const {
     std::ofstream dump_file;
     dump_file.open(dump_path, std::ios::binary);
-    if (!dump_file.is_open()) {
-        OPENVINO_THROW("Dumper cannot create dump file ", dump_path);
-    }
+    OPENVINO_ASSERT(dump_file.is_open(), "Dumper cannot create dump file ", dump_path);
 
     dump(dump_file);
     dump_file.close();
@@ -320,9 +303,7 @@ void BlobDumper::dump(const std::string& dump_path) const {
 void BlobDumper::dumpAsTxt(const std::string& dump_path) const {
     std::ofstream dump_file;
     dump_file.open(dump_path);
-    if (!dump_file.is_open()) {
-        OPENVINO_THROW("Dumper cannot create dump file ", dump_path);
-    }
+    OPENVINO_ASSERT(dump_file.is_open(), "Dumper cannot create dump file ", dump_path);
 
     dumpAsTxt(dump_file);
     dump_file.close();

@@ -4,11 +4,19 @@
 
 #include "snippets/op/fill.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 Fill::Fill(const Output<Node>& x, const size_t offset, const uint32_t fill_value)
     : Op({x}),
@@ -39,6 +47,4 @@ void Fill::validate_and_infer_types() {
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

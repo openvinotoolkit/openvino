@@ -18,7 +18,7 @@ class ExperimentalDetectronDetectionOutput : public Node {
 public:
     ExperimentalDetectronDetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     [[nodiscard]] bool created() const override;
@@ -42,8 +42,8 @@ private:
     float score_threshold_;
     float nms_threshold_;
     float max_delta_log_wh_;
-    int classes_num_;
-    int max_detections_per_class_;
+    int64_t classes_num_;
+    int64_t max_detections_per_class_;
     int max_detections_per_image_;
     bool class_agnostic_box_regression_;
     std::vector<float> deltas_weights_;

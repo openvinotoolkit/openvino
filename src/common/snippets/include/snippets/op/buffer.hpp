@@ -4,13 +4,22 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Buffer
@@ -27,9 +36,9 @@ class Buffer : public ov::op::Op {
 public:
     OPENVINO_OP("Buffer", "SnippetsOpset");
     Buffer() = default;
-    Buffer(const ov::Output<ov::Node>& arg);
-    Buffer(const OutputVector& arguments);
-    Buffer(const ov::Shape& shape, ov::element::Type element_type = ov::element::u8);
+    explicit Buffer(const ov::Output<ov::Node>& arg);
+    explicit Buffer(const OutputVector& arguments);
+    explicit Buffer(const ov::Shape& shape, ov::element::Type element_type = ov::element::u8);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -55,11 +64,11 @@ private:
     public:
         BaseImpl() = default;
         virtual ~BaseImpl() = default;
-        virtual size_t get_allocation_size() const = 0;
-        virtual std::shared_ptr<BaseImpl> clone() const = 0;
+        [[nodiscard]] virtual size_t get_allocation_size() const = 0;
+        [[nodiscard]] virtual std::shared_ptr<BaseImpl> clone() const = 0;
         virtual void validate_and_infer_types(Buffer* buffer) const = 0;
         virtual bool visit_attributes(AttributeVisitor& visitor) = 0;
-        virtual std::shared_ptr<IShapeInferSnippets> get_shape_infer() const = 0;
+        [[nodiscard]] virtual std::shared_ptr<IShapeInferSnippets> get_shape_infer() const = 0;
     };
 
     // IntermediateMemoryImpl represents intermediate memory.
@@ -68,15 +77,15 @@ private:
     public:
         IntermediateMemoryImpl() = default;
 
-        size_t get_allocation_size() const override {
+        [[nodiscard]] size_t get_allocation_size() const override {
             return utils::get_dynamic_value<size_t>();
         }
-        std::shared_ptr<BaseImpl> clone() const override;
+        [[nodiscard]] std::shared_ptr<BaseImpl> clone() const override;
         void validate_and_infer_types(Buffer* buffer) const override;
-        bool visit_attributes(AttributeVisitor& visitor) override {
+        bool visit_attributes([[maybe_unused]] AttributeVisitor& visitor) override {
             return true;
         }
-        std::shared_ptr<IShapeInferSnippets> get_shape_infer() const override {
+        [[nodiscard]] std::shared_ptr<IShapeInferSnippets> get_shape_infer() const override {
             return std::make_shared<ShapeInfer>();
         }
 
@@ -91,13 +100,13 @@ private:
     // The buffers with this implementation mustn't have source (parents)
     class NewMemoryImpl : public BaseImpl {
     public:
-        NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type);
+        explicit NewMemoryImpl(const ov::Shape& shape, ov::element::Type element_type);
 
-        size_t get_allocation_size() const override;
-        std::shared_ptr<BaseImpl> clone() const override;
+        [[nodiscard]] size_t get_allocation_size() const override;
+        [[nodiscard]] std::shared_ptr<BaseImpl> clone() const override;
         void validate_and_infer_types(Buffer* buffer) const override;
         bool visit_attributes(AttributeVisitor& visitor) override;
-        std::shared_ptr<IShapeInferSnippets> get_shape_infer() const override {
+        [[nodiscard]] std::shared_ptr<IShapeInferSnippets> get_shape_infer() const override {
             return std::make_shared<ShapeInfer>(m_shape);
         }
 
@@ -106,7 +115,7 @@ private:
             ov::Shape m_shape;
 
         public:
-            explicit ShapeInfer(ov::Shape shape);
+            explicit ShapeInfer(const ov::Shape& shape);
             Result infer(const std::vector<VectorDimsRef>& input_shapes) override;
         };
 
@@ -120,6 +129,4 @@ private:
     const std::shared_ptr<BaseImpl> m_impl{nullptr};
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

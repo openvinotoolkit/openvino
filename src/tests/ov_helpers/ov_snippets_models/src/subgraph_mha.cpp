@@ -5,6 +5,7 @@
 #include "fake_quantize_helper.hpp"
 #include "subgraph_mha.hpp"
 
+#include "openvino/opsets/opset1.hpp"
 #include "common_test_utils/data_utils.hpp"
 #include <snippets/op/subgraph.hpp>
 #include "common_test_utils/node_builders/constant.hpp"
@@ -1176,10 +1177,10 @@ std::shared_ptr<ov::Model> MHARankUpgradeToReductionFunction::initReference() co
     const auto softmax = std::make_shared<ov::op::v8::Softmax>(add_1, -1);
     const auto matmul_1 = std::make_shared<ov::op::v0::MatMul>(softmax, param_4);
 
-    auto subgraph_body = std::make_shared<ov::Model>(NodeVector{matmul_1},
+    auto subgraph_body = std::make_shared<ov::Model>(OutputVector{matmul_1},
                                                      ov::ParameterVector{param_0, param_1, param_2, param_3, param_4});
     auto subgraph =
-        std::make_shared<ov::snippets::op::Subgraph>(ov::NodeVector{data_0, data_1, data_2, reshape, data_4},
+        std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{data_0, data_1, data_2, reshape, data_4},
                                                      subgraph_body);
 
     ov::ResultVector results{std::make_shared<ov::opset1::Result>(subgraph)};

@@ -13,6 +13,7 @@
 #include "openvino/core/rtti.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/shape_types.hpp"
 #include "snippets/utils/utils.hpp"
 
@@ -81,7 +82,6 @@ private:
 
     static dnnl::impl::cpu::x64::cpu_isa_t get_prim_isa(const ov::element::Type& src_dt,
                                                         const ov::element::Type& wei_dt);
-    static size_t get_elems_in_vec(const ov::element::Type& precision);
 
     dnnl::impl::cpu::x64::cpu_isa_t m_isa = dnnl::impl::cpu::x64::cpu_isa_t::isa_undef;
 
@@ -102,12 +102,14 @@ private:
      *       In MatMul scenario it might lead to perf degradation.
      */
     bool m_are_wei_blocked = false;
-    size_t m_wei_n_blk = 0lu;
-    size_t m_wei_k_blk = 0lu;
+    size_t m_wei_n_blk = 0LU;
+    size_t m_wei_k_blk = 0LU;
 };
 
 /// \brief Computes VNNI factor used by OneDNN implementation. Depends on tensor precision
 size_t compute_vnni_factor(const ov::element::Type& precision);
+/// \brief Computes element count in vector register using precision
+size_t get_elems_in_vec(const ov::element::Type& precision);
 
 /// \brief The following helpers return True if the target precision is supported by BRGEMM on the current platform
 inline bool is_fp32_supported() {
@@ -137,16 +139,49 @@ inline T compute_blocked_dim(T dim, size_t blk) {
     return ov::snippets::utils::rnd_up(dim, static_cast<T>(blk));
 }
 
-/// \brief  Computes LDB
+/// \brief  Computes stride for N dim in blocked shape
 template <typename T,
           typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
-inline T compute_LDB(T n, size_t wei_n_blk, bool are_wei_blocked) {
-    assert(!ov::snippets::utils::is_dynamic_value(wei_n_blk) && "wei_n_blk cannot be dynamic");
-    return are_wei_blocked ? wei_n_blk : compute_blocked_dim(n, wei_n_blk);
+inline T compute_N_blocked_stride(T K, size_t wei_k_blk, const ov::element::Type& prc, bool are_wei_blocked) {
+    //  - if weights are not in blocked format, account for the VNNI format
+    //  - if weights are blocked, account for zero padding in K dimension
+    assert(!ov::snippets::utils::is_dynamic_value(wei_k_blk) && "wei_k_blk cannot be dynamic");
+    if (snippets::utils::is_dynamic_value(K)) {
+        return snippets::utils::get_dynamic_value<T>();
+    }
+
+    const auto vnni_factor = brgemm_utils::compute_vnni_factor(prc);
+    if (are_wei_blocked) {
+        return brgemm_utils::repacking::compute_blocked_dim(K, wei_k_blk * vnni_factor);
+    }
+
+    return vnni_factor;
 }
 
-/// \brief  Computes allocation shape for Buffer between BrgemmCopyB and Brgemm
-ov::snippets::VectorDims compute_buffer_b_allocation_shape(size_t K, size_t N, size_t wei_k_blk, size_t wei_n_blk);
+/// \brief  Computes stride for K dim in blocked shape
+template <typename T,
+          typename = typename std::enable_if_t<(std::is_same_v<T, size_t> || std::is_same_v<T, int64_t>), bool>>
+inline T compute_K_blocked_stride(T N, size_t wei_n_blk, bool are_wei_blocked) {
+    assert(!ov::snippets::utils::is_dynamic_value(wei_n_blk) && "wei_n_blk cannot be dynamic");
+    return are_wei_blocked ? wei_n_blk : compute_blocked_dim(N, wei_n_blk);
+}
+
+/// \brief  Computes allocation shape for Buffer between BrgemmCopyB and Brgemm.
+///         Note: BrgemmCopyB requires buffer with allocation size which is greater than blocked shapes.
+///               Please see the explanation inside
+ov::snippets::VectorDims compute_buffer_b_allocation_shape(const ov::snippets::VectorDims& planar_shape,
+                                                           const ov::element::Type& prc,
+                                                           size_t wei_k_blk,
+                                                           size_t wei_n_blk,
+                                                           bool are_wei_blocked,
+                                                           bool is_transposed);
+
+/// \brief  Compute blocked shape for repacked weights
+ov::snippets::op::Subgraph::BlockedShape get_wei_blocked_shape(const ov::snippets::VectorDims& planar_shape,
+                                                               const ov::element::Type& prc,
+                                                               size_t wei_k_blk,
+                                                               size_t wei_n_blk,
+                                                               bool are_wei_blocked);
 
 /**
  * @brief Retrieves the expression pointer for the brgemm_copy_b expression corresponding to the given BrgemmCPU
@@ -161,7 +196,7 @@ snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::Expres
 template <>
 class AttributeAdapter<intel_cpu::brgemm_utils::BrgemmConfig> : public VisitorAdapter {
 public:
-    AttributeAdapter(intel_cpu::brgemm_utils::BrgemmConfig& ref) : m_ref(ref) {}
+    explicit AttributeAdapter(intel_cpu::brgemm_utils::BrgemmConfig& ref) : m_ref(ref) {}
     bool visit_attributes(AttributeVisitor& visitor) override;
 
     OPENVINO_RTTI("AttributeAdapter<intel_cpu::brgemm_utils::BrgemmConfig>");

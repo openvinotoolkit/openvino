@@ -740,8 +740,8 @@ const std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, 
 std::string get_opset_name(const ov::Node* n) {
     OPENVINO_ASSERT(n != nullptr);
 
-    // TODO: remove it one day: try to find opset name from RT info
-    // It's a dirty hack to TypeRelaxed and similar template internal operations
+    // CVS-169882: Try to find opset name from RT info. Below (not recommended) solution affects TypeRelaxed and similar
+    // template internal operations.
     auto opset_it = n->get_rt_info().find("opset");
     if (opset_it != n->get_rt_info().end()) {
         if (opset_it->second.is<std::string>()) {
@@ -1075,7 +1075,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
         if (node->get_input_size() > 0) {
             pugi::xml_node input = layer.append_child("input");
             for (auto& i : node->inputs()) {
-                // WA for LSTMCellv0, peephole input shall not be serialized
+                // v0::LSTMCell peephole input shall not be serialized
                 if (i.get_index() == 6 && ov::as_type<ov::op::v0::LSTMCell>(node)) {
                     port_id++;
                     continue;
@@ -1200,7 +1200,7 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     pugi::xml_node edges = netXml.append_child("edges");
     auto ordered_ops = model.get_ordered_ops();
     for (auto e : edge_mapping) {
-        // WA for LSTMCellv0, peephole input shall not be serialized
+        // v0::LSTMCell peephole input shall not be serialized
         if (e.to_port == 6) {
             const auto& type_info = ordered_ops[e.to_layer]->get_type_info();
             if (!strcmp(type_info.name, "LSTMCell")) {
@@ -1349,6 +1349,10 @@ pass::StreamSerialize::StreamSerialize(std::ostream& stream,
     }
 }
 
+bool pass::StreamSerialize::use_absolute_offset() {
+    return true;
+}
+
 bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(StreamSerialize);
     /*
@@ -1377,17 +1381,18 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     }
 
     // Header
-    const size_t header_offset = m_stream.tellp();
+    const size_t header_offset = use_absolute_offset() ? 0 : static_cast<size_t>(m_stream.tellp());
+    const size_t absolute_header_offset = static_cast<size_t>(m_stream.tellp());
     writeHeader(hdr);
 
     // Custom data
-    hdr.custom_data_offset = m_stream.tellp();
+    hdr.custom_data_offset = static_cast<size_t>(m_stream.tellp()) - header_offset;
     if (m_custom_data_serializer) {
         m_custom_data_serializer(m_stream);
     }
 
     // Blobs
-    hdr.consts_offset = m_stream.tellp();
+    hdr.consts_offset = static_cast<size_t>(m_stream.tellp()) - header_offset;
     std::string name = "net";
     pugi::xml_document xml_doc;
     pugi::xml_node net_node = xml_doc.append_child(name.c_str());
@@ -1397,7 +1402,7 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     visitor.on_attribute(name, fun);
 
     // IR
-    hdr.model_offset = m_stream.tellp();
+    hdr.model_offset = static_cast<size_t>(m_stream.tellp()) - header_offset;
     if (m_cache_encrypt) {
         std::stringstream ss;
         xml_doc.save(ss);
@@ -1408,13 +1413,13 @@ bool pass::StreamSerialize::run_on_model(const std::shared_ptr<ov::Model>& model
     }
     m_stream.flush();
 
-    const size_t file_size = m_stream.tellp();
+    const size_t file_size = static_cast<size_t>(m_stream.tellp()) - header_offset;
 
     hdr.custom_data_size = hdr.consts_offset - hdr.custom_data_offset;
     hdr.consts_size = hdr.model_offset - hdr.consts_offset;
     hdr.model_size = file_size - hdr.model_offset;
 
-    m_stream.seekp(header_offset);
+    m_stream.seekp(absolute_header_offset);
     writeHeader(hdr);
 
     m_stream.seekp(file_size);

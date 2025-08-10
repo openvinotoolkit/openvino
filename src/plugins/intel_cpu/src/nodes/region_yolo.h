@@ -50,7 +50,7 @@ class RegionYolo : public Node {
 public:
     RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
@@ -75,11 +75,6 @@ private:
     int block_size;
     std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;
     std::shared_ptr<SoftmaxGeneric> softmax_kernel;
-
-    union U {
-        float as_float_value;
-        int as_int_value;
-    };
 
     static inline float logistic_scalar(float src);
     inline void calculate_logistic(size_t start_index, int count, uint8_t* dst_data);

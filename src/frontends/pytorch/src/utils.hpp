@@ -83,6 +83,7 @@ OutputVector make_framework_node(const NodeContext& context, const std::string& 
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node, const std::string& type);
 std::shared_ptr<op::util::FrameworkNode> cast_fw_node(std::shared_ptr<Node> node,
                                                       std::initializer_list<std::string> types);
+std::function<bool(const ov::Output<ov::Node>&)> fw_node_predicate(const std::initializer_list<std::string>& types);
 
 std::shared_ptr<Node> make_list_construct(const ov::OutputVector& inputs);
 

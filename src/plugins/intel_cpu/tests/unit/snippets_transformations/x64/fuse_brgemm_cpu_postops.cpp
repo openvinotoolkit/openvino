@@ -117,7 +117,7 @@ using FuseConvertParams = std::tuple<std::pair<ov::element::Type, ov::element::T
 
 class FuseConvertTests : public FuseBrgemmCPUPostopsTests, public WithParamInterface<FuseConvertParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseConvertParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseConvertParams>& obj) {
         auto [input_precisions, convert_dst_type] = obj.param;
         std::ostringstream result;
         result << "InputPrecisions=(" << input_precisions.first << "_" << input_precisions.second
@@ -134,7 +134,7 @@ public:
         auto brgemm = make_brgemm({input1, input2});
         auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, convert_dst_type);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{convert}, ov::ParameterVector{input1, input2});
+        return std::make_shared<ov::Model>(ov::OutputVector{convert}, ov::ParameterVector{input1, input2});
     }
 
     static std::shared_ptr<ov::Model> get_ref_model(
@@ -146,7 +146,7 @@ public:
         postops.forced_output_type = convert_dst_type;
         auto ref_brgemm = make_brgemm({input1, input2}, postops);
 
-        return std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+        return std::make_shared<ov::Model>(ov::OutputVector{ref_brgemm}, ov::ParameterVector{input1, input2});
     }
 
 protected:
@@ -163,7 +163,7 @@ using FuseScalarEltwiseParams = std::tuple<std::pair<ov::element::Type, ov::elem
 
 class FuseScalarEltwiseTests : public FuseBrgemmCPUPostopsTests, public WithParamInterface<FuseScalarEltwiseParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseScalarEltwiseParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseScalarEltwiseParams>& obj) {
         auto [input_precisions, scalar_op_type] = obj.param;
         std::ostringstream result;
         result << "InputPrecisions=(" << input_precisions.first << "_" << input_precisions.second
@@ -182,7 +182,7 @@ public:
 
         auto scalar = std::make_shared<ov::snippets::op::Scalar>(ov::element::f32, ov::Shape{}, 2.f);
         auto scalar_op = make_eltwise(brgemm, scalar, scalar_op_type);
-        return std::make_shared<ov::Model>(ov::NodeVector{scalar_op}, ov::ParameterVector{input1, input2});
+        return std::make_shared<ov::Model>(ov::OutputVector{scalar_op}, ov::ParameterVector{input1, input2});
     }
 
     static std::shared_ptr<ov::Model> get_ref_model(
@@ -217,7 +217,7 @@ public:
         }
 
         auto ref_brgemm = make_brgemm({input1, input2}, postops);
-        return std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+        return std::make_shared<ov::Model>(ov::OutputVector{ref_brgemm}, ov::ParameterVector{input1, input2});
     }
 
 protected:
@@ -235,7 +235,7 @@ using FuseBinaryEltwiseParams = std::tuple<std::pair<ov::element::Type, ov::elem
 
 class FuseBinaryEltwiseTests : public FuseBrgemmCPUPostopsTests, public WithParamInterface<FuseBinaryEltwiseParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<FuseBinaryEltwiseParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<FuseBinaryEltwiseParams>& obj) {
         auto [input_precisions, binary_op_type, postop_input_shape] = obj.param;
         std::ostringstream result;
         result << "InputPrecisions=(" << input_precisions.first << "_" << input_precisions.second
@@ -259,7 +259,7 @@ public:
             postop_input = std::make_shared<ov::snippets::op::RankNormalization>(input3, brgemm_b_shape.size() - postop_input_shape.size(), 0);
         }
         auto binary_op = make_eltwise(brgemm, postop_input, binary_op_type);
-        return std::make_shared<ov::Model>(ov::NodeVector{binary_op},
+        return std::make_shared<ov::Model>(ov::OutputVector{binary_op},
                                            ov::ParameterVector{input1, input2, input3});
     }
 
@@ -300,7 +300,7 @@ public:
         }
 
         auto ref_brgemm = make_brgemm({input1, input2}, postops, {postop_input});
-        return std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm},
+        return std::make_shared<ov::Model>(ov::OutputVector{ref_brgemm},
                                            ov::ParameterVector{input1, input2, input3});
     }
 
@@ -360,7 +360,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseHalfToEven) {
         auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, ov::element::f32);
         auto round = std::make_shared<ov::op::v5::Round>(convert, ov::op::v5::Round::RoundMode::HALF_TO_EVEN);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{round}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{round}, ov::ParameterVector{input1, input2});
     }
 
     {
@@ -371,7 +371,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseHalfToEven) {
         postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_round_half_to_even, 0.0f, 0.0f);
         auto ref_brgemm = make_brgemm({input1, input2}, postops);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{ref_brgemm}, ov::ParameterVector{input1, input2});
     }
 }
 
@@ -383,7 +383,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseHalfAwayFromZero) {
         auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, ov::element::f32);
         auto round = std::make_shared<ov::op::v5::Round>(convert, ov::op::v5::Round::RoundMode::HALF_AWAY_FROM_ZERO);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{round}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{round}, ov::ParameterVector{input1, input2});
     }
 
     {
@@ -394,7 +394,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseHalfAwayFromZero) {
         postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_round_half_away_from_zero, 0.0f, 0.0f);
         auto ref_brgemm = make_brgemm({input1, input2}, postops);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{ref_brgemm}, ov::ParameterVector{input1, input2});
     }
 }
 
@@ -406,7 +406,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseRelu) {
         auto convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm, ov::element::f32);
         auto relu = std::make_shared<ov::op::v0::Relu>(convert);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{relu}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{relu}, ov::ParameterVector{input1, input2});
     }
 
     {
@@ -417,7 +417,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseUnaryEltwiseRelu) {
         postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_relu, 0.0f, 0.0f);
         auto ref_brgemm = make_brgemm({input1, input2}, postops);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{ref_brgemm}, ov::ParameterVector{input1, input2});
     }
 }
 
@@ -435,7 +435,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseScaleShift) {
         auto scale_op = std::make_shared<ov::opset1::Multiply>(convert, scale);
         auto shift_op = std::make_shared<ov::opset1::Add>(scale_op, shift);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{shift_op}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{shift_op}, ov::ParameterVector{input1, input2});
     }
 
     {
@@ -446,7 +446,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseScaleShift) {
         postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_linear, scale_val, shift_val);
         auto ref_brgemm = make_brgemm({input1, input2}, postops);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{ref_brgemm}, ov::ParameterVector{input1, input2});
     }
 }
 
@@ -464,7 +464,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseClip) {
         auto max_op = std::make_shared<ov::opset1::Maximum>(convert, max_scalar);
         auto min_op = std::make_shared<ov::opset1::Minimum>(max_op, min_scalar);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{min_op}, ov::ParameterVector{input1, input2});
+        model = std::make_shared<ov::Model>(ov::OutputVector{min_op}, ov::ParameterVector{input1, input2});
     }
 
     {
@@ -475,7 +475,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, FuseClip) {
         postops.post_ops.append_eltwise(1.0f, dnnl::impl::alg_kind_t::dnnl_eltwise_clip, in_low, in_high);
         auto ref_brgemm = make_brgemm({input1, input2}, postops);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{ref_brgemm}, ov::ParameterVector{input1, input2});
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{ref_brgemm}, ov::ParameterVector{input1, input2});
     }
 }
 
@@ -528,7 +528,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, BrgemmPostopsCascade) {
         auto brgemm3 = make_brgemm({sequence2, input4});
         auto final_convert = std::make_shared<ov::snippets::op::ConvertSaturation>(brgemm3, ov::element::f32);
 
-        model = std::make_shared<ov::Model>(ov::NodeVector{final_convert}, parameters);
+        model = std::make_shared<ov::Model>(ov::OutputVector{final_convert}, parameters);
     }
 
     {
@@ -563,7 +563,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, BrgemmPostopsCascade) {
         postops.forced_output_type = ov::element::f32;
         auto brgemm3 = make_brgemm({brgemm2, input4}, postops);
 
-        model_ref = std::make_shared<ov::Model>(ov::NodeVector{brgemm3},
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{brgemm3},
                                                 ov::ParameterVector{input1,
                                                                     input2,
                                                                     binary_mul_param1,
@@ -615,7 +615,7 @@ TEST_F(FuseBrgemmCPUPostopsTests, NegativeBinarySharedPostopInput) {
 
     auto binary_op_1 = make_eltwise(brgemm_1, shared_postop_input, ov::opset1::Multiply::get_type_info_static());
     auto binary_op_2 = make_eltwise(brgemm_2, shared_postop_input, ov::opset1::Multiply::get_type_info_static());
-    model = std::make_shared<ov::Model>(ov::NodeVector{binary_op_1, binary_op_2},
+    model = std::make_shared<ov::Model>(ov::OutputVector{binary_op_1, binary_op_2},
                                         ov::ParameterVector{input1, input2, shared_postop_input});
 }
 
@@ -629,5 +629,5 @@ TEST_F(FuseBrgemmCPUPostopsTests, NegativeBrgemmWithSeveralConsumers) {
 
     // Additional consumer prevents postops fusion
     auto relu = std::make_shared<ov::opset1::Relu>(brgemm);
-    model = std::make_shared<ov::Model>(ov::NodeVector{scalar_op, relu}, ov::ParameterVector{input1, input2});
+    model = std::make_shared<ov::Model>(ov::OutputVector{scalar_op, relu}, ov::ParameterVector{input1, input2});
 }

@@ -4,17 +4,25 @@
 
 #include "snippets/utils/loop_utils.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression_port.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace utils {
+namespace ov::snippets::utils {
 
 using namespace ov::snippets::lowered;
 namespace {
 inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, size_t port_count) {
-    if (!loop_port.is_incremented())
+    if (!loop_port.is_incremented()) {
         return 0;
+    }
 
     const auto& expr_port = loop_port.get_expr_port();
     const auto& layout = expr_port->get_descriptor_ptr()->get_layout();
@@ -30,17 +38,20 @@ inline int64_t get_ptr_increment(const LoopPort& loop_port, size_t work_amount, 
     // When we cannot say about broadcasting
     if (is_dynamic_value(shape[dim]) && port_count > 1) {
         return get_dynamic_value<int64_t>();
-    } else if (!(shape[dim] == 1 && work_amount != 1)) {
+    }
+    if (shape[dim] != 1 || work_amount == 1) {
         return get_stride(dim, shape);
     }
     return 0;
 }
 
 inline int64_t get_finalization_offset(size_t work_amount, int64_t ptr_increment) {
-    if (ptr_increment == 0 || work_amount == 0)
+    if (any_of(0U, ptr_increment, work_amount)) {
         return 0;
-    if (is_dynamic_value(work_amount) || is_dynamic_value(ptr_increment))
+    }
+    if (is_dynamic_value(work_amount) || is_dynamic_value(ptr_increment)) {
         return get_dynamic_value<int64_t>();
+    }
     return -1 * ptr_increment * work_amount;
 }
 
@@ -81,8 +92,9 @@ void update_data_pointer_shifts(const UnifiedLoopInfoPtr& loop_info) {
 
 void update_runtime_parameters(const UnifiedLoopInfoPtr& loop_info) {
     OPENVINO_ASSERT(loop_info != nullptr, "UnifiedLoopInfo is nullptr, nothing to update");
-    if (!ov::is_type<InnerSplittedUnifiedLoopInfo>(loop_info))
+    if (!ov::is_type<InnerSplittedUnifiedLoopInfo>(loop_info)) {
         init_work_amount(loop_info);
+    }
     update_data_pointer_shifts(loop_info);
 }
 
@@ -94,6 +106,4 @@ bool should_be_loop_port(const ov::snippets::lowered::ExpressionPort& port, size
     });
 }
 
-}  // namespace utils
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::utils

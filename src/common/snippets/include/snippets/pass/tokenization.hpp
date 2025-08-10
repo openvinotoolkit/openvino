@@ -4,31 +4,40 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <set>
+#include <utility>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/pass/pass.hpp"
 #include "snippets/op/subgraph.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 /*
  NotSet - default value returned by GetSnippetsNodeType(...) if the node wasn't marked
  SkippedByPlugin - indicate that snippets can't include this node in subgraph. Can be set by Plugin via
  SetSnippetsNodeType(...).
  */
-enum class SnippetsNodeType : int64_t { NotSet, SkippedByPlugin };
+enum class SnippetsNodeType : uint8_t { NotSet, SkippedByPlugin };
 /*
  NotSet - default value returned if the subgraph wasn't marked and snippets can include nodes in this subgraph
  Completed - indicate that snippets can't include any nodes in this subgraph.
              It's used in separate tokenization pass, for example, tokenization by matcher (MHA Tokenization).
  */
-enum class SnippetsSubgraphType : int64_t { NotSet, Completed };
-void SetSnippetsNodeType(const std::shared_ptr<Node>&, SnippetsNodeType);
-void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>&, SnippetsSubgraphType);
-SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>&);
-SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph>&);
-void SetTopologicalOrder(const std::shared_ptr<Node>&, int64_t);
-int64_t GetTopologicalOrder(const std::shared_ptr<const Node>&);
+enum class SnippetsSubgraphType : uint8_t { NotSet, Completed };
+void SetSnippetsNodeType(const std::shared_ptr<Node>& node, SnippetsNodeType nodeType);
+void SetSnippetsSubgraphType(const std::shared_ptr<op::Subgraph>& node, SnippetsSubgraphType nodeType);
+SnippetsNodeType GetSnippetsNodeType(const std::shared_ptr<const Node>& node);
+SnippetsSubgraphType GetSnippetsSubgraphType(const std::shared_ptr<const op::Subgraph>& node);
+void SetTopologicalOrder(const std::shared_ptr<Node>& node, int64_t order);
+int64_t GetTopologicalOrder(const std::shared_ptr<const Node>& node);
 
 /**
  * @interface EnumerateNodes
@@ -39,7 +48,7 @@ class EnumerateNodes : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("snippets::pass::EnumerateNodes");
     EnumerateNodes() : ModelPass() {}
-    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
 /**
@@ -83,7 +92,7 @@ public:
               m_mha_token_enable_transpose_on_output(enable_transpose_on_output),
               m_is_dynamic_mha_token_enabled(dyn_mha_token),
               m_mha_supported_transpose_ranks(std::move(mha_transpose_ranks)),
-              m_can_be_fused_as_postop(can_be_fused_as_postop) {
+              m_can_be_fused_as_postop(std::move(can_be_fused_as_postop)) {
             OPENVINO_ASSERT(concurrency > 0, "Concurrency should be greater than 0");
             OPENVINO_ASSERT(data_ptr_gpr_count > 0, "data_ptr_gpr_count should be greater than 0");
         }
@@ -92,31 +101,31 @@ public:
             m_concurrency = concur;
         }
 
-        size_t get_concurrency() const {
+        [[nodiscard]] size_t get_concurrency() const {
             return m_concurrency;
         }
 
-        size_t get_data_ptr_gpr_count() const {
+        [[nodiscard]] size_t get_data_ptr_gpr_count() const {
             return m_data_ptr_gpr_count;
         }
 
-        bool get_split_m_dimension() const {
+        [[nodiscard]] bool get_split_m_dimension() const {
             return m_split_m_dimension;
         }
 
-        bool get_mha_token_enable_transpose_on_output() const {
+        [[nodiscard]] bool get_mha_token_enable_transpose_on_output() const {
             return m_mha_token_enable_transpose_on_output;
         }
 
-        bool is_dynamic_mha_token_enabled() const {
+        [[nodiscard]] bool is_dynamic_mha_token_enabled() const {
             return m_is_dynamic_mha_token_enabled;
         }
 
-        std::set<size_t> get_mha_supported_transpose_ranks() const {
+        [[nodiscard]] std::set<size_t> get_mha_supported_transpose_ranks() const {
             return m_mha_supported_transpose_ranks;
         }
 
-        const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
+        [[nodiscard]] const CanBeFusedAsPostOpPred& get_can_be_fused_as_postop() const {
             return m_can_be_fused_as_postop;
         }
 
@@ -144,13 +153,11 @@ public:
         CanBeFusedAsPostOpPred m_can_be_fused_as_postop = nullptr;
     };
 
-    SnippetsTokenization(const Config& config) : m_config(config) {}
+    explicit SnippetsTokenization(Config config) : m_config(std::move(config)) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     Config m_config;
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

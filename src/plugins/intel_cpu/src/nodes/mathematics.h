@@ -21,7 +21,7 @@ class Math : public Node {
 public:
     Math(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
@@ -37,9 +37,9 @@ private:
     static std::map<const ov::DiscreteTypeInfo, std::function<void(const std::shared_ptr<ov::Node>&, Math& node)>>&
     getInitializers();
 
-    float alpha = 0.0f;
-    float beta = 0.0f;
-    float gamma = 0.0f;
+    float alpha = 0.0F;
+    float beta = 0.0F;
+    float gamma = 0.0F;
 };
 
 }  // namespace ov::intel_cpu::node

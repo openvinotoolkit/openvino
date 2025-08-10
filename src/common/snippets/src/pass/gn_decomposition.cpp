@@ -4,16 +4,32 @@
 
 #include "snippets/pass/gn_decomposition.hpp"
 
-#include "openvino/core/rt_info.hpp"
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/group_normalization.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/power.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reshape.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
-using namespace lowered;
+namespace ov::snippets::pass {
 
 // groupNorm -> reshape + mvn + reshape + mul + add,
 // where mvn = (x - mean) / Sqrt(ReduceMean((x - mean) ^ 2) + eps),
@@ -33,7 +49,7 @@ GNDecomposition::GNDecomposition() {
         const auto bias = group_norm_node->input_value(2);
 
         const auto num_groups = static_cast<size_t>(group_norm_node->get_num_groups());
-        const float eps = static_cast<float>(group_norm_node->get_epsilon());
+        const auto eps = static_cast<float>(group_norm_node->get_epsilon());
 
         ////////////collapse to reduce lastDim to avoid nested loop overhead(e.g. reduce tails in inner loop)///////////
         // reshape [N, C, spatial] to [N, group, 1, (C / group) * spatial]
@@ -46,7 +62,7 @@ GNDecomposition::GNDecomposition() {
         for (size_t i = 2; i < orig_rank; ++i) {
             spatial_dim = spatial_dim * orig_shape[i];
         }
-        ov::Shape group_shape = {orig_shape[0], num_groups, 1ul, c_in_group * spatial_dim};
+        ov::Shape group_shape = {orig_shape[0], num_groups, 1UL, c_in_group * spatial_dim};
         std::shared_ptr<ov::Node> reshaped_node_orig = std::make_shared<ov::snippets::op::Reshape>(data, group_shape);
 
         std::shared_ptr<ov::Node> reshaped_node1 = reshaped_node_orig;
@@ -58,7 +74,7 @@ GNDecomposition::GNDecomposition() {
         op::ReduceBase::compute_and_set_reduce_subtensors(reduce_sum);
 
         // reduceMean
-        float group_size_inv = 1.0f / static_cast<float>(group_shape[3]);
+        float group_size_inv = 1.0F / static_cast<float>(group_shape[3]);
         const auto group_size_inv_node =
             std::make_shared<ov::op::v0::Constant>(element::f32, Shape{}, std::vector<float>{group_size_inv});
         const auto reduce_mean = std::make_shared<ov::op::v1::Multiply>(reduce_sum, group_size_inv_node);
@@ -85,7 +101,7 @@ GNDecomposition::GNDecomposition() {
         // variance = sqrt( reducemean( (x - mean) ^ 2 ) + eps )
         auto variance = std::make_shared<ov::op::v0::Sqrt>(eps_add);
         // divide variance
-        const auto variance_inv = std::make_shared<ov::snippets::op::PowerStatic>(variance, -1.f);
+        const auto variance_inv = std::make_shared<ov::snippets::op::PowerStatic>(variance, -1.F);
         auto mvn = std::make_shared<ov::op::v1::Multiply>(sub_mean, variance_inv);
 
         // reshape mvn from [N, group, 1, (C / group) * spatial] to [N, group, C / group, spatial]
@@ -93,7 +109,7 @@ GNDecomposition::GNDecomposition() {
         const auto mvn_reshaped = std::make_shared<ov::snippets::op::Reshape>(mvn, group_channel_shape);
 
         // reshape scale and bias to [1, group, C / group, 1]
-        ov::Shape scale_bias_shape = {1ul, num_groups, c_in_group, 1ul};
+        ov::Shape scale_bias_shape = {1UL, num_groups, c_in_group, 1UL};
         std::shared_ptr<ov::Node> reshape_scale = std::make_shared<ov::snippets::op::Reshape>(scale, scale_bias_shape);
         if (scale.get_element_type() != element::f32) {
             reshape_scale = std::make_shared<ov::snippets::op::ConvertSaturation>(reshape_scale, element::f32);
@@ -123,6 +139,4 @@ GNDecomposition::GNDecomposition() {
     register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

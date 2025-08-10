@@ -45,7 +45,7 @@ ParamsKey SelectKernelRef::GetSupportedKey() const {
 
 bool SelectKernelRef::Validate(const Params& p) const {
     if (!SelectKernelBase::Validate(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

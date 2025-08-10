@@ -4,14 +4,16 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <snippets/lowered/expression.hpp>
-#include <snippets/snippets_isa.hpp>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface SerializationNode
@@ -22,7 +24,7 @@ class SerializationNode : public ov::op::Op {
 public:
     OPENVINO_OP("SerializationNode", "SnippetsOpset");
 
-    enum SerializationMode { DATA_FLOW, CONTROL_FLOW };
+    enum SerializationMode : uint8_t { DATA_FLOW, CONTROL_FLOW };
     SerializationNode() = default;
     SerializationNode(const ov::OutputVector& args,
                       const std::shared_ptr<lowered::Expression>& expr,
@@ -34,9 +36,7 @@ public:
 
 private:
     std::shared_ptr<lowered::Expression> m_expr;
-    SerializationMode m_mode;
+    SerializationMode m_mode = SerializationMode::CONTROL_FLOW;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

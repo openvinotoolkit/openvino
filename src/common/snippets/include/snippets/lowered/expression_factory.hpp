@@ -4,25 +4,31 @@
 
 #pragma once
 
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
 #include "expression.hpp"
-#include "expressions/buffer_expression.hpp"
-#include "snippets/op/buffer.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "snippets/lowered/port_connector.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/op/perf_count.hpp"
 #include "snippets/op/reg_spill.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
+namespace ov::snippets::lowered {
 
 class ExpressionFactory {
 public:
-    ExpressionFactory(std::shared_ptr<IShapeInferSnippetsFactory> shape_infer_factory)
+    explicit ExpressionFactory(std::shared_ptr<IShapeInferSnippetsFactory> shape_infer_factory)
         : m_shape_infer_factory(std::move(shape_infer_factory)) {}
 
     template <typename T = Expression,
               typename... Args,
-              typename std::enable_if<std::is_base_of<Expression, T>::value, bool>::type = true>
+              std::enable_if_t<std::is_base_of_v<Expression, T>, bool> = true>
     std::shared_ptr<T> build(const std::shared_ptr<Node>& n,
                              const std::vector<PortConnectorPtr>& inputs,
                              Args... args) {
@@ -65,7 +71,7 @@ private:
 
     template <typename T = Expression,
               typename... Args,
-              typename std::enable_if<std::is_base_of<Expression, T>::value, bool>::type = true>
+              std::enable_if_t<std::is_base_of_v<Expression, T>, bool> = true>
     static std::shared_ptr<T> create(const std::shared_ptr<ov::Node>& n,
                                      const std::vector<PortConnectorPtr>& inputs,
                                      const std::shared_ptr<IShapeInferSnippetsFactory>& shape_infer_factory,
@@ -76,8 +82,9 @@ private:
         expr->validate();
         // todo: here we blindly synchronize input shapes from parent and child. Remove this when shapes will be stored
         // in port connector itself
-        if (shape_infer_factory)
+        if (shape_infer_factory) {
             expr->updateShapes();
+        }
         return expr;
     }
 
@@ -94,6 +101,4 @@ template <>
 std::shared_ptr<Expression> ExpressionFactory::build(const std::shared_ptr<Node>& n,
                                                      const std::vector<PortConnectorPtr>& inputs);
 
-}  // namespace lowered
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::lowered

@@ -4,17 +4,29 @@
 
 #include "snippets/op/loop.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 LoopBase::LoopBase(const std::vector<Output<Node>>& args) : Op(args) {}
 
-LoopBegin::LoopBegin() : LoopBase() {
+LoopBegin::LoopBegin() {
     validate_and_infer_types_except_LoopEnd();
 }
 
@@ -65,8 +77,7 @@ LoopEnd::LoopEnd(const Output<Node>& loop_begin,
       m_work_amount_increment(work_amount_increment),
       m_input_num(input_num),
       m_output_num(output_num),
-      m_id(id),
-      m_evaluate_once(false) {
+      m_id(id) {
     constructor_validate_and_infer_types();
 }
 
@@ -78,14 +89,14 @@ void LoopEnd::validate_and_infer_types() {
 
 #define VALIDATE_VALUES(values, name, default_value)                                                                   \
     NODE_VALIDATION_CHECK(this,                                                                                        \
-                          values.empty() || values.size() == io_size,                                                  \
+                          (values).empty() || (values).size() == io_size,                                              \
                           name,                                                                                        \
                           " must be either empty or defined per every input & output of joined Loop. Expected size: ", \
                           io_size,                                                                                     \
                           " got ",                                                                                     \
-                          values.size());                                                                              \
-    if (values.empty())                                                                                                \
-        values.resize(io_size, default_value);
+                          (values).size());                                                                            \
+    if ((values).empty())                                                                                              \
+        (values).resize(io_size, default_value);
 
     VALIDATE_VALUES(m_is_incremented, "is_incremented", true)
     VALIDATE_VALUES(m_ptr_increments, "ptr_increments", 0)
@@ -219,6 +230,4 @@ void LoopEnd::set_id(size_t id) {
     m_id = id;
 }
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

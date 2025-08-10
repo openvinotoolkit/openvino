@@ -1,21 +1,20 @@
 // Copyright (C) 2024 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <cstddef>
+#include <cstdint>
 #ifdef SNIPPETS_DEBUG_CAPS
 
 #    pragma once
 
 #    include <bitset>
 #    include <memory>
-#    include <unordered_map>
 #    include <utility>
 #    include <vector>
 
-#    include "openvino/core/except.hpp"
 #    include "openvino/util/common_util.hpp"
 
-namespace ov {
-namespace snippets {
+namespace ov::snippets {
 
 class DebugCapsConfig {
 private:
@@ -43,6 +42,7 @@ public:
     };
 
     struct PropertyGroup {
+        virtual ~PropertyGroup() = default;
         virtual std::vector<PropertySetterPtr> getPropertySetters() = 0;
         void parseAndSet(const std::string& str);
     };
@@ -79,7 +79,7 @@ public:
     // requirment. For example, in sake of more light overhead and more accurate result, x86 CPU specific mode via read
     // RDTSC register is implemented, which take ~50ns, while Chrono mode take 260ns for a pair of perf count start and
     // perf count end execution, on ICX. This mode only support single thread.
-    enum PerfCountMode {
+    enum PerfCountMode : uint8_t {
         Disabled,
         Chrono,
         BackendSpecific,
@@ -88,11 +88,11 @@ public:
 
 private:
     struct PropertySetter {
-        PropertySetter(std::string name) : propertyName(std::move(name)) {}
+        explicit PropertySetter(std::string name) : propertyName(std::move(name)) {}
         virtual ~PropertySetter() = default;
         virtual bool parseAndSet(const std::string& str) = 0;
-        virtual std::string getPropertyValueDescription() const = 0;
-        const std::string& getPropertyName() const {
+        [[nodiscard]] virtual std::string getPropertyValueDescription() const = 0;
+        [[nodiscard]] const std::string& getPropertyName() const {
             return propertyName;
         }
 
@@ -111,7 +111,7 @@ private:
             property = str;
             return true;
         }
-        std::string getPropertyValueDescription() const override {
+        [[nodiscard]] std::string getPropertyValueDescription() const override {
             return propertyValueDescription;
         }
 
@@ -134,7 +134,7 @@ private:
             return true;
         }
 
-        std::string getPropertyValueDescription() const override {
+        [[nodiscard]] std::string getPropertyValueDescription() const override {
             return propertyValueDescription;
         }
 
@@ -170,8 +170,9 @@ private:
                     std::find_if(propertyTokens.begin(), propertyTokens.end(), [tokenName](const Token& token) {
                         return token.name == tokenName;
                     });
-                if (foundToken == propertyTokens.end())
+                if (foundToken == propertyTokens.end()) {
                     return false;
+                }
 
                 for (const auto& bit : foundToken->bits) {
                     property.set(bit, tokenVal);
@@ -179,11 +180,12 @@ private:
             }
             return true;
         }
-        std::string getPropertyValueDescription() const override {
+        [[nodiscard]] std::string getPropertyValueDescription() const override {
             std::string supportedTokens = "comma separated filter tokens: ";
             for (size_t i = 0; i < propertyTokens.size(); i++) {
-                if (i)
+                if (i) {
                     supportedTokens.push_back(',');
+                }
                 supportedTokens.append(propertyTokens[i].name);
             }
             supportedTokens.append(
@@ -199,7 +201,6 @@ private:
     void readProperties();
 };
 
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets
 
 #endif  // SNIPPETS_DEBUG_CAPS

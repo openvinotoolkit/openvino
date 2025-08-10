@@ -18,15 +18,8 @@ using namespace ov::test::utils;
 namespace ov {
 namespace test {
 std::string ActivationLayerCPUTest::getTestCaseName(const testing::TestParamInfo<ActivationLayerCPUTestParamSet> &obj) {
-    std::vector<ov::test::InputShape> inputShapes;
-    std::vector<size_t> activationShapes;
-    std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
-    ov::element::Type netPrecision, inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    bool enforceSnippets;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) =
-             obj.param;
-
+    const auto& [inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision,
+                 cpuParams, enforceSnippets] = obj.param;
     std::ostringstream result;
     result << activationNames[activationTypeAndConstValue.first] << "_";
     if (inputShapes.front().first.size() != 0) {
@@ -118,15 +111,9 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 
 void ActivationLayerCPUTest::SetUp() {
     targetDevice = ov::test::utils::DEVICE_CPU;
-
-    std::vector<ov::test::InputShape> inputShapes;
-    std::vector<size_t> activationShapes;
-    std::pair<utils::ActivationTypes, std::vector<float>> activationTypeAndConstValue;
-    ov::element::Type inPrecision, outPrecision;
-    CPUTestUtils::CPUSpecificParams cpuParams;
-    bool enforceSnippets;
-    std::tie(inputShapes, activationShapes, activationTypeAndConstValue, netPrecision, inPrecision, outPrecision, cpuParams, enforceSnippets) =
-             this->GetParam();
+    const auto& [inputShapes, activationShapes, activationTypeAndConstValue, _netPrecision, inPrecision, outPrecision,
+                 cpuParams, enforceSnippets] = this->GetParam();
+    netPrecision = _netPrecision;
     std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
     activationType = activationTypeAndConstValue.first;
     auto constantsValue = activationTypeAndConstValue.second;
@@ -233,14 +220,22 @@ std::string ActivationLayerCPUTest::getPrimitiveType(const utils::ActivationType
     if (ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
         if ((activation_type == utils::ActivationTypes::Abs) ||
             (activation_type == utils::ActivationTypes::Clamp) ||
+            (activation_type == utils::ActivationTypes::Elu) ||
+            (activation_type == utils::ActivationTypes::Erf) ||
             (activation_type == utils::ActivationTypes::Exp) ||
             (activation_type == utils::ActivationTypes::Floor) ||
+            (activation_type == utils::ActivationTypes::GeluErf) ||
+            (activation_type == utils::ActivationTypes::GeluTanh) ||
+            (activation_type == utils::ActivationTypes::HSigmoid) ||
+            (activation_type == utils::ActivationTypes::HSwish) ||
+            (activation_type == utils::ActivationTypes::Mish) ||
             (activation_type == utils::ActivationTypes::Negative) ||
             (activation_type == utils::ActivationTypes::LeakyRelu) ||
             (activation_type == utils::ActivationTypes::Relu) ||
             (activation_type == utils::ActivationTypes::PReLu) ||
             (activation_type == utils::ActivationTypes::Sigmoid) ||
-            (activation_type == utils::ActivationTypes::Sqrt))
+            (activation_type == utils::ActivationTypes::Sqrt) ||
+            (activation_type == utils::ActivationTypes::Tanh))
             return "jit";
     }
 #if defined(OV_CPU_WITH_SHL)
@@ -280,8 +275,12 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,     {{}}},
         {Negative,    {{}}},
         {Swish,       {{0.1f}}},
+// On arm32 Mish is decomposed
+#if !defined(OPENVINO_ARCH_ARM)
+        {Mish,        {{}}},
+#endif
 // On other platforms HSigmoid is decomposed
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
         {HSigmoid,    {{}}},
 #endif
         {HSwish,      {{}}},
@@ -305,9 +304,11 @@ const std::map<utils::ActivationTypes, std::vector<std::vector<float>>>& activat
         {Ceiling,               {{}}},
         {Clamp,                 {{-2.0f, 2.0f}}},
         {Elu,                   {{0.1f}}},
+        {Erf,                   {{}}},
         {Floor,                 {{}}},
         {GeluErf,               {{}}},
         {GeluTanh,              {{}}},
+        {Negative,              {{}}},
         {Relu,                  {{}}},
         {HSwish,                {{}}},
         {PReLu,                 {{-0.01f}}},

@@ -4,14 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
 #include <snippets/op/memory_access.hpp>
+#include <utility>
 
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/shape_inference/shape_infer_instances.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface BroadcastLoad
@@ -23,7 +29,7 @@ class BroadcastLoad : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("BroadcastLoad", "SnippetsOpset");
 
-    BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset = 0lu);
+    explicit BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimension, size_t offset = 0LU);
     BroadcastLoad() = default;
 
     size_t get_offset() const {
@@ -36,8 +42,8 @@ public:
     const ov::Dimension& get_bcast_dimension() {
         return bcast_dimension;
     }
-    void set_bcast_dimension(ov::Dimension new_dim) {
-        bcast_dimension = std::move(new_dim);
+    void set_bcast_dimension(const ov::Dimension& new_dim) {
+        bcast_dimension = new_dim;
     }
 
     // Note:BroadcastMove and BroadcastLoad are implemented as separate classes,
@@ -52,6 +58,4 @@ private:
     ov::Dimension bcast_dimension;
 };
 
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op

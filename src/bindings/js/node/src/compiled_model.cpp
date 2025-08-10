@@ -28,7 +28,6 @@ Napi::Function CompiledModelWrap::get_class(Napi::Env env) {
 }
 
 Napi::Object CompiledModelWrap::wrap(Napi::Env env, ov::CompiledModel compiled_model) {
-    Napi::HandleScope scope(env);
     const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
     if (!prototype) {
         OPENVINO_THROW("Invalid pointer to CompiledModel prototype.");

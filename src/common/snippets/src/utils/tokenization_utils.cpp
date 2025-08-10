@@ -4,26 +4,53 @@
 
 #include "snippets/utils/tokenization_utils.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <climits>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <numeric>
+#include <ostream>
+#include <set>
+#include <string>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
+#include "openvino/core/except.hpp"
+#include "openvino/core/graph_util.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "snippets/op/subgraph.hpp"
+#include "snippets/pass/tokenization.hpp"
 #include "snippets/remarks.hpp"
+#include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace utils {
+namespace ov::snippets::utils {
 
 using namespace ov::snippets::op;
 using namespace ov::snippets::pass;
 
 namespace {
 auto has_result_child(const std::shared_ptr<const Node>& node) -> bool {
-    for (const auto& child : node->get_users()) {
-        if (ov::is_type<ov::opset1::Result>(child)) {
-            return true;
-        }
-    }
-    return false;
+    const auto& users = node->get_users();
+    return std::any_of(users.begin(), users.end(), [](const std::shared_ptr<Node>& child) {
+        return ov::is_type<ov::op::v0::Result>(child);
+    });
 }
 
 auto get_num_result_children(const std::shared_ptr<const Node>& node) -> size_t {
@@ -38,8 +65,9 @@ auto get_num_result_children(const std::shared_ptr<const Node>& node) -> size_t 
 
 auto outputs_are_not_broadcastable(const std::shared_ptr<const Node>& node) -> bool {
     const auto& outputs = node->outputs();
-    if (outputs.size() <= 1)
+    if (outputs.size() <= 1) {
         return false;
+    }
     ov::PartialShape ref_shape = outputs.front().get_partial_shape();
     bool success = true;
     for (size_t i = 1; i < outputs.size() && success; i++) {
@@ -69,7 +97,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     };
 
     auto abort = [&](const std::string& message) {
-        remark(3) << message << std::endl;
+        remark(3) << message << '\n';
         create_single_node_subgraph(node);
         return true;
     };
@@ -113,9 +141,10 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
             std::accumulate(parentNodes.begin(),
                             parentNodes.end(),
                             currentBounds.first,
-                            [](int64_t maxOrder, std::shared_ptr<Node> n) {
-                                if (ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(n))
+                            [](int64_t maxOrder, const std::shared_ptr<Node>& n) {
+                                if (ov::is_type_any_of<ov::op::v0::Constant, ov::op::v0::Parameter>(n)) {
                                     return maxOrder;
+                                }
                                 return std::max(maxOrder, GetTopologicalOrder(n));
                             });
         const auto& childNodes = nodeToExamine->get_users();
@@ -123,9 +152,10 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
         const int64_t minChildOrder = std::accumulate(childNodes.begin(),
                                                       childNodes.end(),
                                                       currentBounds.second,
-                                                      [&node](int64_t minOrder, std::shared_ptr<Node> n) {
-                                                          if (ov::is_type<ov::op::v0::Result>(n) || n == node)
+                                                      [&node](int64_t minOrder, const std::shared_ptr<Node>& n) {
+                                                          if (ov::is_type<ov::op::v0::Result>(n) || n == node) {
                                                               return minOrder;
+                                                          }
                                                           return std::min(minOrder, GetTopologicalOrder(n));
                                                       });
         if (maxParentOrder < minChildOrder) {
@@ -137,7 +167,8 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
 
     for (const auto& input_node : ov::as_node_vector(input_values)) {
         if (auto subgraph = ov::as_type_ptr<op::Subgraph>(input_node)) {
-            if (!clones.count(input_node) && GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
+            if ((clones.count(input_node) == 0U) &&
+                GetSnippetsSubgraphType(subgraph) != SnippetsSubgraphType::Completed) {
                 auto f = subgraph->body().clone();
                 f->set_friendly_name(subgraph->body_ptr()->get_friendly_name());
                 clones[input_node] = f;
@@ -148,7 +179,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     if (clones.empty()) {
         create_single_node_subgraph(node);
         remark(1) << "Starting subgraph at: " << node->get_friendly_name() << " with " << node->inputs().size()
-                  << " inputs and " << node->outputs().size() << " outputs" << std::endl;
+                  << " inputs and " << node->outputs().size() << " outputs" << '\n';
         return true;
     }
     std::string subgraph_name = node->get_friendly_name();
@@ -199,7 +230,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
 
                         if (current_input_index < body_parameters.size()) {
                             remark(13) << "replacing " << *found << " " << current_input_index << " with "
-                                       << body_parameters[current_input_index] << std::endl;
+                                       << body_parameters[current_input_index] << '\n';
                             f->replace_parameter(i, body_parameters[current_input_index]);
                         } else {
                             external_inputs.push_back(subgraph->input_value(i));
@@ -207,7 +238,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
                         }
                     } else if (is_recurrent(subgraph->input_value(i))) {
                         remark(13) << "ternary merge is conducted " << subgraph->input_value(i).get_node_shared_ptr()
-                                   << std::endl;
+                                   << '\n';
 
                         auto internal = input_body_parameters[i];
                         auto internal_consumers = internal->outputs();
@@ -216,9 +247,10 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
                             // todo: In principle, we can still attach the node to the subgraph if cyclic dependency is
                             // introduced during ternary merge.
                             //  Need to support.
-                            if (cyclicDependencyIsIntoduced(to_replace_with, currentTopoBounds))
+                            if (cyclicDependencyIsIntoduced(to_replace_with, currentTopoBounds)) {
                                 return abort(
                                     "Attempt to perform recurrent merge for cyclic-dependent subgraphs. Aborting.");
+                            }
                             for (const auto& output : internal_consumers) {
                                 for (auto consumer : output.get_target_inputs()) {
                                     auto other_body = clones[subgraph->get_input_node_shared_ptr(i)];
@@ -270,14 +302,15 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     }
     fusedNames += node->get_friendly_name();
     num_result_children += get_num_result_children(node);
-    if (num_result_children > 1)
+    if (num_result_children > 1) {
         return abort("New subgraph is created since too many Result children are detected");
+    }
 
     auto body_node = node->copy_with_new_inputs(internal_inputs);
     body_node->set_friendly_name(node->get_friendly_name());
 
     remark(1) << "Original node outputs = " << node->get_output_size()
-              << " body node outputs = " << body_node->get_output_size() << std::endl;
+              << " body node outputs = " << body_node->get_output_size() << '\n';
 
     if (node->get_output_size() != body_node->get_output_size()) {
         OPENVINO_THROW("original node outputs size and extracted node outputs size doesn't much");
@@ -296,7 +329,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
     std::vector<std::set<Input<Node>>> subgraph_result_inputs;
 
     ov::NodeVector ops_for_buffer_count;
-    for (auto subgraph : input_subgraphs) {
+    for (const auto& subgraph : input_subgraphs) {
         // we should summurize additional needed data count (non-scalar Constants and Buffers) from all input subgraphs
         // because we will collapse them with our node and we should get total count
         const auto subgraph_ptr = ov::as_type_ptr<ov::snippets::op::Subgraph>(subgraph);
@@ -309,14 +342,14 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
             ops_for_buffer_count.insert(ops_for_buffer_count.end(), ops.begin(), ops.end());
         }
 
-        for (auto output : subgraph->outputs()) {
+        for (const auto& output : subgraph->outputs()) {
             bool first_side_consumer = true;
 
             for (auto target_input : output.get_target_inputs()) {
                 auto target_node = target_input.get_node()->shared_from_this();
 
                 if (input_subgraphs.count(target_node)) {
-                    remark(13) << "ternary merge is conducted " << subgraph << " -> " << target_node << std::endl;
+                    remark(13) << "ternary merge is conducted " << subgraph << " -> " << target_node << '\n';
                 }
 
                 if (!input_subgraphs.count(target_node) && target_node != node) {
@@ -324,7 +357,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
                         auto& input_subgraph_body = clones[subgraph];
                         body_results.push_back(std::make_shared<ov::op::v0::Result>(
                             input_subgraph_body->get_results()[output.get_index()]->input_value(0)));
-                        subgraph_result_inputs.push_back({});
+                        subgraph_result_inputs.emplace_back();
 
                         first_side_consumer = false;
                     }
@@ -343,7 +376,7 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
         ops_for_buffer_count.push_back(node);
     }
 
-    for (auto output : node->outputs()) {
+    for (const auto& output : node->outputs()) {
         body_results.push_back(std::make_shared<ov::op::v0::Result>(body_node->output(output.get_index())));
         subgraph_result_inputs.push_back(output.get_target_inputs());
     }
@@ -382,8 +415,9 @@ bool tokenize_node(const std::shared_ptr<ov::Node>& node, const SnippetsTokeniza
         OPENVINO_THROW("newly create subgraph doesn't much number of results");
     }
 
-    if (outputs_are_not_broadcastable(subgraph))
+    if (outputs_are_not_broadcastable(subgraph)) {
         return abort("New subgraph is created due to outputs of a subgraph not broadcastable.");
+    }
 
     for (size_t i = 0; i < subgraph->get_output_size(); ++i) {
         for (auto target_input : subgraph_result_inputs[i]) {
@@ -446,7 +480,7 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
                     } else {
                         const auto constant_copy = constant->clone_with_new_inputs({});
                         node->set_argument(input.get_index(), constant_copy);
-                        body_inputs.push_back(constant_copy);
+                        body_inputs.emplace_back(constant_copy);
                     }
                 }
             } else if (std::find(ordered_ops.begin(), ordered_ops.end(), parent) == ordered_ops.end()) {
@@ -513,6 +547,4 @@ std::shared_ptr<ov::snippets::op::Subgraph> tokenize_ordered_nodes(const ov::Nod
     return subgraph;
 }
 
-}  // namespace utils
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::utils

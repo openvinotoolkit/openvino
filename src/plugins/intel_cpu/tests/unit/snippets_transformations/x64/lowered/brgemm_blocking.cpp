@@ -10,7 +10,7 @@
 #include "lir_test_utils.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "snippets/lowered/loop_info.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/op/buffer.hpp"
 #include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/tpp/common/op/brgemm.hpp"

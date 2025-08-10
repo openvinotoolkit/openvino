@@ -7,20 +7,29 @@ on:
         description: 'Machine on which the tests would run'
         type: string
         required: true
-      container:
-        description: 'JSON to be converted to the value of the "container" configuration for the job'
+      image:
+        description: 'Docker image to use for the job'
         type: string
         required: false
-        default: '{"image": null}'
+        default: null
 
 permissions: read-all
+
+env:
+  HF_HUB_CACHE_LIN: /mount/caches/huggingface
+  HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
 
 jobs:
   ONNX_Models_tests:
     name: ONNX Models tests
     timeout-minutes: 60
     runs-on: ${{ inputs.runner }}
-    container: ${{ fromJSON(inputs.container) }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
     defaults:
       run:
         shell: bash
@@ -28,7 +37,6 @@ jobs:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       OPENVINO_REPO: ${{ github.workspace }}/openvino
       INSTALL_DIR: ${{ github.workspace }}/install
-      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       ONNX_MODELS_PATH: ${{ github.workspace }}/onnx_test_models
       # instead of using static MODELS_SHARE_PATH
@@ -37,41 +45,34 @@ jobs:
       NUMBER_OF_REPLICAS: 2
       ONNX_MODEL_ZOO_SHA: "5faef4c33eba0395177850e1e31c4a6a9e634c82"
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
+      LOGS_FOLDER: ${{ github.workspace }}/onnx_models_tests_logs"
     if: ${{ github.event_name != 'merge_group' }}
     steps:
-      - name: Download OpenVINO artifacts (tests)
+      # checkout action cleans up the workspace and have to be the first step
+      - name: Fetch custom actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+          
+      - name: Download OpenVINO artifacts (tarballs and wheels)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: openvino_[tests]*
+          pattern: "{openvino_wheels,openvino_tests}"
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
-
-      - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          pattern: openvino_[wheels]*
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
+          
+      - name: Extract OpenVINO tests
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
         
-      # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
-          echo "OPENVINO_REPO=$GITHUB_WORKSPACE/openvino" >> "$GITHUB_ENV"
-          echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
-          echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
-          echo "INSTALL_WHEELS_DIR=$GITHUB_WORKSPACE/install/wheels" >> "$GITHUB_ENV"
+          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
           echo "MODELS_SHARE_PATH=/mount/testdata$((GITHUB_RUN_NUMBER % NUMBER_OF_REPLICAS))" >> "$GITHUB_ENV"
-          echo "LOGS_FOLDER=$GITHUB_WORKSPACE/onnx_models_tests_logs" >> "$GITHUB_ENV"
-          echo "HF_HUB_CACHE=/mount/caches/huggingface" >> "$GITHUB_ENV"
-
-      - name: Setup HuggingFace Cache Directory (Windows)
-        if: runner.os == 'Windows'
-        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
-
-      - name: Extract OpenVINO packages and tests
-        run: |
-            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
-        working-directory: ${{ env.INSTALL_DIR }}
 
       # Issue 148922
       # Can be a possible root cause for the bug
@@ -88,19 +89,10 @@ jobs:
       # - name: Update Models
       #   run: bash ${OPENVINO_REPO}/src/frontends/onnx/tests/tests_python/model_zoo_preprocess.sh -d ${MODELS_SHARE_PATH} -o -s "${{ env.ONNX_MODEL_ZOO_SHA }}"
 
-      - name: Fetch install wheels action
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        timeout-minutes: 15
-        with:
-          sparse-checkout: |
-            .github/actions/install_ov_wheels/action.yml
-          sparse-checkout-cone-mode: false
-          path: 'action_root'
-
       - name: Install OpenVINO Python wheels
-        uses: ./action_root/.github/actions/install_ov_wheels
+        uses: ./.github/actions/install_ov_wheels
         with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
 
       - name: Install ONNX Models tests requirements

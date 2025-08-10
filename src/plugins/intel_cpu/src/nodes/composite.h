@@ -45,7 +45,7 @@ public:
         return true;
     }
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void selectOptimalPrimitiveDescriptor() override;
     void createPrimitive() override;
     void execute([[maybe_unused]] const dnnl::stream& strm) override;

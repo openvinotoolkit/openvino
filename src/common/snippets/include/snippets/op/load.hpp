@@ -4,13 +4,20 @@
 
 #pragma once
 
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface Load
@@ -24,7 +31,7 @@ class Load : public modifier::MemoryAccess, public ov::op::Op {
 public:
     OPENVINO_OP("Load", "SnippetsOpset");
 
-    Load(const Output<Node>& x, const size_t count = 1lu, const size_t offset = 0lu);
+    explicit Load(const Output<Node>& x, size_t count = 1LU, size_t offset = 0LU);
     Load() = default;
 
     size_t get_offset() const {
@@ -59,7 +66,10 @@ protected:
 class LoadReorder : public Load {
 public:
     OPENVINO_OP("LoadReorder", "SnippetsOpset", Load);
-    LoadReorder(const Output<Node>& x, size_t count = 1lu, const size_t offset = 0lu, std::vector<size_t> order = {});
+    explicit LoadReorder(const Output<Node>& x,
+                         size_t count = 1LU,
+                         size_t offset = 0LU,
+                         std::vector<size_t> order = {});
     LoadReorder() = default;
 
     void set_offset(size_t offset) {
@@ -84,6 +94,4 @@ public:
 protected:
     std::vector<size_t> m_order;
 };
-}  // namespace op
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::op
