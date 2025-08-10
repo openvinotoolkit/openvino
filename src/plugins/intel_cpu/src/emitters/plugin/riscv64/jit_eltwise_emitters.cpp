@@ -885,7 +885,9 @@ jit_greater_emitter::jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_i
     prepare_table();
 }
 
-jit_greater_emitter::jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node)
+jit_greater_emitter::jit_greater_emitter(jit_generator_t* host,
+                                         cpu_isa_t host_isa,
+                                         const std::shared_ptr<ov::Node>& node)
     : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
     prepare_table();
 }
