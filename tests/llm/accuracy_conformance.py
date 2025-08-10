@@ -21,24 +21,24 @@ logger = logging.getLogger(__name__)
 TEST_CATALOG = {
     "TinyLlama/TinyLlama-1.1B-Chat-v1.0": {
         "GPU.1": {
-            "INT8": {"reference": 0.90, "threshold": 0.03},
+            "INT8": {"reference": 0.98, "threshold": 0.03},
             "INT4": {"reference": 0.90, "threshold": 0.03},
         },
-        # "CPU": {
-        #     "INT8": {"reference": 0.95, "threshold": 0.05},
-        #     "INT4": {"reference": 0.95, "threshold": 0.05},
-        # },
+        "CPU": {
+            "INT8": {"reference": 0.94, "threshold": 0.03},
+            "INT4": {"reference": 0.88, "threshold": 0.03},
+        },
     },
-    # "Qwen/Qwen2-0.5B-Instruct": {
-    #         "GPU.1": {
-    #             "INT8": {"reference": 0.86, "threshold": 0.05},
-    #             "INT4": {"reference": 0.82, "threshold": 0.05},
-    #         },
-    #         "CPU": {
-    #             "INT8": {"reference": 0.86, "threshold": 0.05},
-    #             "INT4": {"reference": 0.82, "threshold": 0.05},
-    #         },
-    # },
+    "Qwen/Qwen2-0.5B-Instruct": {
+        "GPU.1": {
+            "INT8": {"reference": 0.96, "threshold": 0.03},
+            "INT4": {"reference": 0.72, "threshold": 0.03},
+        },
+        "CPU": {
+            "INT8": {"reference": 0.91, "threshold": 0.03},
+            "INT4": {"reference": 0.73, "threshold": 0.03},
+        },
+    },
 }
 
 # Extract configuration from catalog
@@ -46,7 +46,7 @@ MODEL_IDS = list(TEST_CATALOG.keys())
 DEVICES = list(set(device for model_config in TEST_CATALOG.values() 
                   for device in model_config.keys()))
 
-NUMBER_OF_SAMPLES = 2
+NUMBER_OF_SAMPLES = 15
 METRIC_OF_INTEREST = "similarity"
 PREC_INT8 = "INT8"
 PREC_INT4 = "INT4"
@@ -89,7 +89,7 @@ def get_gt_path(model_id):
     """
     Returns the path to the ground truth data based on the model name.
     """
-    return os.path.join(tmp_dir, f"{model_id.replace('/', '_')}_gt.json")
+    return os.path.join(tmp_dir, f"{model_id.replace('/', '_')}_gt_{NUMBER_OF_SAMPLES}.json")
 
 def init_test_scope():
     test_scope = []
@@ -165,7 +165,7 @@ print(test_scope)
     test_scope,
 )
 def test_accuracy_conformance(model_id, precision, device):
-    os.environ["OV_GPU_DYNAMIC_QUANTIZATION_THRESHOLD"] = "1"
+    # os.environ["OV_GPU_DYNAMIC_QUANTIZATION_THRESHOLD"] = "1"
 
     task        = 'text'
     ov_config   = None
@@ -174,7 +174,7 @@ def test_accuracy_conformance(model_id, precision, device):
     dont_use_llamacpp = False
     model_path = get_model_path(model_id, precision)
     gt_data = get_gt_path(model_id)
-    logger.info(f"Testing model: {model_path}, precision: {precision}, device: {device}")
+    print(f"Testing model: {model_path}, precision: {precision}, device: {device}")
     target_model = load_model(task, model_path, device, ov_config, hf, use_genai, dont_use_llamacpp)
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
@@ -194,7 +194,7 @@ def test_accuracy_conformance(model_id, precision, device):
     set_seed(42)
     _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())
     metric = all_metrics[METRIC_OF_INTEREST].values[0]
-    evaluator.dump_predictions(os.path.join(tmp_dir, "target.csv"))
+    evaluator.dump_predictions(os.path.join(tmp_dir, f"{get_model_path(model_id, precision)}_{device}target.csv"))
 
     # Get expected values from catalog (use original device for lookup)
     expected_reference = get_reference(model_id, device, precision)
