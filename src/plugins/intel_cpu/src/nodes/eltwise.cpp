@@ -546,6 +546,8 @@ bool Eltwise::isWithBroadcast() {
 }
 
 void Eltwise::init() {
+    // Bf16 saturation handling for gamma parameter when input precision is bf16 to make sure it stays within the valid
+    // range for bfloat16.
     if (m_attrs.data.algo == Algorithm::EltwisePowerStatic && getOriginalInputPrecisionAtPort(0) == ov::element::bf16) {
         const float lowest = static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
         const float max = static_cast<float>(std::numeric_limits<ov::bfloat16>::max());
