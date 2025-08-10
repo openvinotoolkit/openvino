@@ -258,8 +258,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
             if (master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);
                 h->ldr(reg_aux, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
-                h->mul(reg_tmp, reg_tmp, reg_aux);
-                h->add(pointer, pointer, reg_tmp);
+                h->madd(pointer, reg_aux, reg_tmp, pointer);
             }
         }
     };
@@ -272,14 +271,31 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
         h->ldr(data_ptr_regs[num_params + i],
                ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(buffer_scratchpad_ptr))));
     }
-    for (size_t i = 0; i < num_params; i++) {
-        if (i < num_inputs) {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
-        } else {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*))));
-        }
+
+    size_t i = 0;
+    for (; i + 1 < num_inputs; i += 2) {
+        const auto src_offset = static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*));
+        h->ldp(data_ptr_regs[i], data_ptr_regs[i + 1], ptr(reg_runtime_params, src_offset));
+        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
+        init_ptr_with_offset(data_ptr_regs[i + 1], data_offsets[i + 1]);
+    }
+    if (i < num_inputs) {
+        h->ldr(data_ptr_regs[i], ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
+        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
+        i++;
+    }
+
+    for (; i + 1 < num_params; i += 2) {
+        const auto dst_idx_0 = i - num_inputs;
+        const auto dst_offset = static_cast<int32_t>(GET_OFF(dst_ptrs) + dst_idx_0 * sizeof(void*));
+        h->ldp(data_ptr_regs[i], data_ptr_regs[i + 1], ptr(reg_runtime_params, dst_offset));
+        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
+        init_ptr_with_offset(data_ptr_regs[i + 1], data_offsets[i + 1]);
+    }
+    if (i < num_params) {
+        const auto dst_idx = i - num_inputs;
+        h->ldr(data_ptr_regs[i],
+               ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + dst_idx * sizeof(void*))));
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
     }
 }
@@ -302,14 +318,26 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<XReg>& arg
         h->ldr(data_ptr_regs[num_params + i],
                ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(buffer_scratchpad_ptr))));
     }
-    for (size_t i = 0; i < num_params; i++) {
-        if (i < num_inputs) {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
-        } else {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*))));
-        }
+
+    size_t i = 0;
+    for (; i + 1 < num_inputs; i += 2) {
+        const auto src_offset = static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*));
+        h->ldp(data_ptr_regs[i], data_ptr_regs[i + 1], ptr(reg_runtime_params, src_offset));
+    }
+    if (i < num_inputs) {
+        h->ldr(data_ptr_regs[i], ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
+        i++;
+    }
+
+    for (; i + 1 < num_params; i += 2) {
+        const auto dst_idx_0 = i - num_inputs;
+        const auto dst_offset = static_cast<int32_t>(GET_OFF(dst_ptrs) + dst_idx_0 * sizeof(void*));
+        h->ldp(data_ptr_regs[i], data_ptr_regs[i + 1], ptr(reg_runtime_params, dst_offset));
+    }
+    if (i < num_params) {
+        const auto dst_idx = i - num_inputs;
+        h->ldr(data_ptr_regs[i],
+               ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + dst_idx * sizeof(void*))));
     }
 }
 

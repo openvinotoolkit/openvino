@@ -166,7 +166,12 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
     push_ptrs_with_offsets_to_stack(h, mem_ptrs, memory_offsets, buffer_ids, aux_regs, stack_offsets);
 
     // Load back the adjusted pointers to specified registers
-    for (size_t i = 0; i < mem_ptrs.size(); i++) {
+    size_t i = 0;
+    for (; i + 1 < mem_ptrs.size(); i += 2) {
+        const auto off = stack_offsets[i];
+        h->ldp(load_regs[i], load_regs[i + 1], Xbyak_aarch64::ptr(h->sp, off));
+    }
+    if (i < mem_ptrs.size()) {
         h->ldr(load_regs[i], Xbyak_aarch64::ptr(h->sp, stack_offsets[i]));
     }
 
@@ -184,8 +189,23 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == buffer_ids.size(), "mem_ptrs and buffer_ids size mismatch");
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == stack_offsets.size(), "mem_ptrs and stack_offsets size mismatch");
 
-    // Store all pointers with offsets to their specific stack locations
+    // Fast path: pair-store original pointers when two consecutive entries do not need adjustment
+    std::vector<char> handled(mem_ptrs.size(), 0);
+    for (size_t i = 0; i + 1 < mem_ptrs.size(); i += 2) {
+        const bool left_static = !ov::snippets::utils::is_dynamic_value(memory_offsets[i]);
+        const bool right_static = !ov::snippets::utils::is_dynamic_value(memory_offsets[i + 1]);
+        if (left_static && right_static && memory_offsets[i] == 0 && memory_offsets[i + 1] == 0) {
+            // stack_offsets are i*8 (contiguous) and SP is 16B aligned ⇒ stp is safe
+            h->stp(mem_ptrs[i], mem_ptrs[i + 1], Xbyak_aarch64::ptr(h->sp, stack_offsets[i]));
+            handled[i] = handled[i + 1] = 1;
+        }
+    }
+
+    // Store remaining pointers with proper adjustments
     for (size_t i = 0; i < mem_ptrs.size(); i++) {
+        if (handled[i]) {
+            continue;
+        }
         const auto& ptr_reg = mem_ptrs[i];
         int32_t stack_offset = stack_offsets[i];
 
