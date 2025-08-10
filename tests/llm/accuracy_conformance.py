@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Test Configuration Catalog
 TEST_CATALOG = {
     "TinyLlama/TinyLlama-1.1B-Chat-v1.0": {
-        "GPU.1": {
+        "GPU": {
             "INT8": {"reference": 0.98, "threshold": 0.03},
             "INT4": {"reference": 0.90, "threshold": 0.03},
         },
@@ -30,7 +30,7 @@ TEST_CATALOG = {
         },
     },
     "Qwen/Qwen2-0.5B-Instruct": {
-        "GPU.1": {
+        "GPU": {
             "INT8": {"reference": 0.96, "threshold": 0.03},
             "INT4": {"reference": 0.72, "threshold": 0.03},
         },
@@ -62,7 +62,7 @@ def get_threshold(model_id, device, precision):
 def get_tmp_dir():
     """Get temporary directory based on cleanup preference"""
     # Check environment variable set by pytest option
-    do_not_cleanup = True
+    do_not_cleanup = DO_NOT_CLEANUP
     
     if do_not_cleanup:
         # Use fixed directory by default (could use tempfile.mkdtemp for true temporary)
@@ -76,7 +76,6 @@ def get_tmp_dir():
         logger.info(f"Using persistent directory (no cleanup): {tmp_dir}")
         return tmp_dir
 
-# XXX: Use option-aware directory creation
 tmp_dir = get_tmp_dir()
 
 def get_model_path(model_id, prec):
@@ -147,7 +146,7 @@ def init_test_scope():
 
 def teardown_module():
     """Clean up temporary directory based on cleanup option"""
-    do_not_cleanup = True
+    do_not_cleanup = DO_NOT_CLEANUP   # to be replaced by pytest option
 
     if do_not_cleanup:
         logger.info(f"Cleanup disabled - preserving directory: {tmp_dir}")
@@ -157,8 +156,6 @@ def teardown_module():
 
 
 test_scope = init_test_scope()
-
-print(test_scope)
 
 @pytest.mark.parametrize(
     ("model_id", "precision", "device"),
@@ -174,8 +171,9 @@ def test_accuracy_conformance(model_id, precision, device):
     dont_use_llamacpp = False
     model_path = get_model_path(model_id, precision)
     gt_data = get_gt_path(model_id)
-    print(f"Testing model: {model_path}, precision: {precision}, device: {device}")
-    target_model = load_model(task, model_path, device, ov_config, hf, use_genai, dont_use_llamacpp)
+    actual_device = f'{device}.{GPU_SUFFIX}' if GPU_SUFFIX and device == "GPU" else device
+    print(f"Testing model: {model_path}, precision: {precision}, device: {actual_device}")
+    target_model = load_model(task, model_path, actual_device, ov_config, hf, use_genai, dont_use_llamacpp)
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
@@ -194,7 +192,7 @@ def test_accuracy_conformance(model_id, precision, device):
     set_seed(42)
     _, all_metrics = evaluator.score(target_model, evaluator.get_generation_fn())
     metric = all_metrics[METRIC_OF_INTEREST].values[0]
-    evaluator.dump_predictions(os.path.join(tmp_dir, f"{get_model_path(model_id, precision)}_{device}target.csv"))
+    evaluator.dump_predictions(os.path.join(tmp_dir, f"{get_model_path(model_id, precision)}_{actual_device}target.csv"))
 
     # Get expected values from catalog (use original device for lookup)
     expected_reference = get_reference(model_id, device, precision)
