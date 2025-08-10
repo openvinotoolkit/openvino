@@ -9,6 +9,7 @@
 #include <functional>
 #include <limits>
 #include <memory>
+#include <variant>
 #include <vector>
 
 #include "openvino/core/descriptor_tensor.hpp"
@@ -16,6 +17,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/pattern/op/op.hpp"
 #include "openvino/util/pp.hpp"
 #include "transformations/rt_info/attributes.hpp"
 #include "transformations_visibility.hpp"
@@ -300,6 +302,21 @@ ov::pass::pattern::op::Predicate constant_predicate(std::function<bool(const std
         return false;
     });
 }
+
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> NewGenStridedSlice(const std::shared_ptr<ov::Node>& data,
+                                                                 const ov::pass::pattern::PatternOp& start,
+                                                                 const ov::pass::pattern::PatternOp& stop,
+                                                                 const ov::pass::pattern::PatternOp& step,
+                                                                 size_t axis);
+
+using symbol_variant = std::variant<float, int32_t, int64_t, std::string>;
+
+TRANSFORMATIONS_API std::shared_ptr<ov::Node> NewGenSlice(const std::shared_ptr<ov::Node>& data,
+                                                          symbol_variant start,
+                                                          symbol_variant stop,
+                                                          symbol_variant step,
+                                                          size_t axis);
+
 }  // namespace util
 }  // namespace op
 }  // namespace ov

@@ -151,10 +151,7 @@ ov::intel_cpu::ConvertMatMulToFC::ConvertMatMulToFC() {
             return transpose;
         };
 
-        bool success = true;
-        ov::PartialShape shape_a_aligned;
-        ov::PartialShape shape_b_aligned;
-        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
+        auto [success, shape_a_aligned, shape_b_aligned] = get_aligned_shapes();
         if (!success) {
             return false;
         }
