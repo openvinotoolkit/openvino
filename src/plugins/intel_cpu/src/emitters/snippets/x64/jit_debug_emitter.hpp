@@ -17,7 +17,7 @@ namespace ov::intel_cpu {
 
 class jit_debug_emitter : public jit_emitter {
 public:
-    enum class EmissionLocation { preamble, postamble, both };
+    enum class EmissionLocation : uint8_t { preamble, postamble, both };
     jit_debug_emitter(const std::shared_ptr<jit_emitter>& target_emitter,
                       std::shared_ptr<jit_emitter> decorator_emitter,
                       const EmissionLocation& loc)

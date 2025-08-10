@@ -6,19 +6,16 @@
 
 #include <node.h>
 
-#include <cstddef>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
 #include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class NonZero : public Node {
 public:
@@ -51,9 +48,7 @@ private:
     template <typename T>
     struct NonZeroExecute;
     template <typename T>
-    std::vector<size_t> getNonZeroElementsCount(const T* arg, const Shape& arg_shape);
+    std::vector<size_t> getNonZeroElementsCount(const T* src, const Shape& inShape);
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

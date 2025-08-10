@@ -9,41 +9,38 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-enum class MatrixNmsSortResultType {
+enum class MatrixNmsSortResultType : uint8_t {
     CLASSID,  // sort selected boxes by class id (ascending) in each batch element
     SCORE,    // sort selected boxes by score (descending) in each batch element
     NONE      // do not guarantee the order in each batch element
 };
 
-enum MatrixNmsDecayFunction { GAUSSIAN, LINEAR };
+enum MatrixNmsDecayFunction : uint8_t { GAUSSIAN, LINEAR };
 
 class MatrixNms : public Node {
 public:
     MatrixNms(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
-    bool needShapeInfer() const override {
+    [[nodiscard]] bool needShapeInfer() const override {
         return false;
     }
     void prepareParams() override;
@@ -85,10 +82,10 @@ private:
 
         Rectangle() = default;
 
-        float x1 = 0.0f;
-        float y1 = 0.0f;
-        float x2 = 0.0f;
-        float y2 = 0.0f;
+        float x1 = 0.0F;
+        float y1 = 0.0F;
+        float x2 = 0.0F;
+        float y2 = 0.0F;
     };
 
     struct BoxInfo {
@@ -105,7 +102,7 @@ private:
         int64_t index = -1;
         int64_t batchIndex = -1;
         int64_t classIndex = -1;
-        float score = 0.0f;
+        float score = 0.0F;
     };
     const std::string m_inType = "input", m_outType = "output";
     std::vector<int64_t> m_numPerBatch;
@@ -115,7 +112,7 @@ private:
     size_t m_realNumClasses = 0;
     size_t m_realNumBoxes = 0;
     float (*m_decay_fn)(float, float, float) = nullptr;
-    void checkPrecision(const ov::element::Type prec,
+    void checkPrecision(ov::element::Type prec,
                         const std::vector<ov::element::Type>& precList,
                         const std::string& name,
                         const std::string& type);
@@ -123,10 +120,8 @@ private:
     size_t nmsMatrix(const float* boxesData,
                      const float* scoresData,
                      BoxInfo* filterBoxes,
-                     const int64_t batchIdx,
-                     const int64_t classIdx);
+                     int64_t batchIdx,
+                     int64_t classIdx);
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

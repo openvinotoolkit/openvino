@@ -4,8 +4,8 @@
 
 #include "random_uniform.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <immintrin.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
@@ -16,6 +16,7 @@
 #include "nodes/kernels/x64/registers_pool.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpp/bit_cast.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -41,11 +42,6 @@ namespace ov::intel_cpu::kernel::random_uniform {
         static const T* A##_aligned = (A) + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T); \
         mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                    \
     }
-
-union FloatAsBits {
-    float f;
-    uint32_t u;
-};
 
 ////////////// PHILOX GENERATOR /////////////////////////
 
@@ -294,7 +290,7 @@ void PhiloxGenerator<isa>::process() {
     std::vector<Vmm> v_res{v_dst_0, v_dst_1};
 
     auto step = vlen;
-    if (one_of(m_jcp.out_data_type.size(), 2LU, 4LU)) {
+    if (any_of(m_jcp.out_data_type.size(), 2LU, 4LU)) {
         step = vlen * 2 / sizeof(uint32_t);
     } else if (m_jcp.out_data_type.size() == 8) {
         step = vlen / sizeof(uint32_t);
@@ -312,7 +308,7 @@ void PhiloxGenerator<isa>::process() {
 
         uni_vmovups(ptr[r64_dst], v_dst_0);
         add(r64_dst, vlen);
-        if (one_of(m_jcp.out_data_type.size(), 4LU, 8LU)) {
+        if (any_of(m_jcp.out_data_type.size(), 4LU, 8LU)) {
             uni_vmovups(ptr[r64_dst], v_dst_1);
             add(r64_dst, vlen);
         }
@@ -756,26 +752,23 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
 
     // Initialize constants based on the requested data type
     if (m_jcp.out_data_type == element::f32) {
-        FloatAsBits val;
-        val.f = 1.0F / (1 << 24);
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
+        auto val = ov::intel_cpu::bit_cast<uint32_t>(1.0F / (1 << 24));
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 24) - 1))
 
         BROADCAST_PARAM(vpbroadcastd, v_range, r64_aux, GET_MERSENNE_OFFSET(range_ptr))
         BROADCAST_PARAM(vpbroadcastd, v_min, r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-        FloatAsBits val;
-        val.f = 1.0F / (1 << 11);
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
+        auto val = ov::intel_cpu::bit_cast<uint32_t>(1.0F / (1 << 11));
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 11) - 1))
 
         // Note: two times too many values in Zmm
         BROADCAST_PARAM(vpbroadcastw, v_range, r64_aux, GET_MERSENNE_OFFSET(range_ptr))
         BROADCAST_PARAM(vpbroadcastw, v_min, r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
-        FloatAsBits val;
-        val.f = 1.0F / (1 << 8);
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
+        auto val = ov::intel_cpu::bit_cast<uint32_t>(1.0F / (1 << 8));
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 8) - 1))
 
         // Note: two times too many values in Zmm

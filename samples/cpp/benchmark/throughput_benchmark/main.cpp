@@ -95,7 +95,9 @@ int main(int argc, char* argv[]) {
                 }
                 TimedIreq timedIreq = finished_ireqs.front();
                 finished_ireqs.pop_front();
-                lock.unlock();
+                if (lock.owns_lock()) {
+                    lock.unlock();
+                }
                 ov::InferRequest& ireq = timedIreq.ireq;
                 if (timedIreq.has_start_time) {
                     latencies.push_back(std::chrono::duration_cast<Ms>(time_point - timedIreq.start).count());
@@ -103,8 +105,8 @@ int main(int argc, char* argv[]) {
                 ireq.set_callback(
                     [&ireq, time_point, &mutex, &finished_ireqs, &callback_exception, &cv](std::exception_ptr ex) {
                         // Keep callback small. This improves performance for fast (tens of thousands FPS) models
-                        std::unique_lock<std::mutex> lock(mutex);
                         {
+                            std::unique_lock<std::mutex> lock(mutex);
                             try {
                                 if (ex) {
                                     std::rethrow_exception(ex);

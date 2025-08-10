@@ -14,8 +14,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "transformations/convert_precision.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class Transformations {
 public:
@@ -26,7 +25,7 @@ public:
     void UpToLpt();
     void CpuSpecificOpSet();
     void PostLpt();
-    void Snippets(void);
+    void Snippets();
 
 private:
     std::shared_ptr<ov::Model> model;
@@ -37,9 +36,9 @@ private:
     void Lpt(const std::vector<ov::element::Type>& defaultPrecisions);
     void runLptPasses(const std::vector<ov::element::Type>& defaultPrecisions);
 
-    void MainSnippets(void);
+    void MainSnippets();
 
-    void PostSnippets(void);
+    void PostSnippets();
 
     static bool is_decompression_multiply(const std::shared_ptr<const ov::Node>& node);
 
@@ -48,5 +47,4 @@ private:
     static bool fuse_type_to_pa(const std::shared_ptr<ov::Node>& node, const precisions_map& precisions);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -63,25 +63,19 @@ void pre_calc_for_bilinear_interpolate(const int height,
         for (int pw = 0; pw < pooled_width; pw++) {
             for (int iy = 0; iy < iy_upper; iy++) {
                 const T yy = roi_start_h + ph * bin_size_h +
-                             static_cast<T>(iy + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
+                             static_cast<T>(static_cast<T>(iy) + static_cast<T>(.5f)) * bin_size_h /
+                                 static_cast<T>(roi_bin_grid_h);  // e.g., 0.5, 1.5
                 for (int ix = 0; ix < ix_upper; ix++) {
                     const T xx = roi_start_w + pw * bin_size_w +
-                                 static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
+                                 static_cast<T>(static_cast<T>(ix) + static_cast<T>(.5f)) * bin_size_w /
+                                     static_cast<T>(roi_bin_grid_w);
 
                     T x = xx;
                     T y = yy;
                     // deal with: inverse elements are out of feature map boundary
                     if (y < -1.0 || y > height || x < -1.0 || x > width) {
                         // empty
-                        PreCalc<T> pc;
-                        pc.pos1 = 0;
-                        pc.pos2 = 0;
-                        pc.pos3 = 0;
-                        pc.pos4 = 0;
-                        pc.w1 = 0;
-                        pc.w2 = 0;
-                        pc.w3 = 0;
-                        pc.w4 = 0;
+                        PreCalc<T> pc{0, 0, 0, 0, 0, 0, 0, 0};
                         pre_calc.at(pre_calc_index) = pc;
                         pre_calc_index += 1;
                         continue;
@@ -101,14 +95,14 @@ void pre_calc_for_bilinear_interpolate(const int height,
 
                     if (y_low >= height - 1) {
                         y_high = y_low = height - 1;
-                        y = (T)y_low;
+                        y = static_cast<T>(y_low);
                     } else {
                         y_high = y_low + 1;
                     }
 
                     if (x_low >= width - 1) {
                         x_high = x_low = width - 1;
-                        x = (T)x_low;
+                        x = static_cast<T>(x_low);
                     } else {
                         x_high = x_low + 1;
                     }
@@ -123,15 +117,14 @@ void pre_calc_for_bilinear_interpolate(const int height,
                     T w4 = ly * lx;
 
                     // save weights and indices
-                    PreCalc<T> pc;
-                    pc.pos1 = y_low * width + x_low;
-                    pc.pos2 = y_low * width + x_high;
-                    pc.pos3 = y_high * width + x_low;
-                    pc.pos4 = y_high * width + x_high;
-                    pc.w1 = w1;
-                    pc.w2 = w2;
-                    pc.w3 = w3;
-                    pc.w4 = w4;
+                    PreCalc<T> pc{(y_low * width) + x_low,
+                                  (y_low * width) + x_high,
+                                  (y_high * width) + x_low,
+                                  (y_high * width) + x_high,
+                                  w1,
+                                  w2,
+                                  w3,
+                                  w4};
                     pre_calc[pre_calc_index] = pc;
 
                     pre_calc_index += 1;
@@ -169,7 +162,7 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
             offset_bottom_rois++;
         }
 
-        T offset = aligned ? (T)0.5 : (T)0.0;
+        T offset = aligned ? static_cast<T>(0.5) : static_cast<T>(0.0);
         // Do not using rounding; this implementation detail is critical
         T roi_start_w = offset_bottom_rois[0] * spatial_scale - offset;
         T roi_start_h = offset_bottom_rois[1] * spatial_scale - offset;
@@ -177,8 +170,8 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
         T roi_end_h = offset_bottom_rois[3] * spatial_scale - offset;
 
         // Force malformed ROIs to be 1x1
-        T roi_width = (std::max)(roi_end_w - roi_start_w, (T)1.);
-        T roi_height = (std::max)(roi_end_h - roi_start_h, (T)1.);
+        T roi_width = (std::max)(roi_end_w - roi_start_w, static_cast<T>(1.));
+        T roi_height = (std::max)(roi_end_h - roi_start_h, static_cast<T>(1.));
         T bin_size_h = roi_height / static_cast<T>(pooled_height);
         T bin_size_w = roi_width / static_cast<T>(pooled_width);
 
@@ -232,8 +225,8 @@ void ROIAlignForward_cpu_kernel(const int nthreads,
 
                     top_data[index] = output_val;
                 }  // for pw
-            }      // for ph
-        }          // for c
+            }  // for ph
+        }  // for c
     });
 }
 
@@ -311,9 +304,9 @@ ExperimentalDetectronROIFeatureExtractor::ExperimentalDetectronROIFeatureExtract
 
     const auto roiFeatureExtractor = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronROIFeatureExtractor>(op);
     const auto& attr = roiFeatureExtractor->get_attrs();
-    output_dim_ = attr.output_size;
+    output_dim_ = static_cast<int>(attr.output_size);
     pyramid_scales_ = attr.pyramid_scales;
-    sampling_ratio_ = attr.sampling_ratio;
+    sampling_ratio_ = static_cast<int>(attr.sampling_ratio);
     aligned_ = attr.aligned;
     pooled_height_ = output_dim_;
     pooled_width_ = output_dim_;

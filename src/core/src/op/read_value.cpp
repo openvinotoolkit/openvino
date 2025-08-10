@@ -91,7 +91,6 @@ void ReadValue::validate_and_infer_types() {
                         variable_type,
                         " Initialization type: ",
                         initial_type);
-        // workaround:
         // dynamic rank/type can be derived from the IRs generated via the prev versions of OV,
         // but dynamic rank/type are not supported in plugins,
         // so we are trying to fix them here using the rank/type of ReadValue 1st input, if it exists

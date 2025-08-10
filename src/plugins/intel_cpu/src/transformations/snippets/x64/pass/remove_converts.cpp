@@ -22,15 +22,16 @@ ov::intel_cpu::pass::RemoveConverts::RemoveConverts() {
     using namespace ov::pass::pattern;
     MATCHER_SCOPE(RemoveConverts);
     auto input_m = any_input(type_matches(ov::element::f32));
-    auto parent_convert_m = wrap_type<snippets::op::ConvertSaturation>({input_m}, type_matches(ov::element::bf16));
+    auto parent_convert_m =
+        wrap_type<snippets::op::ConvertSaturation>({input_m}, type_matches_any({ov::element::bf16, ov::element::f16}));
     auto child_convert_wrap =
         wrap_type<snippets::op::ConvertSaturation>({parent_convert_m}, type_matches(ov::element::f32));
 
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::RemoveConverts")
         const auto& pm = m.get_pattern_value_map();
-        const auto parent_convert = pm.at(parent_convert_m).get_node_shared_ptr();
         const auto child_convert = pm.at(child_convert_wrap).get_node_shared_ptr();
+        const auto parent_convert = pm.at(parent_convert_m).get_node_shared_ptr();
 
         const auto& parent_convert_consumers = parent_convert->get_output_target_inputs(0);
         for (const auto& input : parent_convert_consumers) {

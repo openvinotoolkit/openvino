@@ -15,19 +15,17 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class PSROIPooling : public Node {
 public:
     PSROIPooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
-    void createPrimitive() override{};
+    void createPrimitive() override {};
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -39,7 +37,7 @@ private:
     size_t pooledWidth = 0;
     size_t spatialBinsX = 0;
     size_t spatialBinsY = 0;
-    std::string mode = "";
+    std::string mode;
 
     int channels = 0;
     int height = 0;
@@ -53,7 +51,7 @@ private:
     // for Deformable PSROIPolling
     bool noTrans;
     int partSize = 1;
-    float transStd = 1.f;
+    float transStd = 1.F;
 
     void unpackParams(const BlockedMemoryDesc& srcDesc,
                       const BlockedMemoryDesc& dstDesc,
@@ -71,8 +69,8 @@ private:
     void executeAverage(const inputType* srcData,
                         outputType* dstData,
                         const float* bottomRois,
-                        const int n,
-                        const int roiBatchInd,
+                        int n,
+                        int roiBatchInd,
                         const BlockedMemoryDesc& srcDesc,
                         const BlockedMemoryDesc& dstDesc);
 
@@ -80,8 +78,8 @@ private:
     void executeBilinear(const inputType* srcData,
                          outputType* dstData,
                          const float* bottomRois,
-                         const int currentRoi,
-                         const int roiBatchInd,
+                         int currentRoi,
+                         int roiBatchInd,
                          const BlockedMemoryDesc& srcDesc,
                          const BlockedMemoryDesc& dstDesc);
 
@@ -90,10 +88,10 @@ private:
                                    outputType* dstData,
                                    const float* bottomRois,
                                    const float* bottomTrans,
-                                   const int numClasses,
-                                   const int channelsEachClass,
-                                   const int currentRoi,
-                                   const int roiBatchInd);
+                                   int numClasses,
+                                   int channelsEachClass,
+                                   int currentRoi,
+                                   int roiBatchInd);
 
     template <typename inputType, typename outputType>
     void executeSpecified();
@@ -102,6 +100,4 @@ private:
     struct PSROIPoolingExecute;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -64,7 +64,7 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory,
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("MlasGemmExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return MemoryPtr(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("MlasGemmExecutor: Weights cache is not available");
@@ -106,7 +106,7 @@ MlasGemmExecutor::MlasGemmExecutor(const FCAttrs& attrs, const MemoryArgs& memor
     : m_attrs(attrs),
       m_memoryArgs(memory),
       packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context, !attrs.weightsNonTransposed)),
-      M(0),
+
       N(batchDim(memory.at(ARG_WEI)->getStaticDims())),
       K(memory.at(ARG_WEI)->getStaticDims().back()) {}
 

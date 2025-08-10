@@ -14,7 +14,6 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "openvino/runtime/string_aligned_buffer.hpp"
-#include "precomp.hpp"
 
 namespace {
 inline namespace tools {

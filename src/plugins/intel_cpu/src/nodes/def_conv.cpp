@@ -4,7 +4,6 @@
 
 #include "def_conv.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 
 #include <algorithm>
@@ -23,7 +22,6 @@
 #include <vector>
 
 #include "common/primitive_hashing_utils.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "graph_context.h"
@@ -42,6 +40,12 @@
 #include "openvino/util/pp.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "utils/cpu_utils.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -54,18 +58,18 @@ namespace ov::intel_cpu::node {
 #    define GET_OFF(field) offsetof(jit_def_conv_call_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator {
+struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_def_conv_kernel_f32)
 
     constexpr static int sampledPointsPerPixel = DeformableConvolution::sampledPointsPerPixel;
 
     explicit jit_uni_def_conv_kernel_f32(const jit_def_conv_params& jcp)
         : jit_uni_def_conv_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     };
 
     void generate() override {
@@ -99,7 +103,7 @@ private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
 
-    const int vlen = cpu_isa_traits<isa>::vlen;
+    const int vlen = cpu_isa_traits_t<isa>::vlen;
     using Ymm = const Xbyak::Ymm;
     using Xmm = const Xbyak::Xmm;
     using reg64_t = const Xbyak::Reg64;
@@ -150,10 +154,10 @@ private:
     Vmm get_vmm_acc(int idx) {
         return Vmm(idx + jcp_.ur_w + 1);
     }
-    Ymm get_ymm_acc(int idx) {
+    Xbyak::Ymm get_ymm_acc(int idx) {
         return Ymm(idx + jcp_.ur_w + 1);
     }
-    Xmm get_xmm_acc(int idx) {
+    Xbyak::Xmm get_xmm_acc(int idx) {
         return Xmm(idx + jcp_.ur_w + 1);
     }
 
@@ -723,7 +727,7 @@ private:
 bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                  std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v1::DeformableConvolution::get_type_info_static(),
                     ov::op::v8::DeformableConvolution::get_type_info_static())) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
@@ -800,12 +804,10 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
     auto defConvNodeBase = ov::as_type_ptr<ov::op::util::DeformableConvolutionBase>(op);
-    if (defConvNodeBase == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of DeformableConvolutionBase.");
-    }
+    CPU_NODE_ASSERT(defConvNodeBase, "is not an instance of DeformableConvolutionBase.");
 
     defConvAttr.group = defConvNodeBase->get_group();
-    defConvAttr.deformable_group = defConvNodeBase->get_deformable_group();
+    defConvAttr.deformable_group = static_cast<int>(defConvNodeBase->get_deformable_group());
     const auto& strides = defConvNodeBase->get_strides();
     for (uint64_t stride : strides) {
         defConvAttr.stride.push_back(stride);
@@ -818,13 +820,11 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 
     defConvAttr.padL = defConvNodeBase->get_pads_begin();
 
-    autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
+    autoPadding = any_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
     if (op->get_type_info() == ov::op::v8::DeformableConvolution::get_type_info_static()) {
         auto defConvNode = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op);
-        if (defConvNode == nullptr) {
-            THROW_CPU_NODE_ERR("is not an instance of DeformableConvolution from opset8.");
-        }
+        CPU_NODE_ASSERT(defConvNode, "is not an instance of DeformableConvolution from opset8.");
         defConvAttr.with_bilinear_pad = defConvNode->get_bilinear_interpolation_pad();
     } else {
         defConvAttr.with_bilinear_pad = false;
@@ -832,24 +832,19 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 }
 
 void DeformableConvolution::getSupportedDescriptors() {
-    if (getParentEdges().size() != 3 && getParentEdges().size() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
-    if (getInputShapeAtPort(DATA_ID).getRank() != 4) {
-        THROW_CPU_NODE_ERR("has unsupported mode. Only 4D blobs are supported as input.");
-    }
-    if (getInputShapeAtPort(OFF_ID).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(OFF_ID).getRank());
-    }
-    if (getInputShapeAtPort(WEI_ID).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 2nd input with rank: ", getInputShapeAtPort(WEI_ID).getRank());
-    }
-    if (getOutputShapeAtPort(DATA_ID).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(DATA_ID).getRank());
-    }
+    CPU_NODE_ASSERT(any_of(getParentEdges().size(), 3U, 4U), "has incorrect number of input edges");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
+    CPU_NODE_ASSERT(getInputShapeAtPort(DATA_ID).getRank() == 4,
+                    "has unsupported mode. Only 4D blobs are supported as input.");
+    CPU_NODE_ASSERT(getInputShapeAtPort(OFF_ID).getRank() == 4,
+                    "doesn't support 1st input with rank: ",
+                    getInputShapeAtPort(OFF_ID).getRank());
+    CPU_NODE_ASSERT(getInputShapeAtPort(WEI_ID).getRank() == 4,
+                    "doesn't support 2nd input with rank: ",
+                    getInputShapeAtPort(WEI_ID).getRank());
+    CPU_NODE_ASSERT(getOutputShapeAtPort(DATA_ID).getRank() == 4,
+                    "doesn't support output with rank: ",
+                    getOutputShapeAtPort(DATA_ID).getRank());
 }
 
 void DeformableConvolution::initSupportedPrimitiveDescriptors() {
@@ -876,20 +871,11 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].inPlace(-1);
 
     impl_desc_type impl_type = impl_desc_type::ref;
-    const int simd_w = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
 
     const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
-    if (weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM ||
-        // 1. strict fallback, until devising of multigroup handling in common case
-        defConvAttr.group != 1 ||
-        // 2. common fallback, except specific n_group / n_channel combinations
-        (defConvAttr.group != 1 &&
-         ((weiDims[1] % simd_w != 0)                                // in_channels_per_gr !% simd_w
-          || ((weiDims[0] / defConvAttr.group) % simd_w != 0)))) {  // out_channels_per_gr !% simd_w
-        enforceRef = true;
-    } else {
-        enforceRef = false;
-    }
+    const bool hasUndefinedDims = any_of(Shape::UNDEFINED_DIM, weiDims[1], weiDims[0]);
+    const bool isMultiGroup = defConvAttr.group != 1;
+    enforceRef = hasUndefinedDims || isMultiGroup;
 
     if (enforceRef) {
         impl_type = impl_desc_type::ref;
@@ -991,14 +977,15 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                                                    oh * offStrides[2] + ow * offStrides[3];
                 const float offset_h = data_offset_ptr[data_offset_h_index];
                 const float offset_w = data_offset_ptr[data_offset_w_index];
-                float map_h = h_in + kh * (KDH + 1) + offset_h;
-                float map_w = w_in + kw * (KDW + 1) + offset_w;
-                bool skip_compute;
+                auto map_h = static_cast<float>(h_in + kh * (KDH + 1)) + offset_h;
+                auto map_w = static_cast<float>(w_in + kw * (KDW + 1)) + offset_w;
+                bool skip_compute = false;
                 if (with_bi_pad) {
                     skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
                                    static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;
                 } else {
-                    skip_compute = map_w < 0 || map_w >= IW || map_h < 0 || map_h >= IH;
+                    skip_compute = map_w < 0.0F || map_w >= static_cast<float>(IW) || map_h < 0.0F ||
+                                   map_h >= static_cast<float>(IH);
                 }
                 if (!skip_compute) {
                     // modulations precomp.
@@ -1019,8 +1006,8 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     int h_high = with_bi_pad ? h_low + 1 : std::min(static_cast<int>(ceilf(map_h)), cur_h_end - 1);
                     int w_high = with_bi_pad ? w_low + 1 : std::min(static_cast<int>(ceilf(map_w)), cur_w_end - 1);
 
-                    float lh = map_h - h_low;
-                    float lw = map_w - w_low;
+                    float lh = map_h - static_cast<float>(h_low);
+                    float lw = map_w - static_cast<float>(w_low);
                     float hh = 1 - lh;
                     float hw = 1 - lw;
 
@@ -1065,16 +1052,17 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
     };
 
     parallel_nd(MB, DG, OH, OW, [&](dim_t mb, dim_t dg, dim_t oh, dim_t ow) {
-        precompKer(mb, dg, oh, ow);
+        precompKer(static_cast<int>(mb), static_cast<int>(dg), static_cast<int>(oh), static_cast<int>(ow));
     });
 }
 
 DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const DefConvAttr& defConvAttr,
     const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector) {
-    if (descVector.size() != 4 && descVector.size() != 5) {
-        OPENVINO_THROW("Deformable Convolution executor got incorrect desc's count (", descVector.size(), ")");
-    }
+    OPENVINO_ASSERT(any_of(descVector.size(), 4U, 5U),
+                    "Deformable Convolution executor got incorrect desc's count (",
+                    descVector.size(),
+                    ")");
     bool withModulation = descVector.size() == 5;
 
     const auto& srcDesc = descVector[DATA_ID];
@@ -1244,7 +1232,11 @@ void DeformableConvolution::DefConvRefExecutor::exec(const float* src,
 
     parallel_nd(G, MB, OC, OH, OW, [&](dnnl_dim_t g, dnnl_dim_t mb, dnnl_dim_t oc, dnnl_dim_t oh, dnnl_dim_t ow) {
         dst[mb * dstStrides[0] + (g * OC + oc) * dstStrides[1] + oh * dstStrides[2] + ow * dstStrides[3]] =
-            compKer(g, mb, oc, oh, ow);
+            compKer(static_cast<int>(g),
+                    static_cast<int>(mb),
+                    static_cast<int>(oc),
+                    static_cast<int>(oh),
+                    static_cast<int>(ow));
     });
 }
 
@@ -1254,30 +1246,18 @@ void DeformableConvolution::prepareParams() {
     auto offMemPtr = getSrcMemoryAtPort(OFF_ID);
     auto weiMemPtr = getSrcMemoryAtPort(WEI_ID);
 
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined destination memory");
-    }
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory");
-    }
-    if (!offMemPtr || !offMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined offsets shape memory");
-    }
-    if (!weiMemPtr || !weiMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined weights memory");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory");
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory");
+    CPU_NODE_ASSERT(offMemPtr && offMemPtr->isDefined(), "has undefined offsets shape memory");
+    CPU_NODE_ASSERT(weiMemPtr && weiMemPtr->isDefined(), "has undefined weights memory");
 
     if (getOriginalInputsNumber() > 3) {
         auto modMemPtr = getSrcMemoryAtPort(MOD_ID);
-        if (!modMemPtr || !modMemPtr->isDefined()) {
-            THROW_CPU_NODE_ERR("has undefined modulations memory");
-        }
+        CPU_NODE_ASSERT(modMemPtr && modMemPtr->isDefined(), "has undefined modulations memory");
     }
 
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
     auto config = selectedPrimitiveDescriptor->getConfig();
 
     bool withModulation = getParentEdges().size() > 3;
@@ -1320,9 +1300,7 @@ void DeformableConvolution::prepareParams() {
     });
     execPtr = result.first;
 
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
-    }
+    CPU_NODE_ASSERT(execPtr, "Primitive descriptor was not found.");
 }
 
 void DeformableConvolution::executeDynamicImpl(const dnnl::stream& strm) {
@@ -1385,16 +1363,11 @@ void DeformableConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto* dst = dstMemory.getDataAs<float>();
 
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
     auto config = selectedPrimitiveDescriptor->getConfig();
 
-    if (execPtr) {
-        execPtr->exec(src, offsets, weights, modulation, dst, sampledCoordsVector.data(), interpWeightsVector.data());
-    } else {
-        THROW_CPU_NODE_ERR("executor doesn't exist");
-    }
+    CPU_NODE_ASSERT(execPtr, "executor doesn't exist");
+    execPtr->exec(src, offsets, weights, modulation, dst, sampledCoordsVector.data(), interpWeightsVector.data());
 }
 
 void DeformableConvolution::updatePadding() {

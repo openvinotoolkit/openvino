@@ -19,10 +19,6 @@ const std::vector<ov::PartialShape> inputShapes = {
     { 1, 3, 16, 16 }
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-};
-
 const std::vector<LayerTestsDefinitions::ShuffleChannelsTransformationParam> params = {
     {
         { 256ul, ov::Shape { 1, 1, 1, 1 }, { 0.f }, { 255.f }, { 0.f }, { 25.5f } },
@@ -82,7 +78,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, ShuffleChannelsTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(inputShapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(params)),
     ShuffleChannelsTransformation::getTestCaseName);
 }  // namespace

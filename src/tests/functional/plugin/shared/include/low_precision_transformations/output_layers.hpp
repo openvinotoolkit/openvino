@@ -11,11 +11,13 @@
 
 namespace LayerTestsDefinitions {
 
+typedef std::tuple<ov::element::Type, ov::Shape, std::string> LayerTransformationParams;
+
 class OutputLayers :
-    public testing::WithParamInterface<LayerTestsUtils::LayerTransformationParams>,
+    public testing::WithParamInterface<LayerTransformationParams>,
     public LayerTestsUtils::LayerTransformation {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<LayerTestsUtils::LayerTransformationParams>& obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<LayerTransformationParams>& obj);
 
 protected:
     void SetUp() override;

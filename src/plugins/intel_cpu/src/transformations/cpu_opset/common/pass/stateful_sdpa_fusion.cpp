@@ -42,9 +42,13 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
+#endif
+
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 
@@ -173,18 +177,15 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             };
         auto check_valid_children_type = [](const ov::Output<ov::Node>& out) {
             auto children = out.get_target_inputs();
-            for (const auto& child : children) {
+            return std::all_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
                 auto* node = child.get_node();
-                if (!one_of(node->get_type_info(),
-                            ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
-                            ov::op::v0::ShapeOf::get_type_info_static(),
-                            ov::op::v3::ShapeOf::get_type_info_static(),
-                            ov::op::v0::Convert::get_type_info_static(),
-                            ov::op::v8::Gather::get_type_info_static())) {
-                    return false;
-                }
-            }
-            return true;
+                return any_of(node->get_type_info(),
+                              ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
+                              ov::op::v0::ShapeOf::get_type_info_static(),
+                              ov::op::v3::ShapeOf::get_type_info_static(),
+                              ov::op::v0::Convert::get_type_info_static(),
+                              ov::op::v8::Gather::get_type_info_static());
+            });
         };
 
         const auto sdp_node = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(root);
@@ -236,15 +237,13 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         }
 
         auto is_optional_one_child = [&pattern_map](const std::vector<std::shared_ptr<Node>>& nodes) {
-            for (auto&& node : nodes) {
+            return std::all_of(nodes.begin(), nodes.end(), [&](const std::shared_ptr<Node>& node) {
                 if (pattern_map.count(node)) {
                     auto p = pattern_map.at(node).get_node_shared_ptr();
-                    if (p->get_output_target_inputs(0).size() != 1) {
-                        return false;
-                    }
+                    return p->get_output_target_inputs(0).size() == 1;
                 }
-            }
-            return true;
+                return true;
+            });
         };
         if (!is_optional_one_child({convert_past_k,
                                     convert_past_v,

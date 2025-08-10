@@ -9,7 +9,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "common/dnnl_executor.h"
 #include "graph_context.h"
@@ -17,9 +16,7 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Lrn : public Node {
 public:
@@ -29,11 +26,12 @@ public:
     void createDescriptor(const std::vector<MemoryDescPtr>& inputDesc,
                           const std::vector<MemoryDescPtr>& outputDesc) override;
     size_t descInputNumbers() override {
-        return static_cast<size_t>(getOriginalInputsNumber());
+        return getOriginalInputsNumber();
     }
-    std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_t idx) const override;
-    bool created() const override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] std::shared_ptr<MemoryDesc> getSrcMemDesc(const dnnl::primitive_desc& prim_desc,
+                                                            size_t idx) const override;
+    [[nodiscard]] bool created() const override;
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
@@ -49,10 +47,8 @@ private:
     dnnl::algorithm alg;
     size_t size = 1;
     int k = 1;
-    float alpha = 1.0f;
-    float beta = 1.0f;
+    float alpha = 1.0F;
+    float beta = 1.0F;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

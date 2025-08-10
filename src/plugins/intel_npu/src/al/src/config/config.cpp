@@ -33,9 +33,13 @@ void splitAndApply(const std::string& str, char delim, std::function<void(std::s
 //
 
 bool OptionParser<bool>::parse(std::string_view val) {
-    if (val == "YES") {
+    std::string strVal(val);
+    std::transform(strVal.begin(), strVal.end(), strVal.begin(), [](char c) {
+        return std::toupper(c);
+    });
+    if (strVal == "YES" || strVal == "TRUE" || strVal == "1") {
         return true;
-    } else if (val == "NO") {
+    } else if (strVal == "NO" || strVal == "FALSE" || strVal == "0") {
         return false;
     }
 

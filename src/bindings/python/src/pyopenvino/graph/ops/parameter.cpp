@@ -20,7 +20,7 @@ void regclass_graph_op_Parameter(py::module m) {
     py::class_<ov::op::v0::Parameter, std::shared_ptr<ov::op::v0::Parameter>, ov::Node> parameter(m, "Parameter");
     parameter.doc() = "openvino.op.Parameter wraps ov::op::v0::Parameter";
     parameter.def("__repr__", [](const ov::Node& self) {
-        std::string class_name = py::cast(self).get_type().attr("__name__").cast<std::string>();
+        std::string class_name = py::type::handle_of(py::cast(self)).attr("__name__").cast<std::string>();
         std::string shape = py::cast(self.get_output_partial_shape(0)).attr("__str__")().cast<std::string>();
         std::string type = self.get_element_type().c_type_string();
         return "<" + class_name + ": '" + self.get_friendly_name() + "' (" + shape + ", " + type + ")>";

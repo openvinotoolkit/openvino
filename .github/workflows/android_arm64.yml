@@ -103,7 +103,7 @@ jobs:
       VCPKG_ROOT: '/__w/openvino/openvino/vcpkg'
       BUILD_DIR: '/__w/openvino/openvino/build'
       ANDROID_TOOLS: '/deps/android_tools'
-      ANDROID_NDK_HOME: '/deps/android_tools/ndk-bundle'
+      ANDROID_NDK_HOME: '/deps/android_tools/ndk/26.1.10909125'
       ANDROID_SDK_VERSION: 29
       ANDROID_ABI_CONFIG: arm64-v8a
       VCPKG_TARGET_TRIPLET: arm64-android
@@ -169,6 +169,7 @@ jobs:
             -DENABLE_SYSTEM_SNAPPY=ON \
             -DENABLE_SYSTEM_TBB=ON \
             -DENABLE_SYSTEM_FLATBUFFERS=ON \
+            -DENABLE_FASTER_BUILD=ON \
             -DANDROID_ABI=${{ env.ANDROID_ABI_CONFIG }} \
             -DANDROID_PLATFORM=${{ env.ANDROID_SDK_VERSION }} \
             -DVCPKG_TARGET_TRIPLET=${{ env.VCPKG_TARGET_TRIPLET }} \

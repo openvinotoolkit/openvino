@@ -20,7 +20,9 @@
 #include "concatenation_inst.h"
 #include "region_yolo_inst.h"
 #include "fully_connected_inst.h"
+#include "group_normalization_inst.h"
 #include "mvn_inst.h"
+#include "rms_inst.h"
 
 #include <vector>
 #include <list>
@@ -333,10 +335,10 @@ void remove_redundant_reorders::run(program& p) {
                 r_node.can_be_optimized(true);
                 r_node.requires_reinterpret(true);
 
-                std::vector<int32_t> pad_lo(o_layout.data_padding._lower_size.begin(),
-                                            o_layout.data_padding._lower_size.begin() + o_layout.get_rank());
-                std::vector<int32_t> pad_hi(o_layout.data_padding._upper_size.begin(),
-                                            o_layout.data_padding._upper_size.begin() + o_layout.get_rank());
+                std::vector<ov::Dimension::value_type> pad_lo(o_layout.data_padding._lower_size.begin(),
+                                                       o_layout.data_padding._lower_size.begin() + o_layout.get_rank());
+                std::vector<ov::Dimension::value_type> pad_hi(o_layout.data_padding._upper_size.begin(),
+                                                       o_layout.data_padding._upper_size.begin() + o_layout.get_rank());
 
                 pad_lo[0] = i_layout.data_padding._lower_size[0];
                 pad_hi[0] = i_layout.data_padding._upper_size[0];
@@ -456,7 +458,7 @@ void remove_redundant_reorders::run(program& p) {
                 (input.is_type<one_hot>() || input.is_type<permute>() || input.is_type<mvn>() ||
                  input.is_type<concatenation>() || input.is_type<depth_to_space>() || input.is_type<region_yolo>() ||
                  input.is_type<detection_output>() || input.is_type<gather>() || input.is_type<broadcast>() ||
-                 input.is_type<select>() || input.is_type<eltwise>()) && !input.is_constant();
+                 input.is_type<select>() || input.is_type<eltwise>() || input.is_type<rms>()) && !input.is_constant();
             if (!same_data_type && !allowed_dt_conversion_fuse)
                 continue;
 
@@ -474,7 +476,9 @@ void remove_redundant_reorders::run(program& p) {
                 // Add fused_primitive_desc of reorder to the previous node which propagates original output layout
                 // during shape inference
                 if (input.is_type<mvn>() || input.is_type<concatenation>() || input.is_type<gather>() ||
-                    input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>()) {
+                    input.is_type<broadcast>() || input.is_type<select>() || input.is_type<eltwise>() ||
+                    input.is_type<rms>() || (input.is_dynamic() &&
+                    (input.is_type<group_normalization>() || input.is_type<permute>()))) {
                     fused_primitive_desc local_desc(node.get_primitive());
                     local_desc.f_param = node.get_fuse_params();
                     local_desc.total_num_deps = node.get_dependencies().size();

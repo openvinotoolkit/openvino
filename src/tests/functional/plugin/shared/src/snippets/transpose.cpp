@@ -12,11 +12,7 @@ namespace test {
 namespace snippets {
 
 std::string Transpose::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeParams> obj) {
-    InputShape inputShapes;
-    std::vector<int> order;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, order, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    const auto& [inputShapes, order, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << inputShapes << "_";
@@ -28,24 +24,19 @@ std::string Transpose::getTestCaseName(testing::TestParamInfo<ov::test::snippets
 }
 
 void Transpose::SetUp() {
-    InputShape inputShape;
-    std::vector<int> order;
-    std::tie(inputShape, order, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, order, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape});
 
     auto f = ov::test::snippets::TransposeFunction(inputDynamicShapes, order);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 std::string TransposeMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMulParams> obj) {
-    std::pair<InputShape, InputShape> inputShapes;
-    std::vector<int> order;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, order, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    const auto& [inputShapes, order, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << inputShapes.first << "_";
@@ -58,15 +49,14 @@ std::string TransposeMul::getTestCaseName(testing::TestParamInfo<ov::test::snipp
 }
 
 void TransposeMul::SetUp() {
-    std::pair<InputShape, InputShape> inputShapes;
-    std::vector<int> order;
-    std::tie(inputShapes, order, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShapes, order, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShapes.first, inputShapes.second});
     auto f = ov::test::snippets::TransposeMulFunction(inputDynamicShapes, order);
     function = f.getOriginal();
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 TEST_P(Transpose, CompareWithRefImpl) {

@@ -315,8 +315,8 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
     std::vector<float> refined_boxes(classes_num_ * rois_num * 4, 0);
     std::vector<float> refined_scores(classes_num_ * rois_num, 0);
     std::vector<float> refined_boxes_areas(classes_num_ * rois_num, 0);
-    Indexer refined_box_idx({classes_num_, rois_num, 4});
-    Indexer refined_score_idx({classes_num_, rois_num});
+    Indexer refined_box_idx({static_cast<int>(classes_num_), rois_num, 4});
+    Indexer refined_score_idx({static_cast<int>(classes_num_), rois_num});
 
     refine_boxes(boxes,
                  deltas,
@@ -326,7 +326,7 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
                  refined_boxes_areas.data(),
                  refined_scores.data(),
                  rois_num,
-                 classes_num_,
+                 static_cast<int>(classes_num_),
                  max_delta_log_wh_,
                  1.0F);
 
@@ -345,7 +345,7 @@ void ExperimentalDetectronDetectionOutput::execute([[maybe_unused]] const dnnl::
                detections_per_class[class_idx],
                rois_num,
                -1,
-               max_detections_per_class_,
+               static_cast<int>(max_detections_per_class_),
                score_threshold_,
                nms_threshold_);
         total_detections_num += detections_per_class[class_idx];

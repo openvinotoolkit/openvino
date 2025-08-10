@@ -13,32 +13,28 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class CTCGreedyDecoderSeqLen : public Node {
 public:
     CTCGreedyDecoderSeqLen(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 private:
-    const size_t DATA_INDEX = 0lu;
-    const size_t SEQUENCE_LENGTH_INDEX = 1lu;
-    const size_t BLANK_INDEX = 2lu;
-    const size_t DECODED_CLASSES_INDEX = 0lu;
-    const size_t DECODED_CLASSES_LENGTH_INDEX = 1lu;
+    const size_t DATA_INDEX = 0LU;
+    const size_t SEQUENCE_LENGTH_INDEX = 1LU;
+    const size_t BLANK_INDEX = 2LU;
+    const size_t DECODED_CLASSES_INDEX = 0LU;
+    const size_t DECODED_CLASSES_LENGTH_INDEX = 1LU;
     bool mergeRepeated;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

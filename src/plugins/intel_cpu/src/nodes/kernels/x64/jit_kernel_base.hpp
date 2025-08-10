@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cassert>
 #include <common/c_types_map.hpp>
@@ -16,6 +16,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/visibility.hpp"
+#include "utils/cpu_utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/jit_generator.hpp"
@@ -33,7 +34,7 @@ class JitKernelBase;
 #    define getVmm()   RegistersPool::Reg<Vmm>(registersPool)
 #    define getMask()  RegistersPool::Reg<Vmask>(registersPool)
 
-class JitKernelBase : public dnnl::impl::cpu::x64::jit_generator {
+class JitKernelBase : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     JitKernelBase(const char* name, dnnl::impl::cpu::x64::cpu_isa_t max_cpu_isa);
 
@@ -41,50 +42,50 @@ public:
         return m_isa;
     }
 
-    size_t getVectorLen() {
+    size_t getVectorLen() const {
         return vlen;
     }
 
-    void uni_vfmsub132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void uni_vfmsub132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vfnmadd132ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void uni_vfnmadd132ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vfmsub231ps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void uni_vfmsub231ps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vpaddd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op) {
-        jit_generator::uni_vpaddd(vDst, vSrc, op);
+    void uni_vpaddd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
+        jit_generator_t::uni_vpaddd(v_dst, v_src, op);
     }
 
-    void uni_vpaddd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
+    void uni_vpaddd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src, const Xbyak::Operand& op);
 
-    void uni_vpaddq(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op);
+    void uni_vpaddq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vpsubd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc, const Xbyak::Operand& op) {
-        jit_generator::uni_vpsubd(vDst, vSrc, op);
+    void uni_vpsubd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op) {
+        jit_generator_t::uni_vpsubd(v_dst, v_src, op);
     }
 
-    void uni_vpsubd(const Xbyak::Ymm& vDst, const Xbyak::Ymm& vSrc, const Xbyak::Operand& op);
+    void uni_vpsubd(const Xbyak::Ymm& v_dst, const Xbyak::Ymm& v_src, const Xbyak::Operand& op);
 
     void uni_vsubpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
     void uni_vmulpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op);
 
-    void uni_vpmuludq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& op_1, const Xbyak::Operand& op_2);
+    void uni_vpmuludq(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op_2);
 
-    void uni_vdivps(const Xbyak::Xmm& vDst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
+    void uni_vdivps(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op1, const Xbyak::Operand& op2);
 
     void uni_vdivpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op2);
 
-    void uni_vandps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op);
+    void uni_vandps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op);
 
-    void uni_vandnps(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op);
+    void uni_vandnps(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& vSrs, const Xbyak::Operand& op);
 
     void uni_kmovd(const Xbyak::Opmask& kDst, const Xbyak::Opmask& kSrc) {
         kmovd(kDst, kSrc);
     }
 
-    void uni_kmovd(const Xbyak::Xmm& vDst, const Xbyak::Xmm& vSrc) {
-        uni_vmovups(vDst, vSrc);
+    void uni_kmovd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src) {
+        uni_vmovups(v_dst, v_src);
     }
 
     void uni_kandd(const Xbyak::Opmask& kDst, const Xbyak::Opmask& kSrc1, const Xbyak::Opmask& kSrc2) {
@@ -101,7 +102,7 @@ public:
 
     void uni_vpbroadcastq(const Xbyak::Xmm& x, const Xbyak::Operand& op);
 
-    void uni_vroundpd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op, const uint8_t imm);
+    void uni_vroundpd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op, uint8_t imm);
 
     void uni_vcvtdq2pd(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op);
 
@@ -109,77 +110,77 @@ public:
 
     void uni_vpmovzxdq(const Xbyak::Xmm& v_dst, const Xbyak::Operand& op);
 
-    void uni_vshufpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_srs, const Xbyak::Operand& op, uint8_t imm);
+    void uni_vshufpd(const Xbyak::Xmm& v_dst, const Xbyak::Xmm& v_src, const Xbyak::Operand& op, uint8_t imm);
 
-    void gatherdd(const Xbyak::Xmm& vDst,
+    void gatherdd(const Xbyak::Xmm& v_dst,
                   const Xbyak::Reg64& rSrcPtr,
                   const Xbyak::Xmm& vSrcShift,
                   const Xbyak::Opmask& kReadMask,
-                  const bool useMask = true,
-                  const bool zeroFill = false);
+                  bool useMask = true,
+                  bool zeroFill = false);
 
-    void gatherdd(const Xbyak::Xmm& vDst,
+    void gatherdd(const Xbyak::Xmm& v_dst,
                   const Xbyak::Reg64& rSrcPtr,
                   const Xbyak::Xmm& vSrcShift,
                   const Xbyak::Xmm& vReadMask,
-                  const bool useMask = true,
-                  const bool zeroFill = false);
+                  bool useMask = true,
+                  bool zeroFill = false);
 
-    void gatherdd(const Xbyak::Ymm& vDst,
+    void gatherdd(const Xbyak::Ymm& v_dst,
                   const Xbyak::Reg64& rSrcPtr,
                   const Xbyak::Ymm& vSrcShift,
                   const Xbyak::Ymm& vReadMask,
-                  const bool useMask = true,
-                  const bool zeroFill = false);
+                  bool useMask = true,
+                  bool zeroFill = false);
 
     void fillRestWorkMask(const Xbyak::Opmask& kDstMask, const Xbyak::Reg64& rWorkRest);
 
-    void fillRestWorkMask(const Xbyak::Xmm& ymmDstMask, const Xbyak::Reg64& rWorkRest, const uint64_t typeSize = 4);
+    void fillRestWorkMask(const Xbyak::Xmm& xmmDstMask, const Xbyak::Reg64& rWorkRest, uint64_t typeSize = 4);
 
-    void fillRestWorkMask(const Xbyak::Ymm& ymmDstMask, const Xbyak::Reg64& rWorkRest, const uint64_t typeSize = 4);
+    void fillRestWorkMask(const Xbyak::Ymm& ymmDstMask, const Xbyak::Reg64& rWorkRest, uint64_t typeSize = 4);
 
-    void load(const Xbyak::Xmm& vDst,
+    void load(const Xbyak::Xmm& v_dst,
               const Xbyak::Address& srcAddr,
               const Xbyak::Reg64& rLoadNum,
-              const size_t typeSize,
-              const bool zeroFill = false);
+              size_t typeSize,
+              bool zeroFill = false);
 
-    void load(const Xbyak::Ymm& vDst,
+    void load(const Xbyak::Ymm& v_dst,
               const Xbyak::Address& srcAddr,
               const Xbyak::Reg64& rLoadNum,
-              const size_t typeSize,
-              const bool zeroFill = false);
+              size_t typeSize,
+              bool zeroFill = false);
 
     void store(const Xbyak::Address& dstAddr,
-               const Xbyak::Xmm& vSrc,
+               const Xbyak::Xmm& v_src,
                const Xbyak::Reg64& rToStoreNum,
-               const size_t typeSize);
+               size_t typeSize);
 
     void store(const Xbyak::Address& dstAddr,
-               const Xbyak::Ymm& vSrc,
+               const Xbyak::Ymm& v_src,
                const Xbyak::Reg64& rToStoreNum,
-               const size_t typeSize);
+               size_t typeSize);
 
     // Makes gather from memory under the vReadMask and writes to the memory m128.
     void memMovDD(const Xbyak::Reg64& rDst,
                   const Xbyak::Reg64& rSrc,
                   const Xbyak::Xmm& vReadMask,
                   const Xbyak::Xmm& vSrcShift,
-                  const Xbyak::Reg64& rToStoreCounter,
-                  const bool useMask = true,
-                  const bool zeroFill = false);
+                  const Xbyak::Reg64& rToStoreNum,
+                  bool useMask = true,
+                  bool zeroFill = false);
 
     // Makes gather from the memory under the vReadMask and writes to the memory m256.
     void memMovDD(const Xbyak::Reg64& rDst,
                   const Xbyak::Reg64& rSrc,
                   const Xbyak::Ymm& vReadMask,
                   const Xbyak::Ymm& vSrcShift,
-                  const Xbyak::Reg64& rToStoreCounter,
-                  const bool useMask = true,
-                  const bool zeroFill = false);
+                  const Xbyak::Reg64& rToStoreNum,
+                  bool useMask = true,
+                  bool zeroFill = false);
 
 protected:
-    inline bool isValidIsa(dnnl::impl::cpu::x64::cpu_isa_t isa) {
+    static bool isValidIsa(dnnl::impl::cpu::x64::cpu_isa_t isa) {
         return dnnl::impl::cpu::x64::mayiuse(isa);
     }
 
@@ -187,7 +188,7 @@ protected:
     RegistersPool::Ptr registersPool;
     size_t vlen;
 
-    enum {
+    enum : uint8_t {
         // Comparison predicate operand (immediate byte) for single-precision floating-point values.
         CMP_EQ_PS = 0,  // Equal (ordered, non-signaling)
         CMP_LT_PS,      // Less-than (ordered, signaling)
@@ -212,15 +213,14 @@ public:
     ~JitKernel() override = default;
 
     dnnl::impl::status_t create_kernel() override {
-        const dnnl::impl::status_t code = jit_generator::create_kernel();
-        if (code != dnnl::impl::status::success) {
-            OPENVINO_THROW("Could not create kernel. Error code: ",
-                           std::to_string(code),
-                           ". ",
-                           "Xbyak error code: ",
-                           Xbyak::ConvertErrorToString(Xbyak::GetError()));
-        }
-        m_func = (decltype(m_func))jit_ker();
+        const dnnl::impl::status_t code = jit_generator_t::create_kernel();
+        OPENVINO_ASSERT(code == dnnl::impl::status::success,
+                        "Could not create kernel. Error code: ",
+                        std::to_string(code),
+                        ". ",
+                        "Xbyak error code: ",
+                        Xbyak::ConvertErrorToString(Xbyak::GetError()));
+        m_func = jit_kernel_cast<decltype(m_func)>(jit_ker());
         return code;
     }
 

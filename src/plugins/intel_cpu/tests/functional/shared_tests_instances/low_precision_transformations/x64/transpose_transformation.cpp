@@ -19,7 +19,6 @@ const std::vector<TransposeTransformationTestValues> testValues = {
     {
         { 1, 1000, 1, 1},
         { 0, 2, 3, 1},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ov::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },
@@ -27,7 +26,6 @@ const std::vector<TransposeTransformationTestValues> testValues = {
     {
         { 1, 3, 1, 1},
         { 0, 2, 3, 1},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ov::element::f32,
         {
             256,
@@ -42,7 +40,6 @@ const std::vector<TransposeTransformationTestValues> testValues = {
     {
         { 1, 1000, 1, 1, 3, 4},
         { 0, 2, 1, 3, 5, 4},
-        LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8(),
         ov::element::f32,
         {256, {}, {0.f}, {25.5f}, {12.5f}, {25.5f + 12.5f}}
     },

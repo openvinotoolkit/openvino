@@ -42,7 +42,6 @@
 #include "snippets/op/scalar.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 
 namespace ov::intel_cpu {
@@ -53,24 +52,22 @@ using namespace snippets::lowered;
 using namespace ov::pass::pattern;
 using PortDescriptorUtils = snippets::lowered::PortDescriptorUtils;
 
-bool pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(const brgemm_utils::BRGEMM_TYPE brgemm_type,
-                                                        const ov::element::Type& input_precision) {
+bool pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(const ov::element::Type& input_precision) {
     // Note: postops are not supported in case of blocking enabled
     // Ticket: 165567
-    return !pass::BrgemmCPUBlocking::is_kn_blocking_supported(brgemm_type, input_precision);
+    return !pass::BrgemmCPUBlocking::is_kn_blocking_supported(input_precision);
 }
 
 namespace {
-ov::pass::pattern::op::Predicate brgemm_predicate(
+const ov::pass::pattern::op::Predicate brgemm_predicate(
     [](const Output<Node>& output) {
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(output.get_node_shared_ptr());
         return has_static_rank()(output) && consumers_count(1)(output) && brgemm != nullptr &&
-               pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(brgemm->get_type(),
-                                                                  brgemm->get_input_element_type(1));
+               pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(brgemm->get_input_element_type(1));
     },
     "brgemm_predicate");
 
-ov::pass::pattern::op::Predicate scalar_predicate(
+const ov::pass::pattern::op::Predicate scalar_predicate(
     [](const Output<Node>& output) {
         return type_matches(ov::element::f32)(output);
     },
@@ -120,14 +117,13 @@ pass::FuseConvert::FuseConvert() {
         // Forcing an output precision with a smaller bit width for output buffer causes out-of-bounds memory writes
         // during intermediate results storage, so the convert fusion is skipped in the case when internal blocking is
         // needed.
-        if (brgemm_utils::with_amx(brgemm->get_type())) {
+        if (brgemm->get_config().is_amx()) {
             const auto& cur_out_precision = brgemm->get_output_element_type(0);
             const auto& new_out_precision = convert->get_output_element_type(0);
             if (cur_out_precision.bitwidth() > new_out_precision.bitwidth()) {
                 const auto a_shape = ov::snippets::utils::get_planar_pshape(brgemm->input(0));
                 const auto& k_dim = *a_shape.rbegin();
-                const auto k_inner_block =
-                    brgemm_utils::repacking::compute_inner_k_block(brgemm->get_input_element_type(0));
+                const auto k_inner_block = brgemm->get_config().wei_k_blk();
                 if (k_dim.is_dynamic() || (k_dim.get_length() % k_inner_block != 0)) {
                     return false;
                 }
@@ -160,14 +156,14 @@ pass::FuseUnaryEltwise::FuseUnaryEltwise() {
         OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::FuseUnaryEltwise")
         const auto& pattern_map = m.get_pattern_value_map();
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
-        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCPU node is expected");
+        OPENVINO_ASSERT(brgemm, "BrgemmCPU node is expected");
         const auto post_op = pattern_map.at(m_postop).get_node_shared_ptr();
         if (!can_be_fused(post_op)) {
             return false;
         }
 
         auto append_eltwise = [&brgemm](alg_kind_t alg_kind) {
-            brgemm->add_scalar_eltwise_postop(alg_kind, 0.f, 0.f);
+            brgemm->add_scalar_eltwise_postop(alg_kind, 0.F, 0.F);
         };
 
         if (pattern_map.count(m_round)) {
@@ -217,11 +213,10 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                 return true;
             }
             const auto& consumer = output.get_target_inputs().begin()->get_node();
-            if (ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
-                                                           is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
-                return false;
-            }
-            return true;
+            const bool is_scale_shift_pattern =
+                ov::is_type<ov::op::v1::Add>(consumer) && (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                                                           is_type<Scalar>(consumer->get_input_node_shared_ptr(1)));
+            return !is_scale_shift_pattern;
         },
         "not_scale_shift_pattern");
     ov::pass::pattern::op::Predicate not_clip_pattern(
@@ -230,12 +225,10 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
                 return true;
             }
             const auto& consumer = output.get_target_inputs().begin()->get_node();
-            if (ov::is_type<ov::op::v1::Minimum>(consumer) &&
-                (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
-                 is_type<Scalar>(consumer->get_input_node_shared_ptr(1)))) {
-                return false;
-            }
-            return true;
+            const bool is_clip_pattern = ov::is_type<ov::op::v1::Minimum>(consumer) &&
+                                         (is_type<Scalar>(consumer->get_input_node_shared_ptr(0)) ||
+                                          is_type<Scalar>(consumer->get_input_node_shared_ptr(1)));
+            return !is_clip_pattern;
         },
         "not_clip_pattern");
 
@@ -266,11 +259,11 @@ pass::FuseScalarEltwise::FuseScalarEltwise() {
         };
 
         if (pattern_map.count(m_mul)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.f);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, scalar_value, 0.F);
         } else if (pattern_map.count(m_add)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, scalar_value);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.F, scalar_value);
         } else if (pattern_map.count(m_sub)) {
-            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.f, -scalar_value);
+            append_eltwise(alg_kind_t::dnnl_eltwise_linear, 1.F, -scalar_value);
         } else if (pattern_map.count(m_max)) {
             append_eltwise(alg_kind_t::dnnl_eltwise_clip, scalar_value, std::numeric_limits<float>::max());
         } else if (pattern_map.count(m_min)) {
@@ -335,7 +328,7 @@ pass::FuseBinaryEltwise::FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::
         }
 
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(pattern_map.at(m_brgemm).get_node_shared_ptr());
-        OPENVINO_ASSERT(brgemm != nullptr, "BrgemmCPU node is expected");
+        OPENVINO_ASSERT(brgemm, "BrgemmCPU node is expected");
 
         const size_t OC = brgemm->get_output_partial_shape(0).rbegin()->get_length();
         const DnnlBlockedMemoryDesc memory_desc(ov::element::f32, Shape({1, OC}));

@@ -9,7 +9,7 @@
 #include <map>
 #include <string>
 
-#include "common/npu_test_env_cfg.hpp"
+#include "common/utils.hpp"
 
 using namespace ov::test::behavior;
 

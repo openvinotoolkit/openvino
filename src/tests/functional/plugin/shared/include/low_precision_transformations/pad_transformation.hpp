@@ -23,7 +23,6 @@ typedef std::tuple<
     ov::PartialShape,
     ov::op::PadMode,
     std::string,
-    ov::pass::low_precision::LayerTransformation::Params,
     PadTransformationParam
 > PadTransformationParams;
 

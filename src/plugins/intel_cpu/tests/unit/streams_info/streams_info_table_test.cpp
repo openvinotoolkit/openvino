@@ -38,6 +38,7 @@ public:
                                                   test_data.input_threads,
                                                   test_data.input_infer_requests,
                                                   test_data.model_prefer_threads,
+                                                  true,
                                                   test_data.input_perf_hint,
                                                   test_data.hint_llm_distribution_policy,
                                                   test_data.proc_type_table);
@@ -1902,6 +1903,17 @@ StreamsCalculationTestCase _1sockets_mock_tput_8 = {
     {{16, 4, 8, 4, 0, 0, 0}},
     {{2, MAIN_CORE_PROC, 2, 0, 0}, {4, EFFICIENT_CORE_PROC, 2, 0, 0}, {2, LP_EFFICIENT_CORE_PROC, 2, 0, 0}},
 };
+StreamsCalculationTestCase _1sockets_mock_tput_9 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    "THROUGHPUT",
+    {},
+    {{76, 38, 0, 0, 38, 0, 0}},
+    {{9, MAIN_CORE_PROC, 4, 0, 0}, {9, HYPER_THREADING_PROC, 4, 0, 0}},
+};
 StreamsCalculationTestCase _2sockets_mock_latency_1 = {
     1,
     false,
@@ -2779,6 +2791,32 @@ StreamsCalculationTestCase _2sockets_mock_latency_51 = {
     {{16, 16, 0, 0, 0, -1, -1}, {8, 8, 0, 0, 0, 0, 0}, {8, 8, 0, 0, 0, 1, 1}},
     {{1, ALL_PROC, 16, -1, -1}, {0, MAIN_CORE_PROC, 8, 0, 0}, {0, MAIN_CORE_PROC, 8, 1, 1}},
 };
+StreamsCalculationTestCase _1sockets_mock_TP_1 = {
+    1,
+    false,
+    0,
+    0,
+    0,
+    "LATENCY",
+    {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
+    {{8, 8, 0, 0, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 16, 0, 0},
+     {-1, MAIN_CORE_PROC, 8, 0, 0},
+     {-1, MAIN_CORE_PROC, 8, 0, 0}},
+};
+StreamsCalculationTestCase _1sockets_mock_TP_2 = {
+    1,
+    false,
+    1,
+    0,
+    0,
+    "LATENCY",
+    {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL},
+    {{8, 8, 0, 0, 0, 0, 0}},
+    {{1, MAIN_CORE_PROC, 2, 0, 0},
+     {-1, MAIN_CORE_PROC, 1, 0, 0},
+     {-1, MAIN_CORE_PROC, 1, 0, 0}},
+};
 
 TEST_P(StreamsCalculationTests, StreamsCalculation) {}
 
@@ -2928,6 +2966,7 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_mock_tput_6,
                                          _1sockets_mock_tput_7,
                                          _1sockets_mock_tput_8,
+                                         _1sockets_mock_tput_9,
                                          _2sockets_mock_latency_1,
                                          _2sockets_mock_latency_2,
                                          _2sockets_mock_latency_3,
@@ -2986,6 +3025,8 @@ INSTANTIATE_TEST_SUITE_P(StreamsInfoTable,
                                          _1sockets_mock_latency_6,
                                          _1sockets_mock_latency_7,
                                          _1sockets_mock_latency_8,
-                                         _1sockets_mock_latency_9));
+                                         _1sockets_mock_latency_9,
+                                         _1sockets_mock_TP_1,
+                                         _1sockets_mock_TP_2));
 
 }  // namespace

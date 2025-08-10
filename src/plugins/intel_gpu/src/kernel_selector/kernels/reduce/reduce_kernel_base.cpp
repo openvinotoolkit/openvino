@@ -14,12 +14,12 @@ bool ReduceKernelBase::Validate(const Params& p) const {
     auto& params = dynamic_cast<const reduce_params&>(p);
 
     if (params.GetType() != KernelType::REDUCE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

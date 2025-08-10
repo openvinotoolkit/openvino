@@ -77,7 +77,7 @@ bool check_cpu_pinning(const bool cpu_pinning,
                        const bool cpu_pinning_changed,
                        const bool cpu_reservation,
                        const std::vector<std::vector<int>>& streams_info_table) {
-    bool result_value;
+    bool result_value = false;
 
 #if defined(__APPLE__)
     result_value = false;

@@ -37,6 +37,7 @@
 #include "openvino/op/dft.hpp"
 #include "openvino/op/idft.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
@@ -80,18 +81,18 @@ void DFT::initSupportedPrimitiveDescriptors() {
 
     const auto& dataPrecision = getOriginalInputPrecisionAtPort(DATA_INDEX);
     if (!dataPrecision.is_real()) {
-        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
+        CPU_NODE_THROW("has unsupported 'data' input precision: ", dataPrecision.get_type_name());
     }
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    if (axesPrecision != ov::element::i32 && axesPrecision != ov::element::i64) {
-        THROW_CPU_NODE_ERR("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
+    if (none_of(axesPrecision, ov::element::i32, ov::element::i64)) {
+        CPU_NODE_THROW("has unsupported 'axes' input precision: ", axesPrecision.get_type_name());
     }
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizeTensorPrec = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        if (signalSizeTensorPrec != ov::element::i32 && signalSizeTensorPrec != ov::element::i64) {
-            THROW_CPU_NODE_ERR("has unsupported 'signal_size' input precision: ", signalSizeTensorPrec.get_type_name());
+        if (none_of(signalSizeTensorPrec, ov::element::i32, ov::element::i64)) {
+            CPU_NODE_THROW("has unsupported 'signal_size' input precision: ", signalSizeTensorPrec.get_type_name());
         }
     }
 
@@ -297,7 +298,7 @@ void DFT::execute([[maybe_unused]] const dnnl::stream& strm) {
         size_t nComplex = outputShape[0];
         if (IsPowerOfTwo(nComplex)) {
             std::vector<float> outputData(nComplex * 2);
-            const float* resultBufPtr;
+            const float* resultBufPtr = nullptr;
 
             fft(dst, outputData.data(), nComplex * 2, inverse, true, &resultBufPtr);
 
@@ -339,7 +340,7 @@ void DFT::dftNd(float* output,
                                      parallelIterationCounter,
                                      outputShape,
                                      outputStrides);
-                    const float* resultBufPtr;
+                    const float* resultBufPtr = nullptr;
                     fft(gatheredData.data(), gatheredData.data() + outputLen, outputLen, inverse, false, &resultBufPtr);
                     applyBufferND(resultBufPtr,
                                   output,
@@ -421,7 +422,7 @@ void DFT::fft(float* inBuffer,
         };
     }
 
-    size_t blockSize;
+    size_t blockSize = 0;
     size_t nextIterationBlockSize = dataLength;
     for (size_t numBlocks = 1; numBlocks < nComplex; numBlocks *= 2) {
         blockSize = nextIterationBlockSize;
@@ -451,7 +452,7 @@ void DFT::naiveDFT(float* data, size_t dataLength, bool inverse) const {
     const float reciprocalNComplex = 1.0F / nComplex;
     auto twiddlesIter = twiddlesMapDFT.find(nComplex);
     if (twiddlesIter == twiddlesMapDFT.end()) {
-        THROW_CPU_NODE_ERR("Twiddles for nComplex=", nComplex, " not found");
+        CPU_NODE_THROW("Twiddles for nComplex=", nComplex, " not found");
     }
     const auto& twiddles = twiddlesIter->second;
 
@@ -583,7 +584,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             dftKernel = std::make_unique<jit_uni_dft_kernel_f32<cpu::x64::sse41>>();
         } else {
-            THROW_CPU_NODE_ERR("Can't create jit DFT kernel");
+            CPU_NODE_THROW("Can't create jit DFT kernel");
         }
 
         if (dftKernel) {
@@ -599,7 +600,7 @@ void DFT::createJITKernels(bool hasDFT, bool hasFFT) {
         } else if (mayiuse(cpu::x64::sse41)) {
             fftKernel = std::make_unique<jit_uni_fft_kernel_f32<cpu::x64::sse41>>();
         } else {
-            THROW_CPU_NODE_ERR("Can't create jit FFT kernel");
+            CPU_NODE_THROW("Can't create jit FFT kernel");
         }
 
         if (fftKernel) {

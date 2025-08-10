@@ -38,7 +38,7 @@ namespace ov::intel_cpu::node {
 
 bool GatherND::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v5::GatherND::get_type_info_static(),
                     ov::op::v8::GatherND::get_type_info_static())) {
             errorMessage = "Node is not an instance of the GatherND operation from operation set v5 and v8.";
@@ -59,7 +59,7 @@ GatherND::GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     }
 
     if (inputShapes.size() != 2 && outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has invalid number of input/output edges.");
+        CPU_NODE_THROW("has invalid number of input/output edges.");
     }
 
     const size_t dataInputRank = getInputShapeAtPort(GATHERND_DATA).getRank();
@@ -70,10 +70,10 @@ GatherND::GatherND(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     } else if (auto gatherNdOp = ov::as_type_ptr<const ov::op::v5::GatherND>(op)) {
         attrs.batchDims = gatherNdOp->get_batch_dims();
     } else {
-        THROW_CPU_NODE_ERR("has support only opset5.");
+        CPU_NODE_THROW("has support only opset5.");
     }
     if (attrs.batchDims >= std::min(dataInputRank, indicesInputRank)) {
-        THROW_CPU_NODE_ERR("has invalid batch_dims attribute: ", attrs.batchDims);
+        CPU_NODE_THROW("has invalid batch_dims attribute: ", attrs.batchDims);
     }
 }
 
@@ -83,23 +83,23 @@ void GatherND::initSupportedPrimitiveDescriptors() {
     }
 
     ov::element::Type inDataPrecision = getOriginalInputPrecisionAtPort(GATHERND_DATA);
-    if (!one_of(inDataPrecision.size(),
+    if (none_of(inDataPrecision.size(),
                 sizeof(element_type_traits<ov::element::i32>::value_type),
                 sizeof(element_type_traits<ov::element::i16>::value_type),
                 sizeof(element_type_traits<ov::element::i8>::value_type))) {
-        THROW_CPU_NODE_ERR("has unsupported 'data' input precision: ", inDataPrecision);
+        CPU_NODE_THROW("has unsupported 'data' input precision: ", inDataPrecision);
     }
     attrs.dataSize = inDataPrecision.size();
 
     ov::element::Type indicesPrecision = getOriginalInputPrecisionAtPort(GATHERND_INDEXES);
-    if (!one_of(indicesPrecision,
+    if (none_of(indicesPrecision,
                 ov::element::i32,
                 ov::element::i64,
                 ov::element::i16,
                 ov::element::u16,
                 ov::element::i8,
                 ov::element::u8)) {
-        THROW_CPU_NODE_ERR("has unsupported 'indices' input precision: ", indicesPrecision);
+        CPU_NODE_THROW("has unsupported 'indices' input precision: ", indicesPrecision);
     }
 
     addSupportedPrimDesc({{LayoutType::ncsp, inDataPrecision}, {LayoutType::ncsp, ov::element::i32}},
@@ -111,18 +111,10 @@ void GatherND::prepareParams() {
     auto srcMemPtr = getSrcMemoryAtPort(GATHERND_DATA);
     auto idxMemPtr = getSrcMemoryAtPort(GATHERND_INDEXES);
     auto dstMemPtr = getDstMemoryAtPort(0);
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'data'.");
-    }
-    if (!idxMemPtr || !idxMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'indices'.");
-    }
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined output memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory of 'data'.");
+    CPU_NODE_ASSERT(idxMemPtr && idxMemPtr->isDefined(), "has undefined input memory of 'indices'.");
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has unidentified preferable primitive descriptor.");
 
     attrs.srcDims = srcMemPtr->getStaticDims();
     attrs.srcStrides = srcMemPtr->getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -149,7 +141,9 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
                                      static_cast<size_t>(1),
                                      std::multiplies<>())),
       idxBatchStride(cycles * sliceRank),
-      dstBatchStride(cycles * dataLength) {
+      dstBatchStride(cycles * dataLength),
+      batchDims(attrs.batchDims),
+      srcDims(attrs.srcDims) {
     srcShifts.resize(attrs.sliceRank, 0);
     for (size_t i = 0; i < attrs.sliceRank; i++) {
         srcShifts[i] = attrs.srcStrides[i + attrs.batchDims] * (dataLength > 1 ? dataSize : 1);
@@ -164,9 +158,7 @@ GatherND::GatherNDExecutor::GatherNDExecutor(const GatherNDAttributes& attrs)
 }
 
 void GatherND::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("has not compiled executor.");
-    }
+    CPU_NODE_ASSERT(execPtr, "has not compiled executor.");
 
     execPtr->exec(getSrcMemoryAtPort(GATHERND_DATA), getSrcMemoryAtPort(GATHERND_INDEXES), getDstMemoryAtPort(0));
 }
@@ -218,7 +210,8 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0LU;
                 for (size_t i = 0; i < sliceRank; i++) {
-                    dataIdx += srcShifts[i] * shiftedIndices[i];
+                    const int32_t index = HandleNegativeIndices(shiftedIndices, i);
+                    dataIdx += srcShifts[i] * index;
                 }
                 cpu_memcpy(shiftedDstData, &(shiftedSrcData[dataIdx]), dataLength);
                 shiftedDstData += dataLength;
@@ -260,7 +253,8 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0LU;
                 for (size_t i = 0LU; i < sliceRank; i++) {
-                    dataIdx += srcShifts[i] * shiftedIndices[i];
+                    const int32_t index = HandleNegativeIndices(shiftedIndices, i);
+                    dataIdx += srcShifts[i] * index;
                 }
                 shiftedDstData[0] = shiftedSrcData[dataIdx];
                 shiftedDstData++;
@@ -273,6 +267,14 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
             shiftedSrcData += srcBatchStride;
         }
     });
+}
+
+int32_t GatherND::GatherNDExecutor::HandleNegativeIndices(const int32_t* indices, size_t idx) const {
+    int32_t index = indices[idx];
+    if (index < 0) {
+        index += srcDims[idx + batchDims];
+    }
+    return index;
 }
 
 void GatherND::executeDynamicImpl(const dnnl::stream& strm) {

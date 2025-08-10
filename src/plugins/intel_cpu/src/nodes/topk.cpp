@@ -4,12 +4,9 @@
 
 #include "topk.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-#include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
@@ -24,11 +21,8 @@
 #include <utility>
 #include <vector>
 
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
-#include "emitters/plugin/x64/jit_emitter.hpp"
-#include "emitters/plugin/x64/jit_load_store_emitters.hpp"
 #include "graph_context.h"
 #include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -46,6 +40,17 @@
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+
+#    include "cpu/x64/jit_generator.hpp"
+#    include "emitters/plugin/x64/jit_emitter.hpp"
+#    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
+#endif
 
 using namespace dnnl;
 using namespace dnnl::impl;
@@ -94,16 +99,16 @@ static inline bool isFloatCompatible(memory::data_type type) {
 }
 
 template <cpu_isa_t isa>
-struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generator {
+struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_topk_kernel_f32)
 
     explicit jit_uni_topk_kernel_f32(jit_topk_config_params jcp)
         : jit_uni_topk_kernel(jcp),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -160,8 +165,8 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
 private:
     using Vmm =
         typename conditional3<isa == cpu::x64::sse41, Xbyak::Xmm, isa == cpu::x64::avx2, Xbyak::Ymm, Xbyak::Zmm>::type;
-    size_t vlen = cpu_isa_traits<isa>::vlen;
-    dnnl::memory::data_type data_type;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
+    dnnl::memory::data_type data_type = {};
     ov::element::Type precision_in_reg;
 
     Xbyak::Address table_val(int index) {
@@ -251,8 +256,8 @@ private:
 
     int blk_stride =
         0;  // stride of channel blocks at the same space coordinate, only used in blocked layout with topk on channel
-    unsigned char cmp_flg;
-    unsigned char heap_cmp_flg;
+    unsigned char cmp_flg = 0U;
+    unsigned char heap_cmp_flg = 0U;
 
     Xbyak::Label l_table;
 
@@ -1876,7 +1881,7 @@ private:
 
 bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v1::TopK::get_type_info_static(),
                     ov::op::v3::TopK::get_type_info_static(),
                     ov::op::v11::TopK::get_type_info_static())) {
@@ -1897,7 +1902,7 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             errorMessage = "Unsupported mode.";
             return false;
         }
-        if (!one_of(topKOp->get_sort_type(),
+        if (none_of(topKOp->get_sort_type(),
                     ov::op::TopKSortType::NONE,
                     ov::op::TopKSortType::SORT_VALUES,
                     ov::op::TopKSortType::SORT_INDICES)) {
@@ -1923,9 +1928,7 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
 
         if (!isDynamicNgraphNode(op)) {
             auto topKConst = ov::as_type_ptr<const ov::op::v0::Constant>(topKOp->get_input_node_shared_ptr(TOPK_K));
-            if (!topKConst) {
-                THROW_CPU_NODE_ERR("gets non-constant second tensor in static shape mode!");
-            }
+            CPU_NODE_ASSERT(topKConst, "gets non-constant second tensor in static shape mode!");
         }
 
         axis = topKOp->get_axis();
@@ -1945,28 +1948,22 @@ TopK::TopK(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
         vec_idx_seq.clear();
         vec_idx_block.clear();
 
-        if (inputShapes.size() != 2 || outputShapes.size() < 2) {
-            THROW_CPU_NODE_ERR("gets incorrect number of input/output edges!");
-        }
+        CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() >= 2,
+                        "gets incorrect number of input/output edges!");
 
-        if (getInputShapeAtPort(TOPK_DATA).getRank() != getOutputShapeAtPort(TOPK_DATA).getRank()) {
-            THROW_CPU_NODE_ERR("gets incorrect number of input/output dimensions!");
-        }
+        CPU_NODE_ASSERT(getInputShapeAtPort(TOPK_DATA).getRank() == getOutputShapeAtPort(TOPK_DATA).getRank(),
+                        "gets incorrect number of input/output dimensions!");
 
-        if (getInputShapeAtPort(TOPK_K).getRank() != 1) {
-            THROW_CPU_NODE_ERR("gets incorrect index vector dimension! Index vector should be 1 dimension.");
-        }
+        CPU_NODE_ASSERT(getInputShapeAtPort(TOPK_K).getRank() == 1,
+                        "gets incorrect index vector dimension! Index vector should be 1 dimension.");
 
-        if (out_dims != out_idx_dims) {
-            THROW_CPU_NODE_ERR("gets incorrect output tensor dimension sizes!");
-        }
+        CPU_NODE_ASSERT(out_dims == out_idx_dims, "gets incorrect output tensor dimension sizes!");
 
         if (axis < 0) {
             axis += in_dims_size;
         }
-        if (axis < 0 || axis >= static_cast<int>(in_dims_size)) {
-            THROW_CPU_NODE_ERR("gets incorrect input parameters dimensions and axis number!");
-        }
+        CPU_NODE_ASSERT(axis >= 0 && axis < static_cast<int>(in_dims_size),
+                        "gets incorrect input parameters dimensions and axis number!");
     } else {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
@@ -1979,16 +1976,18 @@ void TopK::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    impl_desc_type impl_type = [&]() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
 #if defined(OPENVINO_ARCH_X86_64)
     jit_mode = mayiuse(cpu::x64::sse41);
@@ -2014,12 +2013,11 @@ void TopK::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    std::vector<std::pair<LayoutType, LayoutType>> dataFomats {
-        {LayoutType::ncsp, LayoutType::ncsp},
+    std::vector<std::pair<LayoutType, LayoutType>> dataFomats{{LayoutType::ncsp, LayoutType::ncsp},
 #if defined(OPENVINO_ARCH_X86_64)
-            {LayoutType::nspc, LayoutType::nspc}, {LayoutType::nCsp16c, LayoutType::nCsp16c}, {
-            LayoutType::nCsp8c, LayoutType::nCsp8c
-        }
+                                                              {LayoutType::nspc, LayoutType::nspc},
+                                                              {LayoutType::nCsp16c, LayoutType::nCsp16c},
+                                                              {LayoutType::nCsp8c, LayoutType::nCsp8c}
 #endif
     };
 
@@ -2072,24 +2070,16 @@ void TopK::preset_params() {
 void TopK::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(TOPK_DATA);
     auto srcMemPtr = getSrcMemoryAtPort(TOPK_DATA);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined destination memory.");
-    }
-    if (!srcMemPtr || !srcMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has nullable preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory.");
+    CPU_NODE_ASSERT(srcMemPtr && srcMemPtr->isDefined(), "has undefined input memory.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has nullable preferable primitive descriptor");
 
     src_dims = srcMemPtr->getDesc().getShape().getDims();
     dst_dims = dstMemPtr->getDesc().getShape().getDims();
 
     if (isDynamicNode()) {
         const int src_k = getSrcDataAtPortAs<int>(TOPK_K)[0];
-        if (static_cast<size_t>(src_k) > src_dims[axis]) {
-            THROW_CPU_NODE_ERR("gets top_k out of range!");
-        }
+        CPU_NODE_ASSERT(static_cast<size_t>(src_k) <= src_dims[axis], "gets top_k out of range!");
         if (top_k != src_k) {
             top_k = src_k;
         }
@@ -2149,8 +2139,7 @@ void TopK::prepareParams() {
 
         prepare_original_idx();
     } else {  // reference mode
-        int j;
-        for (j = src_dims.size() - 1; j >= 0; j--) {
+        for (int j = src_dims.size() - 1; j >= 0; j--) {
             if (src_dims[j] != 1) {
                 break;
             }
@@ -2253,7 +2242,7 @@ void TopK::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto* out_idx_ptr = reinterpret_cast<int32_t*>(dst_idx);
             topk_ref(in_ptr, out_ptr, out_idx_ptr);
         } else {
-            THROW_CPU_NODE_ERR("only support plain layout on machine w/o sse42.");
+            CPU_NODE_THROW("only support plain layout on machine w/o sse42.");
         }
     }
 }
@@ -2460,7 +2449,13 @@ void TopK::calc_dims_size(const VectorDims& layout_dims) {
     A = src_dims[axis];
     int layout_axis = axis;
     if (layout == TopKLayoutType::topk_nspc) {
-        layout_axis = axis == 0 ? 0 : (axis == 1 ? static_cast<int>(layout_dims.size() - 1) : axis - 1);
+        if (axis == 0) {
+            layout_axis = 0;
+        } else if (axis == 1) {
+            layout_axis = static_cast<int>(layout_dims.size() - 1);
+        } else {
+            layout_axis = axis - 1;
+        }
     }
 
     for (int i = 0; i < layout_axis; i++) {
@@ -2496,16 +2491,14 @@ void TopK::topk_ref_process(const float* src_data,
     parallel_for2d(before_num, after_num, [&](int i0, int i1) {
         std::vector<float> max_values(top_k + 1);
         std::vector<int> max_indexes(top_k + 1);
-        float tmp_value;
-        int tmp_index;
         int s_index = i0 * dim * after_num + i1;
 
         auto swap_func = [&](int index1, int index2) {
-            tmp_value = max_values[index1];
+            float tmp_value = max_values[index1];
             max_values[index1] = max_values[index2];
             max_values[index2] = tmp_value;
 
-            tmp_index = max_indexes[index1];
+            int tmp_index = max_indexes[index1];
             max_indexes[index1] = max_indexes[index2];
             max_indexes[index2] = tmp_index;
         };

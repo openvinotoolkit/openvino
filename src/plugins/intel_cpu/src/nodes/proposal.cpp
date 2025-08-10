@@ -9,6 +9,7 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "cpu_types.h"
@@ -47,15 +48,16 @@ static std::vector<float> generate_anchors(proposal_conf& conf) {
     // enumerate all transformed boxes
     for (size_t ratio = 0; ratio < num_ratios; ++ratio) {
         // transformed width & height for given ratio factors
-        float ratio_w;
-        float ratio_h;
-        if (round_ratios) {
-            ratio_w = std::roundf(std::sqrt(base_area / ratios[ratio]));
-            ratio_h = std::roundf(ratio_w * ratios[ratio]);
-        } else {
-            ratio_w = std::sqrt(base_area / ratios[ratio]);
-            ratio_h = ratio_w * ratios[ratio];
-        }
+        const auto [ratio_w, ratio_h] = [&]() {
+            if (round_ratios) {
+                float rw = std::roundf(std::sqrt(base_area / ratios[ratio]));
+                float rh = std::roundf(rw * ratios[ratio]);
+                return std::make_pair(rw, rh);
+            }
+            float rw = std::sqrt(base_area / ratios[ratio]);
+            float rh = rw * ratios[ratio];
+            return std::make_pair(rw, rh);
+        }();
 
         float* const p_anchors_wm = anchors_ptr + 0 * num_ratios * num_scales + ratio * num_scales;
         float* const p_anchors_hm = anchors_ptr + 1 * num_ratios * num_scales + ratio * num_scales;
@@ -190,14 +192,14 @@ void Proposal::execute([[maybe_unused]] const dnnl::stream& strm) {
         const float imgHeight = imgInfoData[0];
         const float imgWidth = imgInfoData[1];
         if (!std::isnormal(imgHeight) || !std::isnormal(imgWidth) || (imgHeight < 0.F) || (imgWidth < 0.F)) {
-            THROW_CPU_NODE_ERR("image info input must have positive image height and width.");
+            CPU_NODE_THROW("image info input must have positive image height and width.");
         }
 
         // scale factor for height & width
         const float scaleHeight = imgInfoData[2];
         const float scaleWidth = imgInfoSize == 4 ? imgInfoData[3] : scaleHeight;
         if (!std::isfinite(scaleHeight) || !std::isfinite(scaleWidth) || (scaleHeight < 0.F) || (scaleWidth < 0.F)) {
-            THROW_CPU_NODE_ERR("image info input must have non negative scales.");
+            CPU_NODE_THROW("image info input must have non negative scales.");
         }
 
         ov::Extensions::Cpu::XARCH::proposal_exec(probabilitiesData,
@@ -210,7 +212,7 @@ void Proposal::execute([[maybe_unused]] const dnnl::stream& strm) {
                                                   outProbData,
                                                   conf);
     } catch (const ov::Exception& e) {
-        THROW_CPU_NODE_ERR(e.what());
+        CPU_NODE_THROW(e.what());
     }
 }
 

@@ -26,7 +26,7 @@ namespace ov::intel_cpu {
 
 class jit_brgemm_emitter : public jit_binary_call_emitter {
 public:
-    jit_brgemm_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_brgemm_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr,
                        const snippets::KernelExecutorTablePtr& kernel_table,
@@ -47,9 +47,9 @@ private:
 
     // Note: offsets order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if offset is calculated in
     // runtime
-    std::vector<size_t> m_memory_offsets{};
+    std::vector<size_t> m_memory_offsets;
     // Note: cluster ids order: A, B, C (+ scratchpad, if needed). Values can be dynamic_value if there is no buffer
-    std::vector<size_t> m_buffer_ids{};
+    std::vector<size_t> m_buffer_ids;
     std::shared_ptr<x64::BrgemmBaseKernelExecutor> m_kernel_executor = nullptr;
     std::optional<size_t> m_binary_postops_offset = std::nullopt;
 

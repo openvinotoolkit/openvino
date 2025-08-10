@@ -12,19 +12,18 @@
 #include "memory_desc/cpu_blocked_memory_desc.h"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class ArbitraryOrderDescCreator : public BlockedDescCreator {
 public:
-    ArbitraryOrderDescCreator(VectorDims order);
+    explicit ArbitraryOrderDescCreator(VectorDims order);
 
-    CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision, const Shape& srcShape) const override;
-    size_t getMinimalRank() const override;
+    [[nodiscard]] CpuBlockedMemoryDesc createDesc(const ov::element::Type& precision,
+                                                  const Shape& srcShape) const override;
+    [[nodiscard]] size_t getMinimalRank() const override;
 
 private:
     VectorDims m_order;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

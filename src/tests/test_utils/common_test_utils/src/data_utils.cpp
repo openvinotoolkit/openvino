@@ -6,7 +6,6 @@
 
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "precomp.hpp"
 
 namespace ov {
 namespace test {

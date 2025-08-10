@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <atomic>
@@ -15,11 +15,12 @@
 #include <memory>
 #include <vector>
 
-#include "../scaled_attn/executor_pa_common.hpp"
 #include "cpu/x64/jit_generator.hpp"
+#include "nodes/kernels/scaled_attn/executor_pa_common.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 // register blocking size for K dimension (1x2 AMX B-tiles)
@@ -55,19 +56,19 @@ private:
     void* last_cfg = nullptr;
 };
 
-enum class TMUL_TYPE { SSD = 1, USD = 2, SUD = 3, UUD = 4, FP16 = 5, BF16 = 6 };
+enum class TMUL_TYPE : uint8_t { SSD = 1, USD = 2, SUD = 3, UUD = 4, FP16 = 5, BF16 = 6 };
 
-class MKernel : public dnnl::impl::cpu::x64::jit_generator {
+class MKernel : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(MKernel)
 
-    int m_prefetch_Blines;
+    int m_prefetch_Blines = 0;
     const TMUL_TYPE m_tmul_type;
     int m_tile_reg_ksize;
     int m_M_hint;
 
-    MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator("MKernel"), m_tmul_type(tmul_type), m_M_hint(M_hint) {
-        if (m_tmul_type == TMUL_TYPE::FP16 || m_tmul_type == TMUL_TYPE::BF16) {
+    MKernel(int M_hint, TMUL_TYPE tmul_type) : jit_generator_t("MKernel"), m_tmul_type(tmul_type), m_M_hint(M_hint) {
+        if (any_of(m_tmul_type, TMUL_TYPE::FP16, TMUL_TYPE::BF16)) {
             m_tile_reg_ksize = 32;
         } else {
             m_tile_reg_ksize = 64;
@@ -131,7 +132,7 @@ public:
     static void tile_config_M(ov::Extensions::Cpu::TileConfig& tile_cfg, int M);
 
     // to save push/pop: do not use `abi_save_gpr_regs`
-    uint8_t* prefetch_next_A_addr;
+    uint8_t* prefetch_next_A_addr = nullptr;
 
     struct call_args {
         const uint8_t* pA;  // bfloat16/int8
@@ -149,22 +150,32 @@ public:
     // and two neighboring B-tiles in same row are grouped as a pair (B0-B1), and all such pairs are arranged in [nN,
     // nK] shape
     struct BMatrix {
-        uint8_t* ptr;
+        uint8_t* ptr = nullptr;
         // Bpair is two 1KB sub-matrixes repacked in AMX-Btile layout
         const size_t Bpair_size = 2048;
-        size_t Bpair_rows;
-        size_t Bpair_cols;
+        size_t Bpair_rows = 0UL;
+        size_t Bpair_cols = 0UL;
 
         // convert
         template <typename Tdst>
-        void setup(Tdst* ext_buff, ov::float16* p_weight, int stride, int N, int K);
+        void setup(Tdst* ext_buff, ov::float16* p_weight, int weight_stride_in_bytes, int N, int K);
 
-        void setup(int8_t* ext_buff, int8_t* p_weight, int stride, int N, int K);
+        void setup(int8_t* ext_buff, int8_t* p_weight, int weight_stride_in_bytes, int N, int K);
         // two B tiles in each pair (B0 & B1) comes from different raw weight matrix
         template <typename Tdst>
-        void setup(Tdst* ext_buff, ov::float16* p_weight_B0, ov::float16* p_weight_B1, int stride, int N, int K);
+        void setup(Tdst* ext_buff,
+                   ov::float16* p_weight_B0,
+                   ov::float16* p_weight_B1,
+                   int weight_stride_in_bytes,
+                   int N,
+                   int K);
 
-        void setup(int8_t* ext_buff, int8_t* p_weight_B0, int8_t* p_weight_B1, int stride, int N, int K);
+        void setup(int8_t* ext_buff,
+                   int8_t* p_weight_B0,
+                   int8_t* p_weight_B1,
+                   int weight_stride_in_bytes,
+                   int N,
+                   int K);
     };
 
     // run L2 cache blocking kernel with size:
@@ -197,16 +208,16 @@ struct Work {
     int k1 = 0;
     int BN = 0;
     int blk_K_size = 0;
-    int output_id;
-    void* p_raw_weights;
-    operator bool() {
+    int output_id = 0;
+    void* p_raw_weights = nullptr;
+    explicit operator bool() const {
         return BN > 0;
     }
 
     bool quant_i8 = false;
     bool is_f16 = false;
 
-    MKernel& get_MKernel() {
+    [[nodiscard]] MKernel& get_MKernel() const {
         constexpr int BM = 256;
         static MKernel jit_amx_bf16(BM, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(BM, TMUL_TYPE::FP16);
@@ -220,7 +231,7 @@ struct Work {
         return jit_amx_bf16;
     }
 
-    MKernel& get_MKernel_1x2() {
+    [[nodiscard]] MKernel& get_MKernel_1x2() const {
         static MKernel jit_amx_bf16(16, TMUL_TYPE::BF16);
         static MKernel jit_amx_f16(16, TMUL_TYPE::FP16);
         static MKernel jit_amx_i8(16, TMUL_TYPE::SSD);
@@ -236,7 +247,6 @@ struct Work {
     // input : weight [N, K], setup repacks range of N [n_start, n_end)
     template <typename Tsrc, typename Tdst>
     void setup(Tdst* dst, Tsrc* p_weight, int stride_in_bytes, bool do_sum_per_oc = false) {
-        auto& mkernel = get_MKernel();
         auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
         auto* pw = p_weight + n0 * stride_in_bytes / sizeof(Tsrc);
 
@@ -264,7 +274,7 @@ struct Work {
         }
 
         for (int Mtails = 0; Mtails < 32; Mtails++) {
-            mkernel.tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
+            ov::intel_cpu::MKernel::tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
         }
     }
 
@@ -272,7 +282,6 @@ struct Work {
     // in each Bpair, p_weight1 stored in B0, p_weight2 stored in B1
     template <typename Tsrc, typename Tdst>
     void setup(Tdst* dst, Tsrc* p_weight1, Tsrc* p_weight2, int stride_in_bytes, bool do_sum_per_oc = false) {
-        auto& mkernel = get_MKernel();
         auto num_blk_K = (k1 - k0 + blk_K_size - 1) / blk_K_size;
         auto* pw1 = p_weight1 + (n0 / 2) * stride_in_bytes / sizeof(Tsrc);
         auto* pw2 = p_weight2 + (n0 / 2) * stride_in_bytes / sizeof(Tsrc);
@@ -312,11 +321,11 @@ struct Work {
         }
 
         for (int Mtails = 0; Mtails < 32; Mtails++) {
-            mkernel.tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
+            ov::intel_cpu::MKernel::tile_config_M(m_tcfg[Mtails], Mtails == 0 ? 32 : Mtails);
         }
     }
 
-    ov::Extensions::Cpu::TileConfig m_tcfg[32];
+    ov::Extensions::Cpu::TileConfig m_tcfg[32]{};
     AutoTileConfiger m_tile_configer;
 
     PlainTensor m_C;
@@ -340,7 +349,7 @@ struct Work {
 
         auto C_stride_bytes = BN * sizeof(float);
         OPENVINO_ASSERT(C_M * C_stride_bytes <= m_C.stride_bytes(0) * m_C.size(0));
-        auto pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
+        auto* pC = reinterpret_cast<uint8_t*>(m_C.ptr_v());
 
         auto element_size = quant_i8 ? sizeof(int8_t) : sizeof(ov::bfloat16);
 
@@ -389,8 +398,8 @@ struct Work {
             // else
             //      firstK: 0 1 0(skip store, tilezero, skip load), the otherK except last: 0 0 0(skip all),
             //      lastK: 1 0 0(store, skip tile zero, skip load)
-            int do_accumulation;
-            MKernel::call_args args;
+            int do_accumulation = 0;
+            MKernel::call_args args{};
             args.strideA = strideA;
             args.strideC = C_stride_bytes;
             args.M = Mtails;
@@ -447,7 +456,7 @@ struct ScratchBuffAllocator {
         m_total_size += size;
         m_sizes.push_back(size);
     }
-    size_t size() {
+    [[nodiscard]] size_t size() const {
         return m_total_size;
     }
     void finalize(void* base) {
@@ -461,21 +470,21 @@ struct ScratchBuffAllocator {
 
 struct MatrixDynQuantPerRow {
     // M x K
-    int M;
-    int K;
-    int8_t* data;
-    float* scale;
-    float* zp;
+    int M = 0;
+    int K = 0;
+    int8_t* data = nullptr;
+    float* scale = nullptr;
+    float* zp = nullptr;
     bool asym = true;
 
     MatrixDynQuantPerRow() = default;
 
-    size_t size() {
+    [[nodiscard]] size_t size() const {
         // size of data & scale & zp
         return M * K + M * sizeof(float) * 2;
     }
 
-    size_t stride() {
+    [[nodiscard]] size_t stride() const {
         return K;
     }
 
@@ -491,7 +500,7 @@ struct MatrixDynQuantPerRow {
 
 // combine gate_proj & up_proj using activation algo, then convert to bf16
 //     ConvertFP32toBF16(act_fn(gate) * up)
-class GateUpCombine : public dnnl::impl::cpu::x64::jit_generator {
+class GateUpCombine : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(GateUpCombine)
 
@@ -499,7 +508,7 @@ public:
     const bool m_to_f16;
 
     GateUpCombine(dnnl_alg_kind_t act_alg, bool to_f16)
-        : jit_generator(jit_name()),
+        : jit_generator_t(jit_name()),
           m_act_alg(act_alg),
           m_to_f16(to_f16) {
         create_kernel();
@@ -527,13 +536,16 @@ public:
     }
 };
 
-class ReduceAdd2bh : public dnnl::impl::cpu::x64::jit_generator {
+class ReduceAdd2bh : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(ReduceAdd2bh)
 
     const bool m_do_reduce2;
     const bool m_to_f16;
-    ReduceAdd2bh(bool do_reduce2, bool to_f16) : jit_generator(jit_name()), m_do_reduce2(do_reduce2), m_to_f16(to_f16) {
+    ReduceAdd2bh(bool do_reduce2, bool to_f16)
+        : jit_generator_t(jit_name()),
+          m_do_reduce2(do_reduce2),
+          m_to_f16(to_f16) {
         create_kernel();
     }
 
@@ -549,7 +561,7 @@ public:
     // add two float input eltwise and convert to bf16 : ConvertFP32toBF16(src0 + src1)
     void
     call(float* src0, float* src1, size_t src_stride, void* pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
-        CallArgs args;
+        CallArgs args{};
         args.src0 = src0;
         args.src1 = src1;
         args.dst = reinterpret_cast<int16_t*>(pf16_dst);
@@ -565,7 +577,7 @@ public:
 
     // convert tensor to bf16: ConvertFP32toBF16(src0)
     void call(float* src0, size_t src_stride, void* pf16_dst, size_t dst_stride, int num_rows, int num_cols) {
-        CallArgs args;
+        CallArgs args{};
         args.src0 = src0;
         args.dst = reinterpret_cast<int16_t*>(pf16_dst);
         args.num_cols = num_cols;

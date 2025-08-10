@@ -9,11 +9,13 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstddef>
 #include <exception>
+#include <memory>
 #include <random>
 #include <thread>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_infer_request/inference.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
@@ -138,7 +140,6 @@ TEST_P(InferRequestRunTests, AllocatorCanDisposeBlobWhenOnlyInferRequestIsInScop
             ov::test::utils::PluginCache::get().reset();
         }
     }
-    std::cout << "Plugin should be unloaded from memory at this point" << std::endl;
 }
 
 TEST_P(InferRequestRunTests, MultipleExecutorStreamsTestsSyncInfers) {
@@ -1051,6 +1052,66 @@ TEST_P(BatchingRunSeqTests, CheckMultipleBatchingRunsSeq) {
     }
 }
 
+using DynamicBatchingRunSeqTests = InferRequestRunTests;
+
+TEST_P(DynamicBatchingRunSeqTests, DynamicCheckMultipleBatchingRunsSeq) {
+    auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 64, 64};
+    auto shape = Shape{4, 2, 64, 64};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, modelShape, "N...");
+
+    auto context = core->get_default_context(target_device);
+
+    configuration[ov::intel_npu::run_inferences_sequentially.name()] = true;
+    configuration[ov::intel_npu::tiles.name()] = 2;
+    compiled_model = core->compile_model(model, target_device, configuration);
+
+    const uint32_t inferences = 32;
+    std::array<ov::InferRequest, inferences> inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
+
+    input_tensor = context.create_host_tensor(ov::element::f32, shape);
+    for (uint32_t i = 0; i < inferences; i++) {
+        inference_request[i] = compiled_model.create_infer_request();
+        output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
+    }
+
+    inference_request[0].set_input_tensor(input_tensor);
+    inference_request[0].set_output_tensor(output_tensor[0]);
+
+    const uint32_t runs = 10;
+    for (uint32_t z = 0; z < runs; z++) {
+        auto* input_data = reinterpret_cast<float*>(input_tensor.data());
+        for (size_t i = 0; i < shape_size; ++i) {
+            input_data[i] = static_cast<float>(z);
+        }
+
+        inference_request[0].start_async();  // Adds '1' to each element
+
+        for (uint32_t i = 1; i < inferences; i++) {
+            inference_request[i].set_input_tensor(output_tensor[i - 1]);
+            inference_request[i].set_output_tensor(output_tensor[i]);
+
+            inference_request[i].start_async();  // Adds '1' to each element
+        }
+
+        inference_request[inferences - 1].wait();
+
+        float expected_result = static_cast<float>(z) + 1.f;
+
+        for (uint32_t i = 0; i < inferences; i++) {
+            auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+            for (size_t j = 0; j < shape_size; ++j) {
+                EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                    << "Run=" << z << "Output=" << i << " Expected=" << expected_result
+                    << ", actual=" << output_tensor_data[j] << " for index " << j;
+            }
+            expected_result++;
+        }
+    }
+}
+
 using ROITensorInference = OVInferRequestInferenceTests;
 
 TEST_P(ROITensorInference, InferenceROITensor) {
@@ -1232,6 +1293,409 @@ TEST_P(SetShapeInferRunTests, checkResultsAfterStateTensorsReallocation) {
             EXPECT_NEAR(input_data[i], last_state_data[i], 1e-5);
         }
     }
+}
+
+using CpuVaTensorsTests = InferRequestRunTests;
+
+TEST_P(CpuVaTensorsTests, SetMultiplePageAllignedTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+
+    const int inferences = 32;
+    ov::InferRequest inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
+
+    float* input_data;
+    float* output_data[inferences];
+
+    const auto input_byte_size = shape_size * sizeof(float);
+    input_data = static_cast<float*>(::operator new(input_byte_size, std::align_val_t(4096)));
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 0.f;
+    }
+    input_tensor = ov::Tensor{ov::element::f32, shape, input_data};
+
+    inference_request = compiled_model.create_infer_request();
+
+    for (int i = 0; i < inferences; i++) {
+        auto tensor = inference_request.get_output_tensor(0);
+        const auto byte_size = tensor.get_byte_size();
+
+        output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+        output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
+    }
+
+    inference_request.set_input_tensor(input_tensor);
+    inference_request.set_output_tensor(output_tensor[0]);
+
+    inference_request.infer();  // Adds '1' to each element
+
+    for (int i = 1; i < inferences; i++) {
+        inference_request.set_output_tensor(output_tensor[i]);
+        inference_request.set_input_tensor(output_tensor[i - 1]);
+
+        inference_request.infer();  // Adds '1' to each element
+    }
+
+    float expected_result = 1.f;
+
+    for (int i = 0; i < inferences; i++) {
+        auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+        EXPECT_EQ(output_tensor_data, output_data[i]);
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
+                << " for index " << j;
+        }
+        expected_result++;
+    }
+
+    ::operator delete(input_data, std::align_val_t(4096));
+    for (int i = 0; i < inferences; i++) {
+        ::operator delete(output_data[i], std::align_val_t(4096));
+    }
+}
+
+TEST_P(CpuVaTensorsTests, SetMultipleAllignedAndNotAllignedTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+
+    const int inferences = 32;
+    ov::InferRequest inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
+
+    float* input_data;
+    float* output_data[inferences];
+
+    const auto input_byte_size = shape_size * sizeof(float);
+    input_data = static_cast<float*>(::operator new(input_byte_size, std::align_val_t(4096)));
+    input_tensor = ov::Tensor{ov::element::f32, shape, input_data};
+
+    inference_request = compiled_model.create_infer_request();
+    for (int i = 0; i < inferences; i++) {
+        auto tensor = inference_request.get_output_tensor(0);
+        const auto byte_size = tensor.get_byte_size();
+
+        if (i % 2 == 0) {
+            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(16)));
+        } else {
+            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+        }
+        output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
+    }
+
+    inference_request.set_input_tensor(input_tensor);
+    inference_request.set_output_tensor(output_tensor[0]);
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 0.f;
+    }
+
+    inference_request.infer();  // Adds '1' to each element
+
+    for (int i = 1; i < inferences; i++) {
+        inference_request.set_output_tensor(output_tensor[i]);
+        inference_request.set_input_tensor(output_tensor[i - 1]);
+
+        inference_request.infer();  // Adds '1' to each element
+    }
+
+    float expected_result = 1.f;
+
+    for (int i = 0; i < inferences; i++) {
+        auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
+                << " for index " << j;
+        }
+        expected_result++;
+    }
+
+    ::operator delete(input_data, std::align_val_t(4096));
+    for (int i = 0; i < inferences; i++) {
+        if (i % 2 == 0) {
+            ::operator delete(output_data[i], std::align_val_t(16));
+        } else {
+            ::operator delete(output_data[i], std::align_val_t(4096));
+        }
+    }
+}
+
+TEST_P(CpuVaTensorsTests, SetMultipleRemoteAllignedAndNotAllignedTensors) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    auto context = core->get_default_context(target_device);
+    compiled_model = core->compile_model(model, target_device, configuration);
+
+    const int inferences = 32;
+    ov::InferRequest inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
+
+    float* input_data;
+    float* output_data[inferences];
+
+    const auto input_byte_size = shape_size * sizeof(float);
+    input_data = static_cast<float*>(::operator new(input_byte_size, std::align_val_t(16)));
+    input_tensor = ov::Tensor{ov::element::f32, shape, input_data};
+
+    inference_request = compiled_model.create_infer_request();
+    for (int i = 0; i < inferences; i++) {
+        auto tensor = inference_request.get_output_tensor(0);
+        const auto byte_size = tensor.get_byte_size();
+
+        if (i % 4 == 0) {
+            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(16)));
+            output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
+        } else if (i % 4 == 1) {
+            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+            output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
+        } else if (i % 4 == 2) {
+            output_tensor[i] = context.create_host_tensor(ov::element::f32, shape);
+        } else if (i % 4 == 3) {
+            output_data[i] = static_cast<float*>(::operator new(byte_size, std::align_val_t(4096)));
+            output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape(), output_data[i]};
+        }
+    }
+
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = 0.f;
+    }
+
+    inference_request.set_input_tensor(input_tensor);
+    inference_request.set_output_tensor(output_tensor[0]);
+
+    inference_request.infer();  // Adds '1' to each element
+
+    for (int i = 1; i < inferences; i++) {
+        inference_request.set_output_tensor(output_tensor[i]);
+        inference_request.set_input_tensor(output_tensor[i - 1]);
+
+        inference_request.infer();  // Adds '1' to each element
+    }
+
+    float expected_result = 1.f;
+
+    for (int i = 0; i < inferences; i++) {
+        auto* output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
+                << " for index " << j;
+        }
+        expected_result++;
+    }
+
+    ::operator delete(input_data, std::align_val_t(16));
+    for (int i = 0; i < inferences; i++) {
+        if (i % 4 == 0) {
+            ::operator delete(output_data[i], std::align_val_t(16));
+        } else if (i % 4 == 1) {
+            ::operator delete(output_data[i], std::align_val_t(4096));
+        } else if (i % 4 == 3) {
+            ::operator delete(output_data[i], std::align_val_t(4096));
+        }
+    }
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa0) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    testing::internal::Random random(1);
+    ov::Tensor input_tensor;
+
+    auto original_shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModelWithStates(element::f32, original_shape);
+
+    auto context = core->get_default_context(target_device);
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input = compiled_model.input();
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(random.Generate(10));
+    }
+
+    float* state_data[3];
+    ov::Tensor state_tensor[3];
+
+    auto states = inference_request.query_state();
+
+    auto get_tensor_state = states[0].get_state();
+    auto tensor_state_shape = get_tensor_state.get_shape();
+    auto l0_host_tensor = context.create_host_tensor(ov::element::f32, tensor_state_shape);
+    states[0].set_state(l0_host_tensor);
+
+    get_tensor_state = states[1].get_state();
+    tensor_state_shape = get_tensor_state.get_shape();
+    auto state_byte_size = ov::shape_size(tensor_state_shape) * sizeof(float);
+    state_data[0] = static_cast<float*>(::operator new(state_byte_size, std::align_val_t(4096)));
+    state_tensor[0] = ov::Tensor{ov::element::f32, tensor_state_shape, state_data[0]};
+    states[1].set_state(state_tensor[0]);
+
+    for (auto&& state : states) {
+        state.reset();
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_tensor("sigmod_state");
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); i++) {
+        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+    }
+
+    states = inference_request.query_state();
+
+    get_tensor_state = states[0].get_state();
+    tensor_state_shape = get_tensor_state.get_shape();
+    state_byte_size = ov::shape_size(tensor_state_shape) * sizeof(float);
+    state_data[1] = static_cast<float*>(::operator new(state_byte_size, std::align_val_t(4096)));
+    state_tensor[1] = ov::Tensor{ov::element::f32, tensor_state_shape, state_data[1]};
+    states[0].set_state(state_tensor[1]);
+
+    get_tensor_state = states[1].get_state();
+    tensor_state_shape = get_tensor_state.get_shape();
+    state_byte_size = ov::shape_size(tensor_state_shape) * sizeof(float);
+    state_data[2] = static_cast<float*>(::operator new(state_byte_size, std::align_val_t(64)));
+    state_tensor[2] = ov::Tensor{ov::element::f32, tensor_state_shape, state_data[2]};
+    states[1].set_state(state_tensor[2]);
+
+    for (size_t i = 0; i < states[0].get_state().get_size(); ++i) {
+        state_data[1][i] = 1.0f;
+    }
+    for (size_t i = 0; i < states[1].get_state().get_size(); ++i) {
+        state_data[2][i] = 1.0f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto get_state_data = static_cast<float*>(l0_host_tensor.data());
+    for (size_t i = 0; i < get_tensor_state.get_size(); ++i) {
+        EXPECT_NEAR(0.0, get_state_data[i], 1e-5);
+        EXPECT_NEAR(0.0, state_data[0][i], 1e-5);
+
+        EXPECT_NEAR(input_data[i], state_data[1][i], 1e-5);
+        EXPECT_NEAR(input_data[i], state_data[2][i], 1e-5);
+    }
+
+    ::operator delete(state_data[0], std::align_val_t(4096));
+    ::operator delete(state_data[1], std::align_val_t(4096));
+    ::operator delete(state_data[2], std::align_val_t(64));
+}
+
+TEST_P(CpuVaTensorsTests, checkResultsAfterStateTensorsUseImportCpuVa1) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    testing::internal::Random random(1);
+    ov::Tensor input_tensor;
+
+    auto original_shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(original_shape);
+    auto model = createModelWithStates(element::f32, original_shape);
+
+    auto context = core->get_default_context(target_device);
+
+    compiled_model = core->compile_model(model, target_device, configuration);
+    ov::InferRequest inference_request;
+    inference_request = compiled_model.create_infer_request();
+
+    auto input = compiled_model.input();
+    OV_ASSERT_NO_THROW(input_tensor = inference_request.get_tensor(input));
+    auto* input_data = input_tensor.data<float>();
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_data[i] = static_cast<float>(random.Generate(10));
+    }
+
+    float* state_data[3];
+    ov::Tensor state_tensor[3];
+
+    auto states = inference_request.query_state();
+
+    auto get_tensor_state = states[0].get_state();
+    auto tensor_state_shape = get_tensor_state.get_shape();
+    auto l0_host_tensor = context.create_host_tensor(ov::element::f32, tensor_state_shape);
+    states[0].set_state(l0_host_tensor);
+
+    get_tensor_state = states[1].get_state();
+    tensor_state_shape = get_tensor_state.get_shape();
+    auto state_byte_size = ov::shape_size(tensor_state_shape) * sizeof(float);
+
+    state_data[0] = static_cast<float*>(::operator new(state_byte_size, std::align_val_t(4096)));
+    state_tensor[0] = ov::Tensor{ov::element::f32, tensor_state_shape, state_data[0]};
+    states[1].set_state(state_tensor[0]);
+
+    for (auto&& state : states) {
+        state.reset();
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_tensor("sigmod_state");
+    auto output_data = output_tensor.data<float>();
+    for (size_t i = 0; i < output_tensor.get_size(); i++) {
+        EXPECT_NEAR(0.5f, output_data[i], 1e-5);
+    }
+
+    states = inference_request.query_state();
+
+    get_tensor_state = states[0].get_state();
+    tensor_state_shape = get_tensor_state.get_shape();
+    state_byte_size = ov::shape_size(tensor_state_shape) * sizeof(float);
+    state_data[1] = static_cast<float*>(::operator new(state_byte_size, std::align_val_t(64)));
+    state_tensor[1] = ov::Tensor{ov::element::f32, tensor_state_shape, state_data[1]};
+    states[0].set_state(state_tensor[1]);
+
+    get_tensor_state = states[1].get_state();
+    tensor_state_shape = get_tensor_state.get_shape();
+    state_byte_size = ov::shape_size(tensor_state_shape) * sizeof(float);
+    state_data[2] = static_cast<float*>(::operator new(state_byte_size, std::align_val_t(4096)));
+    state_tensor[2] = ov::Tensor{ov::element::f32, tensor_state_shape, state_data[2]};
+    states[1].set_state(state_tensor[2]);
+
+    for (size_t i = 0; i < states[0].get_state().get_size(); ++i) {
+        state_data[1][i] = 1.0f;
+    }
+    for (size_t i = 0; i < states[1].get_state().get_size(); ++i) {
+        state_data[2][i] = 1.0f;
+    }
+
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto get_state_data = static_cast<float*>(l0_host_tensor.data());
+    for (size_t i = 0; i < get_tensor_state.get_size(); ++i) {
+        EXPECT_NEAR(0.0, get_state_data[i], 1e-5);
+        EXPECT_NEAR(0.0, state_data[0][i], 1e-5);
+
+        EXPECT_NEAR(input_data[i], state_data[1][i], 1e-5);
+        EXPECT_NEAR(input_data[i], state_data[2][i], 1e-5);
+    }
+
+    ::operator delete(state_data[0], std::align_val_t(4096));
+    ::operator delete(state_data[1], std::align_val_t(64));
+    ::operator delete(state_data[2], std::align_val_t(4096));
 }
 
 }  // namespace behavior

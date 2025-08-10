@@ -85,12 +85,12 @@ ShuffleChannels::ShuffleChannels(const std::shared_ptr<ov::Node>& op, const Grap
     }
 
     if (inputShapes.size() != 1 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges.");
+        CPU_NODE_THROW("has incorrect number of input/output edges.");
     }
 
     auto shuffleChannels = ov::as_type_ptr<const ov::op::v0::ShuffleChannels>(op);
     attrs.group = shuffleChannels->get_group();
-    attrs.axis = shuffleChannels->get_axis();
+    attrs.axis = static_cast<int>(shuffleChannels->get_axis());
     attrs.dataRank = getInputShapeAtPort(0).getRank();
     if (attrs.axis < 0) {
         attrs.axis += attrs.dataRank;
@@ -105,19 +105,21 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
     ov::element::Type precision = getOriginalInputPrecisionAtPort(0);
     const std::set<size_t> supported_precision_sizes = {1, 2, 4, 8, 16};
     if (supported_precision_sizes.find(precision.size()) == supported_precision_sizes.end()) {
-        THROW_CPU_NODE_ERR("has unsupported precision: ", precision.get_type_name());
+        CPU_NODE_THROW("has unsupported precision: ", precision.get_type_name());
     }
 
-    impl_desc_type impl_type;
-    if (mayiuse(cpu::x64::avx512_core)) {
-        impl_type = impl_desc_type::jit_avx512;
-    } else if (mayiuse(cpu::x64::avx2)) {
-        impl_type = impl_desc_type::jit_avx2;
-    } else if (mayiuse(cpu::x64::sse41)) {
-        impl_type = impl_desc_type::jit_sse42;
-    } else {
-        impl_type = impl_desc_type::ref;
-    }
+    auto impl_type = []() {
+        if (mayiuse(cpu::x64::avx512_core)) {
+            return impl_desc_type::jit_avx512;
+        }
+        if (mayiuse(cpu::x64::avx2)) {
+            return impl_desc_type::jit_avx2;
+        }
+        if (mayiuse(cpu::x64::sse41)) {
+            return impl_desc_type::jit_sse42;
+        }
+        return impl_desc_type::ref;
+    }();
 
     // use ncsp as default for non-quantized networks and nspc for quantized
     auto firstCreatorType = context->isGraphQuantized() ? LayoutType::nspc : LayoutType::ncsp;
@@ -135,23 +137,22 @@ void ShuffleChannels::initSupportedPrimitiveDescriptors() {
 void ShuffleChannels::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("has null destination memory");
-    }
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("has null input memory");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dstMemPtr, "has null destination memory");
+    CPU_NODE_ASSERT(srcMemPtr, "has null input memory");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor");
 
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.spatialRank = attrs.dataRank - attrs.axis - 1;
     attrs.dataSize = memoryDesc.getPrecision().size();
-    attrs.layoutType = memoryDesc.hasLayoutType(LayoutType::nCsp16c)  ? LayoutType::nCsp16c
-                       : memoryDesc.hasLayoutType(LayoutType::nCsp8c) ? LayoutType::nCsp8c
-                       : memoryDesc.hasLayoutType(LayoutType::nspc)   ? LayoutType::nspc
-                                                                      : LayoutType::ncsp;
+    if (memoryDesc.hasLayoutType(LayoutType::nCsp16c)) {
+        attrs.layoutType = LayoutType::nCsp16c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nCsp8c)) {
+        attrs.layoutType = LayoutType::nCsp8c;
+    } else if (memoryDesc.hasLayoutType(LayoutType::nspc)) {
+        attrs.layoutType = LayoutType::nspc;
+    } else {
+        attrs.layoutType = LayoutType::ncsp;
+    }
 
     if (inputShapesDefined() && isExecutable()) {
         if (needPrepareParams()) {
@@ -171,19 +172,17 @@ void ShuffleChannels::prepareParams() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
-    if (!result.first) {
-        THROW_CPU_NODE_ERR("executor was not found for node.");
-    }
+    CPU_NODE_ASSERT(result.first, "executor was not found for node.");
 
     execPtr = result.first;
 }
 
 ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleChannelsAttributes& attrs) {
-    if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp)) {
-        OPENVINO_THROW("ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
-    }
+    OPENVINO_ASSERT(
+        any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
+        "ShuffleChannels executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
 
-    const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isBlocked = any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsLast = attrs.layoutType == LayoutType::nspc;
     const auto& srcDims = attrs.srcDims;
     const auto& srcBlockedDims = attrs.srcBlockedDims;
@@ -290,10 +289,8 @@ ShuffleChannels::ShuffleChannelsExecutor::ShuffleChannelsExecutor(const ShuffleC
     permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, const int MB) {
-    if (!permuteKernel) {
-        OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
-    }
+void ShuffleChannels::ShuffleChannelsExecutor::exec(const uint8_t* srcData, uint8_t* dstData, int MB) {
+    OPENVINO_ASSERT(permuteKernel, "Could not execute. Kernel for Transpose node was not compiled.");
 
     if (MB > 0) {
         permuteKernel->execute(srcData, dstData, MB);
@@ -307,9 +304,7 @@ void ShuffleChannels::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 void ShuffleChannels::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
-    }
+    CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
 
     int MB = (attrs.axis != 0) ? getSrcMemoryAtPort(0)->getStaticDims()[0] : -1;
 

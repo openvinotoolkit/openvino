@@ -28,9 +28,10 @@
  *
  */
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 namespace node {
+// WA for `friend class`
+// NOLINTNEXTLINE(bugprone-forward-declaration-namespace)
 class Split;
 }  // namespace node
 
@@ -40,7 +41,7 @@ using MemoryDescPtr = std::shared_ptr<MemoryDesc>;
 using MemoryDescCPtr = std::shared_ptr<const MemoryDesc>;
 using VecMemoryDescs = std::vector<MemoryDescPtr>;
 
-enum MemoryDescType {
+enum MemoryDescType : uint8_t {
     Undef = 0,
     Blocked = 1,
     Dnnl = 1 << 1,
@@ -48,7 +49,7 @@ enum MemoryDescType {
     Empty = 1 << 2,
 };
 
-enum class LayoutType : unsigned {
+enum class LayoutType : uint8_t {
     nspc,    // general per channels format
     ncsp,    // general planar
     nCsp8c,  // general channels blocked by 8
@@ -88,25 +89,25 @@ public:
      */
     MemoryDescPtr cloneWithNewDims(const VectorDims& dims, bool relaxedCheck = false) const {
         if (relaxedCheck) {
-            if (getShape().getRank() != dims.size()) {
-                OPENVINO_THROW("ParameterMismatch: Can not clone with new dims, ranks mistmatch. Descriptor's rank: ",
-                               getShape().getRank(),
-                               " is incompatible with provided rank of dimensions: ",
-                               dims.size(),
-                               ".");
-            }
-        } else if (!getShape().isCompatible(dims)) {
-            OPENVINO_THROW("ParameterMismatch: Can not clone with new dims. Descriptor's shape: ",
-                           getShape().toString(),
-                           " is incompatible with provided dimensions: ",
-                           dims2str(dims),
-                           ".");
+            OPENVINO_ASSERT(getShape().getRank() == dims.size(),
+                            "ParameterMismatch: Can not clone with new dims, ranks mistmatch. Descriptor's rank: ",
+                            getShape().getRank(),
+                            " is incompatible with provided rank of dimensions: ",
+                            dims.size(),
+                            ".");
+        } else {
+            OPENVINO_ASSERT(getShape().isCompatible(dims),
+                            "ParameterMismatch: Can not clone with new dims. Descriptor's shape: ",
+                            getShape().toString(),
+                            " is incompatible with provided dimensions: ",
+                            dims2str(dims),
+                            ".");
         }
 
         return cloneWithNewDimsImp(dims);
     }
 
-    virtual MemoryDescPtr cloneWithNewPrecision(const ov::element::Type prec) const = 0;
+    virtual MemoryDescPtr cloneWithNewPrecision(ov::element::Type prec) const = 0;
 
     virtual bool isCompatible(const MemoryDesc& rhs) const = 0;
 
@@ -146,22 +147,20 @@ public:
     }
 
     template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
+              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
     T* as() {
         T* casted = dynamic_cast<T*>(this);
-        if (!casted)
-            OPENVINO_THROW("Cannot dynamically cast MemoryDesc");
+        OPENVINO_ASSERT(casted, "Cannot dynamically cast MemoryDesc");
         return casted;
     }
 
     template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
+              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
     const T* as() const {
         const T* casted = dynamic_cast<const T*>(this);
-        if (!casted)
-            OPENVINO_THROW("Cannot dynamically cast MemoryDesc");
+        OPENVINO_ASSERT(casted, "Cannot dynamically cast MemoryDesc");
         return casted;
     }
 
@@ -204,5 +203,4 @@ protected:
     friend class node::Split;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -15,6 +15,7 @@ class TRANSFORMATIONS_API RoPEFusionGPTNEOX;
 class TRANSFORMATIONS_API RoPEFusionFlux;
 class TRANSFORMATIONS_API RoPEFusionGPTJ;
 class TRANSFORMATIONS_API RoPEFusionChatGLM;
+class TRANSFORMATIONS_API RoPEFusionChatGLMHF;
 class TRANSFORMATIONS_API RoPEFusionQwen;
 class TRANSFORMATIONS_API RoPEFusionIOSlicing;
 class TRANSFORMATIONS_API RoPEFusionPreprocess;
@@ -45,7 +46,13 @@ public:
 class ov::pass::RoPEFusionChatGLM : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("RoPEFusionChatGLM");
-    RoPEFusionChatGLM(int split_output_id, const bool support_2d_rope = false);
+    RoPEFusionChatGLM(const bool support_2d_rope = false);
+};
+
+class ov::pass::RoPEFusionChatGLMHF : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("RoPEFusionChatGLMHF");
+    RoPEFusionChatGLMHF();
 };
 
 class ov::pass::RoPEFusionQwen : public ov::pass::MatcherPass {

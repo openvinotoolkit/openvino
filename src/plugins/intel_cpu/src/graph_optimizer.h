@@ -8,16 +8,14 @@
 #include "graph.h"
 #include "node.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class GraphOptimizer {
 public:
     GraphOptimizer();
 
-public:
     static void ApplyCommonGraphOptimizations(Graph& graph);
-    void ApplyImplSpecificGraphOptimizations(Graph& graph);
+    static void ApplyImplSpecificGraphOptimizations(Graph& graph);
     static void ShareReorders(Graph& graph);
 
 private:
@@ -49,8 +47,8 @@ private:
     static void FuseEltwiseAndSimple(Graph& graph);
     static void FusePerformedAsScaleShiftAndFakeQuantize(Graph& graph);
     static void FuseClampAndFakeQuantize(Graph& graph);
-    void MergeTransposeAndReorder(Graph& graph);
-    void MergeReorderAndTranspose(Graph& graph);
+    static void MergeTransposeAndReorder(Graph& graph);
+    static void MergeReorderAndTranspose(Graph& graph);
     static void reshapeRnnSeq(Graph& graph);
     static void RemoveSameConvert(Graph& graph);
     static void RemoveMemoryInputConvert(Graph& graph);
@@ -93,8 +91,7 @@ private:
                                              const NodePtr& transposeNode,
                                              const NodePtr& reshapeNode,
                                              const NodePtr& reorderNode,
-                                             const bool reverseOrder);
+                                             bool reverseOrder);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

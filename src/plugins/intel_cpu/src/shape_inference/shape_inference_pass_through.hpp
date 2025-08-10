@@ -27,7 +27,7 @@ class ShapeInferPassThrough final : public ShapeInferEmptyPads {
 public:
     ShapeInferPassThrough() = default;
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                 const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
+                 [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
         OPENVINO_ASSERT(!input_shapes.empty());
         return {{input_shapes.front()}, ShapeInferStatus::success};
     }

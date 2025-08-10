@@ -9,6 +9,8 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include "intel_gpu/primitives/implementation_desc.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+
 namespace ov::intel_gpu {
 
 /**
@@ -17,7 +19,7 @@ namespace ov::intel_gpu {
 static constexpr Property<std::string, PropertyMutability::RO> driver_version{"GPU_DRIVER_VERSION"};
 
 /**
- * @brief Read-only property to get GPU driver version
+ * @brief Read-only property to get GPU device_id
  */
 static constexpr Property<std::string, PropertyMutability::RO> device_id{"GPU_DEVICE_ID"};
 
@@ -113,6 +115,9 @@ inline std::istream& operator>>(std::istream& is, DumpTensors& val) {
     return is;
 }
 
+using GpuWeightlessCacheMap = std::unordered_map<size_t, ov::WeightlessCacheAttribute>;
+static constexpr Property<std::shared_ptr<GpuWeightlessCacheMap>, PropertyMutability::RW> weightless_attr{"GPU_WEIGHTLESS_ATTR"};
+
 /**
  * @brief Defines queue type that must be used for model execution
  */
@@ -166,7 +171,6 @@ static constexpr Property<size_t, ov::PropertyMutability::RW> usm_policy{"GPU_US
 static constexpr Property<bool, ov::PropertyMutability::RW> asym_dynamic_quantization{"GPU_ASYM_DYNAMIC_QUANTIZATION"};
 static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> shape_predictor_settings{"GPU_SHAPE_PREDICTOR_SETTINGS"};
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
-static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> start_after_processes{"GPU_START_AFTER_PROCESSES"};
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{"GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
 }  // namespace ov::intel_gpu

@@ -22,6 +22,7 @@
 
 #include "cpu_types.h"
 #include "memory_control.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/node_config.h"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"
@@ -30,6 +31,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <iomanip>
@@ -106,7 +108,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     const char* p1 = p0;
     while (*p0 != 0) {
         p1 = p0;
-        while (*p1 != ';' && *p1 != 0) {
+        while (none_of(*p1, ';', 0)) {
             ++p1;
         }
         std::string pattern(p0, p1 - p0);
@@ -131,8 +133,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
 void DebugLogEnabled::break_at(const std::string& log) {
     static const char* p_brk = std::getenv("OV_CPU_DEBUG_LOG_BRK");
     if (p_brk && log.find(p_brk) != std::string::npos) {
-        std::cout << "[ DEBUG ] "
-                  << " Debug log breakpoint hit" << '\n';
+        std::cout << "[ DEBUG ] Debug log breakpoint hit\n";
 #    if defined(_MSC_VER)
         __debugbreak();
 #    elif defined(__APPLE__) || defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64) || \
@@ -196,16 +197,10 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
         return id;
     };
     auto is_single_output_port = [](Node& node) {
-        for (const auto& e : node.getChildEdges()) {
+        return std::all_of(node.getChildEdges().begin(), node.getChildEdges().end(), [](const auto& e) {
             auto edge = e.lock();
-            if (!edge) {
-                continue;
-            }
-            if (edge->getInputNum() != 0) {
-                return false;
-            }
-        }
-        return true;
+            return edge && edge->getInputNum() == 0;
+        });
     };
 
     auto* nodeDesc = node.getSelectedPrimitiveDescriptor();
@@ -225,7 +220,7 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
             std::stringstream ss;
             ss << ptr->getData();
             ret = ss.str();
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             ret = "?";
         }
         return ret;
@@ -379,10 +374,10 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
            << ", Gamma=" << eltwise_node->getGamma() << ", BroadcastingPolicy=";
 
         switch (eltwise_node->getBroadcastingPolicy()) {
-        case intel_cpu::node::Eltwise::BroadcastingPolicy::PerChannel:
+        case intel_cpu::EltwiseBroadcastingPolicy::PerChannel:
             os << "PerChannel";
             break;
-        case intel_cpu::node::Eltwise::BroadcastingPolicy::PerTensor:
+        case intel_cpu::EltwiseBroadcastingPolicy::PerTensor:
             os << "PerTensor";
             break;
         default:
@@ -441,7 +436,7 @@ class OstreamAttributeVisitor : public ov::AttributeVisitor {
     std::ostream& os;
 
 public:
-    OstreamAttributeVisitor(std::ostream& os) : os(os) {}
+    explicit OstreamAttributeVisitor(std::ostream& os) : os(os) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {
@@ -727,17 +722,6 @@ std::ostream& operator<<(std::ostream& os, const MemoryStatisticsRecord& record)
     os << "Optimal total size: " << record.optimal_total_size << " bytes\n";
     os << "Max region size: " << record.max_region_size << " bytes\n";
     return os;
-}
-
-void print_dnnl_memory(const dnnl::memory& memory, const size_t size, const int id, const char* message) {
-    const size_t s = memory.get_desc().get_size() / sizeof(float);
-    std::cout << message << " " << id << " size: " << s << ", values: ";
-    auto* m = reinterpret_cast<float*>(memory.get_data_handle());
-    for (size_t i = 0; i < std::min(s, size); i++) {
-        std::cout << *m << " ";
-        m++;
-    }
-    std::cout << "\n";
 }
 
 }  // namespace ov::intel_cpu

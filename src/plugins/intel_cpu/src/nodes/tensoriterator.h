@@ -23,9 +23,7 @@
 #include "graph_context.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct PortMap {
     // Data map rule
@@ -78,7 +76,7 @@ class DynamicBuffer {
 public:
     DynamicBuffer(MemoryPtr from_, std::vector<MemoryPtr> to_, const PortMap& map_rule_);
 
-    void execute(const dnnl::engine& eng, const int iter);
+    void execute(const dnnl::engine& eng, int iter);
     void transfer(const Node* node);
 
     void reset(int max_iter_count_);  // reset local
@@ -87,33 +85,28 @@ private:
     void init(const dnnl::engine& eng);
 
     /* methods for resize and refill buffer */
-    bool check_buffer() const;
+    [[nodiscard]] bool check_buffer() const;
     MemoryPtr create_buffer(const dnnl::engine& eng);
     void move_buffer(const MemoryPtr& new_buffer);
     void move_data();
 
-    static void copy(const uint8_t* src,
-                     uint8_t* dst,
-                     const size_t src_stride,
-                     const size_t dst_stride,
-                     const size_t count,
-                     const size_t len);
+    static void copy(const uint8_t* src, uint8_t* dst, size_t src_stride, size_t dst_stride, size_t count, size_t len);
 
     /* variable states */
-    size_t len = 1lu;
-    size_t count = 1lu;
+    size_t len = 1LU;
+    size_t count = 1LU;
 
     ptrdiff_t chunk_stride_in_byte = 0;
     ptrdiff_t chunk_offset_in_byte = 0;
-    size_t chunk_unit_in_byte = 0lu;  // the amount of bytes copied per each count per each execution (iteration)
-    int num_execs = 0lu;              // number of executions happened
+    size_t chunk_unit_in_byte = 0LU;  // the amount of bytes copied per each count per each execution (iteration)
+    int num_execs = 0LU;              // number of executions happened
     int max_iter_count = -1;          // estimated maximum iter count
 
     /* invariable states */
     MemoryPtr from;
     std::vector<MemoryPtr> to;
     PortMap map_rule;
-    size_t elem_size = 0lu;
+    size_t elem_size = 0LU;
 
     MemoryPtr mem_holder_buffer;
 };
@@ -124,7 +117,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
     void initSupportedPrimitiveDescriptors() override;
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void createPrimitive() override;
     int registerToAllocationContext(int offset, AllocationContext& context) override;
     bool created() const override;
@@ -136,7 +129,7 @@ public:
         return true;
     }
     // @todo limit to particular in / out ports
-    bool usesInOutMemoryMultipleTimes() {
+    static bool usesInOutMemoryMultipleTimes() {
         return true;
     }
 
@@ -159,15 +152,15 @@ private:
     void prepareDynamicBuffers();
     void prepareLoopBodyCurrentIteration();
     void prepareContinueCond();
-    void prepareInitialCond(const bool compileStage);
-    void prepareTripCount(const bool compileStage);
+    void prepareInitialCond(bool compileStage);
+    void prepareTripCount(bool compileStage);
 
     /* Dynamic support */
     void reshapeSubgraphInput();
     void reshapeAndFillOutput(const dnnl::stream& strm);
     bool checkForInputAndBodyShapesInequality() const;
     int getNumIteration(const std::vector<PortMap>& inputPortMap, const std::vector<PortMap>& outputPortMap) const;
-    void prepareParamsImpl(const bool compileStage);
+    void prepareParamsImpl(bool compileStage);
 
     /* run dynamic subgraph inside a static node */
     bool runAsDynamic() const;
@@ -214,6 +207,4 @@ private:
     const std::shared_ptr<ov::Node> ngraphOp;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -44,9 +44,7 @@ template <class ElemT, class IndexT, class CountT>
 struct unique_gpu_test : public testing::TestWithParam<unique_test_params<ElemT, IndexT, CountT>> {
 public:
     void test() {
-        format::type fmt;
-        unique_test_inputs<ElemT, IndexT, CountT> p;
-        std::tie(p, fmt) = testing::TestWithParam<unique_test_params<ElemT, IndexT, CountT>>::GetParam();
+        const auto& [p, fmt] = testing::TestWithParam<unique_test_params<ElemT, IndexT, CountT>>::GetParam();
 
         auto& engine = get_test_engine();
         const auto elem_data_type = ov::element::from<ElemT>();
@@ -113,9 +111,7 @@ public:
 
     static std::string PrintToStringParamName(
         const testing::TestParamInfo<unique_test_params<ElemT, IndexT, CountT>>& info) {
-        format::type fmt;
-        unique_test_inputs<ElemT, IndexT, CountT> p;
-        std::tie(p, fmt) = info.param;
+        const auto& [p, fmt] = info.param;
 
         std::ostringstream result;
         result << "data_shape=" << vec2str(p.data_shape) << "; ";

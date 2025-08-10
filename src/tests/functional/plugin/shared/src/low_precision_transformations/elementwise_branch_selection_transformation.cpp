@@ -13,16 +13,10 @@
 namespace LayerTestsDefinitions {
 
 std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const testing::TestParamInfo<ElementwiseBranchSelectionTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    ElementwiseBranchSelectionTestValues param;
-    std::string elementwiseType;
-    std::tie(netPrecision, inputShapes, targetDevice, param, elementwiseType) = obj.param;
+    auto [netPrecision, inputShapes, device, param, elementwiseType] = obj.param;
 
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) <<
+    result << get_test_case_name_by_params(netPrecision, inputShapes, device) <<
            "_elementwiseType_" << elementwiseType;
 
     auto toString = [](const ov::builder::subgraph::FakeQuantizeOnData& fqOnData) -> std::string {
@@ -48,11 +42,8 @@ std::string ElementwiseBranchSelectionTransformation::getTestCaseName(const test
 }
 
 void ElementwiseBranchSelectionTransformation::SetUp() {
-    ov::element::Type precision;
-    ov::PartialShape inputShape;
-    ElementwiseBranchSelectionTestValues param;
-    std::string elementwiseType;
-    std::tie(precision, inputShape, targetDevice, param, elementwiseType) = this->GetParam();
+    auto [precision, inputShape, device, param, elementwiseType] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes({ inputShape, inputShape });
 

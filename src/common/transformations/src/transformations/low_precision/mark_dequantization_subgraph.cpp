@@ -5,6 +5,7 @@
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
 
 #include "itt.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/subtract.hpp"
@@ -23,6 +24,17 @@ using namespace ov;
 using namespace ov::op;
 using namespace ov::pass::pattern;
 
+static std::string write_precisions(const ov::element::TypeVector& precisions) {
+    std::stringstream sstream;
+#ifdef OPENVINO_DEBUG
+    sstream << "check_precision( ";
+    for (auto& p : precisions)
+        sstream << p.to_string() << " ";
+    sstream << ")";
+#endif /* OPENVINO_DEBUG */
+    return sstream.str();
+}
+
 namespace {
 
 ov::pass::pattern::op::Predicate check_precision(const ov::element::TypeVector& precisions) {
@@ -30,7 +42,7 @@ ov::pass::pattern::op::Predicate check_precision(const ov::element::TypeVector& 
         [=](const Output<Node>& output) -> bool {
             return std::find(precisions.begin(), precisions.end(), output.get_element_type()) != precisions.end();
         },
-        "check_precision");
+        write_precisions(precisions));
 }
 
 using RTInfoSetter = std::function<void(const std::shared_ptr<ov::Node>& node)>;
@@ -370,5 +382,45 @@ ov::pass::KeepDequantizationPrecision::KeepDequantizationPrecision(const element
     };
 
     auto m = std::make_shared<Matcher>(multiply_pattern, "KeepDequantizationPrecision");
+    this->register_matcher(m, callback);
+}
+
+ov::pass::MarkGatherSubgraph::MarkGatherSubgraph(const element::TypeVector& table_values_precisions,
+                                                 const element::TypeVector& indices_precisions) {
+    MATCHER_SCOPE(MarkGatherSubgraph);
+
+    // 1. Data input → (optional Convert) → (input to Gather[0])
+    auto data_input = wrap_type<op::v0::Constant>(check_precision(table_values_precisions));
+    auto data_convert = pattern::optional<op::v0::Convert>({data_input});
+
+    // 2. Indices input → (optional Convert) → (input to Gather[1])
+    auto indices_input = wrap_type<op::v0::Constant, op::v0::Parameter>(check_precision(indices_precisions));
+    auto indices_convert = pattern::optional<op::v0::Convert>({indices_input});
+
+    // Gather (fp, integral, any)
+    auto axis = any_input(value_matches("0"));
+    auto gather = wrap_type<op::v8::Gather>({data_convert, indices_convert, axis});
+
+    matcher_pass_callback callback = [=](Matcher& m) {
+        const auto& pm = m.get_pattern_map();
+        auto gather_node = pm.at(gather);
+        if (transformation_callback(gather_node)) {
+            return false;
+        }
+
+        for (const auto& node : {gather, data_convert, indices_convert}) {
+            if (pm.count(node))
+                ov::disable_constant_folding(pm.at(node));
+        }
+
+        for (const auto& node : {data_input, indices_input}) {
+            if (pm.count(node))
+                ov::enable_keep_const_precision(pm.at(node));
+        }
+
+        return false;
+    };
+
+    auto m = std::make_shared<Matcher>(gather, "MarkGatherSubgraph");
     this->register_matcher(m, callback);
 }

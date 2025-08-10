@@ -14,13 +14,8 @@ namespace test {
 namespace snippets {
 
 std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::TransposeMatMulParams> obj) {
-    std::vector<InputShape> input_shapes;
-    size_t transpose_position;
-    std::vector<ov::element::Type> elem_types;
-    MatMulType matmul_type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(input_shapes, transpose_position, elem_types, matmul_type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    const auto& [input_shapes, transpose_position, elem_types, matmul_type, num_nodes, num_subgraphs, targetDevice] =
+        obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); ++i) {
         result << "IS[" << i << "]=" << input_shapes[i] << "_";
@@ -36,17 +31,24 @@ std::string TransposeMatMul::getTestCaseName(testing::TestParamInfo<ov::test::sn
 }
 
 void TransposeMatMul::SetUp() {
-    std::vector<InputShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, transpose_position, elem_types, matmul_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [input_shapes,
+                 _transpose_position,
+                 elem_types,
+                 _matmul_type,
+                 _ref_num_nodes,
+                 _ref_num_subgraphs,
+                 _targetDevice] = this->GetParam();
+    transpose_position = _transpose_position;
+    matmul_type = _matmul_type;
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(input_shapes);
 
     const auto builder = get_builder(elem_types);
     function = builder->getOriginal();
     filter_shape_info(builder->get_constant_input_idces());
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 }
 
 std::shared_ptr<MatMulFunctionBase> TransposeMatMul::get_builder(const std::vector<ov::element::Type>& types) {

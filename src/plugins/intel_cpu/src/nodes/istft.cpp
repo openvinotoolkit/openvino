@@ -67,12 +67,8 @@ ISTFT::ISTFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& cont
 
 void ISTFT::getSupportedDescriptors() {
     const auto input_size = getParentEdges().size();
-    if (input_size < 4 || input_size > 5) {
-        THROW_CPU_NODE_ERR("ISTFT has incorrect number of input edges.");
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("ISTFT has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(input_size >= 4 && input_size <= 5, "ISTFT has incorrect number of input edges.");
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "ISTFT has incorrect number of output edges.");
 }
 
 void ISTFT::initSupportedPrimitiveDescriptors() {
@@ -81,7 +77,7 @@ void ISTFT::initSupportedPrimitiveDescriptors() {
     }
 
     auto dataPrecision = getOriginalInputPrecisionAtPort(DATA_IDX);
-    if (!one_of(dataPrecision, ov::element::f32)) {
+    if (none_of(dataPrecision, ov::element::f32)) {
         dataPrecision = ov::element::f32;
     }
 
@@ -145,8 +141,15 @@ void istft_impl(const float* in_data,
     const auto num_frames = data_shape[frames_axis];
 
     const auto signal_length = (num_frames - 1) * frame_step + frame_size;
-    const int64_t final_signal_length =
-        length > 0 ? length : (center ? (signal_length - (frame_size & ~1)) : signal_length);
+    int64_t final_signal_length = [&]() -> int64_t {
+        if (length > 0) {
+            return length;
+        }
+        if (center) {
+            return signal_length - (frame_size & ~1);
+        }
+        return signal_length;
+    }();
     std::fill(final_result, final_result + batch_size * final_signal_length, 0.F);
 
     std::vector<float> mid_result(batch_size * signal_length, 0.F);
@@ -264,7 +267,7 @@ void ISTFT::executeDynamicImpl(const dnnl::stream& strm) {
 
 bool ISTFT::needShapeInfer() const {
     return (m_has_signal_length_input && !m_is_signal_length_const) ||
-           (!m_has_signal_length_input && !(m_is_frame_size_const && m_is_frame_step_const)) || Node::needShapeInfer();
+           (!m_has_signal_length_input && (!m_is_frame_size_const || !m_is_frame_step_const)) || Node::needShapeInfer();
 }
 
 void ISTFT::createPrimitive() {

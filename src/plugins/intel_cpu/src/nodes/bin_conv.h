@@ -20,9 +20,7 @@
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct jit_bin_conv_params {
     int mb;
@@ -66,9 +64,9 @@ struct jit_bin_conv_call_args {
 };
 
 struct jit_uni_bin_conv_kernel {
-    void (*ker_)(const jit_bin_conv_call_args*);
+    void (*ker_)(const jit_bin_conv_call_args*) = nullptr;
 
-    void operator()(const jit_bin_conv_call_args* args) {
+    void operator()(const jit_bin_conv_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
@@ -76,11 +74,10 @@ struct jit_uni_bin_conv_kernel {
     explicit jit_uni_bin_conv_kernel(jit_bin_conv_params jcp,
                                      jit_dw_conv_params jcp_dw_conv,
                                      const dnnl_primitive_attr& attr)
-        : ker_(nullptr),
-          jcp_(jcp),
+        : jcp_(jcp),
           jcp_dw_conv_(jcp_dw_conv),
           attr_(attr) {}
-    virtual ~jit_uni_bin_conv_kernel() {}
+    virtual ~jit_uni_bin_conv_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -116,7 +113,7 @@ private:
     bool withBinarization = false;
 
     size_t group = 1;
-    float pad_value = 0.f;
+    float pad_value = 0.F;
 
     std::vector<ptrdiff_t> stride;
     std::vector<ptrdiff_t> dilation;
@@ -145,6 +142,4 @@ private:
                           const std::vector<size_t>& d_str) const;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

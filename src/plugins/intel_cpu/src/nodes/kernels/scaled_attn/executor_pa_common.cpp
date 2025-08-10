@@ -1,35 +1,40 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#include "executor_pa_common.hpp"
-
-#include <cpu/x64/xbyak/xbyak.h>
+#if !defined(XBYAK_RISCV_V) && !defined(OV_CPU_WITH_ACL)
+#    include "executor_pa_common.hpp"
+#endif
 
 #include <cfloat>
 #include <cmath>
-#include <cpu/x64/jit_generator.hpp>
-#include <cstdint>
 #include <cstring>
-#include <stdexcept>
-#include <utility>
-#include <vector>
 
-#include "openvino/core/type/element_type.hpp"
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <cpu/x64/jit_generator.hpp>
+#    include <cstdint>
+#    include <stdexcept>
+#    include <utility>
+#    include <vector>
+
+#    include "openvino/core/type/element_type.hpp"
+#endif
 
 namespace ov::Extensions::Cpu {
 
 using namespace ov;
+
+#ifdef OPENVINO_ARCH_X86_64
 using namespace ov::intel_cpu;
 using namespace dnnl::impl;
 using namespace dnnl::impl::cpu::x64;
 
-#ifdef OPENVINO_ARCH_X86_64
-
 void TileConfig::reset(int palette, int _startRow, const std::vector<std::pair<int, int>>& _rows_columnsBytes) {
     palette_id = palette;
     startRow = _startRow;
-    uint64_t i;
-    for (i = 0; i < 14; i++) {
+    uint64_t i = 0;
+    for (; i < 14; i++) {
         reserved[i] = 0;
     }
     for (i = 0; i < _rows_columnsBytes.size(); i++) {
@@ -42,7 +47,7 @@ void TileConfig::reset(int palette, int _startRow, const std::vector<std::pair<i
     }
 }
 
-TileConfiger::TileConfiger() : jit_generator(jit_name()) {
+TileConfiger::TileConfiger() : jit_generator_t(jit_name()) {
     create_kernel();
 }
 
@@ -58,7 +63,7 @@ void TileConfiger::generate() {
 }
 
 JitMatMulVecAMX::JitMatMulVecAMX(int head_size, int block_size, ov::element::Type amx_prec)
-    : jit_generator(jit_name()),
+    : jit_generator_t(jit_name()),
       m_head_size(head_size),
       m_block_size(block_size),
       m_amx_prec(amx_prec) {

@@ -1,0 +1,121 @@
+name: PyTorch FX Layer Tests
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which the tests would run'
+        type: string
+        required: true
+      image:
+        description: 'Docker image to use for the job'
+        type: string
+        required: false
+        default: null
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.11"'
+        type: string
+        required: true
+
+permissions: read-all
+
+env:
+  PIP_CACHE_PATH_LINUX: /mount/caches/pip/linux
+  PIP_CACHE_PATH_WIN: "C:\\mount\\caches\\pip\\win"
+
+jobs:
+  PyTorch_FX_Layer_Tests:
+    name: PyTorch FX Layer Tests
+    timeout-minutes: 60
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+      options: "-e HF_TOKEN" # Needed for HuggingFace cache authentication
+    defaults:
+      run:
+        shell: ${{ contains(inputs.runner, 'win') && 'pwsh' || 'bash' }}
+    env:
+      DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
+      OPENVINO_REPO: ${{ github.workspace }}/openvino
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
+      USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
+    steps:
+      - name: Fetch setup_python and install wheels actions
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+          
+      - name: Download OpenVINO artifacts (tarballs and wheels)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: "{openvino_wheels,openvino_tests}"
+          path: ${{ env.INSTALL_DIR }}
+          merge-multiple: true
+
+      - name: Setup HuggingFace Cache Directory (Windows)
+        if: runner.os == 'Windows'
+        run: Add-Content -Path $env:GITHUB_ENV -Value "HF_HUB_CACHE=C:\\mount\\caches\\huggingface"
+
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz
+
+      - name: Extract OpenVINO packages (Linux, macOS)
+        if: runner.os != 'Windows'
+        run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Extract OpenVINO artifacts (Windows)
+        if: runner.os == 'Windows'
+        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
+        working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ inputs.python-version }}
+          pip-cache-path: ${{ runner.os == 'Linux' && env.PIP_CACHE_PATH_LINUX || env.PIP_CACHE_PATH_WIN }}
+          should-setup-pip-paths: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
+
+      - name: Install OpenVINO Python wheels
+        uses: ./.github/actions/install_ov_wheels
+        with:
+          wheels-dir-path: ${{ env.INSTALL_DIR }}
+          wheels-to-install: 'openvino'
+
+      - name: Install Pytorch FX Layer tests dependencies
+        run: |
+          # pytorch test requirements
+          python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+
+      - name: PyTorch torch.compile TORCHFX Layer Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.os != 'macOS' && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
+        run: |
+          python3 -m pytest ${{ env.INSTALL_TEST_DIR }}/layer_tests/pytorch_tests -m precommit_fx_backend -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-pytorch_compile.xml
+        env:
+          TEST_DEVICE: CPU
+          TEST_PRECISION: FP32
+          PYTORCH_TRACING_MODE: TORCHFX
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: test-results-python-pytorch-fx-layers
+          path: |
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.html
+            ${{ env.INSTALL_TEST_DIR }}/TEST*.xml
+          if-no-files-found: 'warn'

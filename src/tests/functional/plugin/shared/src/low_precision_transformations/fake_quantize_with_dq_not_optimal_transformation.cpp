@@ -15,25 +15,16 @@
 namespace LayerTestsDefinitions {
 
 std::string FakeQuantizeWithNotOptimalTransformation::getTestCaseName(const testing::TestParamInfo<FakeQuantizeTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    FakeQuantizeWithNotOptimalTransformationTestValues testValues;
-    std::tie(netPrecision, inputShapes, targetDevice, params, testValues) = obj.param;
-
+    auto [netPrecision, inputShapes, device, testValues] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << "_" << testValues;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, device) << "_" << testValues;
     return result.str();
 }
 
 void FakeQuantizeWithNotOptimalTransformation::SetUp() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    ov::PartialShape inputShape;
-    ov::element::Type netPrecision;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    FakeQuantizeWithNotOptimalTransformationTestValues testValues;
-    std::tie(netPrecision, inputShape, targetDevice, params, testValues) = this->GetParam();
+    auto [netPrecision, inputShape, device, testValues] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes(inputShape);
 
@@ -53,7 +44,7 @@ void FakeQuantizeWithNotOptimalTransformation::SetUp() {
 void FakeQuantizeWithNotOptimalTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto actualType = get_runtime_precision_by_type("Convolution");
     EXPECT_EQ(actualType, params.expectedPrecision);
 }

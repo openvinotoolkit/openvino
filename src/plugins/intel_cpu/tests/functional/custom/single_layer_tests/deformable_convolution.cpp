@@ -10,7 +10,7 @@
 using namespace CPUTestUtils;
 namespace ov {
 namespace test {
-enum OffsetType { ZERO, NATURAL, REAL_POSITIVE, REAL_NEGATIVE, REAL_MISC };
+enum OffsetType : uint8_t { ZERO, NATURAL, REAL_POSITIVE, REAL_NEGATIVE, REAL_MISC };
 
 typedef std::tuple<bool,       // with_bilinear_interpolation_pad
                    bool,       // with_modulation
@@ -41,31 +41,16 @@ class DefConvLayerCPUTest : public testing::WithParamInterface<DefConvLayerCPUTe
                             public CPUTestsBase {
 public:
     OffsetType offsetType;
-    static std::string getTestCaseName(testing::TestParamInfo<DefConvLayerCPUTestParamsSet> obj) {
-        DefConvSpecificParams dcSpecificParams;
-        std::vector<InputShape> inputShape;
-        ov::element::Type netPrecision;
-        DefConvLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = obj.param;
-        AddSpatialParamsDyn addSpParams;
-        std::string td;
-        std::tie(addSpParams, inputShape, dcSpecificParams, netPrecision, td) = basicParamsSet;
-
-        ov::op::PadType padType;
-        std::vector<size_t> stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        std::tie(padType, padBegin, padEnd, stride, dilation) = addSpParams;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<DefConvLayerCPUTestParamsSet>& obj) {
+        const auto& [basicParamsSet, cpuParams] = obj.param;
+        const auto& [addSpParams, inputShape, dcSpecificParams, netPrecision, td] = basicParamsSet;
+        const auto& [padType, padBegin, padEnd, stride, dilation] = addSpParams;
         // gr * in_ch_per_gr / in_ch_per_gr
         size_t groups = inputShape[0].second[0][1] / inputShape[2].second[0][1];
         // dg * ker_spat_shape[0] * ker_spat_shape[1] * 2 / (ker_spat_shape[0] * ker_spat_shape[1] * 2)
         size_t deformableGroups =
             inputShape[1].second[0][1] / (inputShape[2].second[0][2] * inputShape[2].second[0][3] * 2);
-
-        bool withBilinearInterpolationPad, withModulation;
-        OffsetType offType;
-        std::tie(withBilinearInterpolationPad, withModulation, offType) = dcSpecificParams;
+        const auto& [withBilinearInterpolationPad, withModulation, offType] = dcSpecificParams;
         std::ostringstream result;
         result << "DefConvTest(";
         result << std::to_string(obj.index) << ")_";
@@ -151,29 +136,19 @@ protected:
         }
     }
     void SetUp() override {
-        DefConvSpecificParams dcSpecificParams;
-        std::vector<InputShape> inputShape;
-        ov::element::Type netPrecision;
-        DefConvLayerTestParams basicParamsSet;
-        CPUSpecificParams cpuParams;
-        std::tie(basicParamsSet, cpuParams) = this->GetParam();
+        const auto& [basicParamsSet, cpuParams] = this->GetParam();
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
-        AddSpatialParamsDyn addSpParams;
-        std::tie(addSpParams, inputShape, dcSpecificParams, netPrecision, targetDevice) = basicParamsSet;
+        const auto& [addSpParams, inputShape, dcSpecificParams, netPrecision, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
         init_input_shapes(inputShape);
-
-        ov::op::PadType padType;
-        std::vector<size_t> stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        std::tie(padType, padBegin, padEnd, stride, dilation) = addSpParams;
-
+        const auto& [padType, padBegin, padEnd, stride, dilation] = addSpParams;
         // gr * in_ch_per_gr / in_ch_per_gr
         size_t groups = inputShape[0].second[0].at(1) / inputShape[2].second[0].at(1);
         // dg * ker_spat_shape[0] * ker_spat_shape[1] * 2 / (ker_spat_shape[0] * ker_spat_shape[1] * 2)
         size_t deformableGroups =
             inputShape[1].second[0].at(1) / (inputShape[2].second[0].at(2) * inputShape[2].second[0].at(3) * 2);
-        bool withBilinearInterpolationPad, withModulation;
-        std::tie(withBilinearInterpolationPad, withModulation, offsetType) = dcSpecificParams;
+        const auto& [withBilinearInterpolationPad, withModulation, _offsetType] = dcSpecificParams;
+        offsetType = _offsetType;
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes) {
             inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(netPrecision, shape));

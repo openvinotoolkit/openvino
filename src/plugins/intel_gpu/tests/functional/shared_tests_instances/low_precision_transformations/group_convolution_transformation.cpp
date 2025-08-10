@@ -15,10 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f16
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams(),
-};
-
 const std::vector<bool> addPrecisionPreserved = { true, false };
 
 const std::vector<std::pair<ov::PartialShape, ov::Shape>> inputShapes = {
@@ -87,7 +83,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),
@@ -138,7 +133,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
          ::testing::Values(ov::test::utils::DEVICE_GPU),
-         ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::Values(false)),
@@ -190,7 +184,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
      ::testing::Combine(
          ::testing::ValuesIn(netPrecisions),
          ::testing::Values(ov::test::utils::DEVICE_GPU),
-         ::testing::ValuesIn(trasformationParamValues),
          ::testing::ValuesIn(inputShapes),
          ::testing::ValuesIn(params),
          ::testing::Values(false)),
@@ -232,7 +225,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, GroupConvolutionTransformation,
     ::testing::Combine(
         ::testing::ValuesIn(netPrecisions),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn(inputShapes),
         ::testing::ValuesIn(params),
         ::testing::ValuesIn(addPrecisionPreserved)),

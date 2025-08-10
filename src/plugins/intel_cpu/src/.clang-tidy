@@ -8,7 +8,6 @@
 # -cppcoreguidelines-avoid-c-arrays. There are a lot of code which uses C-style arrays
 # -cppcoreguidelines-avoid-do-while. Just stylistic preference
 # -cppcoreguidelines-explicit-virtual-functions. Forbids 'override final' usage
-# -cppcoreguidelines-init-variables. Too many unnecessary initializations
 # -cppcoreguidelines-macro-usage. There are macros defined by OV that are matching this check
 # -cppcoreguidelines-misleading-capture-default-by-value. Commonly used in the transformations code
 # -cppcoreguidelines-non-private-member-variables-in-classes. There are a lot of code which uses protected members directly
@@ -19,7 +18,6 @@
 # -cppcoreguidelines-pro-type-const-cast. There is some code which uses const_cast and cannot get rid of that
 # -cppcoreguidelines-pro-type-reinterpret-cast. There are a lot of code which uses reinterpret_cast
 # -cppcoreguidelines-pro-type-static-cast-downcast. Performance impact
-# -cppcoreguidelines-pro-type-member-init. Too many unnecessary initializations
 # -cppcoreguidelines-pro-type-union-access. There are a lot of code which uses unions
 # -cppcoreguidelines-pro-type-vararg. There are a lot of code which uses vararg functions
 # -cppcoreguidelines-rvalue-reference-param-not-moved. There are a lot of code which uses rvalue references
@@ -32,34 +30,22 @@
 # -readability-uppercase-literal-suffix. 
 #
 ### Checks that are turned off but better be enabled later:
-# -bugprone-narrowing-conversions
 # -bugprone-easily-swappable-parameters
 # -bugprone-exception-escape. There are a lot of legacy code which does not handle exceptions properly and just catches them all. Major refactoring is required to correct this.
 # -bugprone-implicit-widening-of-multiplication-result
 # -bugprone-incorrect-roundings. There are explicit ways to perform rounding (i.e. std::floor(), std::round(), etc). Requires careful updates case by case
 # -bugprone-signed-char-misuse. The source code contains valid logic when pointer to the data is interpreted as int8_t (i.e. weights tensor)
 # -cppcoreguidelines-avoid-const-or-ref-data-members
-# -cppcoreguidelines-avoid-non-const-global-variables
-# -cppcoreguidelines-narrowing-conversions
 # -google-default-arguments,
 # -google-explicit-constructor,
-# -google-readability-casting,
 # -modernize-avoid-c-arrays,
 # -misc-header-include-cycle,
 # -misc-non-private-member-variables-in-classes,
 # -misc-use-anonymous-namespace,
-# -readability-avoid-nested-conditional-operator
-# -readability-avoid-return-with-void-value
-# -readability-const-return-type
-# -readability-convert-member-functions-to-static
 # -readability-function-cognitive-complexity. Reasonable way to enforce splitting complex code into simple functions
-# -readability-inconsistent-declaration-parameter-name
 # -readability-isolate-declaration
 # -readability-magic-numbers, cppcoreguidelines-avoid-magic-numbers
-# -readability-simplify-boolean-expr
-# -readability-static-accessed-through-instance
 # -readability-suspicious-call-argument
-# -readability-use-anyofallof
 # Remove warning disablement after CI pipeline migrates to C++17 from C++20 for:
 # -modernize-use-constraints,
 # -modernize-use-std-numbers
@@ -77,25 +63,20 @@ Checks: >
   -bugprone-exception-escape,
   -bugprone-implicit-widening-of-multiplication-result,
   -bugprone-incorrect-roundings,
-  -bugprone-narrowing-conversions,
   -bugprone-signed-char-misuse,
   -cppcoreguidelines-avoid-c-arrays,
   -cppcoreguidelines-avoid-const-or-ref-data-members,
   -cppcoreguidelines-avoid-do-while,
   -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-explicit-virtual-functions,
-  -cppcoreguidelines-init-variables,
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-misleading-capture-default-by-value,
-  -cppcoreguidelines-narrowing-conversions,
   -cppcoreguidelines-non-private-member-variables-in-classes,
   -cppcoreguidelines-owning-memory,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -cppcoreguidelines-pro-bounds-constant-array-index,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-type-const-cast,
-  -cppcoreguidelines-pro-type-member-init,
   -cppcoreguidelines-pro-type-reinterpret-cast,
   -cppcoreguidelines-pro-type-static-cast-downcast,
   -cppcoreguidelines-pro-type-union-access,
@@ -104,7 +85,6 @@ Checks: >
   -cppcoreguidelines-special-member-functions,
   -google-build-using-namespace,
   -google-explicit-constructor,
-  -google-readability-casting,
   -google-readability-todo,
   -modernize-avoid-c-arrays,
   -modernize-use-constraints,
@@ -115,27 +95,27 @@ Checks: >
   -misc-no-recursion,
   -misc-non-private-member-variables-in-classes,
   -misc-use-anonymous-namespace,
-  -readability-avoid-nested-conditional-operator,
-  -readability-avoid-return-with-void-value,
-  -readability-const-return-type,
-  -readability-convert-member-functions-to-static,
   -readability-function-cognitive-complexity,
   -readability-identifier-length,
-  -readability-inconsistent-declaration-parameter-name,
   -readability-isolate-declaration,
   -readability-magic-numbers,
-  -readability-simplify-boolean-expr,
-  -readability-static-accessed-through-instance,
   -readability-suspicious-call-argument,
-  -readability-uppercase-literal-suffix,
-  -readability-use-anyofallof,
 # Treat warnings as errors
 WarningsAsErrors: '*'
 # Use clang-format for applied fixes
 FormatStyle: file
-# HeaderFilterRegex: 'src/plugins/intel_cpu/src/.*'
+HeaderFilterRegex: 'src/plugins/intel_cpu/src/.*\.h(pp)?$'
 CheckOptions:
+  - key: bugprone-narrowing-conversions.IgnoreConversionFromTypes
+    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int;ov::intel_cpu::Dim"
+  - key: cppcoreguidelines-narrowing-conversions.IgnoreConversionFromTypes
+    value: "size_t;ptrdiff_t;size_type;difference_type;value_type;uint32_t;uint64_t;unsigned long;unsigned int;ov::intel_cpu::Dim"
   - key: cppcoreguidelines-avoid-do-while.IgnoreMacros
+    value: true
+  # use = instead of {} for initialization
+  - key: cppcoreguidelines-pro-type-member-init.UseAssignment
+    value: true
+  - key: modernize-use-default-member-init.UseAssignment
     value: true
   # matches with corresponding cpplink check  
   - key: google-readability-namespace-comments.ShortNamespaceLines
@@ -159,6 +139,7 @@ CheckOptions:
   - key: readability-braces-around-statements.ShortStatementLines
     value: "1"
   # itt and conditional compilation are implemented via tricky macro combinations
+  # TODO: remove snippets/*.hpp from the list
   - key: misc-include-cleaner.IgnoreHeaders
     value: >
       .*/itt.h;
@@ -166,7 +147,16 @@ CheckOptions:
       .*/selective_build.h;
       src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.hpp;
       src/plugins/intel_cpu/src/emitters/plugin/aarch64/jit_emitter.cpp;
+      snippets/lowered/loop_manager.hpp;
 #  Reasonable way to enforce splitting complex code into simple functions
   - key: readability-function-size.StatementThreshold
     value: "800"
+  - key: readability-simplify-boolean-expr.ChainedConditionalReturn
+    value: true
+  - key: readability-simplify-boolean-expr.ChainedConditionalAssignment
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorgan
+    value: true
+  - key: readability-simplify-boolean-expr.SimplifyDeMorganRelaxed
+    value: true
 ---

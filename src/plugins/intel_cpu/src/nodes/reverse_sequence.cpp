@@ -50,39 +50,27 @@ ReverseSequence::ReverseSequence(const std::shared_ptr<ov::Node>& op, const Grap
     }
 
     const auto revSeq = ov::as_type_ptr<const ov::op::v0::ReverseSequence>(op);
-    if (revSeq == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of v0 ReverseSequence.");
-    }
+    CPU_NODE_ASSERT(revSeq, "is not an instance of v0 ReverseSequence.");
 
-    if (inputShapes.size() != 2 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() == 1, "has incorrect number of input/output edges!");
 
     const auto dataRank = getInputShapeAtPort(REVERSESEQUENCE_DATA).getRank();
 
-    if (dataRank < 2) {
-        THROW_CPU_NODE_ERR("'data' rank should be greater than or equal to 2");
-    }
+    CPU_NODE_ASSERT(dataRank >= 2, "'data' rank should be greater than or equal to 2");
 
-    if (getInputShapeAtPort(REVERSESEQUENCE_LENGTHS).getRank() != 1) {
-        THROW_CPU_NODE_ERR("'seq_lengths' should be 1D tensor");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(REVERSESEQUENCE_LENGTHS).getRank() == 1, "'seq_lengths' should be 1D tensor");
 
-    if (dataRank != getOutputShapeAtPort(0).getRank()) {
-        THROW_CPU_NODE_ERR("has input/output rank mismatch");
-    }
+    CPU_NODE_ASSERT(dataRank == getOutputShapeAtPort(0).getRank(), "has input/output rank mismatch");
 
     seq_axis = revSeq->get_sequence_axis();
 
-    if (seq_axis < 0 || seq_axis >= static_cast<int>(dataRank)) {
-        THROW_CPU_NODE_ERR("has incorrect 'seq_axis' parameters dimensions and axis number!");
-    }
+    CPU_NODE_ASSERT(seq_axis >= 0 && seq_axis < static_cast<int>(dataRank),
+                    "has incorrect 'seq_axis' parameters dimensions and axis number!");
 
     batch_axis = revSeq->get_batch_axis();
 
-    if (batch_axis < 0 || batch_axis >= static_cast<int>(dataRank)) {
-        THROW_CPU_NODE_ERR("has incorrect 'batch_axis' parameters dimensions and axis number!");
-    }
+    CPU_NODE_ASSERT(batch_axis >= 0 && batch_axis < static_cast<int>(dataRank),
+                    "has incorrect 'batch_axis' parameters dimensions and axis number!");
 }
 
 void ReverseSequence::initSupportedPrimitiveDescriptors() {
@@ -91,7 +79,7 @@ void ReverseSequence::initSupportedPrimitiveDescriptors() {
     }
 
     lengthsPrecision = getOriginalInputPrecisionAtPort(REVERSESEQUENCE_LENGTHS);
-    if (lengthsPrecision != ov::element::i32 && lengthsPrecision != ov::element::f32) {
+    if (none_of(lengthsPrecision, ov::element::i32, ov::element::f32)) {
         lengthsPrecision = ov::element::i32;
     }
 
@@ -105,18 +93,10 @@ void ReverseSequence::prepareParams() {
     const auto& seqLengthsMemPtr = getSrcMemoryAtPort(REVERSESEQUENCE_LENGTHS);
     const auto& dstMemPtr = getDstMemoryAtPort(0);
 
-    if (!dataMemPtr || !dataMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'data'");
-    }
-    if (!seqLengthsMemPtr || !seqLengthsMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory of 'seq_lengths'");
-    }
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined output memory");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dataMemPtr && dataMemPtr->isDefined(), "has undefined input memory of 'data'");
+    CPU_NODE_ASSERT(seqLengthsMemPtr && seqLengthsMemPtr->isDefined(), "has undefined input memory of 'seq_lengths'");
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined output memory");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor() != nullptr, "has unidentified preferable primitive descriptor");
 
     const VectorDims& dataDims = dataMemPtr->getStaticDims();
     const VectorDims& seqLengthsDims = seqLengthsMemPtr->getStaticDims();
@@ -137,15 +117,10 @@ ReverseSequence::ReverseSequenceExecutor::ReverseSequenceExecutor(const VectorDi
     : batchAxis{batchAxis},
       seqAxis{seqAxis} {
     for (size_t i = 0; i < dataDims.size(); ++i) {
-        if (dataDims[i] != dstDims[i]) {
-            OPENVINO_THROW("Input/output tensors dimensions mismatch");
-        }
+        OPENVINO_ASSERT(dataDims[i] == dstDims[i], "Input/output tensors dimensions mismatch");
     }
 
-    if (seqLengthsDims[0] != dataDims[batchAxis]) {
-        OPENVINO_THROW("'seq_lengths' dimension mismatch");
-    }
-
+    OPENVINO_ASSERT(seqLengthsDims[0] == dataDims[batchAxis], "'seq_lengths' dimension mismatch");
     srcStrides.resize(dataDims.size());
     srcStrides[srcStrides.size() - 1] = 1;
     for (int i = srcStrides.size() - 2; i >= 0; --i) {
@@ -165,13 +140,12 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
     auto* seqLengthsData = seqLengthsMemPtr->getDataAs<T>();
 
     for (size_t i = 0; i < srcDims[batchAxis]; ++i) {
-        if (static_cast<int32_t>(seqLengthsData[i]) > static_cast<int>(srcDims[seqAxis])) {
-            OPENVINO_THROW("Incorrect input 'seq_lengths' values!");
-        }
+        OPENVINO_ASSERT(static_cast<int32_t>(seqLengthsData[i]) <= static_cast<int>(srcDims[seqAxis]),
+                        "Incorrect input 'seq_lengths' values!");
     }
 
     parallel_nt(0, [&](const int ithr, const int nthr) {
-        size_t i;
+        size_t i = 0;
         size_t start = 0;
         size_t end = 0;
         size_t srcIdx = 0;
@@ -203,14 +177,13 @@ void ReverseSequence::ReverseSequenceExecutor::exec(const MemoryPtr& dataMemPtr,
 }
 
 void ReverseSequence::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("has no compiled executor");
-    }
+    CPU_NODE_ASSERT(execPtr, "has no compiled executor");
 
     const auto precision = getParentEdgeAt(REVERSESEQUENCE_LENGTHS)->getMemory().getDesc().getPrecision();
-    if (!one_of(precision, ov::element::f32, ov::element::i32)) {
-        THROW_CPU_NODE_ERR("does not support ", precision, " precision");
-    }
+    CPU_NODE_ASSERT(any_of(precision, ov::element::f32, ov::element::i32),
+                    "does not support ",
+                    precision,
+                    " precision");
 
     if (precision == ov::element::f32) {
         execPtr->exec<float>(getSrcMemoryAtPort(REVERSESEQUENCE_DATA),

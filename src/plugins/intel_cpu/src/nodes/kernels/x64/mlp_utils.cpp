@@ -15,9 +15,9 @@
 #if defined(HAVE_AVX512F)
 #    include <immintrin.h>
 
-#    include "../scaled_attn/common.hpp"
+#    include "nodes/kernels/scaled_attn/common.hpp"
 #endif
-#include "../scaled_attn/transpose_kernel.hpp"
+#include "nodes/kernels/scaled_attn/transpose_kernel.hpp"
 
 namespace ov::Extensions::Cpu::XARCH {
 
@@ -51,7 +51,7 @@ void llm_mlp_quantize_to_i8(T* psrc,
 
     for (int y = 0; y < rows; y++, psrc += src_stride, pdst += dst_stride) {
         int x = 0;
-        float f_min, f_max;
+        float f_min = NAN, f_max = NAN;
 #if defined(HAVE_AVX512F)
         auto v_max = mm512_uni_loadu_ps(psrc + 0);
         auto v_min = mm512_uni_loadu_ps(psrc + 0);
@@ -74,8 +74,8 @@ void llm_mlp_quantize_to_i8(T* psrc,
         // (q - z) * s = f
         //  (-128 - z) * s = f_min;
         //  ( 127 - z) * s = f_max;
-        float scale;
-        float zp;
+        float scale = NAN;
+        float zp = NAN;
         if (f_max == f_min || std::isnan(f_max) || std::isnan(f_min)) {
             // special case
             p_zp[y] = 0;

@@ -7,9 +7,7 @@
 #include "openvino/pass/matcher_pass.hpp"
 #include "snippets/pass/tokenization.hpp"
 
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 class CommonOptimizations : public ov::pass::MatcherPass {
     class SubgraphPass;
@@ -20,9 +18,7 @@ class CommonOptimizations : public ov::pass::MatcherPass {
 
 public:
     OPENVINO_MATCHER_PASS_RTTI("snippets::pass::CommonOptimizations");
-    CommonOptimizations(const SnippetsTokenization::Config& config);
+    explicit CommonOptimizations(const SnippetsTokenization::Config& config);
 };
 
-}  // namespace pass
-}  // namespace snippets
-}  // namespace ov
+}  // namespace ov::snippets::pass

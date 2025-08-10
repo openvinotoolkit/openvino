@@ -1085,9 +1085,7 @@ void compare_tensors(const ov::Tensor& src, const ov::Tensor& dst) {
 }  // namespace
 
 TEST_P(OVTensorTestCopy, copy_to) {
-    ov::element::Type type;
-    TestParams p;
-    std::tie(type, p) = GetParam();
+    const auto& [type, p] = GetParam();
     // Source tensors
     ov::Tensor full_src_tensor;
     ov::Tensor src_tensor;

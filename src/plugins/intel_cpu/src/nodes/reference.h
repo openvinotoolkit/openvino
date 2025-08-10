@@ -14,9 +14,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class Reference : public Node {
 public:
@@ -44,12 +42,9 @@ private:
     ov::TensorVector prepareInputs() const;
     ov::TensorVector prepareOutputs() const;
 
-private:
     const std::shared_ptr<ov::Node> ovCoreNode;
     const std::string additionalErrorMessage;
     bool hasOutputShapeDataDependency = false;  // flag to cache the output shape data dependency check result
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

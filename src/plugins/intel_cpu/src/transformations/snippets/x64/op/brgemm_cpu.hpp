@@ -31,11 +31,11 @@ namespace ov::intel_cpu {
  */
 class BrgemmCPU : public snippets::op::Brgemm {
 public:
-    using BRGEMM_TYPE = brgemm_utils::BRGEMM_TYPE;
+    using BrgemmConfig = brgemm_utils::BrgemmConfig;
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
     struct PostopsConfig {
-        dnnl_post_ops post_ops = {};
+        dnnl_post_ops post_ops;
         std::optional<size_t> binary_postops_offset = std::nullopt;
         std::optional<ov::element::Type> forced_output_type = std::nullopt;
 
@@ -43,20 +43,20 @@ public:
         bool visit_attributes(AttributeVisitor& visitor);
     };
     BrgemmCPU(const ov::OutputVector& inputs,
-              BRGEMM_TYPE type,
+              BrgemmConfig config,
               const std::vector<MemoryAccess::PortDescriptor>& input_descs = {},
               const MemoryAccess::PortDescriptor& output_desc = {0, 0},
               const std::vector<size_t>& layout_a = {},
               const std::vector<size_t>& layout_b = {},
               const std::vector<size_t>& layout_c = {},
               PostopsConfig post_ops = PostopsConfig{});
-    BrgemmCPU() = default;
+    BrgemmCPU();
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    BRGEMM_TYPE get_type() const {
-        return m_type;
+    const BrgemmConfig& get_config() const {
+        return m_config;
     }
 
     size_t get_offset_scratch() const;
@@ -95,7 +95,7 @@ public:
     void add_binary_eltwise_postop(dnnl::impl::alg_kind_t alg_kind,
                                    const dnnl::memory::desc& desc,
                                    const ov::Output<Node>& postop_input,
-                                   const size_t binary_postop_offset);
+                                   size_t binary_postop_offset);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -105,7 +105,6 @@ private:
     void custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_a,
                                                      const std::vector<size_t>& layout_b,
                                                      const std::vector<size_t>& layout_c);
-    static size_t compute_gemm_inputs_count(const BRGEMM_TYPE type);
     void validate_with_scratchpad() const;
     void validate_inputs_size() const;
     void validate_postop_inputs() const;
@@ -120,9 +119,9 @@ private:
      */
     void add_postop_input(const ov::Output<Node>& postop_input);
 
-    BRGEMM_TYPE m_type = BRGEMM_TYPE::STAND_ALONE;
+    const BrgemmConfig m_config;
 
-    PostopsConfig m_post_ops_config = {};
+    PostopsConfig m_post_ops_config;
 
     /**
      * @brief m_gemm_inputs_count represents the number of GeMM inputs of the BrgemmCPU,
@@ -130,6 +129,6 @@ private:
      *        inputs needed directly for matrix multiplication execution.
      *        The rest inputs represents binary postops
      */
-    const size_t m_gemm_inputs_count = 0lu;
+    const size_t m_gemm_inputs_count = 0LU;
 };
 }  // namespace ov::intel_cpu

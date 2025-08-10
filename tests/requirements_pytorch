@@ -3,11 +3,11 @@
 # optimum still requires numpy<2.0.0
 numpy==1.26.4; python_version < "3.12"
 numpy==2.1.1; python_version >= "3.12"
-torch==2.6.0
+torch==2.7.0
 --extra-index-url https://download.pytorch.org/whl/cpu
 
-torchvision==0.21.0
-torchaudio==2.6.0
+torchvision==0.22.0
+torchaudio==2.7.0
 # before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
 transformers==4.47.1
 pytest==7.0.1; python_version < '3.10'
@@ -44,7 +44,7 @@ huggingface-hub==0.25.2
 
 # For now, we decided to pin a specific working version of optimum-intel.
 # It will be discussed in the future how to manage versioning of the components properly.
-git+https://github.com/huggingface/optimum-intel.git@dba7dced0145b539bb0563e5d5741d00daeb8025; python_version < "3.12"
+git+https://github.com/huggingface/optimum-intel.git@8ba536cd0a2bf93e9e88408b0048a7695db5be0b; python_version < "3.12"
 # set 'export HF_HUB_ENABLE_HF_TRANSFER=1' to benefits from hf_transfer
 hf_transfer==0.1.8
 

@@ -71,6 +71,7 @@ OP_CONVERTER(translate_conv_transposend);
 OP_CONVERTER(translate_convnd);
 OP_CONVERTER(translate_convolution);
 OP_CONVERTER(translate_convolution_mode);
+OP_CONVERTER(translate_constant_pad_nd);
 OP_CONVERTER(translate_copy_);
 OP_CONVERTER(translate_cross);
 OP_CONVERTER(translate_cumsum);
@@ -298,7 +299,6 @@ OP_CONVERTER(translate_batch_norm_legit_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_training_fx);
 OP_CONVERTER(translate_batch_norm_legit_no_stats_fx);
 OP_CONVERTER(translate_cat_fx);
-OP_CONVERTER(translate_constant_pad_nd_fx);
 OP_CONVERTER(translate_copy_fx);
 OP_CONVERTER(translate_cumsum_fx);
 OP_CONVERTER(translate_chunk_fx);
@@ -327,6 +327,7 @@ OP_CONVERTER(translate_new_ones_fx);
 OP_CONVERTER(translate_new_zeros_fx);
 OP_CONVERTER(translate_ones_fx);
 OP_CONVERTER(translate_ones_like_fx);
+OP_CONVERTER(translate_prod_fx);
 OP_CONVERTER(translate_reflection_pad_nd_fx);
 OP_CONVERTER(translate_repeat_fx);
 OP_CONVERTER(translate_rsub_fx);
@@ -388,6 +389,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::_weight_norm", op::translate_weight_norm},
         {"aten::abs", op::optional_out<op::translate_abs, 1>},
         {"aten::abs_", op::inplace_op<op::translate_abs>},
+        {"aten::absolute", op::optional_out<op::translate_abs, 1>},
+        {"aten::absolute_", op::inplace_op<op::translate_abs>},
         {"aten::acos", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>, 1>},
         {"aten::acos_", op::inplace_op<op::translate_1to1_match_1_inputs<opset10::Acos>>},
         {"aten::acosh",
@@ -471,6 +474,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::conv2d", op::translate_convnd},
         {"aten::conv3d", op::translate_convnd},
         {"aten::convolution", op::translate_convolution},
+        {"aten::constant_pad_nd", op::translate_constant_pad_nd},
         {"aten::copy", op::skip_node},
         {"aten::copy_", op::translate_copy_},
         {"aten::cos", op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Cos>, 1>},
@@ -826,6 +830,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._native_batch_norm_legit.no_stats", op::translate_batch_norm_legit_no_stats_fx},
         {"aten._native_batch_norm_legit_functional.default", op::translate_batch_norm_legit_fx},
         {"aten._native_batch_norm_legit_no_training.default", op::translate_batch_norm_legit_no_training_fx},
+        {"torch.ops.aten.bernoulli.p", op::translate_bernoulli},
         {"aten._safe_softmax.default", op::translate_softmax_fx},
         {"aten._scaled_dot_product_flash_attention.default", op::translate_scaled_dot_product_attention_fx},
         {"aten._scaled_dot_product_flash_attention_for_cpu.default", op::translate_scaled_dot_product_attention_fx},
@@ -833,6 +838,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._to_copy.default", op::translate_to_fx},
         {"aten._unsafe_view.default", op::translate_reshape},
         {"aten.abs.default", op::translate_1to1_match_1_inputs<opset10::Abs>},
+        {"aten.absolute.default", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"aten.acos.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acos>},
         {"aten.acosh.default", op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Acosh>},
         {"aten.adaptive_max_pool1d.default", op::translate_adaptive_max_pool1d_fx},
@@ -887,7 +893,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.clamp_min.Tensor", op::translate_1to1_match_2_inputs_align_types<opset10::Maximum>},
         {"aten.clone.default", op::skip_node},  // ignore clone operators that are inserted by PyTorch autograd
         {"aten.col2im.default", op::translate_col2im},
-        {"aten.constant_pad_nd.default", op::translate_constant_pad_nd_fx},
+        {"aten.constant_pad_nd.default", op::translate_constant_pad_nd},
         {"aten.convolution.default", op::translate_convolution},
         {"aten.copy.default", op::translate_copy_fx},
         {"aten.copy_.default", op::translate_copy_},
@@ -915,6 +921,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.expand_copy.default", op::translate_expand},
         {"aten.eye.m", op::translate_eye_fx},
         {"aten.fake_quantize_per_channel_affine_cachemask.default", op::translate_fake_quantize_per_channel_affine_fx},
+        {"aten.fake_quantize_per_tensor_affine_cachemask.default", op::translate_fake_quantize_per_tensor_affine_fx},
         {"aten.fill.Scalar", op::translate_fill},
         {"aten.fill_.Scalar", op::inplace_op<op::translate_fill>},
         {"aten.fill.Tensor", op::translate_fill},
@@ -944,6 +951,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten._unsafe_index.Tensor", op::translate_index_fx},
         {"aten.index_select.default", op::translate_index_select},
         {"aten.index_copy.default", op::translate_index_copy_},
+        {"aten.index_put.default", op::translate_index_put},
         {"aten.isfinite.default", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
         {"aten.isinf.default", op::translate_1to1_match_1_inputs<opset10::IsInf>},
         {"aten.isnan.default", op::translate_1to1_match_1_inputs<opset10::IsNaN>},
@@ -1003,6 +1011,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.pow.Tensor_Tensor", op::translate_pow},
         {"aten.pixel_shuffle.default", op::translate_pixel_shuffle},
         {"aten.pixel_unshuffle.default", op::translate_pixel_unshuffle},
+        {"aten.prod.default", op::translate_prod_fx},
+        {"aten.prod.dim_int", op::translate_prod_fx},
         {"aten.rand.default", op::translate_rand},
         {"aten.reciprocal.default", op::translate_reciprocal},
         {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd_fx},
@@ -1082,6 +1092,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.zeros.names", op::translate_zeros_fx},
         {"aten.zeros_like.default", op::translate_zeros_like_fx},
         {"get_attr", op::translate_constant},
+        {"scalar_tensor.default", op::translate_scalar_tensor_fx},
         {"torchvision.deform_conv2d.default", op::translate_deform_conv},
         {"torchvision.roi_align.default", op::translate_roi_align},
         {"quantized_decomposed.quantize_per_tensor.default", op::translate_quantize_per_tensor_fx},

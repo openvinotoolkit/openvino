@@ -4,8 +4,6 @@
 
 #include "bin_conv.h"
 
-#include <cpu/x64/xbyak/xbyak.h>
-
 #include <cassert>
 #include <common/c_types_map.hpp>
 #include <common/nstl.hpp>
@@ -20,9 +18,6 @@
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
-#include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
-#include "cpu/x64/jit_generator.hpp"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
 #include "eltwise.h"
@@ -46,6 +41,15 @@
 #include "utils/general_utils.h"
 #include "utils/ngraph_utils.hpp"
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
+#    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#    include "utils/cpu_utils.hpp"
+#endif
+
 // WA for xbyak.h
 #ifdef _WIN32
 #    ifndef _WINSOCKAPI_
@@ -68,18 +72,18 @@ namespace ov::intel_cpu::node {
 #    define GET_OFF(field) offsetof(jit_bin_conv_call_args, field)
 
 template <cpu_isa_t isa>
-struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_generator {
+struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_generator_t {
     DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_uni_bin_conv_kernel_f32)
 
     explicit jit_uni_bin_conv_kernel_f32(jit_bin_conv_params jcp,
                                          jit_dw_conv_params jcp_dw_conv,
                                          const dnnl_primitive_attr& attr)
         : jit_uni_bin_conv_kernel(jcp, jcp_dw_conv, attr),
-          jit_generator(jit_name()) {}
+          jit_generator_t(jit_name()) {}
 
     void create_ker() override {
-        jit_generator::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        jit_generator_t::create_kernel();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -88,12 +92,12 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
         for (int i = 0; i < end_idx; i++) {
             auto& post_op = p.entry_[i];
             if (post_op.is_eltwise()) {
-                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector<isa>>(this,
-                                                                                            post_op.eltwise,
-                                                                                            data_type::f32,
-                                                                                            true,
-                                                                                            eltwise_reserved,
-                                                                                            mask_post_op_reserved));
+                eltwise_injectors.push_back(std::make_shared<jit_uni_eltwise_injector_t<isa>>(this,
+                                                                                              post_op.eltwise,
+                                                                                              data_type::f32,
+                                                                                              true,
+                                                                                              eltwise_reserved,
+                                                                                              mask_post_op_reserved));
             } else if (post_op.is_depthwise()) {
                 depthwise_injectors.push_back(
                     std::make_shared<jit_uni_depthwise_injector_f32<isa>>(this, post_op, mask_post_op_reserved));
@@ -239,11 +243,11 @@ private:
     Xbyak::Opmask mask_post_op_reserved = Xbyak::Opmask(1);
     Xbyak::Reg64 eltwise_reserved = rax;
 
-    size_t vlen = cpu_isa_traits<isa>::vlen;
+    size_t vlen = cpu_isa_traits_t<isa>::vlen;
 
     Xbyak::Label l_table;
 
-    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector<isa>>> eltwise_injectors;
+    nstl::vector<std::shared_ptr<jit_uni_eltwise_injector_t<isa>>> eltwise_injectors;
     nstl::vector<std::shared_ptr<jit_uni_depthwise_injector_f32<isa>>> depthwise_injectors;
 
     void cvt2ps(dnnl::memory::data_type type_in, Vmm vmm_in, const Xbyak::Operand& op, bool scalar_load) {
@@ -585,7 +589,7 @@ private:
 
             if (jcp_.exclude_pad) {
                 mov(reg_tmp_32, jcp_.ic);
-                imul(reg_tmp_32, ptr[param1 + GET_OFF(kh_padding)]);
+                imul(reg_tmp_64, ptr[param1 + GET_OFF(kh_padding)]);
 
                 for (int jj = 0; jj < ur_w; jj++) {
                     kw_padding[jj] = 0;
@@ -609,7 +613,7 @@ private:
             for (int jj = 0; jj < ur_w; jj++) {
                 if (jcp_.exclude_pad) {
                     mov(reg_shift, kw_padding[jj]);
-                    imul(reg_shift, reg_tmp_32);
+                    imul(reg_shift, reg_tmp_64);
                     uni_vmovq(Xmm(vmm_shift.getIdx()), reg_shift);
                     uni_vbroadcastss(vmm_shift, Xmm(vmm_shift.getIdx()));
                     uni_vcvtdq2ps(vmm_shift, vmm_shift);
@@ -776,22 +780,22 @@ private:
                         auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + jj);
 
                         if (isa == x64::avx512_core) {
-                            size_t o_off;
-                            if (jcp_.with_dw_conv) {
-                                o_off = jj * jcp_.oc_block;
-                            } else {
-                                o_off = jj * jcp_.oc * jcp_.ngroups;
-                            }
+                            size_t o_off = [&] {
+                                if (jcp_.with_dw_conv) {
+                                    return jj * jcp_.oc_block;
+                                }
+                                return jj * jcp_.oc * jcp_.ngroups;
+                            }();
 
                             uni_vmovups(ptr[reg_output + o_off * jcp_.typesize_out], vmm_dst | ktail_mask);
                         } else {
                             for (int oc = 0; oc < tail_size; oc++) {
-                                size_t o_off;
-                                if (jcp_.with_dw_conv) {
-                                    o_off = jj * jcp_.oc_block + oc + r * (jcp_.oc_block / 2);
-                                } else {
-                                    o_off = jj * jcp_.oc * jcp_.ngroups + r * (jcp_.oc_block / 2) + oc;
-                                }
+                                size_t o_off = [&] {
+                                    if (jcp_.with_dw_conv) {
+                                        return jj * jcp_.oc_block + oc + r * (jcp_.oc_block / 2);
+                                    }
+                                    return jj * jcp_.oc * jcp_.ngroups + r * (jcp_.oc_block / 2) + oc;
+                                }();
 
                                 store_dst(ptr[reg_output + o_off * jcp_.typesize_out], vmm_dst, true);
 
@@ -811,7 +815,7 @@ private:
                         for (int jj = 0; jj < ur_w; jj++) {
                             auto vmm_dst = Vmm(1 + r * jcp_.ur_w * jcp_.nb_oc_blocking + ur_w * ii + jj);
 
-                            size_t o_off;
+                            size_t o_off = 0;
                             if (jcp_.with_dw_conv) {
                                 o_off = (static_cast<size_t>(ii) * jcp_dw_conv_.kh * jcp_.ow + jj) * jcp_.oc_block +
                                         r * (jcp_.oc_block / 2);
@@ -838,9 +842,15 @@ private:
 
         int nbits = 8;
         const int inp_mult = div_up(jcp_.ic, nbits);
-        const int out_mult = jcp_.with_dw_conv        ? jcp_.oc_block
-                             : jcp_.with_binarization ? div_up(jcp_.oc, nbits)
-                                                      : jcp_.oc;
+        int out_mult = [&]() {
+            if (jcp_.with_dw_conv) {
+                return jcp_.oc_block;
+            }
+            if (jcp_.with_binarization) {
+                return div_up(jcp_.oc, nbits);
+            }
+            return jcp_.oc;
+        }();
 
         int l_pad = jcp_.l_pad;
         int r_pad = nstl::max(0, (jcp_.ow - 1) * str_w + (kw - 1) * dilate_w - (iw + l_pad - 1));
@@ -1022,25 +1032,21 @@ void BinaryConvolution::getSupportedDescriptors() {
         }
     }
 
-    if (getParentEdges().size() != expectedInputEdgesNum) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges");
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == expectedInputEdgesNum, "has incorrect number of input edges");
 
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges");
-    }
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
 
-    if (getInputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", getInputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(0).getRank() == 4,
+                    "doesn't support 0th input with rank: ",
+                    getInputShapeAtPort(0).getRank());
 
-    if (getInputShapeAtPort(1).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(1).getRank() == 4,
+                    "doesn't support 1st input with rank: ",
+                    getInputShapeAtPort(1).getRank());
 
-    if (getOutputShapeAtPort(0).getRank() != 4) {
-        THROW_CPU_NODE_ERR("doesn't support output with rank: ", getOutputShapeAtPort(0).getRank());
-    }
+    CPU_NODE_ASSERT(getOutputShapeAtPort(0).getRank() == 4,
+                    "doesn't support output with rank: ",
+                    getOutputShapeAtPort(0).getRank());
 }
 
 void BinaryConvolution::initSupportedPrimitiveDescriptors() {
@@ -1108,9 +1114,7 @@ void BinaryConvolution::initSupportedPrimitiveDescriptors() {
 
 void BinaryConvolution::createPrimitive() {
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
 
     auto srcDims = getParentEdgeAt(0)->getMemory().getStaticDims();
     auto weiDims = getParentEdgeAt(1)->getMemory().getStaticDims();
@@ -1168,10 +1172,13 @@ void BinaryConvolution::createPrimitive() {
     jcp.oc_block = simd_w;
     jcp.nb_oc = div_up(jcp.oc, jcp.oc_block);
 
-    jcp.nb_oc_blocking = nstl::min(implType == impl_desc_type::jit_sse42  ? 2
-                                   : implType == impl_desc_type::jit_avx2 ? 4
-                                                                          : 6,
-                                   jcp.nb_oc);
+    if (implType == impl_desc_type::jit_sse42) {
+        jcp.nb_oc_blocking = nstl::min(2, jcp.nb_oc);
+    } else if (implType == impl_desc_type::jit_avx2) {
+        jcp.nb_oc_blocking = nstl::min(4, jcp.nb_oc);
+    } else {
+        jcp.nb_oc_blocking = nstl::min(6, jcp.nb_oc);
+    }
 
     auto srcPrecision = getParentEdgeAt(0)->getMemory().getDesc().getPrecision();
     auto dstPrecision = getChildEdgeAt(0)->getMemory().getDesc().getPrecision();
@@ -1186,10 +1193,8 @@ void BinaryConvolution::createPrimitive() {
 
     bool args_ok =
         (jcp.l_pad <= jcp.ur_w) && (r_pad_no_tail <= jcp.ur_w) &&
-        IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
-    if (!args_ok) {
-        THROW_CPU_NODE_ERR("has unsupported parameters");
-    }
+        IMPLICATION(jcp.kw > 7, (all_of(0, jcp.t_pad, jcp.l_pad)) || (all_of(1, jcp.stride_w, jcp.stride_h)));
+    CPU_NODE_ASSERT(args_ok, "has unsupported parameters");
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};
     if (implType == impl_desc_type::jit_avx512) {
@@ -1369,7 +1374,7 @@ void BinaryConvolution::executeReference(const uint8_t* src,
                     widx = with_groups ? g * w_str[0] + oc * w_str[1] + ic * w_str[2] + kh * w_str[3] + kw * w_str[4]
                                        : oc * w_str[0] + ic * w_str[1] + kh * w_str[2] + kw * w_str[3];
 
-                    uint8_t s;
+                    uint8_t s = 0;
                     if (ih < 0 || ih >= IH || iw < 0 || iw >= IW) {
                         if (pad_value == 0) {
                             continue;
@@ -1392,20 +1397,20 @@ void BinaryConvolution::executeReference(const uint8_t* src,
         int32_t a = 0;
         ker(a, g, mb, oc, oh, ow);
 
-        float base_value;
-        if (pad_value == 0.0F) {
-            const int i_left_overflow = nstl::max(0, (padL - ow * KSW));
-            const int i_right_overflow = nstl::max(IW, (ow * KSW + (KW - 1) * (KDW + 1) - padL + 1)) - IW;
-            const int kw_padding = KW - div_up(i_left_overflow, (KDW + 1)) - div_up(i_right_overflow, (KDW + 1));
+        auto base_value = [&]() -> float {
+            if (pad_value == 0.0F) {
+                const int i_left_overflow = nstl::max(0, (padL - ow * KSW));
+                const int i_right_overflow = nstl::max(IW, (ow * KSW + (KW - 1) * (KDW + 1) - padL + 1)) - IW;
+                const int kw_padding = KW - div_up(i_left_overflow, (KDW + 1)) - div_up(i_right_overflow, (KDW + 1));
 
-            const int i_top_overflow = nstl::max(0, (padT - oh * KSH));
-            const int i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
-            const int kh_padding = KH - div_up(i_top_overflow, (KDH + 1)) - div_up(i_bottom_overflow, (KDH + 1));
+                const int i_top_overflow = nstl::max(0, (padT - oh * KSH));
+                const int i_bottom_overflow = nstl::max(IH, (oh * KSH + (KH - 1) * (KDH + 1) - padT + 1)) - IH;
+                const int kh_padding = KH - div_up(i_top_overflow, (KDH + 1)) - div_up(i_bottom_overflow, (KDH + 1));
 
-            base_value = IC * kh_padding * kw_padding;
-        } else {
-            base_value = IC * KH * KW;
-        }
+                return static_cast<float>(IC * kh_padding * kw_padding);
+            }
+            return static_cast<float>(IC * KH * KW);
+        }();
 
         float a_fp = base_value - static_cast<float>(2 * a);
 
@@ -1441,9 +1446,7 @@ void BinaryConvolution::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
 
     auto implType = selectedPrimitiveDescriptor->getImplementationType();
     if (implType != impl_desc_type::ref) {

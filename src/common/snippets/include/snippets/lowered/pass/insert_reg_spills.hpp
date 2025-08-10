@@ -4,13 +4,18 @@
 
 #pragma once
 
-#include "pass.hpp"
-#include "snippets/lowered/reg_manager.hpp"
+#include <functional>
+#include <utility>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/rtti.hpp"
+#include "openvino/core/type.hpp"
+#include "pass.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/reg_manager.hpp"
+#include "snippets/op/brgemm.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 /**
  * @brief Default function to enable RegSpill insertion
@@ -29,8 +34,9 @@ class InsertRegSpills : public Pass {
 public:
     OPENVINO_RTTI("InsertRegSpills", "", Pass)
     explicit InsertRegSpills(RegManager& reg_manager,
-                             std::function<bool(const ExpressionPtr&)> needs_reg_spill = needs_reg_spill_default) :
-        m_reg_manager(reg_manager), m_needs_reg_spill(std::move(needs_reg_spill)) {}
+                             std::function<bool(const ExpressionPtr&)> needs_reg_spill = needs_reg_spill_default)
+        : m_reg_manager(reg_manager),
+          m_needs_reg_spill(std::move(needs_reg_spill)) {}
     bool run(LinearIR& linear_ir) override;
 
 private:
@@ -38,7 +44,4 @@ private:
     std::function<bool(const ExpressionPtr&)> m_needs_reg_spill;
 };
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/runtime/itensor.hpp"
@@ -59,6 +60,9 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
+void gather_cb4(const ov::SoPtr<ov::ITensor>& src,
+                const ov::SoPtr<ov::ITensor>& idx,
+                const ov::SoPtr<ov::ITensor>& dst);
 
 using View = std::vector<std::size_t>;
 ov::SoPtr<ov::ITensor> view(const ov::SoPtr<ov::ITensor>& src, const View& from, const View& to);
@@ -155,6 +159,14 @@ void non_parallel_for(std::size_t count, F&& f) {
         f(idx);
     }
 }
+
+template <class CountedType>
+struct Unique {
+    static std::string name() {
+        static std::size_t counter = 0u;
+        return std::string(CountedType::name) + "_" + std::to_string(counter++);
+    }
+};
 
 }  // namespace util
 }  // namespace npuw

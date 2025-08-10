@@ -6,7 +6,7 @@ import platform
 import numpy as np
 import pytest
 import torch
-from pytorch_layer_test_class import PytorchLayerTest
+from pytorch_layer_test_class import PytorchLayerTest, skip_check
 
 
 class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
@@ -18,7 +18,7 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
     def create_model(self, scale, zero_point, quant_min, quant_max):
         class fake_quantize_per_tensor_affine(torch.nn.Module):
             def __init__(self, scale, zero_point, quant_min, quant_max):
-                super(fake_quantize_per_tensor_affine, self).__init__()
+                super().__init__()
                 self.scale = scale
                 self.zero_point = zero_point
                 self.quant_min = quant_min
@@ -29,23 +29,22 @@ class TestFakeQuantizePerTensorAffine(PytorchLayerTest):
                     x, self.scale, self.zero_point, self.quant_min, self.quant_max
                 )
 
-        ref_net = None
-
         return (
             fake_quantize_per_tensor_affine(scale, zero_point, quant_min, quant_max),
-            ref_net,
+            None,
             "aten::fake_quantize_per_tensor_affine",
         )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(
         "scale, zero_point, quant_min, quant_max",
         [
             (1.0, 1, 0, 255),
             (0.01, 0, 0, 255),
-            (-0.01, 0, 0, 255),
+            skip_check(-0.01, 0, 0, 255, reason="Negative scale is not supported"),
             (0.5, 0, -128, 127),
             (0.5, -1, -128, 127),
             (1.0, 0, 0, 127),
@@ -74,7 +73,7 @@ class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
     def create_model(self, scale, zero_point, quant_min, quant_max):
         class _fake_quantize_per_tensor_affine_cachemask_tensor_qparams(torch.nn.Module):
             def __init__(self, scale, zero_point, quant_min, quant_max):
-                super(_fake_quantize_per_tensor_affine_cachemask_tensor_qparams, self).__init__()
+                super().__init__()
                 self.scale = torch.tensor(scale)
                 self.zero_point = torch.tensor(zero_point)
                 self.fake_quant_enabled = torch.tensor(1)
@@ -82,25 +81,25 @@ class TestFakeQuantizePerTensorAffineCacheMaskTensorQParams(PytorchLayerTest):
                 self.quant_max = quant_max
 
             def forward(self, x):
-                return torch._fake_quantize_per_tensor_affine_cachemask_tensor_qparams(
+                x, _ = torch._fake_quantize_per_tensor_affine_cachemask_tensor_qparams(
                     x, self.scale, self.zero_point, self.fake_quant_enabled, self.quant_min, self.quant_max
                 )
-
-        ref_net = None
+                return x
 
         return (
             _fake_quantize_per_tensor_affine_cachemask_tensor_qparams(scale, zero_point, quant_min, quant_max),
-            ref_net,
+            None,
             "aten::_fake_quantize_per_tensor_affine_cachemask_tensor_qparams",
         )
 
     @pytest.mark.precommit_fx_backend
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize(
         "scale, zero_point, quant_min, quant_max",
         [
             (1.0, 1, 0, 255),
             (0.01, 0, 0, 255),
-            (-0.01, 0, 0, 255),
+            skip_check(-0.01, 0, 0, 255, reason="Negative scale is not supported"),
             (0.5, 0, -128, 127),
             (0.5, -1, -128, 127),
             (1.0, 0, 0, 127),
@@ -129,7 +128,7 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
     def create_model(self, scale, zero_point, axis, quant_min, quant_max):
         class fake_quantize_per_channel_affine(torch.nn.Module):
             def __init__(self, scale, zero_point, axis, quant_min, quant_max):
-                super(fake_quantize_per_channel_affine, self).__init__()
+                super().__init__()
                 self.scale = scale
                 self.zero_point = zero_point
                 self.axis = axis
@@ -141,24 +140,23 @@ class TestFakeQuantizePerChannelAffine(PytorchLayerTest):
                     x, self.scale, self.zero_point, self.axis, self.quant_min, self.quant_max
                 )
 
-        ref_net = None
-
         return (
             fake_quantize_per_channel_affine(scale, zero_point, axis, quant_min, quant_max),
-            ref_net,
+            None,
             "aten::fake_quantize_per_channel_affine",
         )
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     @pytest.mark.parametrize(
         "scale, zero_point, axis, quant_min, quant_max",
         [
             (torch.tensor([0.005, 0.7]), torch.zeros(2), 1, 0, 255),
             (torch.tensor([1.5, -0.7, -0.1]), torch.tensor([1, 0, -1], dtype=torch.int32), 0, -128, 127),
-            (torch.tensor([-0.005, 0.7]), torch.tensor([0, 1], dtype=torch.int32), 1, 0, 127),
-            (torch.tensor([-0.005, -0.7, 0.1]), torch.tensor([1, 0, 1], dtype=torch.int32), 0, 0, 255),
+            skip_check(torch.tensor([-0.005, 0.7]), torch.tensor([0, 1], dtype=torch.int32), 1, 0, 127, reason="Negative scale is not supported"),
+            skip_check(torch.tensor([-0.005, -0.7, 0.1]), torch.tensor([1, 0, 1], dtype=torch.int32), 0, 0, 255, reason="Negative scale is not supported"),
         ],
     )
     @pytest.mark.xfail(condition=platform.system() == 'Darwin' and platform.machine() == 'arm64',

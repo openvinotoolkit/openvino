@@ -13,10 +13,6 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::f32,
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
-};
-
 namespace testValues1 {
 
 const std::vector<LayerTestsDefinitions::RecurrentCellTransformationParam> params = {
@@ -91,7 +87,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);
@@ -171,7 +166,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, RecurrentCellTransformation,
         ::testing::ValuesIn(activations_shapes),
         ::testing::ValuesIn(weights_shapes),
         ::testing::Values(ov::test::utils::DEVICE_GPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({ true, false }),
         ::testing::ValuesIn(params)),
     RecurrentCellTransformation::getTestCaseName);

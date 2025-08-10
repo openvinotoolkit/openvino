@@ -58,12 +58,12 @@ intel_cpu::PermuteSliceAndInterpolation::PermuteSliceAndInterpolation() {
         if (axes[0] < 0L) {
             axes[0] += in_rank.get_length();
         }
-        if (!one_of(in_rank.get_length(), 3L, 4L, 5L) || axes.size() != 1L || axes[0] != (in_rank.get_length() - 1L)) {
+        if (none_of(in_rank.get_length(), 3L, 4L, 5L) || axes.size() != 1L || axes[0] != (in_rank.get_length() - 1L)) {
             return false;
         }
         // Check Transpose order
         auto order = (as_type<op::v0::Constant>(transpose->get_input_node_ptr(1)))->cast_vector<int64_t>();
-        if (!one_of(order,
+        if (none_of(order,
                     std::vector<int64_t>{0, 2, 1},
                     std::vector<int64_t>{0, 3, 1, 2},
                     std::vector<int64_t>{0, 4, 1, 2, 3})) {

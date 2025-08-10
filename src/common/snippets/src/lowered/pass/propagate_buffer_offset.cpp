@@ -2,20 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-
 #include "snippets/lowered/pass/propagate_buffer_offset.hpp"
 
-#include "snippets/op/memory_access.hpp"
-#include "snippets/op/loop.hpp"
-#include "snippets/op/buffer.hpp"
-#include "snippets/utils/utils.hpp"
+#include <memory>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/memory_access.hpp"
+#include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
-
+namespace ov::snippets::lowered::pass {
 
 void PropagateBufferOffset::propagate(const BufferExpressionPtr& buffer_expr) {
     // If Buffer has offset We set this offset in the connected MemoryAccess ops
@@ -34,7 +34,7 @@ void PropagateBufferOffset::propagate(const BufferExpressionPtr& buffer_expr) {
             memory_access->set_output_offset(offset, port);
         } else {
             OPENVINO_THROW(
-                    "PropagateBufferOffset didn't find the connected MemoryAccess op to Buffer for offset propagation");
+                "PropagateBufferOffset didn't find the connected MemoryAccess op to Buffer for offset propagation");
         }
     }
     // Propagate to down: in Load. Buffer can have several Load
@@ -52,8 +52,8 @@ void PropagateBufferOffset::propagate(const BufferExpressionPtr& buffer_expr) {
             // After Loop initialization, Buffer can be connected to LoopEnd - it's ok
             continue;
         } else {
-            OPENVINO_THROW(
-                "PropagateBufferOffset didn't find the connected MemoryAccess op to Buffer for offset propagation for offset propagation");
+            OPENVINO_THROW("PropagateBufferOffset didn't find the connected MemoryAccess op to Buffer for offset "
+                           "propagation for offset propagation");
         }
     }
 }
@@ -61,13 +61,11 @@ void PropagateBufferOffset::propagate(const BufferExpressionPtr& buffer_expr) {
 bool PropagateBufferOffset::run(lowered::LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::PropagateBufferOffset");
 
-    for (const auto& buffer_expr : linear_ir.get_buffers())
+    for (const auto& buffer_expr : linear_ir.get_buffers()) {
         propagate(buffer_expr);
+    }
 
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

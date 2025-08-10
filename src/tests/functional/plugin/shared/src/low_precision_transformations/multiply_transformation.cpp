@@ -16,15 +16,9 @@
 namespace LayerTestsDefinitions {
 
 std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo<MultiplyTransformationParams>& obj) {
-    ov::element::Type precision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    auto params = LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParamsU8I8();
-    MultiplyTestValues param;
-    std::tie(precision, inputShapes, targetDevice, param) = obj.param;
-
+    auto [precision, inputShapes, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(precision, inputShapes, targetDevice, params) <<
+    result << get_test_case_name_by_params(precision, inputShapes, device) <<
            (param.broadcast1 ? "_broadcast1" : "") <<
         (param.broadcast2 ? "_broadcast2" : "");
 
@@ -49,10 +43,8 @@ std::string MultiplyTransformation::getTestCaseName(const testing::TestParamInfo
 }
 
 void MultiplyTransformation::SetUp() {
-    ov::element::Type precision;
-    ov::PartialShape inputShape;
-    MultiplyTestValues param;
-    std::tie(precision, inputShape, targetDevice, param) = this->GetParam();
+    auto [precision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
     auto inputShape1 = inputShape;
     if (param.broadcast1) {

@@ -35,7 +35,7 @@ private:
     const FCAttrs& m_attrs;
     const MemoryArgs& m_memoryArgs;
     const MemoryCPtr packedWeights;
-    int64_t M, N, K;
+    int64_t M = 0, N, K;
     int curNumaNode = -1;
 };
 

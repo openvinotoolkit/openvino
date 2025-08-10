@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "snippets/mlp.hpp"
+#include "snippets/mlp_seq.hpp"
 
 #include "utils.hpp"
 
@@ -35,9 +35,10 @@ std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExp
 
 std::vector<std::pair<size_t, std::pair<size_t, size_t>>> numHiddenLayersWithExpectationsBf16() {
     return {
-        {1, {3, 9}},
-        {3, {3, 13}},
-        {5, {5, 18}},
+        {1, {3, 3}}, // In Convert + MLP + Out Convert
+        {3, {3, 3}}, // In Convert + MLP + Out Convert
+        {5, {3, 3}}, // In Convert + MLP + Out Convert
+        {7, {4, 4}}, // In Convert + MLP_1 + MLP_2 + Out Convert
     };
 }
 

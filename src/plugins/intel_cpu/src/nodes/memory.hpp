@@ -40,7 +40,6 @@ public:
     using InputNodesMap = std::unordered_map<std::string, MemoryStateNode*>;
     using OutputNodesMap = std::unordered_map<std::string, MemoryNode*>;
 
-public:
     void registerOutput(MemoryOutputBase* node);
     void registerInput(MemoryInputBase* node);
     void remove(MemoryNode* node);
@@ -53,7 +52,6 @@ private:
     MemoryInputBase* getMemoryInputByName(const std::string& name);
     MemoryOutputBase* getMemoryOutputByName(const std::string& name);
 
-private:
     InputNodesMap memory_inputs;
     OutputNodesMap memory_outputs;
 };
@@ -143,10 +141,9 @@ protected:
 
 class MemoryInputBase : public Input, public MemoryStateNode {
 public:
-    enum class mode { read_value_assign, single_read_value };
+    enum class mode : uint8_t { read_value_assign, single_read_value };
 
-public:
-    MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
+    MemoryInputBase(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& ctx);
 
     ~MemoryInputBase() override;
 
@@ -185,7 +182,6 @@ protected:
                     const std::optional<std::vector<ov::element::Type>>& input_prc,
                     mode mode = mode::read_value_assign);
 
-protected:
     virtual void runStatic(dnnl::stream strm) = 0;
     virtual void runDynamic(dnnl::stream strm) = 0;
     virtual void assignStateHook() = 0;
@@ -196,11 +192,9 @@ protected:
 private:
     using executeHookPtr = void (MemoryInputBase::*)();
 
-private:
     void assignState();
     void bypassAssignState();
 
-private:
     /**
      * @brief keeps reference to output sibling node
      */
@@ -243,14 +237,12 @@ protected:
     void runDynamic(dnnl::stream strm) override;
 
 private:
-    void assignStateHook() override { /*pass*/
-    }
+    void assignStateHook() override { /*pass*/ }
 
     bool haveSubgraph() const {
         return body != nullptr;
     }
 
-private:
     std::shared_ptr<ov::Model> body = nullptr;
     std::unique_ptr<ov::intel_cpu::Graph> subGraph = nullptr;
     std::vector<MemoryPtr> subgraphMemoryPtrs;
@@ -303,7 +295,6 @@ private:
     void runStatic(dnnl::stream strm) override;
     void runDynamic(dnnl::stream strm) override;
 
-private:
     std::weak_ptr<ScaledDotProductAttention> m_sdpaNode;
     int m_child_port_idx = -1;
 };

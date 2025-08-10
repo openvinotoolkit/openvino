@@ -17,6 +17,8 @@ class LLMCompiledModel : public ov::npuw::ICompiledModel {
         std::map<std::string, std::tuple<ov::PropertyMutability, std::function<ov::Any(const ::intel_npu::Config&)>>>;
 
 public:
+    static constexpr const char* output_embeds = "npuw_output_embed";
+
     struct KVCacheDesc {
         uint32_t max_prompt_size = 0u;
         uint32_t total_size = 0u;
@@ -50,11 +52,11 @@ private:
     std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override;
     void implement_properties();
 
-    void serialize(std::ostream& stream, const ov::npuw::s11n::EncryptContext& ctx) const;
+    void serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& ctx) const;
     static std::shared_ptr<LLMCompiledModel> deserialize(std::istream& stream,
                                                          const std::shared_ptr<const ov::IPlugin>& plugin,
                                                          const ov::AnyMap& properties,
-                                                         const ov::npuw::s11n::EncryptContext& ctx);
+                                                         const ov::npuw::s11n::CompiledContext& ctx);
 
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
@@ -62,9 +64,16 @@ private:
     GetPropertiesMap m_prop_to_opt;
     ov::AnyMap m_non_llm_props;
 
+    // Cache bf16 constants for weightless deserialization
+    ov::npuw::s11n::BF16Cache m_bf16_consts;
+
     KVCacheDesc m_kvcache_desc;
+    uint64_t m_prefill_chunk_size = 0;
+    bool m_use_chunk_prefill = false;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
+    // This model is optional, so can be null.
+    std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
 };
 
 }  // namespace npuw

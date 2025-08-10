@@ -65,10 +65,6 @@ const std::vector<FullyConnectedShapes> shapes = {
     }
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams()
-};
-
 const std::vector<FullyConnectedParams> activations = {
     {
         true,  // activation
@@ -105,7 +101,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, FullyConnectedTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({ov::element::i8 /*, ov::element::u8*/}),
         ::testing::ValuesIn(activations),
         ::testing::Values("gemm_acl_i8")),

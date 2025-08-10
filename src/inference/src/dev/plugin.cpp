@@ -79,6 +79,16 @@ ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(std::istream& model,
     OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, context, config), m_so});
 }
 
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(const ov::Tensor& model, const ov::AnyMap& properties) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, properties), m_so});
+}
+
+ov::SoPtr<ov::ICompiledModel> ov::Plugin::import_model(const ov::Tensor& model,
+                                                       const ov::SoPtr<ov::IRemoteContext>& context,
+                                                       const ov::AnyMap& config) const {
+    OV_PLUGIN_CALL_STATEMENT(return {m_ptr->import_model(model, context, config), m_so});
+}
+
 ov::SoPtr<ov::IRemoteContext> ov::Plugin::create_context(const AnyMap& params) const {
     OV_PLUGIN_CALL_STATEMENT({
         auto remote = m_ptr->create_context(params);

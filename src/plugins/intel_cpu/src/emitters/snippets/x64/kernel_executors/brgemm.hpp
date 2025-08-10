@@ -20,16 +20,14 @@
 #include "snippets/kernel_executor_table.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
 namespace ov::intel_cpu::x64 {
 
 struct BrgemmKernelConfig : public BrgemmBaseKernelConfig {
 public:
-    BrgemmKernelConfig(const element::Type& in0_dtype,
-                       const element::Type& in1_dtype,
+    BrgemmKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config,
                        const element::Type& out_dtype,
-                       bool is_with_comp,
-                       dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                        const dnnl_post_ops& post_ops);
     BrgemmKernelConfig() = delete;
 
@@ -112,14 +110,19 @@ protected:
 };
 
 struct brgemm_ref_kernel : public dnnl::impl::cpu::x64::brgemm_kernel_t {
-    brgemm_ref_kernel(BrgemmKernelConfig c);
-    void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t*) const override;
+    explicit brgemm_ref_kernel(BrgemmKernelConfig c);
+    void operator()(dnnl::impl::cpu::x64::brgemm_kernel_params_t* args) const override;
     dnnl_status_t create_kernel() override {
         return dnnl_status_t::dnnl_success;
     }
-    [[nodiscard]] const dnnl::impl::cpu::x64::jit_generator* get_jit_generator() const override {
+    [[nodiscard]] const dnnl::impl::cpu::x64::jit_generator_t* get_jit_generator() const override {
         OV_CPU_JIT_EMITTER_THROW("get_jit_generator should not be called for reference kernel");
         return nullptr;
+    }
+    [[nodiscard]] const dnnl::impl::cpu::x64::brgemm_desc_t& get_brg() const override {
+        OV_CPU_JIT_EMITTER_THROW("get_brg should not be called for reference kernel");
+        static const dnnl::impl::cpu::x64::brgemm_desc_t brg;
+        return brg;
     }
 
 private:

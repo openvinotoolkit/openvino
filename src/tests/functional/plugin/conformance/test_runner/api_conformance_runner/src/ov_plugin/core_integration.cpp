@@ -7,7 +7,7 @@
 #include "openvino/runtime/core.hpp"
 #include "ov_api_conformance_helpers.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 using namespace ov::test::behavior;
 using namespace ov::test::conformance;
