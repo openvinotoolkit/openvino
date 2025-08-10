@@ -344,6 +344,11 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
                 // Gather with clamped indices (safe memory access)
                 result = gather_hw(ctx, x_idx, y_idx);
                 
+                // Convert gathered data to calc_type (f32) for computation
+                if (ctx.element_type != ctx.calc_type) {
+                    result = std::make_shared<op::v0::Convert>(result, ctx.calc_type);
+                }
+                
                 // Build mask based on *unclamped rounded indices* for NEAREST mode (PyTorch behavior)
                 // For NEAREST, a sample is inside if: 0 <= floor(x+0.5) <= W-1
                 auto x_ge_0  = std::make_shared<op::v1::GreaterEqual>(x_idx_unclamped, ctx.c0);
@@ -358,9 +363,14 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
                 // The mask is based purely on whether rounded indices are in bounds
                 auto ok = std::make_shared<op::v1::LogicalAnd>(x_in_idx, y_in_idx);
 
-                auto mask   = std::make_shared<op::v0::Convert>(ok, ctx.element_type);
+                auto mask   = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
                 auto mask_e = std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1}));
                 result = std::make_shared<op::v1::Multiply>(result, mask_e);
+                
+                // Convert final result back to original element type
+                if (ctx.element_type != ctx.calc_type) {
+                    result = std::make_shared<op::v0::Convert>(result, ctx.element_type);
+                }
             } else {
                 // For BORDER and REFLECTION, indices are already clamped
                 result = gather_hw(ctx, x_idx, y_idx);
@@ -436,6 +446,11 @@ GridSampleDecompositionBilinear::GridSampleDecompositionBilinear() {
                 }
 
                 auto val = gather_hw(ctx, xi, yi);
+                
+                // Convert gathered data to calc_type (f32) for computation
+                if (ctx.element_type != ctx.calc_type) {
+                    val = std::make_shared<op::v0::Convert>(val, ctx.calc_type);
+                }
 
                 if (is_zeros) {
                     auto x_ok = std::make_shared<op::v1::LogicalAnd>(
@@ -445,7 +460,7 @@ GridSampleDecompositionBilinear::GridSampleDecompositionBilinear() {
                         std::make_shared<op::v1::GreaterEqual>(y_coords[i], ctx.c0),
                         std::make_shared<op::v1::Less>(y_coords[i], h_in_f));
                     auto ok   = std::make_shared<op::v1::LogicalAnd>(x_ok, y_ok);
-                    auto mask = std::make_shared<op::v0::Convert>(ok, ctx.element_type);
+                    auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
                     auto mexp = std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1}));
                     val = std::make_shared<op::v1::Multiply>(val, mexp);
                 }
@@ -453,11 +468,18 @@ GridSampleDecompositionBilinear::GridSampleDecompositionBilinear() {
                 values[i] = val;
             }
 
-            std::shared_ptr<Node> res = std::make_shared<op::v1::Multiply>(
-                values[0], std::make_shared<op::v0::Unsqueeze>(weights[0], op::v0::Constant::create(element::i32, {}, {-1})));
+            // Apply weights in f32 precision
+            auto wexp0 = std::make_shared<op::v0::Unsqueeze>(weights[0], op::v0::Constant::create(element::i32, {}, {-1}));
+            std::shared_ptr<Node> res = std::make_shared<op::v1::Multiply>(values[0], wexp0);
+            
             for (size_t i = 1; i < 4; ++i) {
                 auto wexp = std::make_shared<op::v0::Unsqueeze>(weights[i], op::v0::Constant::create(element::i32, {}, {-1}));
                 res = std::make_shared<op::v1::Add>(res, std::make_shared<op::v1::Multiply>(values[i], wexp));
+            }
+            
+            // Convert final result back to original element type
+            if (ctx.element_type != ctx.calc_type) {
+                res = std::make_shared<op::v0::Convert>(res, ctx.element_type);
             }
             return res; // NHWC
         });
@@ -631,12 +653,18 @@ GridSampleDecompositionBicubic::GridSampleDecompositionBicubic() {
                     }
 
                     auto val = gather_hw(ctx, xi, yi);
+                    
+                    // Convert gathered data to calc_type (f32) for computation
+                    if (ctx.element_type != ctx.calc_type) {
+                        val = std::make_shared<op::v0::Convert>(val, ctx.calc_type);
+                    }
+                    
                     auto wxy = std::make_shared<op::v1::Multiply>(wx[ix], wy[iy]);
 
                     if (is_zeros) {
                         auto ok = std::make_shared<op::v1::LogicalAnd>(x_ok[ix], y_ok[iy]);
-                        auto m  = std::make_shared<op::v0::Convert>(ok, ctx.element_type);
-                        wxy = std::make_shared<op::v1::Multiply>(wxy, m);
+                        auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
+                        wxy = std::make_shared<op::v1::Multiply>(wxy, mask);
                     }
 
                     auto wexp = std::make_shared<op::v0::Unsqueeze>(wxy, op::v0::Constant::create(element::i32, {}, {-1}));
@@ -645,6 +673,11 @@ GridSampleDecompositionBicubic::GridSampleDecompositionBicubic() {
                     row = row ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(row, tap)) : std::shared_ptr<Node>(tap);
                 }
                 sum = sum ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(sum, row)) : row;
+            }
+            
+            // Convert final result back to original element type
+            if (ctx.element_type != ctx.calc_type) {
+                sum = std::make_shared<op::v0::Convert>(sum, ctx.element_type);
             }
             return sum; // NHWC
         });
