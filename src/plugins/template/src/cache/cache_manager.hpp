@@ -10,12 +10,13 @@
 #include <vector>
 
 #include "openvino/core/model.hpp"
-#include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/iremote_context.hpp"
+#include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ov { namespace cache {
+namespace ov {
+namespace cache {
 
 /**
  * @brief Engine-scoped KV cache owner/allocator.
@@ -76,4 +77,5 @@ private:
     mutable std::mutex m_mutex;
 };
 
-}} // namespace ov::cache
+}  // namespace cache
+}  // namespace ov

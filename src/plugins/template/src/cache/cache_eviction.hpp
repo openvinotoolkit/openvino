@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
 #include <map>
+#include <numeric>
 #include <set>
 #include <vector>
-#include <algorithm>
-#include <numeric>
 
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/tensor.hpp"
 
-namespace ov { namespace cache {
+namespace ov {
+namespace cache {
 
 using AttentionScoresForCacheOfSubsequence = ov::Tensor;
 using AttentionScoresForEachDecoderLayer = std::vector<AttentionScoresForCacheOfSubsequence>;
@@ -24,7 +25,7 @@ using AttentionScoresForEachDecoderLayer = std::vector<AttentionScoresForCacheOf
  */
 enum class AggregationMode {
     SUM,
-    NORM_SUM // divide by lifetime
+    NORM_SUM  // divide by lifetime
 };
 
 class CacheEvictionConfig {
@@ -52,10 +53,18 @@ public:
         m_evictable_size = m_max_cache_size - m_start_size - m_recent_size;
     }
 
-    std::size_t get_start_size() const { return m_start_size; }
-    std::size_t get_recent_size() const { return m_recent_size; }
-    std::size_t get_max_cache_size() const { return m_max_cache_size; }
-    std::size_t get_evictable_size() const { return m_evictable_size; }
+    std::size_t get_start_size() const {
+        return m_start_size;
+    }
+    std::size_t get_recent_size() const {
+        return m_recent_size;
+    }
+    std::size_t get_max_cache_size() const {
+        return m_max_cache_size;
+    }
+    std::size_t get_evictable_size() const {
+        return m_evictable_size;
+    }
 
     AggregationMode aggregation_mode = AggregationMode::NORM_SUM;
     bool apply_rotation = false;
@@ -101,8 +110,12 @@ public:
         return m_scores[layer_idx].size();
     }
 
-    const std::vector<std::vector<double>>& get_scores() const { return m_scores; }
-    const std::vector<std::vector<size_t>>& get_counters() const { return m_cache_counter; }
+    const std::vector<std::vector<double>>& get_scores() const {
+        return m_scores;
+    }
+    const std::vector<std::vector<size_t>>& get_counters() const {
+        return m_cache_counter;
+    }
 
 private:
     std::size_t m_block_size = 0;
@@ -137,14 +150,14 @@ public:
 
     std::size_t get_max_cache_size_after_eviction() const;
 
-    CacheEvictionRange get_evictable_block_range() const; // default: layer 0
+    CacheEvictionRange get_evictable_block_range() const;  // default: layer 0
 
     void register_new_token_scores(const AttentionScoresForEachDecoderLayer& per_layer_scores,
                                    const std::set<size_t>& skipped_logical_block_ids);
 
     void register_new_token_scores(const AttentionScoresForEachDecoderLayer& per_layer_scores_only);
 
-    std::vector<std::set<std::size_t>> evict_logical_blocks(); // per-layer result (same set across layers for now)
+    std::vector<std::set<std::size_t>> evict_logical_blocks();  // per-layer result (same set across layers for now)
 
 private:
     std::size_t get_num_blocks(std::size_t num_tokens) const;
@@ -177,7 +190,8 @@ public:
                             size_t max_context_length,
                             size_t kv_head_size,
                             double rope_theta = 10000.0f)
-        : m_block_size(block_size), m_head_size(kv_head_size) {}
+        : m_block_size(block_size),
+          m_head_size(kv_head_size) {}
 
     struct BlockRotationData {
         size_t logical_block_idx = 0;
@@ -193,11 +207,14 @@ public:
         return {};
     }
 
-    size_t get_head_size() const { return m_head_size; }
+    size_t get_head_size() const {
+        return m_head_size;
+    }
 
 private:
     size_t m_block_size = 0;
     size_t m_head_size = 0;
 };
 
-}} // namespace ov::cache
+}  // namespace cache
+}  // namespace ov

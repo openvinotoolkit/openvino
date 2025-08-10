@@ -347,16 +347,14 @@ void InferRequest::ensure_kv_cache_bound() {
         for (const auto& in : get_inputs()) {
             for (const auto& n : in.get_names()) {
                 if (n == kname) {
-                       ov::Tensor t = m_cache_mgr->get_key_cache(l);
-                       auto it = ov::get_tensor_impl(t); // SoPtr<ITensor>
-                       set_tensor(in, it);
-                   }
-                else if (n == vname)
-                    {
-                        ov::Tensor t = m_cache_mgr->get_value_cache(l);
-                        auto it = ov::get_tensor_impl(t); // SoPtr<ITensor>
-                        set_tensor(in, it);
-                    }
+                    ov::Tensor t = m_cache_mgr->get_key_cache(l);
+                    auto it = ov::get_tensor_impl(t);  // SoPtr<ITensor>
+                    set_tensor(in, it);
+                } else if (n == vname) {
+                    ov::Tensor t = m_cache_mgr->get_value_cache(l);
+                    auto it = ov::get_tensor_impl(t);  // SoPtr<ITensor>
+                    set_tensor(in, it);
+                }
             }
         }
     }
