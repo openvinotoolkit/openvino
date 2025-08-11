@@ -86,6 +86,21 @@ public:
         OPENVINO_NOT_IMPLEMENTED;
     }
 
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->import_model(model, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
+                                                     const ov::SoPtr<ov::IRemoteContext>& context,
+                                                     const ov::AnyMap& properties) const override {
+        if (m_plugin)
+            return m_plugin->import_model(model, context, properties);
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override {
         if (m_plugin)
@@ -160,6 +175,18 @@ std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model
     return m_plugin->import_model(model, properties);
 }
 std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(std::istream& model,
+                                                             const ov::SoPtr<ov::IRemoteContext>& context,
+                                                             const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->import_model(model, context, properties);
+}
+
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(const ov::Tensor& model,
+                                                             const ov::AnyMap& properties) const {
+    set_parameters_if_need();
+    return m_plugin->import_model(model, properties);
+}
+std::shared_ptr<ov::ICompiledModel> MockPlugin::import_model(const ov::Tensor& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const {
     set_parameters_if_need();

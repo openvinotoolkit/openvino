@@ -54,10 +54,7 @@ template <class T>
 struct matrix_nms_gpu_test : public testing::TestWithParam<matrix_nms_test_params> {
 public:
     void test() {
-        format::type blocked_format;
-        matrix_nms_test_inputs test_inputs;
-        bool is_caching_test;
-        std::tie(test_inputs, blocked_format, is_caching_test) = testing::TestWithParam<matrix_nms_test_params>::GetParam();
+        const auto& [test_inputs, blocked_format, is_caching_test] = testing::TestWithParam<matrix_nms_test_params>::GetParam();
 
         const auto data_type = ov::element::from<T>();
         const auto plain_format = format::bfyx;

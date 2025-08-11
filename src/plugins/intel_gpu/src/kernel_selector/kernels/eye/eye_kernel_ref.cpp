@@ -54,12 +54,12 @@ ParamsKey EyeKernelRef::GetSupportedKey() const {
 
 bool EyeKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::EYE) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const eye_params& params = dynamic_cast<const eye_params&>(p);
     if (params.inputs.empty())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

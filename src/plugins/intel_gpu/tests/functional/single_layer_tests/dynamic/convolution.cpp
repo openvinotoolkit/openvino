@@ -30,18 +30,9 @@ class ConvolutionLayerGPUTestDynamic : public testing::WithParamInterface<convLa
                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convLayerTestParamsSet>& obj) {
-        convSpecificParams convParams;
-        ov::element::Type model_type;
-        InputShape inputShape;
-        std::string targetDevice;
-        bool activationFusing;
-        std::tie(convParams, model_type, inputShape, targetDevice, activationFusing) = obj.param;
+        const auto& [convParams, model_type, inputShape, targetDevice, activationFusing] = obj.param;
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         std::ostringstream result;
         result << "IS=";
@@ -67,19 +58,12 @@ public:
 
 protected:
     void SetUp() override {
-        convSpecificParams convParams;
-        InputShape inputShape;
-        auto model_type = ov::element::dynamic;
-        bool activationFusing;
-        std::tie(convParams, model_type, inputShape, targetDevice, activationFusing) = this->GetParam();
+        const auto& [convParams, model_type, inputShape, _targetDevice, activationFusing] = this->GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShape});
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)
@@ -182,6 +166,10 @@ const std::vector<ov::test::InputShape> dynInputShapes2D = {
         {1, 10, ov::Dimension::dynamic(), ov::Dimension::dynamic()},
         {{1, 10, 20, 20}, {1, 10, 30, 30}, {1, 10, 40, 20}}
     },
+    {
+        {1, 3, {224, 448}, {224, 448}},
+        {{1, 3, 224, 224}, {1, 3, 448, 448}}
+    }
 };
 
 // Specific range causes output static shapeS
@@ -219,7 +207,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_ConvolutionLayerGPUTest_dynamic2DSymAutoPad, Conv
                         ::testing::Values(std::vector<size_t>{1, 1}),
                         ::testing::Values(10),
                         ::testing::ValuesIn({ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER})),
-                ::testing::Values(ov::element::f16),
+                ::testing::ValuesIn({ov::element::f16, ov::element::f32}),
                 ::testing::ValuesIn(dynInputShapes2D),
                 ::testing::Values<std::string>(ov::test::utils::DEVICE_GPU),
                 ::testing::Values(false)),
@@ -331,18 +319,9 @@ class ConvolutionLayerGPUTestDynamicEltwiseFusing : public testing::WithParamInt
                                                     virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<convLayerFusingTestParamsSet>& obj) {
-        convSpecificParams convParams;
-        ov::element::Type model_type;
-        std::vector<InputShape> inputShapes;
-        std::string targetDevice;
-        bool activationFusing;
-        std::tie(convParams, model_type, inputShapes, targetDevice, activationFusing) = obj.param;
+        const auto& [convParams, model_type, inputShapes, targetDevice, activationFusing] = obj.param;
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         std::ostringstream result;
         for (const auto& inputShape : inputShapes) {
@@ -370,19 +349,12 @@ public:
 
 protected:
     void SetUp() override {
-        convSpecificParams convParams;
-        std::vector<InputShape> inputShapes;
-        auto model_type = ov::element::dynamic;
-        bool activationFusing;
-        std::tie(convParams, model_type, inputShapes, targetDevice, activationFusing) = this->GetParam();
+        const auto& [convParams, model_type, inputShapes, _targetDevice, activationFusing] = this->GetParam();
+        targetDevice = _targetDevice;
 
         init_input_shapes({inputShapes});
 
-        ov::op::PadType padType;
-        std::vector<size_t> kernel, stride, dilation;
-        std::vector<ptrdiff_t> padBegin, padEnd;
-        size_t convOutChannels;
-        std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+        const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
         ov::ParameterVector inputParams;
         for (auto&& shape : inputDynamicShapes)

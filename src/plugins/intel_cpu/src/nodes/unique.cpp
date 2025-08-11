@@ -60,9 +60,8 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (!one_of(op->get_input_size(), 1U, 2U) || op->get_output_size() != 4) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges.");
-    }
+    CPU_NODE_ASSERT(any_of(op->get_input_size(), 1U, 2U) && op->get_output_size() == 4,
+                    "has incorrect number of input/output edges.");
 
     for (int i = 0; i < 4; i++) {
         definedOutputs[i] = !op->get_output_target_inputs(i).empty();
@@ -75,10 +74,9 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
         if (axis < 0) {
             axis += op->get_input_partial_shape(IN_DATA).rank().get_length();
         }
-        if (axis < 0 || axis >= op->get_input_partial_shape(IN_DATA).rank().get_length()) {
-            THROW_CPU_NODE_ERR("has invalid axis value: ",
-                               ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0]);
-        }
+        CPU_NODE_ASSERT(axis >= 0 && axis < op->get_input_partial_shape(IN_DATA).rank().get_length(),
+                        "has invalid axis value: ",
+                        ov::as_type<op::v0::Constant>(op->get_input_node_ptr(AXIS))->cast_vector<int>()[0]);
     } else {
         flattened = true;
     }
@@ -86,7 +84,7 @@ Unique::Unique(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& co
 
 void Unique::initSupportedPrimitiveDescriptors() {
     dataPrecision = getOriginalInputPrecisionAtPort(IN_DATA);
-    if (dataPrecision != ov::element::i32 && dataPrecision != ov::element::i8 && dataPrecision != ov::element::u8) {
+    if (none_of(dataPrecision, ov::element::i32, ov::element::i8, ov::element::u8)) {
         dataPrecision = ov::element::f32;
     }
     dataTypeSize = dataPrecision.size();
@@ -113,20 +111,14 @@ void Unique::createPrimitive() {
 
 void Unique::prepareParams() {
     auto dataMemPtr = getSrcMemoryAtPort(IN_DATA);
-    if (!dataMemPtr) {
-        THROW_CPU_NODE_ERR("has null input data memory.");
-    }
+    CPU_NODE_ASSERT(dataMemPtr, "has null input data memory.");
     for (int i = 0; i < 4; i++) {
         if (definedOutputs[i]) {
             auto dstMemPtr = getDstMemoryAtPort(i);
-            if (!dstMemPtr) {
-                THROW_CPU_NODE_ERR("has null output memory at port ", i);
-            }
+            CPU_NODE_ASSERT(dstMemPtr, "has null output memory at port ", i);
         }
     }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor.");
-    }
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor.");
 
     size_t srcLen = 1;
     if (flattened) {

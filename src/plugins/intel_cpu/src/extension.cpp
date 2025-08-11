@@ -37,6 +37,7 @@
 #include "openvino/op/mvn.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/not_equal.hpp"
+#include "openvino/op/paged_attention.hpp"
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/reduce_logical_and.hpp"
 #include "openvino/op/reduce_logical_or.hpp"
@@ -94,18 +95,19 @@
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
-#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
-#if defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/cpu_opset/x64/op/interaction.hpp"
+#    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#    include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#    include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#    include "transformations/snippets/x64/op/load_convert.hpp"
+#    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
+#    include "transformations/snippets/x64/op/store_convert.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
 #    include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #endif
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
-#include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
 
 namespace {
 
@@ -185,6 +187,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedCompressed>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantizedLegacy>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantized>>(),
+    std::make_shared<ov::OpExtension<ov::op::PagedAttentionExtension>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
@@ -202,6 +205,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Add>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::AvgPool>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v14::AvgPool>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v16::AvgPool>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Clamp>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Concat>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Convolution>>(),

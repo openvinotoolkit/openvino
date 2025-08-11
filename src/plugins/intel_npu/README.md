@@ -180,7 +180,8 @@ The following properties are supported (may differ based on current system confi
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
 | `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | Allows CPU threads pinning during inference. | `YES`/ `NO` /</br>`NO` 
 | `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_NONE`/</br>`LOG_ERROR`/</br>`LOG_WARNING`/</br>`LOG_INFO`/</br>`LOG_DEBUG`/</br>`LOG_TRACE` |  `LOG_NONE` |
-| `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | `N/A` | empty |
+| `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | Any string pointing towards a valid directory path | empty |
+| `ov::cache_mode`/</br>`CACHE_MODE` | RW | If `CACHE_DIR` has been set, then this option indicates whether or not the size of the compiled model binary object will be reduced by decoupling a portion of the weights. | `OPTIMIZE_SIZE` /</br>`OPTIMIZE_SPEED` | `OPTIMIZE_SPEED` |
 | `ov::available_devices`/</br>`AVAILABLE_DEVICES` | RO | Returns the list of enumerated NPU devices. </br> NPU plugin does not currently support multiple devices. | `N/A`| `N/A` |
 | `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3720`/</br> `4000` | empty |
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |

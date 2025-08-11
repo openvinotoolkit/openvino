@@ -13,8 +13,7 @@
 using namespace ov::frontend;
 
 std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<FuzzyOpTestParam>& obj) {
-    std::string fe, path, fileName;
-    std::tie(fe, path, fileName) = obj.param;
+    const auto& [fe, path, fileName] = obj.param;
     return fe + "_" + FrontEndTestUtils::fileToTestName(fileName);
 }
 

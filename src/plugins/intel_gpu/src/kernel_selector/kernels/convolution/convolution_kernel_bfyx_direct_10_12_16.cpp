@@ -78,7 +78,7 @@ KernelsPriority ConvolutionKernel_bfyx_Direct_10_10_12::GetKernelsPriority(const
 
 bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p) const {
     if (!Parent::Validate(p) || !ConvolutionCheckInput(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const convolution_params& cp = static_cast<const convolution_params&>(p);
@@ -89,7 +89,7 @@ bool ConvolutionKernel_bfyx_Direct_10_10_12::Validate(const Params& p) const {
     const bool bFilterOK = bFilter3x3 || bFilter5x5;
 
     if (!bFilterOK || !bStrideOK) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

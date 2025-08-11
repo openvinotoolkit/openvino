@@ -433,6 +433,14 @@ static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_
 
 /**
  * @brief
+ * Type: uint32_t.
+ * Desirable max LoRA rank.
+ * Default value: 32.
+ */
+static constexpr ov::Property<uint32_t> max_lora_rank{"NPUW_LLM_MAX_LORA_RANK"};
+
+/**
+ * @brief
  * FIXME: Should be removed.
  * Type: bool.
  * Tell NPUW to apply values transpose optimization for the model.
@@ -442,21 +450,44 @@ static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENS
 
 /**
  * @brief
+ * Type: uint64_t.
+ * Prompt chunk size for chunk prefill.
+ * The chunk size should be a power of two.
+ * Chunk prefill feature is disabled in case the value is 0.
+ * Default value: 0.
+ */
+static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
+
+/**
+ * @brief
  * Type: std::string.
  * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.
  * Possible values: "DYNAMIC", "STATIC".
- * Default value: "STATIC".
+ * Default value: "DYNAMIC".
  */
 static constexpr ov::Property<std::string> prefill_hint{"NPUW_LLM_PREFILL_HINT"};
 
 /**
  * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation of prefill model.
+ * Configuration for compilation/execution of prefill model. If specified, it will override default
+ * config, prepared by NPUW specifically for this model.
+ *
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> prefill_config{"NPUW_LLM_PREFILL_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Additional configuration for compilation/execution of prefill model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_prefill_config{"++NPUW_LLM_PREFILL_CONFIG"};
 
 /**
  * @brief
@@ -471,10 +502,53 @@ static constexpr ov::Property<std::string> generate_hint{"NPUW_LLM_GENERATE_HINT
 /**
  * @brief
  * Type: ov::AnyMap.
- * Configuration for compilation of generate model.
+ * Configuration for compilation/execution of generate model. If specified, it will override default
+ * config, prepared by NPUW specifically for this model.
+ *
  * NOTE: !! Write-only !!
  */
 static constexpr ov::Property<ov::AnyMap> generate_config{"NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of generate model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_generate_config{"++NPUW_LLM_GENERATE_CONFIG"};
+
+/**
+ * @brief
+ * Type: bool.
+ * Tell NPUW to separate LM head into the 3rd model, that will be shared between
+ * prefill and generate.
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> shared_lm_head{"NPUW_LLM_SHARED_HEAD"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of shared LM head model. If specified, it will override
+ * default config, prepared by NPUW specifically for this model.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> shared_lm_head_config{"NPUW_LLM_SHARED_HEAD_CONFIG"};
+
+/**
+ * @brief
+ * Type: ov::AnyMap.
+ * Configuration for compilation/execution of shared LM head model. If specified, it
+ * will be appended to the default configuration, prepared by NPUW.
+ * For duplicated options, preference will be given to values from given map.
+ *
+ * NOTE: !! Write-only !!
+ */
+static constexpr ov::Property<ov::AnyMap> additional_shared_lm_head_config{"++NPUW_LLM_SHARED_HEAD_CONFIG"};
 }  // namespace llm
 
 }  // namespace npuw

@@ -5,12 +5,11 @@
 #pragma once
 
 #include "openvino/core/except.hpp"
+#include "utils/cpu_utils.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 #include "xbyak_riscv/xbyak_riscv_util.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace riscv64 {
+namespace ov::intel_cpu::riscv64 {
 
 #define DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_name) \
     const char* name() const override {         \
@@ -46,13 +45,13 @@ namespace riscv64 {
 // f18-27 | fs2-11   | FP Saved registers     |  Callee
 // f28-31 | ft8-11   | FP Temporaries         |  Caller
 
-class jit_generator : public Xbyak_riscv::CodeGenerator {
+class jit_generator_t : public Xbyak_riscv::CodeGenerator {
 public:
-    jit_generator(size_t maxSize = Xbyak_riscv::DEFAULT_MAX_CODE_SIZE,
-                  void* userPtr = Xbyak_riscv::DontSetProtectRWE,
-                  Xbyak_riscv::Allocator* allocator = 0)
+    explicit jit_generator_t(size_t maxSize = Xbyak_riscv::DEFAULT_MAX_CODE_SIZE,
+                             void* userPtr = Xbyak_riscv::DontSetProtectRWE,
+                             Xbyak_riscv::Allocator* allocator = nullptr)
         : Xbyak_riscv::CodeGenerator(maxSize, userPtr, allocator) {}
-    virtual ~jit_generator() {}
+    ~jit_generator_t() override = default;
 
     const uint8_t* jit_ker() const {
         OPENVINO_ASSERT(jit_ker_, "jit_ker_ is nullable");
@@ -62,14 +61,14 @@ public:
     template <typename... kernel_args_t>
     void operator()(kernel_args_t... args) const {
         using jit_kernel_func_t = void (*)(const kernel_args_t... args);
-        auto* fptr = (jit_kernel_func_t)jit_ker_;
+        auto* fptr = jit_kernel_cast<jit_kernel_func_t>(jit_ker_);
         (*fptr)(std::forward<kernel_args_t>(args)...);
     }
 
     virtual bool create_kernel() {
         generate();
         jit_ker_ = getCode();
-        return jit_ker_;
+        return jit_ker_ != nullptr;
     }
 
     void preamble();
@@ -81,8 +80,8 @@ public:
         Xbyak_riscv::CodeGenerator::L(label);
     }
 
-    jit_generator(const jit_generator&) = delete;
-    jit_generator& operator=(const jit_generator&) = delete;
+    jit_generator_t(const jit_generator_t&) = delete;
+    jit_generator_t& operator=(const jit_generator_t&) = delete;
 
     virtual const char* name() const = 0;
     virtual const char* source_file() const = 0;
@@ -130,10 +129,10 @@ public:
                   const Xbyak_riscv::VReg& vs,
                   Xbyak_riscv::VM vm = Xbyak_riscv::VM::unmasked);
 
-    static Xbyak_riscv::LMUL float2lmul(const float lmul);
-    static Xbyak_riscv::SEW bytes2sew(const size_t bytes);
-    static float lmul2float(const Xbyak_riscv::LMUL lmul);
-    static size_t sew2bytes(const Xbyak_riscv::SEW sew);
+    static Xbyak_riscv::LMUL float2lmul(float lmul);
+    static Xbyak_riscv::SEW bytes2sew(size_t sew);
+    static float lmul2float(Xbyak_riscv::LMUL lmul);
+    static size_t sew2bytes(Xbyak_riscv::SEW sew);
 
 protected:
     virtual void generate() = 0;
@@ -166,18 +165,17 @@ protected:
 private:
     const uint8_t* getCode() {
         ready();
-        if (!is_initialized())
+        if (!is_initialized()) {
             return nullptr;
+        }
         return getCodeAddress();
     }
 
-    static inline bool is_initialized() {
+    static bool is_initialized() {
         // At the moment, Xbyak_riscv does not have GetError()
         // so that return dummy result.
         return true;
     }
 };
 
-}  // namespace riscv64
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::riscv64

@@ -4,8 +4,8 @@
 
 # mypy: ignore-errors
 
-import typing as t
 import logging
+from collections.abc import Mapping
 
 from torch.nn import Module
 from torch._ops import OpOverload
@@ -79,6 +79,7 @@ class OperatorSupport(OpSupport):
             "torch.ops.aten.avg_pool2d.default": None,
             "torch.ops.aten.avg_pool3d.default": None,
             "torch.ops.aten.baddbmm.default": None,
+            "torch.ops.aten.bernoulli.p": None,
             "torch.ops.aten.bitwise_and.Scalar": None,
             "torch.ops.aten.bitwise_and.Tensor": None,
             "torch.ops.aten.bitwise_not.default": None,
@@ -283,7 +284,7 @@ class OperatorSupport(OpSupport):
     def enable_by_name(self, node: Node):
         self.enabled_op_names.append(node.name)
 
-    def is_node_supported(self, submodules: t.Mapping[str, Module], node: Node) -> bool:
+    def is_node_supported(self, submodules: Mapping[str, Module], node: Node) -> bool:
         # OpenVINO FX subgraph should be purely functional
         if node.op not in CALLABLE_NODE_OPS:
             return False

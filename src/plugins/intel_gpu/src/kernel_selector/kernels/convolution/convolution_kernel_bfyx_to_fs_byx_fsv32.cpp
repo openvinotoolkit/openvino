@@ -94,13 +94,13 @@ KernelsPriority ConvolutionKernel_bfyx_to_fs_byx_fsv32::GetKernelsPriority(const
 
 bool ConvolutionKernel_bfyx_to_fs_byx_fsv32::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto cp = static_cast<const convolution_params&>(p);
 
     // Output feature padding must be multiple of fsv to keep block alignment
     if (cp.outputs[0].Feature().pad.before % fsv != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

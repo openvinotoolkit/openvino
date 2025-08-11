@@ -15,7 +15,7 @@ class ConvPoolActivTest : public testing::WithParamInterface<fusingSpecificParam
                           public CpuTestWithFusing,
                           virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<fusingSpecificParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<fusingSpecificParams>& obj);
 
 protected:
     void SetUp() override;

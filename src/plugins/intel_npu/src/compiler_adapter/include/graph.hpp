@@ -16,38 +16,44 @@
 
 namespace intel_npu {
 
-class Graph final : public IGraph {
+class Graph : public IGraph {
 public:
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-          ze_graph_handle_t graphHandle,
+          const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          bool blobAllocatedByPlugin,
           const Config& config,
-          const ov::SoPtr<ICompiler>& compiler = {nullptr});
+          const bool blobIsPersistent = false,
+          const ov::SoPtr<ICompiler>& compiler = {nullptr},
+          const bool calledFromWeightlessGraph = false);
 
-    size_t export_blob(std::ostream& stream) const override;
+    std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
     std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                             const Config& config) const override;
 
     void set_argument_value(uint32_t argi, const void* argv) const override;
 
+    ze_graph_handle_t get_handle() const override;
+
     void initialize(const Config& config) override;
 
     ~Graph() override;
 
-private:
+protected:
     bool release_blob(const Config& config);
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
+
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
+
+    GraphDescriptor _graphDesc;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _blobAllocatedByPlugin = false;
+    bool _blobIsPersistent = false;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;

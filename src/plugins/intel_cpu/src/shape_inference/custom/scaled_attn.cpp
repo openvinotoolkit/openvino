@@ -25,7 +25,7 @@ namespace ov::intel_cpu::node {
 
 class SDPAShapeInfer : public ShapeInferEmptyPads {
 public:
-    SDPAShapeInfer(ScaledDotProductAttentionWithKVCache::Config config) : m_config(std::move(config)) {}
+    explicit SDPAShapeInfer(ScaledDotProductAttentionWithKVCache::Config config) : m_config(std::move(config)) {}
 
     IShapeInfer::Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                               [[maybe_unused]] const std::unordered_map<size_t, MemoryPtr>& data_dependency) override {
@@ -56,7 +56,7 @@ public:
             auto weight_dims_size = weight_dims.size();
             if (attn_mask_dims_size >= 2 && attn_mask_dims_size <= weight_dims_size) {
                 auto check_broadcast = [](const size_t& target, const size_t& to) -> bool {
-                    return target == to || target == 1;
+                    return any_of(target, to, 1U);
                 };
                 weight_dims[3] = present_v_dims[length_index];
                 auto offset = weight_dims_size - attn_mask_dims_size;

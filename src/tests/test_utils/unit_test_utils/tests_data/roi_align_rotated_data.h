@@ -1,8 +1,7 @@
 #pragma once
 
-#define PI 3.14159265358979323846
-#define LIST(...) \
-    { __VA_ARGS__ }
+#define PI        3.14159265358979323846
+#define LIST(...) {__VA_ARGS__}
 
 // TEST_DATA(input_shape,
 //          pooled_height,

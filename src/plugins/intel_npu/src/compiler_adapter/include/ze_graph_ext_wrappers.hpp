@@ -19,6 +19,13 @@ namespace intel_npu {
 
 using SerializedIR = std::pair<size_t, std::shared_ptr<uint8_t>>;
 
+struct GraphDescriptor {
+    GraphDescriptor(ze_graph_handle_t handle = nullptr, void* data = nullptr);
+
+    ze_graph_handle_t _handle = nullptr;
+    void* _data = nullptr;
+};
+
 /**
  * Adapter to use CiD through ZeroAPI
  */
@@ -31,28 +38,29 @@ public:
 
     std::unordered_set<std::string> queryGraph(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
                                                const std::string& buildFlags) const;
-    ze_graph_handle_t getGraphHandle(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
-                                     const std::string& buildFlags,
-                                     const uint32_t& flags) const;
 
-    ze_graph_handle_t getGraphHandle(const uint8_t& data, size_t size) const;
+    GraphDescriptor getGraphDescriptor(std::pair<size_t, std::shared_ptr<uint8_t>> serializedIR,
+                                       const std::string& buildFlags,
+                                       const uint32_t& flags) const;
 
-    NetworkMetadata getNetworkMeta(ze_graph_handle_t graphHandle) const;
+    GraphDescriptor getGraphDescriptor(void* data, size_t size) const;
 
-    _ze_result_t destroyGraph(ze_graph_handle_t graphHandle);
+    NetworkMetadata getNetworkMeta(GraphDescriptor& graphDescriptor) const;
+
+    void destroyGraph(GraphDescriptor& graphDescriptor);
 
     std::string getCompilerSupportedOptions() const;
 
     bool isOptionSupported(std::string optname) const;
 
-    void getGraphBinary(ze_graph_handle_t graphHandle,
+    void getGraphBinary(const GraphDescriptor& graphDescriptor,
                         std::vector<uint8_t>& blob,
                         const uint8_t*& blobPtr,
                         size_t& blobSize) const;
 
-    void setGraphArgumentValue(ze_graph_handle_t graphHandle, uint32_t argi_, const void* argv) const;
+    void setGraphArgumentValue(const GraphDescriptor& graphDescriptor, uint32_t argi_, const void* argv) const;
 
-    void initializeGraph(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
+    void initializeGraph(const GraphDescriptor& graphDescriptor, uint32_t commandQueueGroupOrdinal) const;
 
 private:
     std::unordered_set<std::string> getQueryResultFromSupportedLayers(
@@ -65,6 +73,9 @@ private:
                      std::vector<IODescriptor>& outputs) const;
 
     void initialize_graph_through_command_list(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
+
+    void* importCpuVa(void* data, size_t size, const uint32_t flags = 0) const;
+    bool releaseCpuVa(void* data);
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     uint32_t _graphExtVersion;
