@@ -12,7 +12,7 @@
 namespace ov {
 namespace npuw {
 
-bool KVBlock::add_Block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors) {
+bool KVBlock::add_block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors) {
     // Check input validity
     if (token_hashes.empty()) {
         return false;
@@ -35,17 +35,37 @@ bool KVBlock::add_Block(const std::vector<uint64_t>& token_hashes, const BlocKVC
     return true;
 }
 
+void KVBlock::link_blocks(std::shared_ptr<KVBlock> prev_block) {
+    prev_block->next_block_hashes.push_back(block_hash);
+    prev_block_hash = prev_block->block_hash;
+}
+
+void KVBlock::unlink_blocks(std::shared_ptr<KVBlock> prev_block) {
+    auto curr_block_hash = block_hash;
+    auto new_end =
+        std::remove(prev_block->next_block_hashes.begin(), prev_block->next_block_hashes.end(), curr_block_hash);
+    prev_block->next_block_hashes.erase(new_end, prev_block->next_block_hashes.end());
+
+    prev_block_hash = 0;
+}
+
 uint64_t KVBlock::compute_block_hash(const std::vector<uint64_t>& token_hashes) const {
     // Use the last token hash as the block hash, given token hash is calculated with preceding tokens
     return token_hashes.back();
 }
 
 void KVBlock::print_block_info(bool verbose) const {
-    std::cout << "Block information: " << ref_count << std::endl;
+    std::cout << "Block information: " << std::endl;
+    std::cout << "  Block hash: " << block_hash << std::endl;
     std::cout << "  Ref Count: " << ref_count << std::endl;
     std::cout << "  Status: " << (is_full ? "Full" : "Not Full") << std::endl;
     std::cout << "  Block index: " << block_id << std::endl;
     std::cout << "  Token start: " << token_start << std::endl;
+
+    std::cout << "  Children blocks: " << std::endl;
+    for (size_t index = 0; index < next_block_hashes.size(); ++index) {
+        std::cout << "    hash [" << index << "]: " << next_block_hashes[index] << std::endl;
+    }
 
     if (verbose) {
         std::cout << "  KV cache stored in block: " << std::endl;
@@ -75,33 +95,63 @@ void KVBlock::print_block_info(bool verbose) const {
     std::cout << "  KV cache tensor total size: " << total_size / bytes_MB << " MB" << std::endl;
 }
 
-void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block) {
+void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash) {
     // Do not cache incomplete blocks
     if (!block->is_full) {
         return;
     }
 
-    std::lock_guard<std::mutex> lock(mutex);
+    {
+        std::lock_guard<std::mutex> lock(mutex);
 
-    // Check if the block is already cached
-    auto it = cache_map.find(block->block_hash);
-    if (it != cache_map.end()) {
-        update_lru(it->second);
-        return;
+        // Check if the block is already cached
+        auto it = cache_map.find(block->block_hash);
+        if (it != cache_map.end()) {
+            update_lru(it->second);
+            return;
+        }
+
+        // Link current block with previous block
+        auto prev_it = cache_map.find(prev_block_hash);
+        if (prev_it != cache_map.end()) {
+            auto prev_block = prev_it->second;
+            block->link_blocks(prev_block);
+        }
+
+        // Add block to cache
+        block->block_id = cache_map.size();
+
+        if (cache_map.size() >= max_cache_size) {
+            // Evict the least recently used block which does not have any child block
+            for (auto lru_it = lru_list.rbegin(); lru_it != lru_list.rend(); ++lru_it) {
+                auto lru_block = *lru_it;
+                if (lru_block->next_block_hashes.size() != 1) {
+                    continue;
+                }
+
+                if (lru_block->next_block_hashes.front() != block->block_hash) {
+                    continue;
+                }
+                std::cout << "Cache is full, evict LRU block" << std::endl;
+                lru_block->print_block_info(false);
+
+                // Unlink LRU blocks
+                auto lru_prev_block_hash = lru_block->prev_block_hash;
+                auto blockIt = cache_map.find(lru_prev_block_hash);
+                if (blockIt != cache_map.end()) {
+                    auto lru_prev_block = blockIt->second;
+                    lru_block->unlink_blocks(lru_prev_block);
+                }
+
+                cache_map.erase(lru_block->block_hash);
+                lru_list.pop_back();
+                break;  // Exit after evicting one block
+            }
+        }
+
+        cache_map[block->block_hash] = block;
+        lru_list.push_front(block);
     }
-
-    // Add block to cache
-    block->block_id = cache_map.size();
-
-    if (cache_map.size() >= max_cache_size) {
-        // Evict the least recently used block
-        auto lru_block = lru_list.back();
-        cache_map.erase(lru_block->block_hash);
-        lru_list.pop_back();
-    }
-
-    cache_map[block->block_hash] = block;
-    lru_list.push_front(block);
 }
 
 void PrefixCacheManager::update_lru(const std::shared_ptr<KVBlock>& block) {
