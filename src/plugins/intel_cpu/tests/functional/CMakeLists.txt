@@ -246,7 +246,12 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/conv_concat.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/conv_maxpool_activ.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/conv_maxpool_activ.hpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/eltwise_chain.cpp)
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/eltwise_chain.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/fuse_transpose_reorder.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/fuse_transpose_reorder.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/matmul_weights_decompression.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/matmul_weights_decompression.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests/src/classes/undefined_et.cpp)
 
     list(APPEND TMP_LIST_OF_EXPLICITLY_ENABLED_TESTS
         ${TMP_LIST_OF_TEST_CLASSES}
