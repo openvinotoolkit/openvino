@@ -12,7 +12,9 @@
 
 namespace {
 template <ov::element::Type_t ET>
-bool evaluate_u2(const std::shared_ptr<ov::op::v1::Subtract>& op, ov::TensorVector& outputs, const ov::TensorVector& inputs) {
+bool evaluate_u2(const std::shared_ptr<ov::op::v1::Subtract>& op,
+                 ov::TensorVector& outputs,
+                 const ov::TensorVector& inputs) {
     constexpr const auto conversion_type = ov::element::i8;
     using T = typename ov::element_type_traits<conversion_type>::value_type;
     const auto& in0_shape = inputs[0].get_shape();
@@ -31,7 +33,12 @@ bool evaluate_u2(const std::shared_ptr<ov::op::v1::Subtract>& op, ov::TensorVect
 
     ov::Tensor converted_out(conversion_type, out_shape);
 
-    ov::reference::subtract<T>(converted_in0.data<T>(), converted_in1.data<T>(), converted_out.data<T>(), in0_shape, in1_shape, op->get_autob());
+    ov::reference::subtract<T>(converted_in0.data<T>(),
+                               converted_in1.data<T>(),
+                               converted_out.data<T>(),
+                               in0_shape,
+                               in1_shape,
+                               op->get_autob());
 
     ov::reference::convert(ov::element::iterator<conversion_type>(converted_out.data()),
                            ov::element::iterator<ov::element::u2>(outputs[0].data()),
@@ -43,8 +50,8 @@ bool evaluate_u2(const std::shared_ptr<ov::op::v1::Subtract>& op, ov::TensorVect
 
 template <>
 bool evaluate_node<ov::op::v1::Subtract>(std::shared_ptr<ov::Node> node,
-                                    ov::TensorVector& outputs,
-                                    const ov::TensorVector& inputs) {
+                                         ov::TensorVector& outputs,
+                                         const ov::TensorVector& inputs) {
     switch (node->get_output_element_type(0)) {
     case ov::element::u2:
         return evaluate_u2<ov::element::u2>(ov::as_type_ptr<ov::op::v1::Subtract>(node), outputs, inputs);
