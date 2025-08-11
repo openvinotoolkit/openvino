@@ -39,14 +39,8 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
     std::fill_n(padded_attention_mask->data<int64_t>(), input_ids->get_size(), 1u);
 
     auto encoder_hidden_states = m_prefill_request->get_tensor(m_prefill_in_ports.at("encoder_hidden_states"));
-    void* enc_hidden_states_data;
-    try {
-        enc_hidden_states_data = enc_hidden_states->data();
-    } catch (::ov::NotImplemented) {
-        auto remoteTensor = std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(enc_hidden_states._ptr);
-        enc_hidden_states_data = remoteTensor->get_original_memory();
-    }
-
+    auto remote_tensor = std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(enc_hidden_states._ptr);
+    void* enc_hidden_states_data = !remote_tensor ? enc_hidden_states->data() : remote_tensor->get_original_memory();
     std::copy_n(reinterpret_cast<uint8_t*>(enc_hidden_states_data),
                 enc_hidden_states->get_byte_size(),
                 reinterpret_cast<uint8_t*>(encoder_hidden_states->data()));
