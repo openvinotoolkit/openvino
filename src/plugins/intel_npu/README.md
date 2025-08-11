@@ -198,6 +198,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::compiler_dynamic_quantization`/</br>`NPU_COMPILER_DYNAMIC_QUANTIZATION` | RW | Enable/Disable dynamic quantization by NPU compiler | `YES` / `NO` | `N/A` |
 | `ov::intel_npu::qdq_optimization`/</br>`NPU_QDQ_OPTIMIZATION` | RW | Enable/Disable additional optimizations and balances performance and accuracy for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
+| `ov::intel_npu::qdq_optimization_forced`/</br>`NPU_QDQ_OPTIMIZATION_FORCED` | RW | Enable/Disable additional optimizations and balances performance and accuracy for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |
 | `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RW | Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it will be populated by driver.| `[0-]` | `[1-6] depends on npu platform` |

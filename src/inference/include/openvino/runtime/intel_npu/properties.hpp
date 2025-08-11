@@ -87,6 +87,15 @@ static constexpr ov::Property<bool> compiler_dynamic_quantization{"NPU_COMPILER_
 static constexpr ov::Property<bool> qdq_optimization{"NPU_QDQ_OPTIMIZATION"};
 
 /**
+ * @brief [Only for NPU compiler]
+ * Type: boolean
+ * This option enables additional optimizations and balances performance and accuracy for QDQ format models, quantized
+ * using ONNX Runtime
+ * @ingroup ov_runtime_npu_prop_cpp_api
+ */
+static constexpr ov::Property<bool> qdq_optimization_forced{"NPU_QDQ_OPTIMIZATION_FORCED"};
+
+/**
  * @brief [Only for NPU plugin]
  * Type: std::bool
  * Set turbo on or off. The turbo mode, where available, provides a hint to the system to maintain the
