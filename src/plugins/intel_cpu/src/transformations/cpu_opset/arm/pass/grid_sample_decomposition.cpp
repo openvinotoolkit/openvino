@@ -1,12 +1,19 @@
-// Copyright (C) 2018-2025 Intel Corporation
+// Copyright (C) 2018-2025 Intel
 // SPDX-License-Identifier: Apache-2.0
+//
+// GridSample decomposition split into STATIC and DYNAMIC shape paths.
+// - No use of ov::reference::* (explicitly forbidden).
+// - Static path builds a smaller, const-shape graph (no ShapeOf/Gather over shapes).
+// - Dynamic path is the original fully-generic builder over ShapeOf/Gather.
+// - Three interpolation modes are supported: NEAREST, BILINEAR, BICUBIC.
+// - Padding modes: ZEROS / BORDER / REFLECTION. align_corners is respected.
 //
 
 #include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 
-#include <deque>
 #include <functional>
 #include <unordered_set>
+#include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -45,44 +52,41 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "snippets/pass/tokenization.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/disable_constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
-
 namespace ov {
 namespace intel_cpu {
 
-namespace { // ===== Functional split, behavior-preserving =====
+// ============================================================================
+// INTERNAL SHARED: graph-level builders (reused by both static & dynamic paths)
+// ============================================================================
 
-// Forward declaration
-struct Ctx;
-static bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx);
+namespace {
 
-/*** 0) Context ***/
 struct Ctx {
-    // Shapes
+    // Scalars with sizes (might be Constants in static path or ShapeOf-slices in dynamic)
     std::shared_ptr<Node> n_dim, c_dim, h_in, w_in, h_out, w_out;
     // Types
     element::Type element_type;
-    element::Type calc_type; // f32
+    element::Type calc_type; // f32 for math
     // Consts
     std::shared_ptr<Node> c0, c1, c2, c0_5;
-    // Coords (grid [-1,1] -> pixels), padding/reflection применяются в builder-ах
+    // Pixels coords after normalization
     std::shared_ptr<Node> x, y;
-    // Original normalized coords
+    // Normalized coords (from grid, in [-1, 1])
     std::shared_ptr<Node> x_norm, y_norm;
-    // Data NHWC for GatherND
+    // Data as NHWC for GatherND
     std::shared_ptr<Node> data_nhwc;
 };
 
-/*** 1) Helpers: sizes to f32 ***/
+// ---- small helpers ----
 static std::shared_ptr<Node> to_f32(const std::shared_ptr<Node>& i) {
     return std::make_shared<op::v0::Convert>(i, element::f32);
 }
 
-/*** 2) Normalization [-1,1] -> pixels (без padding/reflection) ***/
+// Normalize grid [-1, 1] to pixel coordinates (no padding/reflection here)
 static void normalize_grid_to_pixels(const Ctx& ctx,
                                      const std::shared_ptr<Node>& x_grid,
                                      const std::shared_ptr<Node>& y_grid,
@@ -109,7 +113,7 @@ static void normalize_grid_to_pixels(const Ctx& ctx,
     }
 }
 
-/*** 3) Batch indices + GatherND NHWC ***/
+// Create [N, H_out, W_out] batch indices tensor for GatherND (broadcasted)
 static std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
     auto range = std::make_shared<op::v4::Range>(
         op::v0::Constant::create(element::i32, {}, {0}),
@@ -134,6 +138,7 @@ static std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
     return std::make_shared<op::v0::Convert>(bcast, element::i32);
 }
 
+// Gather from NHWC by (b, y, x)
 static std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
                                             const std::shared_ptr<Node>& x_coord,
                                             const std::shared_ptr<Node>& y_coord) {
@@ -149,7 +154,7 @@ static std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
     return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 0);
 }
 
-/*** 4) Reflection (continuous / index) — идентично твоему коду ***/
+// Reflection helpers (continuous/indexed)
 static std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
                                            const std::shared_ptr<Node>& coord,
                                            const std::shared_ptr<Node>& size_f,
@@ -165,26 +170,20 @@ static std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
         auto ref = std::make_shared<op::v1::Subtract>(size_m1, ad);
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, ref);
     } else {
-        // For align_corners=false: handle negative coords by transforming them
-        // PyTorch formula: negative coords are transformed as -coord - 1
         auto is_negative = std::make_shared<op::v1::Less>(coord, ctx.c0);
         auto neg_coord = std::make_shared<op::v0::Negative>(coord);
         auto neg_minus_one = std::make_shared<op::v1::Subtract>(neg_coord, ctx.c1);
         auto coord_positive = std::make_shared<op::v1::Select>(is_negative, neg_minus_one, coord);
-        
+
         auto two_size = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
-        // Safe period to avoid division by zero
         auto two_size_safe = std::make_shared<op::v1::Maximum>(two_size, ctx.c1);
-        
-        // Use positive modulo on the transformed coordinate
         auto mod = std::make_shared<op::v1::FloorMod>(coord_positive, two_size_safe);
-        
+
         auto need_ref = std::make_shared<op::v1::GreaterEqual>(mod, size_f);
-        // Reflect: 2*size - 1 - mod
         auto two_size_m1 = std::make_shared<op::v1::Subtract>(two_size_safe, ctx.c1);
         auto ref_val = std::make_shared<op::v1::Subtract>(two_size_m1, mod);
         auto result = std::make_shared<op::v1::Select>(need_ref, ref_val, mod);
-        
+
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, result);
     }
 }
@@ -197,9 +196,7 @@ static std::shared_ptr<Node> reflect_index(const Ctx& ctx,
     if (align_corners) {
         auto size_m1 = std::make_shared<op::v1::Subtract>(size_f, ctx.c1);
         auto two_sm1 = std::make_shared<op::v1::Multiply>(ctx.c2, size_m1);
-        // Guard against division by zero when size==1
         auto period_safe = std::make_shared<op::v1::Maximum>(two_sm1, ctx.c1);
-        // Use positive modulo: ((idx % period) + period) % period
         auto mod1    = std::make_shared<op::v1::FloorMod>(idx, period_safe);
         auto mod2    = std::make_shared<op::v1::FloorMod>(
                            std::make_shared<op::v1::Add>(mod1, period_safe), period_safe);
@@ -209,19 +206,18 @@ static std::shared_ptr<Node> reflect_index(const Ctx& ctx,
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, ref);
     } else {
         auto two_s   = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
-        // Safe period to avoid division by zero
         auto two_s_safe = std::make_shared<op::v1::Maximum>(two_s, ctx.c1);
-        auto per_m1  = std::make_shared<op::v1::Subtract>(two_s_safe, ctx.c1);
         auto mod1    = std::make_shared<op::v1::FloorMod>(idx, two_s_safe);
         auto mod2    = std::make_shared<op::v1::FloorMod>(std::make_shared<op::v1::Add>(mod1, two_s_safe), two_s_safe);
         auto need_rf = std::make_shared<op::v1::GreaterEqual>(mod2, size_f);
-        auto ref_val = std::make_shared<op::v1::Subtract>(per_m1, mod2);
+        auto two_s_m1 = std::make_shared<op::v1::Subtract>(two_s_safe, ctx.c1);
+        auto ref_val = std::make_shared<op::v1::Subtract>(two_s_m1, mod2);
         auto res     = std::make_shared<op::v1::Select>(need_rf, ref_val, mod2);
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, res);
     }
 }
 
-/*** 5) Safe clamp индексов [0..size-1] ***/
+// Clamp integer-ish indices to [0..size-1] (safe)
 static void clamp_indices_inplace(const Ctx& ctx,
                                   std::shared_ptr<Node>& xi,
                                   std::shared_ptr<Node>& yi,
@@ -233,7 +229,7 @@ static void clamp_indices_inplace(const Ctx& ctx,
     yi = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(yi, ctx.c0), h_m1);
 }
 
-/*** 6) Mask inside (для ZEROS — по «до-клампа» индексам) ***/
+// Inside mask for ZEROS padding (check BEFORE clamp)
 static std::shared_ptr<Node> inside_mask_indexed(const Ctx& ctx,
                                                  const std::shared_ptr<Node>& xi,
                                                  const std::shared_ptr<Node>& yi,
@@ -248,9 +244,9 @@ static std::shared_ptr<Node> inside_mask_indexed(const Ctx& ctx,
                std::make_shared<op::v1::LogicalAnd>(y_ge_0, y_lt_h));
 }
 
-/*** 7) Builders ***/
+// ---- builders for interpolation modes ----
 
-// 7.1 NEAREST (ровно как в твоём коде: HALF_TO_EVEN; reflection после округления; clamp всегда)
+// NEAREST (HALF_TO_EVEN rounding; reflect after rounding; always clamp)
 static std::shared_ptr<Node>
 build_nearest_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& attrs) {
     const bool is_zeros      = attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS;
@@ -293,7 +289,7 @@ build_nearest_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& att
     return out;
 }
 
-// 7.2 BILINEAR (точно как у тебя)
+// BILINEAR
 static std::shared_ptr<Node>
 build_bilinear_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& attrs) {
     const bool is_border     = attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER;
@@ -358,7 +354,7 @@ build_bilinear_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& at
     return res;
 }
 
-// 7.3 BICUBIC (точно как у тебя: reflection на континууме только когда align_corners=true)
+// BICUBIC
 static std::shared_ptr<Node>
 build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& attrs) {
     const bool is_border     = attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER;
@@ -393,7 +389,7 @@ build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& att
     dx = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, dx);
     dy = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, dy);
 
-    // cubic weights (a = -0.75) — как у тебя
+    // cubic weights (a = -0.75)
     auto a    = op::v0::Constant::create(ctx.calc_type, {}, {-0.75f});
     auto c3   = op::v0::Constant::create(ctx.calc_type, {}, {3.0f});
     auto c4   = op::v0::Constant::create(ctx.calc_type, {}, {4.0f});
@@ -527,35 +523,10 @@ build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& att
     return sum;
 }
 
-/*** 8) Общая «склейка»: подготовка ctx, нормализация, вызов builder-а, обратный permute ***/
-static bool decompose_impl(
-    const std::shared_ptr<ov::op::v9::GridSample>& gs,
-    const std::function<std::shared_ptr<Node>(const Ctx&, const ov::op::v9::GridSample::Attributes&)>& build_mode_result_nhwc) {
+// ---- ctx builders ----
 
-    Ctx ctx{};
-    if (!build_ctx(gs, ctx)) return false;
-
-    auto w_in_f = to_f32(ctx.w_in);
-    auto h_in_f = to_f32(ctx.h_in);
-
-    // [-1,1] -> pixels
-    normalize_grid_to_pixels(ctx, ctx.x_norm, ctx.y_norm, w_in_f, h_in_f, gs->get_attributes().align_corners, ctx.x, ctx.y);
-
-    // Mode-specific NHWC output
-    auto result_nhwc = build_mode_result_nhwc(ctx, gs->get_attributes());
-    if (!result_nhwc) return false;
-
-    // NHWC -> NCHW
-    auto to_nchw = op::v0::Constant::create(element::i32, {4}, {0, 3, 1, 2});
-    auto result  = std::make_shared<op::v1::Transpose>(result_nhwc, to_nchw);
-
-    result->set_friendly_name(gs->get_friendly_name());
-    ov::copy_runtime_info(gs, result);
-    ov::replace_node_update_name(gs, result);
-    return true;
-}
-
-static bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx) {
+// Dynamic: extract all size scalars via ShapeOf/Gather
+static bool build_ctx_dynamic(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx) {
     const auto& data = gs->input_value(0);
     const auto& grid = gs->input_value(1);
 
@@ -582,7 +553,7 @@ static bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ct
     ctx.c2   = op::v0::Constant::create(ctx.calc_type, {}, {2.0f});
     ctx.c0_5 = op::v0::Constant::create(ctx.calc_type, {}, {0.5f});
 
-    // split grid
+    // split grid channels (x,y)
     auto grid_conv = grid.get_element_type() == ctx.calc_type ? grid
                      : std::shared_ptr<Node>(std::make_shared<op::v0::Convert>(grid, ctx.calc_type));
     auto axis3  = op::v0::Constant::create(element::i32, {}, {3});
@@ -595,64 +566,222 @@ static bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ct
     return true;
 }
 
+// Static: sizes are direct constants, no ShapeOf/Gather on shapes
+static bool build_ctx_static(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx) {
+    const auto& data_iv = gs->input_value(0);
+    const auto& grid_iv = gs->input_value(1);
+    const auto& dps = data_iv.get_partial_shape();
+    const auto& gps = grid_iv.get_partial_shape();
+    if (!dps.is_static() || !gps.is_static())
+        return false;
+
+    auto data_shape = dps.to_shape(); // N, C, H_in, W_in
+    auto grid_shape = gps.to_shape(); // N, H_out, W_out, 2
+    if (data_shape.size() != 4 || grid_shape.size() != 4)
+        return false;
+
+    ctx.element_type = data_iv.get_element_type();
+    ctx.calc_type    = element::f32;
+
+    // sizes as i32 constants
+    auto cN  = op::v0::Constant::create(element::i32, {}, {static_cast<int32_t>(data_shape[0])});
+    auto cC  = op::v0::Constant::create(element::i32, {}, {static_cast<int32_t>(data_shape[1])});
+    auto cHi = op::v0::Constant::create(element::i32, {}, {static_cast<int32_t>(data_shape[2])});
+    auto cWi = op::v0::Constant::create(element::i32, {}, {static_cast<int32_t>(data_shape[3])});
+    auto cHo = op::v0::Constant::create(element::i32, {}, {static_cast<int32_t>(grid_shape[1])});
+    auto cWo = op::v0::Constant::create(element::i32, {}, {static_cast<int32_t>(grid_shape[2])});
+
+    ctx.n_dim = cN; ctx.c_dim = cC; ctx.h_in = cHi; ctx.w_in = cWi; ctx.h_out = cHo; ctx.w_out = cWo;
+
+    ctx.c0   = op::v0::Constant::create(ctx.calc_type, {}, {0.0f});
+    ctx.c1   = op::v0::Constant::create(ctx.calc_type, {}, {1.0f});
+    ctx.c2   = op::v0::Constant::create(ctx.calc_type, {}, {2.0f});
+    ctx.c0_5 = op::v0::Constant::create(ctx.calc_type, {}, {0.5f});
+
+    // grid channels split (keep as graph ops; shapes are const so it folds nicely)
+    auto grid = grid_iv.get_node_shared_ptr();
+    auto grid_conv = grid_iv.get_element_type() == ctx.calc_type ? grid_iv.get_node_shared_ptr()
+                     : std::shared_ptr<Node>(std::make_shared<op::v0::Convert>(grid_iv, ctx.calc_type));
+    auto axis3  = op::v0::Constant::create(element::i32, {}, {3});
+    ctx.x_norm  = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {0}), axis3);
+    ctx.y_norm  = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {1}), axis3);
+
+    // NCHW -> NHWC
+    auto to_nhwc = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
+    ctx.data_nhwc = std::make_shared<op::v1::Transpose>(data_iv, to_nhwc);
+    return true;
+}
+
+// Common glue: build ctx, normalize, build mode, NHWC->NCHW, replace
+using BuildModeFn = std::function<std::shared_ptr<Node>(const Ctx&, const ov::op::v9::GridSample::Attributes&)>;
+static bool decompose_impl(const std::shared_ptr<ov::op::v9::GridSample>& gs,
+                           const BuildModeFn& build_mode_result_nhwc,
+                           bool use_static_ctx) {
+    Ctx ctx{};
+    if (!(use_static_ctx ? build_ctx_static(gs, ctx) : build_ctx_dynamic(gs, ctx)))
+        return false;
+
+    auto w_in_f = to_f32(ctx.w_in);
+    auto h_in_f = to_f32(ctx.h_in);
+
+    normalize_grid_to_pixels(ctx, ctx.x_norm, ctx.y_norm, w_in_f, h_in_f,
+                             gs->get_attributes().align_corners, ctx.x, ctx.y);
+
+    auto result_nhwc = build_mode_result_nhwc(ctx, gs->get_attributes());
+    if (!result_nhwc) return false;
+
+    auto to_nchw = op::v0::Constant::create(element::i32, {4}, {0, 3, 1, 2});
+    auto result  = std::make_shared<op::v1::Transpose>(result_nhwc, to_nchw);
+
+    result->set_friendly_name(gs->get_friendly_name());
+    ov::copy_runtime_info(gs, result);
+    ov::replace_node_update_name(gs, result);
+    return true;
+}
+
 } // unnamed namespace
 
-// ========================= Composite pass =========================
+// ============================================================================
+// PASSES: split into STATIC and DYNAMIC paths (no reference path).
+// ============================================================================
+
+// If your header previously declared only GridSampleDecomposition + 3 matchers,
+// you can either:
+//  - update the header to declare the 6 new matchers below, or
+//  - replace your old 3 matchers with the new behavior by keeping the same names.
+// Here we expose 6 fine-grained matchers and one composite GraphRewrite.
+
+class GridSampleDecompositionNearestStatic : public ov::pass::MatcherPass {
+public:
+    GridSampleDecompositionNearestStatic() {
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+            auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
+            if (!gs || transformation_callback(gs))
+                return false;
+            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::NEAREST)
+                return false;
+            if (!gs->get_input_partial_shape(0).is_static() || !gs->get_input_partial_shape(1).is_static())
+                return false; // static-only
+            return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+                return build_nearest_nhwc(ctx, attrs);
+            }, true);
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionNearestStatic"), cb);
+    }
+};
+
+class GridSampleDecompositionBilinearStatic : public ov::pass::MatcherPass {
+public:
+    GridSampleDecompositionBilinearStatic() {
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+            auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
+            if (!gs || transformation_callback(gs))
+                return false;
+            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BILINEAR)
+                return false;
+            if (!gs->get_input_partial_shape(0).is_static() || !gs->get_input_partial_shape(1).is_static())
+                return false;
+            return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+                return build_bilinear_nhwc(ctx, attrs);
+            }, true);
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBilinearStatic"), cb);
+    }
+};
+
+class GridSampleDecompositionBicubicStatic : public ov::pass::MatcherPass {
+public:
+    GridSampleDecompositionBicubicStatic() {
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+            auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
+            if (!gs || transformation_callback(gs))
+                return false;
+            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BICUBIC)
+                return false;
+            if (!gs->get_input_partial_shape(0).is_static() || !gs->get_input_partial_shape(1).is_static())
+                return false;
+            return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+                return build_bicubic_nhwc(ctx, attrs);
+            }, true);
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBicubicStatic"), cb);
+    }
+};
+
+class GridSampleDecompositionNearestDynamic : public ov::pass::MatcherPass {
+public:
+    GridSampleDecompositionNearestDynamic() {
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+            auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
+            if (!gs || transformation_callback(gs))
+                return false;
+            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::NEAREST)
+                return false;
+            // dynamic path if any input shape is not static
+            if (gs->get_input_partial_shape(0).is_static() && gs->get_input_partial_shape(1).is_static())
+                return false; // let static pass handle
+            return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+                return build_nearest_nhwc(ctx, attrs);
+            }, false);
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionNearestDynamic"), cb);
+    }
+};
+
+class GridSampleDecompositionBilinearDynamic : public ov::pass::MatcherPass {
+public:
+    GridSampleDecompositionBilinearDynamic() {
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+            auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
+            if (!gs || transformation_callback(gs))
+                return false;
+            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BILINEAR)
+                return false;
+            if (gs->get_input_partial_shape(0).is_static() && gs->get_input_partial_shape(1).is_static())
+                return false;
+            return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+                return build_bilinear_nhwc(ctx, attrs);
+            }, false);
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBilinearDynamic"), cb);
+    }
+};
+
+class GridSampleDecompositionBicubicDynamic : public ov::pass::MatcherPass {
+public:
+    GridSampleDecompositionBicubicDynamic() {
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+            auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
+            if (!gs || transformation_callback(gs))
+                return false;
+            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BICUBIC)
+                return false;
+            if (gs->get_input_partial_shape(0).is_static() && gs->get_input_partial_shape(1).is_static())
+                return false;
+            return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+                return build_bicubic_nhwc(ctx, attrs);
+            }, false);
+        };
+        register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBicubicDynamic"), cb);
+    }
+};
+
+// Composite GraphRewrite that installs the 6 matchers
 GridSampleDecomposition::GridSampleDecomposition() {
-    add_matcher<GridSampleDecompositionNearest>();
-    add_matcher<GridSampleDecompositionBilinear>();
-    add_matcher<GridSampleDecompositionBicubic>();
-}
+    // Static first (cheaper graphs), then dynamic fallback
+    add_matcher<GridSampleDecompositionNearestStatic>();
+    add_matcher<GridSampleDecompositionBilinearStatic>();
+    add_matcher<GridSampleDecompositionBicubicStatic>();
 
-// ========================= NEAREST =========================
-GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
-    auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-    matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
-        if (!gs || transformation_callback(gs))
-            return false;
-        if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::NEAREST)
-            return false;
-
-        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
-            return build_nearest_nhwc(ctx, attrs);
-        });
-    };
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionNearest"), cb);
-}
-
-// ========================= BILINEAR =========================
-GridSampleDecompositionBilinear::GridSampleDecompositionBilinear() {
-    auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-    matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
-        if (!gs || transformation_callback(gs))
-            return false;
-        if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BILINEAR)
-            return false;
-
-        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
-            return build_bilinear_nhwc(ctx, attrs);
-        });
-    };
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBilinear"), cb);
-}
-
-// ========================= BICUBIC =========================
-GridSampleDecompositionBicubic::GridSampleDecompositionBicubic() {
-    auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-    matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
-        auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
-        if (!gs || transformation_callback(gs))
-            return false;
-        if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BICUBIC)
-            return false;
-
-        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
-            return build_bicubic_nhwc(ctx, attrs);
-        });
-    };
-    register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBicubic"), cb);
+    add_matcher<GridSampleDecompositionNearestDynamic>();
+    add_matcher<GridSampleDecompositionBilinearDynamic>();
+    add_matcher<GridSampleDecompositionBicubicDynamic>();
 }
 
 } // namespace intel_cpu
