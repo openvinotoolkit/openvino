@@ -164,8 +164,14 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     REGISTER_PASS(manager, PushConstantToSubgraph)
     REGISTER_PASS(manager, ConstantFolding)
     REGISTER_PASS(manager, Validate)
-    // the order is important
+
+    // EinsumDecomposition should be called after ConstantFolding
+    // for better performance and memory usage.
+    // ConstantFolding creates constant inputs to Einsum operations,
+    // which EinsumDecomposition can then decompose more efficiently with
+    // reduced memory consumption.
     REGISTER_PASS(manager, EinsumDecomposition, true)
+
     // FusedFilteringBoxesBySize transformation has the complex pattern
     // which can be affected by further transformations. So we have to
     // execute it at the beginning of the pipeline. Also, this pass resolves
