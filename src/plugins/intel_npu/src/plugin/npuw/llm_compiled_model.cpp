@@ -4,14 +4,13 @@
 #include "llm_compiled_model.hpp"
 
 #include "llm_infer_request.hpp"
-#include "whisper_infer_request.hpp"
 #include "logging.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/op/util/node_util.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/greater.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -27,6 +26,7 @@
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
+#include "whisper_infer_request.hpp"
 
 namespace opp = ov::pass::pattern;
 
@@ -481,7 +481,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             new_shape = ov::PartialShape({1, kvcache_size});
             if (lhs_seq_size && kvcache_size > 4)
                 // NB: for whisper kvcache model attn mask should be size + 1
-                new_shape = ov::PartialShape({1, kvcache_size+1});
+                new_shape = ov::PartialShape({1, kvcache_size + 1});
         } else if (input_name.find("position_ids") != std::string::npos) {
             const auto partial_shape_size = input.get_partial_shape().size();
             // NB: Regular LLM uses 2D shapes, Qwen2.5 VL/Omni uses 3D shapes
@@ -497,7 +497,7 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             // NB: Whisper case
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
-            new_shape[0] = 1;            // batch_dim
+            new_shape[0] = 1;  // batch_dim
         } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
         } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
@@ -508,11 +508,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
             new_shape[kv_axes_position.batch] = 1;
-            if (lhs_seq_size) { // Whisper model
+            if (lhs_seq_size) {  // Whisper model
                 new_shape[kv_axes_position.seq_len] = (input_name.find(".decoder") != std::string::npos)
-                                                      ? kvcache_size - input_size // kv_size for decoder
-                                                      : lhs_seq_size;             // sequence size for encoder hidden states
-            } else { // LLM/VLM
+                                                          ? kvcache_size - input_size  // kv_size for decoder
+                                                          : lhs_seq_size;  // sequence size for encoder hidden states
+            } else {                                                       // LLM/VLM
                 new_shape[kv_axes_position.seq_len] = kvcache_size - input_size;
             }
         }
@@ -931,14 +931,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim, max_generation_token_len};
 
 
-    uint32_t whisper_lhs_seq_size = 0; // Not applicable for LLMs/VLMs
+    uint32_t whisper_lhs_seq_size = 0;  // Not applicable for LLMs/VLMs
     if (m_is_whisper) {
         axes = KVAxesPosition{whisper_batch_dim, whisper_seq_len_dim};
         m_kvcache_desc = KVCacheDesc{whisper_max_prompt_size, whisper_kvcache_size, 0u, whisper_seq_len_dim};
-        whisper_lhs_seq_size = static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
+        whisper_lhs_seq_size =
+            static_cast<uint32_t>(prefill_model->input("encoder_hidden_states").get_partial_shape()[1].get_length());
 
-        ov::npuw::util::prepare_whisper_prefill_model(prefill_model, m_kvcache_desc.max_prompt_size, whisper_lhs_seq_size); // Whisper decoder model
-        ov::npuw::util::prepare_whisper_kvcache_model(kvcache_model); // Whisper decoder_with_past model
+        ov::npuw::util::prepare_whisper_prefill_model(prefill_model,
+                                                      m_kvcache_desc.max_prompt_size,
+                                                      whisper_lhs_seq_size);  // Whisper decoder model
+        ov::npuw::util::prepare_whisper_kvcache_model(kvcache_model);         // Whisper decoder_with_past model
     }
 
     LOG_DEBUG("Make prefill model with static shapes");
@@ -1441,8 +1444,7 @@ ov::Any ov::npuw::LLMCompiledModel::get_property(const std::string& name) const 
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_infer_request() const {
     auto* non_const_this = const_cast<ov::npuw::LLMCompiledModel*>(this);  // because of const in API
-    return m_is_whisper ? non_const_this->create_whisper_infer_request()
-                        : non_const_this->create_llm_infer_request();
+    return m_is_whisper ? non_const_this->create_whisper_infer_request() : non_const_this->create_llm_infer_request();
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {

@@ -11,7 +11,7 @@ namespace npuw {
 
 class WhisperInferRequest final : public LLMInferRequest {
 public:
-    explicit WhisperInferRequest(const std::shared_ptr<LLMCompiledModel>& compiled_model) 
+    explicit WhisperInferRequest(const std::shared_ptr<LLMCompiledModel>& compiled_model)
         : LLMInferRequest(compiled_model) {}
 
     void infer() override;
@@ -19,8 +19,7 @@ public:
 protected:
     void prepare_for_new_conversation() override;
 
-    void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
-                       ov::SoPtr<ov::ITensor> enc_hidden_states);
+    void infer_prefill(ov::SoPtr<ov::ITensor> input_ids, ov::SoPtr<ov::ITensor> enc_hidden_states);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids);
 

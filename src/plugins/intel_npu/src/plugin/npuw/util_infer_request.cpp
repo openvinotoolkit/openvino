@@ -4,10 +4,9 @@
 
 #include "util_infer_request.hpp"
 
-#include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "logging.hpp"
+#include "openvino/runtime/make_tensor.hpp"  // get_tensor_impl
 #include "util_xarch.hpp"
-
 
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
@@ -15,9 +14,9 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
 }
 
 ov::SoPtr<ov::ITensor> ov::npuw::util::make_tensor_slice(ov::SoPtr<ov::ITensor> tensor,
-                                         uint32_t dim,
-                                         uint32_t start_pos,
-                                         uint32_t end_pos) {
+                                                         uint32_t dim,
+                                                         uint32_t start_pos,
+                                                         uint32_t end_pos) {
     ov::Shape start_shape(std::vector<size_t>(tensor->get_shape().size(), 0u));
     start_shape[dim] = start_pos;
     ov::Shape end_shape = tensor->get_shape();
@@ -97,7 +96,9 @@ void ov::npuw::util::copy_columns_by_row_chunks(ov::SoPtr<ov::ITensor> src, ov::
     }
 }
 
-void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::SoPtr<ov::ITensor> dst_tensor, uint32_t kv_dim) {
+void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor,
+                                        ov::SoPtr<ov::ITensor> dst_tensor,
+                                        uint32_t kv_dim) {
     if (kv_dim == 3u) {
         // Asserting that we work with last dimenston here:
         const auto& src_shape = src_tensor->get_shape();
@@ -119,8 +120,9 @@ void ov::npuw::util::copy_tensor_by_dim(ov::SoPtr<ov::ITensor> src_tensor, ov::S
     }
 }
 
-std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(const std::vector<ov::Output<const ov::Node>>& ports,
-                                                            const std::string& name) {
+std::optional<ov::Output<const ov::Node>> ov::npuw::util::find_port_by_name(
+    const std::vector<ov::Output<const ov::Node>>& ports,
+    const std::string& name) {
     auto it = std::find_if(ports.begin(), ports.end(), [&](const auto& port) {
         return port.get_names().count(name) != 0;
     });

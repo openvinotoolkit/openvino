@@ -6,18 +6,16 @@
 
 #include <regex>
 
+#include "../../utils/include/intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "util_infer_request.hpp"
-
-#include "../../utils/include/intel_npu/utils/zero/zero_remote_tensor.hpp"
 
 namespace {
 
 constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
 
-} // anonymous
-
+}  // namespace
 
 void ov::npuw::WhisperInferRequest::prepare_for_new_conversation() {
     ov::npuw::util::fill_tensor_bytes(m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name)), 0u);
@@ -49,10 +47,9 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
         enc_hidden_states_data = remoteTensor->get_original_memory();
     }
 
-    std::copy_n(
-        reinterpret_cast<uint8_t*>(enc_hidden_states_data),
-        enc_hidden_states->get_byte_size(),
-        reinterpret_cast<uint8_t*>(encoder_hidden_states->data()));
+    std::copy_n(reinterpret_cast<uint8_t*>(enc_hidden_states_data),
+                enc_hidden_states->get_byte_size(),
+                reinterpret_cast<uint8_t*>(encoder_hidden_states->data()));
 
     m_prefill_request->infer();
 
@@ -108,18 +105,17 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
                                      ? 3u
                                      : kvcache_desc.dim;
 
-            auto prefill_out_slice = ov::npuw::util::make_tensor_slice(prefill_out_tensor,
-                                                                       kv_dim,
-                                                                       0,
-                                                                       kvcache_desc.num_stored_tokens);
+            auto prefill_out_slice =
+                ov::npuw::util::make_tensor_slice(prefill_out_tensor, kv_dim, 0, kvcache_desc.num_stored_tokens);
 
-            auto kvcache_in_slice = ov::npuw::util::make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
+            auto kvcache_in_slice =
+                ov::npuw::util::make_tensor_slice(kvcache_in_tensor, kv_dim, 0u, kvcache_desc.num_stored_tokens);
             ov::npuw::util::copy_tensor_by_dim(prefill_out_slice, kvcache_in_slice, kv_dim);
         }
 
         LOG_DEBUG("Copying cross attn key value for Whisper.");
         const auto& prefill_compiled = m_prefill_request->get_compiled_model();
-        for (std::size_t i = 0; i < prefill_compiled-> outputs().size() - 1; ++i) {
+        for (std::size_t i = 0; i < prefill_compiled->outputs().size() - 1; ++i) {
             const auto& output_name = prefill_compiled->outputs()[kStartOutputKVCacheLayers + i].get_any_name();
             auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
 
@@ -133,10 +129,13 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
 
         LOG_DEBUG("Prepare attention mask pattern.");
         // NB: Prepare attention mask to be in a format [0, 0, 0, 1, 1, 1, ..., 1, 0, 1]
-        auto* attention_mask_data = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<uint64_t>();
+        auto* attention_mask_data =
+            m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->data<uint64_t>();
         auto attention_mask_size = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"))->get_size();
         std::fill(attention_mask_data, attention_mask_data + kvcache_desc.num_stored_tokens, 0);
-        std::fill(attention_mask_data + kvcache_desc.num_stored_tokens, attention_mask_data + attention_mask_size - 2, 1);
+        std::fill(attention_mask_data + kvcache_desc.num_stored_tokens,
+                  attention_mask_data + attention_mask_size - 2,
+                  1);
         attention_mask_data[attention_mask_size - 2] = 0;
         attention_mask_data[attention_mask_size - 1] = 1;
 
