@@ -16,9 +16,7 @@ using ConfigParams = std::tuple<bool,  // cpu load success
 class AutoReleaseHelperTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        bool cpuSuccess;
-        bool accSuccess;
-        std::tie(cpuSuccess, accSuccess) = obj.param;
+        const auto& [cpuSuccess, accSuccess] = obj.param;
         std::ostringstream result;
         if (!cpuSuccess) {
             result << "cpuLoadFailure_";
@@ -41,9 +39,7 @@ class AutoCompiledModelGetPropertyWithReleaseHelper : public tests::AutoTest,
                                                       public ::testing::TestWithParam<PropertyConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<PropertyConfigParams> obj) {
-        bool cpuSleep;
-        bool actSleep;
-        std::tie(cpuSleep, actSleep) = obj.param;
+        const auto& [cpuSleep, actSleep] = obj.param;
         std::ostringstream result;
         if (cpuSleep) {
             result << "cpuHelper_sleep_Yes_";
@@ -63,9 +59,8 @@ public:
 
 TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleaseResourceNoThrow) {
     // get Parameter
-    bool cpuSleep;
-    bool actSleep;
-    std::tie(cpuSleep, actSleep) = this->GetParam();
+
+    const auto& [cpuSleep, actSleep] = this->GetParam();
     // test auto plugin
     plugin->set_device_name("AUTO");
     const std::string strDevices = ov::test::utils::DEVICE_GPU + std::string(",") + ov::test::utils::DEVICE_CPU;
@@ -154,9 +149,8 @@ TEST_P(AutoCompiledModelGetPropertyWithReleaseHelper, getPropertyTestAfterReleas
 
 TEST_P(AutoReleaseHelperTest, releaseResource) {
     // get Parameter
-    bool cpuSuccess;
-    bool accSuccess;
-    std::tie(cpuSuccess, accSuccess) = this->GetParam();
+
+    const auto& [cpuSuccess, accSuccess] = this->GetParam();
     size_t decreaseExeNetworkCount = 0;
     size_t decreaseInferReqCount = 0;
     // test auto plugin
