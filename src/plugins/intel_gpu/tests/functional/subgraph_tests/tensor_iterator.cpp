@@ -131,17 +131,7 @@ class DynamicTensorIteratorTest : public testing::WithParamInterface<DynamicTens
                                   virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<DynamicTensorIteratorParams> &obj) {
-        LSTMType type;
-        InputShape data_shapes;
-        int32_t hidden_size;
-        ov::op::RecurrentSequenceDirection seq_direction;
-        std::string target_device;
-        ov::element::Type model_type;
-        std::tie(type, data_shapes,
-                    hidden_size,
-                    seq_direction,
-                    target_device,
-                    model_type) = obj.param;
+        const auto& [type, data_shapes, hidden_size, seq_direction, target_device, model_type] = obj.param;
         std::ostringstream result;
         result << "TestType=" << (type == LSTMType::LSTMCell? "LSTMCell" : "LSTMSequence") << "_";
         result << "IS=(";
