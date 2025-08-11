@@ -80,6 +80,9 @@ public:
     // Retrieve a block from the cache by hash
     bool get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
 
+    // Retrieve a block from the cache by hash without holding a mutex
+    std::shared_ptr<KVBlock> get_block_unsafe(uint64_t combined_hash);
+
     // Print the current status of the cache
     void print_cache_status(bool verbose = false) const;
 
