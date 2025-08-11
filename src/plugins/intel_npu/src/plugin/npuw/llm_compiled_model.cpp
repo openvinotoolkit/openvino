@@ -834,6 +834,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
 
     m_is_whisper = check_if_whisper_model(model);
+    if (m_is_whisper) {
+        m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
+    }
 
     const auto npudesc = extract_npu_descriptor(plugin);
 
