@@ -462,7 +462,7 @@ static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
  * Prompt chunk size for chunk prefill.
  * The chunk size should be a power of two.
  * Chunk prefill feature is disabled in case the value is 0.
- * Default value: 0.
+ * Default value: 256.
  */
 static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHUNK_SIZE"};
 
@@ -477,6 +477,25 @@ static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHU
  * Default value: false.
  */
 static constexpr ov::Property<uint64_t> enable_prefix_caching{"NPUW_LLM_ENABLE_PREFIX_CACHING"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prefilled KV tensors are cached in blocks when prefix caching is enabled.
+ * This value describes the number of tokens in each block.
+ * This value should be not greater than prefill_chunk_size.
+ * Default value: 256.
+ */
+static constexpr ov::Property<uint64_t> prefix_caching_block_size{"NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE"};
+
+/**
+ * @brief
+ * Type: uint64_t.
+ * Prefilled KV tensors are cached in blocks when prefix caching is enabled.
+ * This value describes the maximum number of blocks in cache.
+ * Default value: 128.
+ */
+static constexpr ov::Property<uint64_t> prefix_caching_max_num_blocks{"NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS"};
 
 /**
  * @brief

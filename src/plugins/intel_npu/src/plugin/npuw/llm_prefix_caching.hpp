@@ -26,6 +26,7 @@ using BlocKVCache = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
 
 class KVBlock {
 public:
+    size_t m_block_size;
     std::vector<uint64_t> token_hashes;
     size_t token_start;
     uint64_t block_hash;
@@ -39,8 +40,14 @@ public:
     // One block only has single previous block
     uint64_t prev_block_hash;
 
-    KVBlock() : token_start(0), ref_count(0), is_full(false), block_hash(0), prev_block_hash(0) {
-        token_hashes.reserve(BLOCK_SIZE);
+    KVBlock(size_t block_size)
+        : m_block_size(block_size),
+          token_start(0),
+          ref_count(0),
+          is_full(false),
+          block_hash(0),
+          prev_block_hash(0) {
+        token_hashes.reserve(m_block_size);
     }
 
     /**
