@@ -24,10 +24,32 @@
 #include <dlfcn.h>
 #endif
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include "gpu/intel/jit/generator.hpp"
+#endif
+
 namespace cldnn {
 namespace ze {
 
 namespace {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+//TODO merge this with ocl_device
+gpu_arch convert_ngen_arch(ngen::HW gpu_arch) {
+    switch (gpu_arch) {
+        case ngen::HW::Gen9: return gpu_arch::gen9;
+        case ngen::HW::Gen11: return gpu_arch::gen11;
+        case ngen::HW::XeLP: return gpu_arch::xe_lp;
+        case ngen::HW::XeHP: return gpu_arch::xe_hp;
+        case ngen::HW::XeHPG: return gpu_arch::xe_hpg;
+        case ngen::HW::XeHPC: return gpu_arch::xe_hpc;
+        case ngen::HW::Xe2: return gpu_arch::xe2;
+        case ngen::HW::Xe3: return gpu_arch::xe3;
+        case ngen::HW::Gen10:
+        case ngen::HW::Unknown: return gpu_arch::unknown;
+    }
+    return gpu_arch::unknown;
+}
+#endif
 
 bool supports_extension(const std::vector<ze_driver_extension_properties_t>& extensions, const std::string& ext_name, uint32_t ext_ver) {
     return std::find_if(extensions.begin(), extensions.end(), [&ext_name, &ext_ver](const ze_driver_extension_properties_t& ep) {
@@ -153,7 +175,6 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     info.supports_usm = device_memory_access_properties.hostAllocCapabilities && device_memory_access_properties.deviceAllocCapabilities;
 
     info.gfx_ver = {0, 0, 0}; // could find how to retrieve this from L0 so far
-    info.arch = gpu_arch::unknown;
     info.ip_version = ip_version_properties.ipVersion;
     info.sub_device_idx = (std::numeric_limits<uint32_t>::max)();
 
@@ -207,6 +228,23 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
             info.pci_info.pci_function = pci_properties.address.function;
         }
     }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    using namespace dnnl::impl::gpu::intel::jit;
+    // Create temporary context just for OneDNN HW detection
+    ze_context_desc_t context_desc = { ZE_STRUCTURE_TYPE_CONTEXT_DESC, nullptr, 0 };
+    ze_context_handle_t context;
+    ZE_CHECK(zeContextCreate(driver, &context_desc, &context));
+    ngen::Product product = ngen::LevelZeroCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context, device);
+    zeContextDestroy(context);
+    info.arch = convert_ngen_arch(ngen::getCore(product.family));
+
+    if (product.family == ngen::ProductFamily::Unknown) {
+        info.supports_immad = false;
+    }
+#else  // ENABLE_ONEDNN_FOR_GPU
+    info.arch = gpu_arch::unknown;
+#endif  // ENABLE_ONEDNN_FOR_GPU
 
     return info;
 }
@@ -275,8 +313,9 @@ void ze_device::set_mem_caps(const memory_capabilities& memory_capabilities) {
 }
 
 ze_device::~ze_device() {
-    if (_is_initialized)
-        zeContextDestroy(_context);
+    //FIXME segfault
+    //if (_is_initialized)
+    //    zeContextDestroy(_context);
 }
 
 }  // namespace ze

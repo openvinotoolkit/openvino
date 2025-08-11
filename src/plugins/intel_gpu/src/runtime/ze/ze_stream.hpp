@@ -47,7 +47,7 @@ public:
     event::ptr create_base_event() override;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    dnnl::stream& get_onednn_stream() override { OPENVINO_NOT_IMPLEMENTED; }
+    dnnl::stream& get_onednn_stream() override;
 #endif
 
 private:

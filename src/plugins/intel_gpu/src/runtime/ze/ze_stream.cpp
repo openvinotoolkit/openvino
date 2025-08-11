@@ -23,6 +23,10 @@
 #include <vector>
 #include <memory>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_l0.hpp>
+#endif
+
 namespace cldnn {
 namespace ze {
 
@@ -345,6 +349,18 @@ void ze_stream::sync_events(std::vector<event::ptr> const& deps, bool is_output)
         m_last_barrier_ev->set_queue_stamp(m_queue_counter.load());
     }
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::stream& ze_stream::get_onednn_stream() {
+    OPENVINO_ASSERT(m_queue_type == QueueTypes::in_order, "[GPU] Can't create onednn stream handle as onednn doesn't support out-of-order queue");
+    OPENVINO_ASSERT(_engine.get_device_info().vendor_id == INTEL_VENDOR_ID, "[GPU] Can't create onednn stream handle as for non-Intel devices");
+    if (!_onednn_stream) {
+        _onednn_stream = std::make_shared<dnnl::stream>(dnnl::l0_interop::make_stream(_engine.get_onednn_engine(), m_command_list));
+    }
+
+    return *_onednn_stream;
+}
+#endif
 
 }  // namespace ze
 }  // namespace cldnn

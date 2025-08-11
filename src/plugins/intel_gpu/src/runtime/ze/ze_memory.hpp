@@ -140,6 +140,9 @@ struct gpu_usm : public lockable_gpu_mem, public memory {
     event::ptr copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
     event::ptr copy_from(stream& stream, const memory& src_mem, size_t src_offset, size_t dst_offset, size_t size, bool blocking) override;
     event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) const override;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    dnnl::memory get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const override;
+#endif
 
     static allocation_type detect_allocation_type(const ze_engine* engine, const void* mem_ptr);
     static allocation_type detect_allocation_type(const ze_engine* engine, const ze::UsmMemory& buffer);

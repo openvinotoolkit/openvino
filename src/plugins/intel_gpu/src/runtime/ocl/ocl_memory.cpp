@@ -229,7 +229,11 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
 dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
+#ifdef OV_GPU_WITH_ZE_RT
+    OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+#else
     dnnl::ocl_interop::set_mem_object(dnnl_mem, _buffer.get());
+#endif
     return dnnl_mem;
 }
 #endif
@@ -653,9 +657,13 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 #ifdef ENABLE_ONEDNN_FOR_GPU
 dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
+#ifdef OV_GPU_WITH_ZE_RT
+        OPENVINO_THROW("[GPU] Using OCL OneDNN API with L0 runtime");
+#else
     dnnl::memory dnnl_mem = dnnl::ocl_interop::make_memory(desc, onednn_engine, dnnl::ocl_interop::memory_kind::usm,
         reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
     return dnnl_mem;
+#endif
 }
 #endif
 

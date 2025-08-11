@@ -11,6 +11,10 @@
 #include <stdexcept>
 #include <vector>
 
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#include <oneapi/dnnl/dnnl_l0.hpp>
+#endif
+
 namespace cldnn {
 namespace ze {
 namespace {
@@ -235,6 +239,15 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
 
     return result_event;
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
+    auto onednn_engine = _engine->get_onednn_engine();
+    dnnl::memory dnnl_mem = dnnl::l0_interop::make_memory(desc, onednn_engine,
+        reinterpret_cast<uint8_t*>(_buffer.get()) + offset);
+    return dnnl_mem;
+}
+#endif
 
 shared_mem_params gpu_usm::get_internal_params() const {
     auto casted = downcast<ze_engine>(_engine);
