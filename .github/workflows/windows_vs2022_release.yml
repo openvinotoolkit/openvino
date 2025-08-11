@@ -96,19 +96,21 @@ jobs:
       - name: Install GH CLI
         run: |
           choco install gh
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
 
       - name: Download OpenVINO artifacts (tarballs)
         run: |
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+          Write-Host "PATH: $env:Path"
+          Write-Host "RUN_ID: $GITHUB_RUN_ID"
+          Write-Host "REPO: $GITHUB_REPOSITORY"
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package -n openvino_tests --dir ${{ env.INSTALL_DIR }}
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
       
       - name: Download OpenVINO artifacts (wheels)
         run: gh run download --repo "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
 
       - name: Extract OpenVINO packages
         run: |
