@@ -559,10 +559,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_ai_onnx_ml_tree_ensemble_single_tree_cpu",
     ),
     (
-        xfail_issue_119925,
-        "OnnxBackendNodeModelTest.test_averagepool_2d_dilations_cpu",
-    ),
-    (
         xfail_issue_119926,
         "OnnxBackendNodeModelTest.test_roialign_mode_max_cpu",
     ),
@@ -610,11 +606,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_125491,
-        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_0_ceil_mode_is_False_cpu",
-        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_0_ceil_mode_is_True_cpu",
-        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_1_ceil_mode_is_False_cpu",
         "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_1_ceil_mode_is_True_cpu",
-        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_small_cpu",
     ),
     (
         xfail_issue_125492,

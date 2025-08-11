@@ -205,6 +205,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Add>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::AvgPool>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v14::AvgPool>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v16::AvgPool>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Clamp>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Concat>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Convolution>>(),

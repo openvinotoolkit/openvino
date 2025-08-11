@@ -180,8 +180,9 @@ bool Pooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, st
                                        const ov::op::v8::MaxPool,
                                        const ov::op::v14::MaxPool,
                                        const ov::op::v1::AvgPool,
-                                       const ov::op::v14::AvgPool>(op)) {
-            errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 and AvgPool-14";
+                                       const ov::op::v14::AvgPool,
+                                       const ov::op::v16::AvgPool>(op)) {
+            errorMessage = "Supported ops are MaxPool-1, MaxPool-8, MaxPool-14, AvgPool-1 AvgPool-14 and AvgPool-16";
             return false;
         }
 #if defined(OV_CPU_WITH_ACL)
@@ -238,11 +239,15 @@ Pooling::Pooling(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         algorithm = Algorithm::PoolingAvg;
         poolingAttrs.exclude_pad = avgPoolOpBase->get_exclude_pad();
         poolingAttrs.rounding = avgPoolOpBase->get_rounding_type();
-        get_attributes(poolingAttrs.stride, avgPoolOpBase->get_strides());
         get_attributes(poolingAttrs.kernel, avgPoolOpBase->get_kernel());
+        get_attributes(poolingAttrs.stride, avgPoolOpBase->get_strides());
+        if (auto avgPoolV16 = ov::as_type_ptr<const ov::op::v16::AvgPool>(op)) {
+            get_attributes(poolingAttrs.dilation, avgPoolV16->get_dilations());
+        } else {
+            poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
+        }
         get_attributes(poolingAttrs.data_pad_begin, avgPoolOpBase->get_pads_begin());
         get_attributes(poolingAttrs.data_pad_end, avgPoolOpBase->get_pads_end());
-        poolingAttrs.dilation.resize(poolingAttrs.kernel.size(), 1);
         poolingAttrs.auto_pad =
             (any_of(avgPoolOpBase->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER));
     }
