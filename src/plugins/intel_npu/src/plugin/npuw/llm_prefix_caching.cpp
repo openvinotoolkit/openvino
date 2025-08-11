@@ -168,8 +168,7 @@ bool PrefixCacheManager::get_block(uint64_t combined_hash, std::shared_ptr<KVBlo
     return false;
 }
 
-std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_hash)
-{
+std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_hash) {
     auto it = cache_map.find(combined_hash);
     if (it != cache_map.end()) {
         return it->second;
@@ -199,17 +198,17 @@ void PrefixCacheManager::print_cache_status(bool verbose) const {
     }
 }
 
-std::vector<size_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids) {
+std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids) {
     const char* data = reinterpret_cast<const char*>(input_ids->data());
     const auto data_elem_size = input_ids->get_element_type().size();
     size_t total_size = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
 
-    std::vector<size_t> prompt_hashes(total_size);
+    std::vector<uint64_t> prompt_hashes(total_size);
 
-    size_t prefix_hash = 0;
+    uint64_t prefix_hash = 0;
     for (size_t i = 0; i < total_size; ++i) {
         const char* token_data = reinterpret_cast<const char*>(input_ids->data()) + i * data_elem_size;
-        size_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, data_elem_size));
+        uint64_t token_hash = std::hash<std::string_view>{}(std::string_view(token_data, data_elem_size));
         prefix_hash = prefix_hash * 31 + token_hash;
         prompt_hashes[i] = prefix_hash;
     }
