@@ -147,9 +147,6 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
                ptr(reg_runtime_params,
                    static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
         // bump the pointer
-        // TODO: Consider ISA limitations on offset size - large offsets may require multiple operations
-        //       for both h->add and h->sub instructions to handle cases where offset exceeds immediate
-        //       value limits
         h->add(data_reg, data_reg, aux_gpr);
     }
 
@@ -157,9 +154,6 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
 
     if (is_offset_runtime) {
         // subtract back so we leave the pointer unchanged for the caller
-        // TODO: Consider ISA limitations on offset size - large offsets may require multiple operations
-        //       for both h->add and h->sub instructions to handle cases where offset exceeds immediate
-        //       value limits
         h->sub(data_reg, data_reg, aux_gpr);
     }
 

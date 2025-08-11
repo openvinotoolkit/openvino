@@ -32,11 +32,8 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<reduceDeconvConcatDynamicGPUTestParamsSet>& obj) {
         reduceDeconvConcatDynamicGPUTestParamsSet basicParamsSet = obj.param;
         std::ostringstream result;
-        std::vector<InputShape> inputShapes;
-        ov::element::Type model_type;
-        std::string targetDevice;
 
-        std::tie(inputShapes, model_type, targetDevice) = basicParamsSet;
+        const auto& [inputShapes, model_type, targetDevice] = basicParamsSet;
         result << "IS=";
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -67,9 +64,9 @@ protected:
 
     void SetUp() override {
         reduceDeconvConcatDynamicGPUTestParamsSet basicParamsSet = this->GetParam();
-        std::vector<InputShape> inputShapes;
-        ov::element::Type model_type;
-        std::tie(inputShapes, model_type, targetDevice) = basicParamsSet;
+
+        const auto& [inputShapes, model_type, _targetDevice] = basicParamsSet;
+        targetDevice = _targetDevice;
 
         init_input_shapes(inputShapes);
 
