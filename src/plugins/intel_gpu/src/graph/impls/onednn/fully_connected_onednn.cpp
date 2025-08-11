@@ -70,7 +70,7 @@ protected:
                 auto decompression_scale_idx = idx++;
                 auto scale_mem = instance.dep_memory_ptr(decompression_scale_idx);
                 if (scale_mem->get_layout().get_partial_shape().size() == 3) {
-                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::fc_grouped_3d);
+                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
                     args.insert({DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_mem->get_onednn_memory(desc)});
                 } else {
                     dnnl::memory::desc desc = onednn::layout_to_memory_desc(scale_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
@@ -82,7 +82,7 @@ protected:
                 auto decompression_zp_idx = idx++;
                 auto zp_mem = instance.dep_memory_ptr(decompression_zp_idx);
                 if (zp_mem->get_layout().get_partial_shape().size() == 3) { 
-                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::fc_grouped_3d);
+                    dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
                     args.insert({DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zp_mem->get_onednn_memory(desc)});
                 } else {
                     dnnl::memory::desc desc = onednn::layout_to_memory_desc(zp_mem->get_layout(), dnnl::memory::format_tag::a, onednn::mem_flags::flatten);
@@ -375,11 +375,6 @@ public:
         dnnl::memory::data_type ds_data_type = dnnl::memory::data_type::undef;
         dnnl::memory::data_type dzp_data_type = dnnl::memory::data_type::undef;
         int idx = !arg.bias_term() ? 1 : 2;
-//        std::cout << "Creating prim for " << prim->id << std::endl;
-//        std::cout << "--- input " << impl_params.input_layouts[0].to_short_string() << std::endl;
-//        std::cout << "--- weight " << impl_params.input_layouts[1].to_short_string() << std::endl;
-//        std::cout << "--- scale " << impl_params.input_layouts[2].to_short_string() << std::endl;
-//        std::cout << "--- zp " << impl_params.input_layouts[3].to_short_string() << std::endl;
 
         if (prim->compressed_weights) {
             bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
@@ -398,23 +393,26 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                int rank = scale_layout.get_partial_shape().size();
-                OPENVINO_ASSERT(rank <= 3, "rank > 3d not supported");
-                auto ifm = arg.get_dependency(1).get_output_layout().get_dim(rank - 1);
-//                auto ofm = arg.get_dependency(1).get_output_layout().get_dim(rank - 2);
-                auto ngroups = scale_layout.get_dim(rank - 1);
+                int scale_rank = scale_layout.get_partial_shape().size();
+                OPENVINO_ASSERT(scale_rank <= 3, "scale rank > 3d not supported");
+                auto ifm = arg.get_dependency(1).get_output_layout().get_dim(scale_rank - 1);
+                auto ngroups = scale_layout.get_dim(scale_rank - 1);
                 group_size = ifm / ngroups;
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 32 == 0),
                     "[GPU] group_size should be aligned to 32 if it is not a single scale group or the group_size is not one.");
-//                std::cout << __FILE__ << " : " << __LINE__ << " ngroups "  << ngroups << " rank " << rank << " group_size " << group_size << "ifm (K): " << ifm << " ofm (N) " << ofm << std::endl;
                 if (scale_layout.count() == 1) {
                     attr->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, ds_data_type);
                 } else if (ngroups == 1) {
-                    if (rank <= 2) {
+                    if (scale_rank <= 2) {
                         attr->set_scales(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, ds_data_type);
-                    } else if (rank == 3) {
+                    } else if (scale_rank == 3) {
                         // should use {K, 1} for the group size + per tensor mask for 3d
+                        // Example:
+                        // input[32, 6, 2088], W_t[32, 5760, 2088], scale[32, 1, 5760]
+                        // set scale group as [32, 2088, 1]
                         attr->set_scales(DNNL_ARG_WEIGHTS, PER_TENSOR, {ifm, 1}, ds_data_type);
+                    } else {
+                        OPENVINO_ASSERT(false, "Unsupported rank for fc scale : ", scale_rank);
                     }
                 } else {
                     // OneDNN does not support scalar zero-point for s4 and u8 type. Need to broadcast it.
@@ -435,7 +433,6 @@ public:
                     OPENVINO_ASSERT(rank <= 3, "rank > 3d not supported");
                     auto ifm = arg.get_dependency(1).get_output_layout().get_dim(rank - 1);
                     auto ngroups = dzp_layout.get_dim(rank - 1);
-//                    std::cout << __FILE__ << " : " << __LINE__ << " ngroups "  << ngroups << " rank " << rank << " group_size " << group_size << "ifm (K): " << ifm << " ofm (N) " << ofm << std::endl;
                     if (ngroups == 1) {
                         if (rank <= 2) {
                             attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
