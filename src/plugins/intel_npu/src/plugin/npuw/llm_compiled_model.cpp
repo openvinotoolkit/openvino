@@ -868,7 +868,17 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
 
         m_enable_prefix_caching = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>();
-        std::cout << "m_enable_prefix_caching: " << m_enable_prefix_caching << std::endl;
+        if (m_enable_prefix_caching) {
+            std::cout << "Prefix caching is enabled" << std::endl;
+            m_prefix_caching_block_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
+            if (m_prefix_caching_block_size > m_prefill_chunk_size) {
+                std::cout << "Prefix caching block size is adjusted to " << m_use_chunk_prefill << std::endl;
+                m_prefix_caching_block_size = m_prefill_chunk_size;
+            }
+            m_prefix_caching_max_num_blocks = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS>();
+            std::cout << "Prefix caching block size: " << m_prefix_caching_block_size << std::endl;
+            std::cout << "Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks << std::endl;
+        }
     }
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
@@ -1097,6 +1107,8 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
         write(model_stream, m_enable_prefix_caching);
+        write(model_stream, m_prefix_caching_block_size);
+        write(model_stream, m_prefix_caching_max_num_blocks);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1306,6 +1318,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
         read(model_stream, compiled->m_enable_prefix_caching);
+        read(model_stream, compiled->m_prefix_caching_block_size);
+        read(model_stream, compiled->m_prefix_caching_max_num_blocks);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
