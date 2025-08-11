@@ -22,6 +22,7 @@
 
 #include "cpu_types.h"
 #include "memory_control.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/node_config.h"
 #include "openvino/core/attribute_adapter.hpp"
 #include "openvino/core/attribute_visitor.hpp"
@@ -30,6 +31,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
+#include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
 #    include <iomanip>
@@ -106,7 +108,7 @@ DebugLogEnabled::DebugLogEnabled(const char* file, const char* func, int line, c
     const char* p1 = p0;
     while (*p0 != 0) {
         p1 = p0;
-        while (*p1 != ';' && *p1 != 0) {
+        while (none_of(*p1, ';', 0)) {
             ++p1;
         }
         std::string pattern(p0, p1 - p0);
@@ -372,10 +374,10 @@ std::ostream& operator<<(std::ostream& os, const Node& c_node) {
            << ", Gamma=" << eltwise_node->getGamma() << ", BroadcastingPolicy=";
 
         switch (eltwise_node->getBroadcastingPolicy()) {
-        case intel_cpu::node::Eltwise::BroadcastingPolicy::PerChannel:
+        case intel_cpu::EltwiseBroadcastingPolicy::PerChannel:
             os << "PerChannel";
             break;
-        case intel_cpu::node::Eltwise::BroadcastingPolicy::PerTensor:
+        case intel_cpu::EltwiseBroadcastingPolicy::PerTensor:
             os << "PerTensor";
             break;
         default:
@@ -434,7 +436,7 @@ class OstreamAttributeVisitor : public ov::AttributeVisitor {
     std::ostream& os;
 
 public:
-    OstreamAttributeVisitor(std::ostream& os) : os(os) {}
+    explicit OstreamAttributeVisitor(std::ostream& os) : os(os) {}
 
     void on_adapter(const std::string& name, ov::ValueAccessor<void>& adapter) override {
         if (auto* a = ov::as_type<ov::AttributeAdapter<std::set<std::string>>>(&adapter)) {

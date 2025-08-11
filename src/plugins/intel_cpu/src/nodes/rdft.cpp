@@ -33,6 +33,7 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "cpu/x64/cpu_isa_traits.hpp"
@@ -98,7 +99,7 @@ RDFT::RDFT(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& contex
     }
 
     const size_t numInputs = getOriginalInputsNumber();
-    CPU_NODE_ASSERT(numInputs == 2 || numInputs == 3, "has invalid number of input/output edges: ", numInputs);
+    CPU_NODE_ASSERT(any_of(numInputs, 2U, 3U), "has invalid number of input/output edges: ", numInputs);
 
     const auto axesRank = inputShapes[AXES_INDEX].getRank();
     CPU_NODE_ASSERT(axesRank == 1, "has invalid 'axes' input tensor with rank: ", axesRank);
@@ -139,13 +140,13 @@ void RDFT::initSupportedPrimitiveDescriptors() {
     CPU_NODE_ASSERT(dataPrecision.is_real(), "has unsupported 'data' input precision: ", dataPrecision.get_type_name());
 
     const auto& axesPrecision = getOriginalInputPrecisionAtPort(AXES_INDEX);
-    CPU_NODE_ASSERT(axesPrecision == ov::element::i32 || axesPrecision == ov::element::i64,
+    CPU_NODE_ASSERT(any_of(axesPrecision, ov::element::i32, ov::element::i64),
                     "has unsupported 'axes' input precision: ",
                     axesPrecision.get_type_name());
 
     if (inputShapes.size() > SIGNAL_SIZE_INDEX) {
         const auto& signalSizePrecision = getOriginalInputPrecisionAtPort(SIGNAL_SIZE_INDEX);
-        CPU_NODE_ASSERT(signalSizePrecision == ov::element::i32 || signalSizePrecision == ov::element::i64,
+        CPU_NODE_ASSERT(any_of(signalSizePrecision, ov::element::i32, ov::element::i64),
                         "has unsupported 'signalSize' input precision: ",
                         signalSizePrecision.get_type_name());
     }
@@ -892,7 +893,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
                     twiddles[((K * inputSize + n) * simdSize + k) * 2] = static_cast<float>(std::cos(angle));
                     twiddles[((K * inputSize + n) * simdSize + k) * 2 + 1] = static_cast<float>(-std::sin(angle));
                 }
-            } else if (type == complex_to_real || type == complex_to_complex) {
+            } else if (any_of(type, complex_to_real, complex_to_complex)) {
                 for (int k = 0; k < simdSize; k++) {
                     double angle = 2 * PI * (K * simdSize + k) * n / inputSize;
                     twiddles[(K * inputSize + n) * 2 * simdSize + k] = static_cast<float>(std::cos(angle));
@@ -956,7 +957,7 @@ struct RDFTJitExecutor : public RDFTExecutor {
 #endif
 
 struct RDFTRefExecutor : public RDFTExecutor {
-    RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
+    explicit RDFTRefExecutor(bool inverse) : RDFTExecutor(inverse) {}
 
 private:
     std::vector<float> generateTwiddlesDFT(size_t inputSize,

@@ -37,6 +37,7 @@
 #    include <xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl::impl::cpu::x64;
@@ -58,7 +59,7 @@ struct jit_extract_image_patches_kernel : public jit_uni_extract_image_patches_k
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -338,14 +339,14 @@ bool ExtractImagePatches::isSupportedOperation(const std::shared_ptr<const ov::N
             return false;
         }
         const auto padValue = extImgPatcher->get_auto_pad();
-        if (!one_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
+        if (none_of(padValue, ov::op::PadType::VALID, ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER)) {
             errorMessage = "Does not support pad type: " + ov::as_string(padValue);
             return false;
         }
-        if (!everyone_is(2U,
-                         extImgPatcher->get_sizes().size(),
-                         extImgPatcher->get_strides().size(),
-                         extImgPatcher->get_rates().size())) {
+        if (!all_of(2U,
+                    extImgPatcher->get_sizes().size(),
+                    extImgPatcher->get_strides().size(),
+                    extImgPatcher->get_rates().size())) {
             errorMessage = "Doesn't support 'sizes', 'strides', 'rates', attributes with rank != 2";
             return false;
         }

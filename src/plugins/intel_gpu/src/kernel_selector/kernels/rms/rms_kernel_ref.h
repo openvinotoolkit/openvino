@@ -22,7 +22,8 @@ protected:
         return {
             FusedOpType::ACTIVATION,
             FusedOpType::QUANTIZE,
-            FusedOpType::ELTWISE
+            FusedOpType::ELTWISE,
+            FusedOpType::REORDER
         };
     }
     JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const override;

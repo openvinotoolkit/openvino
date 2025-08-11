@@ -46,6 +46,8 @@
 
 #    include "emitters/snippets/x64/cpu_generator.hpp"
 #    include "executors/x64/subgraph.hpp"
+#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
+#    include "snippets/pass/matmul_to_brgemm.hpp"
 #elif defined(OPENVINO_ARCH_ARM64)
 #    include <cpu/aarch64/cpu_isa_traits.hpp>
 
@@ -55,8 +57,6 @@
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_reg_spills.hpp"
-#    include "snippets/lowered/pass/mark_loops.hpp"
-#    include "snippets/pass/propagate_precision.hpp"
 #    include "transformations/snippets/aarch64/pass/brgemm_to_gemm_cpu.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
@@ -64,15 +64,16 @@
 #endif
 
 #if !defined(OPENVINO_ARCH_RISCV64)
-#    include "cache/cache_entry.h"
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
+#    include "snippets/lowered/pass/mark_loops.hpp"
+#    include "snippets/pass/propagate_precision.hpp"
+#endif
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "cache/cache_entry.h"
 #    include "snippets/lowered/pass/init_loops.hpp"
 #    include "snippets/lowered/pass/insert_buffers.hpp"
 #    include "snippets/lowered/pass/insert_loops.hpp"
-#    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
-#    include "snippets/lowered/pass/mark_loops.hpp"
-#    include "snippets/pass/matmul_to_brgemm.hpp"
-#    include "snippets/pass/propagate_precision.hpp"
 #    include "transformations/snippets/x64/pass/brgemm_to_brgemm_cpu.hpp"
 #    include "transformations/snippets/x64/pass/eliminate_brgemm_copy_b.hpp"
 #    include "transformations/snippets/x64/pass/enforce_precision.hpp"
@@ -84,6 +85,7 @@
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
 #    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
 #endif
+
 #include <utility>
 #include <vector>
 
@@ -177,7 +179,7 @@ struct SubgraphShapeInferResultKey {
 };
 
 struct SubgraphShapeInferResult {
-    SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
+    explicit SubgraphShapeInferResult(IShapeInfer::Result res) : result(std::move(res)) {}
 
     IShapeInfer::Result result;
 };
@@ -243,16 +245,15 @@ void Subgraph::initSupportedPrimitiveDescriptors() {
     const size_t ndims = outputShapes[0].getRank();
     // Domain sensitive operations and dynamic Subgraphs support only Planar layout
     const bool isOnlyPlanarApplicable = subgraph_attrs->snippet->has_domain_sensitive_ops();
-    const bool isChannelsFirstApplicable = dnnl::impl::utils::one_of(ndims, 1U, 2U, 3U, 4U, 5U) && dimRanksAreEqual &&
-                                           !isOnlyPlanarApplicable && !isDynamic;
+    const bool isChannelsFirstApplicable =
+        any_of(ndims, 1U, 2U, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
     // Todo: Subgraphs currently don't support per-channel broadcasting of Blocked descriptors because
     //  canonicalization can't distinguish between <N, C, H, W, c> and <N, C, D, H, W> cases.
     //  See snippets::op::Subgraph::canonicalize for details.
 #if defined(OPENVINO_ARCH_ARM64)
     bool isBlockedApplicable = false;
 #else
-    bool isBlockedApplicable =
-        dnnl::impl::utils::one_of(ndims, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
+    bool isBlockedApplicable = any_of(ndims, 3U, 4U, 5U) && dimRanksAreEqual && !isOnlyPlanarApplicable && !isDynamic;
 
     for (const auto& inShape : inputShapes) {
         if (isDynamic && inShape.getRank() != 1) {
@@ -530,7 +531,7 @@ Subgraph::DataFlowPasses Subgraph::getDataFlowPasses() {
                                            ov::snippets::pass::AnalyzeBroadcastableInputs,
                                            broadcastable_inputs);
 
-    if (one_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
+    if (any_of(context->getConfig().inferencePrecision, ov::element::bf16, ov::element::f16) &&
         subgraph_attrs->snippet->has_domain_sensitive_ops()) {
         // enforce BF16 precisions to supported operations
         // MatMul has to be decomposed to Brgemm operations before enforcement

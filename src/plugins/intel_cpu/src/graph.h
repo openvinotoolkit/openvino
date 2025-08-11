@@ -59,7 +59,7 @@ public:
     }
 
     bool IsDynamic() const {
-        return one_of(status, Status::ReadyDynamic, Status::ReadyDynamicSeq);
+        return any_of(status, Status::ReadyDynamic, Status::ReadyDynamicSeq);
     }
 
     bool IsReady() const {
@@ -285,6 +285,8 @@ public:
     const std::unordered_map<std::size_t, ProxyMemoryBlockPtr>& getOutputNodesMemBlocksMap() const {
         return m_outputNodesMemBlocks;
     }
+
+    friend class GraphOptimizer;
 
 protected:
     void ForgetGraphData() {

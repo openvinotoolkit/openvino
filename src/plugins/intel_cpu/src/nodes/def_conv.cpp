@@ -44,6 +44,7 @@
 #    include <xbyak/xbyak.h>
 
 #    include "cpu/x64/jit_generator.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -68,7 +69,7 @@ struct jit_uni_def_conv_kernel_f32 : public jit_uni_def_conv_kernel, public jit_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     };
 
     void generate() override {
@@ -726,7 +727,7 @@ private:
 bool DeformableConvolution::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                  std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v1::DeformableConvolution::get_type_info_static(),
                     ov::op::v8::DeformableConvolution::get_type_info_static())) {
             errorMessage = "Node is not an instance of DeformableConvolution form the operation set v1 or v8.";
@@ -819,7 +820,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 
     defConvAttr.padL = defConvNodeBase->get_pads_begin();
 
-    autoPadding = one_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
+    autoPadding = any_of(defConvNodeBase->get_auto_pad(), ov::op::PadType::SAME_UPPER, ov::op::PadType::SAME_LOWER);
 
     if (op->get_type_info() == ov::op::v8::DeformableConvolution::get_type_info_static()) {
         auto defConvNode = ov::as_type_ptr<ov::op::v8::DeformableConvolution>(op);
@@ -831,8 +832,7 @@ DeformableConvolution::DeformableConvolution(const std::shared_ptr<ov::Node>& op
 }
 
 void DeformableConvolution::getSupportedDescriptors() {
-    CPU_NODE_ASSERT(getParentEdges().size() == 3 || getParentEdges().size() == 4,
-                    "has incorrect number of input edges");
+    CPU_NODE_ASSERT(any_of(getParentEdges().size(), 3U, 4U), "has incorrect number of input edges");
     CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges");
     CPU_NODE_ASSERT(getInputShapeAtPort(DATA_ID).getRank() == 4,
                     "has unsupported mode. Only 4D blobs are supported as input.");
@@ -873,7 +873,7 @@ void DeformableConvolution::initSupportedPrimitiveDescriptors() {
     impl_desc_type impl_type = impl_desc_type::ref;
 
     const auto& weiDims = getInputShapeAtPort(WEI_ID).getDims();
-    const bool hasUndefinedDims = weiDims[1] == Shape::UNDEFINED_DIM || weiDims[0] == Shape::UNDEFINED_DIM;
+    const bool hasUndefinedDims = any_of(Shape::UNDEFINED_DIM, weiDims[1], weiDims[0]);
     const bool isMultiGroup = defConvAttr.group != 1;
     enforceRef = hasUndefinedDims || isMultiGroup;
 
@@ -984,7 +984,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
                     skip_compute = static_cast<int>(map_w) <= -1 || static_cast<int>(map_w) >= IW ||
                                    static_cast<int>(map_h) <= -1 || static_cast<int>(map_h) >= IH;
                 } else {
-                    skip_compute = map_w < 0.0f || map_w >= static_cast<float>(IW) || map_h < 0.0f ||
+                    skip_compute = map_w < 0.0F || map_w >= static_cast<float>(IW) || map_h < 0.0F ||
                                    map_h >= static_cast<float>(IH);
                 }
                 if (!skip_compute) {
@@ -1059,7 +1059,7 @@ void DeformableConvolution::DefConvExecutor::prepareSamplingWeights(const float*
 DeformableConvolution::DefConvExecutor::DefConvExecutor(
     const DefConvAttr& defConvAttr,
     const std::vector<std::shared_ptr<BlockedMemoryDesc>>& descVector) {
-    OPENVINO_ASSERT(one_of(descVector.size(), 4U, 5U),
+    OPENVINO_ASSERT(any_of(descVector.size(), 4U, 5U),
                     "Deformable Convolution executor got incorrect desc's count (",
                     descVector.size(),
                     ")");

@@ -228,7 +228,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
             CreateEdge(parentNode, node, getParentOutputPort(op, parentOp, port), static_cast<int>(port));
         }
 
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     op::v0::Result::get_type_info_static(),
                     op::v3::Assign::get_type_info_static(),
                     op::v6::Assign::get_type_info_static())) {
@@ -276,7 +276,7 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
         for (const auto& childEdge : childEdges) {
             const auto child = childEdge->getChild();
             const auto child_prec = child->getOriginalInputPrecisionAtPort(childEdge->getOutputNum());
-            if (!one_of(child_prec, ov::element::bf16, ov::element::f16) &&
+            if (none_of(child_prec, ov::element::bf16, ov::element::f16) &&
                 // remove this WA when #78939 is resolved
                 !hasSubgraphConsumers(child)) {
                 child->setOriginalInputPrecisionAtPort(childEdge->getOutputNum(), precToSet);
@@ -335,7 +335,7 @@ static std::tuple<std::vector<NodePtr>, std::vector<size_t>> ExtractExecutableNo
     for (size_t i = 0; i < graphNodes.size(); i++) {
         const auto& node = graphNodes[i];
         const bool staticZeroDims = !node->isDynamicNode() && !node->isExecutable() && !node->isInPlace();
-        const bool dynamicNonInputOutput = node->isDynamicNode() && !one_of(node->getType(), Type::Input, Type::Output);
+        const bool dynamicNonInputOutput = node->isDynamicNode() && none_of(node->getType(), Type::Input, Type::Output);
 
         if (!node->isConstant() &&  // constants are executed once in scope of compile_model
             !staticZeroDims &&      // never execute static nodes with zero dim input / output tensors
@@ -720,7 +720,7 @@ void Graph::ResolveComplexInplaceConflicts() {
 
                     for (const auto& node : vecConsumers) {
                         if (node->getExecIndex() >= execIndex ||
-                            one_of(node->getType(), Type::MemoryOutput, Type::Output)) {
+                            any_of(node->getType(), Type::MemoryOutput, Type::Output)) {
                             return true;
                         }
                     }
@@ -915,10 +915,10 @@ static void ResolveInOutInPlaceEdges(const std::vector<EdgePtr>& edges) {
     for (const auto& edge : edges) {
         if (edge->getStatus() == Edge::Status::Uninitialized) {
             if (edge->getParent()->getParentEdges().empty() &&
-                one_of(edge->getParent()->getType(), Type::MemoryInput) && edge->inPlace(Edge::LOOK_UP)) {
+                any_of(edge->getParent()->getType(), Type::MemoryInput) && edge->inPlace(Edge::LOOK_UP)) {
                 edge->getParent()->resolveInPlaceEdges(Edge::LOOK_UP);
             } else if (edge->getChild()->getChildEdges().empty() &&
-                       one_of(edge->getChild()->getType(), Type::MemoryOutput) && edge->inPlace(Edge::LOOK_DOWN)) {
+                       any_of(edge->getChild()->getType(), Type::MemoryOutput) && edge->inPlace(Edge::LOOK_DOWN)) {
                 edge->getChild()->resolveInPlaceEdges(Edge::LOOK_DOWN);
             }
         }
@@ -1096,7 +1096,7 @@ static MemoryRegions FormMemoryRegions(const EdgeClusters& clusters,
             auto allocType =
                 desc.getPrecision() == element::string ? MemoryRegion::AllocType::STRING : MemoryRegion::AllocType::POD;
 
-            OPENVINO_ASSERT(one_of(reg.alloc_type, allocType, MemoryRegion::AllocType::UNKNOWN),
+            OPENVINO_ASSERT(any_of(reg.alloc_type, allocType, MemoryRegion::AllocType::UNKNOWN),
                             "Different allocation types in the same memory region");
             reg.alloc_type = allocType;
 
@@ -1989,14 +1989,10 @@ void Graph::EnforceInferencePrecision() {
     CPU_DEBUG_CAP_ENABLE(EnforceInferPrcDebug inferPrecDebug);
 
     const auto inferPrec = getConfig().inferencePrecision;
-    if (one_of(inferPrec, element::f32, element::dynamic, ov::element::f16, element::dynamic)) {
+    if (any_of(inferPrec, element::f32, element::f16, element::dynamic)) {
         return;  // nothing to do, only precision reduction is currently allowed
     }
-#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
-    if (inferPrec == ov::element::f16) {
-        return;  // precision of configured by ov::pass::ConvertPrecision
-    }
-#endif
+
     std::function<void(const NodePtr&, std::unordered_set<NodePtr>& skipNodes)> searchForNodesToSkip;
     searchForNodesToSkip = [&](const NodePtr& node, std::unordered_set<NodePtr>& skipNodes) -> void {
         for (size_t i = 0; i < node->getParentEdges().size(); i++) {
@@ -2004,7 +2000,7 @@ void Graph::EnforceInferencePrecision() {
             if (inferPrec == ov::element::bf16) {
                 /* list of node types that must be forced to be executed in BF16 precision
                  * because of performance gains */
-                if (one_of(parent->getType(),
+                if (any_of(parent->getType(),
                            Type::Convolution,     // conv nets
                            Type::FullyConnected,  // conv / bert nets
                            Type::RNNCell,         // recurrent nets
@@ -2015,18 +2011,6 @@ void Graph::EnforceInferencePrecision() {
                            Type::PagedAttention,  // page attention
                            Type::QKVProjection,
                            Type::LLMMLP)) {
-                    continue;  // stop at significant nodes
-                }
-            } else if (inferPrec == ov::element::f16) {
-                /* list of node types that must be forced to be executed in FP16 precision
-                 * because of performance gains */
-                if (one_of(parent->getType(),
-                           Type::Convolution,     // conv nets
-                           Type::Deconvolution,   // deconv
-                           Type::FullyConnected,  // conv / bert nets
-                           Type::MatMul,          // bert nets
-                           Type::Pooling,
-                           Type::MVN)) {
                     continue;  // stop at significant nodes
                 }
             }
@@ -2058,7 +2042,7 @@ void Graph::EnforceInferencePrecision() {
             continue;
         }
 
-        if (one_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
+        if (any_of(node->getType(), Type::Input, Type::Output, Type::MemoryInput, Type::MemoryOutput)) {
             continue;
         }
         if (node->keepOrigPrecision()) {
@@ -2078,7 +2062,7 @@ void Graph::EnforceInferencePrecision() {
                 }
 
                 // kvcache of PagedAttention should be written directly
-                if (node->getType() == Type::PagedAttention && (inPort == 3 || inPort == 4)) {
+                if (node->getType() == Type::PagedAttention && any_of(inPort, 3U, 4U)) {
                     return true;
                 }
                 const auto& parent = node->getParentEdgeAt(inPort)->getParent();
@@ -2091,7 +2075,7 @@ void Graph::EnforceInferencePrecision() {
                     return true;
                 }
                 // Eltwise and Subgraph (snippets) nodes support precision conversion
-                if (parent->getType() == Type::Input && one_of(node->getType(), Type::Eltwise, Type::Subgraph)) {
+                if (parent->getType() == Type::Input && any_of(node->getType(), Type::Eltwise, Type::Subgraph)) {
                     return true;
                 }
 

@@ -47,6 +47,7 @@
 #    include "cpu/x64/injectors/jit_uni_depthwise_injector.hpp"
 #    include "cpu/x64/injectors/jit_uni_eltwise_injector.hpp"
 #    include "cpu/x64/jit_generator.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 // WA for xbyak.h
@@ -82,7 +83,7 @@ struct jit_uni_bin_conv_kernel_f32 : public jit_uni_bin_conv_kernel, public jit_
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1192,7 +1193,7 @@ void BinaryConvolution::createPrimitive() {
 
     bool args_ok =
         (jcp.l_pad <= jcp.ur_w) && (r_pad_no_tail <= jcp.ur_w) &&
-        IMPLICATION(jcp.kw > 7, (jcp.t_pad == 0 && jcp.l_pad == 0) || (jcp.stride_w == 1 && jcp.stride_h == 1));
+        IMPLICATION(jcp.kw > 7, (all_of(0, jcp.t_pad, jcp.l_pad)) || (all_of(1, jcp.stride_w, jcp.stride_h)));
     CPU_NODE_ASSERT(args_ok, "has unsupported parameters");
 #if defined(OPENVINO_ARCH_X86_64)
     jit_dw_conv_params jcp_dw_conv = {};

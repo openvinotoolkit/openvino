@@ -4,11 +4,14 @@
 
 #include "jit_memory_emitters.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
 #include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
 
+#include <common/utils.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -19,10 +22,13 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/broadcastload.hpp"
 #include "snippets/op/load.hpp"
+#include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
+#include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace Xbyak_aarch64;
@@ -92,7 +98,7 @@ size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lo
 jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     bool is_supported_precision =
-        one_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
+        any_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
         src_prc == dst_prc;
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
@@ -141,9 +147,6 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
                ptr(reg_runtime_params,
                    static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
         // bump the pointer
-        // TODO: Consider ISA limitations on offset size - large offsets may require multiple operations
-        //       for both h->add and h->sub instructions to handle cases where offset exceeds immediate
-        //       value limits
         h->add(data_reg, data_reg, aux_gpr);
     }
 
@@ -151,9 +154,6 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
 
     if (is_offset_runtime) {
         // subtract back so we leave the pointer unchanged for the caller
-        // TODO: Consider ISA limitations on offset size - large offsets may require multiple operations
-        //       for both h->add and h->sub instructions to handle cases where offset exceeds immediate
-        //       value limits
         h->sub(data_reg, data_reg, aux_gpr);
     }
 
@@ -176,7 +176,9 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(jit_generator* h, cpu_isa
                               src_prc.get_type_name(),
                               " and ",
                               dst_prc.get_type_name());
-    OV_CPU_JIT_EMITTER_ASSERT(src_prc == ov::element::f32, "Only supports FP32 precision.");
+    OV_CPU_JIT_EMITTER_ASSERT(any_of(src_prc.size(), 1U, 2U, 4U), "Unsupported element type: ", src_prc);
+
+    byte_size = src_prc.size();
 
     const auto broadcast_load = ov::as_type_ptr<snippets::op::BroadcastLoad>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(broadcast_load != nullptr, "Expects BroadcastLoad expression");
@@ -196,13 +198,34 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     auto src = XReg(in[0]);
     auto dst = TReg(out[0]);
 
-    h->uni_ld1rw(dst.s, src, compiled_byte_offset);
+    auto load_broadcast = [&](auto reg_view) {
+        if (compiled_byte_offset == 0) {
+            h->ld1r(reg_view, ptr(src));
+        } else {
+            h->add_imm(h->X_DEFAULT_ADDR, src, compiled_byte_offset, h->X_TMP_0);
+            h->ld1r(reg_view, ptr(h->X_DEFAULT_ADDR));
+        }
+    };
+
+    switch (byte_size) {
+    case 1:
+        load_broadcast(dst.b);
+        break;
+    case 2:
+        load_broadcast(dst.h);
+        break;
+    case 4:
+        h->uni_ld1rw(dst.s, src, compiled_byte_offset);
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported data size ", byte_size);
+    }
 }
 
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
     bool is_supported_precision =
-        one_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
+        any_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8) &&
         src_prc == dst_prc;
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 

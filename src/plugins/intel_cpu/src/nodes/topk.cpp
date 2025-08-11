@@ -49,6 +49,7 @@
 #    include "cpu/x64/jit_generator.hpp"
 #    include "emitters/plugin/x64/jit_emitter.hpp"
 #    include "emitters/plugin/x64/jit_load_store_emitters.hpp"
+#    include "utils/cpu_utils.hpp"
 #endif
 
 using namespace dnnl;
@@ -107,7 +108,7 @@ struct jit_uni_topk_kernel_f32 : public jit_uni_topk_kernel, public jit_generato
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override {
@@ -1880,7 +1881,7 @@ private:
 
 bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     ov::op::v1::TopK::get_type_info_static(),
                     ov::op::v3::TopK::get_type_info_static(),
                     ov::op::v11::TopK::get_type_info_static())) {
@@ -1901,7 +1902,7 @@ bool TopK::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::
             errorMessage = "Unsupported mode.";
             return false;
         }
-        if (!one_of(topKOp->get_sort_type(),
+        if (none_of(topKOp->get_sort_type(),
                     ov::op::TopKSortType::NONE,
                     ov::op::TopKSortType::SORT_VALUES,
                     ov::op::TopKSortType::SORT_INDICES)) {

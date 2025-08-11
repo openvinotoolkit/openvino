@@ -536,6 +536,14 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
         auto input_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto position_ids = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i64});
         auto score_aggregation_window = makeOP<v0::Parameter>({}, {{"shape", PartialShape{DYN}}, el_type_i32});
+
+        auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto rotation_deltas = makeConst(element::i32, ov::Shape{0}, {0});
+        auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+
         auto params = nodes_to_params({score_aggregation_window,
                                        max_context_len,
                                        block_indices_begins,
@@ -599,7 +607,14 @@ TEST_P(SDPAToPATest, SDPAToPA_Qwen7bChat_General) {
                                                                              sliding_window,
                                                                              alibi_slopes,
                                                                              max_context_len,
-                                                                             score_aggregation_window_const});
+                                                                             score_aggregation_window_const,
+                                                                             rotated_block_indices,
+                                                                             rotation_deltas,
+                                                                             rotation_trig_lut,
+                                                                             xattention_threshold,
+                                                                             xattention_block_size,
+                                                                             xattention_stride});
+        pa->set_out_type(0, element::i64);
         auto pa_aligned = Qwen7bChatPA::align_pa_layout(pa, head_size_2);
         auto res = makeOP<v0::Result>({pa_aligned});
 
@@ -883,6 +898,12 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
         auto key_cache_0 = make_param(PartialShape{DYN, 40, 128}, element::f32, "key_cache.0");
         auto input_ids = make_param(PartialShape{DYN}, element::i64, "input_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+        auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto rotation_deltas = makeConst(element::i32, ov::Shape{0}, {0});
+        auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -966,7 +987,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Baichuan2_13b_General) {
                                                                                c2,
                                                                                Reshape166,
                                                                                max_context_len,
-                                                                               score_aggregation_window});
+                                                                               score_aggregation_window,
+                                                                               rotated_block_indices,
+                                                                               rotation_deltas,
+                                                                               rotation_trig_lut,
+                                                                               xattention_threshold,
+                                                                               xattention_block_size,
+                                                                               xattention_stride});
         auto ShapeOf172 = makeOP<opset3::ShapeOf>({Transpose154}, {{"output_type", "i64"}});
         auto Gather175 = makeOP<opset8::Gather>({ShapeOf172, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze177 = makeOP<opset1::Unsqueeze>({Gather175, 0});
@@ -1186,6 +1213,12 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
         auto inputs_embeds = make_param(PartialShape{DYN, DYN}, element::f32, "inputs_embeds");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+        auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto rotation_deltas = makeConst(element::i32, ov::Shape{0}, {0});
+        auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
 
         ParameterVector params = nodes_to_params({max_context_len,
                                                   block_indices_begins,
@@ -1315,7 +1348,13 @@ TEST_F(SDPAToPATest, SDPAToPA_nanoLLaVA_General) {
                                                                                c2,
                                                                                c3,
                                                                                max_context_len,
-                                                                               score_aggregation_window});
+                                                                               score_aggregation_window,
+                                                                               rotated_block_indices,
+                                                                               rotation_deltas,
+                                                                               rotation_trig_lut,
+                                                                               xattention_threshold,
+                                                                               xattention_block_size,
+                                                                               xattention_stride});
         auto ShapeOf_51965 = makeOP<opset3::ShapeOf>({Transpose_51955}, {{"output_type", "i64"}});
         auto Gather_51966 = makeOP<opset8::Gather>({ShapeOf_51965, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze_51971 = makeOP<opset1::Unsqueeze>({Gather_51966, 0});
@@ -1509,6 +1548,12 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
         auto inputs_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
         auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+        auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto rotation_deltas = makeConst(element::i32, ov::Shape{0}, {0});
+        auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -1620,7 +1665,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Phi3_mini_4k_instruct) {
                                                                            sliding_window,
                                                                            alibi_slopes,
                                                                            max_context_len,
-                                                                           score_aggregation_window});
+                                                                           score_aggregation_window,
+                                                                           rotated_block_indices,
+                                                                           rotation_deltas,
+                                                                           rotation_trig_lut,
+                                                                           xattention_threshold,
+                                                                           xattention_block_size,
+                                                                           xattention_stride});
         auto ShapeOf1 = makeOP<opset3::ShapeOf>({Transpose6}, {{"output_type", "i64"}});
         auto Gather2 = makeOP<opset8::Gather>({ShapeOf1, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze5 = makeOP<opset1::Unsqueeze>({Gather2, 0});
@@ -1816,7 +1867,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
         auto key_cache_0 = make_param(PartialShape{DYN, 16, 256}, element::f32, "key_cache_0");
         auto input_ids = make_param(PartialShape{DYN}, element::i64, "inputs_ids");
         auto position_ids = make_param(PartialShape{DYN}, element::i64, "position_ids");
-        auto Constant0 = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+        auto score_aggregation_window = makeConst(element::i32, ov::Shape({0}), MOCK_VALUE);
+        auto rotated_block_indices = makeConst(element::i32, ov::Shape({0}), {0});
+        auto rotation_deltas = makeConst(element::i32, ov::Shape{0}, {0});
+        auto rotation_trig_lut = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_threshold = makeConst(element::f32, ov::Shape({0}), {0});
+        auto xattention_block_size = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
+        auto xattention_stride = makeConst(element::i32, ov::Shape({}), MOCK_VALUE);
 
         auto params = nodes_to_params({max_context_len,
                                        block_indices_begins,
@@ -1944,7 +2001,13 @@ TEST_F(SDPAToPATest, SDPAToPA_Codegen2) {
                                                                            sliding_window,
                                                                            alibi_slopes_stub,
                                                                            max_context_len,
-                                                                           Constant0});
+                                                                           score_aggregation_window,
+                                                                           rotated_block_indices,
+                                                                           rotation_deltas,
+                                                                           rotation_trig_lut,
+                                                                           xattention_threshold,
+                                                                           xattention_block_size,
+                                                                           xattention_stride});
         auto ShapeOf2 = makeOP<opset3::ShapeOf>({Transpose7}, {{"output_type", "i64"}});
         auto Gather5 = makeOP<opset8::Gather>({ShapeOf2, -1, 0}, {{"batch_dims", 0}});
         auto Unsqueeze9 = makeOP<opset1::Unsqueeze>({Gather5, 0});

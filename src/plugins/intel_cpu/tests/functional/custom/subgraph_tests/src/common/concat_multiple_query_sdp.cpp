@@ -59,15 +59,11 @@ class ConcatMultiQuerySDPTest : public testing::WithParamInterface<ConcatMultiQu
                                 public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ConcatMultiQuerySDPParams>& obj) {
-        ElementType qkvType;
-        InputShapeAndTransposeOrder inputShapeAndOrders;
-        bool forceKVU8;
-        bool hasShapeOf;
-        std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = obj.param;
+        const auto& [qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf] = obj.param;
         ElementType kvCacheType = forceKVU8 ? ov::element::Type_t::u8 : qkvType;
         std::ostringstream result;
-        std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
-        std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
+        const auto &[inputShapes, transposeOrder] = inputShapeAndOrders;
+
         result << "IS=";
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -96,13 +92,8 @@ public:
     }
 
     void SetUp() override {
-        InputShapeAndTransposeOrder inputShapeAndOrders;
-        bool forceKVU8;
-        bool hasShapeOf;
-        ElementType qkvType;
-        std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
-        std::vector<InputShape>& inputShapes = inputShapeAndOrders.first;
-        std::vector<size_t>& transposeOrder = inputShapeAndOrders.second;
+        const auto& [qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf] = this->GetParam();
+        const auto &[inputShapes, transposeOrder] = inputShapeAndOrders;
         targetDevice = ov::test::utils::DEVICE_CPU;
         rel_threshold = 1e-2f;
         configuration[ov::hint::inference_precision.name()] = ov::element::f32;
@@ -312,11 +303,7 @@ public:
 
 TEST_P(ConcatMultiQuerySDPTest, CompareWithRefs) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    InputShapeAndTransposeOrder inputShapeAndOrders;
-    bool forceKVU8;
-    bool hasShapeOf;
-    ElementType qkvType;
-    std::tie(qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf) = this->GetParam();
+    const auto &[qkvType, inputShapeAndOrders, forceKVU8, hasShapeOf] = this->GetParam();
     auto actualOutputs = run_test(function);
     CheckNumberOfNodesWithType(compiledModel, "ScaledDotProductAttention", 1);
     CheckNumberOfNodesWithType(compiledModel, "Concatenation", 0);
