@@ -866,6 +866,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             }
             max_prompt_len = align_to(max_prompt_len, static_cast<uint32_t>(m_prefill_chunk_size));
         }
+
+        m_enable_prefix_caching = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>();
+        std::cout << "m_enable_prefix_caching: " << m_enable_prefix_caching << std::endl;
     }
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
@@ -1093,6 +1096,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
+        write(model_stream, m_enable_prefix_caching);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1301,6 +1305,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
+        read(model_stream, compiled->m_enable_prefix_caching);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
