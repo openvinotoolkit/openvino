@@ -20,7 +20,7 @@ using ov::test::utils::EltwiseTypes;
 using ov::test::utils::InputLayerType;
 using ov::test::utils::OpType;
 
-std::string BitwiseShiftLayerCPUTest::getTestCaseName(testing::TestParamInfo<BitshiftLayerCPUTestParamsSet> obj) {
+std::string BitwiseShiftLayerCPUTest::getTestCaseName(const testing::TestParamInfo<BitshiftLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets, val_map] = obj.param;
     std::ostringstream result;
     result << EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams>(basicParamsSet, 0));

@@ -31,12 +31,7 @@ class ReduceLayerGPUTest : public testing::WithParamInterface<ReduceLayerTestPar
                            virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<ReduceLayerTestParamSet>& obj) {
-        ReduceInput input_data;
-        ov::element::Type netType;
-        ov::test::utils::ReductionType reductionType;
-        bool keepDims;
-        std::string targetDevice;
-        std::tie(input_data, netType, reductionType, keepDims, targetDevice) = obj.param;
+        const auto& [input_data, netType, reductionType, keepDims, targetDevice] = obj.param;
 
         std::vector<InputShape> inshapes = input_data.data_shape;
         std::vector<int> axes = input_data.axes;
@@ -66,11 +61,8 @@ public:
 
 protected:
     void SetUp() override {
-        ReduceInput input_data;
-        ov::element::Type netPrecision;
-        ov::test::utils::ReductionType reductionType;
-        bool keepDims;
-        std::tie(input_data, netPrecision, reductionType, keepDims, targetDevice) = this->GetParam();
+        const auto& [input_data, netPrecision, reductionType, keepDims, _targetDevice] = this->GetParam();
+        targetDevice = _targetDevice;
 
         std::vector<InputShape> inputShapes = input_data.data_shape;
         std::vector<int> axes = input_data.axes;
