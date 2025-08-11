@@ -480,6 +480,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
+              OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
               OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
               OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
               OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
@@ -503,7 +504,8 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
-              OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
+              OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
+              OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
 
     OPENVINO_ASSERT(ctx.emitter, "Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
 
@@ -630,6 +632,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
               OV_CASE(Algorithm::EltwiseGeluErf, jit_gelu_erf_emitter),
+              OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
               OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
               OV_CASE(Algorithm::EltwiseLess, jit_less_emitter),
@@ -653,7 +656,8 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseRelu, jit_relu_emitter),
               OV_CASE(Algorithm::EltwiseSigmoid, jit_sigmoid_emitter),
               OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
-              OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter));
+              OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
+              OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
 
     OPENVINO_ASSERT(!precisions.empty(), "Unsupported operation type for Eltwise emitter");
 

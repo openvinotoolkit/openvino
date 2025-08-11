@@ -86,6 +86,17 @@ static size_t get_heads_per_wi(const size_t kv_group_size) {
     return 1;
 }
 
+static size_t get_num_k_head_size_partitions(bool is_key_by_channel, int64_t k_head_size) {
+    size_t head_size_partition = 1;
+    if (is_key_by_channel) {
+        if (k_head_size % subgroup_size == 0) {
+            head_size_partition = std::max(static_cast<size_t>(1), static_cast<size_t>(k_head_size / subgroup_size));
+            head_size_partition = std::min(static_cast<size_t>(16), head_size_partition);
+        }
+    }
+    return head_size_partition;
+}
+
 inline size_t get_generate_stage_block_size(size_t head_size) {
     auto preferred_block_size = {4, 2, 1};
     for (const auto& block_size : preferred_block_size) {
@@ -440,6 +451,9 @@ public:
         auto heads_per_wi = get_heads_per_wi(kv_group_size);
 
         // GQA
+        jit.remove("HEADS_PER_WI");
+        jit.make("HEADS_PER_WI", heads_per_wi);
+
         jit.make("ITERATIONS_PER_KV_HEADS_GROUP", ceil_div(kv_group_size, heads_per_wi));
         jit.make("HEADS_LEFTOVERS_NUM", kv_group_size % heads_per_wi);
 
@@ -786,6 +800,7 @@ protected:
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size);
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size + scales_zp_size);
+                jit.make("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size));
             } else {
                 jit.make("ADJUSTED_K_HEAD_SIZE", desc->k_head_size + scales_zp_size);
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
@@ -848,8 +863,8 @@ protected:
             } else {
                 const auto& key_input = params.input_layouts[0];
                 const auto sequences_number = key_input.get_partial_shape()[0].get_length();
-
-                wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size};
+                size_t head_size_partition = get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size);
+                wgs.global = {static_cast<size_t>(sequences_number), heads_number, subgroup_size * head_size_partition};
                 wgs.local = {1, 1, subgroup_size};
             }
 
