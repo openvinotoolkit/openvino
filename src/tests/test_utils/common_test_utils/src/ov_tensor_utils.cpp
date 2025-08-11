@@ -24,73 +24,7 @@ ov::Tensor create_and_fill_tensor(const ov::element::Type element_type,
                                   const InputGenerateData& inGenData) {
     auto tensor = ov::Tensor(element_type, shape);
     auto size = shape_size(shape);
-    if (shape.size() == 3) {
-        if (element_type == ov::element::f16) {
-            std::cout << "f16 data " << shape[0] << ", " << shape[1] << ", " << shape[2] << std::endl;
-            size_t batch = shape[0];
-            auto input = std::vector<fundamental_type_for<ov::element::f16>>(size / batch);
-            auto size_spatial = shape[1] * shape[2];
-            fill_data_random(input.data(),
-                             size_spatial,
-                             inGenData.range,
-                             inGenData.start_from,
-                             inGenData.resolution,
-                             inGenData.seed);
-            for (int b = 0; b < batch; ++b) {
-                auto iter = element::iterator<ov::element::f16>(tensor.data()) + size_spatial * b;
-                std::copy(input.begin(), input.end(), iter);
-            }
-//            auto iter_tensor = element::iterator<ov::element::u8>(tensor.data());
-//            for (int b = 0; b < batch; ++b) {
-//                for (int t = 0; t < size_spatial / 2; ++t) {
-//                    std::cout << static_cast<uint32_t>(iter_tensor[b * size_spatial + t]) << " ";
-//                }
-//                std::cout << std::endl;
-//            }
-            return tensor;
 
-        } else if (element_type == ov::element::u8) {
-            std::cout << "u8 data " << shape[0] << ", " << shape[1] << ", " << shape[2] << std::endl;
-            size_t batch = shape[0];
-            auto input = std::vector<fundamental_type_for<ov::element::u8>>(size / batch);
-            auto size_spatial = shape[1] * shape[2];
-            fill_data_random(input.data(),
-                             size_spatial,
-                             inGenData.range,
-                             inGenData.start_from,
-                             inGenData.resolution,
-                             inGenData.seed);
-            for (int b = 0; b < batch; ++b) {
-                auto iter = element::iterator<ov::element::u8>(tensor.data()) + size_spatial * b;
-                std::copy(input.begin(), input.end(), iter);
-            }
-        } else if (element_type == ov::element::u4) {
-            std::cout << "weight!! " << shape[0] << ", " << shape[1] << ", " << shape[2] << std::endl;
-            // repeat same weight for each batch
-            size_t batch = shape[0];
-            auto input = std::vector<fundamental_type_for<ov::element::u4>>(size / batch);
-            auto size_spatial = shape[1] * shape[2];
-            fill_data_random(input.data(),
-                             size_spatial,
-                             inGenData.range,
-                             inGenData.start_from,
-                             inGenData.resolution,
-                             inGenData.seed);
-            for (int b = 0; b < batch; ++b) {
-                auto iter = element::iterator<ov::element::u4>(tensor.data()) + size_spatial * b;
-                std::copy(input.begin(), input.end(), iter);
-            }
-            auto iter_tensor = element::iterator<ov::element::u8>(tensor.data());
-            for (int b = 0; b < batch; ++b) {
-                for (int t = 0; t < size_spatial / 2; ++t) {
-                    std::cout << static_cast<uint32_t>(iter_tensor[b * size_spatial / 2 + t]) << " ";
-                }
-                std::cout << std::endl;
-            }
-            return tensor;
-        }
-    }
-    std::cout << "other data!!!!" << std::endl;
 #define CASE(X)                                                  \
     case X:                                                      \
         fill_data_random(tensor.data<fundamental_type_for<X>>(), \
