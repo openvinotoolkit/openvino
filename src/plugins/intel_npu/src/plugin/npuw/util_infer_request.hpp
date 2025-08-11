@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <string>
 #include <optional>
+#include <string>
 
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
