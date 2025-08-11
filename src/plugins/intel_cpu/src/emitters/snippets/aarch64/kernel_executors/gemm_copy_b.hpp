@@ -47,8 +47,8 @@ public:
     [[nodiscard]] size_t get_K() const {
         return m_K;
     }
-    [[nodiscard]] size_t get_stride() const {
-        return m_stride;
+    [[nodiscard]] size_t get_copy_b_wei_stride() const {
+        return m_copy_b_wei_stride;
     }
     [[nodiscard]] size_t get_n_blk_size() const {
         return m_static_params->wei_N_blk;
@@ -79,7 +79,7 @@ private:
     std::shared_ptr<StaticParams> m_static_params;
     size_t m_N = 0;
     size_t m_K = 0;
-    size_t m_stride = 0;
+    size_t m_copy_b_wei_stride = 0;
     size_t m_hash{SIZE_MAX};
 };
 

@@ -31,16 +31,16 @@ GemmCopyBKernelKaiConfig::GemmCopyBKernelKaiConfig(const size_t n_blk_size)
 }
 
 bool GemmCopyBKernelKaiConfig::operator==(const GemmCopyBKernelKaiConfig& rhs) const {
-    return m_N == rhs.m_N && m_K == rhs.m_K && m_stride == rhs.m_stride && m_hash == rhs.m_hash &&
+    return m_N == rhs.m_N && m_K == rhs.m_K && m_copy_b_wei_stride == rhs.m_copy_b_wei_stride && m_hash == rhs.m_hash &&
            (m_static_params == rhs.m_static_params || *m_static_params == *(rhs.m_static_params));
 }
 
 bool GemmCopyBKernelKaiConfig::is_completed() const {
-    return !ov::snippets::utils::any_of(0UL, m_N, m_K) || is_empty();
+    return !ov::snippets::utils::any_of(0UL, m_N, m_K, m_copy_b_wei_stride) || is_empty();
 }
 
 bool GemmCopyBKernelKaiConfig::is_empty() const {
-    return all_of(0UL, m_N, m_K);
+    return all_of(0UL, m_N, m_K, m_copy_b_wei_stride);
 }
 
 #ifdef SNIPPETS_DEBUG_CAPS
@@ -50,7 +50,7 @@ std::string GemmCopyBKernelKaiConfig::to_string() const {
     ss << m_static_params->to_string() << "\n";
     PRINT(m_N);
     PRINT(m_K);
-    PRINT(m_stride);
+    PRINT(m_copy_b_wei_stride);
     return ss.str();
 }
 #    undef PRINT
@@ -62,11 +62,11 @@ void GemmCopyBKernelKaiConfig::update(size_t N, size_t K, size_t stride) {
     if (ov::snippets::utils::any_of(0UL, N, K)) {
         m_N = 0;
         m_K = 0;
-        m_stride = 0;
+        m_copy_b_wei_stride = 0;
     } else {
         m_N = N;
         m_K = K;
-        m_stride = stride;
+        m_copy_b_wei_stride = stride;
     }
     m_hash = compute_hash();
 }
@@ -75,7 +75,7 @@ size_t GemmCopyBKernelKaiConfig::compute_hash() const {
     size_t seed = m_static_params->hash;
     seed = dnnl::impl::hash_combine(seed, m_N);
     seed = dnnl::impl::hash_combine(seed, m_K);
-    seed = dnnl::impl::hash_combine(seed, m_stride);
+    seed = dnnl::impl::hash_combine(seed, m_copy_b_wei_stride);
     return seed;
 }
 
@@ -129,7 +129,7 @@ void GemmCopyBKaiKernelExecutor::update_config(const ov::snippets::lowered::Expr
     // Calculate stride similar to how Gemm executor does it
     const auto stride = snippets::utils::get_dim_stride(expr->get_input_port(0));
 
-    config.update(N, K, stride);
+    config.update(N, K, stride * sizeof(float));
 }
 
 // regarding K*N(32*516),
@@ -141,10 +141,10 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
     const auto& config = static_cast<const GemmCopyBKernelKaiConfig&>(executor->get_config());
     const auto& kernel = executor->get_kernel();
     const auto& ukernel = kernel->copy_b_ukernel;
-    const auto K = config.get_K();                     // K
-    const auto N = config.get_N();                     // N-rhs_stride
-    const auto stride = config.get_stride();           // RHS stride accounting for layout
-    const auto& n_blk_size = config.get_n_blk_size();  // n_blk
+    const auto K = config.get_K();                                  // K
+    const auto N = config.get_N();                                  // N-rhs_stride
+    const auto copy_b_wei_stride = config.get_copy_b_wei_stride();  // RHS stride in bytes
+    const auto& n_blk_size = config.get_n_blk_size();               // n_blk
     const size_t nr = ukernel->get_nr();
     const size_t kr = ukernel->get_kr();
     const size_t sr = ukernel->get_sr();
@@ -163,9 +163,9 @@ void GemmCopyBKaiKernelExecutor::execute(const GemmCopyBKaiKernelExecutor* execu
                                                          K,
                                                          nr,
                                                          kr,
-                                                         sr,                      // Packing arguments
-                                                         stride * sizeof(float),  // RHS stride accounting for layout
-                                                         src_ptr,                 // RHS
+                                                         sr,                           // Packing arguments
+                                                         copy_b_wei_stride,            // RHS stride in bytes
+                                                         src_ptr,                      // RHS
                                                          kernel->bias_buffer->data(),  // bias
                                                          nullptr,                      // Scale
                                                          dst_ptr,                      // RHS packed

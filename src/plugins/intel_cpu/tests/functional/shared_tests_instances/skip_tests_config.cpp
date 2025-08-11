@@ -503,13 +503,16 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)");
     // Issue: 170863
     retVector.emplace_back(R"(smoke_Model_Distribution_MatMul_NoTranspose.*)");
-    // smoke_Snippets test cases are not supported on arm32 platforms
-#if !defined(OPENVINO_ARCH_ARM64)
+#endif
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64)
+    // smoke_Snippets test cases are on platforms except x64 and aarch64/arm64
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+    // Tests to be enabled on ARM64
     retVector.emplace_back(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)");
     retVector.emplace_back(R"(smoke_Snippets_FullyConnectedTransposeB/MatMulTransposeB.*)");
-    retVector.emplace_back(R"(smoke_Snippets_GatedMLP_f32.*)");
+    retVector.emplace_back(R"(smoke_Snippets_GatedMLP.*)");
     retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
     retVector.emplace_back(R"(smoke_Snippets_MHA.*)");
     retVector.emplace_back(R"(smoke_Snippets_MLP_SEQ.*)");
