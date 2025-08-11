@@ -583,14 +583,20 @@ For more details regarding these helpers please refer to the relevant descriptio
 
 ##### Control flow optimization pipeline
 
-The pipeline is mainly focused on an automatic loop injection and loop optimizations, but some transformations affecting data flow are also included. 
-The exact set of transformations executed in the pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the pipeline looks like:
+The control flow optimization pipeline is divided into two pipelines:
+1. Loop and memory structuring stage. The first part of the control flow pipeline focuses on organizing loops and managing data placement in memory, but some transformations affecting data flow are also included.  
+2. Pre-generation stage. The second part consists of low-level target-independent transformations needed to prepare the `LinearIR` for code generation. 
+
+Let's take a closer look at each stage of the control flow pipeline.
+The exact set of transformations executed in the pipeline will likely change as the `Snippets` evolve and develop, but it is worthwhile to cover some of them briefly to give you an idea on how the general pipeline looks like. 
+
+Let's start from the main transformations from the loop and memory structuring stage:
 1. `MarkLoops` - performs an analysis of `Expressions'` connectivity and their `PortDescriptors`. 
 Based on this information, the pass divides the `Expression` into groups, so that each of the groups can be executed inside one loop. 
 Every group is described by a `loop_id`, and additional information is saved in `LoopInfo`.
 2. `FuseLoops` - analyzes the assigned `loop_ids` and `LoopInfo`, fuses some loops if possible. 
 This pass can move some `Expressions` up or down the graph, so the `Expressions` with the same `loop_ids` are grouped together.
-3. `InsertBuffers` - analyzes `LoopInfo` and `Expression` semantics, inserts `snippets::op::Buffer`. `Buffer` is an operation that represents a memory buffer needed to save some intermediate results.
+3. `InsertBuffers` - analyzes `LoopInfo` and `Expression` semantics, inserts `BufferExpression` that points to the operation `snippets::op::Buffer`. `Buffer` is an operation that represents a memory buffer needed to save some intermediate results.
 4. `InsertLoadStore` - inserts explicit memory access operations like `Load` and `Store` (both from `snippets::op`). 
 These are needed, so appropriate instructions will be emitted during the code generation stage to move data between memory and vector registers.
 5. `InitLoops` - initialize data pointer shift parameters (pointer increments and finalization offsets for each loop port) in `LoopInfo`.
@@ -600,36 +606,31 @@ Again, the explicit operations are needed to emit appropriate instructions later
 8. `LoadMoveBroadcastToBroadcastLoad` fuse `Load->MoveBroadcast` sequences into a single `BroadcastLoad` expressions.
 9. `AllocateBuffers` is responsible for a safe `Buffer` data pointer increments and common memory size calculation. For more details refer please to the end of this section.
 10. `CleanRepeatedDataPointerShifts` - eliminates redundant pointer increments from the loops.
-11. `PropagateLayout` - propagates data layouts to `Parameters` and `Results` (actually to corresponding `Expressions`), so `Kernel` will be able to calculate appropriate data offsets for every iteration of an external parallel loop.
 
-As mentioned above the `op::Buffer` operations are managed by the pass `AllocateBuffers`.
-Before describing the algorithm, it is necessary to briefly consider the structure of `Buffer`:
-* All `Buffers` represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing).
-* Each `Buffer` has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`), `RegGroup` (the `Buffers` with the same `RegGroup` have the same assigned register) and `ClusterID` (the buffers from the same cluster refer to the same memory area - they have the same `offset` relative to the `Buffer scratchpad` data pointer).
+As mentioned above the `Buffer` expressions are managed by the pass `AllocateBuffers`.
+Before describing the algorithm, it is necessary to briefly consider the structure of `BufferExpression`:
+* All `Buffer` expressions represent `Buffer scratchpad` together (a common memory that is needed for intermediate results storing).
+* Each `Buffer` expression has an `offset` relative to the common data pointer (pointer of `Buffer scratchpad`), `RegGroup` (the `Buffers` with the same `RegGroup` have the same assigned register) and `ClusterID` (the buffers from the same cluster refer to the same memory area - they have the same `offset` relative to the `Buffer scratchpad` data pointer).
 
 The algorithm supports two modes: optimized and non-optimized.
 The optimized one calculates minimal memory size and minimal unique `RegGroup` count required to handle all the buffers.
 The non-optimized version assigns each buffer an unique `RegGroup`, `ClusterID` and `offset`.
 The first mode is the default one, while the second one might be used for debugging the optimized version.
 The optimized algorithm `AllocateBuffers` has the main following steps:
-1. `SetBufferRegGroup` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
-2. `DefineBufferClusters` - creates sets of `Buffer` ops (buffer clusters) and set `ClusterID` value to `Buffer` ops.
-As noticed above, `Buffers` from one cluster refer to the same memory area.
-For example, there is a loop with `Buffer` ops on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one cluster.
-3. `SolveBufferMemory` - calculate the most optimal memory size of `Buffer scratchpad` based on `BufferClusters` and life time of `Buffers`.
+1. `MarkInvariantShapePath` - marks ports of expressions in `LinearIR` which will have the same shape in runtime.
+The same shapes mean the same loop pointer arithmetic.
+This information is used in the following optimizing passes.
+2. `SetBufferRegGroup` - analyzes `Buffers` access patterns to avoid redundant pointer increments. A graph coloring algorithm is utilized for this purpose.
+3. `DefineBufferClusters` - creates sets of `Buffer` expressions (buffer clusters) and set `ClusterID` value to `BufferExpression`.
+As noticed above, `Buffer` expressions from one cluster refer to the same memory area.
+For example, there is a loop with `Buffer` expressions on input and output. If the body of this loop can write data to the memory from which it was read, these `Buffers` are in one cluster.
+4. `SolveBufferMemory` - calculate the most optimal memory size of `Buffer scratchpad` based on `BufferClusters` and life time of `Buffers`.
 
-More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
-When all the passes are applied, the `LinearIR` is handled further to the `Generator` to emit executable code.
-
-### Generator
-The main purpose of the `Generator` is to emit executable code. 
-The code emission process could be divided into two stages: `Preparation` that could be shared between several targets, and target-specific `Emission`. 
-The `ov::snippets::Generator` class provides a target-independent interface to the generation process and performs the `Preparation` stage. 
-It also stores the `TargetMachine` instance, which is responsible for the `Emission` stage. 
-Let's discuss the target-independent stage first.
-
-The `Preparation` consists of low-level target-independent transformations needed to prepare the `IR` for code generation. 
-There are currently two such transformations:
+We now move to the pre-generation stage of the control flow pipeline.
+Some passes in this stage rely on information provided by the `Generator`, which is primarily responsible for emitting executable code later on.
+Although the pre-generation stage focuses on low-level, target-independent transformations that prepare the `LinearIR` for code generation, certain transformations require generator-provided details to be applied correctly.
+The `ov::snippets::Generator` class provides a target-independent interface to the generation process and performs the pre-generation stage. 
+Let's discuss the main transformations from the last stage of control flow pipeline:
 1. `InitRegisters` assigns registers to `Expressions` based on their data dependencies. 
 This register assignment is organized in three steps implemented as separate passes: `InitLiveRanges`, `AssignRegisters` and `InsertRegSpills`.
     * `InitLiveRanges` assigns an abstract register to every `PortConnector` and determines their live intervals based on data dependencies.
@@ -649,8 +650,15 @@ So if a loop's `work_amount` is not evenly divisible by its `increment`, it mean
 4. `OptimizeLoopSingleEvaluation` moves all pointer arithmetic to finalization offsets in `LoopEnd`, and marks the loops that will be executed only once.
 This information will be used during code emission to eliminate redundant instructions.
 
-Please see [init_registers.cpp](../src/lowered/pass/init_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the `Preparation` stage.
-When the `Preparation` is finished, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
+Please see [init_registers.cpp](../src/lowered/pass/init_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the pre-generation stage.
+
+More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
+When all the passes are applied, the `LinearIR` is handled further to the `Generator` to emit executable code.
+
+### Code generation
+The code generation is performed with the help of a `Generator`.
+The `ov::snippets::Generator` class stores the `TargetMachine` instance, which is responsible for the `Emission` stage. 
+After control flow transformatioms the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 
 `TargetMachine` also maps the OpenVINO's `DiscreteTypeInfo` (stored in the `Expression`) to the emitter that actually implements the operation. 
