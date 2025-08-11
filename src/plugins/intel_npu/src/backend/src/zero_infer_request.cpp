@@ -651,6 +651,8 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update input graph descriptor with the new tensor");
             OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
 
+            check_tensor(_compiledModel->inputs()[ioIndex], zeroTensor);
+
             _pipeline->update_graph_arguments(_graph->get_input_descriptors().at(ioIndex).idx,
                                               zeroTensor->data(),
                                               zeroTensor->get_byte_size());
@@ -677,6 +679,8 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         if (zeroTensor->memory_address_changed()) {
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
+
+            check_tensor(_compiledModel->outputs()[ioIndex], zeroTensor);
 
             _pipeline->update_graph_arguments(_graph->get_output_descriptors().at(ioIndex).idx,
                                               zeroTensor->data(),
@@ -787,6 +791,27 @@ void ZeroInferRequest::infer() {
 void ZeroInferRequest::infer_async() {
     _logger.debug("InferRequest::infer_async started");
     OV_ITT_TASK_CHAIN(ZERO_INFER, itt::domains::LevelZeroBackend, "infer_async", "start");
+
+    // Need to reshape before running pipeline if indeed needed
+    size_t outputIndex = 0;
+    for (const auto& userTensor : _userOutputTensors) {
+        const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
+        if (outputDescriptor.isShapeTensor) {
+            OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
+                            "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
+                            outputDescriptor.nameFromCompiler);
+
+            ov::Shape actualDims;
+            actualDims.reserve(userTensor->get_size());
+
+            for (size_t i = 0; i < userTensor->get_size(); ++i) {
+                const auto reverseIdx = userTensor->get_size() - 1 - i;
+                actualDims.push_back(userTensor->data<uint32_t>()[reverseIdx]);
+            }
+            auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
+            tensorToBeReshaped->set_shape(actualDims);
+        }
+    }
 
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
@@ -921,23 +946,6 @@ void ZeroInferRequest::get_result() {
 
     size_t outputIndex = 0;
     for (const auto& userTensor : _userOutputTensors) {
-        const IODescriptor outputDescriptor = _metadata.outputs.at(outputIndex);
-        if (outputDescriptor.isShapeTensor) {
-            OPENVINO_ASSERT(outputDescriptor.relatedDescriptorIndex.has_value(),
-                            "The link between the dynamic tensor and its shape tensor is missing, entry name: ",
-                            outputDescriptor.nameFromCompiler);
-
-            ov::Shape actualDims;
-            actualDims.reserve(userTensor->get_size());
-
-            for (size_t i = 0; i < userTensor->get_size(); ++i) {
-                const auto reverseIdx = userTensor->get_size() - 1 - i;
-                actualDims.push_back(userTensor->data<uint32_t>()[reverseIdx]);
-            }
-            auto& tensorToBeReshaped = _userOutputTensors.at(*outputDescriptor.relatedDescriptorIndex);
-            tensorToBeReshaped->set_shape(actualDims);
-        }
-
         auto userRemoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(userTensor._ptr);
         void* userBuffer = !userRemoteTensor ? userTensor->data() : userRemoteTensor->get_original_memory();
 
