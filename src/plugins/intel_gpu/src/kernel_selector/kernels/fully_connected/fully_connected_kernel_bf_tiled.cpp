@@ -631,7 +631,6 @@ FullyConnected_bf_tiled::SetDefault(const fully_connected_params& params, int au
 }
 
 KernelsPriority FullyConnected_bf_tiled::GetKernelsPriority(const Params& params) const {
-    return FORCE_PRIORITY_9;
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     size_t output_b = get_output_aligned_bf_size(fc_params, false).first;
