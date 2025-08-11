@@ -109,16 +109,17 @@ jit_load_memory_emitter::jit_load_memory_emitter(jit_generator* h, cpu_isa_t isa
 }
 
 size_t jit_memory_emitter::get_aux_gprs_count() const {
-    // for runtime arguments
-    return is_offset_runtime ? 1 : 0;
+    // for runtime arguments: for offset and for effective address
+    return is_offset_runtime ? 2 : 0;
 }
 
 std::vector<size_t> jit_memory_emitter::get_available_aux_gprs() const {
-    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, !aux_gpr_idxs.empty()),
-                              "If offset is dynamic, memory emitter need to have one aux gpr at least!");
+    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(is_offset_runtime, aux_gpr_idxs.size() >= 2),
+                              "If offset is dynamic, memory emitter needs at least two aux gprs!");
     auto available_aux_gprs = aux_gpr_idxs;
     if (is_offset_runtime) {
-        available_aux_gprs.pop_back();
+        available_aux_gprs.pop_back();  // Remove effective address GPR
+        available_aux_gprs.pop_back();  // Remove offset GPR
     }
     return available_aux_gprs;
 }
@@ -131,9 +132,10 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
 
     auto reg_runtime_params = dnnl::impl::cpu::aarch64::abi_param1;
     XReg aux_gpr = is_offset_runtime ? XReg(static_cast<int>(aux_gpr_idxs.back())) : XReg(0);
+    XReg eff_addr_gpr = is_offset_runtime ? XReg(static_cast<int>(aux_gpr_idxs[aux_gpr_idxs.size() - 2])) : XReg(0);
 
-    std::vector<size_t> eff_in = in_idxs;
-    std::vector<size_t> eff_out = out_idxs;
+    auto eff_in = in_idxs;
+    auto eff_out = out_idxs;
 
     if (is_offset_runtime) {
         XReg data_reg(0);
@@ -149,12 +151,13 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
         h->ldr(aux_gpr,
                ptr(reg_runtime_params,
                    static_cast<int32_t>(GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t))));
-        h->add(h->X_DEFAULT_ADDR, data_reg, aux_gpr);
+        h->add(eff_addr_gpr, data_reg, aux_gpr);
 
         if (in_out_type_ == emitter_in_out_map::gpr_to_vec) {
-            eff_in[0] = static_cast<size_t>(h->X_DEFAULT_ADDR.getIdx());
+            eff_in[0] = static_cast<size_t>(eff_addr_gpr.getIdx());
         } else {  // vec_to_gpr
-            eff_out[0] = static_cast<size_t>(h->X_DEFAULT_ADDR.getIdx());
+            OV_CPU_JIT_EMITTER_ASSERT(in_out_type_ == emitter_in_out_map::vec_to_gpr, "Expected vec_to_gpr type");
+            eff_out[0] = static_cast<size_t>(eff_addr_gpr.getIdx());
         }
     }
 
