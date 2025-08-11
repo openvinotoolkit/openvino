@@ -1,0 +1,112 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+if(ARM OR AARCH64)
+  # ARM/AARCH64: list only the explicitly enabled class files from the original ARM block
+  set(current_dir_sources
+    ${CMAKE_CURRENT_SOURCE_DIR}/activation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/activation.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_shift.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_shift.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/col2im.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/col2im.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/comparison.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/comparison.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/conversion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/conversion.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution_backprop_data.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution_backprop_data.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eltwise.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eltwise.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/extremum.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/extremum.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/interpolate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/interpolate.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/logical.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/logical.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matmul.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matmul.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvn.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvn.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pooling.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pooling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/random_uniform.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/random_uniform.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/reduce.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/reduce.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rms_norm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rms_norm.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scaled_attn.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scaled_attn.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/segment_max.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/segment_max.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/softmax.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/softmax.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sparse_fill_empty_rows.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sparse_fill_empty_rows.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_pack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_pack.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_unpack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_unpack.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transpose.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transpose.hpp
+  )
+else()
+  # Non-ARM/AARCH64: list the full set of class files
+  set(current_dir_sources
+    ${CMAKE_CURRENT_SOURCE_DIR}/activation.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/activation.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_shift.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/bitwise_shift.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/col2im.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/col2im.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/comparison.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/comparison.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/conversion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/conversion.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution_backprop_data.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution_backprop_data.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eltwise.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eltwise.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/extremum.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/extremum.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/interpolate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/interpolate.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/logical.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/logical.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matmul.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matmul.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvn.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/mvn.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pooling.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pooling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/random_uniform.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/random_uniform.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/reduce.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/reduce.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rms_norm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/rms_norm.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scaled_attn.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scaled_attn.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/segment_max.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/segment_max.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/softmax.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/softmax.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sparse_fill_empty_rows.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sparse_fill_empty_rows.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_pack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_pack.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_unpack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/string_tensor_unpack.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transpose.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transpose.hpp
+  )
+endif()
+
+get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
+list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
+set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")
