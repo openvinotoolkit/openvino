@@ -751,22 +751,32 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
     uint64_t remaining_prompts = input_prompt_len;
 
-    auto prompt_hashes = calculate_hashes(input_ids);
+    const bool enable_prefix_caching = m_npuw_llm_compiled_model->m_enable_prefix_caching;
+    std::vector<size_t> prompt_hashes;
+    std::unordered_map<std::string, std::string> input_name_map;
+    size_t token_idx = 0;
+    bool restore_prefix_cache = false;
+    if (enable_prefix_caching) {
+        // Calculate input prompts hash
+        prompt_hashes = calculate_hashes(input_ids);
 
-    const auto& prefill_compiled = m_prefill_request->get_compiled_model();
-    std::unordered_map<std::string, std::string> input_name_map =
-        create_output_to_input_name_mapping(prefill_compiled, m_prefill_in_ports);
+        // Create output to input ports name for convinience
+        const auto& prefill_compiled = m_prefill_request->get_compiled_model();
+        input_name_map = create_output_to_input_name_mapping(prefill_compiled, m_prefill_in_ports);
 
-    auto restored_token_num = restore_cached_blocks(input_ids, BLOCK_SIZE, prompt_hashes, input_name_map);
+        // Try to restore prefilled prompts from cache
+        auto restored_token_num = restore_cached_blocks(input_ids, BLOCK_SIZE, prompt_hashes, input_name_map);
+        uint64_t scheduled_token_num = input_prompt_len - restored_token_num;
+        std::cout << "input_prompt_len: " << input_prompt_len << " restored_token_num: " << restored_token_num
+                  << std::endl;
+        std::cout << "scheduled_token_num: " << scheduled_token_num << std::endl;
+        remaining_prompts = scheduled_token_num;
 
-    uint64_t scheduled_token_num = input_prompt_len - restored_token_num;
-    std::cout << "input_prompt_len: " << input_prompt_len << " restored_token_num: " << restored_token_num << std::endl;
-    std::cout << "scheduled_token_num: " << scheduled_token_num << std::endl;
+        kvcache_desc.num_stored_tokens = static_cast<uint32_t>(input_prompt_len - remaining_prompts);
+        token_idx = kvcache_desc.num_stored_tokens;
+        restore_prefix_cache = scheduled_token_num < input_prompt_len;
+    }
 
-    remaining_prompts = scheduled_token_num;
-    kvcache_desc.num_stored_tokens = static_cast<uint32_t>(input_prompt_len - remaining_prompts);
-    size_t token_idx = kvcache_desc.num_stored_tokens;
-    bool restore_prefix_cache = scheduled_token_num < input_prompt_len;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
@@ -787,12 +797,16 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
 
-        // Populate the attention mask for prefix caching -- kvcache_desc.num_stored_tokens has been cached already
-        if (restore_prefix_cache) {
-            restore_prefix_cache = false;
-            std::copy_n(attention_mask->data<int64_t>(),
-                        kvcache_desc.num_stored_tokens,
-                        attn_mask_in_tensor->data<int64_t>());
+        if (enable_prefix_caching) {
+            // Populate the attention mask for prefix caching:
+            // kvcache_desc.num_stored_tokens has been prefilled already
+            // The calculated key/values blocks will be copied from cache to past k/v inputs for inference
+            if (restore_prefix_cache) {
+                restore_prefix_cache = false;
+                std::copy_n(attention_mask->data<int64_t>(),
+                            kvcache_desc.num_stored_tokens,
+                            attn_mask_in_tensor->data<int64_t>());
+            }
         }
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
@@ -815,7 +829,9 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
 
         m_prefill_request->infer();
 
-        store_blocks_in_cache(current_prompts_len, prompt_hashes, token_idx, input_ids, input_name_map);
+        if (enable_prefix_caching) {
+            store_blocks_in_cache(current_prompts_len, prompt_hashes, token_idx, input_ids, input_name_map);
+        }
 
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);

@@ -468,6 +468,18 @@ static constexpr ov::Property<uint64_t> prefill_chunk_size{"NPUW_LLM_PREFILL_CHU
 
 /**
  * @brief
+ * Type: bool.
+ * This toggle enables the prefix caching feature.
+ * When activated, it stores the prefilled key-value pairs (KV) for current prompts in the cache during each
+ * conversation round.
+ * In subsequent rounds, if the prompt's KV is found in the cache, it allows skipping the prefill for certain tokens,
+ * thereby enhancing the latency of the first token.
+ * Default value: false.
+ */
+static constexpr ov::Property<uint64_t> enable_prefix_caching{"NPUW_LLM_ENABLE_PREFIX_CACHING"};
+
+/**
+ * @brief
  * Type: std::string.
  * Hint for prefill stage. NPUW will use optimal configuration based on the passed preference via hint.
  * Passing this hint with "NPUW_LLM_PREFILL_CONFIG" will generate a error.

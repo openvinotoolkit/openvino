@@ -113,6 +113,7 @@ DEFINE_OPT(NPUW_LLM_CACHE_ROPE, bool, true, npuw::llm::cache_rope, CompileTime);
 DEFINE_OPT(NPUW_LLM_PREFILL_CHUNK_SIZE, uint64_t, 256, npuw::llm::prefill_chunk_size, RunTime);
 DEFINE_OPT(NPUW_LLM_SHARED_HEAD, bool, true, npuw::llm::shared_lm_head, CompileTime);
 DEFINE_OPT(NPUW_LLM_MAX_LORA_RANK, uint32_t, 32, npuw::llm::max_lora_rank, RunTime);
+DEFINE_OPT(NPUW_LLM_ENABLE_PREFIX_CACHING, bool, false, npuw::llm::enable_prefix_caching, RunTime);
 
 namespace npuw {
 namespace llm {
