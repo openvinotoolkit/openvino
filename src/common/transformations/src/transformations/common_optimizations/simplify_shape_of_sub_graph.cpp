@@ -166,12 +166,12 @@ pass::AbsSinking::AbsSinking() {
         }
         for (const auto& abs : abs_ops) {
             auto bounds = ov::util::evaluate_both_bounds(abs->input_value(0));
-            
+
             // Check that bounds are properly computed and don't contain undefined values
             if (!bounds.first || !bounds.second) {
                 continue;  // Don't remove Abs for dynamic cases
             }
-            
+
             // Additional check for special values (-1 for shape processing)
             bool has_negative_ones = false;
             if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(abs->get_input_node_shared_ptr(0))) {
@@ -194,11 +194,11 @@ pass::AbsSinking::AbsSinking() {
                     }
                 }
             }
-            
+
             if (has_negative_ones) {
                 continue;  // Don't remove Abs if it contains -1 (shape processing)
             }
-            
+
             if (ov::util::reduce_and(ov::util::greater_equal(bounds.first, 0))) {
                 replace_output_update_name(abs->output(0), abs->input_value(0));
                 graph_got_changed = true;
