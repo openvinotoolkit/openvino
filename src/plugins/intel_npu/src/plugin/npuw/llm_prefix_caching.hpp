@@ -24,14 +24,14 @@ static constexpr size_t BLOCK_SIZE = 256;
 // KV cache tensors for all layers per block
 using BlocKVCache = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
 
-struct KVBlock {
+class KVBlock {
+public:
     std::vector<uint64_t> token_hashes;
     size_t token_start;
     uint64_t block_hash;
     size_t block_id;
     size_t ref_count;
     bool is_full;
-
     BlocKVCache block_kv_cache;
 
     KVBlock() : token_start(0), ref_count(0), is_full(false), block_hash(0) {
@@ -44,29 +44,11 @@ struct KVBlock {
      * @param kv_tensors KV cache data for all tokens in the block
      * @return Whether the addition was successful
      */
-    bool add_Block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors) {
-        // Check input validity
-        if (token_hashes.empty()) {
-            return false;
-        }
+    bool add_Block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors);
 
-        // Check if the block size exceeds capacity
-        if (token_hashes.size() > BLOCK_SIZE) {
-            return false;
-        }
+    void print_block_info(bool verbose) const;
 
-        // Direct assignment
-        this->token_hashes = token_hashes;
-        this->block_kv_cache = kv_tensors;
-        this->ref_count = token_hashes.size();
-        this->is_full = (this->ref_count == BLOCK_SIZE);
-
-        // Compute the block's hash value
-        this->block_hash = compute_block_hash(token_hashes);
-
-        return true;
-    }
-
+private:
     /**
      * @brief Compute the block's hash value
      * @param token_hashes Hash values of all tokens in the block
@@ -76,45 +58,7 @@ struct KVBlock {
      * as each token hash is calculated based on preceding tokens, ensuring
      * a cumulative representation of the block's content.
      */
-    uint64_t compute_block_hash(const std::vector<uint64_t>& token_hashes) const {
-        // Use the last token hash as the block hash, given token hash is calculated with preceding tokens
-        return token_hashes.back();
-    }
-
-    void print_block_info(bool verbose) const {
-        std::cout << "Block information: " << ref_count << std::endl;
-        std::cout << "  Ref Count: " << ref_count << std::endl;
-        std::cout << "  Status: " << (is_full ? "Full" : "Not Full") << std::endl;
-        std::cout << "  Block index: " << block_id << std::endl;
-        std::cout << "  Token start: " << token_start << std::endl;
-
-        if (verbose) {
-            std::cout << "  KV cache stored in block: " << std::endl;
-        }
-        size_t total_size = 0;
-        size_t bytes_MB = 1024 * 1024;
-        for (const auto& pair : block_kv_cache) {
-            const std::string& name = pair.first;
-            const ov::SoPtr<ov::ITensor>& tensor = pair.second;
-
-            total_size += tensor->get_byte_size();
-
-            if (!verbose) {
-                continue;
-            }
-
-            // Print KV cache stored in block verbosely
-            std::cout << "Name: " << name << std::endl;
-            if (tensor) {
-                std::cout << "Tensor Shape: " << tensor->get_shape().to_string() << std::endl;
-            } else {
-                std::cout << "Tensor is null" << std::endl;
-            }
-            std::cout << "----------------------------------------" << std::endl;
-        }
-
-        std::cout << "  KV cache tensor total size: " << total_size / bytes_MB << " MB" << std::endl;
-    }
+    uint64_t compute_block_hash(const std::vector<uint64_t>& token_hashes) const;
 };
 
 class PrefixCacheManager {
