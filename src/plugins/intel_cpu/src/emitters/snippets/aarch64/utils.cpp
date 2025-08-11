@@ -190,14 +190,14 @@ void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(mem_ptrs.size() == stack_offsets.size(), "mem_ptrs and stack_offsets size mismatch");
 
     // Fast path: pair-store original pointers when two consecutive entries do not need adjustment
-    std::vector<char> handled(mem_ptrs.size(), 0);
+    std::vector<bool> handled(mem_ptrs.size(), false);
     for (size_t i = 0; i + 1 < mem_ptrs.size(); i += 2) {
         const bool left_static = !ov::snippets::utils::is_dynamic_value(memory_offsets[i]);
         const bool right_static = !ov::snippets::utils::is_dynamic_value(memory_offsets[i + 1]);
         if (left_static && right_static && memory_offsets[i] == 0 && memory_offsets[i + 1] == 0) {
             // stack_offsets are i*8 (contiguous) and SP is 16B aligned ⇒ stp is safe
             h->stp(mem_ptrs[i], mem_ptrs[i + 1], Xbyak_aarch64::ptr(h->sp, stack_offsets[i]));
-            handled[i] = handled[i + 1] = 1;
+            handled[i] = handled[i + 1] = true;
         }
     }
 
