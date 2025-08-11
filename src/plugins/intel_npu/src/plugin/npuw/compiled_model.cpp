@@ -565,7 +565,7 @@ bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared
 
     // Check the compiler version
     const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
-    const auto is_suitable_arch = [](const std::string &arch) {
+    const auto is_suitable_arch = [](const std::string& arch) {
         return arch == "3720" || arch == "4000";
     };
     const auto is_suitable_comp = [](int64_t ver) {
