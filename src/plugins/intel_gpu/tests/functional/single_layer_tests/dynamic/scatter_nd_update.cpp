@@ -38,10 +38,7 @@ class ScatterUpdateLayerGPUTest : public testing::WithParamInterface<ScatterUpda
                                     virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ScatterUpdateParams> obj) {
-        ScatterUpdateLayerParams scatterParams;
-        ov::element::Type model_type;
-        ov::element::Type idx_type;
-        std::tie(scatterParams, model_type, idx_type) = obj.param;
+        const auto& [scatterParams, model_type, idx_type] = obj.param;
         const auto inputShapes = scatterParams.inputShapes;
         const auto indicesValues = scatterParams.indicesValues;
         const auto scType = scatterParams.scType;
@@ -119,10 +116,8 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        ScatterUpdateLayerParams scatterParams;
-        ov::element::Type model_type;
-        ov::element::Type idx_type;
-        std::tie(scatterParams, model_type, idx_type) = this->GetParam();
+
+        const auto& [scatterParams, model_type, idx_type] = this->GetParam();
         const auto inputShapes = scatterParams.inputShapes;
         const auto scType = scatterParams.scType;
 

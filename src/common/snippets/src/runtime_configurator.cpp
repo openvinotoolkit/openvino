@@ -52,9 +52,9 @@ std::string RuntimeConfig::to_string() const {
         out << "\t[" << i << "]" << ov::Shape(io_data_offsets[i]) << "\n";
     }
     out << "buffer_scratchpad_size: " << buffer_scratchpad_size << "\n";
-    out << "buffer_cluster_offsets: " << "\n";
+    out << "buffer_cluster_offsets:\n";
     for (size_t i = 0; i < buffer_cluster_offsets.size(); ++i) {
-        out << "buffer_cluster_offsets: " << "\n";
+        out << "\t[" << i << "] " << buffer_cluster_offsets[i] << "\n";
     }
     return out.str();
 }

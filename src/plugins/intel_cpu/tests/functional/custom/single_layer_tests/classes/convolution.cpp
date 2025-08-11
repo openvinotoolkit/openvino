@@ -160,12 +160,10 @@ void ConvolutionLayerCPUTest::SetUp() {
 
     if (postOpMgrPtr)
         isBias = (postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)" && selectedType != "jit_avx512_winograd");
-
-    convSpecificParams convParams;
-    InputShape inputShape;
-    auto netType = ElementType::dynamic;
-    std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
-
+    const auto& [convParams, netType, _inType, _outType, inputShape, _targetDevice] = basicParamsSet;
+    inType = _inType;
+    outType = _outType;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape});
 
     auto it = configuration.find(ov::hint::inference_precision.name());
@@ -186,13 +184,9 @@ void ConvolutionLayerCPUTest::SetUp() {
     } else {
         selectedType = makeSelectedTypeStr(selectedType, netType);
     }
-
-    ov::op::PadType padType;
-    ov::Shape stride;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t convOutChannels;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
-
+    const auto& [_kernel, stride, padBegin, padEnd, _dilation, convOutChannels, padType] = convParams;
+    kernel = _kernel;
+    dilation = _dilation;
     ov::ParameterVector inputParams;
     for (auto&& shape : inputDynamicShapes)
         inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));

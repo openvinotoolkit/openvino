@@ -8,11 +8,7 @@
 namespace ov {
 namespace test {
 std::string TileLayerTest::getTestCaseName(const testing::TestParamInfo<TileLayerTestParamsSet>& obj) {
-    TileSpecificParams tile_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> input_shapes;
-    std::string target_device;
-    std::tie(tile_params, model_type, input_shapes, target_device) = obj.param;
+    const auto& [tile_params, model_type, input_shapes, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -35,10 +31,8 @@ std::string TileLayerTest::getTestCaseName(const testing::TestParamInfo<TileLaye
 }
 
 void TileLayerTest::SetUp() {
-    TileSpecificParams tile_params;
-    ov::element::Type model_type;
-    std::vector<InputShape> input_shapes;
-    std::tie(tile_params, model_type, input_shapes, targetDevice) = this->GetParam();
+    const auto& [tile_params, model_type, input_shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes({input_shapes});
 
     auto param = std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front());

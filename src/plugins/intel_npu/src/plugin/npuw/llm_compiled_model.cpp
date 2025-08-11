@@ -7,6 +7,7 @@
 #include "logging.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -499,7 +500,7 @@ public:
         auto dim_merge_shape = register_new_node(v0::Constant::create(ov::element::i32, ov::Shape{3}, {0, 0, -1}));
         auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
 
-        return {output, present_k, present_v};
+        return {std::move(output), std::move(present_k), std::move(present_v)};
     }
 
     // make split functions is a copy-past from ONNX FE. TODO: move it to one place
@@ -740,7 +741,8 @@ std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
-                       const KVAxesPosition& kv_axes_position) {
+                       const KVAxesPosition& kv_axes_position,
+                       const uint32_t lora_rank) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -762,6 +764,12 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             new_shape =
                 partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
+        } else if (ov::npuw::matchLoRAMatMulAString(input_name)) {
+            new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
+        } else if (ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
+            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else if (ov::npuw::matchLoRAMatMulBString(input_name)) {
+            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
@@ -851,8 +859,9 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
 
 struct NPUDesc {
     std::string arch;
-    int64_t max_tiles;
-    bool compiler_dq;
+    int64_t max_tiles = 0;
+    bool compiler_dq = false;
+    int64_t compiler_ver = 0;
 };
 
 std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IPlugin>& plugin) {
@@ -861,17 +870,21 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         return std::nullopt;
     }
 
-    const std::string arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
-    const int64_t max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
-    bool compiler_dq = false;
+    NPUDesc desc;
+    desc.arch = plugin->get_property(ov::device::architecture.name(), ov::AnyMap{}).as<std::string>();
+    desc.max_tiles = plugin->get_property(ov::intel_npu::max_tiles.name(), ov::AnyMap{}).as<int64_t>();
+
     // Don't use reference here!
     const auto supported_properties =
         plugin->get_property(ov::supported_properties.name(), ov::AnyMap{}).as<std::vector<ov::PropertyName>>();
     if (std::find(supported_properties.begin(), supported_properties.end(), "NPU_COMPILER_DYNAMIC_QUANTIZATION") !=
         supported_properties.end()) {
-        compiler_dq = true;
+        desc.compiler_dq = true;
     }
-    return std::make_optional(NPUDesc{std::move(arch), max_tiles, compiler_dq});
+
+    desc.compiler_ver = plugin->get_property(ov::intel_npu::compiler_version.name(), ov::AnyMap{}).as<int64_t>();
+
+    return std::make_optional(std::move(desc));
 }
 
 std::optional<ov::Any> pop_option(ov::AnyMap& config, const std::string& option_name) {
@@ -917,17 +930,8 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
     return config;
 }
 
-ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model,
-                                      const std::optional<NPUDesc>& npudesc,
-                                      const ::intel_npu::npuw::llm::PrefillHint hint) {
+ov::AnyMap get_default_prefill_config(const std::shared_ptr<ov::Model>& model, const std::optional<NPUDesc>& npudesc) {
     auto config = get_default_common_config(npudesc);
-    if (hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC) {
-        if (is_cw_compressed(model)) {
-            // NB: These two ifs are not combined into one with && deliberately
-            // there may be later changes w.r.t. required compiler versions for GQ
-            config.emplace("NPUW_ONLINE_PIPELINE", "SPATIAL");
-        }
-    }
     if (npudesc.has_value() && npudesc->arch == "4000" && npudesc->max_tiles != -1) {
         config.emplace("NPU_TILES", npudesc->max_tiles);
     }
@@ -983,6 +987,24 @@ void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properti
     }
 }
 
+void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDesc>& npudesc) {
+    if (!npudesc) {
+        // No NPU device detected - no idea about the actual capabilities.
+        return;
+    }
+
+    if (llm_properties.count(ov::intel_npu::npuw::llm::prefill_chunk_size.name())) {
+        // The chunk size value is enforced by the config, keep it
+        return;
+    }
+
+    if (npudesc->compiler_ver < ONEAPI_MAKE_VERSION(7, 22)) {
+        // Specify larger chunk size for older compiler versions
+        LOG_VERB("Default the prefill chunk size to 1024");
+        llm_properties["NPUW_LLM_PREFILL_CHUNK_SIZE"] = 1024;
+    }
+}
+
 std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     std::map<std::string, std::string> result;
     for (auto&& value : params) {
@@ -991,6 +1013,48 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
     return result;
 }
 }  // namespace
+
+void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model) {
+    typedef std::shared_ptr<ov::op::util::AssignBase> PAssign;
+    typedef std::shared_ptr<ov::op::util::ReadValueBase> PReadValue;
+    std::vector<PReadValue> readValues;
+    std::vector<PAssign> assigns;
+    auto sinks = model->get_sinks();
+    for (size_t i = 0; i < sinks.size(); ++i) {
+        if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
+            auto variable_name = assign->get_variable_id();
+            if (!ov::npuw::matchLoRAMatMulAString(variable_name) && !ov::npuw::matchLoRAMatMulBString(variable_name) &&
+                !ov::npuw::matchLoRAMatMulAlphaString(variable_name)) {
+                continue;
+            }
+
+            auto read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(assign->get_input_node_shared_ptr(0));
+            OPENVINO_ASSERT(read_value, "Can't find ReadValue");
+            readValues.push_back(read_value);
+            assigns.push_back(assign);
+        }
+    }
+
+    ov::ParameterVector new_parameters;
+    new_parameters.reserve(readValues.size());
+    for (size_t i = 0; i < readValues.size(); ++i) {
+        auto read_value = readValues[i];
+        auto variable_name = read_value->get_variable_id();
+        const auto element_type = read_value->get_output_element_type(0);
+        const auto shape = read_value->get_output_partial_shape(0);
+
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
+        ov::op::util::set_name(*parameter, variable_name);
+        replace_node(read_value, parameter);
+
+        auto assign = assigns[i];
+        model->remove_sink(assign);
+        model->remove_variable(model->get_variable_by_id(variable_name));
+        new_parameters.push_back(parameter);
+    }
+
+    model->add_parameters(new_parameters);
+}
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -1003,6 +1067,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_BLOCK();
 
     ::intel_npu::registerNPUWLLMOptions(*m_options_desc);
+
+    const auto npudesc = extract_npu_descriptor(plugin);
 
     ov::AnyMap npuw_llm_props;
     ov::AnyMap other_props;
@@ -1020,13 +1086,14 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Also make these maps for third: lm head model, in case it will be created:
     auto lm_head_config_opt = pop_option(npuw_llm_props, std::string("NPUW_LLM_SHARED_HEAD_CONFIG"));
     auto lm_head_config_addition = pop_option(npuw_llm_props, std::string("++NPUW_LLM_SHARED_HEAD_CONFIG"));
-
+    refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
     LOG_DEBUG("Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+    convert_stateful_lora_to_stateless(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
@@ -1058,16 +1125,20 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
+    // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
+    // the generate model they're not mutually exclusive
+    const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
+
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
-    const bool use_chunk_prefill = m_prefill_chunk_size > 0;
-    LOG_VERB("Enabled prefill chunking: " << use_chunk_prefill);
+    m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
+    LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
 
     auto is_power_of_two = [](uint64_t n) {
         return n > 0 && (n & (n - 1)) == 0;
     };
-    if (use_chunk_prefill) {
+    if (m_use_chunk_prefill) {
         if (!is_power_of_two(m_prefill_chunk_size)) {
             OPENVINO_THROW("Configuration Error: chunk size (",
                            m_prefill_chunk_size,
@@ -1085,16 +1156,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("Make prefill model with static shapes");
-    if (use_chunk_prefill) {
+    m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
+    if (m_use_chunk_prefill) {
         reshape_to_static(prefill_model,
                           static_cast<uint32_t>(m_prefill_chunk_size),
                           m_kvcache_desc.max_prompt_size,
-                          axes);
+                          axes,
+                          m_max_lora_rank);
     } else {
-        reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
+        reshape_to_static(prefill_model,
+                          m_kvcache_desc.max_prompt_size,
+                          m_kvcache_desc.max_prompt_size,
+                          axes,
+                          m_max_lora_rank);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
-    reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
+    reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, m_max_lora_rank);
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
@@ -1122,7 +1199,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Check and apply opt layout --- SKIPPED");
     }
 
-    if (!use_chunk_prefill) {
+    if (!m_use_chunk_prefill) {
         NPUW_ASSERT(remove_empty_kv_inputs(prefill_model));
     } else {
         LOG_DEBUG("Don't remove input key/values from prefill model.");
@@ -1137,15 +1214,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
-    auto npudesc = extract_npu_descriptor(plugin);
-
-    // NB: PREFILL_HINT is only applicable for default prefill config!
-    if (prefill_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::prefill_hint.name())) {
-        OPENVINO_THROW("PREFILL_HINT only works with default prefill config!");
-    }
-    const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     auto prefill_config =
-        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc, prefill_hint)).as<ov::AnyMap>();
+        prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
     // NB: GENERATE_HINT is only applicable for default generate config!
     if (generate_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::generate_hint.name())) {
@@ -1284,6 +1354,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.num_stored_tokens);
         write(model_stream, m_kvcache_desc.dim);
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
+        write(model_stream, m_prefill_chunk_size);
+        write(model_stream, m_use_chunk_prefill);
+        write(model_stream, m_max_lora_rank);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1392,7 +1465,16 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
             compiled->m_prefill_compiled->m_weights_bank = bank;
 
             compiled->m_kvcache_compiled->finalize_weights_bank();
+            compiled->m_kvcache_compiled->m_import_weights_ctx.reset();
             compiled->m_prefill_compiled->finalize_weights_bank();
+            compiled->m_prefill_compiled->m_import_weights_ctx.reset();
+
+            if (compiled->m_lm_head_compiled) {
+                compiled->m_lm_head_compiled->m_weights_bank = bank;
+
+                compiled->m_lm_head_compiled->finalize_weights_bank();
+                compiled->m_lm_head_compiled->m_import_weights_ctx.reset();
+            }
         } else {
             auto bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
@@ -1402,6 +1484,12 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
             compiled->m_kvcache_compiled->reconstruct_closure();
             compiled->m_prefill_compiled->reconstruct_closure();
+
+            if (compiled->m_lm_head_compiled) {
+                compiled->m_lm_head_compiled->m_weights_bank = bank;
+
+                compiled->m_lm_head_compiled->reconstruct_closure();
+            }
         }
     };
 
@@ -1474,6 +1562,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.num_stored_tokens);
         read(model_stream, compiled->m_kvcache_desc.dim);
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
+        read(model_stream, compiled->m_prefill_chunk_size);
+        read(model_stream, compiled->m_use_chunk_prefill);
+        read(model_stream, compiled->m_max_lora_rank);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
