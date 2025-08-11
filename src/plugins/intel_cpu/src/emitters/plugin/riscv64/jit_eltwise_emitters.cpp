@@ -811,6 +811,7 @@ void jit_floor_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
     load_table_val("neg_one", fp1);
     h->vfadd_vf(dst, dst, fp1, VM::masked);
 }
+
 std::set<std::vector<element::Type>> jit_floor_emitter::get_supported_precisions(
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32}};
@@ -878,6 +879,62 @@ std::set<std::vector<element::Type>> jit_floor_mod_emitter::get_supported_precis
     [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
     return {{element::f32, element::f32}};
 }
+
+///  Greater ///
+jit_greater_emitter::jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const element::Type exec_prc)
+    : jit_emitter(host, host_isa, exec_prc) {
+    prepare_table();
+}
+
+jit_greater_emitter::jit_greater_emitter(jit_generator_t* host,
+                                         cpu_isa_t host_isa,
+                                         const std::shared_ptr<ov::Node>& node)
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {
+    prepare_table();
+}
+
+size_t jit_greater_emitter::get_inputs_num() const {
+    return 2;
+}
+
+void jit_greater_emitter::emit_impl(const std::vector<size_t>& in_vec_idxs,
+                                    const std::vector<size_t>& out_vec_idxs) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::cpu_isa_t::gv) {
+        emit_isa<ov::intel_cpu::riscv64::cpu_isa_t::gv>(in_vec_idxs, out_vec_idxs);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Can't create jit eltwise kernel for GREATER");
+    }
+}
+
+template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+void jit_greater_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
+                                   const std::vector<size_t>& out_vec_idxs) const {
+    auto lhs = VReg(in_vec_idxs[0]);
+    auto rhs = VReg(in_vec_idxs[1]);
+    auto dst = VReg(out_vec_idxs[0]);
+
+    auto one = FReg(aux_fp_gpr_idxs[0]);
+
+    load_table_val("one", one);
+
+    h->vmfgt_vv(mask_vreg(), lhs, rhs);
+    h->vmv_v_x(dst, zero);
+    h->vfadd_vf(dst, dst, one, VM::masked);
+}
+
+void jit_greater_emitter::register_table_entries() {
+    push_arg_entry_of("one", 0x3f800000);
+}
+
+size_t jit_greater_emitter::aux_fp_gprs_count() const {
+    return 1;
+}
+
+std::set<std::vector<element::Type>> jit_greater_emitter::get_supported_precisions(
+    [[maybe_unused]] const std::shared_ptr<ov::Node>& node) {
+    return {{element::f32, element::f32}};
+}
+
 /// GELU ERF ///
 jit_gelu_erf_emitter::jit_gelu_erf_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                                            ov::intel_cpu::riscv64::cpu_isa_t host_isa,
