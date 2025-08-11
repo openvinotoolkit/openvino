@@ -176,3 +176,5 @@ bool is_napi_value_int(const Napi::Env& env, const Napi::Value& num);
 ov::AnyMap to_anyMap(const Napi::Env&, const Napi::Value&);
 
 std::string buffer_to_string(const Napi::Value& value);
+
+uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual);
