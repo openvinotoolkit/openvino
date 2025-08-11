@@ -25,7 +25,6 @@ bool MultiMatcher::run_on_model(const std::shared_ptr<Model>& model) {
     std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>> matches_by_pattern;
     for (const auto& node : model->get_ordered_ops()) {
         for (const auto& pattern : m_patterns) {
-
             Matcher matcher(pattern.pattern, m_name, pattern.strict_mode);
             if (!matcher.match(node->output(0)))
                 continue;
