@@ -97,14 +97,15 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
 
         if (arg_type == ov::element::i4 || arg_type == ov::element::u4) {
             // The int4_iterator not supports const pointer but these data are not modified
-            auto transpose_xy = [] (int4_iterator& out_ptr, int4_iterator& in_ptr, size_t out_shape_d0, size_t out_shape_d1) {
-                for (size_t i = 0; i < out_shape_d0; i++) {
-                    size_t off = i;
-                    for (size_t j = 0; j < out_shape_d1; j++) {
-                        out_ptr.copy_from(in_ptr + off);
-                        ++out_ptr;
-                        off += out_shape_d0;
-                    }
+            auto transpose_xy =
+                [] (int4_iterator& out_ptr, int4_iterator& in_ptr, size_t out_shape_d0, size_t out_shape_d1) {
+                    for (size_t i = 0; i < out_shape_d0; i++) {
+                        size_t off = i;
+                        for (size_t j = 0; j < out_shape_d1; j++) {
+                            out_ptr.copy_from(in_ptr + off);
+                            ++out_ptr;
+                            off += out_shape_d0;
+                        }
                 }
             };
             if (arg.get_shape().size() == 2) {
