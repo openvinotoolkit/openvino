@@ -12,6 +12,69 @@
 namespace ov {
 namespace npuw {
 
+bool KVBlock::add_Block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors) {
+    // Check input validity
+    if (token_hashes.empty()) {
+        return false;
+    }
+
+    // Check if the block size exceeds capacity
+    if (token_hashes.size() > BLOCK_SIZE) {
+        return false;
+    }
+
+    // Direct assignment
+    this->token_hashes = token_hashes;
+    this->block_kv_cache = kv_tensors;
+    this->ref_count = token_hashes.size();
+    this->is_full = (this->ref_count == BLOCK_SIZE);
+
+    // Compute the block's hash value
+    this->block_hash = compute_block_hash(token_hashes);
+
+    return true;
+}
+
+uint64_t KVBlock::compute_block_hash(const std::vector<uint64_t>& token_hashes) const {
+    // Use the last token hash as the block hash, given token hash is calculated with preceding tokens
+    return token_hashes.back();
+}
+
+void KVBlock::print_block_info(bool verbose) const {
+    std::cout << "Block information: " << ref_count << std::endl;
+    std::cout << "  Ref Count: " << ref_count << std::endl;
+    std::cout << "  Status: " << (is_full ? "Full" : "Not Full") << std::endl;
+    std::cout << "  Block index: " << block_id << std::endl;
+    std::cout << "  Token start: " << token_start << std::endl;
+
+    if (verbose) {
+        std::cout << "  KV cache stored in block: " << std::endl;
+    }
+    size_t total_size = 0;
+    size_t bytes_MB = 1024 * 1024;
+    for (const auto& pair : block_kv_cache) {
+        const std::string& name = pair.first;
+        const ov::SoPtr<ov::ITensor>& tensor = pair.second;
+
+        total_size += tensor->get_byte_size();
+
+        if (!verbose) {
+            continue;
+        }
+
+        // Print KV cache stored in block verbosely
+        std::cout << "Name: " << name << std::endl;
+        if (tensor) {
+            std::cout << "Tensor Shape: " << tensor->get_shape().to_string() << std::endl;
+        } else {
+            std::cout << "Tensor is null" << std::endl;
+        }
+        std::cout << "----------------------------------------" << std::endl;
+    }
+
+    std::cout << "  KV cache tensor total size: " << total_size / bytes_MB << " MB" << std::endl;
+}
+
 void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block) {
     // Do not cache incomplete blocks
     if (!block->is_full) {
