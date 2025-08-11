@@ -58,15 +58,11 @@ bool PrefixCacheManager::get_block(uint64_t combined_hash, std::shared_ptr<KVBlo
     return false;
 }
 
-void PrefixCacheManager::print_cache_status(bool print_block_info) const {
+void PrefixCacheManager::print_cache_status(bool verbose) const {
     std::cout << "Cache Status:" << std::endl;
-    std::cout << "Max Cache Size: " << max_cache_size << std::endl;
+    std::cout << "Max Cache Size: " << max_cache_size << " blocks" << std::endl;
     std::cout << "Number of Cached Blocks: " << cache_map.size() << std::endl;
     std::cout << "----------------------------------------" << std::endl;
-
-    if (!print_block_info) {
-        return;
-    }
 
     // Print information of all blocks in cache
     for (const auto& pair : cache_map) {
@@ -75,7 +71,7 @@ void PrefixCacheManager::print_cache_status(bool print_block_info) const {
 
         std::cout << "Key Hash: " << key << std::endl;
         if (block) {
-            block->print_block_info(false);
+            block->print_block_info(verbose);
         } else {
             std::cout << "  Block is null" << std::endl;
         }
