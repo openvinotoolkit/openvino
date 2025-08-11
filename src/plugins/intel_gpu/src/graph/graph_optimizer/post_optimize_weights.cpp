@@ -60,8 +60,6 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
             return;
         if (node.get_preferred_impl_type() == impl_types::onednn)
             return;
-        if (node.get_dependency(1).get_output_layout(0).get_partial_shape().size() == 3)
-            return;
         if (node.type() != fully_connected::type_id())
             return;
     }
@@ -83,7 +81,6 @@ void post_optimize_weights::optimize_weights(T& node, program& p) {
 
     auto output_layout = node.get_output_layout();
     auto weights_reorder_params = impl->get_weights_reorder_params();
-    std::cout << __FILE__ << " : " << __LINE__ << " weights_reorder_params : " << weights_reorder_params->get_output_layout().to_short_string() << std::endl;
     for (auto i = offsets.weights_offset; i < offsets.bias_offset; i++) {
         program_node& prev_node = node.get_dependency(i);
 
