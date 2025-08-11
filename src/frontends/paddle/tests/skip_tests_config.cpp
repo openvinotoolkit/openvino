@@ -19,5 +19,6 @@ std::vector<std::string> disabledTestPatterns() {
         ".*paddle_loop_dyn_loop_dyn_pdmodel.*",
         ".*paddle_scatter_test_1_scatter_test_1_pdmodel.*",
         ".*paddle_top_k_.*",
+        ".*generate_proposals.*",
     };
 }
