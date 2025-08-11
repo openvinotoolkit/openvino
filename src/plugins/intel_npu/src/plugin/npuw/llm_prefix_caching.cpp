@@ -105,16 +105,15 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         std::lock_guard<std::mutex> lock(mutex);
 
         // Check if the block is already cached
-        auto it = cache_map.find(block->block_hash);
-        if (it != cache_map.end()) {
-            update_lru(it->second);
+        const auto curr_block = get_block_unsafe(block->block_hash);
+        if (curr_block != nullptr) {
+            update_lru(curr_block);
             return;
         }
 
         // Link current block with previous block
-        auto prev_it = cache_map.find(prev_block_hash);
-        if (prev_it != cache_map.end()) {
-            auto prev_block = prev_it->second;
+        const auto prev_block = get_block_unsafe(prev_block_hash);
+        if (prev_block != nullptr) {
             block->link_blocks(prev_block);
         }
 
@@ -136,10 +135,9 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
                 lru_block->print_block_info(false);
 
                 // Unlink LRU blocks
-                auto lru_prev_block_hash = lru_block->prev_block_hash;
-                auto blockIt = cache_map.find(lru_prev_block_hash);
-                if (blockIt != cache_map.end()) {
-                    auto lru_prev_block = blockIt->second;
+                const auto lru_prev_block_hash = lru_block->prev_block_hash;
+                const auto lru_prev_block = get_block_unsafe(lru_prev_block_hash);
+                if (lru_prev_block != nullptr) {
                     lru_block->unlink_blocks(lru_prev_block);
                 }
 
@@ -161,14 +159,23 @@ void PrefixCacheManager::update_lru(const std::shared_ptr<KVBlock>& block) {
 
 bool PrefixCacheManager::get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block) {
     std::lock_guard<std::mutex> lock(mutex);
-    auto it = cache_map.find(combined_hash);
-    if (it != cache_map.end()) {
-        out_block = it->second;
+    out_block = get_block_unsafe(combined_hash);
+    if (out_block != nullptr) {
         update_lru(out_block);
         return true;
     }
 
     return false;
+}
+
+std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_hash)
+{
+    auto it = cache_map.find(combined_hash);
+    if (it != cache_map.end()) {
+        return it->second;
+    }
+
+    return nullptr;
 }
 
 void PrefixCacheManager::print_cache_status(bool verbose) const {
