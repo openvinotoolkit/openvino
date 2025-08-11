@@ -1650,8 +1650,13 @@ bool compare_mean_IoU(std::vector<std::pair<bool, float>> iou, float semSegThres
             std::cout << "mean_iou@class" << i << ": no pixels labeled." << std::endl;
         }
     }
-    std::cout << "mean_iou@:mean " << std::fixed << std::setprecision(2) << (ma / numberOfLabeledClasses) << "%"
-              << std::endl;
+
+    if (numberOfLabeledClasses > 0) {
+        std::cout << "mean_iou@:mean " << std::fixed << std::setprecision(2) << (ma / numberOfLabeledClasses) << "%"
+                  << std::endl;
+    } else {
+        std::cout << "WARNING: Number of labeled classes is zero!" << std::endl;
+    }
 
     return stateValue;
 }
