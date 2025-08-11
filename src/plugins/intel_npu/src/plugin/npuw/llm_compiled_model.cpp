@@ -718,8 +718,8 @@ public:
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
             lm_head_model = std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)},
-                                                        ov::ParameterVector{new_param},
-                                                        "NPUW_LMHead");
+                                                        ov::ParameterVector{new_param});
+
 
             return true;
         };
@@ -733,6 +733,7 @@ std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     rewr.add_matcher<CutLMHead>(lm_head_model);
     rewr.run_on_model(model);
+    lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
     model->validate_nodes_and_infer_types();
 
     return lm_head_model;
