@@ -106,7 +106,11 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
 
     if (device->get_info().arch >= gpu_arch::xe2) {
         std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
-        kernel_string->str.append("\nstatic_assert(CM_HAS_LSC_UNTYPED_2D);\n");
+        const char* check_lsc_code = R""""(
+            static_assert(CM_HAS_LSC_UNTYPED_2D);
+            lsc::block_2d_desc<uint,1,1,1> b((uint64_t)0UL, 8, 8, 8, 0, 0);
+            )"""";
+        kernel_string->str.append(check_lsc_code);
     }
 
     // Add timestamp to avoid IGC uses a cached cm_check kernel.
