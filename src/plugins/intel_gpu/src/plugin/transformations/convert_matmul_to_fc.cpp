@@ -87,7 +87,8 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
          *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
          */
 
-        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul](const bool is_compressed_weight) -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
+        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul](const bool is_compressed_weight)
+            -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a);
             ov::PartialShape shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
