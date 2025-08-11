@@ -80,6 +80,33 @@ struct KVBlock {
         // Use the last token hash as the block hash, given token hash is calculated with preceding tokens
         return token_hashes.back();
     }
+
+    void print_block_info(bool verbose = false) const {
+        std::cout << "Block information: " << ref_count << std::endl;
+        std::cout << "  Ref Count: " << ref_count << std::endl;
+        std::cout << "  Status: " << (is_full ? "Full" : "Not Full") << std::endl;
+        std::cout << "  Block index: " << block_id << std::endl;
+        std::cout << "  Token start: " << token_start << std::endl;
+
+        if (!verbose) {
+            return;
+        }
+
+        // Print KV cache stored in block
+        std::cout << "  KV cache stored in block: " << std::endl;
+        for (const auto& pair : block_kv_cache) {
+            const std::string& name = pair.first;
+            const ov::SoPtr<ov::ITensor>& tensor = pair.second;
+
+            std::cout << "Name: " << name << std::endl;
+            if (tensor) {
+                std::cout << "Tensor Shape: " << tensor->get_shape().to_string() << std::endl;
+            } else {
+                std::cout << "Tensor is null" << std::endl;
+            }
+            std::cout << "----------------------------------------" << std::endl;
+        }
+    }
 };
 
 class PrefixCacheManager {
@@ -93,7 +120,7 @@ public:
     bool get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
 
     // Print the current status of the cache
-    void print_cache_status(bool verbose = false) const;
+    void print_cache_status(bool print_block_info = true) const;
 
 private:
     size_t max_cache_size;
@@ -109,37 +136,6 @@ private:
     // Update the LRU list
     void update_lru(const std::shared_ptr<KVBlock>& block);
 };
-
-static void printTensorShape(const ov::SoPtr<ov::ITensor>& tensor) {
-    if (tensor) {
-        std::vector<size_t> shape = tensor->get_shape();
-        std::cout << "Tensor Shape: [";
-        for (size_t i = 0; i < shape.size(); ++i) {
-            std::cout << shape[i];
-            if (i < shape.size() - 1) {
-                std::cout << ", ";
-            }
-        }
-        std::cout << "]" << std::endl;
-    } else {
-        std::cout << "Tensor is null" << std::endl;
-    }
-}
-
-static void printBlocKVCache(const BlocKVCache& kv_info) {
-    for (const auto& pair : kv_info) {
-        const std::string& name = pair.first;
-        const ov::SoPtr<ov::ITensor>& tensor = pair.second;
-
-        std::cout << "Name: " << name << std::endl;
-        if (tensor) {
-            printTensorShape(tensor);
-        } else {
-            std::cout << "Tensor is null" << std::endl;
-        }
-        std::cout << "----------------------------------------" << std::endl;
-    }
-}
 
 std::vector<size_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
 
