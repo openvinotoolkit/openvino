@@ -12,9 +12,16 @@
 
 namespace {
 template <ov::element::Type_t ET>
-bool evaluate_u2(const std::shared_ptr<ov::op::v1::Subtract>& op,
-                 ov::TensorVector& outputs,
-                 const ov::TensorVector& inputs) {
+bool evaluate(const std::shared_ptr<ov::op::v1::Subtract>& op,
+              ov::TensorVector& outputs,
+              const ov::TensorVector& inputs) {
+    return false;
+}
+
+template <>
+bool evaluate<ov::element::u2>(const std::shared_ptr<ov::op::v1::Subtract>& op,
+                               ov::TensorVector& outputs,
+                               const ov::TensorVector& inputs) {
     constexpr const auto conversion_type = ov::element::i8;
     using T = typename ov::element_type_traits<conversion_type>::value_type;
     const auto& in0_shape = inputs[0].get_shape();
@@ -54,7 +61,7 @@ bool evaluate_node<ov::op::v1::Subtract>(std::shared_ptr<ov::Node> node,
                                          const ov::TensorVector& inputs) {
     switch (node->get_output_element_type(0)) {
     case ov::element::u2:
-        return evaluate_u2<ov::element::u2>(ov::as_type_ptr<ov::op::v1::Subtract>(node), outputs, inputs);
+        return evaluate<ov::element::u2>(ov::as_type_ptr<ov::op::v1::Subtract>(node), outputs, inputs);
     default:
         OPENVINO_THROW("Unhandled data type ", node->get_element_type(), " in evaluate_node()");
     }
