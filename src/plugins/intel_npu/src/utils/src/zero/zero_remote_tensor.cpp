@@ -141,7 +141,7 @@ bool ZeroRemoteTensor::deallocate() noexcept {
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF: {
-        size_t size = (bytes + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
+        size_t size = utils::align_size_to_standard_page_size(bytes);
 
         ze_host_mem_alloc_desc_t desc = {};
         if (_tensor_type == TensorType::INPUT) {
