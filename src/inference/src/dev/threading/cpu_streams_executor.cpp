@@ -109,11 +109,10 @@ struct CPUStreamsExecutor::Impl {
             auto stream_processors = _impl->_config.get_stream_processor_ids();
             _numaNodeId = numa_node_id;
             _socketId = socket_id;
-            int tbb_version;
 #    if (TBB_INTERFACE_VERSION < 12000)
-            tbb_version = tbb::TBB_runtime_interface_version();
+            const auto tbb_version = tbb::TBB_runtime_interface_version();
 #    else
-            tbb_version = TBB_runtime_interface_version();
+            const auto tbb_version = TBB_runtime_interface_version();
 #    endif
             if (stream_type == STREAM_WITHOUT_PARAM) {
                 int version_major = tbb_version / 10;
@@ -125,7 +124,7 @@ struct CPUStreamsExecutor::Impl {
                      version_patch >= TBB_VERSION_PATCH_CORE_TYPES_LINUX)) {
                     support_core_types = true;
                 }
-                auto core_types = tbb::info::core_types();
+                const auto core_types = custom::info::core_types();
                 if (support_core_types && core_types.size() >= MIN_CORE_TYPES_FOR_PTL) {
                     _taskArena.reset(new custom::task_arena{
                         custom::task_arena::constraints{}
@@ -152,13 +151,13 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {
-                auto core_types = tbb::info::core_types();
+                const auto core_types = custom::info::core_types();
                 auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
-                                          ? custom::info::core_types().back()
-                                          : custom::info::core_types().front();
-                // For PTL, core_types=[LPECore, Ecore, Pcore]
+                                          ? core_types.back()
+                                          : core_types.front();
+                // core_types=[LPECore, Ecore, Pcore]
                 if (core_type == EFFICIENT_CORE_PROC && core_types.size() >= MIN_CORE_TYPES_FOR_PTL) {
-                    real_core_type = core_types[1];
+                    real_core_type = *(core_types.end() - MIN_CORE_TYPES_FOR_PTL + 1);
                 }
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_core_type(real_core_type)
