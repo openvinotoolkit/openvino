@@ -75,14 +75,9 @@ void ZeroRemoteTensor::set_shape(ov::Shape new_shape) {
         return;
     }
 
-    _shape = std::move(new_shape);
-
-    if (ov::shape_size(_shape) > ov::shape_size(_capacity)) {
-        OPENVINO_THROW("Cannot set a new bigger shape to this tensor.");
+    if (ov::shape_size(new_shape) != ov::shape_size(_capacity)) {
+        OPENVINO_THROW("Cannot set shape to this tensor.");
     }
-
-    _strides.clear();
-    update_strides();
 }
 
 void ZeroRemoteTensor::update_strides() {
