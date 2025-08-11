@@ -101,7 +101,7 @@ private:
     void update_lru(const std::shared_ptr<KVBlock>& block);
 };
 
-std::vector<size_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
+std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
 
 std::unordered_map<std::string, std::string> create_output_to_input_name_mapping(
     const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
