@@ -54,25 +54,62 @@
 namespace ov {
 namespace intel_cpu {
 
-namespace {  // ======= Common utilities and decomposition core (NOT mode-specific) =======
+namespace { // ===== Functional split, behavior-preserving =====
 
+// Forward declaration
+struct Ctx;
+static bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx);
+
+/*** 0) Context ***/
 struct Ctx {
     // Shapes
     std::shared_ptr<Node> n_dim, c_dim, h_in, w_in, h_out, w_out;
     // Types
     element::Type element_type;
-    element::Type calc_type;
+    element::Type calc_type; // f32
     // Consts
     std::shared_ptr<Node> c0, c1, c2, c0_5;
-    // Coordinates (normalized -> pixel coords, without padding/reflection)
+    // Coords (grid [-1,1] -> pixels), padding/reflection применяются в builder-ах
     std::shared_ptr<Node> x, y;
-    // Original normalized coordinates from grid [-1, 1]
+    // Original normalized coords
     std::shared_ptr<Node> x_norm, y_norm;
     // Data NHWC for GatherND
     std::shared_ptr<Node> data_nhwc;
 };
 
-// Helpers that depend on context
+/*** 1) Helpers: sizes to f32 ***/
+static std::shared_ptr<Node> to_f32(const std::shared_ptr<Node>& i) {
+    return std::make_shared<op::v0::Convert>(i, element::f32);
+}
+
+/*** 2) Normalization [-1,1] -> pixels (без padding/reflection) ***/
+static void normalize_grid_to_pixels(const Ctx& ctx,
+                                     const std::shared_ptr<Node>& x_grid,
+                                     const std::shared_ptr<Node>& y_grid,
+                                     const std::shared_ptr<Node>& w_in_f,
+                                     const std::shared_ptr<Node>& h_in_f,
+                                     bool align_corners,
+                                     std::shared_ptr<Node>& x_out,
+                                     std::shared_ptr<Node>& y_out) {
+    if (align_corners) {
+        auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
+        auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
+        x_out = std::make_shared<op::v1::Multiply>(
+                    std::make_shared<op::v1::Divide>(std::make_shared<op::v1::Add>(x_grid, ctx.c1), ctx.c2),
+                    w_m1);
+        y_out = std::make_shared<op::v1::Multiply>(
+                    std::make_shared<op::v1::Divide>(std::make_shared<op::v1::Add>(y_grid, ctx.c1), ctx.c2),
+                    h_m1);
+    } else {
+        // ((t + 1) * size - 1) / 2
+        auto x_p1_w = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(x_grid, ctx.c1), w_in_f);
+        auto y_p1_h = std::make_shared<op::v1::Multiply>(std::make_shared<op::v1::Add>(y_grid, ctx.c1), h_in_f);
+        x_out = std::make_shared<op::v1::Divide>(std::make_shared<op::v1::Subtract>(x_p1_w, ctx.c1), ctx.c2);
+        y_out = std::make_shared<op::v1::Divide>(std::make_shared<op::v1::Subtract>(y_p1_h, ctx.c1), ctx.c2);
+    }
+}
+
+/*** 3) Batch indices + GatherND NHWC ***/
 static std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
     auto range = std::make_shared<op::v4::Range>(
         op::v0::Constant::create(element::i32, {}, {0}),
@@ -97,9 +134,9 @@ static std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
     return std::make_shared<op::v0::Convert>(bcast, element::i32);
 }
 
-static std::shared_ptr<Node> gather_hw(const Ctx& ctx,
-                                       const std::shared_ptr<Node>& x_coord,
-                                       const std::shared_ptr<Node>& y_coord) {
+static std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
+                                            const std::shared_ptr<Node>& x_coord,
+                                            const std::shared_ptr<Node>& y_coord) {
     auto x_i32 = std::make_shared<op::v0::Convert>(x_coord, element::i32);
     auto y_i32 = std::make_shared<op::v0::Convert>(y_coord, element::i32);
     auto bidx  = create_batch_indices(ctx);
@@ -112,7 +149,7 @@ static std::shared_ptr<Node> gather_hw(const Ctx& ctx,
     return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 0);
 }
 
-// Reflection for continuous coordinates
+/*** 4) Reflection (continuous / index) — идентично твоему коду ***/
 static std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
                                            const std::shared_ptr<Node>& coord,
                                            const std::shared_ptr<Node>& size_f,
@@ -152,7 +189,6 @@ static std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
     }
 }
 
-// Reflection for discrete indices (float tensors, will be converted to int32 where needed)
 static std::shared_ptr<Node> reflect_index(const Ctx& ctx,
                                            const std::shared_ptr<Node>& idx,
                                            const std::shared_ptr<Node>& size_f,
@@ -185,104 +221,377 @@ static std::shared_ptr<Node> reflect_index(const Ctx& ctx,
     }
 }
 
-// Common core: prepares context, calls mode builder, does post-processing
+/*** 5) Safe clamp индексов [0..size-1] ***/
+static void clamp_indices_inplace(const Ctx& ctx,
+                                  std::shared_ptr<Node>& xi,
+                                  std::shared_ptr<Node>& yi,
+                                  const std::shared_ptr<Node>& w_in_f,
+                                  const std::shared_ptr<Node>& h_in_f) {
+    auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
+    auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
+    xi = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(xi, ctx.c0), w_m1);
+    yi = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(yi, ctx.c0), h_m1);
+}
+
+/*** 6) Mask inside (для ZEROS — по «до-клампа» индексам) ***/
+static std::shared_ptr<Node> inside_mask_indexed(const Ctx& ctx,
+                                                 const std::shared_ptr<Node>& xi,
+                                                 const std::shared_ptr<Node>& yi,
+                                                 const std::shared_ptr<Node>& w_in_f,
+                                                 const std::shared_ptr<Node>& h_in_f) {
+    auto x_ge_0  = std::make_shared<op::v1::GreaterEqual>(xi, ctx.c0);
+    auto y_ge_0  = std::make_shared<op::v1::GreaterEqual>(yi, ctx.c0);
+    auto x_lt_w  = std::make_shared<op::v1::Less>(xi, w_in_f);
+    auto y_lt_h  = std::make_shared<op::v1::Less>(yi, h_in_f);
+    return std::make_shared<op::v1::LogicalAnd>(
+               std::make_shared<op::v1::LogicalAnd>(x_ge_0, x_lt_w),
+               std::make_shared<op::v1::LogicalAnd>(y_ge_0, y_lt_h));
+}
+
+/*** 7) Builders ***/
+
+// 7.1 NEAREST (ровно как в твоём коде: HALF_TO_EVEN; reflection после округления; clamp всегда)
+static std::shared_ptr<Node>
+build_nearest_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& attrs) {
+    const bool is_zeros      = attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS;
+    const bool is_reflection = attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION;
+
+    auto w_in_f = to_f32(ctx.w_in);
+    auto h_in_f = to_f32(ctx.h_in);
+
+    std::shared_ptr<Node> x_idx = std::make_shared<op::v5::Round>(ctx.x, op::v5::Round::RoundMode::HALF_TO_EVEN);
+    std::shared_ptr<Node> y_idx = std::make_shared<op::v5::Round>(ctx.y, op::v5::Round::RoundMode::HALF_TO_EVEN);
+
+    std::shared_ptr<Node> x_unclamped = x_idx;
+    std::shared_ptr<Node> y_unclamped = y_idx;
+
+    if (is_reflection) {
+        x_idx = reflect_index(ctx, x_idx, w_in_f, attrs.align_corners);
+        y_idx = reflect_index(ctx, y_idx, h_in_f, attrs.align_corners);
+    }
+    clamp_indices_inplace(ctx, x_idx, y_idx, w_in_f, h_in_f);
+
+    std::shared_ptr<Node> out = gather_hw_nhwc(ctx, x_idx, y_idx);
+
+    if (is_zeros) {
+        auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
+        auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
+        auto x_ge_0  = std::make_shared<op::v1::GreaterEqual>(x_unclamped, ctx.c0);
+        auto x_le_w1 = std::make_shared<op::v1::LessEqual>(x_unclamped, w_m1);
+        auto y_ge_0  = std::make_shared<op::v1::GreaterEqual>(y_unclamped, ctx.c0);
+        auto y_le_h1 = std::make_shared<op::v1::LessEqual>(y_unclamped, h_m1);
+        auto ok = std::make_shared<op::v1::LogicalAnd>(
+                      std::make_shared<op::v1::LogicalAnd>(x_ge_0, x_le_w1),
+                      std::make_shared<op::v1::LogicalAnd>(y_ge_0, y_le_h1));
+        auto mask  = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
+        auto maske = std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1}));
+        if (ctx.element_type != ctx.calc_type) out = std::make_shared<op::v0::Convert>(out, ctx.calc_type);
+        out = std::make_shared<op::v1::Multiply>(out, maske);
+        if (ctx.element_type != ctx.calc_type) out = std::make_shared<op::v0::Convert>(out, ctx.element_type);
+    }
+
+    return out;
+}
+
+// 7.2 BILINEAR (точно как у тебя)
+static std::shared_ptr<Node>
+build_bilinear_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& attrs) {
+    const bool is_border     = attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER;
+    const bool is_zeros      = attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS;
+    const bool is_reflection = attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION;
+
+    auto w_in_f = to_f32(ctx.w_in);
+    auto h_in_f = to_f32(ctx.h_in);
+
+    std::shared_ptr<Node> x_pad = ctx.x, y_pad = ctx.y;
+    if (is_reflection) {
+        x_pad = reflect_coord(ctx, ctx.x, w_in_f, attrs.align_corners);
+        y_pad = reflect_coord(ctx, ctx.y, h_in_f, attrs.align_corners);
+    }
+
+    std::shared_ptr<Node> x0 = std::make_shared<op::v0::Floor>(x_pad);
+    std::shared_ptr<Node> y0 = std::make_shared<op::v0::Floor>(y_pad);
+    std::shared_ptr<Node> x1 = std::make_shared<op::v1::Add>(x0, ctx.c1);
+    std::shared_ptr<Node> y1 = std::make_shared<op::v1::Add>(y0, ctx.c1);
+
+    auto dx = std::make_shared<op::v1::Subtract>(x_pad, x0);
+    auto dy = std::make_shared<op::v1::Subtract>(y_pad, y0);
+    auto omdx = std::make_shared<op::v1::Subtract>(ctx.c1, dx);
+    auto omdy = std::make_shared<op::v1::Subtract>(ctx.c1, dy);
+
+    std::vector<std::shared_ptr<Node>> weights{
+        std::make_shared<op::v1::Multiply>(omdx, omdy),
+        std::make_shared<op::v1::Multiply>(dx,   omdy),
+        std::make_shared<op::v1::Multiply>(omdx, dy  ),
+        std::make_shared<op::v1::Multiply>(dx,   dy  )
+    };
+
+    if (is_reflection) {
+        x0 = reflect_index(ctx, x0, w_in_f, attrs.align_corners);
+        x1 = reflect_index(ctx, x1, w_in_f, attrs.align_corners);
+        y0 = reflect_index(ctx, y0, h_in_f, attrs.align_corners);
+        y1 = reflect_index(ctx, y1, h_in_f, attrs.align_corners);
+    }
+
+    std::vector<std::shared_ptr<Node>> xs{x0,x1,x0,x1};
+    std::vector<std::shared_ptr<Node>> ys{y0,y0,y1,y1};
+
+    std::shared_ptr<Node> res;
+    for (int i=0;i<4;++i) {
+        auto xi = xs[i], yi = ys[i];
+        if (is_zeros || is_border) clamp_indices_inplace(ctx, xi, yi, w_in_f, h_in_f);
+        auto v = gather_hw_nhwc(ctx, xi, yi);
+
+        if (ctx.element_type != ctx.calc_type) v = std::make_shared<op::v0::Convert>(v, ctx.calc_type);
+
+        if (is_zeros) {
+            auto ok   = inside_mask_indexed(ctx, xs[i], ys[i], w_in_f, h_in_f);
+            auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
+            v = std::make_shared<op::v1::Multiply>(v, std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1})));
+        }
+
+        auto wexp = std::make_shared<op::v0::Unsqueeze>(weights[i], op::v0::Constant::create(element::i32, {}, {-1}));
+        auto tap  = std::make_shared<op::v1::Multiply>(v, wexp);
+        res = res ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(res, tap)) : tap;
+    }
+    if (ctx.element_type != ctx.calc_type) res = std::make_shared<op::v0::Convert>(res, ctx.element_type);
+    return res;
+}
+
+// 7.3 BICUBIC (точно как у тебя: reflection на континууме только когда align_corners=true)
+static std::shared_ptr<Node>
+build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridSample::Attributes& attrs) {
+    const bool is_border     = attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER;
+    const bool is_zeros      = attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS;
+    const bool is_reflection = attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION;
+
+    auto w_in_f = to_f32(ctx.w_in);
+    auto h_in_f = to_f32(ctx.h_in);
+
+    std::shared_ptr<Node> x_pad = ctx.x, y_pad = ctx.y;
+    if (is_reflection && attrs.align_corners) {
+        x_pad = reflect_coord(ctx, ctx.x, w_in_f, true);
+        y_pad = reflect_coord(ctx, ctx.y, h_in_f, true);
+    }
+
+    auto x0     = std::make_shared<op::v0::Floor>(x_pad);
+    auto y0     = std::make_shared<op::v0::Floor>(y_pad);
+    auto dx_raw = std::make_shared<op::v1::Subtract>(x_pad, x0);
+    auto dy_raw = std::make_shared<op::v1::Subtract>(y_pad, y0);
+
+    std::shared_ptr<Node> dx = dx_raw;
+    std::shared_ptr<Node> dy = dy_raw;
+    if (!is_zeros) {
+        auto eps = op::v0::Constant::create(ctx.calc_type, {}, {1e-7f});
+        auto one_m_eps = std::make_shared<op::v1::Subtract>(ctx.c1, eps);
+        dx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(dx_raw, ctx.c0), one_m_eps);
+        dy = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(dy_raw, ctx.c0), one_m_eps);
+    }
+
+    auto w_is_one = std::make_shared<op::v1::Equal>(w_in_f, ctx.c1);
+    auto h_is_one = std::make_shared<op::v1::Equal>(h_in_f, ctx.c1);
+    dx = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, dx);
+    dy = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, dy);
+
+    // cubic weights (a = -0.75) — как у тебя
+    auto a    = op::v0::Constant::create(ctx.calc_type, {}, {-0.75f});
+    auto c3   = op::v0::Constant::create(ctx.calc_type, {}, {3.0f});
+    auto c4   = op::v0::Constant::create(ctx.calc_type, {}, {4.0f});
+    auto c5   = op::v0::Constant::create(ctx.calc_type, {}, {5.0f});
+    auto c8   = op::v0::Constant::create(ctx.calc_type, {}, {8.0f});
+
+    auto cubic_weight = [&](const std::shared_ptr<Node>& t)->std::shared_ptr<Node> {
+        auto t0  = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(t, ctx.c0), ctx.c2);
+        auto t2  = std::make_shared<op::v1::Multiply>(t0, t0);
+        auto t3  = std::make_shared<op::v1::Multiply>(t2, t0);
+        auto ap2 = std::make_shared<op::v1::Add>(a, ctx.c2);
+        auto ap3 = std::make_shared<op::v1::Add>(a, c3);
+
+        auto f01_in = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, t0), ap3);
+        auto f01    = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(f01_in, t2), ctx.c1);
+
+        auto five_a  = std::make_shared<op::v1::Multiply>(c5, a);
+        auto eight_a = std::make_shared<op::v1::Multiply>(c8, a);
+        auto four_a  = std::make_shared<op::v1::Multiply>(c4, a);
+        auto f12_in1 = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(a, t0), five_a);
+        auto f12_in2 = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(f12_in1, t0), eight_a);
+        auto f12     = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(f12_in2, t0), four_a);
+
+        auto cond1 = std::make_shared<op::v1::LessEqual>(t0, ctx.c1);
+        auto cond2 = std::make_shared<op::v1::Less>(t0, ctx.c2);
+        return std::make_shared<op::v1::Select>(cond1, f01, std::make_shared<op::v1::Select>(cond2, f12, ctx.c0));
+    };
+
+    auto t_x0 = std::make_shared<op::v1::Add>(ctx.c1, dx);
+    auto t_x1 = dx;
+    auto t_x2 = std::make_shared<op::v1::Subtract>(ctx.c1, dx);
+    auto t_x3 = std::make_shared<op::v1::Subtract>(ctx.c2, dx);
+
+    auto w_x0 = cubic_weight(t_x0);
+    auto w_x1 = cubic_weight(t_x1);
+    auto w_x2 = cubic_weight(t_x2);
+    auto w_x3 = cubic_weight(t_x3);
+
+    w_x0 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x0);
+    w_x1 = std::make_shared<op::v1::Select>(w_is_one, ctx.c1, w_x1);
+    w_x2 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x2);
+    w_x3 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x3);
+
+    auto t_y0 = std::make_shared<op::v1::Add>(ctx.c1, dy);
+    auto t_y1 = dy;
+    auto t_y2 = std::make_shared<op::v1::Subtract>(ctx.c1, dy);
+    auto t_y3 = std::make_shared<op::v1::Subtract>(ctx.c2, dy);
+
+    auto w_y0 = cubic_weight(t_y0);
+    auto w_y1 = cubic_weight(t_y1);
+    auto w_y2 = cubic_weight(t_y2);
+    auto w_y3 = cubic_weight(t_y3);
+
+    w_y0 = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, w_y0);
+    w_y1 = std::make_shared<op::v1::Select>(h_is_one, ctx.c1, w_y1);
+    w_y2 = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, w_y2);
+    w_y3 = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, w_y3);
+
+    std::vector<std::shared_ptr<Node>> x_idx{
+        std::make_shared<op::v1::Subtract>(x0, ctx.c1),
+        x0,
+        std::make_shared<op::v1::Add>(x0, ctx.c1),
+        std::make_shared<op::v1::Add>(x0, ctx.c2),
+    };
+    std::vector<std::shared_ptr<Node>> y_idx{
+        std::make_shared<op::v1::Subtract>(y0, ctx.c1),
+        y0,
+        std::make_shared<op::v1::Add>(y0, ctx.c1),
+        std::make_shared<op::v1::Add>(y0, ctx.c2),
+    };
+    std::vector<std::shared_ptr<Node>> wx{w_x0, w_x1, w_x2, w_x3};
+    std::vector<std::shared_ptr<Node>> wy{w_y0, w_y1, w_y2, w_y3};
+
+    // validity masks for ZEROS (before clamping)
+    std::vector<std::shared_ptr<Node>> x_ok(4), y_ok(4);
+    if (is_zeros) {
+        for (int i = 0; i < 4; ++i) {
+            x_ok[i] = std::make_shared<op::v1::LogicalAnd>(
+                std::make_shared<op::v1::GreaterEqual>(x_idx[i], ctx.c0),
+                std::make_shared<op::v1::Less>(x_idx[i], w_in_f));
+            y_ok[i] = std::make_shared<op::v1::LogicalAnd>(
+                std::make_shared<op::v1::GreaterEqual>(y_idx[i], ctx.c0),
+                std::make_shared<op::v1::Less>(y_idx[i], h_in_f));
+        }
+    }
+
+    if (is_reflection) {
+        for (int i = 0; i < 4; ++i) {
+            x_idx[i] = reflect_index(ctx, x_idx[i], w_in_f, attrs.align_corners);
+            y_idx[i] = reflect_index(ctx, y_idx[i], h_in_f, attrs.align_corners);
+        }
+    } else {
+        auto w_is_one_chk = std::make_shared<op::v1::Equal>(w_in_f, ctx.c1);
+        auto h_is_one_chk = std::make_shared<op::v1::Equal>(h_in_f, ctx.c1);
+        for (int i = 0; i < 4; ++i) {
+            x_idx[i] = std::make_shared<op::v1::Select>(w_is_one_chk, ctx.c0, x_idx[i]);
+            y_idx[i] = std::make_shared<op::v1::Select>(h_is_one_chk, ctx.c0, y_idx[i]);
+        }
+    }
+
+    std::shared_ptr<Node> sum;
+    for (int iy = 0; iy < 4; ++iy) {
+        std::shared_ptr<Node> row;
+        for (int ix = 0; ix < 4; ++ix) {
+            auto xi = x_idx[ix];
+            auto yi = y_idx[iy];
+
+            if (is_zeros || is_border) {
+                clamp_indices_inplace(ctx, xi, yi, w_in_f, h_in_f);
+            }
+
+            auto val = gather_hw_nhwc(ctx, xi, yi);
+            if (ctx.element_type != ctx.calc_type) val = std::make_shared<op::v0::Convert>(val, ctx.calc_type);
+
+            auto wxy = std::make_shared<op::v1::Multiply>(wx[ix], wy[iy]);
+            if (is_zeros) {
+                auto ok = std::make_shared<op::v1::LogicalAnd>(x_ok[ix], y_ok[iy]);
+                auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
+                wxy = std::make_shared<op::v1::Multiply>(wxy, mask);
+            }
+
+            auto wexp = std::make_shared<op::v0::Unsqueeze>(wxy, op::v0::Constant::create(element::i32, {}, {-1}));
+            auto tap  = std::make_shared<op::v1::Multiply>(val, wexp);
+
+            row = row ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(row, tap)) : tap;
+        }
+        sum = sum ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(sum, row)) : row;
+    }
+
+    if (ctx.element_type != ctx.calc_type) sum = std::make_shared<op::v0::Convert>(sum, ctx.element_type);
+    return sum;
+}
+
+/*** 8) Общая «склейка»: подготовка ctx, нормализация, вызов builder-а, обратный permute ***/
 static bool decompose_impl(
     const std::shared_ptr<ov::op::v9::GridSample>& gs,
     const std::function<std::shared_ptr<Node>(const Ctx&, const ov::op::v9::GridSample::Attributes&)>& build_mode_result_nhwc) {
 
-    const auto& data = gs->input_value(0);
-    const auto& grid = gs->input_value(1);
-
-    // Only support 4D tensors
-    if (data.get_partial_shape().rank().get_length() != 4 ||
-        grid.get_partial_shape().rank().get_length() != 4) {
-        return false;
-    }
-
     Ctx ctx{};
-    ctx.element_type = data.get_element_type();
-    ctx.calc_type    = element::f32;  // Always use f32 for coordinate calculations
+    if (!build_ctx(gs, ctx)) return false;
 
-    // ShapeOf components
-    auto dshape = std::make_shared<op::v3::ShapeOf>(data, element::i32);
-    ctx.n_dim   = std::make_shared<op::v8::Gather>(dshape, op::v0::Constant::create(element::i32, {}, {0}),
-                                               op::v0::Constant::create(element::i32, {}, {0}));
-    ctx.c_dim   = std::make_shared<op::v8::Gather>(dshape, op::v0::Constant::create(element::i32, {}, {1}),
-                                               op::v0::Constant::create(element::i32, {}, {0}));
-    ctx.h_in    = std::make_shared<op::v8::Gather>(dshape, op::v0::Constant::create(element::i32, {}, {2}),
-                                               op::v0::Constant::create(element::i32, {}, {0}));
-    ctx.w_in    = std::make_shared<op::v8::Gather>(dshape, op::v0::Constant::create(element::i32, {}, {3}),
-                                               op::v0::Constant::create(element::i32, {}, {0}));
+    auto w_in_f = to_f32(ctx.w_in);
+    auto h_in_f = to_f32(ctx.h_in);
 
-    auto gshape = std::make_shared<op::v3::ShapeOf>(grid, element::i32);
-    ctx.h_out   = std::make_shared<op::v8::Gather>(gshape, op::v0::Constant::create(element::i32, {}, {1}),
-                                               op::v0::Constant::create(element::i32, {}, {0}));
-    ctx.w_out   = std::make_shared<op::v8::Gather>(gshape, op::v0::Constant::create(element::i32, {}, {2}),
-                                               op::v0::Constant::create(element::i32, {}, {0}));
+    // [-1,1] -> pixels
+    normalize_grid_to_pixels(ctx, ctx.x_norm, ctx.y_norm, w_in_f, h_in_f, gs->get_attributes().align_corners, ctx.x, ctx.y);
 
-    // Constants
-    ctx.c0   = op::v0::Constant::create(ctx.calc_type, {}, {0.0f});
-    ctx.c1   = op::v0::Constant::create(ctx.calc_type, {}, {1.0f});
-    ctx.c2   = op::v0::Constant::create(ctx.calc_type, {}, {2.0f});
-    ctx.c0_5 = op::v0::Constant::create(ctx.calc_type, {}, {0.5f});
-
-    // Convert dimensions to float
-    auto h_in_f = std::make_shared<op::v0::Convert>(ctx.h_in, ctx.calc_type);
-    auto w_in_f = std::make_shared<op::v0::Convert>(ctx.w_in, ctx.calc_type);
-
-    // Split grid into x/y
-    auto grid_conv = grid;
-    if (grid.get_element_type() != ctx.calc_type)
-        grid_conv = std::make_shared<op::v0::Convert>(grid, ctx.calc_type);
-    auto axis3 = op::v0::Constant::create(element::i32, {}, {3});
-    auto x_grid = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {0}), axis3);
-    auto y_grid = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {1}), axis3);
-
-    // Save original normalized coordinates for ZEROS mask
-    ctx.x_norm = x_grid;
-    ctx.y_norm = y_grid;
-
-    // Normalization [-1,1] -> pixels (without padding/reflection - that's the mode builder's job)
-    if (gs->get_attributes().align_corners) {
-        auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
-        auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
-        ctx.x = std::make_shared<op::v1::Multiply>(
-                    std::make_shared<op::v1::Divide>(std::make_shared<op::v1::Add>(x_grid, ctx.c1), ctx.c2),
-                    w_m1);
-        ctx.y = std::make_shared<op::v1::Multiply>(
-                    std::make_shared<op::v1::Divide>(std::make_shared<op::v1::Add>(y_grid, ctx.c1), ctx.c2),
-                    h_m1);
-    } else {
-        // PyTorch formula for align_corners=false: ((x + 1) * W - 1) / 2
-        auto x_p1_w = std::make_shared<op::v1::Multiply>(
-                        std::make_shared<op::v1::Add>(x_grid, ctx.c1), w_in_f);
-        auto y_p1_h = std::make_shared<op::v1::Multiply>(
-                        std::make_shared<op::v1::Add>(y_grid, ctx.c1), h_in_f);
-        ctx.x = std::make_shared<op::v1::Divide>(
-                    std::make_shared<op::v1::Subtract>(x_p1_w, ctx.c1),
-                    ctx.c2);
-        ctx.y = std::make_shared<op::v1::Divide>(
-                    std::make_shared<op::v1::Subtract>(y_p1_h, ctx.c1),
-                    ctx.c2);
-    }
-
-    // NCHW -> NHWC
-    auto to_nhwc = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
-    ctx.data_nhwc = std::make_shared<op::v1::Transpose>(data, to_nhwc);
-
-    // Build NHWC result according to mode specifics
+    // Mode-specific NHWC output
     auto result_nhwc = build_mode_result_nhwc(ctx, gs->get_attributes());
-    if (!result_nhwc)
-        return false;
+    if (!result_nhwc) return false;
 
     // NHWC -> NCHW
     auto to_nchw = op::v0::Constant::create(element::i32, {4}, {0, 3, 1, 2});
     auto result  = std::make_shared<op::v1::Transpose>(result_nhwc, to_nchw);
 
-    // Finalization
     result->set_friendly_name(gs->get_friendly_name());
     ov::copy_runtime_info(gs, result);
     ov::replace_node_update_name(gs, result);
+    return true;
+}
+
+static bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx) {
+    const auto& data = gs->input_value(0);
+    const auto& grid = gs->input_value(1);
+
+    if (data.get_partial_shape().rank().get_length() != 4 ||
+        grid.get_partial_shape().rank().get_length() != 4) {
+        return false;
+    }
+
+    ctx.element_type = data.get_element_type();
+    ctx.calc_type    = element::f32;
+
+    auto dshape = std::make_shared<op::v3::ShapeOf>(data, element::i32);
+    ctx.n_dim   = std::make_shared<op::v8::Gather>(dshape, op::v0::Constant::create(element::i32, {}, {0}), op::v0::Constant::create(element::i32, {}, {0}));
+    ctx.c_dim   = std::make_shared<op::v8::Gather>(dshape, op::v0::Constant::create(element::i32, {}, {1}), op::v0::Constant::create(element::i32, {}, {0}));
+    ctx.h_in    = std::make_shared<op::v8::Gather>(dshape, op::v0::Constant::create(element::i32, {}, {2}), op::v0::Constant::create(element::i32, {}, {0}));
+    ctx.w_in    = std::make_shared<op::v8::Gather>(dshape, op::v0::Constant::create(element::i32, {}, {3}), op::v0::Constant::create(element::i32, {}, {0}));
+
+    auto gshape = std::make_shared<op::v3::ShapeOf>(grid, element::i32);
+    ctx.h_out   = std::make_shared<op::v8::Gather>(gshape, op::v0::Constant::create(element::i32, {}, {1}), op::v0::Constant::create(element::i32, {}, {0}));
+    ctx.w_out   = std::make_shared<op::v8::Gather>(gshape, op::v0::Constant::create(element::i32, {}, {2}), op::v0::Constant::create(element::i32, {}, {0}));
+
+    ctx.c0   = op::v0::Constant::create(ctx.calc_type, {}, {0.0f});
+    ctx.c1   = op::v0::Constant::create(ctx.calc_type, {}, {1.0f});
+    ctx.c2   = op::v0::Constant::create(ctx.calc_type, {}, {2.0f});
+    ctx.c0_5 = op::v0::Constant::create(ctx.calc_type, {}, {0.5f});
+
+    // split grid
+    auto grid_conv = grid.get_element_type() == ctx.calc_type ? grid
+                     : std::shared_ptr<Node>(std::make_shared<op::v0::Convert>(grid, ctx.calc_type));
+    auto axis3  = op::v0::Constant::create(element::i32, {}, {3});
+    ctx.x_norm  = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {0}), axis3);
+    ctx.y_norm  = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {1}), axis3);
+
+    // NCHW -> NHWC
+    auto to_nhwc = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
+    ctx.data_nhwc = std::make_shared<op::v1::Transpose>(data, to_nhwc);
     return true;
 }
 
@@ -305,78 +614,8 @@ GridSampleDecompositionNearest::GridSampleDecompositionNearest() {
         if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::NEAREST)
             return false;
 
-        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) -> std::shared_ptr<Node> {
-            const bool is_zeros      = attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS;
-            const bool is_reflection = attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION;
-
-            auto h_in_f = std::make_shared<op::v0::Convert>(ctx.h_in, ctx.calc_type);
-            auto w_in_f = std::make_shared<op::v0::Convert>(ctx.w_in, ctx.calc_type);
-
-            // 1) Round to the nearest integer pixel using Round (banker's rounding like lrint)
-            // This matches the reference implementation which uses std::lrint
-            std::shared_ptr<Node> x_idx = std::make_shared<op::v5::Round>(ctx.x, op::v5::Round::RoundMode::HALF_TO_EVEN);
-            std::shared_ptr<Node> y_idx = std::make_shared<op::v5::Round>(ctx.y, op::v5::Round::RoundMode::HALF_TO_EVEN);
-            
-            // 2) For REFLECTION: apply reflection to integer indices
-            // The reference implementation applies reflection AFTER rounding to integers
-            if (is_reflection) {
-                x_idx = reflect_index(ctx, x_idx, w_in_f, attrs.align_corners);
-                y_idx = reflect_index(ctx, y_idx, h_in_f, attrs.align_corners);
-            }
-            
-            // 3) ALWAYS clamp indices to valid range [0, size-1] for safety
-            // This is necessary because reflection can produce indices outside bounds 
-            // (especially for align_corners=true with small sizes)
-            auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
-            auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
-            
-            // Store unclamped indices for ZEROS mask check (before reflection)
-            auto x_idx_unclamped = std::make_shared<op::v5::Round>(ctx.x, op::v5::Round::RoundMode::HALF_TO_EVEN);
-            auto y_idx_unclamped = std::make_shared<op::v5::Round>(ctx.y, op::v5::Round::RoundMode::HALF_TO_EVEN);
-            
-            // Always clamp for safe memory access
-            x_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(x_idx, ctx.c0), w_m1);
-            y_idx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(y_idx, ctx.c0), h_m1);
-
-            std::shared_ptr<Node> result;
-            
-            if (is_zeros) {
-                // Gather with clamped indices (safe memory access)
-                result = gather_hw(ctx, x_idx, y_idx);
-                
-                // Convert gathered data to calc_type (f32) for computation
-                if (ctx.element_type != ctx.calc_type) {
-                    result = std::make_shared<op::v0::Convert>(result, ctx.calc_type);
-                }
-                
-                // Build mask based on *unclamped rounded indices* for NEAREST mode (PyTorch behavior)
-                // For NEAREST, a sample is inside if: 0 <= floor(x+0.5) <= W-1
-                auto x_ge_0  = std::make_shared<op::v1::GreaterEqual>(x_idx_unclamped, ctx.c0);
-                auto x_le_w1 = std::make_shared<op::v1::LessEqual>(x_idx_unclamped, w_m1);
-                auto y_ge_0  = std::make_shared<op::v1::GreaterEqual>(y_idx_unclamped, ctx.c0);
-                auto y_le_h1 = std::make_shared<op::v1::LessEqual>(y_idx_unclamped, h_m1);
-                
-                auto x_in_idx = std::make_shared<op::v1::LogicalAnd>(x_ge_0, x_le_w1);
-                auto y_in_idx = std::make_shared<op::v1::LogicalAnd>(y_ge_0, y_le_h1);
-                
-                // No special handling for degenerate axes in NEAREST mode
-                // The mask is based purely on whether rounded indices are in bounds
-                auto ok = std::make_shared<op::v1::LogicalAnd>(x_in_idx, y_in_idx);
-
-                auto mask   = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
-                auto mask_e = std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1}));
-                result = std::make_shared<op::v1::Multiply>(result, mask_e);
-                
-                // Convert final result back to original element type
-                if (ctx.element_type != ctx.calc_type) {
-                    result = std::make_shared<op::v0::Convert>(result, ctx.element_type);
-                }
-            } else {
-                // For BORDER and REFLECTION, indices are already clamped
-                result = gather_hw(ctx, x_idx, y_idx);
-            }
-
-            return result; // NHWC
+        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+            return build_nearest_nhwc(ctx, attrs);
         });
     };
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionNearest"), cb);
@@ -392,96 +631,8 @@ GridSampleDecompositionBilinear::GridSampleDecompositionBilinear() {
         if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BILINEAR)
             return false;
 
-        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) -> std::shared_ptr<Node> {
-            const bool is_border     = attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER;
-            const bool is_zeros      = attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS;
-            const bool is_reflection = attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION;
-
-            auto h_in_f = std::make_shared<op::v0::Convert>(ctx.h_in, ctx.calc_type);
-            auto w_in_f = std::make_shared<op::v0::Convert>(ctx.w_in, ctx.calc_type);
-
-            std::shared_ptr<Node> x_pad = ctx.x, y_pad = ctx.y;
-            if (is_reflection) {
-                x_pad = reflect_coord(ctx, ctx.x, w_in_f, attrs.align_corners);
-                y_pad = reflect_coord(ctx, ctx.y, h_in_f, attrs.align_corners);
-            }
-
-            std::shared_ptr<Node> x0 = std::make_shared<op::v0::Floor>(x_pad);
-            std::shared_ptr<Node> y0 = std::make_shared<op::v0::Floor>(y_pad);
-            std::shared_ptr<Node> x1 = std::make_shared<op::v1::Add>(x0, ctx.c1);
-            std::shared_ptr<Node> y1 = std::make_shared<op::v1::Add>(y0, ctx.c1);
-
-            auto dx = std::make_shared<op::v1::Subtract>(x_pad, x0);
-            auto dy = std::make_shared<op::v1::Subtract>(y_pad, y0);
-            auto one_m_dx = std::make_shared<op::v1::Subtract>(ctx.c1, dx);
-            auto one_m_dy = std::make_shared<op::v1::Subtract>(ctx.c1, dy);
-
-            std::vector<std::shared_ptr<Node>> weights{
-                std::make_shared<op::v1::Multiply>(one_m_dx, one_m_dy), // w00
-                std::make_shared<op::v1::Multiply>(dx,       one_m_dy), // w01
-                std::make_shared<op::v1::Multiply>(one_m_dx, dy),       // w10
-                std::make_shared<op::v1::Multiply>(dx,       dy)        // w11
-            };
-
-            if (is_reflection) {
-                x0 = reflect_index(ctx, x0, w_in_f, attrs.align_corners);
-                x1 = reflect_index(ctx, x1, w_in_f, attrs.align_corners);
-                y0 = reflect_index(ctx, y0, h_in_f, attrs.align_corners);
-                y1 = reflect_index(ctx, y1, h_in_f, attrs.align_corners);
-            }
-
-            std::vector<std::shared_ptr<Node>> x_coords{x0, x1, x0, x1};
-            std::vector<std::shared_ptr<Node>> y_coords{y0, y0, y1, y1};
-            std::vector<std::shared_ptr<Node>> values(4);
-
-            for (size_t i = 0; i < 4; ++i) {
-                auto xi = x_coords[i];
-                auto yi = y_coords[i];
-
-                if (is_zeros || is_border) {
-                    auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
-                    auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
-                    xi = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(xi, ctx.c0), w_m1);
-                    yi = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(yi, ctx.c0), h_m1);
-                }
-
-                auto val = gather_hw(ctx, xi, yi);
-                
-                // Convert gathered data to calc_type (f32) for computation
-                if (ctx.element_type != ctx.calc_type) {
-                    val = std::make_shared<op::v0::Convert>(val, ctx.calc_type);
-                }
-
-                if (is_zeros) {
-                    auto x_ok = std::make_shared<op::v1::LogicalAnd>(
-                        std::make_shared<op::v1::GreaterEqual>(x_coords[i], ctx.c0),
-                        std::make_shared<op::v1::Less>(x_coords[i], w_in_f));
-                    auto y_ok = std::make_shared<op::v1::LogicalAnd>(
-                        std::make_shared<op::v1::GreaterEqual>(y_coords[i], ctx.c0),
-                        std::make_shared<op::v1::Less>(y_coords[i], h_in_f));
-                    auto ok   = std::make_shared<op::v1::LogicalAnd>(x_ok, y_ok);
-                    auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
-                    auto mexp = std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1}));
-                    val = std::make_shared<op::v1::Multiply>(val, mexp);
-                }
-
-                values[i] = val;
-            }
-
-            // Apply weights in f32 precision
-            auto wexp0 = std::make_shared<op::v0::Unsqueeze>(weights[0], op::v0::Constant::create(element::i32, {}, {-1}));
-            std::shared_ptr<Node> res = std::make_shared<op::v1::Multiply>(values[0], wexp0);
-            
-            for (size_t i = 1; i < 4; ++i) {
-                auto wexp = std::make_shared<op::v0::Unsqueeze>(weights[i], op::v0::Constant::create(element::i32, {}, {-1}));
-                res = std::make_shared<op::v1::Add>(res, std::make_shared<op::v1::Multiply>(values[i], wexp));
-            }
-            
-            // Convert final result back to original element type
-            if (ctx.element_type != ctx.calc_type) {
-                res = std::make_shared<op::v0::Convert>(res, ctx.element_type);
-            }
-            return res; // NHWC
+        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+            return build_bilinear_nhwc(ctx, attrs);
         });
     };
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBilinear"), cb);
@@ -497,189 +648,8 @@ GridSampleDecompositionBicubic::GridSampleDecompositionBicubic() {
         if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BICUBIC)
             return false;
 
-        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) -> std::shared_ptr<Node> {
-            const bool is_border     = attrs.padding_mode == op::v9::GridSample::PaddingMode::BORDER;
-            const bool is_zeros      = attrs.padding_mode == op::v9::GridSample::PaddingMode::ZEROS;
-            const bool is_reflection = attrs.padding_mode == op::v9::GridSample::PaddingMode::REFLECTION;
-
-            auto h_in_f = std::make_shared<op::v0::Convert>(ctx.h_in, ctx.calc_type);
-            auto w_in_f = std::make_shared<op::v0::Convert>(ctx.w_in, ctx.calc_type);
-
-            // 1) padding/reflection on continuous coordinates (as in original)
-            std::shared_ptr<Node> x_pad = ctx.x, y_pad = ctx.y;
-            if (is_reflection) {
-                if (attrs.align_corners) {
-                    x_pad = reflect_coord(ctx, ctx.x, w_in_f, true);
-                    y_pad = reflect_coord(ctx, ctx.y, h_in_f, true);
-                }
-            }
-            // BORDER/ZEROS - don't touch continuous coordinates
-
-            // 2) floor and fractional parts
-            auto x0     = std::make_shared<op::v0::Floor>(x_pad);
-            auto y0     = std::make_shared<op::v0::Floor>(y_pad);
-            auto dx_raw = std::make_shared<op::v1::Subtract>(x_pad, x0);
-            auto dy_raw = std::make_shared<op::v1::Subtract>(y_pad, y0);
-
-            std::shared_ptr<Node> dx = dx_raw;
-            std::shared_ptr<Node> dy = dy_raw;
-            if (!is_zeros) {
-                auto eps = op::v0::Constant::create(ctx.calc_type, {}, {1e-7f});
-                auto one_m_eps = std::make_shared<op::v1::Subtract>(ctx.c1, eps);
-                dx = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(dx_raw, ctx.c0), one_m_eps);
-                dy = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(dy_raw, ctx.c0), one_m_eps);
-            }
-
-            // Account for axes of size 1
-            auto w_is_one = std::make_shared<op::v1::Equal>(w_in_f, ctx.c1);
-            auto h_is_one = std::make_shared<op::v1::Equal>(h_in_f, ctx.c1);
-            dx = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, dx);
-            dy = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, dy);
-
-            // cubic weights (a = -0.75)
-            auto a    = op::v0::Constant::create(ctx.calc_type, {}, {-0.75f});
-            auto c3   = op::v0::Constant::create(ctx.calc_type, {}, {3.0f});
-            auto c4   = op::v0::Constant::create(ctx.calc_type, {}, {4.0f});
-            auto c5   = op::v0::Constant::create(ctx.calc_type, {}, {5.0f});
-            auto c8   = op::v0::Constant::create(ctx.calc_type, {}, {8.0f});
-
-            auto cubic_weight = [&](const std::shared_ptr<Node>& t) -> std::shared_ptr<Node> {
-                auto t0  = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(t, ctx.c0), ctx.c2);
-                auto t2  = std::make_shared<op::v1::Multiply>(t0, t0);
-                auto t3  = std::make_shared<op::v1::Multiply>(t2, t0);
-                auto ap2 = std::make_shared<op::v1::Add>(a, ctx.c2);
-                auto ap3 = std::make_shared<op::v1::Add>(a, c3);
-
-                auto f01_in = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(ap2, t0), ap3);
-                auto f01    = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(f01_in, t2), ctx.c1);
-
-                auto five_a  = std::make_shared<op::v1::Multiply>(c5, a);
-                auto eight_a = std::make_shared<op::v1::Multiply>(c8, a);
-                auto four_a  = std::make_shared<op::v1::Multiply>(c4, a);
-                auto f12_in1 = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(a, t0), five_a);
-                auto f12_in2 = std::make_shared<op::v1::Add>(std::make_shared<op::v1::Multiply>(f12_in1, t0), eight_a);
-                auto f12     = std::make_shared<op::v1::Subtract>(std::make_shared<op::v1::Multiply>(f12_in2, t0), four_a);
-
-                auto cond1 = std::make_shared<op::v1::LessEqual>(t0, ctx.c1);
-                auto cond2 = std::make_shared<op::v1::Less>(t0, ctx.c2);
-                return std::make_shared<op::v1::Select>(cond1, f01, std::make_shared<op::v1::Select>(cond2, f12, ctx.c0));
-            };
-
-            auto t_x0 = std::make_shared<op::v1::Add>(ctx.c1, dx);
-            auto t_x1 = dx;
-            auto t_x2 = std::make_shared<op::v1::Subtract>(ctx.c1, dx);
-            auto t_x3 = std::make_shared<op::v1::Subtract>(ctx.c2, dx);
-
-            auto w_x0 = cubic_weight(t_x0);
-            auto w_x1 = cubic_weight(t_x1);
-            auto w_x2 = cubic_weight(t_x2);
-            auto w_x3 = cubic_weight(t_x3);
-
-            // weight correction when W/H == 1
-            w_x0 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x0);
-            w_x1 = std::make_shared<op::v1::Select>(w_is_one, ctx.c1, w_x1);
-            w_x2 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x2);
-            w_x3 = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, w_x3);
-
-            auto t_y0 = std::make_shared<op::v1::Add>(ctx.c1, dy);
-            auto t_y1 = dy;
-            auto t_y2 = std::make_shared<op::v1::Subtract>(ctx.c1, dy);
-            auto t_y3 = std::make_shared<op::v1::Subtract>(ctx.c2, dy);
-
-            auto w_y0 = cubic_weight(t_y0);
-            auto w_y1 = cubic_weight(t_y1);
-            auto w_y2 = cubic_weight(t_y2);
-            auto w_y3 = cubic_weight(t_y3);
-
-            w_y0 = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, w_y0);
-            w_y1 = std::make_shared<op::v1::Select>(h_is_one, ctx.c1, w_y1);
-            w_y2 = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, w_y2);
-            w_y3 = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, w_y3);
-
-            // indices
-            std::vector<std::shared_ptr<Node>> x_idx{
-                std::make_shared<op::v1::Subtract>(x0, ctx.c1),
-                x0,
-                std::make_shared<op::v1::Add>(x0, ctx.c1),
-                std::make_shared<op::v1::Add>(x0, ctx.c2),
-            };
-            std::vector<std::shared_ptr<Node>> y_idx{
-                std::make_shared<op::v1::Subtract>(y0, ctx.c1),
-                y0,
-                std::make_shared<op::v1::Add>(y0, ctx.c1),
-                std::make_shared<op::v1::Add>(y0, ctx.c2),
-            };
-            std::vector<std::shared_ptr<Node>> wx{w_x0, w_x1, w_x2, w_x3};
-            std::vector<std::shared_ptr<Node>> wy{w_y0, w_y1, w_y2, w_y3};
-
-            // validity masks for ZEROS (before clamping)
-            std::vector<std::shared_ptr<Node>> x_ok(4), y_ok(4);
-            if (is_zeros) {
-                for (int i = 0; i < 4; ++i) {
-                    x_ok[i] = std::make_shared<op::v1::LogicalAnd>(
-                        std::make_shared<op::v1::GreaterEqual>(x_idx[i], ctx.c0),
-                        std::make_shared<op::v1::Less>(x_idx[i], w_in_f));
-                    y_ok[i] = std::make_shared<op::v1::LogicalAnd>(
-                        std::make_shared<op::v1::GreaterEqual>(y_idx[i], ctx.c0),
-                        std::make_shared<op::v1::Less>(y_idx[i], h_in_f));
-                }
-            }
-
-            if (is_reflection) {
-                for (int i = 0; i < 4; ++i) {
-                    x_idx[i] = reflect_index(ctx, x_idx[i], w_in_f, attrs.align_corners);
-                    y_idx[i] = reflect_index(ctx, y_idx[i], h_in_f, attrs.align_corners);
-                }
-            } else {
-                // when size==1 - to 0
-                for (int i = 0; i < 4; ++i) {
-                    x_idx[i] = std::make_shared<op::v1::Select>(w_is_one, ctx.c0, x_idx[i]);
-                    y_idx[i] = std::make_shared<op::v1::Select>(h_is_one, ctx.c0, y_idx[i]);
-                }
-            }
-
-            std::shared_ptr<Node> sum = nullptr;
-            for (int iy = 0; iy < 4; ++iy) {
-                std::shared_ptr<Node> row = nullptr;
-                for (int ix = 0; ix < 4; ++ix) {
-                    auto xi = x_idx[ix];
-                    auto yi = y_idx[iy];
-
-                    if (is_zeros || is_border) {
-                        auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
-                        auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
-                        xi = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(xi, ctx.c0), w_m1);
-                        yi = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(yi, ctx.c0), h_m1);
-                    }
-
-                    auto val = gather_hw(ctx, xi, yi);
-                    
-                    // Convert gathered data to calc_type (f32) for computation
-                    if (ctx.element_type != ctx.calc_type) {
-                        val = std::make_shared<op::v0::Convert>(val, ctx.calc_type);
-                    }
-                    
-                    auto wxy = std::make_shared<op::v1::Multiply>(wx[ix], wy[iy]);
-
-                    if (is_zeros) {
-                        auto ok = std::make_shared<op::v1::LogicalAnd>(x_ok[ix], y_ok[iy]);
-                        auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
-                        wxy = std::make_shared<op::v1::Multiply>(wxy, mask);
-                    }
-
-                    auto wexp = std::make_shared<op::v0::Unsqueeze>(wxy, op::v0::Constant::create(element::i32, {}, {-1}));
-                    auto tap  = std::make_shared<op::v1::Multiply>(val, wexp);
-
-                    row = row ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(row, tap)) : std::shared_ptr<Node>(tap);
-                }
-                sum = sum ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(sum, row)) : row;
-            }
-            
-            // Convert final result back to original element type
-            if (ctx.element_type != ctx.calc_type) {
-                sum = std::make_shared<op::v0::Convert>(sum, ctx.element_type);
-            }
-            return sum; // NHWC
+        return decompose_impl(gs, [&](const Ctx& ctx, const op::v9::GridSample::Attributes& attrs) {
+            return build_bicubic_nhwc(ctx, attrs);
         });
     };
     register_matcher(std::make_shared<ov::pass::pattern::Matcher>(pat, "GridSampleDecompositionBicubic"), cb);
