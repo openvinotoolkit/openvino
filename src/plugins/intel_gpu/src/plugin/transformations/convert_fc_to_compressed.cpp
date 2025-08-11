@@ -86,21 +86,23 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) { return d > 1; }) > 1;
         bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
+        bool is_3d_fc = scale_shape.size() == 3 && scale_shape[0] > 1;
 
         auto weight_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
         bool weight_u8 = false;
         if (weight_ptr->get_element_type() == ov::element::u8 || weight_ptr->get_element_type() == ov::element::i8)
             weight_u8 = true;
 
-        auto reshape_const_to_2d = [has_transpose, grouped](std::shared_ptr<ov::Node> node) {
+        auto reshape_const_to_2d = [has_transpose, grouped, is_3d_fc](std::shared_ptr<ov::Node> node) {
             auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
             OPENVINO_ASSERT(constant != nullptr);
             ov::Shape current_shape = constant->get_shape();
-//            if (current_shape.size() <= 2)
-            if (current_shape.size() <= 3) // TODO
+            if (current_shape.size() <= 2)
                 return constant;
 
             OPENVINO_ASSERT(current_shape.size() == 3);
+            if (is_3d_fc)
+                return constant;
 
             auto new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
                                                          : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
