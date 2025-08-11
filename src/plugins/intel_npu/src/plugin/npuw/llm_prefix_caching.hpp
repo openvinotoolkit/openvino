@@ -17,37 +17,33 @@
 namespace ov {
 namespace npuw {
 
-// static constexpr size_t BLOCK_SIZE = 8;
-// TODO: this value should be equal with prefill chunk size
-static constexpr size_t BLOCK_SIZE = 256;
-
 // KV cache tensors for all layers per block
 using BlocKVCache = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
 
 class KVBlock {
 public:
     size_t m_block_size;
-    std::vector<uint64_t> token_hashes;
-    size_t token_start;
-    uint64_t block_hash;
-    size_t block_id;
-    size_t ref_count;
-    bool is_full;
-    BlocKVCache block_kv_cache;
+    std::vector<uint64_t> m_token_hashes;
+    size_t m_token_start;
+    uint64_t m_block_hash;
+    size_t m_block_id;
+    size_t m_ref_count;
+    bool m_is_full;
+    BlocKVCache m_block_kv_cache;
 
-    // One block may have multiply child blocks
-    std::vector<uint64_t> next_block_hashes;
+    // One block may have multiply children blocks
+    std::vector<uint64_t> m_next_block_hashes;
     // One block only has single previous block
-    uint64_t prev_block_hash;
+    uint64_t m_prev_block_hash;
 
     KVBlock(size_t block_size)
         : m_block_size(block_size),
-          token_start(0),
-          ref_count(0),
-          is_full(false),
-          block_hash(0),
-          prev_block_hash(0) {
-        token_hashes.reserve(m_block_size);
+          m_token_start(0),
+          m_ref_count(0),
+          m_is_full(false),
+          m_block_hash(0),
+          m_prev_block_hash(0) {
+        m_token_hashes.reserve(m_block_size);
     }
 
     /**
@@ -79,7 +75,7 @@ private:
 
 class PrefixCacheManager {
 public:
-    PrefixCacheManager(size_t max_cache_size = 100) : max_cache_size(max_cache_size) {}
+    PrefixCacheManager(size_t max_cache_size = 100) : m_max_cache_size(max_cache_size) {}
 
     // Add a block to the cache
     void put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash);
@@ -94,15 +90,15 @@ public:
     void print_cache_status(bool verbose = false) const;
 
 private:
-    size_t max_cache_size;
+    size_t m_max_cache_size;
 
     // Mapping from hash to KV blocks
-    std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> cache_map;
+    std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> m_cache_map;
 
     // LRU list to track the least recently used blocks
-    std::list<std::shared_ptr<KVBlock>> lru_list;
+    std::list<std::shared_ptr<KVBlock>> m_lru_list;
 
-    std::mutex mutex;
+    std::mutex m_mutex;
 
     // Update the LRU list
     void update_lru(const std::shared_ptr<KVBlock>& block);
