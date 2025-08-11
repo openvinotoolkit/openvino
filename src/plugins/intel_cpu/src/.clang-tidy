@@ -131,6 +131,8 @@ CheckOptions:
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
     value: true
+  - key: performance-for-range-copy.WarnOnAllAutoCopies
+    value: true
   - key: readability-implicit-bool-conversion.AllowIntegerConditions
     value: true
   - key: readability-implicit-bool-conversion.AllowPointerConditions
