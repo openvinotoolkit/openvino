@@ -34,7 +34,12 @@ public:
     bool is_full;
     BlocKVCache block_kv_cache;
 
-    KVBlock() : token_start(0), ref_count(0), is_full(false), block_hash(0) {
+    // One block may have multiply child blocks
+    std::vector<uint64_t> next_block_hashes;
+    // One block only has single previous block
+    uint64_t prev_block_hash;
+
+    KVBlock() : token_start(0), ref_count(0), is_full(false), block_hash(0), prev_block_hash(0) {
         token_hashes.reserve(BLOCK_SIZE);
     }
 
@@ -44,7 +49,11 @@ public:
      * @param kv_tensors KV cache data for all tokens in the block
      * @return Whether the addition was successful
      */
-    bool add_Block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors);
+    bool add_block(const std::vector<uint64_t>& token_hashes, const BlocKVCache& kv_tensors);
+
+    void link_blocks(std::shared_ptr<KVBlock> prev_block);
+
+    void unlink_blocks(std::shared_ptr<KVBlock> prev_block);
 
     void print_block_info(bool verbose) const;
 
@@ -66,7 +75,7 @@ public:
     PrefixCacheManager(size_t max_cache_size = 100) : max_cache_size(max_cache_size) {}
 
     // Add a block to the cache
-    void put_block(const std::shared_ptr<KVBlock>& block);
+    void put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash);
 
     // Retrieve a block from the cache by hash
     bool get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
