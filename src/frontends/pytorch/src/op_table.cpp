@@ -357,6 +357,7 @@ OP_CONVERTER(translate_zeros_like_fx);
 OP_CONVERTER(translate_conv1d_ext);
 OP_CONVERTER(translate_embedding_ext);
 OP_CONVERTER(translate_linear_awq);
+OP_CONVERTER(translate_linear_bitnet);
 OP_CONVERTER(translate_linear_ext);
 
 }  // namespace op
@@ -768,6 +769,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::zeros", op::translate_zeros},
         {"aten::zeros_like", op::translate_zeros_like},
         {"ov_ext::awq_gemm", op::translate_linear_awq},
+        {"ov_ext::bit_linear", op::translate_linear_bitnet},
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
         {"ov_ext::linear", op::translate_linear_ext},
