@@ -26,7 +26,7 @@ TEST_CATALOG = {
         },
         "CPU": {
             "INT8": {"reference": 0.94, "threshold": 0.03},
-            "INT4": {"reference": 0.71, "threshold": 0.03},
+            "INT4": {"reference": 0.77, "threshold": 0.03},
         },
     },
     "Qwen/Qwen2-0.5B-Instruct": {
