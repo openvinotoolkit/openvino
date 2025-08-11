@@ -39,11 +39,6 @@
 
 #define UseCopyForNativeBinary(T) (T < ZE_GRAPH_EXT_VERSION_1_7)
 
-namespace {
-constexpr std::size_t BATCH_AXIS = 0;
-constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
-}  // namespace
-
 namespace intel_npu {
 
 GraphDescriptor::GraphDescriptor(ze_graph_handle_t handle, void* data) : _handle(handle), _data(data) {}
@@ -462,7 +457,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                 // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
                 // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
                 // in case of dynamic dimensions
-                if (id == BATCH_AXIS && shapeFromCompiler[id] == DEFAULT_BATCH_SIZE) {
+                if (id == utils::BATCH_AXIS && shapeFromCompiler[id] == utils::DEFAULT_BATCH_SIZE) {
                     logger.info("Ignore dynamic batch size upper limit, but keep the dimension dynamic as a metadata "
                                 "from compiler has been lost.");
                     // We need to kepp batch dimension dynamic

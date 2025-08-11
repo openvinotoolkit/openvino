@@ -11,11 +11,6 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
-namespace {
-constexpr std::size_t BATCH_AXIS = 0;
-constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
-}  // namespace
-
 namespace intel_npu {
 
 Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
@@ -321,12 +316,12 @@ std::optional<size_t> Graph::determine_dynamic_batch_size(size_t index,
     const auto& shapeFromIRModel = isInput ? *desc.shapeFromIRModel : *desc.shapeFromIRModel;
     const auto& shapeFromCompiler = isInput ? desc.shapeFromCompiler : desc.shapeFromCompiler;
 
-    if (*shapeFromCompiler.begin() != DEFAULT_BATCH_SIZE) {
+    if (*shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
         return std::nullopt;
     }
 
-    if (shapeFromIRModel[BATCH_AXIS].is_dynamic()) {
-        return tensor->get_shape()[BATCH_AXIS];
+    if (shapeFromIRModel[utils::BATCH_AXIS].is_dynamic()) {
+        return tensor->get_shape()[utils::BATCH_AXIS];
     }
 
     return std::nullopt;
@@ -343,8 +338,8 @@ std::optional<size_t> Graph::determine_batch_size() {
         return std::nullopt;
     }
 
-    const size_t candidateBatchSize = firstShape[BATCH_AXIS].get_max_length();
-    if (candidateBatchSize == 0 || candidateBatchSize == DEFAULT_BATCH_SIZE) {
+    const size_t candidateBatchSize = firstShape[utils::BATCH_AXIS].get_max_length();
+    if (candidateBatchSize == 0 || candidateBatchSize == utils::DEFAULT_BATCH_SIZE) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
@@ -358,7 +353,7 @@ std::optional<size_t> Graph::determine_batch_size() {
             const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
 
             if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
-                *shapeFromCompiler.begin() != DEFAULT_BATCH_SIZE) {
+                *shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
                 return false;
             }
 

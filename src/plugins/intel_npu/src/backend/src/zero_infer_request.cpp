@@ -24,8 +24,6 @@ constexpr std::size_t SINGLE_TENSOR = 0;
 constexpr bool INPUT = true;
 constexpr bool OUTPUT = false;
 
-constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
-
 /**
  * @brief Checks that the metadata of the provided descriptor corresponds to the values registered in the Level Zero
  * structure.
@@ -170,6 +168,13 @@ void ZeroInferRequest::create_pipeline() {
         }
 
         if (get_level_zero_input(inputIndex)) {
+            if (_dynamicBatchValueChanged && batchSize.has_value() &&
+                get_level_zero_input(inputIndex)->get_shape()[utils::BATCH_AXIS] != batchSize.value()) {
+                OPENVINO_THROW("Input tensor ",
+                               _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
+                               " has different batch size than other tensors.");
+            }
+
             _logger.debug("ZeroInferRequest::create_pipeline - tensor %s was already allocated and has size: %zu",
                           _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                           get_level_zero_input(inputIndex)->get_byte_size());
@@ -186,14 +191,37 @@ void ZeroInferRequest::create_pipeline() {
 
     for (size_t outputIndex = 0; outputIndex < _metadata.outputs.size(); ++outputIndex) {
         if (_levelZeroOutputTensors.at(outputIndex)) {
-            _logger.debug("ZeroInferRequest::create_pipeline - tensor %s was already allocated",
-                          _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
-            continue;
+            if (_dynamicBatchValueChanged) {
+                if (batchSize.has_value() &&
+                    _levelZeroOutputTensors.at(outputIndex)->get_shape()[utils::BATCH_AXIS] == batchSize.value()) {
+                    _logger.debug("ZeroInferRequest::create_pipeline - tensor %s was already allocated",
+                                  _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
+                    continue;
+                }
+            } else {
+                _logger.debug("ZeroInferRequest::create_pipeline - tensor %s was already allocated",
+                              _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
+                continue;
+            }
         }
         _logger.debug("ZeroInferRequest::create_pipeline - allocate new output tensor %s",
                       _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
+
         _levelZeroOutputTensors.at(outputIndex) =
             allocate_tensor(_metadata.outputs.at(outputIndex), outputIndex, OUTPUT, *_outputAllocator, batchSize);
+
+        if (_dynamicBatchValueChanged && !_userOutputTensors.at(outputIndex)->get_shape().empty() &&
+            _userOutputTensors.at(outputIndex)->get_shape()[utils::BATCH_AXIS] !=
+                _levelZeroOutputTensors.at(outputIndex)->get_shape()[utils::BATCH_AXIS]) {
+            if (std::dynamic_pointer_cast<ZeroTensor>(_userOutputTensors.at(outputIndex)._ptr) == nullptr) {
+                OPENVINO_THROW("Output tensor ",
+                               _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str(),
+                               " has different batch size than other tensors.");
+            }
+
+            _userOutputTensors.at(outputIndex) = _levelZeroOutputTensors.at(outputIndex);
+        }
+
         _logger.debug("ZeroInferRequest::create_pipeline - new output tensor %s allocated, size: %zu",
                       _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str(),
                       _levelZeroOutputTensors.at(outputIndex)->get_byte_size());
@@ -253,7 +281,7 @@ void ZeroInferRequest::create_pipeline() {
                                            _graph,
                                            _levelZeroInputTensors,
                                            _levelZeroOutputTensors,
-                                           batchSize.has_value() ? batchSize.value() : DEFAULT_BATCH_SIZE);
+                                           batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
 
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
 }
@@ -557,25 +585,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     }
 
     auto& userTensors = isInput ? get_user_input(ioIndex) : _userOutputTensors.at(ioIndex);
-
-    if (userTensors && !_dynamicBatchValueChanged) {
-        auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensors._ptr);
-        if (zeroTensor != nullptr) {
-            zeroTensor->set_tensor_shared_with_user();
-        }
-
-        _logger.debug("ZeroInferRequest::get_tensor - tensor allocated, get the tensor by index: %zu", ioIndex);
-        return userTensors;
-    }
-
-    auto& metadata = isInput ? _metadata.inputs.at(ioIndex) : _metadata.outputs.at(ioIndex);
-    _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is not allocated, or the existing pipeline "
-                  "needs reallocation: %s. New tensor %s will be created",
-                  ioIndex,
-                  _dynamicBatchValueChanged ? "true" : "false",
-                  metadata.nodeFriendlyName.c_str());
-
-    auto& levelZeroTensors = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
+    auto batchSize = _graph->get_batch_size();
 
     // LIMITATION for the dynamic batch implementation:
     // We need to allocate output tensors having the same batch size as input tensors.
@@ -587,7 +597,37 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     // user that that returned tensor is now obsolete, when someone had changed batch using set_tensor()
     // by holding already the old tensor from get_tensor() with the old batch size.
     // OR we must reallocate that tensor by callback
-    auto batchSize = _graph->get_batch_size();
+
+    if (userTensors) {
+        if (!_dynamicBatchValueChanged) {
+            auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensors._ptr);
+            if (zeroTensor != nullptr) {
+                zeroTensor->set_tensor_shared_with_user();
+            }
+
+            _logger.debug("ZeroInferRequest::get_tensor - tensor allocated, get the tensor by index: %zu", ioIndex);
+            return userTensors;
+        } else {
+            if (batchSize.has_value() && userTensors->get_shape()[utils::BATCH_AXIS] == batchSize.value()) {
+                auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensors._ptr);
+                if (zeroTensor != nullptr) {
+                    zeroTensor->set_tensor_shared_with_user();
+                }
+
+                _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is already allocated", ioIndex);
+                return userTensors;
+            }
+        }
+    }
+
+    auto& metadata = isInput ? _metadata.inputs.at(ioIndex) : _metadata.outputs.at(ioIndex);
+    _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is not allocated, or the existing pipeline "
+                  "needs reallocation: %s. New tensor %s will be created",
+                  ioIndex,
+                  _dynamicBatchValueChanged ? "true" : "false",
+                  metadata.nodeFriendlyName.c_str());
+
+    auto& levelZeroTensors = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
 
     levelZeroTensors =
         allocate_tensor(metadata, ioIndex, isInput, isInput ? *_inputAllocator : *_outputAllocator, batchSize);

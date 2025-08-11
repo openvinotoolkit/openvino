@@ -93,7 +93,7 @@ Pipeline::Pipeline(const Config& config,
                 continue;
             }
 
-            if (io_index < input_tensors.size() && input_tensors.at(io_index).size() > 1) {
+            if (input_tensors.at(io_index).size() > 1) {
                 _logger.debug("Pipeline - set args for input index: %zu", io_index);
                 void* data = nullptr;
                 auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(input_tensors.at(io_index).at(i));
@@ -128,6 +128,7 @@ Pipeline::Pipeline(const Config& config,
         io_index = 0;
         for (const auto& desc : graph->get_output_descriptors()) {
             void* data = nullptr;
+
             auto remote_tensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(output_tensors.at(io_index));
             if (remote_tensor == nullptr) {
                 data = output_tensors.at(io_index)->data();
