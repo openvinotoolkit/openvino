@@ -81,23 +81,29 @@ struct KVBlock {
         return token_hashes.back();
     }
 
-    void print_block_info(bool verbose = false) const {
+    void print_block_info(bool verbose) const {
         std::cout << "Block information: " << ref_count << std::endl;
         std::cout << "  Ref Count: " << ref_count << std::endl;
         std::cout << "  Status: " << (is_full ? "Full" : "Not Full") << std::endl;
         std::cout << "  Block index: " << block_id << std::endl;
         std::cout << "  Token start: " << token_start << std::endl;
 
-        if (!verbose) {
-            return;
+        if (verbose) {
+            std::cout << "  KV cache stored in block: " << std::endl;
         }
-
-        // Print KV cache stored in block
-        std::cout << "  KV cache stored in block: " << std::endl;
+        size_t total_size = 0;
+        size_t bytes_MB = 1024 * 1024;
         for (const auto& pair : block_kv_cache) {
             const std::string& name = pair.first;
             const ov::SoPtr<ov::ITensor>& tensor = pair.second;
 
+            total_size += tensor->get_byte_size();
+
+            if (!verbose) {
+                continue;
+            }
+
+            // Print KV cache stored in block verbosely
             std::cout << "Name: " << name << std::endl;
             if (tensor) {
                 std::cout << "Tensor Shape: " << tensor->get_shape().to_string() << std::endl;
@@ -106,12 +112,14 @@ struct KVBlock {
             }
             std::cout << "----------------------------------------" << std::endl;
         }
+
+        std::cout << "  KV cache tensor total size: " << total_size / bytes_MB << " MB" << std::endl;
     }
 };
 
 class PrefixCacheManager {
 public:
-    PrefixCacheManager(size_t max_cache_size = 1000) : max_cache_size(max_cache_size) {}
+    PrefixCacheManager(size_t max_cache_size = 100) : max_cache_size(max_cache_size) {}
 
     // Add a block to the cache
     void put_block(const std::shared_ptr<KVBlock>& block);
@@ -120,7 +128,7 @@ public:
     bool get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block);
 
     // Print the current status of the cache
-    void print_cache_status(bool print_block_info = true) const;
+    void print_cache_status(bool verbose = false) const;
 
 private:
     size_t max_cache_size;
