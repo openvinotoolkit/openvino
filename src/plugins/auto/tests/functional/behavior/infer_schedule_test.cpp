@@ -18,9 +18,7 @@ public:
         std::tie(property, niters) = this->GetParam();
     }
     static std::string getTestCaseName(const testing::TestParamInfo<schedule_policy_param>& obj) {
-        ov::AnyMap property;
-        int niters;
-        std::tie(property, niters) = obj.param;
+        const auto& [property, niters] = obj.param;
         std::ostringstream result;
         result << "numberOfInfer=" << niters << "_";
         if (!property.empty()) {

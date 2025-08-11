@@ -26,11 +26,7 @@ protected:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::vector<ov::auto_plugin::DeviceInformation> devicesInfo;
-        ov::intel_auto::SchedulePolicy schedulePolicy;
-        std::map<std::string, int> numOfInferRequests;
-        std::vector<std::string> expectedScheDevs;
-        std::tie(devicesInfo, schedulePolicy, numOfInferRequests, expectedScheDevs) = obj.param;
+        const auto& [devicesInfo, schedulePolicy, numOfInferRequests, expectedScheDevs] = obj.param;
         std::ostringstream result;
         std::string candidateDevList;
         result << "candaidateDeviceList_";

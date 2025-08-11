@@ -25,9 +25,7 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<get_property_param> obj) {
-        std::string properity_name;
-        bool throw_exception;
-        std::tie(properity_name, throw_exception) = obj.param;
+        const auto& [properity_name, throw_exception] = obj.param;
 
         std::string res;
         res += "_" + properity_name;

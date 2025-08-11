@@ -14,10 +14,7 @@ static std::vector<ConfigParams> testConfigs;
 class AutoDefaultPerfHintTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string deviceName;
-        std::vector<std::string> targetDevices;
-        ov::AnyMap deviceConfigs;
-        std::tie(deviceName, targetDevices, deviceConfigs) = obj.param;
+        const auto& [deviceName, targetDevices, deviceConfigs] = obj.param;
         std::ostringstream result;
         result << deviceName;
         result << "_loadnetwork_to_";
@@ -204,11 +201,8 @@ using PerHintAndDefaultPerfHintMockTest = AutoDefaultPerfHintTest;
 using SecPropAndDefaultPerfHintMockTest = AutoDefaultPerfHintTest;
 
 TEST_P(NumStreamsAndDefaultPerfHintMockTest, NumStreamsAndDefaultPerfHintTest) {
-    std::string device;
-    std::vector<std::string> targetDevices;
-    ov::AnyMap config;
     bool bIsAuto = false;
-    std::tie(device, targetDevices, config) = this->GetParam();
+    const auto& [device, targetDevices, config] = this->GetParam();
     if (device.find("AUTO") != std::string::npos) {
         bIsAuto = true;
         plugin->set_device_name("AUTO");
@@ -269,11 +263,8 @@ INSTANTIATE_TEST_SUITE_P(
     NumStreamsAndDefaultPerfHintMockTest::getTestCaseName);
 
 TEST_P(PerHintAndDefaultPerfHintMockTest, PerfHintAndDefaultPerfHintTest) {
-    std::string device;
-    std::vector<std::string> targetDevices;
-    ov::AnyMap config;
     bool bIsAuto = false;
-    std::tie(device, targetDevices, config) = this->GetParam();
+    const auto& [device, targetDevices, config] = this->GetParam();
     if (device.find("AUTO") != std::string::npos) {
         bIsAuto = true;
         plugin->set_device_name("AUTO");
@@ -332,11 +323,8 @@ INSTANTIATE_TEST_SUITE_P(
     PerHintAndDefaultPerfHintMockTest::getTestCaseName);
 
 TEST_P(SecPropAndDefaultPerfHintMockTest, SecPropAndDefaultPerfHintTest) {
-    std::string device;
-    std::vector<std::string> targetDevices;
-    ov::AnyMap config;
     bool bIsAuto = false;
-    std::tie(device, targetDevices, config) = this->GetParam();
+    const auto& [device, targetDevices, config] = this->GetParam();
     if (device.find("AUTO") != std::string::npos) {
         bIsAuto = true;
         plugin->set_device_name("AUTO");

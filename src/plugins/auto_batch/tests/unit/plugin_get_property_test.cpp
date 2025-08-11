@@ -15,10 +15,7 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<get_property_params> obj) {
-        std::string property_name;
-        bool throw_exception;
-
-        std::tie(property_name, throw_exception) = obj.param;
+        const auto& [property_name, throw_exception] = obj.param;
         std::string res = "";
 
         if (!property_name.empty()) {

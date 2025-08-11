@@ -26,9 +26,7 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<set_property_param> obj) {
-        ov::AnyMap properities;
-        bool throw_exception;
-        std::tie(properities, throw_exception) = obj.param;
+        const auto& [properities, throw_exception] = obj.param;
 
         std::string res;
         for (auto& c : properities) {

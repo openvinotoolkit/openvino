@@ -35,10 +35,7 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string logLevel;
-        std::string envLogLevel;
-        int expectCallNum;
-        std::tie(logLevel, envLogLevel, expectCallNum) = obj.param;
+        const auto& [logLevel, envLogLevel, expectCallNum] = obj.param;
         std::ostringstream result;
         result << "logLevel_" << logLevel << "_expectCallNum_" << expectCallNum << "envlogLevel" << envLogLevel;
         return result.str();

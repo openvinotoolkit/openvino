@@ -27,30 +27,18 @@ class ExecNetworkget_propertyOptimalNumInferReq : public tests::AutoTest,
                                                   public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        unsigned int cpuOptimalNum;
-        int cpuCustomerNum;
-        unsigned int actualOptimalNum;
-        int actualCustomerNum;
-        unsigned int expectOptimalNum;
-        bool cpuSleep;
-        bool actualSleep;
-        bool isThroughput;
-        int gpuPerfHintNum;
-        bool isSupportOptimalNum;
-        bool isSupportNumRequests;
-        std::string actualDeviceName;
-        std::tie(isThroughput,
-                 cpuOptimalNum,
-                 cpuCustomerNum,
-                 cpuSleep,
-                 actualOptimalNum,
-                 actualCustomerNum,
-                 actualSleep,
-                 actualDeviceName,
-                 expectOptimalNum,
-                 gpuPerfHintNum,
-                 isSupportOptimalNum,
-                 isSupportNumRequests) = obj.param;
+        const auto& [isThroughput,
+                     cpuOptimalNum,
+                     cpuCustomerNum,
+                     cpuSleep,
+                     actualOptimalNum,
+                     actualCustomerNum,
+                     actualSleep,
+                     actualDeviceName,
+                     expectOptimalNum,
+                     gpuPerfHintNum,
+                     isSupportOptimalNum,
+                     isSupportNumRequests] = obj.param;
         std::ostringstream result;
         result << "cpuOptimalNum_" << cpuOptimalNum << "cpuCustomerNum_" << cpuCustomerNum;
         result << "actualOptimalNum_" << actualOptimalNum << "actualCustomerNum_" << actualCustomerNum;
@@ -108,12 +96,7 @@ class ExecNetworkget_propertyOtherTest : public tests::AutoTest,
                                          public ::testing::TestWithParam<modelPrioPerfHintTestParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<modelPrioPerfHintTestParams> obj) {
-        bool isNewAPI;
-        bool actualSleep;
-        std::string actualDeviceName;
-        ov::Any performanceMode;
-        ov::Any modelPriority;
-        std::tie(isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority) = obj.param;
+        const auto& [isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority] = obj.param;
         std::ostringstream result;
         if (isNewAPI) {
             result << "_isNewAPI_"
@@ -137,30 +120,21 @@ public:
 };
 
 TEST_P(ExecNetworkget_propertyOptimalNumInferReq, OPTIMAL_NUMBER_OF_INFER_REQUESTS) {
-    unsigned int cpuOptimalNum;
-    int cpuCustomerNum;
-    unsigned int actualOptimalNum;
-    int actualCustomerNum;
-    unsigned int expectOptimalNum;
-    bool cpuSleep;
-    bool actualSleep;
-    bool isThroughput;
-    unsigned int gpuPerfHintNum;
-    bool isSupportedOptimalNum;
-    bool isSupportNumRequests;
-    std::string actualDeviceName;
-    std::tie(isThroughput,
-             cpuOptimalNum,
-             cpuCustomerNum,
-             cpuSleep,
-             actualOptimalNum,
-             actualCustomerNum,
-             actualSleep,
-             actualDeviceName,
-             expectOptimalNum,
-             gpuPerfHintNum,
-             isSupportedOptimalNum,
-             isSupportNumRequests) = this->GetParam();
+    const auto& [isThroughput,
+                 _cpuOptimalNum,
+                 cpuCustomerNum,
+                 cpuSleep,
+                 _actualOptimalNum,
+                 actualCustomerNum,
+                 actualSleep,
+                 actualDeviceName,
+                 expectOptimalNum,
+                 _gpuPerfHintNum,
+                 isSupportedOptimalNum,
+                 isSupportNumRequests] = this->GetParam();
+    const auto& cpuOptimalNum = _cpuOptimalNum;
+    const auto& actualOptimalNum = _actualOptimalNum;
+    const auto& gpuPerfHintNum = _gpuPerfHintNum;
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + actualDeviceName));
     std::vector<ov::PropertyName> supported_props = {ov::range_for_streams,
                                                      ov::optimal_batch_size,
@@ -362,12 +336,7 @@ class ExecNetworkGetMetricOtherTest : public tests::AutoTest,
                                       public ::testing::TestWithParam<modelPrioPerfHintTestParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<modelPrioPerfHintTestParams> obj) {
-        bool isNewAPI;
-        bool actualSleep;
-        std::string actualDeviceName;
-        ov::Any performanceMode;
-        ov::Any modelPriority;
-        std::tie(isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority) = obj.param;
+        const auto& [isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority] = obj.param;
         std::ostringstream result;
         if (isNewAPI) {
             result << "_isNewAPI_"
@@ -393,12 +362,8 @@ public:
 TEST_P(ExecNetworkGetMetricOtherTest, modelPriority_perfHint_exclusiveAsyncReq_test) {
     unsigned int cpuOptimalNum = 3;
     unsigned int actualOptimalNum = 2;
-    bool isNewAPI;
-    bool actualSleep;
-    std::string actualDeviceName;
-    ov::Any performanceHint;
-    ov::Any modelPriority;
-    std::tie(isNewAPI, actualSleep, actualDeviceName, performanceHint, modelPriority) = this->GetParam();
+
+    const auto& [isNewAPI, actualSleep, actualDeviceName, performanceHint, modelPriority] = this->GetParam();
     config.insert(ov::device::priorities(ov::test::utils::DEVICE_CPU + std::string(",") + actualDeviceName));
     config.insert(ov::hint::performance_mode(performanceHint.as<ov::hint::PerformanceMode>()));
     config.insert({ov::hint::model_priority.name(), modelPriority.as<std::string>()});

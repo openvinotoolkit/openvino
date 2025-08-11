@@ -10,8 +10,7 @@ using ConfigParams = std::tuple<std::vector<std::string>>;
 class LoadNetworkWithCTPUTMockTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::vector<std::string> targetDevices;
-        std::tie(targetDevices) = obj.param;
+        const auto& [targetDevices] = obj.param;
         std::ostringstream result;
         result << "ctput_loadnetwork_to_device_";
         for (auto& device : targetDevices) {
@@ -44,8 +43,7 @@ public:
 };
 
 TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
-    std::vector<std::string> targetDevices;
-    std::tie(targetDevices) = this->GetParam();
+    const auto& [targetDevices] = this->GetParam();
 
     plugin->set_device_name("AUTO");
     config.insert(ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT));
@@ -92,9 +90,8 @@ TEST_P(LoadNetworkWithCTPUTMockTest, CTPUTSingleDevLogicTest) {
 
 using LoadNetworkWithCTPUTMockTestExeDevice = LoadNetworkWithCTPUTMockTest;
 TEST_P(LoadNetworkWithCTPUTMockTestExeDevice, CTPUTSingleDevExecutionDevie) {
-    std::vector<std::string> targetDevices;
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
-    std::tie(targetDevices) = this->GetParam();
+    const auto& [targetDevices] = this->GetParam();
 
     plugin->set_device_name("AUTO");
     config.insert({ov::hint::performance_mode(ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT)});
@@ -129,9 +126,7 @@ using ConfigParams_1 = std::tuple<bool, std::vector<std::string>>;
 class AutoCTPUTCallMulti : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams_1> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams_1> obj) {
-        std::vector<std::string> targetDevices;
-        bool AutoCallMulti;
-        std::tie(AutoCallMulti, targetDevices) = obj.param;
+        const auto& [AutoCallMulti, targetDevices] = obj.param;
         std::ostringstream result;
         if (AutoCallMulti) {
             result << "AutoCallMulti_";
@@ -168,10 +163,9 @@ public:
 };
 
 TEST_P(AutoCTPUTCallMulti, CTPUTDeviceLoadFailedNoExceptionThrowTest) {
-    std::vector<std::string> targetDevices;
     std::string targetDev;
-    bool AutoCallMulti;
-    std::tie(AutoCallMulti, targetDevices) = this->GetParam();
+
+    const auto& [AutoCallMulti, targetDevices] = this->GetParam();
     std::string loadFailedDevice = targetDevices.size() > 0 ? targetDevices[0] : "";
     std::string secondDevice = targetDevices.size() > 1 ? targetDevices[1] : "";
     plugin->set_device_name("MULTI");

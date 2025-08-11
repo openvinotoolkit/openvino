@@ -20,11 +20,7 @@ public:
 
 public:
     static std::string getTestCaseName(testing::TestParamInfo<batch_device_config_params> obj) {
-        std::string batch_device_config;
-        std::string device_name;
-        int batch_size;
-        bool throw_exception;
-        std::tie(batch_device_config, device_name, batch_size, throw_exception) = obj.param;
+        const auto& [batch_device_config, device_name, batch_size, throw_exception] = obj.param;
         std::string res = batch_device_config;
         if (throw_exception)
             res += "_throw";
