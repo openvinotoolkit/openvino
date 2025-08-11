@@ -428,7 +428,6 @@ public:
                 if (dzp_layout.count() == 1) {
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, dzp_data_type);
                 } else {
-                    //auto ngroups = dzp_layout.get_dim(1);
                     int rank = dzp_layout.get_partial_shape().size();
                     OPENVINO_ASSERT(rank <= 3, "rank > 3d not supported");
                     auto ifm = arg.get_dependency(1).get_output_layout().get_dim(rank - 1);
