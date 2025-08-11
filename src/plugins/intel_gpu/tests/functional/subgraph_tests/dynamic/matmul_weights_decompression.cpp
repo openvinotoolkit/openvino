@@ -141,24 +141,22 @@ protected:
         };
 
         const bool group_decompression = group_size != -1;
-        // Weights has shape [B, I, O], where
-        // B - Batch size (optional)
+        // Weights has shape [I, O], where
         // I - input channels
         // O - output channels
         // In case of group decompression, input channels dimension is split into 2: I -> [N, G], where
         // N - number of groups
         // G - group size
         auto transformed_weights_shape = transpose_if_necessary(weights_shape);
-        size_t inner_dim = weights_shape.size() == 3 ? 1 : 0;
         if (group_decompression) {
-            OPENVINO_ASSERT(weights_shape[inner_dim] % group_size == 0,
+            OPENVINO_ASSERT(weights_shape[0] % group_size == 0,
                             "Weights output channels count (",
-                            weights_shape[inner_dim],
+                            weights_shape[0],
                             ") must be divisible by decompression group size (",
                             group_size,
                             ").");
             auto in_channel_idx = transpose_weights ? transformed_weights_shape.size() - 1 : transformed_weights_shape.size() - 2;
-            transformed_weights_shape[in_channel_idx] = weights_shape[inner_dim] / group_size;
+            transformed_weights_shape[in_channel_idx] = weights_shape[0] / group_size;
             transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
         }
         auto weights_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, transformed_weights_shape);
@@ -173,16 +171,16 @@ protected:
         // Ordinary decompression: [O, 1]
         // Group decompression: [O, N, 1]
         ov::Shape scaleshift_target_shape{output_channels};
-        scaleshift_target_shape.insert(scaleshift_target_shape.begin(), group_decompression ? weights_shape[inner_dim] / group_size : 1);
+        scaleshift_target_shape.insert(scaleshift_target_shape.begin(), group_decompression ? weights_shape[0] / group_size : 1);
         scaleshift_target_shape = transpose_if_necessary(scaleshift_target_shape);
         if (group_decompression) {
             auto in_channel_idx = transpose_weights ? scaleshift_target_shape.size() - 1 : scaleshift_target_shape.size() - 2;
             scaleshift_target_shape.insert(scaleshift_target_shape.begin() + in_channel_idx + 1, 1);
         }
+
         auto scaleshift_const_shape = scaleshift_target_shape;
         if (reshape_on_decompression_constant)
             scaleshift_const_shape.erase(std::remove(scaleshift_const_shape.begin(), scaleshift_const_shape.end(), 1), scaleshift_const_shape.end());
-
         if (add_subtract) {
             auto shift_tensor_shape = per_tensor_zp ? ov::Shape{1} : scaleshift_const_shape;
             auto shift_tensor = ov::test::utils::create_and_fill_tensor(weights_precision, shift_tensor_shape);
@@ -219,12 +217,8 @@ protected:
         std::shared_ptr<ov::Node> last_node = std::make_shared<ov::op::v1::Multiply>(mul_parent, scale_const);
 
         if (group_decompression) {
-            auto inner_dim = transpose_weights ? weights_shape.size() - 1 : weights_shape.size() - 2;
-            auto reshape_target_shape = transpose_weights ? std::vector<int>{-1, static_cast<int>(weights_shape[inner_dim])}
-                                                          : std::vector<int>{static_cast<int>(weights_shape[inner_dim]), -1};
-            for (size_t i = 0; i < inner_dim; ++i) {
-                reshape_target_shape.insert(reshape_target_shape.begin() + i, weights_shape[i]);
-            }
+            auto reshape_target_shape = transpose_weights ? std::vector<int>{-1, static_cast<int>(weights_shape[0])}
+                                                          : std::vector<int>{static_cast<int>(weights_shape[0]), -1};
             auto target_shape_node = ov::op::v0::Constant::create(ov::element::i32, {reshape_target_shape.size()}, reshape_target_shape);
             last_node = std::make_shared<ov::op::v1::Reshape>(last_node, target_shape_node, false);
         }
@@ -270,7 +264,7 @@ protected:
                                  extra_multiply,
                                  per_tensor_zp);
 
-        ov::pass::Serialize("./dump_ir.xml", "").run_on_model(function);
+
         if (activations_precision == ov::element::f16) {
             abs_threshold = abs_threshold_f16;
         } else {
@@ -311,33 +305,29 @@ TEST_P(MatmulWeightsDecompression, Inference) {
     check_results();
 }
 
-//const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};
-const std::vector<ov::element::Type> activations_precisions = {ov::element::f16};
-//const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
-const std::vector<ov::element::Type> weights_precisions = {ov::element::u4};
-//const std::vector<bool> transpose_weights = {true, false};
-const std::vector<bool> transpose_weights = {false};
+const std::vector<ov::element::Type> activations_precisions = {ov::element::f32, ov::element::f16};
+const std::vector<ov::element::Type> weights_precisions = {ov::element::u8, ov::element::u4, ov::element::i4};
+const std::vector<bool> transpose_weights = {true, false};
 const std::vector<ShapeParams> input_shapes_basic = {
-//    {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
-//    {{{}, {{1, 4, 16}}}, {16, 32}, 2ul},
-//    {{{}, {{1, 4, 16}}}, {1, 16, 32}},
-//    {{{}, {{1, 4, 48}}}, {48, 256}},
-    {{{-1, -1, -1}, {{32, 8, 128}}}, {32, 128, 64}, 64}
-//    {{{}, {{11, 10, 64}}}, {64, 128}, 4}
+    {{{-1, -1, -1}, {{1, 4, 16}, {10, 16, 16}}}, {16, 32}},
+    {{{}, {{1, 4, 16}}}, {16, 32}, 2ul},
+    {{{}, {{1, 4, 16}}}, {1, 16, 32}},
+    {{{}, {{1, 4, 48}}}, {48, 256}},
+    {{{}, {{11, 339, 377}}}, {377, 335}}
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic_taylor,
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(activations_precisions),
                                             ::testing::ValuesIn(transpose_weights),
-                                            ::testing::Values(true), // decompression subtract
-                                            ::testing::Values(true), // reshape on decompression constant
-                                            ::testing::Values(false), // extra multiply
-                                            ::testing::Values(false), // per tensor zp
-                                            ::testing::Values(0), // dynquant group size
-                                            ::testing::Values(1.0f)), // abs threshold f16
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(1.0f)),
                          MatmulWeightsDecompression::get_test_case_name);
 
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_extra_multiply,
