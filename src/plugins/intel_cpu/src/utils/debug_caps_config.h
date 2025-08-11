@@ -17,7 +17,6 @@
 
 #    include "openvino/core/except.hpp"
 #    include "openvino/util/common_util.hpp"
-#    include "utils/enum_class_hash.hpp"
 
 namespace ov::intel_cpu {
 
@@ -48,7 +47,7 @@ public:
     std::string verbose;
     std::string blobDumpDir = "cpu_dump";
     FORMAT blobDumpFormat = FORMAT::TEXT;
-    std::unordered_map<FILTER, std::string, EnumClassHash> blobDumpFilters;
+    std::unordered_map<FILTER, std::string> blobDumpFilters;
     bool summaryPerf = false;
     std::string memoryStatisticsDumpPath;
 
