@@ -648,8 +648,8 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::IT
         }
 
         // Cache hit
-        auto token_start = retrieved_block->token_start;
-        BlocKVCache block_kv_cache = retrieved_block->block_kv_cache;
+        auto token_start = retrieved_block->m_token_start;
+        BlocKVCache block_kv_cache = retrieved_block->m_block_kv_cache;
         std::cout << "[Cache hit] Block found with block hash: " << block_hash << " token_start: " << token_start
                   << std::endl;
         for (auto kv_per_layer : block_kv_cache) {
@@ -725,19 +725,19 @@ void ov::npuw::LLMInferRequest::store_blocks_in_cache(
 
         // 3. Create a new KVBlock with token hashes and KV cache tensors
         auto block = std::make_shared<KVBlock>(curr_block_size);
-        block->token_start = token_idx - curr_block_size;
+        block->m_token_start = token_idx - curr_block_size;
         block->add_block(token_hashes, kvcache_block);
 
         // 4. Store block in cache
         uint64_t prev_block_hash = 0;
-        if (block->token_start > 0) {
-            size_t last_token_id_in_prev_block = block->token_start - 1;
+        if (block->m_token_start > 0) {
+            size_t last_token_id_in_prev_block = block->m_token_start - 1;
             prev_block_hash = prompt_hashes[last_token_id_in_prev_block];
         }
 
         m_prefix_cache->put_block(block, prev_block_hash);
-        std::cout << "[Cache store]Got a full block, block id: " << block->block_id
-                  << " token_start:" << block->token_start << " block hash: " << block->block_hash << std::endl;
+        std::cout << "[Cache store]Got a full block, block id: " << block->m_block_id
+                  << " token_start:" << block->m_token_start << " block hash: " << block->m_block_hash << std::endl;
     }
 }
 
@@ -782,7 +782,8 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         input_name_map = create_output_to_input_name_mapping(prefill_compiled, m_prefill_in_ports);
 
         // Try to restore prefilled prompts from cache
-        auto restored_token_num = restore_cached_blocks(input_ids, BLOCK_SIZE, prompt_hashes, input_name_map);
+        auto restored_token_num =
+            restore_cached_blocks(input_ids, prefix_caching_block_size, prompt_hashes, input_name_map);
         uint64_t scheduled_token_num = input_prompt_len - restored_token_num;
         std::cout << "input_prompt_len: " << input_prompt_len << " restored_token_num: " << restored_token_num
                   << std::endl;
