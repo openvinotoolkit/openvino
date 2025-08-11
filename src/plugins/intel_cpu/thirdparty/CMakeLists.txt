@@ -22,7 +22,9 @@ function(ov_create_acl_version_file)
     string(REGEX MATCH "v([0-9]+\\.[0-9]+\\.?[0-9]*)" ACL_VERSION "${ACL_SCONSCRIPT_FILE_CONTENT}")
     set(ACL_VERSION "${CMAKE_MATCH_1}")
 
-    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/${OV_CPU_ARM_TARGET_ARCH}/src/core/arm_compute_version.embed")
+    # Create version file in build subdirectory where oneDNN expects it (glob pattern */arm_compute_version.embed)
+    file(MAKE_DIRECTORY "${ACL_ROOT_DIR}/build")
+    set(ACL_VERSION_FILE_PATH "${ACL_ROOT_DIR}/build/arm_compute_version.embed")
     file(WRITE ${ACL_VERSION_FILE_PATH} "\"arm_compute_version=v${ACL_VERSION}\"")
 endfunction()
 
