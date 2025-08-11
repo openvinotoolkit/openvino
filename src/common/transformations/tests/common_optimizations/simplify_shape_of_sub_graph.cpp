@@ -437,3 +437,40 @@ TEST_F(TransformationTestsF, AbsInTheUnknown) {
         manager.register_pass<pass::AbsSinking>();
     }
 }
+
+TEST_F(TransformationTestsF, AbsSinkingDynamicDimensionPreservation) {
+    // Test that AbsSinking doesn't remove Abs operations when input contains -1 (dynamic dimensions)
+    // This test reproduces the issue with PyTorch expand operation
+    {
+        // Create constant with -1 values (dynamic dimensions in PyTorch/ONNX)
+        auto const_with_neg_ones = opset7::Constant::create(element::i64, {2}, {-1, -1});
+        auto abs = std::make_shared<opset7::Abs>(const_with_neg_ones);
+
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        // Expected: AbsSinking should NOT remove Abs when input contains -1
+        auto const_with_neg_ones = opset7::Constant::create(element::i64, {2}, {-1, -1});
+        auto abs = std::make_shared<opset7::Abs>(const_with_neg_ones);
+
+        model_ref = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
+    }
+}
+
+TEST_F(TransformationTestsF, AbsSinkingPositiveValuesOptimization) {
+    // Test that AbsSinking correctly removes Abs when input contains only positive values
+    {
+        auto const_with_pos_values = opset7::Constant::create(element::i64, {2}, {1, 2});
+        auto abs = std::make_shared<opset7::Abs>(const_with_pos_values);
+
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        // Expected: AbsSinking should remove Abs when input contains only positive values
+        auto const_with_pos_values = opset7::Constant::create(element::i64, {2}, {1, 2});
+
+        model_ref = std::make_shared<Model>(OutputVector{const_with_pos_values}, ParameterVector{});
+    }
+}
