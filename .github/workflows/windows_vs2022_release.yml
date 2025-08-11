@@ -101,14 +101,14 @@ jobs:
       - name: Download OpenVINO artifacts (tarballs)
         run: |
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
-          gh run download --repo "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" -n openvino_package -n openvino_tests --dir ${{ env.INSTALL_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package -n openvino_tests --dir ${{ env.INSTALL_DIR }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
       
       - name: Download OpenVINO artifacts (wheels)
         run: gh run download --repo "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Extract OpenVINO packages
         run: |
