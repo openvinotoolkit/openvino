@@ -14,39 +14,6 @@
 namespace {
 constexpr std::size_t BATCH_AXIS = 0;
 constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
-
-std::optional<size_t> extract_batch_impl(const ov::Shape& shape,
-                                         const std::optional<ov::PartialShape>& shapeFromIRModel,
-                                         const ov::PartialShape& shapeFromCompiler,
-                                         const size_t index) {
-    if (*shapeFromCompiler.begin() != DEFAULT_BATCH_SIZE) {
-        return std::nullopt;
-    }
-
-    if (shapeFromIRModel.has_value()) {
-        if (shapeFromIRModel.value()[index].is_dynamic()) {
-            return shape[index];
-        }
-        return std::nullopt;
-    }
-    return shape[index];
-}
-
-std::optional<size_t> extract_batch(const ze_graph_argument_layout_t& nLayout,
-                                    const ov::Shape& shape,
-                                    const std::optional<ov::PartialShape>& shapeFromIRModel,
-                                    const ov::PartialShape& shapeFromCompiler) {
-    if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NHWC ||
-        nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NCDHW || nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NDHWC ||
-        nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_NC) {
-        return extract_batch_impl(shape, shapeFromIRModel, shapeFromCompiler, 0);
-    } else if (nLayout == ZE_GRAPH_ARGUMENT_LAYOUT_CN) {
-        return extract_batch_impl(shape, shapeFromIRModel, shapeFromCompiler, 1);
-    }
-
-    return std::nullopt;
-}
-
 }  // namespace
 
 namespace intel_npu {
@@ -337,8 +304,9 @@ std::optional<size_t> Graph::determine_dynamic_batch_size(size_t index,
         return std::nullopt;
     }
 
-    if (!_metadata.inputs.at(0).shapeFromIRModel.has_value() ||
-        !_metadata.inputs.at(0).shapeFromIRModel.value().is_dynamic()) {
+    const auto& desc = isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index);
+
+    if (!desc.shapeFromIRModel.has_value() || !desc.shapeFromIRModel.value().is_dynamic()) {
         return std::nullopt;
     }
 
@@ -350,20 +318,27 @@ std::optional<size_t> Graph::determine_dynamic_batch_size(size_t index,
         return std::nullopt;
     }
 
-    auto& desc = isInput ? _inputDescriptors.at(index) : _outputDescriptors.at(index);
-    const ov::PartialShape& shapeFromIRModel = *_metadata.inputs.at(0).shapeFromIRModel;
-    const ov::PartialShape& shapeFromCompiler = _metadata.inputs.at(0).shapeFromCompiler;
+    const auto& shapeFromIRModel = isInput ? *desc.shapeFromIRModel : *desc.shapeFromIRModel;
+    const auto& shapeFromCompiler = isInput ? desc.shapeFromCompiler : desc.shapeFromCompiler;
 
-    return extract_batch(desc.info.networkLayout, tensor->get_shape(), shapeFromIRModel, shapeFromCompiler);
+    if (*shapeFromCompiler.begin() != DEFAULT_BATCH_SIZE) {
+        return std::nullopt;
+    }
+
+    if (shapeFromIRModel[BATCH_AXIS].is_dynamic()) {
+        return tensor->get_shape()[BATCH_AXIS];
+    }
+
+    return std::nullopt;
 }
 
 std::optional<size_t> Graph::determine_batch_size() {
-    if (!_metadata.inputs.at(0).shapeFromIRModel.has_value()) {
+    if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
         _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
         return std::nullopt;
     }
 
-    const ov::PartialShape& firstShape = *_metadata.inputs.at(0).shapeFromIRModel;
+    const ov::PartialShape& firstShape = *_metadata.outputs.at(0).shapeFromIRModel;
     if (firstShape.is_dynamic() || firstShape.rank().get_length() == 0) {
         return std::nullopt;
     }
