@@ -14,6 +14,8 @@ class OPENVINO_API PagedAttentionExtension : public ov::op::Op {
 public:
     OPENVINO_OP("PagedAttentionExtension");
 
+    PagedAttentionExtension() = default;
+
     PagedAttentionExtension(const ov::OutputVector& args);
     void validate_and_infer_types() override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
