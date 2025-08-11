@@ -1,219 +1,28 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
-function(collect_shared_sources out_list)
-  set(local_srcs)
-  set(shared_dir ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances)
-  
-  # Shared tests instances (core + SLT + snippets + subgraphs)
-  list(APPEND local_srcs
-    ${shared_dir}/core_config.cpp
-    ${shared_dir}/skip_tests_config.cpp
-    ${shared_dir}/set_device_name.cpp
-    ${shared_dir}/execution_graph_tests/add_output.cpp
-    ${shared_dir}/execution_graph_tests/disable_lowering_precision.cpp
-    ${shared_dir}/execution_graph_tests/duplicate_inputs_outputs_names.cpp
-    ${shared_dir}/execution_graph_tests/keep_assign.cpp
-    ${shared_dir}/execution_graph_tests/nms_transformation_for_last_node.cpp
-    ${shared_dir}/execution_graph_tests/num_inputs_fusing_bin_conv.cpp
-    ${shared_dir}/execution_graph_tests/remove_parameter.cpp
-    ${shared_dir}/execution_graph_tests/runtime_precision.cpp
-    ${shared_dir}/preprocessing/resize_tests.cpp
-    ${shared_dir}/preprocessing/yuv_to_grey_tests.cpp
-    ${shared_dir}/single_layer_tests/activation.cpp
-    ${shared_dir}/single_layer_tests/adaptive_pooling.cpp
-    ${shared_dir}/single_layer_tests/batch_norm.cpp
-    ${shared_dir}/single_layer_tests/batch_to_space.cpp
-    ${shared_dir}/single_layer_tests/binary_convolution.cpp
-    ${shared_dir}/single_layer_tests/broadcast.cpp
-    ${shared_dir}/single_layer_tests/bucketize.cpp
-    ${shared_dir}/single_layer_tests/clamp.cpp
-    ${shared_dir}/single_layer_tests/comparison.cpp
-    ${shared_dir}/single_layer_tests/concat.cpp
-    ${shared_dir}/single_layer_tests/constant.cpp
-    ${shared_dir}/single_layer_tests/conversion.cpp
-    ${shared_dir}/single_layer_tests/convert_color_i420.cpp
-    ${shared_dir}/single_layer_tests/convert_color_nv12.cpp
-    ${shared_dir}/single_layer_tests/convolution_backprop_data.cpp
-    ${shared_dir}/single_layer_tests/convolution.cpp
-    ${shared_dir}/single_layer_tests/ctc_greedy_decoder.cpp
-    ${shared_dir}/single_layer_tests/ctc_greedy_decoder_seq_len.cpp
-    ${shared_dir}/single_layer_tests/ctc_loss.cpp
-    ${shared_dir}/single_layer_tests/cum_sum.cpp
-    ${shared_dir}/single_layer_tests/deformable_convolution.cpp
-    ${shared_dir}/single_layer_tests/deformable_psroi_pooling.cpp
-    ${shared_dir}/single_layer_tests/depth_to_space.cpp
-    ${shared_dir}/single_layer_tests/detection_output.cpp
-    ${shared_dir}/single_layer_tests/dft.cpp
-    ${shared_dir}/single_layer_tests/eltwise.cpp
-    ${shared_dir}/single_layer_tests/embedding_bag_offsets_sum.cpp
-    ${shared_dir}/single_layer_tests/embedding_bag_packed_sum.cpp
-    ${shared_dir}/single_layer_tests/embedding_segments_sum.cpp
-    ${shared_dir}/single_layer_tests/experimental_detectron_detection_output.cpp
-    ${shared_dir}/single_layer_tests/experimental_detectron_generate_proposals_single_image.cpp
-    ${shared_dir}/single_layer_tests/experimental_detectron_prior_grid_generator.cpp
-    ${shared_dir}/single_layer_tests/experimental_detectron_roifeatureextractor.cpp
-    ${shared_dir}/single_layer_tests/experimental_detectron_topkrois.cpp
-    ${shared_dir}/single_layer_tests/extract_image_patches.cpp
-    ${shared_dir}/single_layer_tests/fake_convert.cpp
-    ${shared_dir}/single_layer_tests/fake_quantize.cpp
-    ${shared_dir}/single_layer_tests/gather.cpp
-    ${shared_dir}/single_layer_tests/gather_elements.cpp
-    ${shared_dir}/single_layer_tests/gather_nd.cpp
-    ${shared_dir}/single_layer_tests/gather_tree.cpp
-    ${shared_dir}/single_layer_tests/generate_proposals.cpp
-    ${shared_dir}/single_layer_tests/grn.cpp
-    ${shared_dir}/single_layer_tests/group_convolution_backprop_data.cpp
-    ${shared_dir}/single_layer_tests/group_convolution.cpp
-    ${shared_dir}/single_layer_tests/group_normalization.cpp
-    ${shared_dir}/single_layer_tests/gru_cell.cpp
-    ${shared_dir}/single_layer_tests/gru_sequence.cpp
-    ${shared_dir}/single_layer_tests/interpolate.cpp
-    ${shared_dir}/single_layer_tests/is_inf.cpp
-    ${shared_dir}/single_layer_tests/istft.cpp
-    ${shared_dir}/single_layer_tests/logical.cpp
-    ${shared_dir}/single_layer_tests/log_softmax.cpp
-    ${shared_dir}/single_layer_tests/loop.cpp
-    ${shared_dir}/single_layer_tests/lrn.cpp
-    ${shared_dir}/single_layer_tests/lstm_cell.cpp
-    ${shared_dir}/single_layer_tests/lstm_sequence.cpp
-    ${shared_dir}/single_layer_tests/mat_mul.cpp
-    ${shared_dir}/single_layer_tests/matrix_nms.cpp
-    ${shared_dir}/single_layer_tests/memory.cpp
-    ${shared_dir}/single_layer_tests/minimum_maximum.cpp
-    ${shared_dir}/single_layer_tests/multiclass_nms.cpp
-    ${shared_dir}/single_layer_tests/mvn.cpp
-    ${shared_dir}/single_layer_tests/non_max_suppression.cpp
-    ${shared_dir}/single_layer_tests/nonzero.cpp
-    ${shared_dir}/single_layer_tests/normalize_l2.cpp
-    ${shared_dir}/single_layer_tests/one_hot.cpp
-    ${shared_dir}/single_layer_tests/pad.cpp
-    ${shared_dir}/single_layer_tests/pooling.cpp
-    ${shared_dir}/single_layer_tests/prior_box_clustered.cpp
-    ${shared_dir}/single_layer_tests/prior_box.cpp
-    ${shared_dir}/single_layer_tests/proposal.cpp
-    ${shared_dir}/single_layer_tests/psroi_pooling.cpp
-    ${shared_dir}/single_layer_tests/range.cpp
-    ${shared_dir}/single_layer_tests/rdft.cpp
-    ${shared_dir}/single_layer_tests/reduce_ops.cpp
-    ${shared_dir}/single_layer_tests/region_yolo.cpp
-    ${shared_dir}/single_layer_tests/reorg_yolo.cpp
-    ${shared_dir}/single_layer_tests/reshape.cpp
-    ${shared_dir}/single_layer_tests/result.cpp
-    ${shared_dir}/single_layer_tests/reverse_sequence.cpp
-    ${shared_dir}/single_layer_tests/rnn_cell.cpp
-    ${shared_dir}/single_layer_tests/rnn_sequence.cpp
-    ${shared_dir}/single_layer_tests/roi_align.cpp
-    ${shared_dir}/single_layer_tests/roi_pooling.cpp
-    ${shared_dir}/single_layer_tests/roll.cpp
-    ${shared_dir}/single_layer_tests/scatter_elements_update.cpp
-    ${shared_dir}/single_layer_tests/scatter_ND_update.cpp
-    ${shared_dir}/single_layer_tests/scatter_update.cpp
-    ${shared_dir}/single_layer_tests/variadic_split.cpp
-    ${shared_dir}/snippets/add.cpp
-    ${shared_dir}/snippets/check_broadcast.cpp
-    ${shared_dir}/snippets/codegen_gelu.cpp
-    ${shared_dir}/snippets/conv_eltwise.cpp
-    ${shared_dir}/snippets/edge_replace.cpp
-    ${shared_dir}/snippets/eltwise_two_results.cpp
-    ${shared_dir}/snippets/enforce_precision.cpp
-    ${shared_dir}/snippets/exp.cpp
-    ${shared_dir}/snippets/fake_quantize_decomposition_test.cpp
-    ${shared_dir}/snippets/fully_connected.cpp
-    ${shared_dir}/snippets/gated_mlp.cpp
-    ${shared_dir}/snippets/group_normalization.cpp
-    ${shared_dir}/snippets/matmul.cpp
-    ${shared_dir}/snippets/max_num_params_eltwise.cpp
-    ${shared_dir}/snippets/mha.cpp
-    ${shared_dir}/snippets/mha_extracted_reshape.cpp
-    ${shared_dir}/snippets/mha_fma.cpp
-    ${shared_dir}/snippets/mha_quantized.cpp
-    ${shared_dir}/snippets/mha_select.cpp
-    ${shared_dir}/snippets/mha_split_dim_m.cpp
-    ${shared_dir}/snippets/mha_transposed_b.cpp
-    ${shared_dir}/snippets/mha_with_dyn_mul.cpp
-    ${shared_dir}/snippets/mha_wo_transpose.cpp
-    ${shared_dir}/snippets/mlp_seq.cpp
-    ${shared_dir}/snippets/precision_propagation_convertion.cpp
-    ${shared_dir}/snippets/reduce.cpp
-    ${shared_dir}/snippets/select.cpp
-    ${shared_dir}/snippets/softmax.cpp
-    ${shared_dir}/snippets/three_inputs_eltwise.cpp
-    ${shared_dir}/snippets/transpose.cpp
-    ${shared_dir}/snippets/transpose_matmul.cpp
-    ${shared_dir}/snippets/transpose_softmax.cpp
-    ${shared_dir}/snippets/two_inputs_and_outputs.cpp
-    ${shared_dir}/subgraph_tests/broadcast_eltwise_eliminated.cpp
-    ${shared_dir}/subgraph_tests/concat_resize_concat.cpp
-    ${shared_dir}/subgraph_tests/constant_result.cpp
-    ${shared_dir}/subgraph_tests/conv_eltwise_fusion.cpp
-    ${shared_dir}/subgraph_tests/convert_pad_to_group_conv.cpp
-    ${shared_dir}/subgraph_tests/conv_strides_opt.cpp
-    ${shared_dir}/subgraph_tests/gather_weights_decompression.cpp
-    ${shared_dir}/subgraph_tests/get_output_before_activation.cpp
-    ${shared_dir}/subgraph_tests/integer_reduce_mean.cpp
-    ${shared_dir}/subgraph_tests/lora_pattern.cpp
-    ${shared_dir}/subgraph_tests/matmul_const_transposes_extraction.cpp
-    ${shared_dir}/subgraph_tests/matmul_multiply_fusion.cpp
-    ${shared_dir}/subgraph_tests/matmul_squeeze_add.cpp
-    ${shared_dir}/subgraph_tests/memory_LSTMCell.cpp
-    ${shared_dir}/subgraph_tests/mul_conv_fusion.cpp
-    ${shared_dir}/subgraph_tests/multiple_LSTMCell.cpp
-    ${shared_dir}/subgraph_tests/multiply_add.cpp
-    ${shared_dir}/subgraph_tests/mvn_multiply_add.cpp
-    ${shared_dir}/subgraph_tests/parameter_result.cpp
-    ${shared_dir}/subgraph_tests/perm_conv_perm_concat.cpp
-    ${shared_dir}/subgraph_tests/preprocess.cpp
-    ${shared_dir}/subgraph_tests/quantized_convolution_backprop_data.cpp
-    ${shared_dir}/subgraph_tests/quantized_convolution_batch_norm.cpp
-    ${shared_dir}/subgraph_tests/quantized_group_convolution_backprop_data.cpp
-    ${shared_dir}/subgraph_tests/quantized_group_convolution.cpp
-    ${shared_dir}/subgraph_tests/quantized_mat_mul.cpp
-    ${shared_dir}/subgraph_tests/range_add.cpp
-    ${shared_dir}/subgraph_tests/relu_shape_of.cpp
-    ${shared_dir}/subgraph_tests/reshape_squeeze_reshape_relu.cpp
-    ${shared_dir}/subgraph_tests/rotary_pos_emb.cpp
-    ${shared_dir}/subgraph_tests/shared_matmul_gather_weights_decompression.cpp
-    ${shared_dir}/subgraph_tests/shared_matmul_weights_decompression.cpp
-    ${shared_dir}/subgraph_tests/simple_if.cpp
-    ${shared_dir}/subgraph_tests/split_concat_memory.cpp
-    ${shared_dir}/subgraph_tests/split_conv_concat.cpp
-    ${shared_dir}/subgraph_tests/stateful_model.cpp
-    ${shared_dir}/subgraph_tests/transpose_matmul_fusion.cpp
-    ${shared_dir}/subgraph_tests/variadic_split_pad.cpp)
+# Files directly under shared_tests_instances/
+set(current_dir_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/core_config.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/skip_tests_config.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/set_device_name.cpp
+)
 
-  # Shared tests instances arch-specific
-  if(X86_64)
-    list(APPEND local_srcs
-      ${shared_dir}/low_precision_transformations/x64/concat_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/concat_with_different_precision_on_children.cpp
-      ${shared_dir}/low_precision_transformations/x64/concat_with_neighbors_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/concat_with_split_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/fq_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/fuse_convert_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/fuse_dequantize_to_fq_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/fully_connected_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/groupconvolution_qdq_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/mat_mul_with_optimized_constant_fq.cpp
-      ${shared_dir}/low_precision_transformations/x64/mvn_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/output_layers.cpp
-      ${shared_dir}/low_precision_transformations/x64/recurrent_cell_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/reduce_min_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/reshape_transformation.cpp
-      ${shared_dir}/low_precision_transformations/x64/slice_transformation.cpp
-      ${shared_dir}/snippets/x64/convert.cpp)
-  elseif(ARM OR AARCH64)
-    list(APPEND local_srcs
-      ${shared_dir}/low_precision_transformations/aarch64/fully_connected_transformation.cpp
-      ${shared_dir}/low_precision_transformations/aarch64/mat_mul_transformation.cpp
-      ${shared_dir}/snippets/arm/convert.cpp)
-  endif()
+get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
+list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
+set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")
 
-  if(ENABLE_OV_ONNX_FRONTEND)
-    list(APPEND local_srcs ${shared_dir}/onnx/quantized_models_tests.cpp)
-  endif()
+# Recurse to immediate children (each child lists only its own files)
+add_subdirectory(execution_graph_tests)
+add_subdirectory(preprocessing)
+add_subdirectory(single_layer_tests)
+add_subdirectory(snippets)
+add_subdirectory(subgraph_tests)
 
-  # Return the collected sources
-  set(${out_list} "${local_srcs}" PARENT_SCOPE)
-endfunction()
+# Arch-specific subtree
+add_subdirectory(low_precision_transformations)
+
+# ONNX subtree (guarded)
+if(ENABLE_OV_ONNX_FRONTEND)
+  add_subdirectory(onnx)
+endif()

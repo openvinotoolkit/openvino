@@ -79,16 +79,16 @@ else()
         ${CMAKE_CURRENT_SOURCE_DIR}/custom/subgraph_tests)
 endif()
 
+# Reset global accumulator before diving into subdirectories
+set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "")
+
+# Natural shallow recursion — each subdir lists only its own files and recurses to its children
 add_subdirectory(utils)
 add_subdirectory(shared_tests_instances)
 add_subdirectory(custom)
 
-collect_utils_sources(utils_srcs)
-collect_shared_sources(shared_srcs)
-collect_custom_sources(custom_srcs)
-
-# Aggregate all sources
-list(APPEND CPU_FUNC_TEST_SRCS ${utils_srcs} ${shared_srcs} ${custom_srcs})
+# Retrieve aggregated list
+get_property(CPU_FUNC_TEST_SRCS GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
 
 # Keep IDE structure
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${CPU_FUNC_TEST_SRCS})

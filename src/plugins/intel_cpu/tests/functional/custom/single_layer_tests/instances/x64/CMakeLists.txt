@@ -1,0 +1,24 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+set(current_dir_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/activation.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/col2im.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/conversion.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/convolution_backprop_data.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/convolution.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/eltwise.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/interpolate.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/matmul.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mvn.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/pooling.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/random_uniform.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/reduce.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rms_norm.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/softmax.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/transpose.cpp
+)
+
+get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
+list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
+set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")

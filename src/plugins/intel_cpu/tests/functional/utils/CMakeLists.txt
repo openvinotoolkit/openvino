@@ -1,36 +1,31 @@
 # Copyright (C) 2018-2025 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
-#
 
+# Files that live directly in utils/
+set(current_dir_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/cpu_test_utils.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/cpu_test_utils.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/fusing_test_utils.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/fusing_test_utils.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/filter_cpu_info.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/quantization_utils.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/properties_test.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/convolution_params.hpp
+)
 
-function(collect_utils_sources out_list)
-  set(local_srcs)
-  set(utils_dir ${CMAKE_CURRENT_SOURCE_DIR}/utils)
-  
-  # Utils (common)
-  list(APPEND local_srcs
-    ${utils_dir}/cpu_test_utils.cpp
-    ${utils_dir}/cpu_test_utils.hpp
-    ${utils_dir}/fusing_test_utils.cpp
-    ${utils_dir}/fusing_test_utils.hpp
-    ${utils_dir}/filter_cpu_info.hpp
-    ${utils_dir}/quantization_utils.hpp
-    ${utils_dir}/properties_test.hpp
-    ${utils_dir}/convolution_params.hpp
-    ${utils_dir}/transformations/insert_fake_quantize.cpp
-    ${utils_dir}/transformations/insert_fake_quantize.hpp
-    ${utils_dir}/transformations/insert_requantize.cpp
-    ${utils_dir}/transformations/insert_requantize.hpp)
+# Arch-specific files that live in utils/
+if(X86_64)
+  list(APPEND current_dir_sources ${CMAKE_CURRENT_SOURCE_DIR}/x64/filter_cpu_info.cpp)
+elseif(ARM OR AARCH64)
+  list(APPEND current_dir_sources ${CMAKE_CURRENT_SOURCE_DIR}/arm/filter_cpu_info.cpp)
+elseif(RISCV64)
+  list(APPEND current_dir_sources ${CMAKE_CURRENT_SOURCE_DIR}/riscv64/filter_cpu_info.cpp)
+endif()
 
-  # Utils (arch-specific)
-  if(X86_64)
-    list(APPEND local_srcs ${utils_dir}/x64/filter_cpu_info.cpp)
-  elseif(ARM OR AARCH64)
-    list(APPEND local_srcs ${utils_dir}/arm/filter_cpu_info.cpp)
-  elseif(RISCV64)
-    list(APPEND local_srcs ${utils_dir}/riscv64/filter_cpu_info.cpp)
-  endif()
+# Append to global
+get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
+list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
+set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")
 
-  # Return the collected sources
-  set(${out_list} "${local_srcs}" PARENT_SCOPE)
-endfunction()
+# Immediate child directory
+add_subdirectory(transformations)
