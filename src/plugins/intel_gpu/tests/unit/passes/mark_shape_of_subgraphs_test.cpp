@@ -496,6 +496,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     pa_prim.has_alibi = false;
     pa_prim.num_outputs = 1;
     pa_prim.has_rotated_blocks = false;
+    pa_prim.is_key_by_channel = true;
 
     topology topology;
     topology.add(input_layout("query", query_layout));
@@ -531,6 +532,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::internal::key_cache_quant_mode(ov::internal::CacheQuantMode::BY_CHANNEL));
     network network(engine, topology, config);
 
     auto prog = network.get_program();

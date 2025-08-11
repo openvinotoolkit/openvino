@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <tuple>
 #include <unordered_set>
 #include <vector>
 
@@ -195,8 +194,7 @@ bool extract_from_loop(const size_t& inner_loop_id, LinearIR& linear_ir) {
         for (const auto& port_expr : potential_extractable_exprs) {
             if (is_extraction_applicable(port_expr, inner_loop_info, inner_loop_id)) {
                 status = true;
-                LinearIR::constExprIt inner_loop_begin_pos, inner_loop_end_pos;
-                std::tie(inner_loop_begin_pos, inner_loop_end_pos) =
+                auto [inner_loop_begin_pos, inner_loop_end_pos] =
                     loop_manager->get_loop_bounds(linear_ir, inner_loop_id);
 
                 // extract scalar on inputs if there are

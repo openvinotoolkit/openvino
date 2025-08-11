@@ -252,14 +252,6 @@ static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief
- * Type: boolean
- * When applicable, do embedding gather on host but leave it quantized.
- * Default value: false.
- */
-static constexpr ov::Property<bool> gather_quant{"NPUW_HOST_GATHER_QUANT"};
-
-/**
- * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"
@@ -438,6 +430,14 @@ static constexpr ov::Property<uint32_t> max_prompt_len{"NPUW_LLM_MAX_PROMPT_LEN"
  * Default value: 128.
  */
 static constexpr ov::Property<uint32_t> min_response_len{"NPUW_LLM_MIN_RESPONSE_LEN"};
+
+/**
+ * @brief
+ * Type: uint32_t.
+ * Desirable max LoRA rank.
+ * Default value: 32.
+ */
+static constexpr ov::Property<uint32_t> max_lora_rank{"NPUW_LLM_MAX_LORA_RANK"};
 
 /**
  * @brief

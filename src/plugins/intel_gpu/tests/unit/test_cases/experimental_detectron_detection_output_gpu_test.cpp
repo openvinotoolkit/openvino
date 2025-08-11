@@ -66,10 +66,7 @@ struct experimental_detectron_detection_output_test
     : public ::testing::TestWithParam<ExperimentalDetectronDetectionOutputParamsWithLayout<T>> {
 public:
     void test() {
-        ExperimentalDetectronDetectionOutputParams<T> param;
-        format::type fmt;
-        bool is_caching_test;
-        std::tie(param, fmt, is_caching_test) = this->GetParam();
+        const auto& [param, fmt, is_caching_test] = this->GetParam();
         auto data_type = ov::element::from<T>();
 
         auto& engine = get_test_engine();

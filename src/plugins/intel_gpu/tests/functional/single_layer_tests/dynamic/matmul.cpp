@@ -35,14 +35,7 @@ public:
     static std::string getTestCaseName(const testing::TestParamInfo<MatMulLayerTestParamsSet>& obj) {
         MatMulLayerTestParamsSet basicParamsSet = obj.param;
 
-        ov::element::Type model_type;
-        ov::element::Type inType, outType;
-        ShapeRelatedParams shape_related_params;
-        ov::test::utils::InputLayerType secondary_input_type;
-        std::string targetDevice;
-        std::map<std::string, std::string> additional_config;
-        std::tie(shape_related_params, model_type, inType, outType, secondary_input_type, targetDevice, additional_config) =
-                basicParamsSet;
+        const auto& [shape_related_params, model_type, inType, outType, secondary_input_type, targetDevice, additional_config] = basicParamsSet;
 
         std::ostringstream result;
         result << "IS=";
@@ -86,12 +79,10 @@ protected:
     void SetUp() override {
         MatMulLayerTestParamsSet basicParamsSet = this->GetParam();
 
-        ShapeRelatedParams shape_related_params;
-        ov::element::Type model_type;
-        ov::test::utils::InputLayerType secondary_input_type;
-        std::map<std::string, std::string> additional_config;
-
-        std::tie(shape_related_params, model_type, inType, outType, secondary_input_type, targetDevice, additional_config) = basicParamsSet;
+        const auto& [shape_related_params, model_type, _inType, _outType, secondary_input_type, _targetDevice, additional_config] = basicParamsSet;
+        inType = _inType;
+        outType = _outType;
+        targetDevice = _targetDevice;
 
         init_input_shapes(shape_related_params.inputShapes);
 

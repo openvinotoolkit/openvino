@@ -37,9 +37,7 @@ protected:
 };
 
 std::string DynamicOutputInferenceTest::getTestCaseName(testing::TestParamInfo<DynamicOutputConfigParams> obj) {
-    ov::Any priorityList;
-    ov::Any targetList;
-    std::tie(priorityList, targetList) = obj.param;
+    const auto& [priorityList, targetList] = obj.param;
     std::ostringstream result;
     result << "_withList_" << priorityList.as<std::string>();
     result << "_expect_";

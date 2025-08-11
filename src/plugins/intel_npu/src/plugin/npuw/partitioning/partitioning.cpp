@@ -294,12 +294,14 @@ public:
     Partitioner(const std::shared_ptr<ov::Model>& _model,
                 ov::npuw::Ensemble& _ens,
                 ov::npuw::Partitioning& _P,
-                ::intel_npu::Config& _cfg)
+                ::intel_npu::Config& _cfg,
+                const ov::npuw::PartitioningContext& _ctx)
         : model(_model),
           ens(_ens),
           P(_P),
           func_pipeline_type(FunctionPipelineType::FOLD),
-          cfg(_cfg) {}
+          cfg(_cfg),
+          part_ctx(_ctx) {}
 
     ////////////////////////////////////////////////////////
     // Partitioning execution pipeline
@@ -337,6 +339,7 @@ public:
 private:
     FunctionPipelineType func_pipeline_type;
     ::intel_npu::Config& cfg;
+    ov::npuw::PartitioningContext part_ctx;
 
     std::size_t m_f16ic_counter = 0u;
 
@@ -1432,7 +1435,7 @@ void Partitioner::saveRepeatedConstants(const std::string& func_name) {
 }
 
 void Partitioner::saveTailDictConstants(const std::string& func_name) {
-    if (!cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
+    if (!part_ctx.use_host_gather_quant) {
         // No need to preserve as constants
         return;
     }
@@ -1456,8 +1459,8 @@ void Partitioner::saveTailDictConstants(const std::string& func_name) {
     std::vector<CPtr> to_keep;
 
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulCWu>(std::ref(to_keep));
-    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulCWf8>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
+    rewr.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
     rewr.run_on_model(model_group.front());
 
     for (auto&& const_to_keep : to_keep) {
@@ -1911,14 +1914,9 @@ void Partitioner::optimize(const std::string& func_name) {
         ctx.is_spatial = f._spatial.has_value();
         ctx.pmm_dims = cfg.get<::intel_npu::NPUW_PMM>();
 
-        if (cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>() && cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
-            NPUW_ASSERT(false && "Conflicting configuration: NPUW_HOST_GATHER and NPUW_HOST_GATHER_QUANT should not be "
-                                 "enabled together!");
-        }
-
         // Run Head/Tail passes
         ov::pass::GraphRewrite rewr;
-        if (!cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && !part_ctx.use_host_gather_quant) {
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatheru>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictGatherGQi>(std::ref(ctx));
             rewr.add_matcher<ov::npuw::patterns::opt::DQUnpackDictMatMulCWu>(std::ref(ctx));
@@ -1934,33 +1932,19 @@ void Partitioner::optimize(const std::string& func_name) {
         rewr.run_on_model(f._model);
 
         // Quantized Gather + Unpack on host in the runtime
-        if (cfg.get<::intel_npu::NPUW_HOST_GATHER_QUANT>()) {
-            // FIXME: since we are running it after lifted Gather,
-            // we need to first try to match Asymm or Symm patterns.
-            // Otherwise smaller HostGatherQuant might be matched first and break
-            // the quantization logic.
-            {
-                ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm>(std::ref(ctx));
-                rewr2.run_on_model(f._model);
-            }
-            {
-                ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm>(std::ref(ctx));
-                rewr2.run_on_model(f._model);
-            }
-            {
-                ov::pass::GraphRewrite rewr2;
-                rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuant>(std::ref(ctx));
-                rewr2.run_on_model(f._model);
-            }
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && part_ctx.use_host_gather_quant) {
+            ov::pass::GraphRewrite rewr2;
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<>>(std::ref(ctx));
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<>>(std::ref(ctx));
+            rewr2.run_on_model(f._model);
         }
 
         // Move Gather to host, if required
-        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>()) {
+        if (cfg.get<::intel_npu::NPUW_HOST_GATHER>() && !part_ctx.use_host_gather_quant) {
             ov::pass::GraphRewrite rewr2;
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGather>(std::ref(ctx));
             rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherDQ>(std::ref(ctx));
+            rewr2.add_matcher<ov::npuw::patterns::opt::HostGatherCB4>(std::ref(ctx));
             rewr2.run_on_model(f._model);
         }
 
@@ -1999,6 +1983,31 @@ void Partitioner::optimize(const std::string& func_name) {
                     // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
                     funcall._closure.push_back(ov::Tensor());
                 }
+            });
+        }
+
+        // Gather NF4 closures in compile time, where requested
+        for (auto&& p : ctx.params_to_nf4_gather) {
+            const auto& tensor_to_gather = p.second;
+            auto w_idx = f._model->get_parameter_index(tensor_to_gather.w);
+
+            // Need to add a new parameter right away, since it's going to be processed by the unpack below
+            f._model->add_parameters({p.first});
+            to_remove.push_back(tensor_to_gather.w);
+            to_remove_idx.insert(w_idx);
+
+            ov::npuw::util::non_parallel_for(func_group.refs.size(), [&](std::size_t f_idx) {
+                auto& funcall = func_group.refs[f_idx].get();
+                LazyTensor cw = funcall._lazy_closure[w_idx - f._param_offset];
+                funcall._lazy_closure.push_back(
+                    LazyTensor(cw, tensor_to_gather.t, p.first->get_element_type(), p.first->get_shape()));
+                // Some of the tensors might be in closure - preserve it's 1:1 idx mapping with _lazy_closure
+                funcall._closure.push_back(ov::Tensor());
+                // FIXME: in some cases we might have DCOFF and DQ enabled together. This
+                // might lead to DQ passes finding patterns  and running remap on closures unconditionally.
+                // It assigns some closures to be calculated instead of keeping the lazy ones.
+                // Here we remember lazy closure not to be unpacked in compile time in DCOFF.
+                funcall._is_lazy_unpack.push_back(false);
             });
         }
 
@@ -2381,7 +2390,9 @@ void Partitioner::finalizeLinks() {
 
 }  // namespace
 
-ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model>& model, ::intel_npu::Config& cfg) {
+ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model>& model,
+                                                 ::intel_npu::Config& cfg,
+                                                 const ov::npuw::PartitioningContext& ctx) {
     LOG_INFO("Building partitioning for model " << model->get_friendly_name() << "...");
     LOG_BLOCK();
 
@@ -2442,7 +2453,7 @@ ov::npuw::Partitioning ov::npuw::getPartitioning(const std::shared_ptr<ov::Model
     Partitioning P;
     P.total_gflops = ens.gflops;
 
-    Partitioner p(model, ens, P, cfg);
+    Partitioner p(model, ens, P, cfg, ctx);
     p.identifySubgraphs();
 
     if (!ens.repeated.empty()) {

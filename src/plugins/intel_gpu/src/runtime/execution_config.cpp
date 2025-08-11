@@ -237,7 +237,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
 
     if (!is_set_by_user(ov::internal::key_cache_quant_mode) || get_key_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
-        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_CHANNEL;
     }
 
     if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
