@@ -37,15 +37,27 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
   * **Type**: ``int``
   * **Required**: *yes*
 
+* *negative_indices_mode*
+
+  * **Description**: controls how negative indices in indices tensor are handled.
+  * **Range of values**: 
+
+    * ``ignore-negative``: negative indices are ignored, and the corresponding output rows are filled with ``off_value``.
+    * ``normalize``: negative indices in the range ``[-depth, -1]`` are normalized by ``depth + index``; which effectively maps the range ``[-depth, depth-1]`` to ``[0, depth-1]``.
+
+  * **Type**: ``string``
+  * **Default value**: ignore-negative
+  * **Required**: *no*
+
+.. note::
+   Behavior before 2025.4 OpenVINO release: negative_indices_mode was not supported and negative indices were handled according to ignore-negative mode.
+
 **Inputs**:
 
-* **1**: ``indices``: input tensor of type *T1* with indices. Negative indices in the range ``[-depth, -1]`` are mapped to ``depth + index``; values outside the range ``[-depth, depth-1]`` result in all ``off_value``. Can be 0D. **Required.**
+* **1**: ``indices``: input tensor of type *T1* with indices. Can be 0D. **Required.**
 * **2**: ``depth``: positive scalar (0D tensor) of type *T1* that specifies the number of classes and thus the size of the one-hot dimension. **Required.**
 * **3**: ``on_value``: scalar (0D tensor) of type *T2* that fills the locations in output tensor specified in ``indices``. **Required.**
 * **4**: ``off_value``: scalar (0D tensor) of type *T2* that fills the locations not represented in ``indices``. **Required.**
-
-.. note::
-    Behavior before 2025.4 OpenVINO release: Negative indices were not supported.
 
 **Outputs**:
 
@@ -63,9 +75,9 @@ The types of input scalars ``on_value`` and ``off_value`` should match and be eq
    :force:
 
     <layer ... type="OneHot" ...>
-        <data axis="-1"/>
+        <data axis="-1" negative_indices_mode="normalize"/>
         <input>
-            <port id="0">    <!-- indices value: [0, 3, 1, 2] -->
+            <port id="0">    <!-- indices value: [0, -5, -2, 2] -->
                 <dim>4</dim>
             </port>
             <port id="1">    <!-- depth value: 3 -->
