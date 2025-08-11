@@ -26,8 +26,9 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
         return ov::op::util::is_on_constant_path(output) &&
                static_rank_gt_1(output) &&
                pshape.is_static();
-//               std::count_if(pshape.begin(), pshape.end(), [](const ov::Dimension& x) { return x != 1; }) <= 2;
     };
+
+
 
     auto activations_m = ov::pass::pattern::any_input(static_rank_gt_1);
     auto weights_m = ov::pass::pattern::any_input(weights_path);
@@ -86,7 +87,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
          *  for example: [2, 32, 64] [3, 64, 64] it will raise an exception.
          */
 
-        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul]() -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
+        auto get_aligned_shapes = [&shape_a, &shape_b, &rank_a, &rank_b, &matmul](const bool is_compressed_weight) -> std::tuple<bool, ov::PartialShape, ov::PartialShape> {
             ov::PartialShape shape_a_aligned(shape_a);
             ov::PartialShape shape_b_aligned(shape_b);
             size_t max_size = std::max(rank_a, rank_b);
@@ -105,13 +106,14 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             }
 
             // check on per-batch MatMul which can't be converted to FC
-//            for (size_t i = 0; i < max_size - 2; ++i) {
-//                if (shape_b_aligned[i] == 1) {
-//                    shape_b_aligned[i] = shape_a_aligned[i];
-//                } else {
-//                    return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
-//                }
-//            }
+            for (size_t i = 0; i < max_size - 2; ++i) {
+                if (shape_b_aligned[i] == 1) {
+                    shape_b_aligned[i] = shape_a_aligned[i];
+                } else if (!is_compressed_weight) {
+                    // compressed weight should be handled as FC
+                    return std::make_tuple(false, std::move(shape_a_aligned), std::move(shape_b_aligned));
+                }
+            }
             return std::make_tuple(true, std::move(shape_a_aligned), std::move(shape_b_aligned));
         };
 
@@ -141,10 +143,27 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected() {
             return transpose;
         };
 
+        std::function<bool(const std::shared_ptr<ov::Node>&, int)> is_compressed_weight
+                = [&](const std::shared_ptr<ov::Node>& node, int cur_depth) -> bool {
+            auto compressed_constant = [](const std::shared_ptr<ov::Node> node) {
+                return (node->get_output_element_type(0) == ov::element::u8 || node->get_output_element_type(0) == ov::element::i8 ||
+                        node->get_output_element_type(0) == ov::element::u4 || node->get_output_element_type(0) == ov::element::i4);
+            };
+            const auto max_depth = 10;
+            if (cur_depth > max_depth)
+                return false;
+            auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node);
+            if (constant) {
+                return compressed_constant(node);
+            } else {
+                return is_compressed_weight(node->get_input_node_shared_ptr(0), cur_depth + 1);
+            }
+        };
+
         bool success = true;
         ov::PartialShape shape_a_aligned;
         ov::PartialShape shape_b_aligned;
-        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes();
+        std::tie(success, shape_a_aligned, shape_b_aligned) = get_aligned_shapes(is_compressed_weight(input_b, 0));
         if (!success) {
             return false;
         }
