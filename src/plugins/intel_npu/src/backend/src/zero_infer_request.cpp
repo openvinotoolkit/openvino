@@ -378,11 +378,11 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
         // Check if batch has been changed
         if (batchSizeCandidate.has_value()) {
-            if (!_pipelineNeedsReallocation ||
+            if (!_dynamicBatchValueChanged ||
                 (get_user_input(foundPort.idx)._ptr != nullptr &&
                  get_user_input(foundPort.idx)->get_byte_size() * get_user_inputs(foundPort.idx).size() !=
                      tensor->get_byte_size())) {
-                _pipelineNeedsReallocation = true;
+                _dynamicBatchValueChanged = true;
                 _graph->set_batch_size(batchSizeCandidate.value());
             } else {
                 if (batchSizeCandidate.value() != _graph->get_batch_size().value()) {
@@ -409,10 +409,10 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
 
         // Check if batch has been changed
         if (batchSizeCandidate.has_value()) {
-            if (!_pipelineNeedsReallocation ||
+            if (!_dynamicBatchValueChanged ||
                 (_userOutputTensors.at(foundPort.idx)._ptr != nullptr &&
                  _userOutputTensors.at(foundPort.idx)->get_byte_size() != tensor->get_byte_size())) {
-                _pipelineNeedsReallocation = true;
+                _dynamicBatchValueChanged = true;
                 _graph->set_batch_size(batchSizeCandidate.value());
             } else {
                 if (batchSizeCandidate.value() != _graph->get_batch_size().value()) {
@@ -459,8 +459,8 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     // Check if batch has been changed
     if (batchSize.has_value()) {
-        if (!_pipelineNeedsReallocation || get_user_inputs(foundPort.idx).size() != tensors.size()) {
-            _pipelineNeedsReallocation = true;
+        if (!_dynamicBatchValueChanged || get_user_inputs(foundPort.idx).size() != tensors.size()) {
+            _dynamicBatchValueChanged = true;
             _graph->set_batch_size(batchSize.value());
         } else {
             if (batchSize.value() != _graph->get_batch_size().value()) {
@@ -531,7 +531,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                 get_level_zero_input(foundPort.idx, i) = tensors.at(i)._ptr;
             }
 
-            if (_pipelineIsCreated && !_pipelineNeedsReallocation) {
+            if (_pipelineIsCreated && !_dynamicBatchValueChanged) {
                 OPENVINO_ASSERT(data, "Empty buffer");
                 OV_ITT_TASK_NEXT(SET_TENSORS, "updateCommandList");
 
@@ -558,7 +558,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
 
     auto& userTensors = isInput ? get_user_input(ioIndex) : _userOutputTensors.at(ioIndex);
 
-    if (userTensors && !_pipelineNeedsReallocation) {
+    if (userTensors && !_dynamicBatchValueChanged) {
         auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(userTensors._ptr);
         if (zeroTensor != nullptr) {
             zeroTensor->set_tensor_shared_with_user();
@@ -572,7 +572,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     _logger.debug("ZeroInferRequest::get_tensor - tensor by index: %zu is not allocated, or the existing pipeline "
                   "needs reallocation: %s. New tensor %s will be created",
                   ioIndex,
-                  _pipelineNeedsReallocation ? "true" : "false",
+                  _dynamicBatchValueChanged ? "true" : "false",
                   metadata.nodeFriendlyName.c_str());
 
     auto& levelZeroTensors = isInput ? get_level_zero_input(ioIndex) : _levelZeroOutputTensors.at(ioIndex);
@@ -592,7 +592,7 @@ ov::SoPtr<ov::ITensor> ZeroInferRequest::get_tensor(const ov::Output<const ov::N
     levelZeroTensors =
         allocate_tensor(metadata, ioIndex, isInput, isInput ? *_inputAllocator : *_outputAllocator, batchSize);
 
-    if (!_pipelineNeedsReallocation) {
+    if (!_dynamicBatchValueChanged) {
         userTensors = levelZeroTensors;
     }
 
@@ -766,11 +766,11 @@ void ZeroInferRequest::infer_async() {
     {
         std::lock_guard<std::mutex> lock(_graph->get_mutex());
 
-        if (!_pipelineIsCreated || _pipelineNeedsReallocation) {
+        if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
             create_pipeline();  // Reallocate pipeline if necessary
             _pipelineIsCreated = true;
-            _pipelineNeedsReallocation = false;  // Reset reallocation flag
+            _dynamicBatchValueChanged = false;  // Reset reallocation flag
         } else {
             if (_initStructs->getMutableCommandListExtVersion() >= ZE_MAKE_VERSION(1, 0)) {
                 update_pipeline_if_memory_changed();
