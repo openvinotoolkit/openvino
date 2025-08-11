@@ -25,13 +25,6 @@ bool MultiMatcher::run_on_model(const std::shared_ptr<Model>& model) {
     std::unordered_map<std::shared_ptr<Node>, std::vector<PatternValueMap>> matches_by_pattern;
     for (const auto& node : model->get_ordered_ops()) {
         for (const auto& pattern : m_patterns) {
-            // TODO: prevent overlapping?
-            // bool already_used = m_matched_nodes.count(node.get()) > 0;
-            // bool is_root = m_all_roots.count(node.get()) > 0;
-
-            // if (already_used && !is_root) {
-            //     continue;
-            // }
 
             Matcher matcher(pattern.pattern, m_name, pattern.strict_mode);
             if (!matcher.match(node->output(0)))
