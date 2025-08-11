@@ -62,9 +62,7 @@ public:
     bool m_terminate;
 
     static std::string getTestCaseName(testing::TestParamInfo<AutoBatchRequestTestParams> obj) {
-        uint32_t batch_size, infer_interval;
-        ov::element::Type_t element_type;
-        std::tie(batch_size, element_type, infer_interval) = obj.param;
+        const auto& [batch_size, element_type, infer_interval] = obj.param;
 
         std::string res;
         res = "batch_size_" + std::to_string(batch_size);
