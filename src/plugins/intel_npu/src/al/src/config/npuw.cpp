@@ -66,6 +66,8 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
     desc.add<NPUW_LLM_PREFILL_CHUNK_SIZE>();
     desc.add<NPUW_LLM_ENABLE_PREFIX_CACHING>();
+    desc.add<NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
+    desc.add<NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS>();
     desc.add<NPUW_LLM_PREFILL_HINT>();
     desc.add<NPUW_LLM_GENERATE_HINT>();
     desc.add<NPUW_LLM_SHARED_HEAD>();

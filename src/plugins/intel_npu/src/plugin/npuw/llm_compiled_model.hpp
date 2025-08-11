@@ -70,7 +70,6 @@ private:
     KVCacheDesc m_kvcache_desc;
     uint64_t m_prefill_chunk_size = 0;
     bool m_use_chunk_prefill = false;
-    bool m_enable_prefix_caching = false;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
     // This model is optional, so can be null.
@@ -79,6 +78,11 @@ private:
     // Support LoRA
     void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
     uint32_t m_max_lora_rank = 32;
+
+    // Support prefix caching
+    bool m_enable_prefix_caching = false;
+    uint64_t m_prefix_caching_block_size = 0;
+    uint64_t m_prefix_caching_max_num_blocks = 0;
 };
 
 }  // namespace npuw

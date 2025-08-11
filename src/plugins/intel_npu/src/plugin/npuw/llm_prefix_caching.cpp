@@ -19,7 +19,7 @@ bool KVBlock::add_block(const std::vector<uint64_t>& token_hashes, const BlocKVC
     }
 
     // Check if the block size exceeds capacity
-    if (token_hashes.size() > BLOCK_SIZE) {
+    if (token_hashes.size() > m_block_size) {
         return false;
     }
 
@@ -27,7 +27,7 @@ bool KVBlock::add_block(const std::vector<uint64_t>& token_hashes, const BlocKVC
     this->token_hashes = token_hashes;
     this->block_kv_cache = kv_tensors;
     this->ref_count = token_hashes.size();
-    this->is_full = (this->ref_count == BLOCK_SIZE);
+    this->is_full = (this->ref_count == m_block_size);
 
     // Compute the block's hash value
     this->block_hash = compute_block_hash(token_hashes);
@@ -56,6 +56,7 @@ uint64_t KVBlock::compute_block_hash(const std::vector<uint64_t>& token_hashes) 
 
 void KVBlock::print_block_info(bool verbose) const {
     std::cout << "Block information: " << std::endl;
+    std::cout << "  Block size: " << m_block_size << std::endl;
     std::cout << "  Block hash: " << block_hash << std::endl;
     std::cout << "  Ref Count: " << ref_count << std::endl;
     std::cout << "  Status: " << (is_full ? "Full" : "Not Full") << std::endl;
