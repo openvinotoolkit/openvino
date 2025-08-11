@@ -14,15 +14,13 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class EmbeddingBagOffset : public Node, public EmbeddingBag {
 public:
     EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
     bool created() const override;
@@ -39,7 +37,7 @@ private:
     void initFromInputs() override;
     void getIndices(size_t embIndex, const int*& indices, size_t& size, int& weightsIdx, bool& withWeight) override;
 
-    const size_t OFFSETS_IDX = 2lu;
+    const size_t OFFSETS_IDX = 2LU;
 
     const int* indicesData_ = nullptr;
     const int* offsetsData_ = nullptr;
@@ -49,6 +47,4 @@ private:
     size_t _offsetsLen = 0;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

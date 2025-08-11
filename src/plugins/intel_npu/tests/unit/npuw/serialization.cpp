@@ -271,7 +271,7 @@ TEST(SerializationTest, OVTypes_Tensor_with_weights) {
  
     WeightsContext::ConstsCache consts_cache;
     consts_cache[{0, 0}] = nullptr;
-    WeightsContext des_ctx(nullptr, consts_cache);
+    WeightsContext des_ctx(nullptr, "", consts_cache, {});
 
     write_weightless(ss, {var}, ctx);
     read_weightless(ss, res, des_ctx);

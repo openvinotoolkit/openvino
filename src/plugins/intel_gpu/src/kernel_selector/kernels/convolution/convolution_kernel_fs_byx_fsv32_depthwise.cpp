@@ -126,22 +126,22 @@ KernelsPriority ConvolutionKernel_fs_byx_fsv32_depthwise::GetKernelsPriority(con
 
 bool ConvolutionKernel_fs_byx_fsv32_depthwise::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto cp = static_cast<const convolution_params&>(p);
     if (cp.groups < 16)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     if (cp.inputs[0].Feature().v != cp.groups || cp.outputs[0].Feature().v != cp.groups)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Output feature padding must be multiple of fsv to keep block alignment
     if (cp.outputs[0].Feature().pad.before % fsv != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Input feature padding must be multiple of fsv to keep block alignment
     if (cp.inputs[0].Feature().pad.before % fsv != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }

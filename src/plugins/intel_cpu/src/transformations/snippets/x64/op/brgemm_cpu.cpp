@@ -36,30 +36,19 @@
 namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
-size_t BrgemmCPU::compute_gemm_inputs_count(const BRGEMM_TYPE type) {
-    switch (type) {
-    case BRGEMM_TYPE::STAND_ALONE:
-    case BRGEMM_TYPE::REPACKING_ONLY:
-        return 2;
-    case BRGEMM_TYPE::WITH_AMX:
-    case BRGEMM_TYPE::WITH_COMPENSATIONS:
-        return 3;
-    default:
-        OPENVINO_THROW("Unexpected brgemm type!");
-    }
-}
+BrgemmCPU::BrgemmCPU() : m_config(BrgemmConfig{}) {}
 
 BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
-                     BRGEMM_TYPE type,
+                     BrgemmConfig config,
                      const std::vector<PortDescriptor>& input_descs,
                      const PortDescriptor& output_desc,
                      const std::vector<size_t>& layout_a,
                      const std::vector<size_t>& layout_b,
                      const std::vector<size_t>& layout_c,
                      PostopsConfig post_ops)
-    : m_type(type),
+    : m_config(config),
       m_post_ops_config(std::move(post_ops)),
-      m_gemm_inputs_count(compute_gemm_inputs_count(type)) {
+      m_gemm_inputs_count(m_config.with_scratchpad() ? 3 : 2) {
     set_arguments(inputs);
     set_output_size(1);
 
@@ -114,10 +103,10 @@ void BrgemmCPU::validate_and_infer_types() {
 
 void BrgemmCPU::validate_with_scratchpad() const {
     // Additional check for 3rd input
-    if (with_compensations(m_type)) {
+    if (m_config.with_compensations()) {
         OPENVINO_ASSERT(get_input_element_type(2) == ov::element::f32,
                         "BRGEMM Scratch with compensations must have FP32 element type");
-    } else if (with_amx(m_type)) {
+    } else if (m_config.is_amx()) {
         OPENVINO_ASSERT(get_input_partial_shape(2).is_static(), "BRGEMM Scratch must have static shape");
         OPENVINO_ASSERT(get_input_element_type(2) == ov::element::u8, "BRGEMM Scratch must have U8 element type");
     }
@@ -160,7 +149,7 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
 
     return std::make_shared<BrgemmCPU>(
         new_args,
-        m_type,
+        m_config,
         input_port_descriptors,
         get_output_port_descriptor(0),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout(),
@@ -170,14 +159,15 @@ std::shared_ptr<Node> BrgemmCPU::clone_with_new_inputs(const OutputVector& new_a
 }
 
 size_t BrgemmCPU::get_offset_scratch() const {
-    OPENVINO_ASSERT(with_scratchpad(m_type) && m_gemm_inputs_count == 3,
+    OPENVINO_ASSERT(m_config.with_scratchpad() && m_gemm_inputs_count == 3,
                     "Offset of scratchpad must be only in Brgemm with scratchpad on 3rd input");
     return get_input_offset(2);
 }
 
 bool BrgemmCPU::visit_attributes(AttributeVisitor& visitor) {
     Brgemm::visit_attributes(visitor);
-    visitor.on_attribute("type", m_type);
+    auto config = m_config;
+    visitor.on_attribute("BrgemmConfig", config);
     m_post_ops_config.visit_attributes(visitor);
     return true;
 }
@@ -198,7 +188,7 @@ void BrgemmCPU::force_output_type(const ov::element::Type& type) {
 }
 
 void BrgemmCPU::add_scalar_eltwise_postop(dnnl::impl::alg_kind_t alg_kind, float alpha, float beta) {
-    OPENVINO_ASSERT(m_post_ops_config.post_ops.append_eltwise(1.f, alg_kind, alpha, beta) == dnnl_success,
+    OPENVINO_ASSERT(m_post_ops_config.post_ops.append_eltwise(1.F, alg_kind, alpha, beta) == dnnl_success,
                     "Failed to append scalar eltwise to brgemm postops. Alpha = ",
                     alpha,
                     " Beta = ",

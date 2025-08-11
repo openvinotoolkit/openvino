@@ -78,10 +78,6 @@ endif()
 
 target_compile_definitions(openvino_core_obj PRIVATE IMPLEMENT_OPENVINO_API XBYAK_NO_OP_NAMES XBYAK64)
 
-ov_build_target_faster(openvino_core_obj
-    UNITY
-    PCH PRIVATE "src/precomp.hpp")
-
 ov_add_version_defines(src/version.cpp openvino_core_obj)
 
 ov_set_threading_interface_for(openvino_core_obj)
@@ -138,6 +134,13 @@ set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/src/pass/convert_precis
 # Defines macro in C++ to load backend plugin
 target_include_directories(openvino_core_obj PUBLIC $<BUILD_INTERFACE:${OV_CORE_INCLUDE_PATH}>
                                              PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+ov_build_target_faster(openvino_core_obj
+    UNITY
+    PCH_HEADER "src/precomp.hpp"
+    PCH_EXCLUDE
+        "src/op/util/attr_types.cpp"
+        "src/runtime/tensor.cpp")
 
 #-----------------------------------------------------------------------------------------------
 # Installation logic...

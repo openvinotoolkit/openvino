@@ -9,7 +9,7 @@
 #include <set>
 #include <utility>
 
-#include "emitters/snippets/repacked_input.hpp"
+#include "emitters/snippets/input_repacker.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -26,19 +26,13 @@ namespace ov::intel_cpu::pass {
 class EliminateBrgemmCopyB : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("EliminateBrgemmCopyB");
-    EliminateBrgemmCopyB(std::set<size_t> constant_inputs_idxs,
-                         ov::intel_cpu::RepackedInputConfig& repacked_runtime_inputs_config,
-                         ov::intel_cpu::RepackedInputConfig& repacked_constant_inputs_config)
-        : m_constant_inputs_idxs(std::move(constant_inputs_idxs)),
-          m_repacked_runtime_inputs_config(repacked_runtime_inputs_config),
-          m_repacked_constant_inputs_config(repacked_constant_inputs_config) {}
+    explicit EliminateBrgemmCopyB(ov::intel_cpu::InputRepackerMap& input_repackers)
+        : m_input_repackers(input_repackers) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
-    const std::set<size_t> m_constant_inputs_idxs;
-    ov::intel_cpu::RepackedInputConfig& m_repacked_runtime_inputs_config;
-    ov::intel_cpu::RepackedInputConfig& m_repacked_constant_inputs_config;
+    ov::intel_cpu::InputRepackerMap& m_input_repackers;
 };
 
 }  // namespace ov::intel_cpu::pass

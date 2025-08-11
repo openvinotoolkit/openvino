@@ -80,4 +80,6 @@ if(ENABLE_OV_IR_FRONTEND)
     add_dependencies(${TARGET_NAME} openvino_ir_frontend)
 endif()
 
+ov_build_target_faster(${TARGET_NAME} PCH)
+
 add_subdirectory(frontend)

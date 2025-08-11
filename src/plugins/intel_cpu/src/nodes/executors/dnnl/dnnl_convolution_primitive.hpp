@@ -66,23 +66,23 @@ public:
     DnnlConvolutionPrimitive(const Key& key,
                              const dnnl::engine& engine,
                              const std::vector<impl_desc_type>& implPriorities,
-                             const impl_desc_type defaultImplType);
+                             impl_desc_type defaultImplType);
 
     void execute(dnnl_primitive_args& primArgs);
 
-    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
@@ -97,13 +97,13 @@ public:
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const ConvAttrs& attrs,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
     // create shape agnostic data using FC attributes (1x1 Convolution as FC executor)
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& fcAttrs,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
     static std::shared_ptr<DnnlConvolutionPrimitive> create(const MemoryArgs& memory,
                                                             const ConvAttrs& attrs,

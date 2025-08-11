@@ -67,27 +67,16 @@ class MatmulWeightsDecompression : public testing::WithParamInterface<MatmulWeig
                                    virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<MatmulWeightsDecompressionParams> obj) {
-        ShapeParams shape_params;
-        ov::element::Type weights_precision;
-        ov::element::Type activations_precision;
-        bool transpose;
-        bool decompression_sub;
-        bool reshape_on_decompression;
-        bool extra_multiply;
-        bool per_tensor_zp;
-        uint64_t dyn_quan_group_size;
-        float abs_threshold_f16;
-
-        std::tie(shape_params,
-                 weights_precision,
-                 activations_precision,
-                 transpose,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 extra_multiply,
-                 per_tensor_zp,
-                 dyn_quan_group_size,
-                 abs_threshold_f16) = obj.param;
+        const auto& [shape_params,
+                     weights_precision,
+                     activations_precision,
+                     transpose,
+                     decompression_sub,
+                     reshape_on_decompression,
+                     extra_multiply,
+                     per_tensor_zp,
+                     dyn_quan_group_size,
+                     abs_threshold_f16] = obj.param;
 
         std::ostringstream result;
         result << "data_shape=";
@@ -249,27 +238,16 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ShapeParams shape_params;
-        ov::element::Type weights_precision;
-        ov::element::Type activations_precision;
-        bool transpose_weights;
-        bool decompression_sub;
-        bool reshape_on_decompression;
-        bool extra_multiply;
-        bool per_tensor_zp;
-        uint64_t dyn_quan_group_size;
-        float abs_threshold_f16 = 1.0f;
-
-        std::tie(shape_params,
-                 weights_precision,
-                 activations_precision,
-                 transpose_weights,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 extra_multiply,
-                 per_tensor_zp,
-                 dyn_quan_group_size,
-                 abs_threshold_f16) = GetParam();
+        const auto& [shape_params,
+                     weights_precision,
+                     activations_precision,
+                     transpose_weights,
+                     decompression_sub,
+                     reshape_on_decompression,
+                     extra_multiply,
+                     per_tensor_zp,
+                     dyn_quan_group_size,
+                     abs_threshold_f16] = GetParam();
 
         init_input_shapes({shape_params.data_shape, {{}, {{shape_params.weights_shape}}}});
 
@@ -322,6 +300,7 @@ protected:
 };
 
 TEST_P(MatmulWeightsDecompression, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED(); // This is necessary because of check_results
     run();
     check_results();
 }

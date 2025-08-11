@@ -23,7 +23,7 @@ public:
     static void referenceExecute(const uint8_t* src_data,
                                  uint8_t* dst_data,
                                  const jit_permute_config_params& jcp,
-                                 const int mb);
+                                 int mb);
     bool init(const TransposeParams& transposeParams,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,

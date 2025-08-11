@@ -41,6 +41,12 @@ constexpr bool is_static_shape_adapter() {
     return std::is_same_v<U, StaticShapeRef> || std::is_same_v<U, StaticShape>;
 }
 
+// NOLINTBEGIN(google-explicit-constructor)
+
+// Implicit conversion is intentionally allowed (explicit constructor disabled)
+// because StaticDimension is used quite intensively throughout the codebase
+// and requiring explicit conversions would make the code more verbose.
+
 /**
  * @brief The static shape adapter by copy value to VectorDims.
  *
@@ -72,7 +78,7 @@ public:
     StaticShapeAdapter(std::vector<value_type> dims) noexcept : m_dims(dims.begin(), dims.end()) {}
 
     StaticShapeAdapter(const StaticShape& other);
-    StaticShapeAdapter(const ov::PartialShape&);
+    StaticShapeAdapter(const ov::PartialShape& shape);
 
     const TDims& operator*() const& noexcept {
         return m_dims;
@@ -116,7 +122,7 @@ public:
     }
 
     [[nodiscard]] ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r) const;
+    [[nodiscard]] bool merge_rank(const ov::Rank& r) const;
     [[nodiscard]] ov::Shape to_shape() const;
     [[nodiscard]] ov::Shape get_max_shape() const;
     [[nodiscard]] ov::Shape get_min_shape() const;
@@ -228,7 +234,7 @@ public:
     constexpr StaticShapeAdapter(const StaticShapeAdapter<const TDims>& other) = default;
 
     StaticShapeAdapter(const StaticShape& shape);
-    StaticShapeAdapter(const ov::PartialShape&);
+    StaticShapeAdapter(const ov::PartialShape& shape);
 
     operator StaticShape() const {
         return m_dims ? StaticShape(*m_dims) : StaticShape();
@@ -252,7 +258,7 @@ public:
     }
 
     template <class T>
-    constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(const T& other) const {
+    [[nodiscard]] constexpr std::enable_if_t<is_static_shape_adapter<T>(), bool> compatible(const T& other) const {
         // for static shape compatible == both shape equals
         return *this == other;
     }
@@ -264,7 +270,7 @@ public:
     }
 
     [[nodiscard]] ov::Rank rank() const;
-    bool merge_rank(const ov::Rank& r) const;
+    [[nodiscard]] bool merge_rank(const ov::Rank& r) const;
     [[nodiscard]] ov::Shape to_shape() const;
     [[nodiscard]] ov::Shape get_max_shape() const;
     [[nodiscard]] ov::Shape get_min_shape() const;
@@ -299,6 +305,8 @@ public:
 private:
     const TDims* m_dims = nullptr;
 };
+
+// NOLINTEND(google-explicit-constructor)
 
 template <class T>
 std::enable_if_t<is_static_shape_adapter<T>(), std::ostream&> operator<<(std::ostream& out, const T& shape) {

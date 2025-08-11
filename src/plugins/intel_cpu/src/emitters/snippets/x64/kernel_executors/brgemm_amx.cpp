@@ -34,7 +34,6 @@
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
 
-#define INNER_K_BLK(dtype) static_cast<dnnl_dim_t>((brgemm_utils::repacking::compute_inner_k_block(in0_dtype)))
 #define VNNI_FACTOR(dtype) static_cast<dnnl_dim_t>((brgemm_utils::compute_vnni_factor(in0_dtype)))
 #define EQ(X)              X == rhs.X
 #define HASH(X)            seed = hash_combine(seed, X)
@@ -45,18 +44,22 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::x64 {
 
-BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
-                                             const element::Type& in1_dtype,
-                                             const element::Type& out_dtype,
-                                             dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config,
+                                             const element::Type& out_dt,
                                              const dnnl_post_ops& post_ops)
-    : m_static_params(std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, primitive_isa, post_ops)) {
+    : m_static_params(std::make_shared<StaticParams>(brgemm_config.src_dt(),
+                                                     brgemm_config.wei_dt(),
+                                                     out_dt,
+                                                     brgemm_config.wei_k_blk(),
+                                                     brgemm_config.isa(),
+                                                     post_ops)) {
     m_hash = compute_hash();
 }
 
 BrgemmAMXKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype,
                                                   const element::Type& in1_dtype,
                                                   const element::Type& out_dtype,
+                                                  dnnl_dim_t wei_K_blk,
                                                   dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
                                                   const dnnl_post_ops& post_ops)
     : StaticBaseParams(in0_dtype,
@@ -64,17 +67,17 @@ BrgemmAMXKernelConfig::StaticParams::StaticParams(const element::Type& in0_dtype
                        out_dtype,
                        primitive_isa,
                        post_ops,
-                       compute_hash(INNER_K_BLK(in0_dtype), VNNI_FACTOR(in0_dtype))),
-      inner_k_blk(INNER_K_BLK(in0_dtype)),
+                       compute_hash(wei_K_blk, VNNI_FACTOR(in0_dtype))),
+      wei_K_blk(wei_K_blk),
       vnni_factor(VNNI_FACTOR(in0_dtype)) {}
 
 bool BrgemmAMXKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
-    return StaticBaseParams::operator==(rhs) && EQ(inner_k_blk) && EQ(vnni_factor);
+    return StaticBaseParams::operator==(rhs) && EQ(wei_K_blk) && EQ(vnni_factor);
 }
 
-size_t BrgemmAMXKernelConfig::StaticParams::compute_hash(dnnl_dim_t inner_k_blk, dnnl_dim_t vnni_factor) {
+size_t BrgemmAMXKernelConfig::StaticParams::compute_hash(dnnl_dim_t wei_K_blk, dnnl_dim_t vnni_factor) {
     size_t seed = 0;
-    HASH(inner_k_blk);
+    HASH(wei_K_blk);
     HASH(vnni_factor);
     return seed;
 }
@@ -87,7 +90,7 @@ bool BrgemmAMXKernelConfig::need_copy_a(dnnl_dim_t K) const {
 std::string BrgemmAMXKernelConfig::StaticParams::to_string() const {
     std::stringstream ss;
     ss << StaticBaseParams::to_string();
-    ss << "inner_k_blk = " << inner_k_blk << "\n";
+    ss << "wei_K_blk = " << wei_K_blk << "\n";
     ss << "vnni_factor = " << vnni_factor << "\n";
     return ss.str();
 }
@@ -180,7 +183,7 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
         return ker;
     };
 
-    auto K_tail = config.get_K() % config.get_inner_K_blk();
+    auto K_tail = config.get_K() % config.get_wei_K_blk();
     auto K_body = config.get_K() - K_tail;
 
     float beta = config.get_beta();
@@ -203,7 +206,7 @@ std::shared_ptr<BrgemmAMXCompiledKernel> BrgemmAMXKernelExecutor::compile_kernel
             const auto key = BrgemmCopyAKey(config.get_isa(),
                                             config.get_dt_in0(),
                                             config.get_K(),
-                                            config.get_inner_K_blk(),
+                                            config.get_wei_K_blk(),
                                             K_tail,
                                             copy_A_src_stride,
                                             LDA);
@@ -306,7 +309,7 @@ void BrgemmAMXKernelExecutor::execute(const BrgemmAMXKernelExecutor* executor, c
     const auto* wei_ptr = args->B;
     auto* scratch = args->scratch;
 
-    const auto K_tail = config.get_K() % config.get_inner_K_blk();
+    const auto K_tail = config.get_K() % config.get_wei_K_blk();
     const auto K_body = config.get_K() - K_tail;
 
     const bool execute_main_body = K_body != 0;

@@ -165,7 +165,7 @@ KernelsPriority ConvolutionKernel_b_fs_yx_fsv16::GetKernelsPriority(const Params
 
 bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
     if (!ConvolutionKernelBase::Validate(p) || !ConvolutionCheckInput(p)) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = static_cast<const convolution_params&>(p);
@@ -188,21 +188,21 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
                        (outFeaturesPerGroup % tuning_data.sub_group_size == 0 || tuning_data.sub_group_size % outFeaturesPerGroup == 0);
 
         if (!multipleGroupsInputPreload && !grouped)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     // Check that padding before features doesn't miss-align the blocks
     if (input.Feature().pad.before % tuning_data.feature_block_size != 0 || output.Feature().pad.before % tuning_data.feature_block_size != 0)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     // Not supporting batch padding for different format (reorder-fused case)
     if (input.GetLayout() == DataLayout::b_fs_yx_fsv16 && output.GetLayout() == DataLayout::bfyx) {
         if (output.Batch().pad.before != 0 || output.Batch().pad.after != 0)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     if (!params.bias.empty() && params.bias[0].GetDType() != input.GetDType())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     return true;
 }
@@ -256,7 +256,8 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
 
     auto outFeaturesPerGroup = output.Feature().v / params.groups;
     auto inFeaturesPerGroup = input.Feature().v / params.groups;
-    auto multipleGroupsInputPreload = (tuning_data.feature_block_size % outFeaturesPerGroup == 0) &&
+    auto multipleGroupsInputPreload = (params.groups > 1) &&
+                                      (tuning_data.feature_block_size % outFeaturesPerGroup == 0) &&
                                       (tuning_data.feature_block_size % inFeaturesPerGroup == 0) &&
                                       (tuning_data.feature_block_size / outFeaturesPerGroup > 1) &&
                                       (tuning_data.feature_block_size / inFeaturesPerGroup > 1);

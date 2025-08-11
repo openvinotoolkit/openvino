@@ -396,7 +396,8 @@ Supported Properties
 #######################################
 
 The plugin supports the properties listed below.
-- For more details on the properties, see the `Device Properties <../../../api/c_cpp_api/group__ov__runtime__cpp__prop__api.html>`.
+
+- For more details on the properties, see the `Device Properties <https://docs.openvino.ai/2025/api/c_cpp_api/group__ov__runtime__cpp__prop__api.html>`__.
 - For more details on usage of the properties, see the :doc:`Query Device Properties - Configuration <query-device-properties>`.
 - To check the exact list of available properties on target device, you can run :doc:`Hello Query Device C++ Sample <../../../get-started/learn-openvino/openvino-samples/hello-query-device>`.
 

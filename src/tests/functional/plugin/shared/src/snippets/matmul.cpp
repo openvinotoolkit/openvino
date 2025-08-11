@@ -25,12 +25,7 @@ void MatMulBase::filter_shape_info(const std::set<size_t>& idces_to_remove) {
 }
 
 std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MatMulParams> obj) {
-    std::vector<ov::test::InputShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    MatMulType mm_type;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(input_shapes, elem_types, mm_type, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    auto [input_shapes, elem_types, mm_type, num_nodes, num_subgraphs, targetDevice, additional_config] = obj.param;
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); i++)
         result << "IS[" << i << "]=" << input_shapes[i] << "_";
@@ -42,21 +37,34 @@ std::string MatMul::getTestCaseName(testing::TestParamInfo<ov::test::snippets::M
     result << "#N=" << num_nodes << "_";
     result << "#S=" << num_subgraphs << "_";
     result << "targetDevice=" << targetDevice;
+    if (!additional_config.empty()) {
+        result << "_PluginConf";
+        for (auto& item : additional_config) {
+            result << "_" << item.first << "=" << item.second.as<std::string>();
+        }
+    }
     return result.str();
 }
 
 void MatMul::SetUp() {
-    std::vector<ov::test::InputShape> input_shapes;
-    std::vector<ov::element::Type> elem_types;
-    std::tie(input_shapes, elem_types, matmul_type, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [input_shapes,
+                 elem_types,
+                 _matmul_type,
+                 _ref_num_nodes,
+                 _ref_num_subgraphs,
+                 _targetDevice,
+                 additional_config] = this->GetParam();
+    matmul_type = _matmul_type;
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(input_shapes);
 
     const auto builder = get_builder(elem_types);
     function = builder->getOriginal();
     filter_shape_info(builder->get_constant_input_idces());
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    configuration.insert(additional_config.begin(), additional_config.end());
+    setIgnoreCallbackMode();
 }
 
 std::shared_ptr<MatMulFunctionBase> MatMul::get_builder(const std::vector<ov::element::Type>& types) {

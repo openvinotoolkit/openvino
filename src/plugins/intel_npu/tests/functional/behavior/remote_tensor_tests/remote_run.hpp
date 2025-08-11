@@ -8,11 +8,13 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "common/npu_test_env_cfg.hpp"
 #include "common/utils.hpp"
 #include "openvino/core/any.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/opsets/opset8.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_npu/level_zero/level_zero.hpp"
@@ -90,6 +92,26 @@ public:
         }
 
         APIBaseTest::TearDown();
+    }
+
+    std::shared_ptr<ov::Model> createModel(element::Type type, const PartialShape& shape, const ov::Layout& layout) {
+        ResultVector res;
+        ParameterVector params;
+
+        auto data1 = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        data1->set_friendly_name("input");
+        data1->get_output_tensor(0).set_names({"tensor_input"});
+        data1->set_layout(layout);
+        auto constant = opset8::Constant::create(type, {1}, {1});
+        auto op1 = std::make_shared<ov::op::v1::Add>(data1, constant);
+        op1->set_friendly_name("Add");
+        auto res1 = std::make_shared<ov::op::v0::Result>(op1);
+        res1->set_friendly_name("Result");
+        res1->get_output_tensor(0).set_names({"tensor_output"});
+        params.push_back(data1);
+        res.push_back(res1);
+
+        return std::make_shared<Model>(res, params);
     }
 };
 
@@ -1049,6 +1071,71 @@ TEST_P(RemoteRunTests, CheckContextFromDifferentDestroyedOvCores) {
     EXPECT_EQ(context0.get(), context1.get_params().at(ov::intel_npu::l0_context.name()).as<void*>());
     EXPECT_EQ(context1.get_params().at(ov::intel_npu::l0_context.name()).as<void*>(),
               context2.get_params().at(ov::intel_npu::l0_context.name()).as<void*>());
+}
+
+TEST_P(RemoteRunTests, SetMultipleDifferentTensors) {
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    auto context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    compiled_model = core->compile_model(model, target_device, configuration);
+
+    const int inferences = 32;
+    ov::InferRequest inference_request;
+    ov::Tensor input_tensor;
+    std::array<ov::Tensor, inferences> output_tensor;
+
+    input_tensor = ov::Tensor{ov::element::f32, shape};
+    auto* input_tensor_data = reinterpret_cast<float*>(input_tensor.data());
+    for (size_t i = 0; i < shape_size; ++i) {
+        input_tensor_data[i] = 0.f;
+    }
+
+    inference_request = compiled_model.create_infer_request();
+    for (int i = 0; i < inferences; i++) {
+        auto tensor = inference_request.get_output_tensor(0);
+
+        if (i % 5 == 0) {
+            output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape()};
+        } else if (i % 5 == 1) {
+            output_tensor[i] = context.create_l0_host_tensor(ov::element::f32, tensor.get_shape());
+        } else if (i % 5 == 2) {
+            output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape()};
+        } else if (i % 5 == 3) {
+            output_tensor[i] = context.create_host_tensor(ov::element::f32, tensor.get_shape());
+        } else if (i % 5 == 4) {
+            output_tensor[i] = ov::Tensor{ov::element::f32, tensor.get_shape()};
+        }
+    }
+
+    inference_request.set_input_tensor(input_tensor);
+    inference_request.set_output_tensor(output_tensor[0]);
+    inference_request.infer();  // Adds '1' to each element
+
+    for (int i = 1; i < inferences; i++) {
+        inference_request.set_output_tensor(output_tensor[i]);
+        inference_request.set_input_tensor(output_tensor[i - 1]);
+        inference_request.infer();  // Adds '1' to each element
+    }
+
+    float expected_result = 1.f;
+
+    for (int i = 0; i < inferences; i++) {
+        float* output_tensor_data;
+        if (i % 5 == 1) {
+            auto remote_tensor = output_tensor[i].as<ov::intel_npu::level_zero::ZeroBufferTensor>();
+            output_tensor_data = static_cast<float*>(remote_tensor.get());
+        } else {
+            output_tensor_data = reinterpret_cast<float*>(output_tensor[i].data());
+        }
+        for (size_t j = 0; j < shape_size; ++j) {
+            EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+                << "Output=" << i << " Expected=" << expected_result << ", actual=" << output_tensor_data[j]
+                << " for index " << j;
+        }
+        expected_result++;
+    }
 }
 
 }  // namespace behavior

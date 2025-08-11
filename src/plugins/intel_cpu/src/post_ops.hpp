@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
-#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <utility>
 #include <vector>
 
@@ -50,7 +50,13 @@ struct ActivationPostOp {
         round_half_to_even,
         round_half_away_from_zero,
         linear,
-        powerstatic
+        powerstatic,
+        floor,
+        negative,
+        ceiling,
+        erf,
+        soft_sign,
+        log,
     };
 
     ActivationPostOp(const Type type,
@@ -93,7 +99,31 @@ struct ScaleShiftPostOp {
         divide,
         multiply,
         muladd,
+        power_dynamic,
         prelu,
+        select,
+        maximum,
+        minimum,
+        squared_difference,
+        logical_and,
+        logical_or,
+        logical_xor,
+        logical_not,
+        floor_mod,
+        mod,
+        equal,
+        not_equal,
+        greater,
+        greater_equal,
+        less,
+        less_equal,
+        is_finite,
+        is_inf,
+        is_nan,
+        bitwise_and,
+        bitwise_not,
+        bitwise_or,
+        bitwise_xor
     };
 
     ScaleShiftPostOp(const Type m_type, std::vector<float> _scales, std::vector<float> _shifts)
@@ -171,15 +201,15 @@ struct FakeQuantizePostOp {
         return m_levels;
     }
 
-    Type type() const {
+    [[nodiscard]] Type type() const {
         return m_type;
     }
 
-    bool isInputLowBroadcast() const {
+    [[nodiscard]] bool isInputLowBroadcast() const {
         return m_isInputLowBroadcasted;
     }
 
-    bool isOutputHighBroadcast() const {
+    [[nodiscard]] bool isOutputHighBroadcast() const {
         return m_isOutputHighBroadcasted;
     }
 
@@ -204,19 +234,19 @@ struct DepthwiseConvolutionPostOp {
           m_kernel(std::move(kernel)),
           m_strides(std::move(strides)) {}
 
-    size_t ih() const {
+    [[nodiscard]] size_t ih() const {
         return m_ih;
     }
 
-    size_t iw() const {
+    [[nodiscard]] size_t iw() const {
         return m_iw;
     }
 
-    const std::vector<size_t>& kernel() const {
+    [[nodiscard]] const std::vector<size_t>& kernel() const {
         return m_kernel;
     }
 
-    const std::vector<size_t>& strides() const {
+    [[nodiscard]] const std::vector<size_t>& strides() const {
         return m_strides;
     }
 
@@ -233,15 +263,15 @@ struct SumPostOp {
           m_zero_point(zero_point),
           m_dataType(dataType) {}
 
-    float scale() const {
+    [[nodiscard]] float scale() const {
         return m_scale;
     }
 
-    int32_t zeroPoint() const {
+    [[nodiscard]] int32_t zeroPoint() const {
         return m_zero_point;
     }
 
-    ov::element::Type_t dataType() const {
+    [[nodiscard]] ov::element::Type_t dataType() const {
         return m_dataType;
     }
 
@@ -257,15 +287,17 @@ enum class EltwiseKind : uint8_t {
     // @todo Binary?
 };
 
-EltwiseKind getEltwiseKind(const Algorithm alg);
+EltwiseKind getEltwiseKind(Algorithm alg);
 
-ScaleShiftPostOp::Type convertToScaleShiftOpt(const Algorithm alg);
+ScaleShiftPostOp::Type convertToScaleShiftOpt(Algorithm alg);
 
-ActivationPostOp::Type convertToActivationPostOpt(const Algorithm alg);
+ActivationPostOp::Type convertToActivationPostOpt(Algorithm alg);
 
-Algorithm convertToEltwiseAlgorithm(const ActivationPostOp::Type m_type);
+Algorithm convertToEltwiseAlgorithm(ActivationPostOp::Type m_type);
+Algorithm convertToEltwiseAlgorithm(ScaleShiftPostOp::Type type);
+dnnl::algorithm convertToDnnlAlgorithm(ActivationPostOp::Type m_type);
 
-FakeQuantizePostOp::Type convertToFqPostOp(const Algorithm alg);
+FakeQuantizePostOp::Type convertToFqPostOp(Algorithm alg);
 
 PostOps getPostOps(const std::vector<NodePtr>& fused, ov::element::Type_t sumDataType = ov::element::dynamic);
 }  // namespace ov::intel_cpu

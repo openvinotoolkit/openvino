@@ -24,16 +24,23 @@ namespace low_precision {
 
 const std::vector<element::Type>& precision_set::get_int8_support() {
     static const std::vector<element::Type> int8_support = {
-        ov::element::u8,  ov::element::i8
+        ov::element::u8,  ov::element::i8,
     };
     return int8_support;
+}
+
+const std::vector<element::Type>& precision_set::get_fp8_support() {
+    static const std::vector<element::Type> fp8_support = {
+        ov::element::f8e4m3,  ov::element::f8e5m2,
+    };
+    return fp8_support;
 }
 
 const std::vector<element::Type>& precision_set::get_int8_int16_int32_support() {
     static const std::vector<element::Type> int8_int16_int32_support = {
         ov::element::u8,  ov::element::i8,
         ov::element::u16, ov::element::i16,
-        ov::element::u32, ov::element::i32
+        ov::element::u32, ov::element::i32,
     };
     return int8_int16_int32_support;
 }

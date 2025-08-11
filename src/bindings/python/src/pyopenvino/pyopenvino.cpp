@@ -80,7 +80,13 @@ inline std::string get_version() {
     return version.buildNumber;
 }
 
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
+
+#ifdef Py_GIL_DISABLED
+PYBIND11_MODULE(_pyopenvino, m, py::mod_gil_not_used()) {
+#else
 PYBIND11_MODULE(_pyopenvino, m) {
+#endif
     m.doc() = "Package openvino._pyopenvino which wraps openvino C++ APIs";
     std::string pyopenvino_version = CI_BUILD_NUMBER;
     std::string runtime_version = get_version();
@@ -96,6 +102,9 @@ PYBIND11_MODULE(_pyopenvino, m) {
                     "). It can happen if you have 2 or more different versions of OpenVINO installed in system. "
                     "Please ensure that environment variables (e.g. PATH, PYTHONPATH) are set correctly so that "
                     "OpenVINO Runtime and Python libraries point to same release.");
+
+    // https://pybind11.readthedocs.io/en/stable/advanced/cast/stl.html#making-opaque-types
+    py::bind_vector<ov::TensorVector>(m, "TensorVector");
 
     m.def("get_version", &get_version);
     m.def(

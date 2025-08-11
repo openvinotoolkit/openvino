@@ -4,12 +4,16 @@
 
 #pragma once
 
+#include <memory>
 #include <openvino/op/convert.hpp>
+
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/op.hpp"
 
-namespace ov {
-namespace snippets {
-namespace op {
+namespace ov::snippets::op {
 
 /**
  * @interface ConvertTruncation
@@ -29,9 +33,9 @@ public:
 
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    bool has_evaluate() const override { return false; }
+    bool has_evaluate() const override {
+        return false;
+    }
 };
 
-} // namespace op
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::op

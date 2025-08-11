@@ -1331,6 +1331,40 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x17_solid_b) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x17_solid_b.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6, 7, 8, 9, 10, 1, 2, 3, 4,  5, 6,
+                                7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1, 2, 3, 4, 5, 6,  7, 8, 9, 10, 1});
+
+    test_case.add_expected_output<float>(Shape{3, 3},
+                                         {-322.52954f,
+                                          -312.34253f,
+                                          345.20667f,
+                                          -381.87994f,
+                                          -343.7008f,
+                                          472.23425f,
+                                          -509.08466f,
+                                          -420.32483f,
+                                          532.11615f});
+
+    test_case.run_with_tolerance_as_fp(1.f);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x32_zp) {
+    const auto model = convert_model("com.microsoft/matmulnbits_3x32_zp.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>({1, 2, 3, 4, 5, 6,  7, 8,  9, 10, 1, 2, 3, 4, 5, 6,  7, 8,  9, 10, 1, 2,
+                                3, 4, 5, 6, 7, 8,  9, 10, 1, 2,  3, 4, 5, 6, 7, 8,  9, 10, 1, 2,  3, 4,
+                                5, 6, 7, 8, 9, 10, 1, 2,  3, 4,  5, 6, 7, 8, 9, 10, 1, 2,  3, 4});
+    test_case.add_input<float>({1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+
+    test_case.add_expected_output<float>(Shape{2, 3}, {312, -24, -192, 370, 26, -146});
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_quickgelu) {
     const auto model = convert_model("com.microsoft/quick_gelu.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
@@ -1769,6 +1803,50 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_bias_add) {
     test_case.add_expected_output<float>(Shape{2, 4, 3}, expected_output);
 
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_rotary_embedding) {
+    const auto model = convert_model("com.microsoft/rotary_embedding.onnx");
+
+    std::vector<float> input = {
+        -1.1258f, -1.1524f, -0.2506f, -0.4339f, 0.8487f,  0.6920f,  -0.3160f, -2.1152f, 0.3223f, -1.2633f, 0.3500f,
+        0.3081f,  0.1198f,  1.2377f,  1.1168f,  -0.2473f, -1.3527f, -1.6959f, 0.5667f,  0.7935f, 0.5988f,  -1.5551f,
+        -0.3414f, 1.8530f,  0.7502f,  -0.5855f, -0.1734f, 0.1835f,  1.3894f,  1.5863f,  0.9463f, -0.8437f,
+    };
+    std::vector<int64_t> position_ids = {0, 1};
+    std::vector<float> cos_cache = {
+        0.8437f,
+        -0.7849f,
+        -0.7829f,
+        0.4581f,
+        -0.9870f,
+        0.6273f,
+        -0.9483f,
+        -0.9962f,
+    };
+    std::vector<float> sin_cache = {
+        0.5368f,
+        0.6196f,
+        -0.6222f,
+        0.8889f,
+        0.1605f,
+        -0.7788f,
+        0.3174f,
+        -0.0872f,
+    };
+
+    std::vector<float> expected_output = {-1.4054f, 0.4758f, -0.0004f, 1.6814f,  0.1117f,  -1.2572f, 0.4033f,  -1.3547f,
+                                          0.2076f,  0.2247f, 0.4209f,  0.361f,   0.2741f,  -1.7542f, -1.0921f, 0.1606f,
+                                          1.239f,   -2.275f, -0.429f,  -0.6289f, -0.8081f, 0.3453f,  0.5036f,  -1.9152f,
+                                          -0.9634f, 0.8681f, -0.1359f, -0.2564f, -1.2509f, 1.4511f,  -0.9524f, 0.8245f};
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 16}, input);
+    test_case.add_input<int64_t>(Shape{1, 2}, position_ids);
+    test_case.add_input<float>(Shape{2, 4}, cos_cache);
+    test_case.add_input<float>(Shape{2, 4}, sin_cache);
+    test_case.add_expected_output<float>(Shape{1, 2, 16}, expected_output);
+    test_case.run_with_tolerance_as_fp(0.01f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_gqa_past_0_input_1_rotary) {

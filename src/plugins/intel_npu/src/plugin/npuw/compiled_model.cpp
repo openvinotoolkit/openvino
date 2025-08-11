@@ -154,7 +154,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         // and not the underlying models and submodels
         auto config = properties;
         config.erase(ov::cache_dir.name());
-        pre_load_transform(model, properties);
         compiled_model = std::make_shared<ov::npuw::CompiledModel>(model, plugin, config);
     }
     LOG_INFO("Done");
@@ -173,6 +172,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
       m_cfg(m_options_desc),
       m_name(model->get_friendly_name()),
       m_loaded_from_cache(false) {
+    // Note: we need to identify original bf16 constants for potential weightless deserialization later
+    // And only then do bf16 to f16 transformation
+    m_bf16_consts = ov::npuw::s11n::get_bf16_consts(model);
+    pre_load_transform(model, properties);
+
     ::intel_npu::registerNPUWOptions(*m_options_desc);
 
     std::map<std::string, ov::Any> npuw_props;
@@ -218,7 +222,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     // Store original constants' offset for serialization purposes
     store_const_offsets(model);
 
-    auto partitioning = getPartitioning(model, m_cfg);
+    ov::npuw::PartitioningContext ctx;
+    // Identify based on compiler version, user config and pattern
+    ctx.use_host_gather_quant = should_use_quantized_host_gather(model, npuw_props);
+
+    auto partitioning = getPartitioning(model, m_cfg, ctx);
     m_total_stat.gflops = partitioning.total_gflops;
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
@@ -270,8 +278,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                         // Regardless of the order, if the reader is a function,
                         // remember that to avoid confusion in function prologue
                     }  // if(param == orig_param)
-                }      // for(orig_params)
-            }          // for(subgraph_params)
+                }  // for(orig_params)
+            }  // for(subgraph_params)
         };
         auto process_results = [&](const ov::ResultVector& _results) {
             for (size_t i = 0; i < _results.size(); i++) {
@@ -363,6 +371,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 LOG_INFO("Subgraph[" << id << "] is a function call to [" << compiled_fcn_iter->second << "]");
             }
             m_compiled_submodels[id].host_gather = subgraph._host_gather;
+            m_compiled_submodels[id].quant_unpack_gather = subgraph._quant_unpack_gather;
             m_compiled_submodels[id].param_base = fcn_template._param_offset;
             m_compiled_submodels[id].closure = subgraph._closure;
             m_compiled_submodels[id].lazy_closure = subgraph._lazy_closure;
@@ -389,8 +398,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_INFO("Dumping Subgraph[" << id << "]");
             LOG_BLOCK();
             if (real_id != id) {
-                LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]"
-                                                   << " as it is a function body for Subgraph[" << id << "]");
+                LOG_INFO("NOTE: Dumping Subgraph[" << real_id << "]" << " as it is a function body for Subgraph[" << id
+                                                   << "]");
             }
             const auto model_to_dump = m_compiled_submodels[real_id].model;
             std::string model_dump_path = m_name + "_" + ov::npuw::util::fmt(id, m_compiled_submodels.size()) +
@@ -399,7 +408,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             LOG_INFO("Wrote " << model_dump_path);
             // Note: keep here naming as it would be the subgraph
         }  // if(dump)
-    }      // for(orderedSubgraphs)
+    }  // for(orderedSubgraphs)
 
     std::map<std::size_t, std::string> forced_sub_devices{};
     std::string fsd_opt = m_cfg.get<::intel_npu::NPUW_SUBMODEL_DEVICE>();
@@ -447,8 +456,8 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
             auto forced_dev_it = std::find(m_dev_list.begin(), m_dev_list.end(), forced_device);
             if (forced_dev_it == m_dev_list.end()) {
                 LOG_WARN("Target device for Subgraph[" << id << "] was set to " << forced_device
-                                                       << ", but was not found in the device list: "
-                                                       << "[" << dev_list_str << "] -- ignoring");
+                                                       << ", but was not found in the device list: " << "["
+                                                       << dev_list_str << "] -- ignoring");
             } else {
                 // FIXME: This is not really a device enforcement as the fallback
                 // procedure will be in place still
@@ -521,6 +530,69 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     LOG_DEBUG("CompiledModel is being deserialized, skipping the full constructor flow...");
 }
 
+bool ov::npuw::CompiledModel::should_use_quantized_host_gather(const std::shared_ptr<ov::Model>& model,
+                                                               const ov::AnyMap& properties) const {
+    LOG_INFO("Identifying best HOST_GATHER config value...");
+    LOG_BLOCK();
+    // Check if was explicitly specified
+    auto it_hg = properties.find(intel_npu::npuw::partitioning::host_gather.name());
+    std::optional<bool> explicit_hg_value;
+    if (it_hg != properties.end()) {
+        explicit_hg_value = it_hg->second.as<bool>();
+    }
+
+    // Check NPUW_HOST_GATHER:QUANT based on the patterns (for tail vocab)
+    ov::npuw::patterns::opt::Context ctx;
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantAsymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.add_matcher<ov::npuw::patterns::opt::HostGatherQuantSymm<ov::op::v0::Constant>>(std::ref(ctx), true);
+    rewr.run_on_model(model);
+
+    using CPtr = std::shared_ptr<ov::op::v0::Constant>;
+    std::vector<CPtr> to_keep;
+
+    ov::pass::GraphRewrite rewr2;
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulAsymm>(std::ref(to_keep));
+    rewr2.add_matcher<ov::npuw::patterns::opt::PreserveConstDictMatMulSymm>(std::ref(to_keep));
+    rewr2.run_on_model(model);
+    // FIXME: since 3-model pipeline is the default option, the tail will be separate,
+    // so we need to match either head or tail pattern here for host gather quantized feature to work.
+    // However, there might be a case where tail pattern is matched, but head is not (for the same model)
+    // or vice versa. This would lead to worse performance. Consider adding this check to LLMCompiledModel
+    // as well, since there we have uncut model.
+    // Head or tail
+    const bool pattern_matched = ctx.found_host_gather_quant() || !to_keep.empty();
+
+    // Check the compiler version
+    const auto npu_devices = get_plugin()->get_core()->get_property("NPU", ov::available_devices);
+    const bool compiler_version_enough =
+        !npu_devices.empty() &&
+        get_plugin()->get_core()->get_property("NPU", ov::intel_npu::compiler_version) >= ONEAPI_MAKE_VERSION(7, 21);
+
+    const bool can_enable_hgq = pattern_matched && (compiler_version_enough || npu_devices.empty());
+
+    // Now make a decision based on the checks above
+    if (!explicit_hg_value) {
+        // Default value is used, can force the best option
+        if (can_enable_hgq) {
+            LOG_INFO("Forcing quantized tail vocabulary for better performance.");
+            return true;
+        }
+    } else if (!explicit_hg_value.value()) {  // explicit NO
+        if (can_enable_hgq) {
+            LOG_WARN("Consider removing NPUW_HOST_GATHER:NO from the config for better performance.");
+        } else {
+            LOG_WARN("Consider enabling NPUW_HOST_GATHER:YES for better performance.");
+        }
+    } else {  // explicit YES
+        if (can_enable_hgq) {
+            LOG_WARN("Consider removing NPUW_HOST_GATHER:YES from the config for better performance.");
+        }
+    }  // explicit_hg_value
+    LOG_INFO("DONE.");
+    return false;
+}
+
 void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
                                                            const ov::npuw::s11n::WeightsContext& ctx) const {
     using namespace ov::npuw::s11n;
@@ -536,6 +608,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(std::ostream& stream,
     write(stream, host_gather.dst_idx);
     write(stream, host_gather.src_idx);
     write(stream, host_gather.idx_idx);
+
+    write(stream, quant_unpack_gather.dst_idx);
+    write(stream, quant_unpack_gather.src_w_idx);
+    write(stream, quant_unpack_gather.src_z_idx);
+    write(stream, quant_unpack_gather.src_s_idx);
+    write(stream, quant_unpack_gather.idx_idx);
 
     write(stream, spatial);
 
@@ -604,6 +682,12 @@ void ov::npuw::CompiledModel::CompiledModelDesc::deserialize(std::istream& strea
     read(stream, host_gather.dst_idx);
     read(stream, host_gather.src_idx);
     read(stream, host_gather.idx_idx);
+
+    read(stream, quant_unpack_gather.dst_idx);
+    read(stream, quant_unpack_gather.src_w_idx);
+    read(stream, quant_unpack_gather.src_z_idx);
+    read(stream, quant_unpack_gather.src_s_idx);
+    read(stream, quant_unpack_gather.idx_idx);
 
     read(stream, spatial);
 
@@ -699,7 +783,7 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     write(stream, is_weightless);
 
     if (!encryption_required) {
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr, m_bf16_consts);
         serialize(stream, ctx);
 
         write(stream, m_weights_bank->get_name());
@@ -715,13 +799,13 @@ void ov::npuw::CompiledModel::export_model(std::ostream& stream) const {
     std::stringstream non_encrypted_stream;
     if (is_weightless) {
         non_encrypted_stream.copyfmt(stream);
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr, m_bf16_consts);
         serialize(non_encrypted_stream, ctx);
         std::string encrypted = enc_callbacks.encrypt(non_encrypted_stream.str());
         write(stream, encrypted);
     } else {
         // In case of blob with weights only encrypt XML part of the model
-        EncryptContext ctx(true, enc_callbacks.encrypt, nullptr);
+        CompiledContext ctx(true, enc_callbacks.encrypt, nullptr, m_bf16_consts);
         serialize(stream, ctx);
     }
 
@@ -793,19 +877,18 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         read(model_stream, bank_name);
 
         if (is_weightless) {
-            auto bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
-            compiled->m_weights_bank = bank;
+            compiled->m_weights_bank = ov::npuw::weights::bank(bank_name, compiled->get_plugin()->get_core(), "");
             compiled->finalize_weights_bank();
+            compiled->m_import_weights_ctx.reset();
         } else {
-            auto bank =
+            compiled->m_weights_bank =
                 ov::npuw::weights::Bank::deserialize(model_stream, compiled->get_plugin()->get_core(), bank_name);
-            compiled->m_weights_bank = bank;
             compiled->reconstruct_closure();
         }
     };
 
     if (!encrypted) {
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         auto compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
         NPUW_ASSERT(compiled_model && "Couldn't import NPUW compiled model!");
         read_and_finalize_bank(stream, compiled_model);
@@ -828,10 +911,10 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
         std::string encrypted_str;
         read(stream, encrypted_str);
         std::istringstream decrypted_stream(std::move(enc_callbacks.decrypt(encrypted_str)));
-        EncryptContext ctx(false, nullptr, nullptr);
+        CompiledContext ctx(false, nullptr, nullptr);
         compiled_model = ov::npuw::CompiledModel::deserialize(decrypted_stream, plugin, properties, ctx);
     } else {
-        EncryptContext ctx(true, nullptr, enc_callbacks.decrypt);
+        CompiledContext ctx(true, nullptr, enc_callbacks.decrypt);
         compiled_model = ov::npuw::CompiledModel::deserialize(stream, plugin, properties, ctx);
     }
 
@@ -842,7 +925,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_model(
     return compiled_model;
 }
 
-void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::EncryptContext& enc_ctx) const {
+void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& enc_ctx) const {
     LOG_INFO("Serializing CompiledModel...");
     LOG_BLOCK();
 
@@ -889,6 +972,9 @@ void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s1
         }
         write(model_stream, is_weightless);
 
+        // Write bf16 consts cache
+        write(model_stream, enc_ctx.bf16_consts);
+
         // Create weightless context
         WeightsContext ctx(is_weightless, m_const_to_offset);
 
@@ -931,7 +1017,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
     const ov::AnyMap& properties,
-    const ov::npuw::s11n::EncryptContext& enc_ctx) {
+    const ov::npuw::s11n::CompiledContext& enc_ctx) {
     LOG_INFO("Deserializing CompiledModel...");
     LOG_BLOCK();
 
@@ -990,6 +1076,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
         bool is_weightless = false;
         read(stream, is_weightless);
 
+        // Read bf16 consts cache
+        read(stream, compiled->m_bf16_consts);
+
         // Initialize weights stream if weightless flow
         std::string weights_path;
         std::shared_ptr<ov::Model> model_ptr;
@@ -1032,17 +1121,20 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
             }
         }
 
-        ov::npuw::s11n::Weights weights = nullptr;
+        ov::npuw::s11n::WeightsPtr weights = nullptr;
         if (is_weightless) {
             if (!weights_path.empty()) {
                 auto mapped_memory = ov::load_mmap_object(weights_path);
-                weights = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                                mapped_memory->size(),
-                                                                                                mapped_memory);
+                weights = std::make_shared<ov::npuw::s11n::Weights>(mapped_memory->data(),
+                                                                    mapped_memory->size(),
+                                                                    mapped_memory);
             }
         }
 
-        WeightsContext ctx(weights, consts_cache);
+        // FIXME: prolong lifetime of ov::Model for import with MODEL_PTR.
+        // Unclear why it's needed, but without saving consts_cache until bank evaluation,
+        // the memory is freed somewhere.
+        compiled->m_import_weights_ctx = WeightsContext(weights, weights_path, consts_cache, compiled->m_bf16_consts);
 
         // Deserialize compiled submodels
         std::size_t subm_size = 0;
@@ -1064,7 +1156,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize(
                     plugin->get_core()->import_model(buffer, compiled->m_dev_list[device_idx]);
             }
             compiled->m_compiled_submodels[i].device_it = compiled->m_dev_list.begin() + device_idx;
-            compiled->m_compiled_submodels[i].deserialize(stream, ctx);
+            compiled->m_compiled_submodels[i].deserialize(stream, compiled->m_import_weights_ctx);
         }
 
         compiled->implement_properties();

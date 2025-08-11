@@ -44,7 +44,7 @@ public:
             const std::shared_ptr<snippets::lowered::pass::PassBase>& other) override;
     };
 
-    static bool is_kn_blocking_supported(const BrgemmCPU::BRGEMM_TYPE type, const ov::element::Type& input_type);
+    static bool is_kn_blocking_supported(const ov::element::Type& input_type);
 
 private:
     static snippets::lowered::LinearIR::constExprIt move_new_memory_buffer(
@@ -85,8 +85,6 @@ private:
                              size_t m_block,
                              size_t n_block,
                              size_t k_block) override;
-
-    size_t get_default_n_blk(size_t n) const override;
 };
 
 }  // namespace ov::intel_cpu::pass

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cassert>
 #include <common/c_types_map.hpp>
+#include <common/primitive_attr.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -39,6 +40,7 @@
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/graph_emitter.hpp"
+#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
@@ -174,7 +176,7 @@ bool DnnlConvolutionPrimitive::Key::operator==(const Key& rhs) const {
 // make a fake shape: N, C, W
 template <typename T>
 static std::vector<T> normalizeDims(const std::vector<T>& dims) {
-    assert(one_of(static_cast<int>(dims.size()), 2, 3));
+    assert(any_of(static_cast<int>(dims.size()), 2, 3));
 
     if (dims.size() == 3) {
         return {dims[0], dims[2], dims[1]};
@@ -288,32 +290,38 @@ static std::tuple<primitive_desc, size_t> selectPrimitiveDescWithMultipleAttribu
 
     struct PrimitiveDescWithPriority {
         dnnl::primitive_desc prim_desc;
-        size_t attrId;
-        size_t priority;
+        size_t attrId = 0UL;
+        size_t priority = 0UL;
     };
 
     PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), 0, implPriorities.size()};
+    const bool first_match = implPriorities.front() == impl_desc_type::unknown;
 
     // try all the provided attributes and select the one which results in a primitive desc with the highest priority
     for (size_t attrId = 0; attrId < attrs.size(); attrId++) {
         const auto& attr = attrs[attrId];
 
-        for (size_t priorityId = 0; priorityId < implPriorities.size(); priorityId++) {
-            const auto preferredImplType = implPriorities[priorityId];
-            // the only way to fully reset primitive_desc after iterating over the implementations is to re-create it
-            auto cur_desc = createPrimitiveDescriptor(attr);
-            const bool found = DnnlExtensionUtils::find_implementation(cur_desc, preferredImplType);
+        auto cur_desc = createPrimitiveDescriptor(attr);
 
-            const size_t highestPriority = prim_desc_w_priority.priority;
-            if (found && priorityId < highestPriority) {
-                prim_desc_w_priority = {cur_desc, attrId, priorityId};
-            }
-        }
+        DnnlExtensionUtils::for_each_implementation(
+            cur_desc,
+            first_match,
+            [&](impl_desc_type implType) {  // is acceptable implementation
+                return contains(implPriorities, implType);
+            },
+            [&](dnnl::primitive_desc& desc) {  // is implementation with highest priority
+                const impl_desc_type descImplType = parse_impl_name(desc.impl_info_str());
+                const auto it = std::find(implPriorities.begin(), implPriorities.end(), descImplType);
+                const size_t priorityId = std::distance(implPriorities.begin(), it);
+                const size_t highestPriority = prim_desc_w_priority.priority;
+                if (priorityId < highestPriority) {
+                    auto desc_copy = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get(true)));
+                    prim_desc_w_priority = {desc_copy, attrId, priorityId};
+                }
+            });
     }
 
-    auto prim_desc = prim_desc_w_priority.prim_desc;
-
-    return {prim_desc, prim_desc_w_priority.attrId};
+    return {prim_desc_w_priority.prim_desc, prim_desc_w_priority.attrId};
 }
 
 static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
@@ -446,7 +454,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     const auto& outputDims = attrs.fcSemantic ? normalizeDims(originalOutputDims) : originalOutputDims;
 
     auto isINT8 =
-        one_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
+        any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
     const auto weightScaleMask = attrs.isGrouped ? 3 : 1 << 0;
@@ -463,7 +471,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                     memory,
                                     outputDataType,
                                     attrs.dqScales,
-                                    false,
+                                    PostOpsMode::Original,
                                     false)
                     .compose()};
     }
@@ -477,7 +485,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                       memory,
                                                       outputDataType,
                                                       attrs.dqScales,
-                                                      true,
+                                                      PostOpsMode::Legacy,
                                                       true);
     // first try to compose using legacy post ops
     auto legacyCompose = legacyPostOpsLegacyZeroPoints.compose();
@@ -507,7 +515,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
     }
 
     // @todo avoid extra step of creating config to get the brgconv availability
-    auto config = GraphEmitter<ConvAttrs>::createConfig(memory, attrs);
+    auto config = createConfig(memory, attrs);
     if (!DnnlConvolutionPrimitive::isBrgConvAvailable(config)) {
         DEBUG_LOG("Brgconv is not available. Skip extra attribute");
         return {legacyCompose};
@@ -531,7 +539,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                             memory,
                                                             outputDataType,
                                                             attrs.dqScales,
-                                                            true,
+                                                            PostOpsMode::Legacy,
                                                             false);
         attributeVariants.emplace_back(legacyPostOpsOriginalZeroPoints.compose());
 
@@ -547,7 +555,7 @@ static std::vector<DnnlPrimitiveAttrs> createPrimitiveAttrs(const ConvAttrs& att
                                                           memory,
                                                           outputDataType,
                                                           attrs.dqScales,
-                                                          false,
+                                                          PostOpsMode::Original,
                                                           false);
     attributeVariants.emplace_back(originalPostOpsOriginalZeroPoints.compose());
 
@@ -893,9 +901,9 @@ bool DnnlConvolutionPrimitive::isJitPlanarAvailable(const ConvConfig& config) {
     const bool isAvx2FP32 = !dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) &&
                             dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2) && !config.attrs.isGraphQuantized;
 
-    const auto [groupNum, groupIC, groupOC, IC] = getChannelParams(config);
+    const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
-    return (IC == 1 && groupOC * groupNum == 1) && isAvx2FP32;
+    return all_of(1U, IC, groupOC * groupNum) && isAvx2FP32;
 }
 
 bool DnnlConvolutionPrimitive::isBrgConvAvailable(const ConvConfig& config) {
@@ -914,7 +922,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
         return false;
         // @todo master implementation had the following logic as well:
         //     auto predicate = [](memory::format_tag tag) {
-        //         return one_of(tag, memory::format_tag::nwc, memory::format_tag::nhwc, memory::format_tag::ndhwc);
+        //         return any_of(tag, memory::format_tag::nwc, memory::format_tag::nhwc, memory::format_tag::ndhwc);
         //     };
         //     if (std::none_of(inputMemoryFormatsFilter.begin(), inputMemoryFormatsFilter.end(), predicate)) {
         //         return false;
@@ -931,7 +939,7 @@ bool DnnlConvolutionPrimitive::isNspcAvailable(const ConvConfig& config) {
     auto outDims = config.descs.at(ARG_DST)->getShape().getDims();
     auto ndims = inpDims.size();
 
-    auto [groupNum, groupIC, groupOC, IC] = getChannelParams(config);
+    const auto [groupNum, groupIC, IC, groupOC] = getChannelParams(config);
 
     bool isDepthWise = config.attrs.isGrouped && 1 == groupOC && 1 == groupIC;
 

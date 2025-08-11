@@ -4,29 +4,30 @@
 
 #include "snippets/pass/common_optimizations.hpp"
 
-#include "snippets/pass/fq_decomposition.hpp"
-#include "snippets/pass/softmax_reshape_elimination.hpp"
+#include <memory>
+
+#include "openvino/core/type.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/explicit_transpose_matmul_inputs.hpp"
-#include "snippets/pass/transpose_decomposition.hpp"
-#include "snippets/pass/fuse_transpose_brgemm.hpp"
-#include "snippets/pass/transform_convert.hpp"
-#include "snippets/pass/validate.hpp"
-#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/extract_constants.hpp"
 #include "snippets/pass/extract_unsupported_transposes.hpp"
+#include "snippets/pass/fq_decomposition.hpp"
+#include "snippets/pass/softmax_reshape_elimination.hpp"
+#include "snippets/pass/split_dimension_m.hpp"
 #include "snippets/pass/subgraph_manager.hpp"
-#include "snippets/op/subgraph.hpp"
-#include "snippets/itt.hpp"
+#include "snippets/pass/tokenization.hpp"
+#include "snippets/pass/transform_convert.hpp"
+#include "snippets/pass/validate.hpp"
 
-#include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/utils/utils.hpp"
-
-namespace ov {
-namespace snippets {
-namespace pass {
+namespace ov::snippets::pass {
 
 #define REGISTER_SNIPPETS_PASS(manager, pass, enabled, ...) \
-    if (enabled) \
+    if (enabled)                                            \
         manager.register_pass<pass>(__VA_ARGS__);
 
 CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& config) {
@@ -43,8 +44,8 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         const auto is_quantized = subgraph->is_quantized();
         const auto is_domain_sensitive = subgraph->has_domain_sensitive_ops();
 
-        // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original behavior.
-        // Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
+        // Firstly, we should transform all original Converts inside body to ConvertTruncation to save original
+        // behavior. Then if Subgraph contains FakeQuantize we enable specific transformation for quantized subgraphs.
         ov::pass::Manager manager(get_pass_config(), "Snippets:CommonOptimizations");
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::TransformConvertToConvertTruncation, true);
         REGISTER_SNIPPETS_PASS(manager, ov::snippets::pass::ExplicitTransposeMatMulInputs, is_domain_sensitive);
@@ -57,7 +58,9 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         // so we can enable ExtractConstants pass for quantized models
         REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractConstants, is_quantized);
         REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::ExtractUnsupportedTransposes, is_domain_sensitive);
-        REGISTER_SNIPPETS_PASS(subgraph_manager, ov::snippets::pass::SplitDimensionM, is_domain_sensitive && config.get_split_m_dimension(),
+        REGISTER_SNIPPETS_PASS(subgraph_manager,
+                               ov::snippets::pass::SplitDimensionM,
+                               is_domain_sensitive && config.get_split_m_dimension(),
                                config.get_concurrency());
         subgraph_manager.run_passes(subgraph);
 
@@ -67,10 +70,9 @@ CommonOptimizations::CommonOptimizations(const SnippetsTokenization::Config& con
         return true;
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::snippets::op::Subgraph>(), matcher_name);
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(ov::pass::pattern::wrap_type<ov::snippets::op::Subgraph>(),
+                                                          matcher_name);
     this->register_matcher(m, callback);
 }
 
-} // namespace pass
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::pass

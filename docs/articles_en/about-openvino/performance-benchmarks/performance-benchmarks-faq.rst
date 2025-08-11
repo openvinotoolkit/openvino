@@ -87,10 +87,14 @@ Performance Information F.A.Q.
         - Huggingface
         - Auto regressive language
         - 128K
-      * - `Qwen-2.5-7B-Instruct <https://huggingface.co/Qwen/Qwen2.5-7B-Instruct>`__
+      * - `Qwen-2.5-VL-3B-Instruct <https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct>`__
         - Huggingface
         - Auto regressive language
-        - 128K
+        - 32K
+      * - `Qwen-2.5-1.5B-Instruct <https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct>`__
+        - Huggingface
+        - Auto regressive language
+        - 32K
       * - `Stable-Diffusion-V1-5 <https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5>`__
         - Hugginface
         - Latent Diffusion Model

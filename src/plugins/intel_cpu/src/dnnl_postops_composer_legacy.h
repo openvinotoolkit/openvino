@@ -16,8 +16,7 @@
 #include "cpu_memory.h"
 #include "cpu_types.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 // so far the API only support per-Tensor or per-OC
 class DnnlPostOpsComposerLegacy {
@@ -33,8 +32,8 @@ public:
                               const std::vector<float>& DQScales,
                               bool hasBias);
 
-    void appendBinary(const dnnl::algorithm alg, const std::vector<float>& data);
-    void appendEltwise(const dnnl::algorithm alg, float alpha, float beta);
+    void appendBinary(dnnl::algorithm alg, const std::vector<float>& data);
+    void appendEltwise(dnnl::algorithm alg, float alpha, float beta);
     void appendRoundHTE();
     bool appendScale(const std::vector<float>& scale, bool isLastPostOp, bool allowBinary = true);
     bool appendShift(const std::vector<float>& shift, bool allowBinary = true);
@@ -70,5 +69,4 @@ private:
     void updateDestScales();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

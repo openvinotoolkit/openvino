@@ -91,15 +91,15 @@ ParamsKey RangeKernelRef::GetSupportedKey() const {
 
 bool RangeKernelRef::Validate(const Params &p) const {
     if (p.GetType() != KernelType::RANGE)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     auto &params = dynamic_cast<const range_params&>(p);
     if (params.inputs.size() != 3)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
 
     for (auto &input : params.inputs)
         if (input.LogicalSize() != 1)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     return true;
 }
 

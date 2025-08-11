@@ -17,7 +17,7 @@ namespace ov::intel_cpu {
 
 class jit_nop_emitter : public jit_emitter {
 public:
-    jit_nop_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_nop_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                     dnnl::impl::cpu::x64::cpu_isa_t isa,
                     const ov::snippets::lowered::ExpressionPtr& expr,
                     emitter_in_out_map emitter_type = gpr_to_gpr);
@@ -32,7 +32,7 @@ private:
 
 class jit_parameter_emitter : public jit_nop_emitter {
 public:
-    jit_parameter_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_parameter_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                           dnnl::impl::cpu::x64::cpu_isa_t isa,
                           const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -43,7 +43,7 @@ public:
 
 class jit_result_emitter : public jit_nop_emitter {
 public:
-    jit_result_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_result_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
     size_t get_inputs_num() const override {
@@ -53,7 +53,7 @@ public:
 
 class jit_broadcast_move_emitter : public jit_emitter {
 public:
-    jit_broadcast_move_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_broadcast_move_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                                dnnl::impl::cpu::x64::cpu_isa_t isa,
                                const ov::snippets::lowered::ExpressionPtr& expr);
 
@@ -67,13 +67,12 @@ private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
-private:
-    size_t byte_size = 0lu;
+    size_t byte_size = 0LU;
 };
 
 class jit_scalar_emitter : public jit_emitter {
 public:
-    jit_scalar_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_scalar_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                        dnnl::impl::cpu::x64::cpu_isa_t isa,
                        const ov::snippets::lowered::ExpressionPtr& expr);
 

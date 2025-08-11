@@ -9,17 +9,17 @@ type SupportedTypedArray =
   | Float64Array;
 
 type elementTypeString =
-  | 'u8'
-  | 'u32'
-  | 'u16'
-  | 'u64'
-  | 'i8'
-  | 'i64'
-  | 'i32'
-  | 'i16'
-  | 'f64'
-  | 'f32'
-  | 'string';
+  | "u8"
+  | "u32"
+  | "u16"
+  | "u64"
+  | "i8"
+  | "i64"
+  | "i32"
+  | "i16"
+  | "f64"
+  | "f32"
+  | "string";
 
 type OVAny = string | number | boolean;
 
@@ -32,6 +32,10 @@ type OVAny = string | number | boolean;
  * It is recommended to have a single Core instance per application.
  */
 interface Core {
+  /**
+   * It constructs a new Core object.
+   */
+  new (): Core;
   /**
    * Registers extensions to a Core object.
    * @param libraryPath Path to the library with ov::Extension.
@@ -75,11 +79,7 @@ interface Core {
    * A synchronous version of {@link Core.compileModel}.
    * It creates a compiled model from a source model object.
    */
-  compileModelSync(
-    model: Model,
-    deviceName: string,
-    config?: Record<string, OVAny>,
-  ): CompiledModel;
+  compileModelSync(model: Model, deviceName: string, config?: Record<string, OVAny>): CompiledModel;
   /**
    * A synchronous version of {@link Core.compileModel}.
    * It reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -110,10 +110,7 @@ interface Core {
    * @param deviceName The name of a device, the properties of which you get.
    * @param propertyName Property name.
    */
-  getProperty(
-    deviceName: string,
-    propertyName: string,
-  ): OVAny;
+  getProperty(deviceName: string, propertyName: string): OVAny;
   /**
    * It returns information on the version of device plugins.
    * @param deviceName A device name to identify a plugin.
@@ -176,10 +173,7 @@ interface Core {
    * in the IR / ONNX / PDPD / TF or TFLite format.
    * @param weightsBuffer Binary data with tensor data.
    */
-  readModel(
-    modelBuffer: Uint8Array,
-    weightsBuffer?: Uint8Array,
-  ): Promise<Model>;
+  readModel(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
   /**
    * A synchronous version of {@link Core.readModel}.
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
@@ -220,14 +214,13 @@ interface Core {
     properties?: Record<string, OVAny>,
   ): { [key: string]: string };
 }
-interface CoreConstructor {
-  new (): Core;
-}
 
-/**
- * A user-defined model read by {@link Core.readModel}.
- */
 interface Model {
+  /**
+   * It constructs a default Model object. Use {@link Core.readModel}
+   * to read Model from supported file format.
+   */
+  new (): Model;
   /**
    * It returns a cloned model.
    */
@@ -299,6 +292,27 @@ interface Model {
    * @param name The string to set as the friendly name.
    */
   setFriendlyName(name: string): void;
+  /** Reshapes model input.
+   * @param partialShape The {@link PartialShape} object
+   * or its string representation to reshape the model input.
+   * @param variablesShapes New shapes for variables.
+   */
+  reshape(
+    partialShape: PartialShape | string,
+    variablesShapes?: Record<string, PartialShape | string>,
+  ): Model;
+  /** Reshapes model inputs.
+   * @param partialShapes A Map with partial shapes.
+   * @param key The key is a model input index, tensor name
+   * or {@link Output} object.
+   * @param value The value is a {@link PartialShape} or
+   * a string representation of {@link PartialShape}.
+   * @param variablesShapes New shapes for variables.
+   */
+  reshape(
+    partialShapes: Map<number | string | Output, PartialShape | string>,
+    variablesShapes?: Record<string, PartialShape | string>,
+  ): Model;
   /**
    * It gets all the model inputs as an array.
    */
@@ -315,6 +329,11 @@ interface Model {
  * then mapping to compute kernels.
  */
 interface CompiledModel {
+  /**
+   * It constructs a default CompiledModel object. Use {@link Core.compileModel}
+   * or {@link Core.importModel} to get model compiled for a specific device.
+   */
+  new (): CompiledModel;
   /** It gets all inputs of a compiled model. */
   inputs: Output[];
   /** It gets all outputs of a compiled model. */
@@ -384,10 +403,37 @@ interface CompiledModel {
 
 /**
  * The {@link Tensor} is a lightweight class that represents data used for
- * inference. There are different ways to create a tensor. You can find them
- * in {@link TensorConstructor} section.
+ * inference.
+ *
+ * @remarks
+ * The tensor memory is shared with the TypedArray. That is,
+ * the responsibility for maintaining the reference to the TypedArray lies with
+ * the user. Any action performed on the TypedArray will be reflected in this
+ * tensor memory.
  */
 interface Tensor {
+  /**
+   * It constructs a tensor using the element type and shape. The new tensor
+   * data will be allocated by default.
+   * @param type The element type of the new tensor.
+   * @param shape The shape of the new tensor.
+   */
+  new (type: element | elementTypeString, shape: number[]): Tensor;
+  /**
+   * It constructs a tensor using the element type and shape. The new tensor
+   * wraps allocated host memory.
+   * @param type The element type of the new tensor.
+   * @param shape The shape of the new tensor.
+   * @param tensorData A subclass of TypedArray that will be wrapped
+   * by a {@link Tensor}.
+   */
+  new (type: element | elementTypeString, shape: number[], tensorData: SupportedTypedArray): Tensor;
+  /**
+   * It constructs a tensor using the element type and shape. The strings from
+   * the array are used to fill the new tensor. Each element of a string tensor
+   * is a string of arbitrary length, including an empty string.
+   */
+  new (tensorData: string[]): Tensor;
   /**
    * This property provides access to the tensor's data.
    *
@@ -426,50 +472,16 @@ interface Tensor {
 }
 
 /**
- * This interface contains constructors of the {@link Tensor} class.
- *
- * @remarks
- * The tensor memory is shared with the TypedArray. That is,
- * the responsibility for maintaining the reference to the TypedArray lies with
- * the user. Any action performed on the TypedArray will be reflected in this
- * tensor memory.
- */
-interface TensorConstructor {
-  /**
-   * It constructs a tensor using the element type and shape. The new tensor
-   * data will be allocated by default.
-   * @param type The element type of the new tensor.
-   * @param shape The shape of the new tensor.
-   */
-  new (type: element | elementTypeString, shape: number[]): Tensor;
-  /**
-   * It constructs a tensor using the element type and shape. The new tensor
-   * wraps allocated host memory.
-   * @param type The element type of the new tensor.
-   * @param shape The shape of the new tensor.
-   * @param tensorData A subclass of TypedArray that will be wrapped
-   * by a {@link Tensor}.
-   */
-  new (
-    type: element | elementTypeString,
-    shape: number[],
-    tensorData: SupportedTypedArray,
-  ): Tensor;
-  /**
-   * It constructs a tensor using the element type and shape. The strings from
-   * the array are used to fill the new tensor. Each element of a string tensor
-   * is a string of arbitrary length, including an empty string.
-   */
-  new (tensorData: string[]): Tensor;
-}
-
-/**
- * The {@link InferRequest} object is created using
- * {@link CompiledModel.createInferRequest} method and is specific for a given
- * deployed model. It is used to make predictions and can be run in
+ * The {@link InferRequest} object is used to make predictions and can be run in
  * asynchronous or synchronous manners.
  */
 interface InferRequest {
+  /**
+   * It constructs a default InferRequest object.
+   * Use {@link CompiledModel.createInferRequest}
+   * to get InferRequest object specific for a given deployed model.
+   */
+  new (): InferRequest;
   /**
    * It infers specified input(s) in the synchronous mode.
    * @remarks
@@ -586,6 +598,7 @@ interface InferRequest {
 type Dimension = number | [number, number];
 
 interface Output {
+  new (): Output;
   anyName: string;
   shape: number[];
   toString(): string;
@@ -623,31 +636,23 @@ interface OutputInfo {
 }
 
 interface PrePostProcessor {
+  new (model: Model): PrePostProcessor;
   build(): PrePostProcessor;
   input(idxOrTensorName?: number | string): InputInfo;
   output(idxOrTensorName?: number | string): OutputInfo;
 }
-interface PrePostProcessorConstructor {
-  new (model: Model): PrePostProcessor;
-}
 
 interface PartialShape {
-  isStatic(): boolean;
-  isDynamic(): boolean;
-  toString(): string;
-  getDimensions(): Dimension[];
-}
-
-/**
- * This interface contains constructor of the {@link PartialShape} class.
- */
-interface PartialShapeConstructor {
   /**
    * It constructs a PartialShape by passed string.
    * Omit parameter to create empty shape.
    * @param [shape] String representation of the shape.
    */
   new (shape?: string): PartialShape;
+  isStatic(): boolean;
+  isDynamic(): boolean;
+  toString(): string;
+  getDimensions(): Dimension[];
 }
 
 declare enum element {
@@ -671,13 +676,17 @@ declare enum resizeAlgorithm {
 }
 
 export interface NodeAddon {
-  Core: CoreConstructor;
-  Tensor: TensorConstructor;
-  PartialShape: PartialShapeConstructor;
+  Core: Core;
+  Model: Model;
+  CompiledModel: CompiledModel;
+  Tensor: Tensor;
+  InferRequest: InferRequest;
+  Output: Output;
+  PartialShape: PartialShape;
 
   preprocess: {
     resizeAlgorithm: typeof resizeAlgorithm;
-    PrePostProcessor: PrePostProcessorConstructor;
+    PrePostProcessor: PrePostProcessor;
   };
 
   /**
@@ -696,7 +705,7 @@ export interface NodeAddon {
   saveModelSync(model: Model, path: string, compressToFp16?: boolean): void;
 
   element: typeof element;
+  resizeAlgorithm: typeof resizeAlgorithm;
 }
 
-export default // eslint-disable-next-line @typescript-eslint/no-var-requires
-require('../bin/ov_node_addon.node') as NodeAddon;
+export default require("../bin/ov_node_addon.node") as NodeAddon;

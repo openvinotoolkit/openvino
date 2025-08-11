@@ -8,7 +8,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_memory.h"
 #include "graph_context.h"
@@ -16,20 +15,18 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class CumSum : public Node {
 public:
     CumSum(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
@@ -47,9 +44,9 @@ private:
 
     static inline size_t getStartOffset(const std::vector<size_t>& forStartOffset, const std::vector<size_t>& strides);
 
-    size_t getAxis(const IMemory& _axis, const IMemory& _data) const;
+    [[nodiscard]] size_t getAxis(const IMemory& _axis, const IMemory& _data) const;
 
-    enum { CUM_SUM_DATA, AXIS, numOfInputs };
+    enum : uint8_t { CUM_SUM_DATA, AXIS, numOfInputs };
     bool exclusive;
     bool reverse;
     size_t numOfDims;
@@ -65,6 +62,4 @@ private:
     };
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

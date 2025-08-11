@@ -4,14 +4,25 @@
 
 #include "snippets/lowered/pass/init_live_ranges.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
+#include <map>
+#include <set>
+#include <stack>
+#include <utility>
+
+#include "openvino/core/type.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/op/perf_count.hpp"
 #include "snippets/op/subgraph.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 namespace {
 // Expressions that don't affect lifetime of registers, e.g. Buffer or RankNormalization
 inline bool pass_through_expr(const ExpressionPtr& expr) {
@@ -23,7 +34,7 @@ inline bool pass_through_expr(const ExpressionPtr& expr) {
            || ov::is_type<BufferExpression>(expr);
 }
 
-} // namespace
+}  // namespace
 
 bool InitLiveRanges::run(LinearIR& linear_ir) {
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::InitLiveRanges")
@@ -45,9 +56,12 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
             }
         } else {
             // Remove all regs that expired before start
-            regs_to_expire.erase(regs_to_expire.begin(), regs_to_expire.lower_bound(start)); // remove all elements lower than start (not equal)
-            for (const auto& time_reg : regs_to_expire)
+            regs_to_expire.erase(
+                regs_to_expire.begin(),
+                regs_to_expire.lower_bound(start));  // remove all elements lower than start (not equal)
+            for (const auto& time_reg : regs_to_expire) {
                 live_regs.insert(time_reg.second.begin(), time_reg.second.end());
+            }
             expr->set_live_regs(std::move(live_regs));
         }
 
@@ -56,8 +70,9 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
         // expressions) and to propagate new registers to the consumers
         for (size_t i = 0; i < expr->get_output_count(); ++i) {
             const auto& out_pd = expr->get_output_port_descriptor(i);
-            if (out_pd->get_reg().is_defined())
+            if (out_pd->get_reg().is_defined()) {
                 continue;
+            }
             const auto reg_type = m_reg_manager.get_reg_type(op->output(i));
             const auto& reg = Reg(reg_type, reg_counter[reg_type]++);
             double stop = start;
@@ -65,7 +80,7 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
             std::stack<PortConnectorPtr> to_visit;
             to_visit.push(expr->get_output_port_connector(i));
             while (!to_visit.empty()) {
-                const auto& current = to_visit.top();
+                const auto current = to_visit.top();
                 current->get_source().get_descriptor_ptr()->set_reg(reg);
                 to_visit.pop();
                 for (const auto& consumer : current->get_consumers()) {
@@ -75,8 +90,9 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
                     // Note: pass_through expression don't affect registers' life times,
                     // so we should examine their consumers to understand when the register will actually be used
                     if (pass_through_expr(consumer_expr)) {
-                        for (const auto& connector : consumer_expr->get_output_port_connectors())
+                        for (const auto& connector : consumer_expr->get_output_port_connectors()) {
                             to_visit.push(connector);
+                        }
                     }
                 }
             }
@@ -88,8 +104,4 @@ bool InitLiveRanges::run(LinearIR& linear_ir) {
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
-
+}  // namespace ov::snippets::lowered::pass

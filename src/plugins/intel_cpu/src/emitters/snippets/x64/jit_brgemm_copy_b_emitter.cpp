@@ -4,7 +4,7 @@
 
 #include "jit_brgemm_copy_b_emitter.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -16,6 +16,7 @@
 #include "emitters/plugin/x64/jit_emitter.hpp"
 #include "emitters/plugin/x64/utils.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/snippets/x64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/x64/kernel_executors/brgemm_copy_b.hpp"
 #include "emitters/snippets/x64/utils.hpp"
@@ -35,7 +36,7 @@ using namespace ov::snippets::utils;
 
 namespace ov::intel_cpu {
 
-jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
+jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator_t* h,
                                                      cpu_isa_t isa,
                                                      const ov::snippets::lowered::ExpressionPtr& expr,
                                                      const snippets::KernelExecutorTablePtr& kernel_table,
@@ -51,24 +52,17 @@ jit_brgemm_copy_b_emitter::jit_brgemm_copy_b_emitter(jit_generator* h,
     OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_vdims(expr->get_input_port_descriptor(0)->get_shape()),
                               "Jit emitter is called when the shapes are unknown");
 
-    const auto& src_prc = brgemm_repack->get_src_element_type();
-    const auto& wei_prc = brgemm_repack->get_input_element_type(0);
-    const auto wei_N_blk = brgemm_utils::repacking::compute_inner_n_block(wei_prc);
-    const auto is_transposed = BrgemmCopyB::is_transposed(expr->get_input_port_descriptor(0)->get_layout());
-    const auto brgemm_type = get_brgemm_type(src_prc, is_transposed);
-    const auto primitive_isa = brgemm_utils::get_primitive_isa(src_prc, with_amx(brgemm_type));
-    m_with_comp = with_compensations(brgemm_type);
-
-    BrgemmCopyBKernelConfig kernel_config(src_prc, wei_prc, primitive_isa, m_with_comp, is_transposed, wei_N_blk);
-    m_kernel_executor =
-        kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, kernel_config);
+    const auto& brgemm_config = brgemm_repack->get_config();
+    m_with_comp = brgemm_config.with_compensations();
+    const BrgemmCopyBKernelConfig config(brgemm_config);
+    m_kernel_executor = kernel_table->register_kernel<BrgemmCopyBKernelExecutor>(expr, compiled_kernel_cache, config);
 
     m_memory_offsets = {brgemm_repack->get_offset_in(), brgemm_repack->get_offset_out()};
-    m_buffer_ids = {utils::get_buffer_cluster_id(expr->get_input_port(0)),
-                    utils::get_buffer_cluster_id(expr->get_output_port(0))};
+    m_buffer_ids = {ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(0)),
+                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(0))};
     if (m_with_comp) {
         m_memory_offsets.push_back(brgemm_repack->get_offset_compensations());
-        m_buffer_ids.push_back(utils::get_buffer_cluster_id(expr->get_output_port(1)));
+        m_buffer_ids.push_back(ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(1)));
     }
 }
 

@@ -14,14 +14,12 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class EmbeddingBag {
 public:
-    enum class Reduction { SUM, MEAN };
-    EmbeddingBag(const std::shared_ptr<ov::Node>&,
+    enum class Reduction : uint8_t { SUM, MEAN };
+    EmbeddingBag(const std::shared_ptr<ov::Node>& op,
                  size_t requiredInputNum,
                  size_t indicesIdx,
                  size_t perSampleWeightsIdx,
@@ -33,7 +31,7 @@ public:
                  const VectorDims& inDims,
                  const MemoryPtr& outMemory);
 
-    ~EmbeddingBag() = default;
+    virtual ~EmbeddingBag() = default;
 
 protected:
     virtual void initFromInputs() = 0;
@@ -48,7 +46,7 @@ protected:
     template <typename T>
     void processData(const T* srcData, const T* weightsData, const VectorDims& inDataDims, const MemoryPtr& outMemory);
 
-    const size_t EMB_TABLE_IDX = 0lu;
+    const size_t EMB_TABLE_IDX = 0LU;
     const size_t INDICES_IDX;
     const size_t PER_SAMPLE_WEIGHTS_IDX;
     const size_t DEFAULT_INDEX_IDX;
@@ -59,6 +57,4 @@ protected:
     std::string _layerName;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

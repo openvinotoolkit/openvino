@@ -19,18 +19,17 @@ namespace ov::intel_cpu::pass {
 class FuseBrgemmCPUPostops : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("FuseBrgemmCPUPostops");
-    FuseBrgemmCPUPostops(std::set<size_t>& brgemm_external_params_idces);
+    explicit FuseBrgemmCPUPostops(std::set<size_t>& brgemm_external_params_idces);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
     static bool can_be_fused_as_postop(const std::shared_ptr<const ov::Node>& node);
-    static bool brgemm_can_fuse_postop(const ov::intel_cpu::brgemm_utils::BRGEMM_TYPE brgemm_type,
-                                       const ov::element::Type& input_precision);
+    static bool brgemm_can_fuse_postop(const ov::element::Type& input_precision);
 
 private:
     std::set<size_t>& m_brgemm_external_params_idces;
     // Note: this set is needed to collect external params.
     // This set will be converted to m_external_params_indices at run_on_model stage
-    std::set<std::shared_ptr<ov::op::v0::Parameter>> m_external_params = {};
+    std::set<std::shared_ptr<ov::op::v0::Parameter>> m_external_params;
 };
 
 /**
@@ -83,7 +82,7 @@ public:
 class FuseBinaryEltwise : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("FuseBinaryEltwise");
-    FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::Parameter>>& external_params);
+    explicit FuseBinaryEltwise(std::set<std::shared_ptr<ov::op::v0::Parameter>>& external_params);
 
     static bool can_be_fused(const std::shared_ptr<const ov::Node>& node);
 

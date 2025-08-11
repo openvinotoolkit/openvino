@@ -9,7 +9,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_types.h"
 #include "graph_context.h"
@@ -17,13 +16,11 @@
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct RDFTExecutor {
 public:
-    RDFTExecutor(bool inverse) : isInverse(inverse) {}
+    explicit RDFTExecutor(bool inverse) : isInverse(inverse) {}
     virtual ~RDFTExecutor() = default;
     void execute(float* inputPtr,
                  float* outputPtr,
@@ -139,7 +136,7 @@ private:
 struct RDFTKey {
     bool isInverse;
 
-    size_t hash() const {
+    [[nodiscard]] size_t hash() const {
         size_t seed = 0;
         seed = dnnl::impl::hash_combine(seed, isInverse);
         return seed;
@@ -150,6 +147,4 @@ struct RDFTKey {
     }
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

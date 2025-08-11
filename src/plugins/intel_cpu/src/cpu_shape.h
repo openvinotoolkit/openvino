@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <initializer_list>
 #include <limits>
 #include <string>
@@ -16,8 +17,7 @@
 #include "openvino/core/interval.hpp"
 #include "openvino/core/partial_shape.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class Shape {
 public:
@@ -43,16 +43,15 @@ public:
         });
     }
 
-    explicit Shape(const VectorDims& shape) : type(ShapeType::Static), dims(minDims = maxDims = shape) {
+    explicit Shape(const VectorDims& shape) : dims(minDims = maxDims = shape) {
         hasZeroDimensions = std::any_of(dims.begin(), dims.end(), [](size_t dim) {
             return dim == 0;
         });
     }
 
     Shape(const VectorDims& minDims, const VectorDims& maxDims) {
-        if (minDims.size() != maxDims.size()) {
-            OPENVINO_THROW("Can't create shape due to min/max vectors dims size mismatch");
-        }
+        OPENVINO_ASSERT(minDims.size() == maxDims.size(),
+                        "Can't create shape due to min/max vectors dims size mismatch");
         this->minDims = minDims;
         this->maxDims = maxDims;
 
@@ -71,7 +70,7 @@ public:
         });
     }
 
-    Shape(const std::initializer_list<Dim>& shape) : type(ShapeType::Static) {
+    Shape(const std::initializer_list<Dim>& shape) {
         minDims.reserve(shape.size());
         maxDims.reserve(shape.size());
 
@@ -100,7 +99,7 @@ public:
      * dims = [UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM]
      * @return return lower bound of shape = [1, 1, 1, 1]
      */
-    const VectorDims& getMinDims() const {
+    [[nodiscard]] const VectorDims& getMinDims() const {
         return minDims;
     }
 
@@ -117,7 +116,7 @@ public:
      * dims = [UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM, UNDEFINED_DIM]
      * @return return upper bound of shape = [6, 6, 6, 6]
      */
-    const VectorDims& getMaxDims() const {
+    [[nodiscard]] const VectorDims& getMaxDims() const {
         return maxDims;
     }
 
@@ -125,11 +124,8 @@ public:
      * @brief return defined shape or throw exception for dynamic case
      * @return return shape
      */
-    const VectorDims& getStaticDims() const {
-        if (type != ShapeType::Static) {
-            OPENVINO_THROW("Cannot get dims for non static shape");
-        }
-
+    [[nodiscard]] const VectorDims& getStaticDims() const {
+        OPENVINO_ASSERT(type == ShapeType::Static, "Cannot get dims for non static shape");
         return minDims;
     }
 
@@ -146,41 +142,38 @@ public:
      * dims = [2, 3, UNDEFINED_DIM, UNDEFINED_DIM]
      * @return return shape with defined and undefined dims = [2, 3, UNDEFINED_DIM, UNDEFINED_DIM]
      */
-    const VectorDims& getDims() const {
+    [[nodiscard]] const VectorDims& getDims() const {
         return dims;
     }
 
-    bool isStatic() const {
+    [[nodiscard]] bool isStatic() const {
         return type == ShapeType::Static;
     }
 
-    bool isDynamic() const {
+    [[nodiscard]] bool isDynamic() const {
         return type == ShapeType::Dynamic;
     }
 
-    bool hasZeroDims() const {
+    [[nodiscard]] bool hasZeroDims() const {
         return hasZeroDimensions;
     }
 
-    size_t getRank() const {
+    [[nodiscard]] size_t getRank() const {
         return minDims.size();
     }
 
-    size_t getElementsCount() const {
-        if (type != ShapeType::Static) {
-            OPENVINO_THROW("Cannot get elements count for non static shape");
-        }
-
+    [[nodiscard]] size_t getElementsCount() const {
+        OPENVINO_ASSERT(type == ShapeType::Static, "Cannot get elements count for non static shape");
         size_t size = 1;
 
-        for (size_t i = 0; i < minDims.size(); i++) {
-            size *= minDims[i];
+        for (uint64_t minDim : minDims) {
+            size *= minDim;
         }
 
         return size;
     }
 
-    ov::PartialShape toPartialShape() const {
+    [[nodiscard]] ov::PartialShape toPartialShape() const {
         using ov::Dimension;
         std::vector<Dimension> nGraphDims;
         nGraphDims.reserve(minDims.size());
@@ -189,12 +182,12 @@ public:
             Dimension::value_type maxDim = Shape::UNDEFINED_DIM == maxDims[i] ? -1 : maxDims[i];
             nGraphDims.emplace_back(minDim, maxDim);
         }
-        return ov::PartialShape(nGraphDims);
+        return {nGraphDims};
     }
 
-    bool isCompatible(const VectorDims& vecDims) const;
+    [[nodiscard]] bool isCompatible(const VectorDims& vecDims) const;
 
-    std::string toString() const;
+    [[nodiscard]] std::string toString() const;
 
     bool operator==(const Shape& rhs) const {
         return minDims == rhs.minDims && maxDims == rhs.maxDims;
@@ -204,7 +197,7 @@ public:
         return !(*this == rhs);
     }
 
-    bool hasDefinedUpperBounds() const {
+    [[nodiscard]] bool hasDefinedUpperBounds() const {
         return std::all_of(maxDims.begin(), maxDims.end(), [](Dim dim) {
             return dim != UNDEFINED_DIM;
         });
@@ -220,7 +213,7 @@ private:
         }
     }
 
-    enum class ShapeType { Static, Dynamic } type{ShapeType::Static};
+    enum class ShapeType : uint8_t { Static, Dynamic } type{ShapeType::Static};
 
     bool hasZeroDimensions = false;
 
@@ -241,5 +234,4 @@ private:
 
 Shape mergeShapes(const Shape& lhs, const Shape& rhs);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

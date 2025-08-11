@@ -27,14 +27,13 @@
 #include "openvino/runtime/so_ptr.hpp"
 #include "proxy_mem_blk.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class AsyncInferRequest;
 
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
-    SyncInferRequest(CompiledModelHolder compiled_model);
+    explicit SyncInferRequest(CompiledModelHolder compiled_model);
 
     void infer() override;
 
@@ -44,8 +43,7 @@ public:
 
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
 
-    void set_tensors_impl(const ov::Output<const ov::Node> port,
-                          const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
+    void set_tensors_impl(ov::Output<const ov::Node> port, const std::vector<ov::SoPtr<ov::ITensor>>& tensors) override;
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     std::vector<ov::SoPtr<ov::ITensor>> get_tensors(const ov::Output<const ov::Node>& _port) const override;
@@ -70,7 +68,6 @@ private:
     public:
         using MemBlockPtr = std::shared_ptr<MemoryBlockWithReuse>;
 
-    public:
         OutputControlBlock(const ov::element::Type& precision, const Shape& shape);
 
         OutputControlBlock(const OutputControlBlock&) = delete;
@@ -79,15 +76,15 @@ private:
         OutputControlBlock(OutputControlBlock&&) = default;
         OutputControlBlock& operator=(OutputControlBlock&&) = default;
 
-        std::shared_ptr<Tensor> tensor() const {
+        [[nodiscard]] std::shared_ptr<Tensor> tensor() const {
             return m_tensor;
         }
 
-        const void* rawPtr() const {
+        [[nodiscard]] const void* rawPtr() const {
             return m_tensor->get_memory()->getData();
         }
 
-        MemBlockPtr currentMemBlock() const {
+        [[nodiscard]] MemBlockPtr currentMemBlock() const {
             return m_buffers[m_buffIndx];
         }
 
@@ -110,7 +107,6 @@ private:
         int m_buffIndx = 0;
     };
 
-private:
     void create_infer_request();
     void init_tensor(const std::size_t& port_index, const ov::ISyncInferRequest::FoundPort::Type& type);
 
@@ -123,13 +119,12 @@ private:
 
     void sub_streams_infer();
 
-private:
     std::unordered_map<std::size_t, OutputControlBlock> m_outputControlBlocks;
 
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_input_external_ptr;
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_output_external_ptr;
 
-    openvino::itt::handle_t m_profiling_task;
+    openvino::itt::handle_t m_profiling_task = nullptr;
     std::vector<MemStatePtr> m_memory_states;
     AsyncInferRequest* m_asyncRequest = nullptr;
     CompiledModelHolder m_compiled_model;
@@ -139,5 +134,4 @@ private:
     std::unordered_map<std::size_t, ov::SoPtr<ov::ITensor>> m_outputs;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

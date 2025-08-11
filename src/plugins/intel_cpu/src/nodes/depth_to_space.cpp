@@ -73,7 +73,7 @@ bool DepthToSpace::isSupportedOperation(const std::shared_ptr<const ov::Node>& o
             return false;
         }
         const auto mode = depthToSpace->get_mode();
-        if (!one_of(mode,
+        if (none_of(mode,
                     ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
                     ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST)) {
             errorMessage = "Does not support mode: " + ov::as_string(mode);
@@ -91,14 +91,10 @@ DepthToSpace::DepthToSpace(const std::shared_ptr<ov::Node>& op, const GraphConte
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (inputShapes.size() != 1 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(all_of(1U, inputShapes.size(), outputShapes.size()), "has incorrect number of input/output edges!");
 
     auto depthToSpace = ov::as_type_ptr<const ov::op::v0::DepthToSpace>(op);
-    if (!depthToSpace) {
-        THROW_CPU_NODE_ERR("supports only v0");
-    }
+    CPU_NODE_ASSERT(depthToSpace, "supports only v0");
 
     const auto modeNgraph = depthToSpace->get_mode();
     if (modeNgraph == ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST) {
@@ -106,26 +102,18 @@ DepthToSpace::DepthToSpace(const std::shared_ptr<ov::Node>& op, const GraphConte
     } else if (modeNgraph == ov::op::v0::DepthToSpace::DepthToSpaceMode::DEPTH_FIRST) {
         attrs.mode = Mode::DEPTH_FIRST;
     } else {
-        THROW_CPU_NODE_ERR("doesn't support mode: ", ov::as_string(modeNgraph));
+        CPU_NODE_THROW("doesn't support mode: ", ov::as_string(modeNgraph));
     }
 
     attrs.blockSize = depthToSpace->get_block_size();
-    if (attrs.blockSize == 0) {
-        THROW_CPU_NODE_ERR("has incorrect block_size parameter is zero!");
-    }
+    CPU_NODE_ASSERT(attrs.blockSize != 0, "has incorrect block_size parameter is zero!");
 
     const size_t srcRank = getInputShapeAtPort(0).getRank();
     const size_t dstRank = getOutputShapeAtPort(0).getRank();
 
-    if (srcRank < 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input dimensions");
-    }
-    if (srcRank > 5) {
-        THROW_CPU_NODE_ERR("doesn't support dimensions with rank greater than 5");
-    }
-    if (srcRank != dstRank) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output dimensions");
-    }
+    CPU_NODE_ASSERT(srcRank >= 3, "has incorrect number of input dimensions");
+    CPU_NODE_ASSERT(srcRank <= 5, "doesn't support dimensions with rank greater than 5");
+    CPU_NODE_ASSERT(srcRank == dstRank, "has incorrect number of input/output dimensions");
 
     const size_t nSpatialDims = srcRank - 2;
     attrs.blockStep = static_cast<size_t>(std::pow(attrs.blockSize, nSpatialDims));
@@ -191,15 +179,9 @@ void DepthToSpace::initSupportedPrimitiveDescriptors() {
 void DepthToSpace::createPrimitive() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(0);
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("has null destination memory");
-    }
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("has null input memory");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("has unidentified preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(dstMemPtr, "has null destination memory");
+    CPU_NODE_ASSERT(srcMemPtr, "has null input memory");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "has unidentified preferable primitive descriptor");
 
     const auto& memoryDesc = srcMemPtr->getDesc();
     attrs.dataSize = memoryDesc.getPrecision().size();
@@ -230,19 +212,17 @@ void DepthToSpace::prepareParams() {
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(attrs, builder);
-    if (!result.first) {
-        THROW_CPU_NODE_ERR("DepthToSpaceExecutor was not found.");
-    }
+    CPU_NODE_ASSERT(result.first, "DepthToSpaceExecutor was not found.");
 
     execPtr = result.first;
 }
 
 DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs& attrs) {
-    if (!one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp)) {
-        OPENVINO_THROW("DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
-    }
+    OPENVINO_ASSERT(
+        any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c, LayoutType::nspc, LayoutType::ncsp),
+        "DepthToSpace executor supports only 'nCsp16c', 'nCsp8c', 'nspc' or 'ncsp' layouts.");
 
-    const bool isBlocked = one_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
+    const bool isBlocked = any_of(attrs.layoutType, LayoutType::nCsp16c, LayoutType::nCsp8c);
     const bool isChannelsFirst = attrs.layoutType == LayoutType::nspc;
     const size_t nDims = attrs.srcBlockedDims.size();
     const size_t reshapedRank =
@@ -333,10 +313,8 @@ DepthToSpace::DepthToSpaceExecutor::DepthToSpaceExecutor(const DepthToSpaceAttrs
     permuteKernel = std::make_unique<PermuteKernel>(params);
 }
 
-void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, const int MB) {
-    if (!permuteKernel) {
-        OPENVINO_THROW("Could not execute. Kernel for Transpose node was not compiled.");
-    }
+void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const MemoryPtr& dstMemPtr, int MB) {
+    OPENVINO_ASSERT(permuteKernel, "Could not execute. Kernel for Transpose node was not compiled.");
 
     const auto* srcData = srcMemPtr->getDataAs<const uint8_t>();
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
@@ -345,9 +323,7 @@ void DepthToSpace::DepthToSpaceExecutor::exec(const MemoryPtr& srcMemPtr, const 
 }
 
 void DepthToSpace::execute([[maybe_unused]] const dnnl::stream& strm) {
-    if (!execPtr) {
-        THROW_CPU_NODE_ERR("doesn't have a compiled executor.");
-    }
+    CPU_NODE_ASSERT(execPtr, "doesn't have a compiled executor.");
 
     int MB = getSrcMemoryAtPort(0)->getStaticDims()[0];
     execPtr->exec(getSrcMemoryAtPort(0), getDstMemoryAtPort(0), MB);

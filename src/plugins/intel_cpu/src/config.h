@@ -20,42 +20,41 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "utils/debug_caps_config.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 struct Config {
     Config();
 
-    enum LPTransformsMode {
+    enum LPTransformsMode : uint8_t {
         Off,
         On,
     };
 
-    enum DenormalsOptMode {
+    enum DenormalsOptMode : uint8_t {
         DO_Keep,
         DO_Off,
         DO_On,
     };
 
-    enum SnippetsMode {
+    enum SnippetsMode : uint8_t {
         Enable,
         IgnoreCallback,
         Disable,
     };
 
-    enum CacheQuantMode {
+    enum CacheQuantMode : uint8_t {
         AUTO,
         BY_CHANNEL,
-        BY_HIDDEN,
+        BY_TOKEN,
     };
 
-    enum class ModelType { CNN, LLM, Unknown };
+    enum class ModelType : uint8_t { CNN, LLM, Unknown };
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
-    std::string dumpToDot = {};
-    std::string device_id = {};
-    float fcSparseWeiDecompressionRate = 1.0f;
+    std::string dumpToDot;
+    std::string device_id;
+    float fcSparseWeiDecompressionRate = 1.0F;
     uint64_t fcDynamicQuantizationGroupSize = 32;
     bool fcDynamicQuantizationGroupSizeSetExplicitly = false;
     bool kvCachePrecisionSetExplicitly = false;
@@ -66,22 +65,27 @@ struct Config {
 #if defined(OV_CPU_WITH_ACL)
     bool aclFastMath = false;
 #endif
+#if defined(OV_CPU_WITH_ACL) || defined(OV_CPU_WITH_SHL)
+    // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
+    size_t rtCacheCapacity = 0UL;
+#else
+    size_t rtCacheCapacity = 5000UL;
+#endif
+    size_t snippetsCacheCapacity = 5000UL;
 #if defined(OPENVINO_ARCH_X86_64)
     ov::element::Type kvCachePrecision = ov::element::u8;
     ov::element::Type keyCachePrecision = ov::element::u8;
     ov::element::Type valueCachePrecision = ov::element::u8;
-    size_t rtCacheCapacity = 5000ul;
 #else
     ov::element::Type kvCachePrecision = ov::element::f16;
     ov::element::Type keyCachePrecision = ov::element::f16;
     ov::element::Type valueCachePrecision = ov::element::f16;
-    // TODO: Executor cache may leads to incorrect behavior on oneDNN ACL primitives
-    size_t rtCacheCapacity = 0ul;
 #endif
-    size_t keyCacheGroupSize = 0ul;
-    size_t valueCacheGroupSize = 0ul;
+    size_t keyCacheGroupSize = 0UL;
+    size_t valueCacheGroupSize = 0UL;
     CacheQuantMode keyCacheQuantMode = CacheQuantMode::AUTO;
     CacheQuantMode valueCacheQuantMode = CacheQuantMode::AUTO;
+    bool enableSageAttn = false;
     ov::threading::IStreamsExecutor::Config streamExecutorConfig;
     int streams = 1;
     bool streamsChanged = false;
@@ -96,7 +100,8 @@ struct Config {
     bool changedCpuPinning = false;
     bool enableCpuReservation = false;
     ov::hint::SchedulingCoreType schedulingCoreType = ov::hint::SchedulingCoreType::ANY_CORE;
-    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {};
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy;
+    bool enableTensorParallel = false;
     int streamsRankLevel = 1;
     int numSubStreams = 0;
     bool enableNodeSplit = false;
@@ -120,7 +125,7 @@ struct Config {
     // is reserved.
     bool DAZOn = false;
 
-    void readProperties(const ov::AnyMap& prop, const ModelType modelType = ModelType::Unknown);
+    void readProperties(const ov::AnyMap& prop, ModelType modelType = ModelType::Unknown);
 
     void updateProperties();
 
@@ -139,5 +144,4 @@ struct Config {
 #endif
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

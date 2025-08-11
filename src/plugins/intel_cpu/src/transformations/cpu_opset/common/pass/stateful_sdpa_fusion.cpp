@@ -42,9 +42,13 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "transformations/common_optimizations/simplify_shape_of_sub_graph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
-#include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
 #include "transformations/defs.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
+#endif
+
 using namespace ov::gen_pattern;
 using namespace ov::pass;
 
@@ -175,15 +179,12 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
             auto children = out.get_target_inputs();
             return std::all_of(children.begin(), children.end(), [](const ov::Input<ov::Node>& child) {
                 auto* node = child.get_node();
-                if (!one_of(node->get_type_info(),
-                            ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
-                            ov::op::v0::ShapeOf::get_type_info_static(),
-                            ov::op::v3::ShapeOf::get_type_info_static(),
-                            ov::op::v0::Convert::get_type_info_static(),
-                            ov::op::v8::Gather::get_type_info_static())) {
-                    return false;
-                }
-                return true;
+                return any_of(node->get_type_info(),
+                              ov::op::v13::ScaledDotProductAttention::get_type_info_static(),
+                              ov::op::v0::ShapeOf::get_type_info_static(),
+                              ov::op::v3::ShapeOf::get_type_info_static(),
+                              ov::op::v0::Convert::get_type_info_static(),
+                              ov::op::v8::Gather::get_type_info_static());
             });
         };
 

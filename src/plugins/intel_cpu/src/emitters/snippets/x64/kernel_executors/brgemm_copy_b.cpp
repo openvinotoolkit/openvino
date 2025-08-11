@@ -4,10 +4,10 @@
 
 #include "brgemm_copy_b.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
 #include <oneapi/dnnl/dnnl.h>
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
+#include <xbyak/xbyak.h>
 
 #include <common/c_types_map.hpp>
 #include <common/utils.hpp>
@@ -39,6 +39,7 @@
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
 
 #define DTYPE_CAST(X) static_cast<dnnl_data_type_t>(DnnlExtensionUtils::ElementTypeToDataType(X))
@@ -48,21 +49,24 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu {
 
-BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const element::Type& src_dt,
-                                                 const element::Type& wei_dt,
-                                                 cpu_isa_t isa,
-                                                 bool is_with_comp,
-                                                 bool is_transposed_B,
-                                                 dnnl_dim_t wei_N_blk)
-    : m_static_params(std::make_shared<StaticParams>(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)),
+BrgemmCopyBKernelConfig::BrgemmCopyBKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config)
+    : m_static_params(std::make_shared<StaticParams>(brgemm_config.src_dt(),
+                                                     brgemm_config.wei_dt(),
+                                                     brgemm_config.orig_wei_dt(),
+                                                     brgemm_config.isa(),
+                                                     brgemm_config.with_compensations(),
+                                                     brgemm_config.transposed_b(),
+                                                     brgemm_config.are_wei_blocked(),
+                                                     brgemm_config.wei_n_blk(),
+                                                     brgemm_config.wei_k_blk())),
       m_hash(compute_hash()) {}
 
 bool BrgemmCopyBKernelConfig::is_completed() const {
-    return !utils::one_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
+    return none_of(0, m_N, m_K, m_copy_B_wei_stride, m_LDB) || is_empty();
 }
 
 bool BrgemmCopyBKernelConfig::is_empty() const {
-    return everyone_is(0, m_N, m_N_blk, m_K, m_K_blk, m_copy_B_wei_stride, m_LDB);
+    return all_of(0, m_N, m_N_blk, m_K, m_K_blk, m_copy_B_wei_stride, m_LDB);
 }
 
 bool BrgemmCopyBKernelConfig::operator==(const BrgemmCopyBKernelConfig& rhs) const {
@@ -80,7 +84,7 @@ void BrgemmCopyBKernelConfig::update(dnnl_dim_t N,
                                      dnnl_dim_t LDB) {
     // If one of the dims is zero, it means that BrgemmCopyB won't be executed (in Loop with work_amount = 0, for
     // example) To process this case, we have to make this Config as empty (nullify runtime parameters)
-    if (utils::one_of(0, N, K)) {
+    if (any_of(0, N, K)) {
         m_N = 0;
         m_N_blk = 0;
         m_K = 0;
@@ -113,38 +117,59 @@ size_t BrgemmCopyBKernelConfig::compute_hash() const {
 
 BrgemmCopyBKernelConfig::StaticParams::StaticParams(const element::Type& src_type,
                                                     const element::Type& wei_type,
+                                                    const element::Type& original_wei_type,
                                                     cpu_isa_t isa,
                                                     bool is_with_comp,
                                                     bool is_transposed_B,
-                                                    dnnl_dim_t wei_n_blk)
+                                                    bool are_wei_blocked,
+                                                    dnnl_dim_t wei_n_blk,
+                                                    dnnl_dim_t wei_k_blk)
     : src_dt(DTYPE_CAST(src_type)),
       wei_dt(DTYPE_CAST(wei_type)),
+      original_wei_dt(DTYPE_CAST(original_wei_type)),
       isa(isa),
       is_with_comp(is_with_comp),
       is_transposed_B(is_transposed_B),
+      are_wei_blocked(are_wei_blocked),
       wei_N_blk(wei_n_blk),
-      hash(init_hash(src_dt, wei_dt, isa, is_with_comp, is_transposed_B, wei_N_blk)) {}
+      wei_K_blk(wei_k_blk),
+      hash(init_hash(src_dt,
+                     wei_dt,
+                     original_wei_dt,
+                     isa,
+                     is_with_comp,
+                     is_transposed_B,
+                     are_wei_blocked,
+                     wei_N_blk,
+                     wei_K_blk)) {}
 
 bool BrgemmCopyBKernelConfig::StaticParams::operator==(const StaticParams& rhs) const {
 #define EQ(X) X == rhs.X
-    return EQ(hash) && EQ(src_dt) && EQ(wei_dt) && EQ(isa) && EQ(is_with_comp) && EQ(is_transposed_B) && EQ(wei_N_blk);
+    return EQ(hash) && EQ(src_dt) && EQ(wei_dt) && EQ(original_wei_dt) && EQ(isa) && EQ(is_with_comp) &&
+           EQ(is_transposed_B) && EQ(are_wei_blocked) && EQ(wei_N_blk);
 #undef EQ
 }
 
 size_t BrgemmCopyBKernelConfig::StaticParams::init_hash(const dnnl_data_type_t& src_dt,
                                                         const dnnl_data_type_t& wei_dt,
+                                                        const dnnl_data_type_t& original_wei_dt,
                                                         cpu_isa_t isa,
                                                         bool is_with_comp,
                                                         bool is_transposed_B,
-                                                        dnnl_dim_t wei_N_blk) {
+                                                        bool are_wei_blocked,
+                                                        dnnl_dim_t wei_N_blk,
+                                                        dnnl_dim_t wei_K_blk) {
     size_t seed = 0;
 #define HASH(X) seed = hash_combine(seed, X)
     HASH(src_dt);
     HASH(wei_dt);
+    HASH(original_wei_dt);
     HASH(isa);
     HASH(is_with_comp);
     HASH(is_transposed_B);
+    HASH(are_wei_blocked);
     HASH(wei_N_blk);
+    HASH(wei_K_blk);
 #undef HASH
     return seed;
 }
@@ -167,36 +192,47 @@ std::string BrgemmCopyBKernelConfig::StaticParams::to_string() const {
     std::stringstream ss;
     PRINT(src_dt);
     PRINT(wei_dt);
+    PRINT(original_wei_dt);
     PRINT(isa);
     PRINT(is_with_comp);
     PRINT(is_transposed_B);
+    PRINT(are_wei_blocked);
     PRINT(wei_N_blk);
+    PRINT(wei_K_blk);
     return ss.str();
 }
 #    undef PRINT
 #endif
 
-BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator(jit_name()), ker_(nullptr) {}
+BrgemmCopyBKernel::BrgemmCopyBKernel() : jit_generator_t(jit_name()), ker_(nullptr) {}
 
 BrgemmCopyBKernel::BrgemmCopyBKernel(const BrgemmCopyBKernelConfig& conf)
-    : jit_generator(jit_name()),
+    : jit_generator_t(jit_name()),
       is_with_comp(conf.is_with_comp()),
       is_transpose(conf.is_transposed_B()),
-      wei_data_size(dnnl_data_type_size(conf.get_wei_dt())),
-      vnni_factor(data_type_vnni_granularity(conf.get_wei_dt())),
       K(conf.get_K()),
       N_blk(conf.get_N_blk()),
       wei_N_blk(conf.get_wei_N_blk()),
       wei_N_tail(conf.get_wei_N_tail()),
+      stride_comp(is_with_comp ? wei_N_blk * sizeof(int32_t) : 0),
       ker_(nullptr) {
+    const auto orig_wei_data_size = dnnl_data_type_size(conf.get_original_wei_dt());
+    const auto wei_data_size = dnnl_data_type_size(conf.get_wei_dt());
+    const auto prc = DnnlExtensionUtils::DataTypeToElementType(static_cast<dnnl::memory::data_type>(conf.get_wei_dt()));
+    const auto n_stride =
+        brgemm_utils::repacking::compute_N_blocked_stride(K, conf.get_wei_K_blk(), prc, conf.are_wei_blocked());
+
+    stride_in = conf.is_transposed_B() ? conf.get_K() * wei_N_blk * orig_wei_data_size : wei_N_blk * orig_wei_data_size;
+    stride_out = wei_N_blk * n_stride * wei_data_size;
+
     init_brgemm_copy_b_kernel(dnnl_brgemm_copy_b_kernel, conf);
     OV_CPU_JIT_EMITTER_ASSERT(dnnl_brgemm_copy_b_kernel, "Kernel is missed!");
 }
 
 status_t BrgemmCopyBKernel::create_kernel() {
-    const auto code = jit_generator::create_kernel();
+    const auto code = jit_generator_t::create_kernel();
     OV_CPU_JIT_EMITTER_ASSERT(code == status::success, "Failed to create kernel");
-    ker_ = reinterpret_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
+    ker_ = jit_kernel_cast<decltype(ker_)>(const_cast<uint8_t*>(jit_ker()));
     return code;
 }
 
@@ -210,10 +246,14 @@ void BrgemmCopyBKernel::operator()(const void* args) const {
 void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     std::unique_ptr<dnnl::impl::cpu::x64::matmul::jit_brgemm_matmul_copy_b_t>& kernel,
     const BrgemmCopyBKernelConfig& conf) {
-    matmul::brgemm_matmul_conf_t brgCopyKernelConf;
+    matmul::brgemm_matmul_conf_t brgCopyKernelConf{};
     brgCopyKernelConf.src_dt = conf.get_src_dt();
     brgCopyKernelConf.wei_dt = conf.get_wei_dt();
-    brgCopyKernelConf.orig_wei_dt = brgCopyKernelConf.wei_dt;
+    brgCopyKernelConf.orig_wei_dt = conf.get_original_wei_dt();
+    // WA: this hack is used to force f32->bf16 conversion (req_cvtps2bf16 flag in kernel constructor)
+    if (brgCopyKernelConf.orig_wei_dt != brgCopyKernelConf.wei_dt && brgCopyKernelConf.wei_dt == dnnl_bf16) {
+        brgCopyKernelConf.is_bf32 = true;
+    }
     brgCopyKernelConf.wei_n_blk = static_cast<int>(conf.get_wei_N_blk());
     // Note: 2D format tags are used just to force the needed OneDNN primitive creation.
     // However, the generated primitive can be also applied to tensors with other ranks
@@ -228,7 +268,7 @@ void BrgemmCopyBKernel::init_brgemm_copy_b_kernel(
     brgCopyKernelConf.K_blk = conf.get_K_blk();
     brgCopyKernelConf.N_chunk_elems = brgCopyKernelConf.N_blk;
     brgCopyKernelConf.b_dt_sz =
-        DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.wei_dt));
+        DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.orig_wei_dt));
     brgCopyKernelConf.tr_b_dt_sz =
         DnnlExtensionUtils::sizeOfDataType(static_cast<dnnl::memory::data_type>(brgCopyKernelConf.wei_dt));
 
@@ -265,9 +305,9 @@ void BrgemmCopyBKernel::generate() {
         const auto current_N = N_blk - nb * wei_N_blk < wei_N_blk ? wei_N_tail : wei_N_blk;
         emit_brgemm_copy_b_kernel_call(current_N, K, start_in, start_out, start_comp);
 
-        start_in += is_transpose ? K * current_N * wei_data_size : current_N * wei_data_size;
-        start_out += current_N * vnni_factor * wei_data_size;
-        start_comp += is_with_comp ? current_N * sizeof(int32_t) : 0;
+        start_in += stride_in;
+        start_out += stride_out;
+        start_comp += stride_comp;
     }
 
     postamble();
@@ -417,12 +457,11 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
     //  Dimension N
     init(N_dim, N_blk, 0);
 
-    const auto& brg_weight_etype = expr->get_node()->get_input_element_type(0);
-    const auto LDB = static_cast<int64_t>(brgemm_utils::repacking::compute_repacked_n_dim(N_dim, brg_weight_etype));
-    OPENVINO_ASSERT(LDB >= 0, "Invalid LDB value (less than 0)");
+    const auto LDB =
+        brgemm_utils::repacking::compute_K_blocked_stride(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
-        brg_weight_etype.size();
+        dnnl_data_type_size(config.get_original_wei_dt());
 
     config.update(N_dim, N_blk, K_dim, K_blk, copy_B_wei_stride, LDB);
 }

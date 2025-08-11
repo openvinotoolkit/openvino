@@ -7,24 +7,21 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "graph_context.h"
 #include "node.h"
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 class DetectionOutput : public Node {
 public:
     DetectionOutput(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
@@ -47,12 +44,12 @@ private:
     bool isShareLoc = false;
     int locNumForClasses = 0;
     bool withAddBoxPred = false;
-    float objScore = 0.0f;
+    float objScore = 0.0F;
 
-    float confidenceThreshold = 0.0f;
-    float sparsityThreshold = 0.03f;
+    float confidenceThreshold = 0.0F;
+    float sparsityThreshold = 0.03F;
     int topK = 0;
-    float NMSThreshold = 0.0f;
+    float NMSThreshold = 0.0F;
     bool clipBeforeNMS = false;
     bool clipAfterNMS = false;
     int backgroundClassId = 0;
@@ -67,7 +64,7 @@ private:
     int coordOffset = 0;
     int cacheSizeL3 = 0;
 
-    enum CodeType {
+    enum CodeType : uint8_t {
         CORNER = 1,
         CENTER_SIZE = 2,
     };
@@ -146,6 +143,4 @@ private:
     std::vector<int> confInfoForPrior;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

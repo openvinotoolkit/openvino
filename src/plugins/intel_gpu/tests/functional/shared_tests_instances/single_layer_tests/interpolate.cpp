@@ -14,12 +14,9 @@ protected:
     void SetUp() override {
         InterpolateLayerTest::SetUp();
         ov::test::InterpolateLayerTestParams params = GetParam();
-        ov::test::InterpolateSpecificParams interpolate_params;
-        ov::element::Type model_type;
-        std::vector<ov::test::InputShape> shapes;
-        ov::Shape target_shape;
-        std::map<std::string, std::string> additional_config;
-        std::tie(interpolate_params, model_type, shapes, target_shape, targetDevice, additional_config) = this->GetParam();
+
+        const auto& [interpolate_params, model_type, shapes, target_shape, _targetDevice, additional_config] = this->GetParam();
+        targetDevice = _targetDevice;
         // Some rounding float to integer types on GPU may differ from CPU, and as result,
         // the actual values may differ from reference ones on 1 when the float is very close to an integer,
         // e.g 6,0000023 calculated on CPU may be cast to 5 by OpenCL convert_uchar function.
@@ -201,6 +198,10 @@ const auto interpolate5dCasesNearestMode = ::testing::Combine(
         ::testing::ValuesIn(cubeCoefs),
         ::testing::ValuesIn(default5dAxes),
         ::testing::ValuesIn(default5dScales));
+
+TEST_P(GPUInterpolateLayerTest, Inference) {
+    run();
+}
 
 INSTANTIATE_TEST_SUITE_P(smoke_Interpolate_Basic, InterpolateLayerTest, ::testing::Combine(
         interpolateCasesWithoutNearest,

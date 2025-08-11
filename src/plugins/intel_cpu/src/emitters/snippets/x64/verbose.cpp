@@ -122,9 +122,8 @@ std::string init_info_jit_kernel_static_emitter(const jit_kernel_static_emitter*
 
 std::string init_info_jit_kernel_dynamic_emitter(const jit_kernel_dynamic_emitter* emitter) {
     std::stringstream ss;
-    ss << "Emitter_type_name:jit_kernel_dynamic_emitter"
-       << " num_inputs:" << emitter->num_inputs << " num_outputs:" << emitter->num_outputs
-       << " num_unique_buffers:" << emitter->num_unique_buffers
+    ss << "Emitter_type_name:jit_kernel_dynamic_emitter" << " num_inputs:" << emitter->num_inputs
+       << " num_outputs:" << emitter->num_outputs << " num_unique_buffers:" << emitter->num_unique_buffers
        << " data_ptr_regs_idx:" << vector_to_string(emitter->data_ptr_regs_idx);
     return ss.str();
 }

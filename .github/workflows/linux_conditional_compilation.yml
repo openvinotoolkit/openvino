@@ -175,6 +175,7 @@ jobs:
             -DENABLE_PROFILING_ITT=ON \
             -DSELECTIVE_BUILD=COLLECT \
             -DENABLE_FASTER_BUILD=ON \
+            -DENABLE_UNITY_BUILD=ON \
             -DENABLE_DEBUG_CAPS=ON \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
@@ -222,7 +223,7 @@ jobs:
             tar -cvf - install_dependencies/install_openvino_dependencies.sh | pigz > ${BUILD_DIR}/openvino_package.tar.gz
           popd
 
-          cp -v ${OPENVINO_REPO}/temp/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
+          cp -v ${OPENVINO_REPO}/temp/Linux_x86_64/tbb/lib/lib* ${INSTALL_TEST_DIR}/tests
           pushd ${INSTALL_TEST_DIR}
             tar -cvf - \
               tests/ov_cpu_func_tests \

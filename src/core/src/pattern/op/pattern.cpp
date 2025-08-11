@@ -8,6 +8,7 @@
 #include <optional>
 #include <regex>
 
+#include "openvino/core/log_util.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/util/common_util.hpp"
 #include "openvino/util/log.hpp"
@@ -188,10 +189,9 @@ namespace {
 
 #define ACCESSOR(type)                                                                \
     void on_adapter(const std::string& name, ValueAccessor<type>& adapter) override { \
-        if (m_expected_attrs.count(name) == 0) {                                      \
-            return;                                                                   \
+        if (m_expected_attrs.count(name) != 0) {                                      \
+            match(name, {adapter.get()});                                             \
         }                                                                             \
-        match(name, {adapter.get()});                                                 \
     };
 
 #define ACCESSOR_V(type) ACCESSOR(type) ACCESSOR(std::vector<type>)
@@ -220,14 +220,10 @@ public:
     ACCESSOR_V(double)
 
     void on_adapter(const std::string& name, ValueAccessor<void>& adapter) override {
-        if (m_expected_attrs.count(name) == 0)
-            return;
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void");
+        OPENVINO_ASSERT(m_expected_attrs.count(name) == 0, "Can not compare void");
     };
     void on_adapter(const std::string& name, ValueAccessor<void*>& adapter) override {
-        if (m_expected_attrs.count(name) == 0)
-            return;
-        OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare void*");
+        OPENVINO_ASSERT(m_expected_attrs.count(name) == 0, "Can not compare void*");
     };
     void on_adapter(const std::string& name, ValueAccessor<std::shared_ptr<ov::Model>>& adapter) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("Can not compare models");
@@ -255,28 +251,18 @@ public:
                 }
 
                 if (node_attribute.type_info() != expected_attribute.type_info())
-                    OPENVINO_DEBUG("  Attribute `",
-                                   name,
-                                   "` -- data type does not match. Node attribute type: ",
-                                   node_attribute.type_info().name(),
-                                   ". Expected attribute type: ",
-                                   expected_attribute.type_info().name());
+                    OPENVINO_LOG_PATTERN1(name,
+                                          node_attribute.type_info().name(),
+                                          expected_attribute.type_info().name());
                 bool status = node_attribute == expected_attribute;
-                if (!status)
-                    OPENVINO_DEBUG("  Attribute `", name, "` -- value does not match. ", [&]() {
-                        std::stringstream ss;
-                        node_attribute.print(ss);
-                        ss << " vs ";
-                        expected_attribute.print(ss);
-                        return ss.str();
-                    }());
+                OPENVINO_LOG_PATTERN2(status, name, node_attribute, expected_attribute);
                 m_matched_attributes[name] = status;
             } catch (...) {
-                OPENVINO_DEBUG("  Attribute `", name, "` matching went wrong");
+                OPENVINO_LOG_PATTERN3(name);
                 m_matched_attributes[name] = false;
             }
         } else {
-            OPENVINO_DEBUG("  Node attribute `", name, "` is not being compared");
+            OPENVINO_LOG_PATTERN4(name);
         }
     }
 

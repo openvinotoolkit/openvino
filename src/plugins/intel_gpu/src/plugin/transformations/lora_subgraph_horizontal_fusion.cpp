@@ -8,6 +8,7 @@
 #include "openvino/opsets/opset1.hpp"
 #include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/op/matmul.hpp"
 
 #include "ov_ops/lora_subgraph.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
@@ -49,9 +50,22 @@ LoRASubgraphHorizontalFusion::LoRASubgraphHorizontalFusion() {
             states.emplace_back(lora->get_input_node_shared_ptr(4));
         }
 
+        bool transposed_states = true;
+        // Assumption that all states in all LoRA's are simultaneously transposed or not transposed
+        const auto& any_lora = ov::as_type_ptr<ov::op::internal::LoraSubgraph>(lora_nodes[0]);
+        const auto& subgraph_ops = any_lora->get_function()->get_ops();
+        for (const auto& op : subgraph_ops) {
+            if (ov::is_type<const ov::op::v0::MatMul>(op.get())) {
+                const auto& matmul = ov::as_type<const ov::op::v0::MatMul>(op.get());
+                transposed_states = matmul->get_transpose_b();
+                break;
+            }
+        }
+
         auto fused_lora = std::make_shared<op::LoraSubgraphFused>(pattern_map.at(main_flow),
                                                                   pattern_map.at(lora_input),
-                                                                  states);
+                                                                  states,
+                                                                  transposed_states);
 
         auto fused_lora_name = lora_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(lora_nodes.size()) + "_LoRA";
         fused_lora->set_friendly_name(fused_lora_name);

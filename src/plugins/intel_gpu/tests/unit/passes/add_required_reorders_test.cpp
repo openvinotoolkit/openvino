@@ -19,6 +19,7 @@
 #include "shape_of_inst.h"
 #include "convolution_inst.h"
 #include "dft_inst.h"
+#include "mvn_inst.h"
 #include "to_string_utils.h"
 
 #include "program_wrapper.h"
@@ -197,4 +198,40 @@ TEST(add_required_reorders, skip_adding_reorder_batch_axis_padding) {
     ASSERT_EQ(reorder_prim->can_be_optimized(), false);
     auto concate = network.get_primitive("concat");
     ASSERT_EQ(concate->can_be_optimized(), false);
+}
+
+TEST(add_required_reorders, prevent_runtime_error_for_mvn_requiring_alignment) {
+    auto& engine = get_test_engine();
+    auto input_layout_dyn = layout{ ov::PartialShape{ov::Dimension::dynamic(), 24, 24, 2048},
+                                    data_types::f16,
+                                    format::bfyx };
+    auto conv_weights = engine.allocate_memory({ {2048, 2048, 1, 1}, data_types::f16, format::bfyx });
+    auto fc_weights = engine.allocate_memory({ {8192, 2048}, data_types::f32, format::bfyx });
+    auto input_mem = engine.allocate_memory({ {1, 24, 24, 2048}, data_types::f16, format::bfyx });
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dyn));
+    topology.add(data("weights", conv_weights));
+    topology.add(data("fc_weights", fc_weights));
+    topology.add(mvn("mvn1", input_info("input"), true, 1e-10f, false, {1}));
+    topology.add(permute("permute1", input_info("mvn1"), {0, 3, 1, 2}));
+    topology.add(convolution("conv", input_info("permute1"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
+    topology.add(permute("permute2", input_info("conv"), {0, 2, 3, 1}));
+    topology.add(mvn("mvn2", input_info("permute2"), true, 1e-10f, false, {3}));
+    topology.add(fully_connected("fc", input_info("mvn2"), "fc_weights", "", data_types::f32, 4, 2));
+    topology.add(reorder("reorder", input_info("fc"), layout{ ov::PartialShape{1, 8192, 24, 24}, data_types::f16, format::bfyx }));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+    ASSERT_NO_THROW(network.execute());
+
+    auto prog = network.get_program();
+    ASSERT_NE(prog, nullptr);
+
+    const auto& fc_node = prog->get_node("fc");
+    ASSERT_TRUE(fc_node.is_all_valid_output_layouts());
 }
