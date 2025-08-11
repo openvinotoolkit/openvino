@@ -152,9 +152,14 @@ struct CPUStreamsExecutor::Impl {
                                                             .set_max_concurrency(concurrency)
                                                             .set_max_threads_per_core(max_threads_per_core)});
             } else if (stream_type == STREAM_WITH_CORE_TYPE) {
-                const auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
-                                                ? custom::info::core_types().back()
-                                                : custom::info::core_types().front();
+                auto core_types = tbb::info::core_types();
+                auto real_core_type = (core_type == MAIN_CORE_PROC || core_type == HYPER_THREADING_PROC)
+                                          ? custom::info::core_types().back()
+                                          : custom::info::core_types().front();
+                // For PTL, core_types=[LPECore, Ecore, Pcore]
+                if (core_type == EFFICIENT_CORE_PROC && core_types.size() >= MIN_CORE_TYPES_FOR_PTL) {
+                    real_core_type = core_types[1];
+                }
                 _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
                                                             .set_core_type(real_core_type)
                                                             .set_max_concurrency(concurrency)
