@@ -46,12 +46,14 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
         const auto& attention_type = get_input_element_type(3);
         NODE_VALIDATION_CHECK(
             this,
-            attention_type.is_real() || attention_type == element::boolean || attention_type.is_dynamic(),
-            "The element type of attention_mask must be either floating-point or boolean.");
+            attention_type.is_real() || attention_type == element::boolean || attention_type == element::u8 ||
+                attention_type.is_dynamic(),
+            "The element type of attention_mask must be either floating-point or boolean, but it is " +
+                attention_type.to_string());
     }
     for (size_t i = 1; i < input_size; i++) {
         const auto& element_type = get_input_element_type(i);
-        if (i == 3 && (element_type == element::boolean || causal)) {
+        if (i == 3 && (element_type == element::boolean || element_type == element::u8 || causal)) {
             // Skip checking attention_mask in loop when boolean or skipped to not affect merged dtype.
             continue;
         }
