@@ -18,28 +18,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Test Configuration Catalog
-TEST_CATALOG = {
-    "TinyLlama/TinyLlama-1.1B-Chat-v1.0": {
+def add_test_case(catalog, model, gpu_int8_ref, gpu_int4_ref, cpu_int8_ref, cpu_int4_ref, threshold = 0.03):
+    catalog[model] = {
         "GPU": {
-            "INT8": {"reference": 0.98, "threshold": 0.03},
-            "INT4": {"reference": 0.71, "threshold": 0.03},
+            "INT8": {"reference": gpu_int8_ref, "threshold": threshold},
+            "INT4": {"reference": gpu_int4_ref, "threshold": threshold},
         },
         "CPU": {
-            "INT8": {"reference": 0.94, "threshold": 0.03},
-            "INT4": {"reference": 0.77, "threshold": 0.03},
+            "INT8": {"reference": cpu_int8_ref, "threshold": threshold},
+            "INT4": {"reference": cpu_int4_ref, "threshold": threshold},
         },
-    },
-    "Qwen/Qwen2-0.5B-Instruct": {
-        "GPU": {
-            "INT8": {"reference": 0.86, "threshold": 0.03},
-            "INT4": {"reference": 0.74, "threshold": 0.03},
-        },
-        "CPU": {
-            "INT8": {"reference": 0.82, "threshold": 0.03},
-            "INT4": {"reference": 0.68, "threshold": 0.03},
-        },
-    },
-}
+    }
+
+TEST_CATALOG = {}
+#                           NAME,                                   GPU_i8, GPU_i4, CPU_i8, CPU_int4
+add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.98,   0.90,   0.94,   0.88)
+add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.96,   0.74,   0.91,   0.73)
 
 # Extract configuration from catalog
 MODEL_IDS = list(TEST_CATALOG.keys())
@@ -129,7 +123,7 @@ def init_test_scope():
         gc.collect()
 
         set_seed(42)
-        use_chat_template = False # (tokenizer is not None and tokenizer.chat_template is not None)
+        use_chat_template = (tokenizer is not None and tokenizer.chat_template is not None)
         gt_path = get_gt_path(model_id, use_chat_template)
         if not os.path.exists(gt_path):
             evaluator = wwb.Evaluator(base_model=model, tokenizer=tokenizer, num_samples=NUMBER_OF_SAMPLES, use_chat_template=use_chat_template)
@@ -176,7 +170,7 @@ def test_accuracy_conformance(model_id, precision, device):
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-    use_chat_template = False #(tokenizer is not None and tokenizer.chat_template is not None)
+    use_chat_template = (tokenizer is not None and tokenizer.chat_template is not None)
     gt_data = get_gt_path(model_id, use_chat_template)
 
     evaluator = wwb.Evaluator(
