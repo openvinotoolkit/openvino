@@ -717,9 +717,8 @@ public:
             new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            lm_head_model = std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)},
-                                                        ov::ParameterVector{new_param});
-
+            lm_head_model =
+                std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
 
             return true;
         };
