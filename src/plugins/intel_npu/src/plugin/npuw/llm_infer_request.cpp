@@ -721,10 +721,17 @@ void ov::npuw::LLMInferRequest::store_blocks_in_cache(
         // 3. Create a new KVBlock with token hashes and KV cache tensors
         auto block = std::make_shared<KVBlock>();
         block->token_start = token_idx - block_size;
-        block->add_Block(token_hashes, kvcache_block);
+        block->add_block(token_hashes, kvcache_block);
+
+        // Link to the previous block
+        size_t prev_block_hash = 0;
+        if (block->token_start > 0) {
+            size_t last_token_id_in_prev_block = block->token_start - 1;
+            prev_block_hash = prompt_hashes[last_token_id_in_prev_block];
+        }
 
         // 4. Store block in cache
-        m_prefix_cache->put_block(block);
+        m_prefix_cache->put_block(block, prev_block_hash);
         std::cout << "[prefix caching]Got a full block, block id: " << block->block_id
                   << " token_start:" << block->token_start << " block hash: " << block->block_hash << std::endl;
     }
