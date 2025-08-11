@@ -82,7 +82,7 @@ public:
                                   ze_fence_handle_t fence,
                                   ze_event_handle_t event,
                                   ze_graph_profiling_pool_handle_t profiling) = 0;
-        virtual ~Impl(){};
+        virtual ~Impl() {};
     };
 
     IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
