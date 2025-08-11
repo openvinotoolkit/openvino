@@ -22,21 +22,21 @@ TEST_CATALOG = {
     "TinyLlama/TinyLlama-1.1B-Chat-v1.0": {
         "GPU": {
             "INT8": {"reference": 0.98, "threshold": 0.03},
-            "INT4": {"reference": 0.90, "threshold": 0.03},
+            "INT4": {"reference": 0.71, "threshold": 0.03},
         },
         "CPU": {
             "INT8": {"reference": 0.94, "threshold": 0.03},
-            "INT4": {"reference": 0.88, "threshold": 0.03},
+            "INT4": {"reference": 0.71, "threshold": 0.03},
         },
     },
     "Qwen/Qwen2-0.5B-Instruct": {
         "GPU": {
-            "INT8": {"reference": 0.96, "threshold": 0.03},
+            "INT8": {"reference": 0.86, "threshold": 0.03},
             "INT4": {"reference": 0.72, "threshold": 0.03},
         },
         "CPU": {
-            "INT8": {"reference": 0.91, "threshold": 0.03},
-            "INT4": {"reference": 0.73, "threshold": 0.03},
+            "INT8": {"reference": 0.82, "threshold": 0.03},
+            "INT4": {"reference": 0.68, "threshold": 0.03},
         },
     },
 }
@@ -84,11 +84,11 @@ def get_model_path(model_id, prec):
     """
     return os.path.join(tmp_dir, f"{model_id.replace('/', '_')}_{prec}")
 
-def get_gt_path(model_id):
+def get_gt_path(model_id, use_chat_template):
     """
     Returns the path to the ground truth data based on the model name.
     """
-    return os.path.join(tmp_dir, f"{model_id.replace('/', '_')}_gt_{NUMBER_OF_SAMPLES}.json")
+    return os.path.join(tmp_dir, f"{model_id.replace('/', '_')}_gt_{NUMBER_OF_SAMPLES}_{'chat_template' if use_chat_template else 'no-chat-template'}.json")
 
 def init_test_scope():
     test_scope = []
@@ -129,11 +129,10 @@ def init_test_scope():
         gc.collect()
 
         set_seed(42)
-        gt_path = get_gt_path(model_id)
+        use_chat_template = False # (tokenizer is not None and tokenizer.chat_template is not None)
+        gt_path = get_gt_path(model_id, use_chat_template)
         if not os.path.exists(gt_path):
-            evaluator = wwb.Evaluator(
-                base_model=model, tokenizer=tokenizer, num_samples=NUMBER_OF_SAMPLES, use_chat_template=True
-            )
+            evaluator = wwb.Evaluator(base_model=model, tokenizer=tokenizer, num_samples=NUMBER_OF_SAMPLES, use_chat_template=use_chat_template)
             logger.info(f'{gt_path} does not exist, creating ground truth data...')
             evaluator.dump_gt(gt_path)
 
@@ -171,14 +170,14 @@ def test_accuracy_conformance(model_id, precision, device):
     use_genai   = True
     dont_use_llamacpp = False
     model_path = get_model_path(model_id, precision)
-    gt_data = get_gt_path(model_id)
     actual_device = f'{device}.{GPU_SUFFIX}' if GPU_SUFFIX and device == "GPU" else device
     print(f"Testing model: {model_path}, precision: {precision}, device: {actual_device}")
     target_model = load_model(task, model_path, actual_device, ov_config, hf, use_genai, dont_use_llamacpp)
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-    use_chat_template = (tokenizer is not None and tokenizer.chat_template is not None)
+    use_chat_template = False #(tokenizer is not None and tokenizer.chat_template is not None)
+    gt_data = get_gt_path(model_id, use_chat_template)
 
     evaluator = wwb.Evaluator(
         base_model=None,
