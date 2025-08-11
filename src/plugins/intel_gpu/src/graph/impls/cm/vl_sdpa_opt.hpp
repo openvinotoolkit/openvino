@@ -45,6 +45,7 @@ struct VLSDPAOptImplementationManager : public ImplementationManager {
         const auto& info = engine.get_device_info();
 
         // CM optimized for systolic-array architectures
+        std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
         if (!check_cm_jit_support(engine, config) || !info.supports_immad || !config.get_use_cm()) {
             return false;
         }

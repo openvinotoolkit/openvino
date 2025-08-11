@@ -45,6 +45,7 @@ struct LSTMSeqImplementationManager : public ImplementationManager {
         const auto& info = engine.get_device_info();
 
         // XeTLA LSTM optimized for Xe2 architectures
+        std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
         if (!check_cm_jit_support(engine, config) || info.arch != gpu_arch::xe2 || !config.get_use_cm()) {
             return false;
         }

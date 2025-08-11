@@ -80,9 +80,11 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
 
     static std::map<cldnn::device*, bool> cache;
     if (cache.find(device) != cache.end()) {
+        std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
         return cache.at(device);
     }
 
+    std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
     std::shared_ptr<kernel_selector::KernelString> kernel_string = std::make_shared<kernel_selector::KernelString>();
     // This program checks if cm sources can be jitted by current IGC version
     const char* kernel_code = R""""(
@@ -103,6 +105,7 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
     kernel_string->language = kernel_language::CM;
 
     if (device->get_info().arch >= gpu_arch::xe2) {
+        std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
         kernel_string->str.append("\nstatic_assert(CM_HAS_LSC_UNTYPED_2D);\n");
     }
 
@@ -119,8 +122,10 @@ bool check_cm_jit_support(cldnn::engine& e, const cldnn::ExecutionConfig& config
         cache[device] = true;
     } catch (std::exception&) {
         cache[device] = false;
+        std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
     }
 
+    std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
     return cache.at(device);
 }
 

@@ -370,6 +370,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     }
 #endif
 
+                    std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
                     if (!check_cm_jit_support(engine, config)) {
                         OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
                                     "as current IGC version is not compatible to the CM kernel used. Enable it by update IGC."
@@ -618,6 +619,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     const auto &lstm_seq = ov::as_type_ptr<const ov::op::v5::LSTMSequence>(node);
 
                     auto &engine = m_context->get_engine();
+                    std::cout << "check_cm_jit_support called at " << __func__ << ", L" << __LINE__ << std::endl;
                     if (!cldnn::check_cm_jit_support(engine, config) || engine.get_device_info().arch != cldnn::gpu_arch::xe2 || !config.get_use_cm()) {
                         return false;
                     }
