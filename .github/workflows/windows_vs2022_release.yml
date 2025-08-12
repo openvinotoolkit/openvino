@@ -110,12 +110,12 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-            mkdir ${{ env.INSTALL_DIR }}
+            mkdir ${{ env.INSTALL_DIR }} -ea 0
             pushd ${{ github.workspace }}/openvino_package
               Expand-Archive openvino_package.zip -DestinationPath ${{ env.INSTALL_DIR }} -Verbose
             popd
             
-            mkdir ${{ env.INSTALL_TEST_DIR }}
+            mkdir ${{ env.INSTALL_TEST_DIR }} -ea 0
             pushd ${{ github.workspace }}/openvino_tests
               Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_TEST_DIR }} -Verbose
             popd
