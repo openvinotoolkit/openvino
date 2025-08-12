@@ -257,7 +257,7 @@ Constant::Constant(bool memset_allocation, const element::Type& type, const Shap
 void Constant::allocate_buffer(bool memset_allocation) {
     // memset_allocation flag is to switch on initialization of objects in memory for element::string type
     // and set memory to zero for numeric element types
-    const auto byte_size = ov::util::get_memory_size_overflow(m_element_type, m_shape);
+    const auto byte_size = ov::util::get_memory_size_safe(m_element_type, m_shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", m_element_type, " and shape: ", m_shape);
     if (m_element_type == ov::element::string) {
         const auto num_elements = shape_size(m_shape);

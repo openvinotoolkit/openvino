@@ -68,7 +68,7 @@ std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t rank) {
     }
 }
 
-std::optional<size_t> shape_size_overflow(const Shape& shape) {
+std::optional<size_t> shape_size_safe(const Shape& shape) {
     size_t size = 1;
     for (auto first = shape.cbegin(), last = shape.cend(); first != last; ++first) {
         if (mul_overflow(size, *first, size)) {

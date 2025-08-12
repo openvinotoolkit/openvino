@@ -34,7 +34,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
     OPENVINO_ASSERT(shape_size(_shape) != 0);
     OPENVINO_ASSERT(_element_type.is_static());
 
-    const auto byte_size = ov::util::get_memory_size_overflow(element_type, shape);
+    const auto byte_size = ov::util::get_memory_size_safe(element_type, shape);
     OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", shape);
 
     ze_device_external_memory_properties_t desc = {};

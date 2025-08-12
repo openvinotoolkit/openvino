@@ -18,7 +18,7 @@ namespace ov::util {
  * @param n     Number of elements.
  * @return Memory size in bytes or std::nullopt if overflow occurs.
  */
-OPENVINO_API std::optional<size_t> get_memory_size_overflow(const element::Type& type, const size_t n);
+OPENVINO_API std::optional<size_t> get_memory_size_safe(const element::Type& type, const size_t n);
 
 /**
  * @brief Gets size of memory in bytes for shape of given precision if there is no overflow.
@@ -27,5 +27,5 @@ OPENVINO_API std::optional<size_t> get_memory_size_overflow(const element::Type&
  * @param shape Shape of elements.
  * @return Memory size in bytes or std::nullopt if overflow occurs.
  */
-OPENVINO_API std::optional<size_t> get_memory_size_overflow(const element::Type& type, const ov::Shape& shape);
+OPENVINO_API std::optional<size_t> get_memory_size_safe(const element::Type& type, const ov::Shape& shape);
 }  // namespace ov::util

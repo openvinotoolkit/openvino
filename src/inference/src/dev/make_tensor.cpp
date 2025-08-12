@@ -287,7 +287,7 @@ public:
                      shape,
                      [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         const auto byte_size = util::get_memory_size_overflow(element_type, shape);
+                         const auto byte_size = util::get_memory_size_safe(element_type, shape);
                          OPENVINO_ASSERT(byte_size,
                                          "Cannot allocate memory for type: ",
                                          element_type,

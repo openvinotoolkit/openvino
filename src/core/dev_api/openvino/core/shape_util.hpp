@@ -76,11 +76,11 @@ Shape get_broadcast_shape(const Shape& first, const Shape& second, const ov::op:
 OPENVINO_API std::ptrdiff_t normalize_shape_index(std::ptrdiff_t idx, size_t rank);
 
 /**
- * @brief Calculate shape size if there is no overflow.
+ * @brief Calculates shape size if there is no overflow.
  *
  * @param shape  Input shape for size calculation.
- * @return Shape size if there is overflow, otherwise nullopt.
+ * @return Shape size if there is no overflow, otherwise nullopt.
  */
-OPENVINO_API std::optional<size_t> shape_size_overflow(const Shape& shape);
+OPENVINO_API std::optional<size_t> shape_size_safe(const Shape& shape);
 }  // namespace util
 }  // namespace ov
