@@ -222,7 +222,7 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
         result = m_manager->run_passes(m);
     } catch (...) {
         *pass_config = old_pass_config;  // Restore original pass config on exception
-        throw;  // Re-throw the exception
+        throw;                           // Re-throw the exception
     }
 
     *pass_config = old_pass_config;
