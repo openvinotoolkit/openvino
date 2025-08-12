@@ -350,6 +350,15 @@ public:
     virtual void update_shape_info_tensor(const kernel_impl_params& params);
     kernel_impl_params get_fake_aligned_params_if_possible(kernel_impl_params const& orig_impl_param);
     bool all_dependencies_cpu_impl() const;
+    bool check_memory_reuse_compatibility(const std::shared_ptr<primitive_inst>& candidate_inst) const;
+    void reset_output_memory();
+
+    // Check if this primitive has dependency conflicts with memory users
+    bool has_memory_dependency_conflict(const std::vector<uint32_t>& memory_user_unique_ids) const;
+
+    // Check if this primitive can safely release memory used by given memory record
+    bool can_safely_release_memory_record(const std::vector<uint32_t>& memory_user_unique_ids,
+                                          const std::vector<std::shared_ptr<primitive_inst>>& remaining_exec_order) const;
 
 protected:
     primitive_inst(network& network, program_node const& node, bool allocate_memory);

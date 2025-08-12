@@ -779,8 +779,75 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         inst->execute();
 
         executed_prims++;
-        if (needs_flushing && executed_prims % flush_frequency == 0)
+        if (needs_flushing && executed_prims % flush_frequency == 0) {
+            GPU_DEBUG_TRACE_DETAIL << "Flushing GPU stream: " << needs_flushing
+                << " " << inst->id() << " " << executed_prims << "/" << flush_frequency << std::endl;
             get_stream().flush();
+            {
+                // Get remaining primitives in execution order (not yet executed)
+                std::vector<std::shared_ptr<primitive_inst>> remaining_exec_order;
+                auto current_pos = std::find(_exec_order.begin(), _exec_order.end(), inst);
+                if (current_pos != _exec_order.end()) {
+                    auto next_pos = std::next(current_pos);
+                    std::copy(next_pos, _exec_order.end(), std::back_inserter(remaining_exec_order));
+                }
+
+                auto candidates = _memory_pool->get_non_padded_memory_records(get_id(), 100 * 1024 * 1024,
+                    get_engine().get_device_info().max_alloc_mem_size);
+
+                for (auto& rec : candidates) {
+                    GPU_DEBUG_TRACE_DETAIL << " --- " << rec._memory->buffer_ptr() << " " << rec._memory->size() << std::endl;
+
+                    // Extract unique_ids from memory users for dependency checking
+                    auto memory_user_unique_ids = memory_pool::extract_user_unique_ids(rec);
+
+                    // Check if current primitive can safely release this memory record
+                    if (!inst->can_safely_release_memory_record(memory_user_unique_ids, remaining_exec_order)) {
+                        GPU_DEBUG_TRACE_DETAIL << "  +--- Cannot release memory record - dependency conflicts detected" << std::endl;
+                        continue;
+                    }
+
+                    bool compatible_with_selected = true;
+                    for (const auto& candidate_user : rec._users) {
+                        auto candidate_inst = get_primitive(candidate_user._prim_id);
+                        if (!candidate_inst) continue;
+                        // Check compatibility with the current instance
+                        if (!inst->check_memory_reuse_compatibility(candidate_inst) ||
+                            !candidate_inst->check_memory_reuse_compatibility(inst)) {
+                            compatible_with_selected = false;
+                            break;
+                        }
+                    }
+
+                    if (compatible_with_selected) {
+                        for (const auto& mem_user : rec._users) {
+                            GPU_DEBUG_TRACE_DETAIL << "  +--- " << mem_user._prim_id << " " << mem_user._unique_id << std::endl;
+                            auto user_inst = get_primitive(mem_user._prim_id);
+
+                            // Critical: Check if user_inst is valid before using it
+                            if (!user_inst) {
+                                GPU_DEBUG_TRACE_DETAIL << "Warning: user_inst is null for primitive_id: " << mem_user._prim_id << std::endl;
+                                continue;
+                            }
+
+                            // Verify the user_inst is still valid and has the expected output memory
+                            if (!user_inst->output_memory_ptr(0) ||
+                                user_inst->output_memory_ptr(0)->get_internal_params().mem != rec._memory->get_internal_params().mem) {
+                                GPU_DEBUG_TRACE_DETAIL << "Warning: Memory mismatch for primitive: " << mem_user._prim_id << std::endl;
+                                continue;
+                            }
+
+                            // Clear output memory first to prevent dangling pointers
+                            // Force reallocation by setting flags
+                            user_inst->reset_output_memory();
+
+                            // Release from memory pool after clearing references
+                            _memory_pool->release_memory(rec._memory.get(), mem_user._unique_id, mem_user._prim_id, mem_user._network_id);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
