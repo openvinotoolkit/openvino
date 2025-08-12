@@ -12,6 +12,8 @@
 #include "compare.hpp"
 #include "element_visitor.hpp"
 #include "itt.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/core/tensor_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/float16.hpp"
@@ -255,16 +257,17 @@ Constant::Constant(bool memset_allocation, const element::Type& type, const Shap
 void Constant::allocate_buffer(bool memset_allocation) {
     // memset_allocation flag is to switch on initialization of objects in memory for element::string type
     // and set memory to zero for numeric element types
-    const auto num_elements = shape_size(m_shape);
-    const auto byte_size = element::get_memory_size(m_element_type, num_elements);
+    const auto byte_size = ov::util::get_memory_size_overflow(m_element_type, m_shape);
+    OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", m_element_type, " and shape: ", m_shape);
     if (m_element_type == ov::element::string) {
-        m_data = std::make_shared<StringAlignedBuffer>(num_elements, byte_size, host_alignment(), memset_allocation);
+        const auto num_elements = shape_size(m_shape);
+        m_data = std::make_shared<StringAlignedBuffer>(num_elements, *byte_size, host_alignment(), memset_allocation);
     } else {
         constexpr uint8_t init_value = 0;
-        m_data = std::make_shared<AlignedBuffer>(byte_size, host_alignment());
+        m_data = std::make_shared<AlignedBuffer>(*byte_size, host_alignment());
 
         // AlignedBuffer allocates 1 byte for empty constants, and we set it to zero
-        if (memset_allocation || byte_size == 0) {
+        if (memset_allocation || *byte_size == 0) {
             std::memset(m_data->get_ptr(), init_value, m_data->size());
         } else {
             set_unused_bits(m_data->get_ptr());

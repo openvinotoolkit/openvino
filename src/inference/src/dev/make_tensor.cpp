@@ -7,6 +7,7 @@
 #include <memory>
 #include <mutex>
 
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/core/type/element_type_info.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
@@ -286,10 +287,14 @@ public:
                      shape,
                      [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         const auto byte_size = element::get_memory_size(element_type, shape_size(shape));
-                         auto data = const_cast<Allocator&>(allocator).allocate(byte_size);
-                         OPENVINO_ASSERT(byte_size == 0 || data != nullptr, "Failed to allocate memory");
-
+                         const auto byte_size = util::get_memory_size_overflow(element_type, shape);
+                         OPENVINO_ASSERT(byte_size,
+                                         "Cannot allocate memory for type: ",
+                                         element_type,
+                                         " and shape: ",
+                                         shape);
+                         auto data = const_cast<Allocator&>(allocator).allocate(*byte_size);
+                         OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
                          initialize_elements(data, element_type, shape);
                          return data;
                      }()},

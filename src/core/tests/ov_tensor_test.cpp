@@ -931,6 +931,15 @@ TEST_F(OVTensorTest, createReadOnlyViewFromNullptr) {
     OV_EXPECT_THROW(Tensor(ov::element::i32, ov::Shape{10}, static_cast<const void*>(nullptr)), ov::Exception, _);
 }
 
+TEST_F(OVTensorTest, createAllocationOverflow) {
+    OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max()}),
+                    Exception,
+                    HasSubstr("Cannot allocate memory"));
+    OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max(), 2}),
+                    Exception,
+                    HasSubstr("Cannot allocate memory"));
+}
+
 struct TestParams {
     ov::Shape src_shape;
     ov::Strides src_strides;

@@ -9,7 +9,7 @@
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/memory_util.hpp"
 
 using namespace ov::intel_npu;
 
@@ -34,7 +34,8 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
     OPENVINO_ASSERT(shape_size(_shape) != 0);
     OPENVINO_ASSERT(_element_type.is_static());
 
-    const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
+    const auto byte_size = ov::util::get_memory_size_overflow(element_type, shape);
+    OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", shape);
 
     ze_device_external_memory_properties_t desc = {};
     desc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
@@ -51,7 +52,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
 #endif
     }
 
-    allocate(byte_size);
+    allocate(*byte_size);
 }
 
 const ov::element::Type& ZeroRemoteTensor::get_element_type() const {

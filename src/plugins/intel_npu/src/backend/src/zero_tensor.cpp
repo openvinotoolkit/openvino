@@ -5,6 +5,7 @@
 #include "zero_tensor.hpp"
 
 #include "intel_npu/config/options.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -38,9 +39,10 @@ ZeroTensor::ZeroTensor(const std::shared_ptr<ZeroInitStructsHolder>& init_struct
       _allocator{allocator} {
     OPENVINO_ASSERT(_element_type.is_static());
     OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-    const auto byte_size = ov::element::get_memory_size(_element_type, shape_size(_shape));
-    auto data = const_cast<ov::Allocator&>(_allocator).allocate(byte_size);
-    OPENVINO_ASSERT(byte_size == 0 || data != nullptr, "Failed to allocate memory");
+    const auto byte_size = ov::util::get_memory_size_overflow(element_type, _shape);
+    OPENVINO_ASSERT(byte_size, "Cannot allocate memory for type: ", element_type, " and shape: ", _shape);
+    auto data = const_cast<ov::Allocator&>(_allocator).allocate(*byte_size);
+    OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
     initialize_elements(data, element_type, _shape);
     _ptr = data;
 }
