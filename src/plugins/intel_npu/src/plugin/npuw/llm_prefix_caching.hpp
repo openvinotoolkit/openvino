@@ -102,6 +102,9 @@ private:
 
     // Update the LRU list
     void update_lru(const std::shared_ptr<KVBlock>& block);
+
+    // Evict the least recently used block which does not have any child block
+    bool evict_lru_block();
 };
 
 std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids);
