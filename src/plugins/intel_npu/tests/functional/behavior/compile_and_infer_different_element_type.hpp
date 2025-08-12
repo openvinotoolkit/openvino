@@ -25,7 +25,7 @@ using InferRequestElementTypeParams = std::tuple<std::string,  // Device name
 class InferRequestElementTypeTests : public testing::WithParamInterface<InferRequestElementTypeParams>,
                                      public OVInferRequestTestBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<InferRequestElementTypeParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<InferRequestElementTypeParams>& obj) {
         std::string target_device;
         ov::AnyMap configuration;
         std::tie(target_device, configuration) = obj.param;
