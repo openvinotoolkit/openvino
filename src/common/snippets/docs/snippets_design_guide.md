@@ -486,9 +486,91 @@ which allows the plugin to flexibly register its own passes.
 
 #### Control flow optimizer
 
-As follows from its name, the main objective of `Control flow optimizer` is to manage and optimize control flow of the kernel. 
-Since the `OpenVINO IR` doesn't have an explicit control flow representation, a special control-flow-oriented `IR` was developed. 
-It is called `Linear IR` (or simply `LIR`), let's discuss it first, before we consider the transformation pipeline.
+As follows from its name, the main objective of `Control flow optimizer` is to manage and optimize control flow of the kernel.
+
+After data flow transformations we get `OpenVINO IR`.
+So let's take a look at `OpenVINO IR` and its opportunities as part of control flow representation.
+This IR provides interface to adjust control flow execution (for example, by the method [`ov::Node::add_control_dependency(...)`](../../../core/include/openvino/core/node.hpp)). But this interface might be not enough for flexible setting and may be inconvenient in some cases. For more understanding, let's consider the part of subgraph after `Softmax` decomposition (`ReduceMax` decomposition and the following `Subtract`) implemented on `OpenVINO IR`:
+
+```mermaid
+flowchart LR
+   subgraph OpenVINO_IR
+      direction TB 
+      LoopBegin_0
+      LoopEnd_0
+      LoopBegin_1
+      VectorBuffer
+      Load_0
+      Maximum
+      HorizonMax
+      Load_1
+      Subtract
+
+      LoopBegin_0-->LoopEnd_0 
+      LoopBegin_0-->Load_0 
+      VectorBuffer-->Maximum
+      Load_0-->Maximum
+      Maximum-->HorizonMax
+      LoopEnd_0-->LoopBegin_1
+      LoopBegin_1-->Load_1
+      HorizonMax-->Subtract
+      Load_1-->Subtract
+   end
+   OpenVINO_IR
+   classDef no-bg-color fill:none,stroke-width:0px
+   classDef no-bg fill:none,stroke:#9370DB
+   class OpenVINO_IR no-bg-color
+```
+
+When we look at this diagram, we have the following questions: "What is the exact order of operations? What operations are performed within the loop `LoopBegin_0 -> LoopEnd_0`? Why is the `LoopEnd_0` connected to the `LoopBegin_1`?". 
+At the same time, to configure the execution order of operations, we have to call the following lines of code in the transformation `SoftmaxDecomposition`:
+
+```cpp
+LoopBegin_0->add_control_dependency(VectorBuffer);
+LoopEnd_0->add_control_dependency(Maximum);
+HorizonMax->add_control_dependency(LoopEnd_0);
+LoopBegin_1->add_control_dependency(HorizonMax);
+...
+```
+
+From the both examples above we can see that the `OpenVINO IR` doesn't have an explicit control flow representation and we need to develop own special control-flow-oriented `IR`. 
+This `IR` should have a flexible setting of the execution order of operations and a clear display of this order. 
+For example, it would look like this:
+
+```mermaid
+flowchart LR
+   subgraph Linear_IR
+      direction TB 
+      LoopBegin_0
+      LoopEnd_0
+      LoopBegin_1
+      VectorBuffer
+      Load_0
+      Maximum
+      HorizonMax
+      Load_1
+      Subtract
+
+      VectorBuffer-->LoopBegin_0
+      LoopBegin_0-->Load_0 
+      Load_0-->Maximum 
+      Maximum-->LoopEnd_0
+      LoopEnd_0-->HorizonMax
+      LoopBegin_0-->LoopEnd_0
+      HorizonMax-->LoopBegin_1
+      LoopBegin_1-->Load_1
+      Load_1-->Subtract
+   end
+   Linear_IR
+   classDef no-bg-color fill:none,stroke-width:0px
+   classDef no-bg fill:none,stroke:#9370DB
+   class Linear_IR no-bg-color
+```
+
+This representation defines the execution order.
+Also we can see which operations are performed in the loop `LoopBegin_0 -> LoopEnd_0`.
+Due to this understanding, we decided to develop the similar `IR` for managing and optimizing control flow of the kernel.
+This `IR` is called `Linear IR` (or simply `LIR`), let's discuss it first, before we consider the transformation pipeline.
 
 ##### Linear Intermediate Representation
 
