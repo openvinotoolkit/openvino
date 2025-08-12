@@ -725,26 +725,21 @@ int get_model_prefer_threads(const int num_streams,
                         proc_type_table[0][MAIN_CORE_PROC] + proc_type_table[0][EFFICIENT_CORE_PROC];
                     if (config.tbbPartitioner == TbbPartitioner::DEFAULT) {
                         bool static_case_1 = networkToleranceForLowCache.total_nodes == 0;
-                        bool static_case_2 = networkToleranceForLowCache.total_convs == 0 &&
-                                             networkToleranceForLowCache.total_gemms > 0 &&
-                                             static_cast<float>(networkToleranceForLowCache.total_light_gemms) /
-                                                     static_cast<float>(networkToleranceForLowCache.total_gemms) >
-                                                 0.7;
-                        bool static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
+                        bool static_case_2 = networkToleranceForLowCache.total_convs > 0 &&
                                              static_cast<float>(networkToleranceForLowCache.total_light_convs) /
                                                      static_cast<float>(networkToleranceForLowCache.total_convs) >
                                                  0.6;
-                        bool static_case_4 = networkToleranceForLowCache.total_convs > 0 &&
+                        bool static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
                                              static_cast<float>(networkToleranceForLowCache.total_light_convs) /
                                                      static_cast<float>(networkToleranceForLowCache.total_convs) <=
                                                  0.6 &&
                                              networkToleranceForLowCache.ratio_compute_convs +
                                                      networkToleranceForLowCache.ratio_mem_limited_convs <
                                                  0.9 &&
-                                             networkToleranceForLowCache.ratio_mem_limited_convs < 0.1 &&
+                                             networkToleranceForLowCache.ratio_mem_limited_convs < 0.11 &&
                                              networkToleranceForLowCache.ratio_mem_limited_gemms == 0 &&
-                                             networkToleranceForLowCache.ratio_mem_limited_adds < 0.2;
-                        if (static_case_1 || static_case_2 || static_case_3 || static_case_4) {
+                                             networkToleranceForLowCache.ratio_mem_limited_adds < 0.3;
+                        if (static_case_1 || static_case_2 || static_case_3) {
                             config.tbbPartitioner = TbbPartitioner::STATIC;
                         } else {
                             config.tbbPartitioner = TbbPartitioner::AUTO;
