@@ -30,7 +30,7 @@ using DeconvLayerTestParamsSet = std::tuple<convBackpropDataSpecificParams,
 class DeconvolutionLayerGPUTest : public testing::WithParamInterface<DeconvLayerTestParamsSet>,
                                   virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<DeconvLayerTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<DeconvLayerTestParamsSet>& obj) {
         const auto& [basicParamsSet, inputData, model_type, targetDevice, additionalConfig] = obj.param;
 
         const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType, outPadding] = basicParamsSet;
