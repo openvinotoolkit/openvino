@@ -7,6 +7,7 @@
 
 #include "scenario/inference.hpp"
 #include "utils/error.hpp"
+#include "utils/logger.hpp"
 
 #include <opencv2/gapi/infer/onnx.hpp>  // onnx::Params
 #include <opencv2/gapi/infer/ov.hpp>    // ov::Params
@@ -29,6 +30,11 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
     // NB: Pre/Post processing can be configured only for Model case.
     if (std::holds_alternative<OpenVINOParams::ModelPath>(params.path)) {
         network->cfgEnsureNamedTensors();
+
+        if (params.clamp_outputs) {
+            LOG_INFO() << "Clamping applied" << std::endl;
+            network->cfgClampOutputs();
+        }
 
         if (std::holds_alternative<int>(params.output_precision)) {
             network->cfgOutputTensorPrecision(std::get<int>(params.output_precision));
