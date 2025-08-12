@@ -42,6 +42,11 @@ void CompiledModelWrap::set_compiled_model(const ov::CompiledModel& compiled_mod
     _compiled_model = compiled_model;
 }
 
+ov::CompiledModel& CompiledModelWrap::get_compiled_model() {
+    OPENVINO_ASSERT(_compiled_model, "CompiledModelWrap::get_compiled_model() failed.");
+    return _compiled_model;
+}
+
 Napi::Value CompiledModelWrap::create_infer_request(const Napi::CallbackInfo& info) {
     ov::InferRequest infer_request = _compiled_model.create_infer_request();
     return InferRequestWrap::wrap(info.Env(), infer_request);
