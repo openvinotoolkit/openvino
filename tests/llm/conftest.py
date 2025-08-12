@@ -12,7 +12,7 @@ def pytest_configure(config):
         os.environ["PYTEST_DO_NOT_CLEANUP"] = "true"
     else:
         os.environ["PYTEST_DO_NOT_CLEANUP"] = "false"
-    
+
     # Set other options
     os.environ["PYTEST_GPU_SUFFIX"] = str(config.getoption("--gpu_suffix"))
     os.environ["PYTEST_SAMPLES"] = str(config.getoption("--samples"))

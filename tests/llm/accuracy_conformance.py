@@ -38,7 +38,7 @@ add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.96,   0.74
 # Extract configuration from catalog
 MODEL_IDS = list(TEST_CATALOG.keys())
 DOWNLOADED_MODELS = set()
-DEVICES = list(set(device for model_config in TEST_CATALOG.values() 
+DEVICES = list(set(device for model_config in TEST_CATALOG.values()
                   for device in model_config.keys()))
 
 METRIC_OF_INTEREST = "similarity"
@@ -64,7 +64,7 @@ def get_tmp_dir():
     """Get temporary directory based on cleanup preference"""
     # Check environment variable set by pytest option
     cleanup_after_test = CLEANUP_AFTER_TEST
-    
+
     if cleanup_after_test:
         # Use temp directory when cleanup is disabled
         tmp_dir = tempfile.mkdtemp(dir=os.getcwd())
@@ -95,20 +95,20 @@ def setup_model(model_id):
     if model_id in DOWNLOADED_MODELS:
         logger.info(f"Model {model_id} already prepared, skipping setup")
         return
-    
+
     logger.info(f"Setting up model: {model_id}")
-    
+
     # Download original model
     model = AutoModelForCausalLM.from_pretrained(model_id)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
-    
+
     # Save original model
     model_path = get_model_path(model_id, "org")
     if not os.path.exists(model_path):
         logger.info(f"Saving original model: {model_path}")
         model.save_pretrained(model_path)
         tokenizer.save_pretrained(model_path)
-    
+
     # Convert tokenizer for OpenVINO
     ov_tokenizer, ov_detokenizer = convert_tokenizer(tokenizer, with_detokenizer=True)
 
@@ -144,13 +144,13 @@ def setup_model(model_id):
     if not os.path.exists(gt_path):
         logger.info(f'Creating ground truth data: {gt_path}')
         evaluator = wwb.Evaluator(
-            base_model=model, 
-            tokenizer=tokenizer, 
-            num_samples=NUMBER_OF_SAMPLES, 
+            base_model=model,
+            tokenizer=tokenizer,
+            num_samples=NUMBER_OF_SAMPLES,
             use_chat_template=use_chat_template
         )
         evaluator.dump_gt(gt_path)
-    
+
     # Mark model as downloaded
     DOWNLOADED_MODELS.add(model_id)
     logger.info(f"Model setup completed: {model_id}")
