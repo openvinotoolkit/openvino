@@ -25,10 +25,9 @@ std::vector<T> resizeVector(ov::PartialShape kernel_shape, const std::vector<T>&
         return inputVector;
     }
     PYTORCH_OP_CONVERSION_CHECK(kernel_shape.rank().get_length() > 2, "Rank must be at least 3.");
-    auto newSize = kernel_shape.rank().get_length() - 2;
+    size_t newSize = kernel_shape.rank().get_length() - 2;
 
     std::vector<T> result;
-
     if (inputVector.size() == newSize) {
         result = inputVector;
     } else if (inputVector.size() == 1) {
