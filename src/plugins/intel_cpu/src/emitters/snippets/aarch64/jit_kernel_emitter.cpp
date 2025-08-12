@@ -123,6 +123,24 @@ jit_kernel_emitter::jit_kernel_emitter(jit_generator* h,
     data_ptr_regs_idx = snippets::utils::transform_snippets_regs_to_idxs(data_ptr_regs, snippets::RegType::gpr);
 }
 
+void jit_kernel_emitter::load_data_pointers(const Xbyak_aarch64::XReg& reg_runtime_params,
+                                            const std::vector<Xbyak_aarch64::XReg>& data_ptr_regs,
+                                            size_t start_idx,
+                                            size_t end_idx,
+                                            int32_t base_offset) const {
+    size_t i = start_idx;
+    // Load pairs of pointers using ldp when possible
+    for (; i + 1 < end_idx; i += 2) {
+        const auto ptr_offset = static_cast<int32_t>(base_offset + (i - start_idx) * sizeof(void*));
+        h->ldp(data_ptr_regs[i], data_ptr_regs[i + 1], ptr(reg_runtime_params, ptr_offset));
+    }
+    // Load single remaining pointer using ldr if needed
+    if (i < end_idx) {
+        const auto ptr_offset = static_cast<int32_t>(base_offset + (i - start_idx) * sizeof(void*));
+        h->ldr(data_ptr_regs[i], ptr(reg_runtime_params, ptr_offset));
+    }
+}
+
 void jit_kernel_emitter::emit_code_impl(const std::vector<size_t>& in,
                                         const std::vector<size_t>& out,
                                         const std::vector<size_t>& pool_vec_idxs,
@@ -258,8 +276,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
             if (master_shape[j] != 1 && offsets[j] != 0) {
                 h->mov(reg_tmp, offsets[j]);
                 h->ldr(reg_aux, ptr(reg_indexes, static_cast<int32_t>(j * sizeof(size_t))));
-                h->mul(reg_tmp, reg_tmp, reg_aux);
-                h->add(pointer, pointer, reg_tmp);
+                h->madd(pointer, reg_aux, reg_tmp, pointer);
             }
         }
     };
@@ -272,14 +289,14 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<XReg>& arg_
         h->ldr(data_ptr_regs[num_params + i],
                ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(buffer_scratchpad_ptr))));
     }
-    for (size_t i = 0; i < num_params; i++) {
-        if (i < num_inputs) {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
-        } else {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*))));
-        }
+
+    load_data_pointers(reg_runtime_params, data_ptr_regs, 0, num_inputs, GET_OFF(src_ptrs));
+    for (size_t i = 0; i < num_inputs; i++) {
+        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
+    }
+
+    load_data_pointers(reg_runtime_params, data_ptr_regs, num_inputs, num_params, GET_OFF(dst_ptrs));
+    for (size_t i = num_inputs; i < num_params; i++) {
         init_ptr_with_offset(data_ptr_regs[i], data_offsets[i]);
     }
 }
@@ -302,15 +319,9 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<XReg>& arg
         h->ldr(data_ptr_regs[num_params + i],
                ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(buffer_scratchpad_ptr))));
     }
-    for (size_t i = 0; i < num_params; i++) {
-        if (i < num_inputs) {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(src_ptrs) + i * sizeof(void*))));
-        } else {
-            h->ldr(data_ptr_regs[i],
-                   ptr(reg_runtime_params, static_cast<int32_t>(GET_OFF(dst_ptrs) + (i - num_inputs) * sizeof(void*))));
-        }
-    }
+
+    load_data_pointers(reg_runtime_params, data_ptr_regs, 0, num_inputs, GET_OFF(src_ptrs));
+    load_data_pointers(reg_runtime_params, data_ptr_regs, num_inputs, num_params, GET_OFF(dst_ptrs));
 }
 
 }  // namespace ov::intel_cpu::aarch64
