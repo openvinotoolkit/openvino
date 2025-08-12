@@ -393,7 +393,7 @@ public:
                 auto decompression_scale_idx = ++idx;
                 auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
                 ds_data_type = convert_data_type(scale_layout.data_type);
-                int scale_rank = scale_layout.get_partial_shape().size();
+                size_t scale_rank = scale_layout.get_partial_shape().size();
                 OPENVINO_ASSERT(scale_rank <= 3, "scale rank > 3d not supported");
                 auto ifm = arg.get_dependency(1).get_output_layout().get_dim(scale_rank - 1);
                 auto ngroups = scale_layout.get_dim(scale_rank - 1);
@@ -428,7 +428,7 @@ public:
                 if (dzp_layout.count() == 1) {
                     attr->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, dzp_data_type);
                 } else {
-                    int rank = dzp_layout.get_partial_shape().size();
+                    size_t rank = dzp_layout.get_partial_shape().size();
                     OPENVINO_ASSERT(rank <= 3, "rank > 3d not supported");
                     auto ifm = arg.get_dependency(1).get_output_layout().get_dim(rank - 1);
                     auto ngroups = dzp_layout.get_dim(rank - 1);
