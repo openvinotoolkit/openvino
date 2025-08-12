@@ -36,6 +36,8 @@
 namespace ov::intel_cpu {
 using namespace brgemm_utils;
 
+BrgemmCPU::BrgemmCPU() : m_config(BrgemmConfig{}) {}
+
 BrgemmCPU::BrgemmCPU(const ov::OutputVector& inputs,
                      BrgemmConfig config,
                      const std::vector<PortDescriptor>& input_descs,
@@ -186,7 +188,7 @@ void BrgemmCPU::force_output_type(const ov::element::Type& type) {
 }
 
 void BrgemmCPU::add_scalar_eltwise_postop(dnnl::impl::alg_kind_t alg_kind, float alpha, float beta) {
-    OPENVINO_ASSERT(m_post_ops_config.post_ops.append_eltwise(1.f, alg_kind, alpha, beta) == dnnl_success,
+    OPENVINO_ASSERT(m_post_ops_config.post_ops.append_eltwise(1.F, alg_kind, alpha, beta) == dnnl_success,
                     "Failed to append scalar eltwise to brgemm postops. Alpha = ",
                     alpha,
                     " Beta = ",

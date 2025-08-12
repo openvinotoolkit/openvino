@@ -84,12 +84,6 @@ public:
     std::shared_ptr<ov::Model> read_model(const std::wstring& model_path,
                                           const std::wstring& bin_path = {},
                                           const ov::AnyMap& properties = {}) const;
-    template <class Path,
-              std::enable_if_t<std::is_same_v<Path, std::filesystem::path> &&
-                               std::is_same_v<typename Path::value_type, wchar_t>>* = nullptr>
-    auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
-        return read_model(model_path.wstring(), bin_path.wstring(), properties);
-    }
 #endif
 
     /**
@@ -112,11 +106,14 @@ public:
                                           const std::string& bin_path = {},
                                           const ov::AnyMap& properties = {}) const;
 
-    template <class Path,
-              std::enable_if_t<std::is_same_v<Path, std::filesystem::path> &&
-                               std::is_same_v<typename Path::value_type, char>>* = nullptr>
+    template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path = {}, const ov::AnyMap& properties = {}) const {
-        return read_model(model_path.string(), bin_path.string(), properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
+            return read_model(model_path.wstring(), bin_path.wstring(), properties);
+        } else {
+            // use string conversion as default
+            return read_model(model_path.string(), bin_path.string(), properties);
+        }
     }
     /// @}
 
@@ -148,7 +145,12 @@ public:
               class... Properties,
               std::enable_if_t<std::is_same_v<Path, std::filesystem::path> && (sizeof...(Properties) > 0)>* = nullptr>
     auto read_model(const Path& model_path, const Path& bin_path, Properties&&... properties) const {
-        return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>) {
+            return read_model(model_path.wstring(), bin_path.wstring(), std::forward<Properties>(properties)...);
+        } else {
+            // use string conversion as default
+            return read_model(model_path.string(), bin_path.string(), std::forward<Properties>(properties)...);
+        }
     }
     /// @}
 
@@ -253,7 +255,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const AnyMap& properties = {}) const {
-        return compile_model(model_path.string(), properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), properties);
+        else
+            return compile_model(model_path.string(), properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -284,7 +289,10 @@ public:
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, Properties&&... properties) {
-        return compile_model(model_path.string(), std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), std::forward<Properties>(properties)...);
+        else
+            return compile_model(model_path.string(), std::forward<Properties>(properties)...);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -316,7 +324,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, const AnyMap& properties = {}) {
-        return compile_model(model_path.string(), device_name, properties);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), device_name, properties);
+        else
+            return compile_model(model_path.string(), device_name, properties);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -350,7 +361,10 @@ public:
 
     template <class Path, class... Properties, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     auto compile_model(const Path& model_path, const std::string& device_name, Properties&&... properties) {
-        return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return compile_model(model_path.wstring(), device_name, std::forward<Properties>(properties)...);
+        else
+            return compile_model(model_path.string(), device_name, std::forward<Properties>(properties)...);
     }
 
 #ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
@@ -439,7 +453,10 @@ public:
 
     template <class Path, std::enable_if_t<std::is_same_v<Path, std::filesystem::path>>* = nullptr>
     void add_extension(const Path& model_path) {
-        add_extension(model_path.string());
+        if constexpr (std::is_same_v<typename Path::value_type, wchar_t>)
+            return add_extension(model_path.wstring());
+        else
+            return add_extension(model_path.string());
     }
     /// @}
 
@@ -526,7 +543,8 @@ public:
     /**
      * @brief Imports a compiled model from the previously exported one.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
-     * @param model_stream Model stream.
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
      * to compile the original mode, an exception is thrown.
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
@@ -542,8 +560,8 @@ public:
 
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
-     * @param model_stream std::istream input stream containing a model previously exported from
-     * ov::CompiledModel::export_model
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
      * the original mode, an exception is thrown.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
@@ -555,10 +573,10 @@ public:
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
-     * @param model_stream Model stream.
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param context Pointer to a RemoteContext object.
-     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
-     * load operation.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this load operation.
      * @return A compiled model.
      */
     template <typename... Properties>
@@ -566,6 +584,68 @@ public:
                                                                           const RemoteContext& context,
                                                                           Properties&&... properties) {
         return import_model(model_stream, context, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Imports a compiled model from the previously exported one.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(const ov::Tensor& compiled_blob,
+                               const std::string& device_name,
+                               const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(const ov::Tensor& compiled_blob,
+                                                                          const std::string& device_name,
+                                                                          Properties&&... properties) {
+        return import_model(compiled_blob, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
+     * the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(const ov::Tensor& compiled_blob,
+                               const RemoteContext& context,
+                               const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param context Pointer to a RemoteContext object.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(const ov::Tensor& compiled_blob,
+                                                                          const RemoteContext& context,
+                                                                          Properties&&... properties) {
+        return import_model(compiled_blob, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
     /**

@@ -16,6 +16,7 @@ namespace pass {
 
 class TRANSFORMATIONS_API TotalSequenceLengthPattern;
 class TRANSFORMATIONS_API TotalSequenceLengthPatternQwen;
+class TRANSFORMATIONS_API TotalSequenceLengthPatternCodeGen2;
 
 }  // namespace pass
 }  // namespace ov
@@ -43,4 +44,17 @@ class ov::pass::TotalSequenceLengthPatternQwen : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("TotalSequenceLengthPattern", "0");
     explicit TotalSequenceLengthPatternQwen(const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
+};
+
+/**
+ * @brief Codegen2 model has a specific pattern for TotalSequenceLen place detection.
+ *
+ * Similarly to Qwen, the PrevSeqLen is already detected in PrevSequenceLengthPattern:
+ * PrevSeqLen: Subtract (in: Parameter(name: max_context_len), in: CurrentSeqLen)
+ *
+ **/
+class ov::pass::TotalSequenceLengthPatternCodeGen2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TotalSequenceLengthPatternCodeGen2", "0");
+    explicit TotalSequenceLengthPatternCodeGen2(const std::shared_ptr<ov::op::v0::Parameter>& max_context_len);
 };

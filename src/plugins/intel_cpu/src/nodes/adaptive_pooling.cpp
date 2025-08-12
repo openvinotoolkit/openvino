@@ -40,13 +40,13 @@ namespace ov::intel_cpu::node {
 bool AdaptivePooling::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                            std::string& errorMessage) noexcept {
     try {
-        if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
+        if (any_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
             auto adaPool = ov::as_type_ptr<const ov::op::v8::AdaptiveAvgPool>(op);
             if (!adaPool) {
                 errorMessage = "Only v8 AdaptiveAvgPooling operation is supported";
                 return false;
             }
-        } else if (one_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
+        } else if (any_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
             auto adaPool = ov::as_type_ptr<const ov::op::v8::AdaptiveMaxPool>(op);
             if (!adaPool) {
                 errorMessage = "Only v8 AdaptiveMaxPooling operation is supported";
@@ -68,9 +68,9 @@ AdaptivePooling::AdaptivePooling(const std::shared_ptr<ov::Node>& op, const Grap
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
-    if (one_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
+    if (any_of(op->get_type_info(), ov::op::v8::AdaptiveAvgPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingAvg;
-    } else if (one_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
+    } else if (any_of(op->get_type_info(), ov::op::v8::AdaptiveMaxPool::get_type_info_static())) {
         algorithm = Algorithm::AdaptivePoolingMax;
     }
     spatialDimsCount = getInputShapeAtPort(0).getRank() - 2;
@@ -78,25 +78,19 @@ AdaptivePooling::AdaptivePooling(const std::shared_ptr<ov::Node>& op, const Grap
 }
 
 void AdaptivePooling::getSupportedDescriptors() {
-    if (getParentEdges().size() != 2) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getParentEdges().size());
-    }
-    if (getChildEdges().size() < (algorithm == Algorithm::AdaptivePoolingMax ? 2 : 1)) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getChildEdges().size());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == 2, "has incorrect number of input edges: ", getParentEdges().size());
+    CPU_NODE_ASSERT(getChildEdges().size() >= (algorithm == Algorithm::AdaptivePoolingMax ? 2 : 1),
+                    "has incorrect number of output edges: ",
+                    getChildEdges().size());
 
     auto srcRank = getInputShapeAtPort(0).getRank();
-    if (!one_of(spatialDimsCount, 1, 2, 3)) {
-        THROW_CPU_NODE_ERR("doesn't support 0th input with rank: ", srcRank);
-    }
+    CPU_NODE_ASSERT(any_of(spatialDimsCount, 1, 2, 3), "doesn't support 0th input with rank: ", srcRank);
 
-    if (getInputShapeAtPort(1).getRank() != 1) {
-        THROW_CPU_NODE_ERR("doesn't support 1st input with rank: ", getInputShapeAtPort(1).getRank());
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(1).getRank() == 1,
+                    "doesn't support 1st input with rank: ",
+                    getInputShapeAtPort(1).getRank());
 
-    if (getOutputShapeAtPort(0).getRank() != getInputShapeAtPort(0).getRank()) {
-        THROW_CPU_NODE_ERR("must keep data rank");
-    }
+    CPU_NODE_ASSERT(getOutputShapeAtPort(0).getRank() == getInputShapeAtPort(0).getRank(), "must keep data rank");
 }
 
 bool AdaptivePooling::needShapeInfer() const {
@@ -122,7 +116,7 @@ void AdaptivePooling::initSupportedPrimitiveDescriptors() {
 
     std::vector<LayoutType> dataFormats{LayoutType::ncsp};
     const auto& inDims = getInputShapeAtPort(0).getDims();
-    if (inDims[1] != Shape::UNDEFINED_DIM && inDims[1] != 1) {
+    if (none_of(inDims[1], Shape::UNDEFINED_DIM, 1U)) {
         dataFormats.push_back(LayoutType::nspc);
         dataFormats.push_back(LayoutType::nCsp16c);
         dataFormats.push_back(LayoutType::nCsp8c);
@@ -147,9 +141,7 @@ void AdaptivePooling::executeDynamicImpl(const dnnl::stream& strm) {
 void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     auto inputPrec = getParentEdgeAt(0)->getMemory().getDataType();
     auto outputPrec = getChildEdgeAt(0)->getMemory().getDataType();
-    if (!(inputPrec == dnnl_f32 && outputPrec == dnnl_f32)) {
-        THROW_CPU_NODE_ERR("doesn't support demanded precisions");
-    }
+    CPU_NODE_ASSERT(inputPrec == dnnl_f32 && outputPrec == dnnl_f32, "doesn't support demanded precisions");
 
     const auto& srcMemory0 = getParentEdgeAt(0)->getMemory();
     const auto& srcMemory1 = getParentEdgeAt(1)->getMemory();
@@ -171,13 +163,12 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
     const auto* srcPooledSpatialShapes = getSrcDataAtPortAs<const int>(1);
     auto* dst = getDstDataAtPortAs<float>(0);
 
-    if (static_cast<int>(srcMemory1.getShape().getElementsCount()) != spatialDimsCount) {
-        THROW_CPU_NODE_ERR("has input spatial dimension (",
-                           srcMemory1.getShape().getElementsCount(),
-                           ") inconsistent with pooling vector size (",
-                           spatialDimsCount,
-                           ")");
-    }
+    CPU_NODE_ASSERT(static_cast<int>(srcMemory1.getShape().getElementsCount()) == spatialDimsCount,
+                    "has input spatial dimension (",
+                    srcMemory1.getShape().getElementsCount(),
+                    ") inconsistent with pooling vector size (",
+                    spatialDimsCount,
+                    ")");
 
     auto inputDimVector = srcMemory0.getStaticDims();
     const auto N = static_cast<int>(inputDimVector[0]);
@@ -198,9 +189,7 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
         blockSize * (isBlkFmt ? srcBlockDesc->getBlockDims()[1] : srcMemory0.getShape().getStaticDims()[1]);
     const int blockCount = (isTailCFmt ? 1 : chPadding / blockSize);
     auto* selectedPrimitiveDescriptor = getSelectedPrimitiveDescriptor();
-    if (!selectedPrimitiveDescriptor) {
-        THROW_CPU_NODE_ERR("doesn't have primitive descriptors.");
-    }
+    CPU_NODE_ASSERT(selectedPrimitiveDescriptor, "doesn't have primitive descriptors.");
     auto config = selectedPrimitiveDescriptor->getConfig();
     auto srcStrides = srcBlockDesc->getStrides();
     auto dstStrides = getChildEdgeAt(0)->getMemory().getDescWithType<BlockedMemoryDesc>()->getStrides();
@@ -256,9 +245,7 @@ void AdaptivePooling::execute([[maybe_unused]] const dnnl::stream& strm) {
             setBinBorders(&hStart, &hEnd, oh, IH, OH);
             setBinBorders(&wStart, &wEnd, ow, IW, OW);
             auto binSize = (dEnd - dStart) * (hEnd - hStart) * (wEnd - wStart);
-            if (binSize == 0) {
-                THROW_CPU_NODE_ERR("has empty bin");
-            }
+            CPU_NODE_ASSERT(binSize != 0, "has empty bin");
             float sum = 0;
             for (size_t pixD = dStart; pixD < dEnd; pixD++) {
                 for (size_t pixH = hStart; pixH < hEnd; pixH++) {

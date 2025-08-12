@@ -29,8 +29,8 @@ public:
 
     StoreConvertSaturation(const Output<Node>& x,
                            const ov::element::Type& destination_type,
-                           const size_t count = 1lu,
-                           const size_t offset = 0lu);
+                           size_t count = 1LU,
+                           size_t offset = 0LU);
     StoreConvertSaturation() = default;
 
     ov::element::Type get_destination_type() const {
@@ -63,8 +63,8 @@ public:
 
     StoreConvertTruncation(const Output<Node>& x,
                            const ov::element::Type& destination_type,
-                           const size_t count = 1lu,
-                           const size_t offset = 0lu);
+                           size_t count = 1LU,
+                           size_t offset = 0LU);
     StoreConvertTruncation() = default;
 
     ov::element::Type get_destination_type() const {

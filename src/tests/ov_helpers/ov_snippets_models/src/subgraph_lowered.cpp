@@ -4,7 +4,14 @@
 
 #include "subgraph_lowered.hpp"
 #include "common_test_utils/data_utils.hpp"
-#include <snippets/snippets_isa.hpp>
+#include "openvino/opsets/opset1.hpp"
+#include <snippets/op/broadcastload.hpp>
+#include <snippets/op/broadcastmove.hpp>
+#include <snippets/op/convert_saturation.hpp>
+#include <snippets/op/load.hpp>
+#include <snippets/op/store.hpp>
+#include <snippets/op/scalar.hpp>
+#include <snippets/op/brgemm.hpp>
 
 namespace ov {
 namespace test {

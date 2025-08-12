@@ -32,7 +32,7 @@ public:
                           const std::vector<MemoryDescPtr>& dstDescs,
                           const ExecutorContext::CPtr& context)
         : ExecutorFactoryLegacy(context) {
-        for (auto& desc : getReduceExecutorsList()) {
+        for (const auto& desc : getReduceExecutorsList()) {
             if (desc.builder->isSupported(reduceAttrs, srcDescs, dstDescs)) {
                 supportedDescs.push_back(desc);
             }

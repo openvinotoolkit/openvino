@@ -420,18 +420,18 @@ KernelsPriority GemmKernelTiledOpt::GetKernelsPriority(const Params& params) con
 
 bool GemmKernelTiledOpt::Validate(const Params& params) const {
     if (!Parent::Validate(params))
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     const auto& gmm_params = static_cast<const gemm_params&>(params);
 
     if (gmm_params.outputs[0].PitchesDifferFromLogicalDims())
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     size_t num_inputs = (gmm_params.indirect_input0 || gmm_params.indirect_input1) ? gmm_params.inputs.size() - 1 : gmm_params.inputs.size();
     for (size_t input_idx = 0; input_idx < num_inputs; ++input_idx) {
         auto& input = gmm_params.inputs[input_idx];
         if (!Tensor::SimpleLayout(input.GetLayout())) {
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
         }
         // Supports outer padding as first element offset and dynamic padding for Batch, Feature, X, Y dimensions for first and second inputs
         // in case of shape agnostic kernel
@@ -445,15 +445,15 @@ bool GemmKernelTiledOpt::Validate(const Params& params) const {
         }
 
         if (!proper_pad_x || !proper_pad_y || input.Z().pad.Total() != 0 || !proper_pad_f)
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
     if (gmm_params.has_dynamic_inputs() && !gmm_params.is_shape_agnostic)
-        return false;
+        DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     for (size_t i = 1; i < num_inputs; i++)
         if (gmm_params.inputs[0].GetDType() != gmm_params.inputs[i].GetDType())
-            return false;
+            DO_NOT_USE_THIS_KERNEL(params.layerID);
 
     return true;
 }

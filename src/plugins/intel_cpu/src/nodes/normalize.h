@@ -24,9 +24,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 #if defined(OPENVINO_ARCH_X86_64)
 struct jit_normalize_config_params {
     bool is_nchw;
@@ -54,15 +52,15 @@ struct jit_normalize_call_args {
 };
 
 struct jit_uni_normalize_modulo_kernel {
-    void (*ker_)(const jit_normalize_call_args*);
+    void (*ker_)(const jit_normalize_call_args*) = nullptr;
 
-    void operator()(const jit_normalize_call_args* args) {
+    void operator()(const jit_normalize_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jit_uni_normalize_modulo_kernel() {}
+    explicit jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : jcp_(jcp) {}
+    virtual ~jit_uni_normalize_modulo_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -70,18 +68,17 @@ struct jit_uni_normalize_modulo_kernel {
 };
 
 struct jit_uni_normalize_kernel {
-    void (*ker_)(const jit_normalize_call_args*);
+    void (*ker_)(const jit_normalize_call_args*) = nullptr;
 
-    void operator()(const jit_normalize_call_args* args) {
+    void operator()(const jit_normalize_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
     explicit jit_uni_normalize_kernel(jit_normalize_config_params jcp, const dnnl_primitive_attr& attr)
-        : ker_(nullptr),
-          jcp_(jcp),
+        : jcp_(jcp),
           attr_(attr) {}
-    virtual ~jit_uni_normalize_kernel() {}
+    virtual ~jit_uni_normalize_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -94,7 +91,7 @@ public:
     NormalizeL2(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     bool created() const override;
@@ -110,19 +107,19 @@ public:
     bool neverExecute() const override;
     bool isExecutable() const override;
 
-    enum class NormEpsMode { ADD, MAX };
+    enum class NormEpsMode : uint8_t { ADD, MAX };
 
     struct NormalizeL2Attrs {
         LayoutType layout = LayoutType::ncsp;
         NormEpsMode epsMode = NormEpsMode::ADD;
         bool across_spatial = true;
         bool cornerCase = false;
-        float eps = 1e-10f;
+        float eps = 1e-10F;
 
         ov::element::Type input_prec = ov::element::dynamic;
         ov::element::Type output_prec = ov::element::dynamic;
-        size_t src_data_size = 0lu;
-        size_t dst_data_size = 0lu;
+        size_t src_data_size = 0LU;
+        size_t dst_data_size = 0LU;
     };
 
 private:
@@ -139,7 +136,7 @@ private:
                                                                            const VectorDims& dims);
 
     protected:
-        inline float epsApply(const float& modulo, const NormEpsMode mode, const float eps) const {
+        [[nodiscard]] static float epsApply(const float& modulo, const NormEpsMode mode, const float eps) {
             return mode == NormEpsMode::ADD ? modulo + eps : std::max(modulo, eps);
         }
 
@@ -187,6 +184,4 @@ private:
     executorPtr execPtr = nullptr;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -8,14 +8,12 @@
 #include "graph.h"
 #include "node.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class GraphOptimizer {
 public:
     GraphOptimizer();
 
-public:
     static void ApplyCommonGraphOptimizations(Graph& graph);
     static void ApplyImplSpecificGraphOptimizations(Graph& graph);
     static void ShareReorders(Graph& graph);
@@ -93,8 +91,25 @@ private:
                                              const NodePtr& transposeNode,
                                              const NodePtr& reshapeNode,
                                              const NodePtr& reorderNode,
-                                             const bool reverseOrder);
+                                             bool reverseOrder);
+    // Method optimizes tail nodes inference performance under FP16 inference precision through two main approaches:
+    // 1. Inplace Tail Nodes Optimization:
+    //    For inplace tail node scenarios (including Eltwise and Concat nodes), the model output type is fused into
+    //    the nearest tail node, ensuring all tail nodes in the path maintain consistent types with the model output.
+    //    Since inplace nodes don't perform actual data movement, this type alignment doesn't introduce additional
+    //    overhead while eliminating the convert node as well as the f32->f16 instruction overhead within the tail
+    //    nodes.
+    // 2. Non-inplace Tail Nodes Fusion:
+    //    For non-inplace tail node scenarios, Convert operations are fused into its input (data movement) nodes.
+    //    Currently implemented Concat fusion kernel support, with future extensibility to other node types.
+    // Examples:
+    // 1. Inplace optimization (Concat):
+    //    Before: Eltwise(f16,f16)->Concat(f16,f16)->Convert(f16->f32)->Output(f32) (when concat is inplace)
+    //    After:  Eltwise(f16,f32)->Concat(f32,f32)->Output(f32) (Convert node eliminated, Concat directly outputs f32)
+    // 2. Non-inplace fusion (Concat):
+    //    Before: Concat(f16,f16)->Convert(f16->f32)->Output(f32) (when concat is non-inplace)
+    //    After:  ConcatWithFuseConvert(f16,f32)->Output(f32) (Convert fused into Concat)
+    static void TailNodesPrecisionOptimize(Graph& graph);
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

@@ -4,6 +4,11 @@
 
 #include "jit_uni_eltwise_generic.hpp"
 
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_gen.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_label.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
 #include <cstddef>
@@ -17,7 +22,7 @@
 #include "cpu_types.h"
 #include "emitters/plugin/aarch64/jit_eltwise_emitters.hpp"
 #include "emitters/plugin/aarch64/jit_emitter.hpp"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "openvino/cc/selective_build.h"
 #include "openvino/core/except.hpp"
@@ -163,9 +168,7 @@ void jit_uni_eltwise_generic<isa>::generate() {
             is_valid_configuration = false;
         }
 
-        if (!is_valid_configuration) {
-            OPENVINO_THROW("Eltwise jitter has invalid configuration for Eltwise node");
-        }
+        OPENVINO_ASSERT(is_valid_configuration, "Eltwise jitter has invalid configuration for Eltwise node");
 
         L(unroll_loop_label);
         {
@@ -387,10 +390,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
                 fcvtl(data.s4, data.h4);
                 break;
             }
-            case ov::element::i32: {
-                scvtf(data.s, data.s);
-                break;
-            }
+            case ov::element::i32:
             case ov::element::i8: {
                 scvtf(data.s, data.s);
                 break;
@@ -693,11 +693,13 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseDivide, ov::intel_cpu::aarch64::jit_divide_emitter),
         OV_CASE(Algorithm::EltwiseElu, ov::intel_cpu::aarch64::jit_elu_emitter),
         OV_CASE(Algorithm::EltwiseEqual, ov::intel_cpu::aarch64::jit_equal_emitter),
+        OV_CASE(Algorithm::EltwiseErf, ov::intel_cpu::aarch64::jit_erf_emitter),
         OV_CASE(Algorithm::EltwiseExp, ov::intel_cpu::aarch64::jit_exp_emitter),
         OV_CASE(Algorithm::EltwiseFloor, ov::intel_cpu::aarch64::jit_floor_emitter),
         OV_CASE(Algorithm::EltwiseFloorMod, ov::intel_cpu::aarch64::jit_floor_mod_emitter),
         OV_CASE(Algorithm::EltwiseCeiling, ov::intel_cpu::aarch64::jit_ceiling_emitter),
         OV_CASE(Algorithm::EltwiseNegative, ov::intel_cpu::aarch64::jit_negative_emitter),
+        OV_CASE(Algorithm::EltwiseHsigmoid, ov::intel_cpu::aarch64::jit_hsigmoid_emitter),
         OV_CASE(Algorithm::EltwiseHswish, ov::intel_cpu::aarch64::jit_hswish_emitter),
         OV_CASE(Algorithm::EltwiseIsFinite, ov::intel_cpu::aarch64::jit_is_finite_emitter),
         OV_CASE(Algorithm::EltwiseIsInf, ov::intel_cpu::aarch64::jit_is_inf_emitter),
@@ -735,10 +737,7 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseSwish, ov::intel_cpu::aarch64::jit_swish_emitter),
         OV_CASE(Algorithm::EltwiseTanh, ov::intel_cpu::aarch64::jit_tanh_emitter));
 
-    if (!ctx.emitter) {
-        OPENVINO_THROW("Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
-    }
-
+    OPENVINO_ASSERT(ctx.emitter, "Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
     return ctx.emitter;
 }
 
@@ -830,6 +829,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseDivide, jit_divide_emitter),
               OV_CASE(Algorithm::EltwiseElu, jit_elu_emitter),
               OV_CASE(Algorithm::EltwiseEqual, jit_equal_emitter),
+              OV_CASE(Algorithm::EltwiseErf, jit_erf_emitter),
               OV_CASE(Algorithm::EltwiseExp, jit_exp_emitter),
               OV_CASE(Algorithm::EltwiseFloor, jit_floor_emitter),
               OV_CASE(Algorithm::EltwiseFloorMod, jit_floor_mod_emitter),
@@ -839,6 +839,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseGeluTanh, jit_gelu_tanh_emitter),
               OV_CASE(Algorithm::EltwiseGreater, jit_greater_emitter),
               OV_CASE(Algorithm::EltwiseGreaterEqual, jit_greater_equal_emitter),
+              OV_CASE(Algorithm::EltwiseHsigmoid, jit_hsigmoid_emitter),
               OV_CASE(Algorithm::EltwiseHswish, jit_hswish_emitter),
               OV_CASE(Algorithm::EltwiseIsFinite, jit_is_finite_emitter),
               OV_CASE(Algorithm::EltwiseIsInf, jit_is_inf_emitter),
@@ -870,9 +871,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
               OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
               OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
-    if (precisions.empty()) {
-        OPENVINO_THROW("Unsupported operation type for Eltwise emitter");
-    }
+    OPENVINO_ASSERT(!precisions.empty(), "Unsupported operation type for Eltwise emitter");
 
     return precisions;
 }

@@ -44,14 +44,15 @@ using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::x64 {
 
-BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const element::Type& in0_dtype,
-                                             const element::Type& in1_dtype,
-                                             const element::Type& out_dtype,
-                                             dnnl_dim_t wei_K_blk,
-                                             dnnl::impl::cpu::x64::cpu_isa_t primitive_isa,
+BrgemmAMXKernelConfig::BrgemmAMXKernelConfig(const brgemm_utils::BrgemmConfig& brgemm_config,
+                                             const element::Type& out_dt,
                                              const dnnl_post_ops& post_ops)
-    : m_static_params(
-          std::make_shared<StaticParams>(in0_dtype, in1_dtype, out_dtype, wei_K_blk, primitive_isa, post_ops)) {
+    : m_static_params(std::make_shared<StaticParams>(brgemm_config.src_dt(),
+                                                     brgemm_config.wei_dt(),
+                                                     out_dt,
+                                                     brgemm_config.wei_k_blk(),
+                                                     brgemm_config.isa(),
+                                                     post_ops)) {
     m_hash = compute_hash();
 }
 

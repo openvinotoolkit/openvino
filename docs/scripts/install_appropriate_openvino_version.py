@@ -31,6 +31,13 @@ def install_package(python_executable, package):
     subprocess.check_call([f'{python_executable}', '-m', 'pip', 'install', '-U', package, '--no-cache-dir'])
 
 
+def install_package_from_simple(python_executable, package):
+    subprocess.check_call([
+        f'{python_executable}', '-m', 'pip', 'install', '--pre', package,
+        '--extra-index-url', 'https://storage.openvinotoolkit.org/simple/wheels/nightly'
+    ])
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--ov_dir', type=Path, help='OpenVINO docs directory')
@@ -41,8 +48,12 @@ def main():
     version_name = determine_openvino_version(args.ov_dir.joinpath("conf.py"))
 
     if version_name == "nightly":
-        install_package(args.python, "openvino-nightly")
-        print("OpenVINO nightly version installed. OpenVINO GenAI nightly version is not available.")
+        install_package_from_simple(args.python, "openvino")
+        if args.enable_genai == 'ON':
+            install_package_from_simple(args.python, "openvino-genai")
+            print("OpenVINO nightly version installed. GenAI API nightly version installed.")
+        else:
+            print("OpenVINO nightly version installed. GenAI API disabled.")
     elif version_name is None or version_name == "latest":
         install_package(args.python, "openvino")
         if args.enable_genai == 'ON':

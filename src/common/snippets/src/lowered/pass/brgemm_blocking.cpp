@@ -4,45 +4,51 @@
 
 #include "snippets/lowered/pass/brgemm_blocking.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
+#include <tuple>
+#include <vector>
+
+#include "openvino/core/except.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
-#include "snippets/lowered/pass/pass.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/lowered/pass/propagate_subtensors.hpp"
-#include "snippets/lowered/pass/iter_handler.hpp"
-#include "snippets/snippets_isa.hpp"
+#include "snippets/lowered/specific_loop_iter_handlers.hpp"
+#include "snippets/lowered/specific_loop_iter_types.hpp"
 #include "snippets/utils/utils.hpp"
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+namespace ov::snippets::lowered::pass {
 using namespace ov::snippets::utils;
 using PortType = LoopPort::Type;
 
-lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blocking_loop_handlers(size_t work_amount, size_t block_size) {
+lowered::SpecificIterationHandlers BrgemmBlockingBase::get_default_blocking_loop_handlers(size_t work_amount,
+                                                                                          size_t block_size) {
     OPENVINO_ASSERT(block_size != 0, "block size must be non zero");
     SpecificIterationHandlers handlers;
-    const auto tail_size = utils::is_dynamic_value(work_amount) ? utils::get_dynamic_value<size_t>() : work_amount % block_size;
-    if (tail_size != 0)
+    const auto tail_size =
+        utils::is_dynamic_value(work_amount) ? utils::get_dynamic_value<size_t>() : work_amount % block_size;
+    if (tail_size != 0) {
         handlers.register_pass<lowered::SpecificLoopIterType::LAST_ITER, lowered::pass::UpdateSubtensors>(tail_size);
+    }
     return handlers;
 }
 
 bool BrgemmBlockingBase::blocking_loop_exists(const lowered::LoopManagerPtr& loop_manager,
                                               const ExpressionPtr& brgemm_expr) {
     auto check_port = [&](const LoopPort& p) {
-        return p.get_expr_port()->get_expr() == brgemm_expr && one_of(p.get_dim_idx(), 0ul, 1ul);
+        return p.get_expr_port()->get_expr() == brgemm_expr && any_of(p.get_dim_idx(), 0UL, 1UL);
     };
     const auto& loop_ids = brgemm_expr->get_loop_ids();
-    for (const auto& id : loop_ids) {
+    return std::any_of(loop_ids.begin(), loop_ids.end(), [&](const auto& id) {
         const auto loop = loop_manager->get_loop_info(id);
-        if (std::any_of(loop->get_input_ports().begin(), loop->get_input_ports().end(), check_port) ||
-            std::any_of(loop->get_output_ports().begin(), loop->get_output_ports().end(), check_port)) {
-            return true;
-        }
-    }
-    return false;
+        return std::any_of(loop->get_input_ports().begin(), loop->get_input_ports().end(), check_port) ||
+               std::any_of(loop->get_output_ports().begin(), loop->get_output_ports().end(), check_port);
+    });
 }
 
 void BrgemmBlockingBase::mark_m_blocking(const LoopManagerPtr& loop_manager,
@@ -120,7 +126,8 @@ std::tuple<size_t, size_t, size_t> BrgemmBlockingBase::get_brgemm_dimensions(con
     const auto& k0 = *in_0_planar_dims.rbegin();
     const auto& k1 = *++in_1_planar_dims.rbegin();
     size_t k = 0;
-    OPENVINO_ASSERT(utils::merge_dynamic_dim(k, k0, k1), "Brgemm input descriptors have incompatible K dimension value.");
+    OPENVINO_ASSERT(utils::merge_dynamic_dim(k, k0, k1),
+                    "Brgemm input descriptors have incompatible K dimension value.");
     return std::make_tuple(m, n, k);
 }
 
@@ -155,7 +162,12 @@ bool BrgemmBlockingBase::mark_blocking_loops(LinearIR& linear_ir,
     }
     return true;
 }
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+
+size_t BrgemmBlockingBase::get_corrected_blk_size_by_dim(size_t dim, size_t default_blk) {
+    if (!utils::is_dynamic_value(dim) && dim <= default_blk) {
+        return utils::get_full_dim_value();
+    }
+    return default_blk;
+}
+
+}  // namespace ov::snippets::lowered::pass

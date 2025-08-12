@@ -22,19 +22,19 @@ public:
 
     void getSupportedDescriptors() override;
     void initSupportedPrimitiveDescriptors() override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void createPrimitive() override;
 
     void execute(const dnnl::stream& strm) override;
     void executeDynamicImpl(const dnnl::stream& strm) override;
-    bool canBeInPlace() const override {
+    [[nodiscard]] bool canBeInPlace() const override {
         return false;
     }
 
 protected:
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
 
 private:
     /// ISTFT params
@@ -50,11 +50,11 @@ private:
     bool m_has_signal_length_input = false;
 
     // Input indices
-    static constexpr size_t DATA_IDX = 0lu;
-    static constexpr size_t WINDOW_IDX = 1lu;
-    static constexpr size_t FRAME_SIZE_IDX = 2lu;
-    static constexpr size_t FRAME_STEP_IDX = 3lu;
-    static constexpr size_t SIGNAL_LENGTH_IDX = 4lu;
+    static constexpr size_t DATA_IDX = 0LU;
+    static constexpr size_t WINDOW_IDX = 1LU;
+    static constexpr size_t FRAME_SIZE_IDX = 2LU;
+    static constexpr size_t FRAME_STEP_IDX = 3LU;
+    static constexpr size_t SIGNAL_LENGTH_IDX = 4LU;
 };
 
 }  // namespace ov::intel_cpu::node

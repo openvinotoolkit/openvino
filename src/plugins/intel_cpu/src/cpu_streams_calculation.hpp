@@ -36,6 +36,8 @@ namespace ov::intel_cpu {
  * function.
  *               - input "0" indicates that the function generates the optimal number of threads per stream based on
  * processors type information.
+ * @param[in]  enable_tensor_parallel is test flag used with hint_llm_distribution_policy to test data accurcy of
+ * TENSOR_PARALLEL
  * @param[in]  input_perf_hint is performance hint set by user via ov::hint::performance_mode or the default value.
  * @param[in]  hint_llm_distribution_policy is the distribution policy for Large language models
  * @param[in]  proc_type_table is currently available candidate processors.
@@ -44,11 +46,12 @@ namespace ov::intel_cpu {
  * @return     streams information table which will be used by StreamsExecutor.
  */
 std::vector<std::vector<int>> get_streams_info_table(
-    const int input_streams,
-    const bool input_streams_changed,
-    const int input_threads,
-    const int input_infer_requests,
-    const int model_prefer_threads,
+    int input_streams,
+    bool input_streams_changed,
+    int input_threads,
+    int input_infer_requests,
+    int model_prefer_threads,
+    bool enable_tensor_parallel,
     const std::string& input_perf_hint,
     const std::set<ov::hint::ModelDistributionPolicy>& hint_model_distribution_policy,
     const std::vector<std::vector<int>>& proc_type_table);
@@ -61,7 +64,7 @@ std::vector<std::vector<int>> get_streams_info_table(
  * @return     streams rank table which will be used by StreamsExecutor.
  */
 std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vector<int>>& streams_info_table,
-                                                     const int input_rank_level,
+                                                     int input_rank_level,
                                                      int& num_sub_streams);
 
 /**
@@ -75,7 +78,7 @@ std::vector<std::vector<int>> get_streams_rank_table(const std::vector<std::vect
  * @param[in]  config intel cpu configuration
  * @return     model_prefer_threads "0" means generating the optimal threads per stream based on platform
  */
-int get_model_prefer_threads(const int num_streams,
+int get_model_prefer_threads(int num_streams,
                              const std::vector<std::vector<int>>& proc_type_table,
                              const std::shared_ptr<ov::Model>& model,
                              Config& config);
@@ -92,8 +95,8 @@ int get_model_prefer_threads(const int num_streams,
  * @return     candidate processors have benn updated based on user input hints like ov::hint::scheduling_core_type and
  * ov::hint::enable_hyper_threading
  */
-std::vector<std::vector<int>> generate_stream_info(const int streams,
-                                                   const int input_numa_node_id,
+std::vector<std::vector<int>> generate_stream_info(int streams,
+                                                   int input_numa_node_id,
                                                    const std::shared_ptr<ov::Model>& model,
                                                    Config& config,
                                                    std::vector<std::vector<int>>& proc_type_table,
@@ -105,7 +108,7 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
  * @param[in]  model graph handle
  * @param[in]  config intel cpu configuration
  */
-void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model, Config& config);
+void get_num_streams(int streams, const std::shared_ptr<ov::Model>& model, Config& config);
 
 /**
  * @brief      Sort proc_type_table by numa node id on which application is running. The numa node will move to first
@@ -113,6 +116,6 @@ void get_num_streams(const int streams, const std::shared_ptr<ov::Model>& model,
  * @param[in]  current_numa_node numa node ID on which application is running.
  * @param[in]  proc_type_table summary table of number of processors per type
  */
-void sort_table_by_numa_node_id(const int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
+void sort_table_by_numa_node_id(int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
 
 }  // namespace ov::intel_cpu

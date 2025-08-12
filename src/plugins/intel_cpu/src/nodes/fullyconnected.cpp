@@ -52,6 +52,7 @@
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
 #if defined(OV_CPU_WITH_KLEIDIAI)
+#    include "openvino/core/shape.hpp"
 #    include "utils/precision_support.h"
 #endif
 
@@ -60,7 +61,7 @@ using namespace ov::element;
 
 namespace ov::intel_cpu::node {
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes(bool apply_fp8) {
+ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[maybe_unused]] bool apply_fp8) {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -134,11 +135,11 @@ bool FullyConnected::isSupportedOperation(const std::shared_ptr<const ov::Node>&
 
 // @todo replace 'inferencePrecision' check with 'fc->get_input_element_type(0) == ov::element::bf16'
 // after bf16 pipeline is moved to ConvertPrecision
-bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::Node>& op,
-                                                    size_t IC,
-                                                    size_t OC,
-                                                    size_t G,
-                                                    const Config& config) noexcept {
+bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::shared_ptr<ov::Node>& op,
+                                                    [[maybe_unused]] size_t IC,
+                                                    [[maybe_unused]] size_t OC,
+                                                    [[maybe_unused]] size_t G,
+                                                    [[maybe_unused]] const Config& config) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         std::string errorMessage;
@@ -181,15 +182,18 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
         if (!hasIntDotProductSupport()) {
             return false;
         }
-        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX)
+        if (config.fcDynamicQuantizationGroupSize != UINT64_MAX) {
             return false;
+        }
 
-        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC)
+        if (op->get_input_size() > WEIGHT_SCALES && shape_size(op->input(WEIGHT_SCALES).get_shape()) != OC) {
             return false;
+        }
 
         if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
-            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::undefined)
+            op->input(WEIGHT_ZERO_POINTS).get_element_type() != ov::element::dynamic) {
             return false;
+        }
     } catch (...) {
         return false;
     }
@@ -197,10 +201,8 @@ bool FullyConnected::isSupportedCompressedOperation(const std::shared_ptr<ov::No
 #else
     bool useMatmulPrim = false;
     CPU_DEBUG_CAP_ENABLE(useMatmulPrim = getEnvBool("OV_CPU_ENABLE_DNNL_MAMTUL_FOR_FC");)
-    if (useMatmulPrim)
-        return true;
+    return useMatmulPrim;
 #endif
-    return false;
 }
 
 void FullyConnected::initTensorParallelConfig(const GraphContext::CPtr& context) {
@@ -253,7 +255,7 @@ bool FullyConnected::canBeExecutedInInt8() const {
     auto srcType = getOriginalInputPrecisionAtPort(0);
     auto weiType = getOriginalInputPrecisionAtPort(1);
 
-    return one_of(srcType, ov::element::u8, ov::element::i8) && weiType == ov::element::i8;
+    return any_of(srcType, ov::element::u8, ov::element::i8) && weiType == ov::element::i8;
 }
 
 void FullyConnected::needPrepareParamsForTensorParallel() {
@@ -526,7 +528,7 @@ static bool useSparseWeightsDecompression(const NodePtr& weightsInput,
     }
 
     const auto weightsType = weiMemory->getPrecision();
-    if (!one_of(inputType, u8, i8) || weightsType != i8) {
+    if (none_of(inputType, u8, i8) || weightsType != i8) {
         return false;
     }
 
@@ -609,7 +611,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     nodeConfig.inConfs.resize(srcDescs.size());
     for (const auto& desc : nodeDescriptors) {
         if (auto it = m_atoi.find(desc.first); it != m_atoi.end()) {
-            nodeConfig.inConfs[it->second] = desc.second;
+            nodeConfig.inConfs[it->second] = PortConfig(desc.second);
         }
     }
 
@@ -617,7 +619,7 @@ void FullyConnected::initSupportedPrimitiveDescriptors() {
     // @todo pass all the input descriptors to getProperMemoryDescriptors and allow
     // to ignore extra input descriptors if necessery
     for (size_t i = 3; i < srcDescs.size(); i++) {
-        nodeConfig.inConfs[i] = srcDescs[i];
+        nodeConfig.inConfs[i] = PortConfig(srcDescs[i]);
     }
 
     const int inPlace = canBeInPlace() ? 0 : -1;

@@ -18,36 +18,53 @@ namespace intel_npu {
 struct ArgumentDescriptor {
     ze_graph_argument_properties_3_t info;
     uint32_t idx;
+    std::string to_string() const {
+        std::stringstream sstream;
+        sstream << "dims_count: " << info.dims_count << " - [";
+        for (uint32_t i = 0; i < std::min<uint32_t>(info.dims_count, ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE); i ++) {
+            sstream << info.dims[i] << ",";
+        }
+        sstream << "]"
+                << ", networkLayout: " << std::to_string(static_cast<size_t>(info.networkLayout))
+                << ", deviceLayout: " << std::to_string(static_cast<size_t>(info.deviceLayout));
+        return sstream.str();
+    }
 };
 
 namespace zeroUtils {
 
-#define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)              \
-    if (ZE_RESULT_SUCCESS != result) {                                                  \
-        OPENVINO_THROW("L0 ",                                                           \
-                       step,                                                            \
-                       " result: ",                                                     \
-                       ze_result_to_string(result),                                     \
-                       ", code 0x",                                                     \
-                       std::hex,                                                        \
-                       uint64_t(result),                                                \
-                       " - ",                                                           \
-                       ze_result_to_description(result),                                \
-                       " . ",                                                           \
-                       intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext)); \
+#define THROW_ON_FAIL_FOR_LEVELZERO_EXT(step, result, graph_ddi_table_ext)                  \
+    {                                                                                       \
+        ze_result_t ret = (result);                                                         \
+        if (ZE_RESULT_SUCCESS != ret) {                                                     \
+            OPENVINO_THROW("L0 ",                                                           \
+                           step,                                                            \
+                           " result: ",                                                     \
+                           ze_result_to_string(ret),                                        \
+                           ", code 0x",                                                     \
+                           std::hex,                                                        \
+                           uint64_t(ret),                                                   \
+                           " - ",                                                           \
+                           ze_result_to_description(ret),                                   \
+                           " . ",                                                           \
+                           intel_npu::zeroUtils::getLatestBuildError(graph_ddi_table_ext)); \
+        }                                                                                   \
     }
 
-#define THROW_ON_FAIL_FOR_LEVELZERO(step, result)         \
-    if (ZE_RESULT_SUCCESS != result) {                    \
-        OPENVINO_THROW("L0 ",                             \
-                       step,                              \
-                       " result: ",                       \
-                       ze_result_to_string(result),       \
-                       ", code 0x",                       \
-                       std::hex,                          \
-                       uint64_t(result),                  \
-                       " - ",                             \
-                       ze_result_to_description(result)); \
+#define THROW_ON_FAIL_FOR_LEVELZERO(step, result)          \
+    {                                                      \
+        ze_result_t ret = (result);                        \
+        if (ZE_RESULT_SUCCESS != ret) {                    \
+            OPENVINO_THROW("L0 ",                          \
+                           step,                           \
+                           " result: ",                    \
+                           ze_result_to_string(ret),       \
+                           ", code 0x",                    \
+                           std::hex,                       \
+                           uint64_t(ret),                  \
+                           " - ",                          \
+                           ze_result_to_description(ret)); \
+        }                                                  \
     }
 
 static inline ze_command_queue_priority_t toZeQueuePriority(const ov::hint::Priority& val) {
@@ -97,6 +114,8 @@ static inline ov::element::Type_t toOVElementType(const ze_graph_argument_precis
         return ov::element::Type_t::i32;
     case ZE_GRAPH_ARGUMENT_PRECISION_INT64:
         return ov::element::Type_t::i64;
+    case ZE_GRAPH_ARGUMENT_PRECISION_UINT2:
+        return ov::element::Type_t::u2;
     case ZE_GRAPH_ARGUMENT_PRECISION_BIN:
         return ov::element::Type_t::u1;
     case ZE_GRAPH_ARGUMENT_PRECISION_UINT4:
@@ -207,8 +226,8 @@ static inline bool memory_was_allocated_in_the_same_l0_context(ze_context_handle
     auto res = intel_npu::zeMemGetAllocProperties(hContext, ptr, &desc, nullptr);
     if (res == ZE_RESULT_SUCCESS) {
         if (desc.id) {
-            if ((desc.type & ZE_MEMORY_TYPE_HOST) || (desc.type & ZE_MEMORY_TYPE_DEVICE) ||
-                (desc.type & ZE_MEMORY_TYPE_SHARED)) {
+            if ((desc.type == ZE_MEMORY_TYPE_HOST) || (desc.type == ZE_MEMORY_TYPE_DEVICE) ||
+                (desc.type == ZE_MEMORY_TYPE_SHARED)) {
                 return true;
             }
         }

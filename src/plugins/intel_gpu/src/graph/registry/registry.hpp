@@ -5,6 +5,8 @@
 #pragma once
 
 #include "implementation_map.hpp"
+#include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     #define OV_GPU_WITH_ONEDNN 1
@@ -79,8 +81,10 @@
 #endif
 
 #if OV_GPU_WITH_COMMON
-#    define OV_GPU_GET_INSTANCE_COMMON(prim, ...) EXPAND(GET_INSTANCE(prim, cldnn::impl_types::common, __VA_ARGS__))
+#    define OV_GPU_CREATE_INSTANCE_COMMON(...) EXPAND(CREATE_INSTANCE(__VA_ARGS__))
+#    define OV_GPU_GET_INSTANCE_COMMON(prim, ...) EXPAND(SELECT(COUNT(__VA_ARGS__), prim, impl_types::ocl, __VA_ARGS__))
 #else
+#    define OV_GPU_CREATE_INSTANCE_COMMON(...)
 #    define OV_GPU_GET_INSTANCE_COMMON(...)
 #endif
 
@@ -138,11 +142,13 @@ REGISTER_IMPLS(gather);
 REGISTER_IMPLS(gather_nd);
 REGISTER_IMPLS(gemm);
 REGISTER_IMPLS(group_normalization);
+REGISTER_IMPLS(loop);
 REGISTER_IMPLS(lora);
 REGISTER_IMPLS(lstm_cell);
 REGISTER_IMPLS(lstm_seq);
 REGISTER_IMPLS(gru_seq);
 REGISTER_IMPLS(non_max_suppression);
+REGISTER_IMPLS(paged_attention);
 REGISTER_IMPLS(pooling);
 REGISTER_IMPLS(reduce);
 REGISTER_IMPLS(reorder);
@@ -150,18 +156,20 @@ REGISTER_IMPLS(reshape);
 REGISTER_IMPLS(range);
 REGISTER_IMPLS(rope);
 REGISTER_IMPLS(select);
+REGISTER_IMPLS(scaled_dot_product_attention);
 REGISTER_IMPLS(scatter_update);
 REGISTER_IMPLS(scatter_elements_update);
+REGISTER_IMPLS(scatter_nd_update);
 REGISTER_IMPLS(softmax);
 REGISTER_IMPLS(shape_of);
 REGISTER_IMPLS(strided_slice);
 REGISTER_IMPLS(tile);
 REGISTER_IMPLS(col2im);
+REGISTER_IMPLS(vl_sdpa);
 
 REGISTER_DEFAULT_IMPLS(assign, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(read_value, CPU_S, CPU_D);
 REGISTER_DEFAULT_IMPLS(condition, COMMON_S, COMMON_D);
-REGISTER_DEFAULT_IMPLS(loop, COMMON_S, COMMON_D);
 REGISTER_DEFAULT_IMPLS(input_layout, COMMON_S, COMMON_D);
 REGISTER_DEFAULT_IMPLS(non_max_suppression_gather, CPU_S);
 REGISTER_DEFAULT_IMPLS(proposal, CPU_S, CPU_D);
@@ -191,7 +199,6 @@ REGISTER_DEFAULT_IMPLS(mvn, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(matrix_nms, OCL_S);
 REGISTER_DEFAULT_IMPLS(normalize, OCL_S);
 REGISTER_DEFAULT_IMPLS(one_hot, OCL_S);
-REGISTER_DEFAULT_IMPLS(paged_attention, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(permute, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(prior_box, OCL_S);
 REGISTER_DEFAULT_IMPLS(quantize, OCL_S, OCL_D);
@@ -204,7 +211,6 @@ REGISTER_DEFAULT_IMPLS(rms, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(roi_align, OCL_S);
 REGISTER_DEFAULT_IMPLS(roi_pooling, OCL_S);
 REGISTER_DEFAULT_IMPLS(roll, OCL_S);
-REGISTER_DEFAULT_IMPLS(scatter_nd_update, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(shuffle_channels, OCL_S);
 REGISTER_DEFAULT_IMPLS(slice, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(space_to_batch, OCL_S);
@@ -223,7 +229,6 @@ REGISTER_DEFAULT_IMPLS(gather_nonzero, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(eye, OCL_S);
 REGISTER_DEFAULT_IMPLS(unique_count, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(unique_gather, OCL_S, OCL_D);
-REGISTER_DEFAULT_IMPLS(scaled_dot_product_attention, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(search_sorted, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(STFT, OCL_S, OCL_D);
 REGISTER_DEFAULT_IMPLS(ISTFT, OCL_S, OCL_D);

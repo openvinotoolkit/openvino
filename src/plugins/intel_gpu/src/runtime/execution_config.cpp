@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "openvino/core/any.hpp"
@@ -10,6 +11,9 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/gru_sequence.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
+#include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/op/indirect_sdpa.hpp"
 #include "openvino/op/search_sorted.hpp"
 #include "openvino/op/stft.hpp"
 #include "openvino/op/istft.hpp"
@@ -63,6 +67,31 @@ bool requires_new_shape_infer(const std::shared_ptr<ov::Node>& op) {
     if (ov::is_type<ov::op::v5::GRUSequence>(op) || ov::is_type<ov::op::v5::LSTMSequence>(op) || ov::is_type<ov::op::v4::LSTMCell>(op)) {
         return true;
     }
+
+    if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op) || ov::is_type<ov::intel_gpu::op::IndirectSDPA>(op) ||
+        ov::is_type<ov::intel_gpu::op::SDPA>(op)) {
+        if (op->get_input_size() > 3) {
+            bool rank_ge_4 = false;
+            bool rank_dynamic = false;
+            for (size_t i = 0; i < op->get_input_size(); i++) {
+                auto input_shape = op->get_input_partial_shape(i);
+                if (input_shape.rank().is_dynamic()) {
+                    rank_dynamic = true;
+                    break;
+                }
+
+                if (input_shape.size() >= 4) {
+                    rank_ge_4 = true;
+                    break;
+                }
+            }
+
+            if (!rank_ge_4 && !rank_dynamic) {
+                return true;
+            }
+        }
+    }
+
     // When input node has dynamic shape with 4 dimension, this function return false
     // because op.is_dynamic() which only checks input shapes return false.
     // So, in the case of input data, we need to check output shape.
@@ -176,6 +205,18 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
                 }
             }
         }
+
+        // w/a : key_by_channel quant mode does not support cache rotation yet
+        // CVS-170994
+        if (auto paged_attn_op = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+            const size_t rotated_block_indices_idx = paged_attn_op->get_input_size() > cldnn::paged_attention::PagedAttentionInputIdx::ROTATED_BLOCK_INDICES;
+            auto rotated_block_indices_input = ov::as_type_ptr<ov::op::v0::Parameter>(paged_attn_op->get_input_node_shared_ptr(rotated_block_indices_idx));
+            bool has_rotated_blocks = rotated_block_indices_input && rotated_block_indices_input->get_output_partial_shape(0).is_dynamic();
+            if (has_rotated_blocks && m_key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) {
+                GPU_DEBUG_COUT << "[Warning] BY_CHANNEL quant mode is not supported for cache rotation yet. Switching to BY_TOKEN mode." << std::endl;
+                m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+            }
+        }
     };
 
     for (const auto& op : ops) {
@@ -183,6 +224,7 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
     }
 
     const auto& info = dynamic_cast<const RemoteContextImpl*>(context)->get_engine().get_device_info();
+
     if (!is_set_by_user(ov::hint::kv_cache_precision) || get_kv_cache_precision() == ov::element::dynamic) {
         if (is_paged_attention_model || !info.supports_immad) {
             // Enable KV-cache compression by default for:
@@ -194,10 +236,22 @@ void ExecutionConfig::apply_model_specific_options(const IRemoteContext* context
         }
     }
 
+    if (!is_set_by_user(ov::internal::key_cache_quant_mode) || get_key_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
+        m_key_cache_quant_mode = ov::internal::CacheQuantMode::BY_CHANNEL;
+    }
+
+    if (!is_set_by_user(ov::internal::value_cache_quant_mode) || get_value_cache_quant_mode() == ov::internal::CacheQuantMode::AUTO) {
+        m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    } else if (get_value_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL) {
+        GPU_DEBUG_COUT << "[Warning] Value cache quantization mode BY_CHANNEL is not supported for GPU plugin. "
+            << "Switching to BY_TOKEN mode." << std::endl;
+        m_value_cache_quant_mode = ov::internal::CacheQuantMode::BY_TOKEN;
+    }
     // Disable FlashAttn V2 online softmax tricks by default for non-LLMs.
     if (!is_set_by_user(ov::intel_gpu::could_use_flashattn_v2) && !is_LLM) {
         m_could_use_flashattn_v2 = false;
     }
+
     m_optimize_data = true;
 }
 

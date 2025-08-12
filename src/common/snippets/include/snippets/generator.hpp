@@ -8,16 +8,17 @@
  */
 #pragma once
 
-#include "snippets_isa.hpp"
+#include <memory>
+#include <vector>
 
-#include "snippets/lowered/linear_ir.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "snippets/emitter.hpp"
 #include "snippets/kernel_executor_table.hpp"
-#include "snippets/shape_types.hpp"
+#include "snippets/lowered/linear_ir.hpp"
 #include "target_machine.hpp"
 
-namespace ov {
-namespace snippets {
-
+namespace ov::snippets {
 
 class Generator;
 /**
@@ -29,8 +30,9 @@ class Generator;
 class LoweringResult {
     friend class Generator;
     // Some emitters rely on other precompiled kernels.
-    // We need to keep the pointers to such emitters alive, so the kernels or nodes would still be accessible at runtime.
-    std::vector<std::shared_ptr<Emitter>> m_saved_emitters{};
+    // We need to keep the pointers to such emitters alive, so the kernels or nodes would still be accessible at
+    // runtime.
+    std::vector<std::shared_ptr<Emitter>> m_saved_emitters;
 
 public:
     CompiledSnippetPtr compiled_snippet = nullptr;
@@ -49,15 +51,16 @@ public:
      * @brief Create schedule out of specific parameters
      * @param lr lowering result produced during code generation
      */
-    Schedule(LoweringResult&& lr) : lowering_result(lr) {}
+    explicit Schedule(LoweringResult&& lr) : lowering_result(lr) {}
     /**
      * @brief Returns callable instanse of code pointer
      */
-    template<typename K> K get_callable() const {
+    template <typename K>
+    K get_callable() const {
         return reinterpret_cast<K>(const_cast<unsigned char*>(lowering_result.compiled_snippet->get_code()));
     }
 
-    LoweringResult lowering_result {};
+    LoweringResult lowering_result{};
 };
 
 /**
@@ -65,12 +68,12 @@ public:
  * @brief Target independent code generator interface
  * @ingroup snippets
  */
-class Generator : public std::enable_shared_from_this<Generator>{
+class Generator : public std::enable_shared_from_this<Generator> {
 public:
     /**
      * @brief Default constructor
      */
-    Generator(const std::shared_ptr<TargetMachine>& t) : target(t) {}
+    explicit Generator(const std::shared_ptr<TargetMachine>& t) : target(t) {}
     /**
      * @brief Default destructor
      */
@@ -100,18 +103,19 @@ public:
 
 protected:
     /**
-    * @brief gets register type by specific plugin op type
-    * @return register type
-    */
+     * @brief gets register type by specific plugin op type
+     * @return register type
+     */
     virtual RegType get_specific_op_out_reg_type(const ov::Output<Node>& out) const;
     /**
-    * @brief returns true if an emitter can use precompiled kernel.
-    * @return bool
-    */
-    virtual bool uses_precompiled_kernel(const std::shared_ptr<Emitter>& emitter) const { return false; }
+     * @brief returns true if an emitter can use precompiled kernel.
+     * @return bool
+     */
+    virtual bool uses_precompiled_kernel([[maybe_unused]] const std::shared_ptr<Emitter>& emitter) const {
+        return false;
+    }
 
     std::shared_ptr<TargetMachine> target;
 };
 
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets

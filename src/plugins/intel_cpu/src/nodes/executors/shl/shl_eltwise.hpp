@@ -4,48 +4,38 @@
 #pragma once
 
 #include <functional>
+#include <memory>
+#include <vector>
 
-#include "cpu_memory.h"
-#include "nodes/executors/eltwise.hpp"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/executors/eltwise_config.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
 #include "shl.hpp"
 
 namespace ov::intel_cpu {
 
-class ShlEltwiseExecutor : public EltwiseExecutor {
+class ShlEltwiseExecutor : public Executor {
 public:
-    explicit ShlEltwiseExecutor(const ExecutorContext::CPtr context);
-    static bool isEltwiseAlgorithmSupported(Algorithm algorithm);
+    explicit ShlEltwiseExecutor(EltwiseAttrs attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context);
+    static bool supports(const EltwiseConfig& config);
 
-    bool init(const EltwiseAttrs& eltwiseAttrs,
-              const std::vector<MemoryDescPtr>& srcDescs,
-              const std::vector<MemoryDescPtr>& dstDescs,
-              const std::vector<EltwisePostOp>& postOps) override;
+    bool update(const MemoryArgs& memory) override;
+    void execute(const MemoryArgs& memory) override;
 
-    void exec(const std::vector<MemoryCPtr>& src,
-              const std::vector<MemoryPtr>& dst,
-              const void* post_ops_data_) override;
-
-    [[nodiscard]] impl_desc_type getImplType() const override {
+    [[nodiscard]] impl_desc_type implType() const override {
         return impl_desc_type::shl;
     }
 
 private:
-    EltwiseAttrs shlEltwiseAttrs{};
-    ShlSession sess = {};
+    bool init(const std::vector<MemoryDescPtr>& srcDescs, const std::vector<MemoryDescPtr>& dstDescs);
+
+    EltwiseAttrs shlEltwiseAttrs;
+    ShlSession sess;
     std::vector<ShlTensor> srcTensors, dstTensors;
     std::unique_ptr<IShlParams> params;
     std::function<int()> shlExecFunc;
-};
-
-class ShlEltwiseExecutorBuilder : public EltwiseExecutorBuilder {
-public:
-    [[nodiscard]] bool isSupported(const EltwiseAttrs& eltwiseAttrs,
-                                   const std::vector<MemoryDescPtr>& srcDescs,
-                                   const std::vector<MemoryDescPtr>& dstDescs) const override;
-
-    [[nodiscard]] EltwiseExecutorPtr makeExecutor(const ExecutorContext::CPtr context) const override {
-        return std::make_shared<ShlEltwiseExecutor>(context);
-    }
 };
 
 }  // namespace ov::intel_cpu

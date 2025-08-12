@@ -14,8 +14,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/itensor.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class Tensor : public ITensor {
 public:
@@ -56,5 +55,4 @@ private:
 
 std::shared_ptr<ITensor> make_tensor(MemoryPtr mem);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

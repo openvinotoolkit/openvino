@@ -4,7 +4,7 @@
 
 #include "mlp_kernel.hpp"
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <algorithm>
 #include <cassert>
@@ -294,10 +294,10 @@ void MKernel::generate_1x2() {
     ret();
 }
 
-class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator {
+class FP16ToBF16Kernel : public dnnl::impl::cpu::x64::jit_generator_t {
 public:
     DECLARE_CPU_JIT_AUX_FUNCTIONS(FP16ToBF16Kernel)
-    FP16ToBF16Kernel() : jit_generator("FP16ToBF16Kernel") {
+    FP16ToBF16Kernel() : jit_generator_t("FP16ToBF16Kernel") {
         create_kernel();
     }
 
@@ -366,10 +366,10 @@ static void repackB(int8_t* dst, int8_t* src, int N_stride, int N, int K) {
         auto* psrc = src + k;
         int n = 0;
         for (; n < 16 && n < N; n++, psrc += N_stride) {
-            *dst++ = is_k0_valid ? psrc[0] : 0;
-            *dst++ = is_k1_valid ? psrc[1] : 0;
-            *dst++ = is_k2_valid ? psrc[2] : 0;
-            *dst++ = is_k3_valid ? psrc[3] : 0;
+            *dst++ = is_k0_valid ? psrc[0] : static_cast<int8_t>(0);
+            *dst++ = is_k1_valid ? psrc[1] : static_cast<int8_t>(0);
+            *dst++ = is_k2_valid ? psrc[2] : static_cast<int8_t>(0);
+            *dst++ = is_k3_valid ? psrc[3] : static_cast<int8_t>(0);
         }
         for (; n < 16; n++) {
             *dst++ = 0;
@@ -513,7 +513,7 @@ void MKernel::run(int M,  // actual M
                   int strideC,                // C [M, N]
                   const uint8_t* prefetch_B,  // prefetch B
                   bool do_accumulation) {
-    call_args args;
+    call_args args{};
 
     auto* pB = repacked_B.ptr;
     auto strideB = repacked_B.Bpair_rows * repacked_B.Bpair_size;
@@ -589,7 +589,7 @@ void GateUpCombine::generate() {
     const auto zmm_up = zmm0;
     const auto ymm_dst = ymm5;
 
-    auto injector = std::make_shared<jit_uni_eltwise_injector<dnnl::impl::cpu::x64::avx512_core>>(
+    auto injector = std::make_shared<jit_uni_eltwise_injector_t<dnnl::impl::cpu::x64::avx512_core>>(
         this,
         m_act_alg,
         1.F,

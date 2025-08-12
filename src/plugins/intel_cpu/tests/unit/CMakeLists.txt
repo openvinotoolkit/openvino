@@ -95,9 +95,6 @@ endif()
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
-target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
-
 if (WIN32)
     # Prevents defining min/max as macros
     target_compile_definitions(${TARGET_NAME} PRIVATE NOMINMAX)
@@ -105,6 +102,7 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME}
     UNITY
+    PCH
 )
 
 function(group_source_file GROUP_NAME GROUP_DIR)
@@ -114,7 +112,7 @@ function(group_source_file GROUP_NAME GROUP_DIR)
     endforeach()
 endfunction()
 
-if(ENABLE_FASTER_BUILD) 
+if(ENABLE_UNITY_BUILD)
     set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON UNITY_BUILD_MODE GROUP)
     group_source_file(unit_src_nodes ${CMAKE_CURRENT_SOURCE_DIR}/nodes)
     group_source_file(unit_src_snippets_transformations ${CMAKE_CURRENT_SOURCE_DIR}/snippets_transformations)
@@ -122,7 +120,15 @@ if(ENABLE_FASTER_BUILD)
     group_source_file(unit_src_custom_shape_infer ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer)
 endif()
 
+# explicitly set include directories for gtest before the dnnl include directories as dnnl third_party dir also contains
+# gtest. This is necessary to ensure a proper order of include directories in the compilation command line
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/common
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/src/cpu
-    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>/include)
+    $<TARGET_PROPERTY:gtest,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:gtest_main,INTERFACE_INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:gmock,INTERFACE_INCLUDE_DIRECTORIES>)
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:dnnl,SOURCE_DIR>)
+
+target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+    $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)

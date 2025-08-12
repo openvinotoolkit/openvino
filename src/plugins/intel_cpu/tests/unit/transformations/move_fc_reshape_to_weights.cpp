@@ -24,7 +24,7 @@
 using namespace testing;
 using namespace ov::intel_cpu;
 
-enum class ZeroPointType { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
+enum class ZeroPointType : uint8_t { NO_ZP, ZP_WEIGHTS_PRC, ZP_DECOMPRESSION_PRC };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
     switch (type) {
         case ZeroPointType::NO_ZP:
@@ -42,7 +42,7 @@ inline std::ostream& operator<<(std::ostream& os, ZeroPointType type) {
     return os;
 }
 
-enum class ZeroPointShape { SCALAR, PER_CHANNEL };
+enum class ZeroPointShape : uint8_t { SCALAR, PER_CHANNEL };
 inline std::ostream& operator<<(std::ostream& os, ZeroPointShape type) {
     switch (type) {
         case ZeroPointShape::SCALAR:
@@ -64,13 +64,8 @@ using MoveFCReshapeToWeightsParams = std::tuple<std::pair<ov::PartialShape, ov::
 
 class MoveFCReshapeToWeightsTests : public TransformationTestsF, public WithParamInterface<MoveFCReshapeToWeightsParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<MoveFCReshapeToWeightsParams> obj) {
-        std::pair<ov::PartialShape, ov::Shape> input_shapes;
-        bool add_transpose;
-        ZeroPointType zp_type;
-        ZeroPointShape zp_shape;
-        std::tie(input_shapes, add_transpose, zp_type, zp_shape) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<MoveFCReshapeToWeightsParams>& obj) {
+        const auto& [input_shapes, add_transpose, zp_type, zp_shape] = obj.param;
         std::ostringstream result;
         result << "Input_shape=(" << input_shapes.first << ")_Weights_shape=(" << input_shapes.second
                << ")_add_transpose=" << add_transpose << "_zp_type=" << zp_type << "_zp_shape=" << zp_shape;
@@ -131,12 +126,7 @@ public:
 protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
-        std::pair<ov::PartialShape, ov::Shape> input_shapes;
-        bool add_transpose;
-        ZeroPointType zp_type;
-        ZeroPointShape zp_shape;
-        std::tie(input_shapes, add_transpose, zp_type, zp_shape) = this->GetParam();
-
+        const auto& [input_shapes, add_transpose, zp_type, zp_shape] = this->GetParam();
         ov::Shape ref_weights_shape = input_shapes.second;
         ref_weights_shape.erase(ref_weights_shape.begin());
         model = initModel(input_shapes.first, input_shapes.second, add_transpose, zp_type, zp_shape, true);

@@ -60,6 +60,11 @@ list(FILTER SOURCES EXCLUDE REGEX ".*(frontend/(onnx|tensorflow|paddle|pytorch|j
 
 pybind11_add_module(${PROJECT_NAME} MODULE NO_EXTRAS ${SOURCES})
 
+if(NOT ENABLE_GIL_PYTHON_API)
+    # disable GIL for free-threaded python build
+    target_compile_definitions(${PROJECT_NAME} PRIVATE Py_GIL_DISABLED=1)
+endif()
+
 target_include_directories(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE openvino::core::dev openvino::runtime openvino::offline_transformations)

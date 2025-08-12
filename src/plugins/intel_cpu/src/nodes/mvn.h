@@ -14,7 +14,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "cpu_types.h"
 #include "graph_context.h"
@@ -22,18 +21,16 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct jit_mvn_config_params {
-    MVNLayoutType layout;
-    bool across_channels;
-    bool normalize_variance;
+    MVNLayoutType layout = mvn_planar;
+    bool across_channels = false;
+    bool normalize_variance = false;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
-    int src_data_size;
-    int dst_data_size;
+    int src_data_size = 0;
+    int dst_data_size = 0;
 };
 
 struct jit_mvn_call_args {
@@ -51,15 +48,15 @@ struct jit_mvn_call_args {
 };
 
 struct jit_uni_mvn_mean_variance_kernel {
-    void (*ker_)(const jit_mvn_call_args*);
+    void (*ker_)(const jit_mvn_call_args*) = nullptr;
 
-    void operator()(const jit_mvn_call_args* args) {
+    void operator()(const jit_mvn_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_mvn_mean_variance_kernel(jit_mvn_config_params jcp) : ker_(nullptr), jcp_(jcp) {}
-    virtual ~jit_uni_mvn_mean_variance_kernel() {}
+    explicit jit_uni_mvn_mean_variance_kernel(jit_mvn_config_params jcp) : jcp_(jcp) {}
+    virtual ~jit_uni_mvn_mean_variance_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -67,18 +64,15 @@ struct jit_uni_mvn_mean_variance_kernel {
 };
 
 struct jit_uni_mvn_kernel {
-    void (*ker_)(const jit_mvn_call_args*);
+    void (*ker_)(const jit_mvn_call_args*) = nullptr;
 
-    void operator()(const jit_mvn_call_args* args) {
+    void operator()(const jit_mvn_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const dnnl_primitive_attr& attr)
-        : ker_(nullptr),
-          jcp_(jcp),
-          attr_(attr) {}
-    virtual ~jit_uni_mvn_kernel() {}
+    explicit jit_uni_mvn_kernel(jit_mvn_config_params jcp, const dnnl_primitive_attr& attr) : jcp_(jcp), attr_(attr) {}
+    virtual ~jit_uni_mvn_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -101,11 +95,11 @@ public:
         return false;
     }
 
-    inline bool getAcrossChannels() const {
+    bool getAcrossChannels() const {
         return mvnAttrs.initAcrossChannels_;
     }
 
-    inline bool getNormalizeVariance() const {
+    bool getNormalizeVariance() const {
         return mvnAttrs.normalizeVariance_;
     }
 
@@ -125,7 +119,7 @@ private:
 
     class MVNExecutorBase {
     public:
-        MVNExecutorBase(const MVNAttrs& mvnAttrs);
+        explicit MVNExecutorBase(const MVNAttrs& mvnAttrs);
         virtual void exec(const uint8_t* in_ptr_,
                           uint8_t* dst_data,
                           const void* post_ops_data_,
@@ -166,7 +160,7 @@ private:
 
     class MVNRefExecutor : public MVNExecutorBase {
     public:
-        MVNRefExecutor(const MVNAttrs& mvnAttrs);
+        explicit MVNRefExecutor(const MVNAttrs& mvnAttrs);
 
         void exec(const uint8_t* src_data,
                   uint8_t* dst_data,
@@ -178,6 +172,4 @@ private:
     };
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

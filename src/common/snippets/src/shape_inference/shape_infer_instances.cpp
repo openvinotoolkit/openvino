@@ -2,11 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "snippets/shape_inference/shape_infer_instances.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/utils/utils.hpp"
+
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/op/select.hpp"
-namespace ov {
-namespace snippets {
+#include "openvino/op/util/attr_types.hpp"
+#include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/shape_inference/shape_inference.hpp"
+#include "snippets/shape_types.hpp"
+#include "snippets/utils/utils.hpp"
+
+namespace ov::snippets {
 using Result = IShapeInferSnippets::Result;
 /*
  * Merge SRC to DST with broadcasting rules defined by the Autobroadcast specifier
@@ -16,41 +33,44 @@ bool broadcast_merge_into(VectorDims& dst, const VectorDims& src, const ov::op::
     const auto dst_rank = static_cast<int64_t>(dst.size());
     const auto src_rank = static_cast<int64_t>(src.size());
     switch (autob.m_type) {
-        case ov::op::AutoBroadcastType::NONE:
-            return true;
-        case ov::op::AutoBroadcastType::NUMPY: {
-            const auto new_rank = std::max(dst_rank, src_rank);
-            VectorDims dims(new_rank);
-            bool success = true;
-            for (int64_t i = 0; i < new_rank; i++) {
-                auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
-                auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
-                success &= utils::broadcast_merge_dim(dims[i], dsti, srci);
-            }
-            dst = std::move(dims);
-            return success;
+    case ov::op::AutoBroadcastType::NONE:
+        return true;
+    case ov::op::AutoBroadcastType::NUMPY: {
+        const auto new_rank = std::max(dst_rank, src_rank);
+        VectorDims dims(new_rank);
+        bool success = true;
+        for (int64_t i = 0; i < new_rank; i++) {
+            auto dsti = i < (new_rank - dst_rank) ? 1 : dst[i - (new_rank - dst_rank)];
+            auto srci = i < (new_rank - src_rank) ? 1 : src[i - (new_rank - src_rank)];
+            success &= utils::broadcast_merge_dim(dims[i], dsti, srci);
         }
-        case ov::op::AutoBroadcastType::PDPD: {
-            int64_t axis = autob.m_axis;
-            if (src_rank > dst_rank || axis < -1)
-                return false;
+        dst = std::move(dims);
+        return success;
+    }
+    case ov::op::AutoBroadcastType::PDPD: {
+        int64_t axis = autob.m_axis;
+        if (src_rank > dst_rank || axis < -1) {
+            return false;
+        }
 
-            axis = (axis == -1) ? (dst_rank - src_rank) : axis;
-            if (src_rank + axis > dst_rank)
-                return false;
+        axis = (axis == -1) ? (dst_rank - src_rank) : axis;
+        if (src_rank + axis > dst_rank) {
+            return false;
+        }
 
-            bool success = true;
-            for (int64_t i = 0; i < src_rank; ++i) {
-                if (!utils::is_dynamic_value(dst[axis + i]) && !utils::is_dynamic_value(src[i])) {
-                    if (src[i] > dst[axis + i])
-                        return false;
+        bool success = true;
+        for (int64_t i = 0; i < src_rank; ++i) {
+            if (!utils::is_dynamic_value(dst[axis + i]) && !utils::is_dynamic_value(src[i])) {
+                if (src[i] > dst[axis + i]) {
+                    return false;
                 }
-                success &= utils::broadcast_merge_dim(dst[axis + i], dst[axis + i], src[i]);
             }
-            return success;
+            success &= utils::broadcast_merge_dim(dst[axis + i], dst[axis + i], src[i]);
         }
-        default:
-            OPENVINO_THROW("Unsupported auto broadcast type: ", autob.m_type);
+        return success;
+    }
+    default:
+        OPENVINO_THROW("Unsupported auto broadcast type: ", autob.m_type);
     }
     return false;
 }
@@ -68,36 +88,43 @@ bool merge_into(VectorDims& dst, const VectorDims& src) {
         }
         return true;
     };
-    if (dst.size() != src.size())
+    if (dst.size() != src.size()) {
         return false;
+    }
 
     bool success = true;
-    for (size_t i = 0; i < dst.size(); i++)
+    for (size_t i = 0; i < dst.size(); i++) {
         success &= merge_dim(dst[i], dst[i], src[i]);
+    }
     return success;
 }
 
 Result NumpyBroadcastShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
-        OPENVINO_ASSERT(!input_shapes.empty(), "No input shapes were provided for NumpyBroadcastShapeInfer");
-        auto output_shape = input_shapes[0].get();
-        for (size_t i = 1; i < input_shapes.size(); i++) {
-            OPENVINO_ASSERT(broadcast_merge_into(output_shape, input_shapes[i], ov::op::AutoBroadcastType::NUMPY),
-                            "Failed to broadcast-merge input shapes in NumpyBroadcastShapeInfer");
-        }
-        return {{std::move(output_shape)}, ShapeInferStatus::success};
+    OPENVINO_ASSERT(!input_shapes.empty(), "No input shapes were provided for NumpyBroadcastShapeInfer");
+    auto output_shape = input_shapes[0].get();
+    for (size_t i = 1; i < input_shapes.size(); i++) {
+        OPENVINO_ASSERT(broadcast_merge_into(output_shape, input_shapes[i], ov::op::AutoBroadcastType::NUMPY),
+                        "Failed to broadcast-merge input shapes in NumpyBroadcastShapeInfer");
+    }
+    return {{std::move(output_shape)}, ShapeInferStatus::success};
 }
 
-template<class BroadcastOP>
-BroadcastShapeInfer<BroadcastOP>::BroadcastShapeInfer(const std::shared_ptr<Node>& n) {
-        static_assert(std::is_base_of<snippets::op::BroadcastMove, BroadcastOP>() ||
+template <class BroadcastOP>
+BroadcastShapeInfer<BroadcastOP>::BroadcastShapeInfer(const std::shared_ptr<Node>& n)
+    : broadcast_op(as_type_ptr<BroadcastOP>(n)) {
+    static_assert(std::is_base_of<snippets::op::BroadcastMove, BroadcastOP>() ||
                       std::is_base_of<snippets::op::BroadcastLoad, BroadcastOP>(),
-                      "This ShapeInfer class could be used only for BroadcastMove and BroadcastLoad operations.");
-        broadcast_op = as_type_ptr<BroadcastOP>(n);
-        OPENVINO_ASSERT(broadcast_op, "Invalid node passed to BroadcastShapeInfer.",
-                        "Expected ", typeid(BroadcastOP).name(), "got ", n->get_type_name());
+                  "This ShapeInfer class could be used only for BroadcastMove and BroadcastLoad operations.");
+
+    OPENVINO_ASSERT(broadcast_op,
+                    "Invalid node passed to BroadcastShapeInfer.",
+                    "Expected ",
+                    typeid(BroadcastOP).name(),
+                    "got ",
+                    n->get_type_name());
 }
 
-template<class BroadcastOP>
+template <class BroadcastOP>
 Result BroadcastShapeInfer<BroadcastOP>::infer(const std::vector<VectorDimsRef>& input_shapes) {
     auto out_shape = input_shapes[0].get();
     const auto& bcasted_dim = broadcast_op->get_bcast_dimension();
@@ -146,8 +173,9 @@ Result SelectShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
 Result HorizonOpShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     OPENVINO_ASSERT(input_shapes.size() == 1, "Got invalid number of input shapes in HorizonShapeInfer");
     auto output_shapes = input_shapes[0].get();
-    if (!output_shapes.empty())
+    if (!output_shapes.empty()) {
         output_shapes.back() = 1;
+    }
     return {{output_shapes}, ShapeInferStatus::success};
 }
 
@@ -191,17 +219,23 @@ Result BrgemmShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     }
 
     // add 1 to begin to align shape ranks if needed
-    if (arg0_rank < arg1_rank)
+    if (arg0_rank < arg1_rank) {
         arg0_shape_tmp.insert(arg0_shape_tmp.begin(), arg1_rank - arg0_rank, 1);
-    else if (arg0_rank > arg1_rank)
+    } else if (arg0_rank > arg1_rank) {
         arg1_shape_tmp.insert(arg1_shape_tmp.begin(), arg0_rank - arg1_rank, 1);
+    }
 
     size_t max_rank = arg0_shape_tmp.size();
     VectorDims output_shape(max_rank);
     for (size_t i = 0; i < max_rank - 2; ++i) {
-        if (!utils::broadcast_merge_dim(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i]))
-            OPENVINO_THROW("Incompatible MatMul batch dimension. Can't merge dim ", arg0_shape_tmp[i],
-                           " with dim ", arg1_shape_tmp[i], " at index=", i);
+        if (!utils::broadcast_merge_dim(output_shape[i], arg0_shape_tmp[i], arg1_shape_tmp[i])) {
+            OPENVINO_THROW("Incompatible MatMul batch dimension. Can't merge dim ",
+                           arg0_shape_tmp[i],
+                           " with dim ",
+                           arg1_shape_tmp[i],
+                           " at index=",
+                           i);
+        }
     }
     output_shape[output_shape.size() - 2] = arg0_shape_tmp[arg0_shape_tmp.size() - 2];  // M
     output_shape[output_shape.size() - 1] = arg1_shape_tmp[arg1_shape_tmp.size() - 1];  // N
@@ -230,5 +264,4 @@ Result ReduceShapeInfer::infer(const std::vector<VectorDimsRef>& input_shapes) {
     return {{result_shape}, ShapeInferStatus::success};
 }
 
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets

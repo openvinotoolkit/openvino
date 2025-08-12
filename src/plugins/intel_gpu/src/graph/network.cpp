@@ -138,23 +138,6 @@ void dump_perf_data_raw(std::string dump_path, bool per_iter_mode, const std::li
     }
 }
 
-void wait_for_the_turn(const std::vector<std::string>& pids) {
-    bool need_to_wait;
-    do {
-        need_to_wait = false;
-        struct stat buffer;
-        for (auto pid : pids) {
-            auto path = "/proc/" + pid;
-            std::cout << "check " + path << std::endl;
-            if (stat(path.c_str(), &buffer) == 0) {
-                need_to_wait = true;
-                std::cout << "Being nice.. Wait for process " << pid << std::endl;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            }
-        }
-    } while (need_to_wait);
-}
-
 #else
 void dump_perf_data_raw(std::string, bool per_iter_mode, const std::list<std::shared_ptr<primitive_inst>>&) {}
 #endif
@@ -183,10 +166,6 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
         net_id = get_unique_net_id();
     }
 
-    GPU_DEBUG_CODE(
-        if (get_config().get_start_after_processes().size() != 0) {
-            wait_for_the_turn(get_config().get_start_after_processes());
-    });
     calculate_weights_cache_capacity();
     allocate_primitives();
     configure_primitives_second_output();
@@ -565,31 +544,6 @@ void network::allocate_primitives() {
     }
 
     auto& po = _program->get_processing_order();
-
-    for (auto const& node : po) {
-        if (node->get_preferred_impl_type() == impl_types::onednn) {
-            size_t eltw_dep = 0;
-            for (auto& fused_op : node->get_fused_primitives()) {
-                if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
-                    // If it is first sum, reuse the buffer
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
-                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
-                        continue;
-                    if (!fused_op.has_outer_dep())
-                        continue;
-                    eltw_dep = fused_op.outer_dep_start_idx;
-                    auto& eltw_in = node->get_dependency(eltw_dep);
-                    if (_primitives.find(eltw_in.id()) != _primitives.end() && _primitives.find(node->id()) != _primitives.end()) {
-                        auto& eltw_inst = _primitives.at(eltw_in.id());
-                        auto& prim_inst = _primitives.at(node->id());
-                        auto& eltw_mem = eltw_inst->output_memory();
-                        auto new_mem = eltw_mem.get_engine()->reinterpret_buffer(eltw_mem, node->get_output_layout());
-                        prim_inst->set_output_memory(new_mem);
-                    }
-                }
-            }
-        }
-    }
 
     // Update the output memory address of optimized-out layer if it is not valid.
     for (auto const& node : po) {
@@ -1013,8 +967,9 @@ void network::allocate_primitive_instance(program_node const& node) {
         bool transpose_required = false;
         if (is_lora_state) {
             const auto& lora_prim = node.get_users().front()->as<lora>().get_primitive();
-            for (size_t state_idx : {2, 4}) {
-                if (lora_prim->input[state_idx].pid == node.id()) {
+            for (size_t state_idx : {2, 4, 5, 7, 8, 10}) {
+                if (state_idx < lora_prim->input.size() &&
+                    lora_prim->input[state_idx].pid == node.id()) {
                     transpose_required = lora_prim->transposed_states;
                 }
             }

@@ -36,7 +36,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void selectOptimalPrimitiveDescriptor() override;
     void initSupportedPrimitiveDescriptors() override;
     int registerToAllocationContext(int offset, AllocationContext& context) override;
@@ -64,21 +64,21 @@ public:
     std::vector<int32_t> legacyOutputCompensation;
     // Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
     std::vector<int32_t> inputZeroPoints;
-    void initializeInputZeroPoints(const uint8_t* inputZpData, const size_t inputZpSize);
+    void initializeInputZeroPoints(const uint8_t* inputZpData, size_t inputZpSize);
 
     const VectorDims& getWeightDims() {
         return getInputShapeAtPort(WEIGHTS).getDims();
     }
-    const std::vector<size_t>& getStride() {
+    const std::vector<size_t>& getStride() const {
         return m_attrs.stride;
     }
-    const std::vector<size_t>& getDilation() {
+    const std::vector<size_t>& getDilation() const {
         return m_attrs.dilation;
     }
-    const std::vector<ptrdiff_t>& getPaddingL() {
+    const std::vector<ptrdiff_t>& getPaddingL() const {
         return m_attrs.paddingL;
     }
-    const std::vector<ptrdiff_t>& getPaddingR() {
+    const std::vector<ptrdiff_t>& getPaddingR() const {
         return m_attrs.paddingR;
     }
 
@@ -128,21 +128,21 @@ private:
     ExecutorPtr m_executor = nullptr;
     ExecutorPtr fallbackExecutor = nullptr;
 
-    bool withSum;
-    bool withDWConv;
+    bool withSum = false;
+    bool withDWConv = false;
     bool withSumBroadcast = false;
 
-    size_t dw_conv_oc;
-    size_t dw_conv_ih;
-    size_t dw_conv_iw;
+    size_t dw_conv_oc = 0;
+    size_t dw_conv_ih = 0;
+    size_t dw_conv_iw = 0;
     std::vector<size_t> dw_conv_kernel;
     std::vector<size_t> dw_conv_strides;
-    dnnl::memory::data_type dw_conv_in_dt;
+    dnnl::memory::data_type dw_conv_in_dt{dnnl::impl::data_type::undef};
 
-    size_t groupNum;
-    size_t IC;
-    size_t groupIC;
-    size_t groupOC;
+    size_t groupNum = 1LU;
+    size_t IC = 1;
+    size_t groupIC = 1;
+    size_t groupOC = 1;
 
     FusedSubgraphPtr subgraph;
     std::unordered_map<NodePtr, std::vector<NodePtr>> fusedConstNodes;

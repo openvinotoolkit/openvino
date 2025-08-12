@@ -5,7 +5,7 @@
 #pragma once
 
 #include <cstddef>
-#include <map>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
@@ -28,8 +28,7 @@
 #include "proxy_mem_blk.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class SyncInferRequest;
 namespace node {
@@ -41,7 +40,7 @@ public:
     using Ptr = std::shared_ptr<Graph>;
     using OutputMemoryBlocks = std::unordered_map<std::size_t, ProxyMemoryBlockPtr>;
 
-    enum class Status {
+    enum class Status : uint8_t {
         NotReady = 0,
         Initialized = 1,
         ReadyStatic = 2,
@@ -60,7 +59,7 @@ public:
     }
 
     bool IsDynamic() const {
-        return one_of(status, Status::ReadyDynamic, Status::ReadyDynamicSeq);
+        return any_of(status, Status::ReadyDynamic, Status::ReadyDynamicSeq);
     }
 
     bool IsReady() const {
@@ -110,39 +109,39 @@ public:
     }
 
     NodePtr getInputNodeByIndex(std::size_t index) {
-        auto input = inputNodesMap.find(index);
-        if (input == inputNodesMap.end())
+        if (index >= inputNodes.size()) {
             return nullptr;
-        return input->second;
+        }
+        return inputNodes[index];
     }
 
     NodePtr getOutputNodeByIndex(std::size_t index) {
-        auto output = outputNodesMap.find(index);
-        if (output == outputNodesMap.end())
+        if (index >= outputNodes.size()) {
             return nullptr;
-        return output->second;
+        }
+        return outputNodes[index];
     }
 
     NodeConstPtr getInputNodeByIndex(std::size_t index) const {
-        auto input = inputNodesMap.find(index);
-        if (input == inputNodesMap.end())
+        if (index >= inputNodes.size()) {
             return nullptr;
-        return input->second;
+        }
+        return inputNodes[index];
     }
 
     NodeConstPtr getOutputNodeByIndex(std::size_t index) const {
-        auto output = outputNodesMap.find(index);
-        if (output == outputNodesMap.end())
+        if (index >= outputNodes.size()) {
             return nullptr;
-        return output->second;
+        }
+        return outputNodes[index];
     }
 
     size_t inputsNumber() const {
-        return inputNodesMap.size();
+        return inputNodes.size();
     }
 
     size_t outputsNumber() const {
-        return outputNodesMap.size();
+        return outputNodes.size();
     }
 
     dnnl::engine getEngine() const {
@@ -287,12 +286,14 @@ public:
         return m_outputNodesMemBlocks;
     }
 
+    friend class GraphOptimizer;
+
 protected:
     void ForgetGraphData() {
         status = Status::NotReady;
 
-        inputNodesMap.clear();
-        outputNodesMap.clear();
+        inputNodes.clear();
+        outputNodes.clear();
         graphNodes.clear();
         graphEdges.clear();
         m_executableSyncNodesInds.clear();
@@ -354,18 +355,15 @@ protected:
     friend std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph);
 
 private:
-    using event_t = void (Graph::*)(void);
+    using event_t = void (Graph::*)();
 
-private:
     void EnforceInferencePrecision();
     void EnforceBF16();
     void insertReorder(EdgePtr& edge, bool isOptimized, std::unordered_set<std::string>& uniqueLayerNames);
     void insertConvert(EdgePtr& edge);
 
-private:
-    // TODO: change std::map to std::unordered_map
-    std::map<std::size_t, NodePtr> inputNodesMap;
-    std::map<std::size_t, NodePtr> outputNodesMap;
+    std::vector<NodePtr> inputNodes;
+    std::vector<NodePtr> outputNodes;
 
     OutputMemoryBlocks m_outputNodesMemBlocks;
 
@@ -381,5 +379,4 @@ private:
 
 using GraphPtr = std::shared_ptr<Graph>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

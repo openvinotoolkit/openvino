@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -22,10 +21,8 @@
 
 #include "cpu_types.h"
 #include "graph_context.h"
-#include "kernels/x64/random_uniform.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "node.h"
-#include "nodes/kernels/x64/jit_kernel_base.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
@@ -37,7 +34,15 @@
 #include "openvino/op/random_uniform.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpp/bit_cast.hpp"
 #include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "kernels/x64/random_uniform.hpp"
+#    include "nodes/kernels/x64/jit_kernel_base.hpp"
+#endif
 
 namespace ov::intel_cpu::node {
 
@@ -92,7 +97,7 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
         m_algo = MERSENNE_TWISTER;
         break;
     default:
-        THROW_CPU_NODE_ERR("Alignment of RandomUniform ", alignment, " is not supported by the CPU plugin.");
+        CPU_NODE_THROW("Alignment of RandomUniform ", alignment, " is not supported by the CPU plugin.");
     }
 
     for (size_t i = 0LU; i < op->get_input_size(); i++) {
@@ -108,31 +113,31 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
 
 void RandomUniform::getSupportedDescriptors() {
     if (getParentEdges().size() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+        CPU_NODE_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        CPU_NODE_THROW("has incorrect number of output edges.");
     }
 }
 
 void RandomUniform::initSupportedPrimitiveDescriptors() {
     auto shape_prc = getOriginalInputPrecisionAtPort(SHAPE);
-    if (!one_of(shape_prc, ov::element::i32, ov::element::i64)) {
+    if (none_of(shape_prc, ov::element::i32, ov::element::i64)) {
         shape_prc = ov::element::i32;
     }
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
     if (out_prc.is_real()) {
-        if (one_of(m_algo, PHILOX, MERSENNE_TWISTER) &&
-            !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+        if (any_of(m_algo, PHILOX, MERSENNE_TWISTER) &&
+            none_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             out_prc = ov::element::f32;
         }
 
-        if (one_of(m_algo, STL) && !one_of(out_prc, ov::element::f32)) {
+        if (m_algo == STL && out_prc != ov::element::f32) {
             out_prc = ov::element::f32;
         }
     } else {
-        if (!one_of(out_prc, ov::element::i32, ov::element::i64)) {
+        if (none_of(out_prc, ov::element::i32, ov::element::i64)) {
             out_prc = ov::element::i32;
         }
     }
@@ -199,7 +204,7 @@ void RandomUniform::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (m_algo == STL) {
         computeStl(data, m_output_elements_count);
     } else {
-        THROW_CPU_NODE_ERR("does not support the selected algorithm.");
+        CPU_NODE_THROW("does not support the selected algorithm.");
     }
 }
 
@@ -290,7 +295,7 @@ void RandomUniform::evalRange() {
         EL_CASE(i64)
         EL_CASE(i32)
     default:
-        THROW_CPU_NODE_ERR("has unsupported output precision: ", m_output_prc);
+        CPU_NODE_THROW("has unsupported output precision: ", m_output_prc);
     }
 
 #undef EL_CASE
@@ -310,7 +315,7 @@ void RandomUniform::initEdgeValues(OutputType& dst, const void* src, const eleme
         EL_CASE(i64)
         EL_CASE(i32)
     default:
-        THROW_CPU_NODE_ERR("has unsupported output precision: ", output_type);
+        CPU_NODE_THROW("has unsupported output precision: ", output_type);
     }
 
 #undef EL_CASE
@@ -393,8 +398,10 @@ void RandomUniform::prepareMersenneTwisterParams() {
         auto approx_start = thread_offset * static_cast<float>(ithr);
         auto approx_end = thread_offset * (static_cast<float>(ithr + 1));
 
-        auto state_start = static_cast<uint64_t>(std::floor(approx_start) * m_uint_storage_capacity_per_thread);
-        auto state_end = static_cast<uint64_t>(std::floor(approx_end) * m_uint_storage_capacity_per_thread);
+        auto state_start =
+            static_cast<uint64_t>(std::floor(approx_start) * static_cast<double>(m_uint_storage_capacity_per_thread));
+        auto state_end =
+            static_cast<uint64_t>(std::floor(approx_end) * static_cast<double>(m_uint_storage_capacity_per_thread));
 
         // Rounding failsafes
         if (ithr == 0) {
@@ -414,7 +421,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
         params.src_start_idx = state_start;
         params.dst_start_idx = destination_start;
-        params.state_accesses_count = state_accesses;
+        params.state_accesses_count = static_cast<uint64_t>(state_accesses);
     });
 }
 
@@ -503,21 +510,19 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range, float* out, size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
     for (size_t i = 0LU; i < el_to_copy; i++) {
-        out_val.u32 = 0x3f800000 | (in[i] & 0x7fffffU);
-        out[i] = (out_val.f32 - 1.F) * range + min;
+        uint32_t bits = 0x3f800000 | (in[i] & 0x7fffffU);
+        float f = ov::intel_cpu::bit_cast<float>(bits);
+        out[i] = (f - 1.F) * range + min;
     }
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float16 min, float16 range, float16* out, size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
     for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        out_val.u16 = 0x3c00 | (x_uint16 & 0x03ffU);
-        out[i] = (out_val.f16 - static_cast<float16>(1)) * range + min;
+        uint16_t bits = 0x3c00 | (x_uint16 & 0x03ffU);
+        float16 f = ov::intel_cpu::bit_cast<float16>(bits);
+        out[i] = (f - static_cast<float16>(1)) * range + min;
     }
 }
 
@@ -526,12 +531,11 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
                                       bfloat16 range,
                                       bfloat16* out,
                                       size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
     for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        out_val.u16 = 0x3f80 | (x_uint16 & 0x7fU);
-        out[i] = (out_val.bf16 - static_cast<bfloat16>(1)) * range + min;
+        uint16_t bits = 0x3f80 | (x_uint16 & 0x7fU);
+        bfloat16 f = ov::intel_cpu::bit_cast<bfloat16>(bits);
+        out[i] = (f - static_cast<bfloat16>(1)) * range + min;
     }
 }
 
@@ -553,7 +557,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                                                            [[maybe_unused]] size_t output_elements_count,
                                                            const std::pair<uint64_t, uint64_t>& prev_state) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0LU && m_op_seed == 0LU) {
+    if (all_of(0LU, m_global_seed, m_op_seed)) {
         m_global_seed = std::random_device{}();
     }
 
@@ -616,7 +620,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                 EXEC_CASE(i32)
                 EXEC_CASE(i64)
             default:
-                THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
+                CPU_NODE_THROW("Unsupported type of RandomUniform: ", m_output_prc.to_string());
             }
 
 #undef EXEC_CASE
@@ -757,7 +761,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
 
 void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_count) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0LU && m_op_seed == 0LU) {
+    if (all_of(0LU, m_global_seed, m_op_seed)) {
         m_global_seed = std::random_device{}();
     }
 
@@ -863,7 +867,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                     EXEC_CASE(i32)
                     EXEC_CASE(i64)
                 default:
-                    THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
+                    CPU_NODE_THROW("Unsupported type of RandomUniform: ", m_output_prc.to_string());
                 }
             });
         }
@@ -903,7 +907,7 @@ void RandomUniform::computeStl(void* out, size_t work_amount) {
             work_amount);
     } break;
     default:
-        THROW_CPU_NODE_ERR("has unsupported output type: ", m_output_prc);
+        CPU_NODE_THROW("has unsupported output type: ", m_output_prc);
     }
 }
 

@@ -13,7 +13,7 @@ using namespace CPUTestUtils;
 
 namespace ov {
 namespace test {
-enum SpecialValue { none, nan, inf, overflow };
+enum SpecialValue : uint8_t { none, nan, inf, overflow };
 
 using convertLayerTestParamsSet = std::tuple<InputShape,         // input shapes
                                              ov::element::Type,  // input precision
@@ -24,7 +24,7 @@ using convertLayerTestParamsSet = std::tuple<InputShape,         // input shapes
 class ConvertCPULayerTest : public testing::WithParamInterface<convertLayerTestParamsSet>,
                             virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<convertLayerTestParamsSet> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<convertLayerTestParamsSet>& obj);
     static bool isInOutPrecisionSupported(ov::element::Type inPrc, ov::element::Type outPrc);
 protected:
     void SetUp() override;

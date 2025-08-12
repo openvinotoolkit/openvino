@@ -35,7 +35,7 @@ public:
     OPENVINO_OP("BrgemmCPU", "SnippetsOpset", snippets::op::Brgemm);
 
     struct PostopsConfig {
-        dnnl_post_ops post_ops = {};
+        dnnl_post_ops post_ops;
         std::optional<size_t> binary_postops_offset = std::nullopt;
         std::optional<ov::element::Type> forced_output_type = std::nullopt;
 
@@ -50,7 +50,7 @@ public:
               const std::vector<size_t>& layout_b = {},
               const std::vector<size_t>& layout_c = {},
               PostopsConfig post_ops = PostopsConfig{});
-    BrgemmCPU() = default;
+    BrgemmCPU();
 
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
@@ -95,7 +95,7 @@ public:
     void add_binary_eltwise_postop(dnnl::impl::alg_kind_t alg_kind,
                                    const dnnl::memory::desc& desc,
                                    const ov::Output<Node>& postop_input,
-                                   const size_t binary_postop_offset);
+                                   size_t binary_postop_offset);
 
     bool visit_attributes(AttributeVisitor& visitor) override;
 
@@ -119,9 +119,9 @@ private:
      */
     void add_postop_input(const ov::Output<Node>& postop_input);
 
-    const BrgemmConfig m_config = {};
+    const BrgemmConfig m_config;
 
-    PostopsConfig m_post_ops_config = {};
+    PostopsConfig m_post_ops_config;
 
     /**
      * @brief m_gemm_inputs_count represents the number of GeMM inputs of the BrgemmCPU,
@@ -129,6 +129,6 @@ private:
      *        inputs needed directly for matrix multiplication execution.
      *        The rest inputs represents binary postops
      */
-    const size_t m_gemm_inputs_count = 0lu;
+    const size_t m_gemm_inputs_count = 0LU;
 };
 }  // namespace ov::intel_cpu

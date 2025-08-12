@@ -10,8 +10,7 @@
 #include "cpu_memory.h"
 #include "openvino/core/except.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * This is a memory block that represents a view on a subblock inside another continuous dynamic memory block
@@ -19,10 +18,10 @@ namespace intel_cpu {
  */
 class PartitionedMemoryBlock : public IMemoryBlockObserver {
 public:
-    PartitionedMemoryBlock(MemoryBlockPtr pBlock,
-                           size_t total_chunks = 1,
-                           ptrdiff_t offset_chunks = 0,
-                           size_t size_chunks = 1)
+    explicit PartitionedMemoryBlock(MemoryBlockPtr pBlock,
+                                    size_t total_chunks = 1,
+                                    ptrdiff_t offset_chunks = 0,
+                                    size_t size_chunks = 1)
         : m_pBlock(std::move(pBlock)),
           m_total_chunks(total_chunks),
           m_offset_chunks(offset_chunks),
@@ -30,10 +29,10 @@ public:
         OPENVINO_ASSERT(m_pBlock, "Memory block is uninitialized");
     }
 
-    void* getRawPtr() const noexcept override;
+    [[nodiscard]] void* getRawPtr() const noexcept override;
     void setExtBuff(void* ptr, size_t size) override;
     bool resize(size_t size) override;
-    bool hasExtBuffer() const noexcept override;
+    [[nodiscard]] bool hasExtBuffer() const noexcept override;
     void registerMemory(Memory* memPtr) override;
     void unregisterMemory(Memory* memPtr) override;
 
@@ -45,5 +44,4 @@ private:
     size_t m_size = 0;              // size of the viewed partition in bytes
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

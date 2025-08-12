@@ -32,7 +32,6 @@ public:
         ShapeInferStatus status;
     };
 
-public:
     virtual ~IShapeInfer() = default;
 
     /**
@@ -107,7 +106,7 @@ public:
      *
      * @param op ngraph operation
      */
-    NgraphShapeInferFactory(std::shared_ptr<ov::Node> op);
+    explicit NgraphShapeInferFactory(std::shared_ptr<ov::Node> op);
 
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 

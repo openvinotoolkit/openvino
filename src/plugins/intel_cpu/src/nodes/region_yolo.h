@@ -10,7 +10,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
 #include "graph_context.h"
 #include "node.h"
@@ -18,9 +17,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
 struct jit_args_logistic {
     const void* src;
@@ -36,33 +33,33 @@ struct jit_logistic_config_params {
 };
 
 struct jit_uni_logistic_kernel {
-    void (*ker_)(const jit_args_logistic*);
+    void (*ker_)(const jit_args_logistic*) = nullptr;
 
-    void operator()(const jit_args_logistic* args) {
+    void operator()(const jit_args_logistic* args) const {
         assert(ker_);
         ker_(args);
     }
 
     virtual void create_ker() = 0;
 
-    jit_uni_logistic_kernel() : ker_(nullptr) {}
-    virtual ~jit_uni_logistic_kernel() {}
+    jit_uni_logistic_kernel() = default;
+    virtual ~jit_uni_logistic_kernel() = default;
 };
 
 class RegionYolo : public Node {
 public:
     RegionYolo(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context);
 
-    void getSupportedDescriptors() override{};
+    void getSupportedDescriptors() override {};
     void initSupportedPrimitiveDescriptors() override;
     void createPrimitive() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
 protected:
-    bool needPrepareParams() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
     void executeDynamicImpl(const dnnl::stream& strm) override {
         execute(strm);
     }
@@ -79,15 +76,8 @@ private:
     std::shared_ptr<jit_uni_logistic_kernel> logistic_kernel = nullptr;
     std::shared_ptr<SoftmaxGeneric> softmax_kernel;
 
-    union U {
-        float as_float_value;
-        int as_int_value;
-    };
-
     static inline float logistic_scalar(float src);
     inline void calculate_logistic(size_t start_index, int count, uint8_t* dst_data);
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <cpu/x64/cpu_isa_traits.hpp>
 #include <cpu/x64/jit_generator.hpp>
@@ -55,11 +55,11 @@ struct store_emitter_params : public emitter_params {
 };
 
 // Arithmetic modes for data type conversion in store_emitter
-enum arithmetic_mode { saturation, truncation };
+enum arithmetic_mode : uint8_t { saturation, truncation };
 
 class jit_load_emitter : public jit_emitter {
 public:
-    jit_load_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_load_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                      dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                      ov::element::Type src_prc,
                      ov::element::Type dst_prc,
@@ -89,7 +89,7 @@ public:
 
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const Xbyak::Reg64& reg_src, const int out_vec_idx, const int offset) const;
+    void emit_isa(const Xbyak::Reg64& reg_src, int out_vec_idx, int offset) const;
 
     template <typename Vmm>
     void load_bytes(const Vmm& vmm, const Xbyak::Reg64& reg, int offset, int load_size) const;
@@ -127,7 +127,7 @@ private:
 
 class jit_store_emitter : public jit_emitter {
 public:
-    jit_store_emitter(dnnl::impl::cpu::x64::jit_generator* host,
+    jit_store_emitter(dnnl::impl::cpu::x64::jit_generator_t* host,
                       dnnl::impl::cpu::x64::cpu_isa_t host_isa,
                       ov::element::Type src_prc,
                       ov::element::Type dst_prc,
@@ -159,7 +159,7 @@ public:
 
 private:
     template <dnnl::impl::cpu::x64::cpu_isa_t isa>
-    void emit_isa(const int in_vec_idx, const Xbyak::Reg64& reg_dst, const int offset) const;
+    void emit_isa(int in_vec_idx, const Xbyak::Reg64& reg_dst, int offset) const;
 
     template <typename Vmm>
     void store_bytes(const Xbyak::Reg64& reg, int offset, int store_size) const;

@@ -22,8 +22,12 @@ static const char UNKNOWN_STR[] = "unknown";
 namespace BindingTypename {
 static const char INT[] = "Integer";
 static const char MODEL[] = "Model";
+static const char COMPILED_MODEL[] = "CompiledModel";
 static const char TENSOR[] = "Tensor";
+static const char OUTPUT[] = "Output<ov::Node>";
+static const char PARTIALSHAPE[] = "PartialShape";
 static const char BUFFER[] = "Buffer";
+static const char VALUE[] = "value";
 }  // namespace BindingTypename
 namespace NapiArg {
 const char* get_type_name(napi_valuetype type) {
@@ -76,6 +80,11 @@ std::string get_current_signature(const Napi::CallbackInfo& info) {
 };
 
 template <>
+const char* get_attr_type<Napi::Value>() {
+    return BindingTypename::VALUE;
+}
+
+template <>
 const char* get_attr_type<Napi::String>() {
     return NapiArg::get_type_name(napi_string);
 }
@@ -88,6 +97,11 @@ const char* get_attr_type<Napi::Object>() {
 template <>
 const char* get_attr_type<Napi::Boolean>() {
     return NapiArg::get_type_name(napi_boolean);
+}
+
+template <>
+const char* get_attr_type<Napi::Function>() {
+    return NapiArg::get_type_name(napi_function);
 }
 
 template <>
@@ -104,10 +118,29 @@ template <>
 const char* get_attr_type<ModelWrap>() {
     return BindingTypename::MODEL;
 }
+template <>
+const char* get_attr_type<CompiledModelWrap>() {
+    return BindingTypename::COMPILED_MODEL;
+}
 
 template <>
 const char* get_attr_type<TensorWrap>() {
     return BindingTypename::TENSOR;
+}
+
+template <>
+const char* get_attr_type<Output<ov::Node>>() {
+    return BindingTypename::OUTPUT;
+}
+
+template <>
+const char* get_attr_type<PartialShapeWrap>() {
+    return BindingTypename::PARTIALSHAPE;
+}
+
+template <>
+bool validate_value<Napi::Value>(const Napi::Env& env, const Napi::Value& value) {
+    return true;
 }
 
 template <>
@@ -123,6 +156,11 @@ bool validate_value<Napi::Object>(const Napi::Env& env, const Napi::Value& value
 template <>
 bool validate_value<Napi::Boolean>(const Napi::Env& env, const Napi::Value& value) {
     return napi_boolean == value.Type();
+}
+
+template <>
+bool validate_value<Napi::Function>(const Napi::Env& env, const Napi::Value& value) {
+    return napi_function == value.Type();
 }
 
 template <>
@@ -150,8 +188,29 @@ bool validate_value<ModelWrap>(const Napi::Env& env, const Napi::Value& value) {
 }
 
 template <>
+bool validate_value<CompiledModelWrap>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->compiled_model;
+
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
+}
+
+template <>
 bool validate_value<TensorWrap>(const Napi::Env& env, const Napi::Value& value) {
     const auto& prototype = env.GetInstanceData<AddonData>()->tensor;
+
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
+}
+
+template <>
+bool validate_value<Output<ov::Node>>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->output;
+
+    return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
+}
+
+template <>
+bool validate_value<PartialShapeWrap>(const Napi::Env& env, const Napi::Value& value) {
+    const auto& prototype = env.GetInstanceData<AddonData>()->partial_shape;
 
     return value.ToObject().InstanceOf(prototype.Value().As<Napi::Function>());
 }

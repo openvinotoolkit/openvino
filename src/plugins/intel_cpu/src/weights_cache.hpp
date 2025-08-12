@@ -57,7 +57,7 @@ public:
 
         SharedMemory(std::unique_lock<std::mutex>&& lock, MemoryInfo::Ptr memory, MemoryPtr newPtr = nullptr);
 
-        operator MemoryPtr() const;
+        explicit operator MemoryPtr() const;
         [[nodiscard]] bool isValid() const;
         void valid(bool b);
 
@@ -95,7 +95,7 @@ public:
     const WeightsSharing::Ptr& operator[](int socket_id) const;
 
 #ifdef CPU_DEBUG_CAPS
-    std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
+    [[nodiscard]] std::vector<std::pair<int, WeightsSharing::Statistics>> dumpStatistics() const;
 #endif  // CPU_DEBUG_CAPS
 
 private:

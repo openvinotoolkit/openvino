@@ -11,8 +11,7 @@
 #include "cpu_memory.h"
 #include "openvino/core/except.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief A proxy object that additionally implements observer pattern
@@ -48,11 +47,10 @@ private:
 
     // WA: resize stage might not work because there is no shape change,
     // but the underlying actual memory block changes.
-    size_t m_size = 0ul;
+    size_t m_size = 0UL;
 };
 
 using ProxyMemoryBlockPtr = std::shared_ptr<ProxyMemoryBlock>;
 using ProxyMemoryBlockCPtr = std::shared_ptr<const ProxyMemoryBlock>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

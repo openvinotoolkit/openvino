@@ -13,9 +13,6 @@
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <unordered_map>
-#include <utility>
-#include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -26,11 +23,17 @@
 #include "openvino/core/node.hpp"
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+namespace ov::intel_cpu::node {
 
-enum class FQ_add_input_type { CROP_LOW, CROP_HIGH, INPUT_SCALE, INPUT_SHIFT, OUTPUT_SCALE, OUTPUT_SHIFT, INPUTS_SIZE };
+enum class FQ_add_input_type : uint8_t {
+    CROP_LOW,
+    CROP_HIGH,
+    INPUT_SCALE,
+    INPUT_SHIFT,
+    OUTPUT_SCALE,
+    OUTPUT_SHIFT,
+    INPUTS_SIZE
+};
 
 struct jit_quantize_params {
     bool is_planar;
@@ -65,15 +68,15 @@ struct jit_quantize_call_args {
 };
 
 struct jit_uni_quantize_kernel {
-    void (*ker_)(const jit_quantize_call_args*);
+    void (*ker_)(const jit_quantize_call_args*) = nullptr;
 
-    void operator()(const jit_quantize_call_args* args) {
+    void operator()(const jit_quantize_call_args* args) const {
         assert(ker_);
         ker_(args);
     }
 
-    explicit jit_uni_quantize_kernel(const jit_quantize_params& jqp) : ker_(nullptr), jqp_(jqp) {}
-    virtual ~jit_uni_quantize_kernel() {}
+    explicit jit_uni_quantize_kernel(const jit_quantize_params& jqp) : jqp_(jqp) {}
+    virtual ~jit_uni_quantize_kernel() = default;
 
     virtual void create_ker() = 0;
 
@@ -103,10 +106,10 @@ public:
     void createPrimitive() override;
 
     const float* getBinarizationTresholdsPtr() const {
-        return &binarizationThresholds[0];
+        return binarizationThresholds.data();
     }
     const float* getBinarizationOutputMaskPtr() const {
-        return reinterpret_cast<const float*>(&binarizationOutputMask[0]);
+        return reinterpret_cast<const float*>(binarizationOutputMask.data());
     }
     size_t getBinarizationTresholdsSize() const {
         return binarizationThresholds.size();
@@ -133,7 +136,7 @@ public:
     const std::vector<float>& getOutputShift() const {
         return outputShift;
     }
-    const size_t getLevels() const {
+    size_t getLevels() const {
         return levels;
     }
 
@@ -195,11 +198,11 @@ public:
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::unordered_map<int, MemoryPtr>& postOpsMem,
-                       const int channelAxis) override;
+                       int channelAxis) override;
     void appendPostOps(dnnl::post_ops& ops,
                        const VectorDims& postOpDims,
                        std::vector<const void*>& postOpsMem,
-                       const int channelAxis) override;
+                       int channelAxis) override;
     bool appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
@@ -208,7 +211,7 @@ public:
 
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
-    enum BroadcastingPolicy {
+    enum BroadcastingPolicy : uint8_t {
         PerChannel,  // all FQ operations are per channel
         PerTensor,   // all FQ operations are per tensor
         Mixed,       // some per channel, some per tensor
@@ -233,20 +236,20 @@ private:
     using executorPtr = std::shared_ptr<FakeQuantizeExecutor>;
     executorPtr execPtr = nullptr;
     struct FakeQuantizeJitExecutor : public FakeQuantizeExecutor {
-        FakeQuantizeJitExecutor(const jit_quantize_params& _jqp);
+        explicit FakeQuantizeJitExecutor(const jit_quantize_params& _jqp);
         void exec(const FakeQuantize& node) override;
         std::unique_ptr<jit_uni_quantize_kernel> pKernel;
     };
     void init() override;
     std::vector<LayoutType> getDataFormats() const;
-    void initializePostOpData(const VectorDims& postOpDims, const size_t bufferAlignment, bool doRounding);
-    void initializePostOpDataLegacy(const VectorDims& dims, const size_t bufferAlignment);
+    void initializePostOpData(const VectorDims& postOpDims, size_t bufferAlignment, bool doRounding);
+    void initializePostOpDataLegacy(const VectorDims& dims, size_t bufferAlignment);
     void executeReference();
     void executeBinarization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const;
     void executeQuantization(const std::unique_ptr<jit_uni_quantize_kernel>& pKernel) const;
 
-    void appendMemory(const size_t dataSize, const void* data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem);
-    static void appendMemory(const size_t dataSize,
+    void appendMemory(size_t dataSize, const void* data, MemoryPtr& memPtr, std::vector<MemoryPtr>& postOpsMem);
+    static void appendMemory(size_t dataSize,
                              const void* data,
                              MemoryPtr& memPtr,
                              std::vector<const void*>& postOpsMem);
@@ -286,8 +289,9 @@ private:
 
         void shrinkLength() {
             auto _do_shrink = [](std::vector<float>& v) {
-                if (v.size() <= 1)
+                if (v.size() <= 1) {
                     return;
+                }
                 auto ref = v[0];
                 if (std::all_of(v.cbegin(), v.cend(), [&](float val) {
                         return val == ref;
@@ -307,7 +311,7 @@ private:
     void updateOptimizedFormula(bool do_rounding);
 
     std::vector<float> quantizationData;
-    size_t quantizationDataSize = 0lu;
+    size_t quantizationDataSize = 0LU;
     MemoryPtr quantizationMemory;
 
     size_t cropLowSize;
@@ -324,9 +328,9 @@ private:
     // version based lazy evaluation, any parameter change increases parameterVersion
     // and postOpDataVersion will be compared with it to see if an update is required
     // when it was being actually used.
-    size_t parameterVersion = 1lu;
-    size_t postOpDataVersion = 0lu;
-    size_t legacyPostOpDataVersion = 0lu;
+    size_t parameterVersion = 1LU;
+    size_t postOpDataVersion = 0LU;
+    size_t legacyPostOpDataVersion = 0LU;
 
     bool isInputLowBroadcasted = false;
     bool isInputHighBroadcasted = false;
@@ -342,6 +346,4 @@ private:
     BroadcastingPolicy broadcastingPolicy;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

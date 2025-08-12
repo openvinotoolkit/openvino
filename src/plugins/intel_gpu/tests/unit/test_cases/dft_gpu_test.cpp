@@ -12,18 +12,6 @@ using namespace tests;
 
 namespace {
 
-template <class vecElementType>
-std::string vec2str(const std::vector<vecElementType>& vec) {
-    if (!vec.empty()) {
-        std::ostringstream result;
-        result << "(";
-        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
-        result << vec.back() << ")";
-        return result.str();
-    }
-    return "()";
-}
-
 template <class T>
 std::vector<T> convert(const std::vector<float>& v) {
     std::vector<T> result(v.begin(), v.end());
@@ -78,7 +66,7 @@ float getThreshold<ov::float16>(dft_type type) {
 }
 
 struct dft_params {
-    std::vector<int32_t> input_shape;
+    std::vector<ov::Dimension::value_type> input_shape;
     std::vector<size_t> output_shape;
     std::vector<int64_t> axes;
     std::vector<int64_t> signal_size;
@@ -97,12 +85,7 @@ template <class T>
 struct dft_gpu_test : public testing::TestWithParam<dft_test_params> {
 public:
     void test() {
-        format::type plain_format;
-        format::type blocked_format;
-        dft_type type;
-        dft_params p;
-        bool is_caching_test;
-        std::tie(plain_format, blocked_format, type, p, is_caching_test) = testing::TestWithParam<dft_test_params>::GetParam();
+        const auto& [plain_format, blocked_format, type, p, is_caching_test] = testing::TestWithParam<dft_test_params>::GetParam();
 
         auto& engine = get_test_engine();
 
@@ -137,12 +120,7 @@ public:
     }
 
     static std::string PrintToStringParamName(const testing::TestParamInfo<dft_test_params>& info) {
-        format::type plain_format;
-        format::type blocked_format;
-        dft_type type;
-        dft_params p;
-        bool is_caching_test;
-        std::tie(plain_format, blocked_format, type, p, is_caching_test) = info.param;
+        const auto& [plain_format, blocked_format, type, p, is_caching_test] = info.param;
 
         std::ostringstream result;
         result << "InputShape=" << vec2str(p.input_shape) << "_";

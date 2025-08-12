@@ -52,7 +52,6 @@
 #include "intel_gpu/primitives/roi_align.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
 #include "intel_gpu/primitives/roll.hpp"
-#include "intel_gpu/primitives/scatter_nd_update.hpp"
 #include "intel_gpu/primitives/select.hpp"
 #include "intel_gpu/primitives/shuffle_channels.hpp"
 #include "intel_gpu/primitives/slice.hpp"
@@ -63,9 +62,7 @@
 #include "intel_gpu/primitives/non_zero.hpp"
 #include "intel_gpu/primitives/eye.hpp"
 #include "intel_gpu/primitives/unique.hpp"
-#include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/kv_cache.hpp"
-#include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -107,7 +104,6 @@ REGISTER_OCL(gemm);
 REGISTER_OCL(generate_proposals);
 REGISTER_OCL(grid_sample);
 REGISTER_OCL(kv_cache);
-REGISTER_OCL(paged_attention);
 REGISTER_OCL(lrn);
 REGISTER_OCL(multiclass_nms);
 REGISTER_OCL(multinomial);
@@ -132,7 +128,6 @@ REGISTER_OCL(rms);
 REGISTER_OCL(roi_align);
 REGISTER_OCL(roi_pooling);
 REGISTER_OCL(roll);
-REGISTER_OCL(scatter_nd_update);
 REGISTER_OCL(select);
 REGISTER_OCL(shuffle_channels);
 REGISTER_OCL(slice);
@@ -154,7 +149,6 @@ REGISTER_OCL(gather_nonzero);
 REGISTER_OCL(eye);
 REGISTER_OCL(unique_count);
 REGISTER_OCL(unique_gather);
-REGISTER_OCL(scaled_dot_product_attention);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
 REGISTER_OCL(ISTFT);

@@ -973,4 +973,75 @@ TEST_P(mvn_random_test, random_cached) {
 TEST_P(mvn_random_test_bsv32, random_cached) {
     this->execute(GetParam(), true);
 }
+
+TEST(mvn_bfyx_opt_fused_ops, basic_fused) {
+    tests::random_generator rg(GET_SUITE_NAME);
+    auto& engine = get_test_engine();
+
+    auto input_dyn_layout = layout{ov::PartialShape{-1,-1,2048}, data_types::f16, format::bfyx};
+    auto input0_layout = layout{ov::PartialShape{2,990,2048}, data_types::f16, format::bfyx};
+    auto input1_layout = layout{ov::PartialShape{2,1,2048}, data_types::f16, format::bfyx};
+
+    topology topo;
+    topo.add(input_layout("input0", input_dyn_layout));
+    topo.add(input_layout("input1", input_dyn_layout));
+    topo.add(input_layout("input2", input_dyn_layout));
+    topo.add(mvn("mvn", input_info("input0"), true, 1e-10f, true, {2}));
+    topo.add(eltwise("mul", { input_info("mvn"), input_info("input1") }, eltwise_mode::prod, data_types::f16));
+    topo.add(eltwise("add", { input_info("mul"), input_info("input2") }, eltwise_mode::sum, data_types::f16));
+    topo.add(reorder("reorder", input_info("add"), format::bfyx, data_types::f16));
+
+    auto input0 = engine.allocate_memory(input0_layout);
+    auto input1 = engine.allocate_memory(input1_layout);
+    auto input2 = engine.allocate_memory(input1_layout);
+
+    std::vector<ov::float16> input0_data = rg.generate_random_1d<ov::float16>(input0->get_layout().count(), -1, 1, 128);
+    std::vector<ov::float16> input1_data = rg.generate_random_1d<ov::float16>(input1->get_layout().count(), -1, 1, 128);
+    std::vector<ov::float16> input2_data = rg.generate_random_1d<ov::float16>(input2->get_layout().count(), -1, 1, 128);
+    set_values(input0, input0_data);
+    set_values(input1, input1_data);
+    set_values(input2, input2_data);
+
+    ExecutionConfig config_fused = get_test_default_config(engine);
+    config_fused.set_property(ov::intel_gpu::optimize_data(true));
+    config_fused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"mvn", {format::type::bfyx, "mvn_gpu_bfyx_opt"}} }));
+
+    network network_fused(engine, topo, config_fused);
+    network_fused.set_input_data("input0", input0);
+    network_fused.set_input_data("input1", input1);
+    network_fused.set_input_data("input2", input2);
+
+    auto outputs_fused = network_fused.execute();
+    ASSERT_EQ(outputs_fused.size(), size_t(1));
+    ASSERT_EQ(outputs_fused.begin()->first, "reorder");
+    auto output_fused = outputs_fused.begin()->second.get_memory();
+
+    ExecutionConfig config_unfused = get_test_default_config(engine);
+    config_unfused.set_property(ov::intel_gpu::optimize_data(false));
+    config_unfused.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    network network_unfused(engine, topo, config_unfused);
+    network_unfused.set_input_data("input0", input0);
+    network_unfused.set_input_data("input1", input1);
+    network_unfused.set_input_data("input2", input2);
+
+    auto outputs_unfused = network_unfused.execute();
+    ASSERT_EQ(outputs_unfused.size(), size_t(1));
+    ASSERT_EQ(outputs_unfused.begin()->first, "reorder");
+    auto output_unfused = outputs_unfused.begin()->second.get_memory();
+
+    ASSERT_NE(network_fused.get_executed_primitive_ids().size(), network_unfused.get_executed_primitive_ids().size());
+    ASSERT_EQ(output_fused->get_layout(), output_unfused->get_layout());
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> buff_fused(output_fused, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> buff_unfused(output_unfused, get_test_stream());
+    float tolerance = 0.002f;
+    for (size_t i = 0; i < output_fused->get_layout().count(); ++i) {
+        ASSERT_NEAR(buff_fused[i], buff_unfused[i], tolerance) << " at index: " << i
+            << " fused: " << static_cast<float>(buff_fused[i])
+            << " unfused: " << static_cast<float>(buff_unfused[i]);
+    }
+}
+
 #endif

@@ -20,8 +20,8 @@ namespace ov::intel_cpu {
 class SnippetsMarkSkipped : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("SnippetsMarkSkipped");
-    SnippetsMarkSkipped(bool enableBF16 = false) : ModelPass(), enableBF16(enableBF16) {}
-    bool run_on_model(const std::shared_ptr<ov::Model>&) override;
+    explicit SnippetsMarkSkipped(bool enableBF16 = false) : ModelPass(), enableBF16(enableBF16) {}
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 
 private:
     bool enableBF16 = false;
@@ -41,7 +41,7 @@ chain. Order of SnippetsNodeType is important!:
 //  (in other words after tokenization). To handle this behavior, eltwise chains that start at input are marked as
 //  IgnoredAfterInputs. Tis is not a real plugin-side fusing, but rather a workaround to guarantee that snippets always
 //  executed in FP32.
-enum class NodeFusingType : int64_t {
+enum class NodeFusingType : int64_t {  // NOLINT(performance-enum-size)
     NotSet,
     FusedTerminator,
     FusedWithConvolution,

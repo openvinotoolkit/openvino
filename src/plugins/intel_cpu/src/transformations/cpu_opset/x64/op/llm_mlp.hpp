@@ -23,7 +23,7 @@ public:
 
     LLMMLPNode() = default;
 
-    enum class ACT_FN { SILU = 0, GELU = 1 };
+    enum class ACT_FN : uint8_t { SILU = 0, GELU = 1 };
 
     struct Config {
         ACT_FN act;
@@ -54,7 +54,7 @@ public:
     }
 
 private:
-    Config m_config;
+    Config m_config{};
 };
 
 }  // namespace intel_cpu
@@ -63,7 +63,7 @@ template <>
 class AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>
     : public EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN> {
 public:
-    AttributeAdapter(ov::intel_cpu::LLMMLPNode::ACT_FN& value)
+    explicit AttributeAdapter(ov::intel_cpu::LLMMLPNode::ACT_FN& value)
         : EnumAttributeAdapterBase<ov::intel_cpu::LLMMLPNode::ACT_FN>(value) {}
 
     OPENVINO_RTTI("AttributeAdapter<ov::intel_cpu::LLMMLPNode::ACT_FN>");
