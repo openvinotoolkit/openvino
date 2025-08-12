@@ -165,10 +165,55 @@ TEST_P(InferRequestDynamicTests, InferDynamicNetworkSetShapeCPUTensor) {
     ov::InferRequest req;
     const std::string outputName = "Relu_2";
 
-    ov::Shape originalShape = {1, 2, 14};
+    ov::Shape originalShape = {1, 1, 5};
 
     auto inputTensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, originalShape, 100, 0);
     OV_ASSERT_NO_THROW(req = model.create_infer_request());
+    OV_ASSERT_NO_THROW(req.set_tensor(inputName, inputTensor));
+    OV_ASSERT_NO_THROW(req.infer());
+    OV_ASSERT_NO_THROW(checkOutputFP16(inputTensor, req.get_tensor(outputName)));
+
+    for (auto& shape : vectorShapes) {
+        OV_ASSERT_NO_THROW(inputTensor.set_shape(shape));
+
+        bool inferShallFail = false;
+        for (auto i = 0; i < shapes[inputName].rank().get_length(); ++i) {
+            if (shape[i] > shapes[inputName].get_max_shape()[i]) {
+                inferShallFail = true;
+            }
+        }
+
+        if (!inferShallFail) {
+            OV_ASSERT_NO_THROW(req.infer());
+            OV_ASSERT_NO_THROW(checkOutputFP16(inputTensor, req.get_tensor(outputName)));
+        } else {
+            EXPECT_THROW(req.infer(), ov::Exception);
+        }
+    }
+}
+
+TEST_P(InferRequestDynamicTests, InferDynamicNetworkImportSetShapeCPUTensor) {
+    std::vector<ov::Shape> vectorShapes{inOutShapes[0].first, inOutShapes[0].second};
+    const std::string inputName = "Parameter_1";
+    std::map<std::string, ov::PartialShape> shapes;
+    shapes[inputName] = {ov::Dimension(inOutShapes[1].first[0], inOutShapes[1].second[0]),
+                         ov::Dimension(inOutShapes[1].first[1], inOutShapes[1].second[1]),
+                         ov::Dimension(inOutShapes[1].first[2], inOutShapes[1].second[2])};
+    OV_ASSERT_NO_THROW(function->reshape(shapes));
+
+    auto compiled_model = core->compile_model(function, target_device, configuration);
+
+    std::stringstream stream;
+    compiled_model.export_model(stream);
+    auto imported_model = core->import_model(stream, target_device, configuration);
+
+    ov::InferRequest req;
+    const std::string outputName = "Relu_2";
+
+    ov::Shape originalShape = {1, 1, 5};
+
+    auto inputTensor = ov::test::utils::create_and_fill_tensor(ov::element::f32, originalShape, 100, 0);
+    OV_ASSERT_NO_THROW(req = imported_model.create_infer_request());
     OV_ASSERT_NO_THROW(req.set_tensor(inputName, inputTensor));
     OV_ASSERT_NO_THROW(req.infer());
     OV_ASSERT_NO_THROW(checkOutputFP16(inputTensor, req.get_tensor(outputName)));

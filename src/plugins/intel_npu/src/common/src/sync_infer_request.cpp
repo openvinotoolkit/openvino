@@ -200,19 +200,21 @@ void SyncInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
     bool is_dynamic = port.get_partial_shape().is_dynamic();
 
     if (is_dynamic) {
-        OPENVINO_ASSERT(
-            ov::PartialShape(tensor->get_shape()).rank().get_length() == port.get_partial_shape().rank().get_length(),
-            "The tensor shape size is not equal to the model input/output rank: got ",
-            tensor->get_shape().size(),
-            " expecting ",
-            port.get_partial_shape().rank().get_length());
+        auto port_length = port.get_partial_shape().rank().get_length();
+        OPENVINO_ASSERT(ov::PartialShape(tensor->get_shape()).rank().get_length() == port_length,
+                        "The tensor shape size is not equal to the model input/output rank: got ",
+                        tensor->get_shape().size(),
+                        " expecting ",
+                        port_length);
 
-        for (auto i = 0; i < port.get_partial_shape().rank().get_length(); ++i) {
-            if (tensor->get_shape()[i] > port.get_partial_shape().get_max_shape()[i]) {
-                OPENVINO_THROW("The tensor shape is not compatible with the model input/output max shape: got ",
-                               tensor->get_shape(),
-                               " expecting max shape ",
-                               port.get_partial_shape().get_max_shape());
+        if (port_length > 0) {
+            for (auto i = 0; i < port_length; ++i) {
+                if (tensor->get_shape()[i] > port.get_partial_shape().get_max_shape()[i]) {
+                    OPENVINO_THROW("The tensor shape is not compatible with the model input/output max shape: got ",
+                                   tensor->get_shape(),
+                                   " expecting max shape ",
+                                   port.get_partial_shape().get_max_shape());
+                }
             }
         }
     }
