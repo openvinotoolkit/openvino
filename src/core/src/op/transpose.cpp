@@ -98,7 +98,7 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
         if (arg_type == ov::element::i4 || arg_type == ov::element::u4) {
             // The int4_iterator not supports const pointer but these data are not modified
             auto transpose_xy =
-                [] (int4_iterator& out_ptr, int4_iterator& in_ptr, size_t out_shape_d0, size_t out_shape_d1) {
+                [](int4_iterator& out_ptr, int4_iterator& in_ptr, size_t out_shape_d0, size_t out_shape_d1) {
                     for (size_t i = 0; i < out_shape_d0; i++) {
                         size_t off = i;
                         for (size_t j = 0; j < out_shape_d1; j++) {
@@ -121,8 +121,8 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
                 const auto out_shape_d1 = out_shape[2];
                 size_t batch_offset = 0;
                 for (size_t b = 0; b < out_batch; b++) {
-                    uint8_t* out_batch_base = static_cast<uint8_t*>(out.data()) + batch_offset/2;
-                    uint8_t* in_batch_base = (static_cast<uint8_t*>(const_cast<void*>(arg.data()))) + batch_offset/2;
+                    uint8_t* out_batch_base = static_cast<uint8_t*>(out.data()) + batch_offset / 2;
+                    uint8_t* in_batch_base = (static_cast<uint8_t*>(const_cast<void*>(arg.data()))) + batch_offset / 2;
                     auto out_ptr = int4_iterator(out_batch_base);
                     auto in_ptr = int4_iterator(in_batch_base);
                     transpose_xy(out_ptr, in_ptr, out_shape_d0, out_shape_d1);
