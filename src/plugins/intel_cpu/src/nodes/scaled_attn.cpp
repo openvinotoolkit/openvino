@@ -1247,16 +1247,15 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
             implType = impl_desc_type::ref_any;
         }
     } else {
-        // F32 path
-        #ifdef OV_CPU_WITH_MLAS
-            implType = impl_desc_type::mlas;
-        #else
-            if (with_cpu_x86_avx512_core()) {
-                implType = impl_desc_type::jit_avx512;
-            } else {
-                implType = impl_desc_type::ref_any;
-            }
-        #endif
+#    ifdef OV_CPU_WITH_MLAS
+        implType = impl_desc_type::mlas;
+#    else
+        if (with_cpu_x86_avx512_core()) {
+            implType = impl_desc_type::jit_avx512;
+        } else {
+            implType = impl_desc_type::ref_any;
+        }
+#    endif
     }
 #elif defined(OV_CPU_WITH_ACL)
     implType = impl_desc_type::acl;
