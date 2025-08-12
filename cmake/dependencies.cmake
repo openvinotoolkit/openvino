@@ -103,10 +103,10 @@ function(ov_download_tbb)
     if(WIN32 AND X86_64)
         # build oneTBB 2021.2.1 with Visual Studio 2019 (MSVC 14.21)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_WIN "oneapi-tbb-2021.2.6-win-v1.zip"
+                ARCHIVE_WIN "oneapi-tbb-2021.2.6-win.zip"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "b9975301a94c55bdc9da9759626180dd7d4b24f6ed6f8c70528d1c8cdc711a2c"
+                SHA256 "0cf8915c0b384f40b708cbdac6d1ef959778f371c5dcac9e599f7fc91970d659"
                 USE_NEW_LOCATION TRUE)
     elseif(ANDROID AND X86_64)
         RESOLVE_DEPENDENCY(TBB
@@ -118,10 +118,10 @@ function(ov_download_tbb)
     elseif(LINUX AND X86_64 AND OPENVINO_GNU_LIBC AND OV_LIBC_VERSION VERSION_GREATER_EQUAL 2.17)
         # build oneTBB 2021.2.1 with gcc 4.8 (glibc 2.17)
         RESOLVE_DEPENDENCY(TBB
-                ARCHIVE_LIN "oneapi-tbb-2021.13.1-lin-v1.tgz"
+                ARCHIVE_LIN "oneapi-tbb-2021.13.1-lin.tgz"
                 TARGET_PATH "${TEMP}/${PLATFORM_SUBDIR}/tbb"
                 ENVIRONMENT "TBBROOT"
-                SHA256 "e75fd25bb6d14d06c1074d20b81d2a39e8e607edf242d353e8088ec46faa28b6"
+                SHA256 "80a0ba2aa6a45f882944e2afa6dfb4f3691373b43c3424f6749200a564a68dc7"
                 USE_NEW_LOCATION TRUE)
     elseif(YOCTO_AARCH64)
         RESOLVE_DEPENDENCY(TBB
