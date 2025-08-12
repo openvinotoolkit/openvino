@@ -27,13 +27,7 @@ class BroadcastLayerGPUTest : public testing::WithParamInterface<BroadcastLayerT
                               virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerTestParamsSet> obj) {
-        std::vector<ov::test::InputShape> shapes;
-        std::vector<int64_t> targetShapes, axesMapping;
-        ov::op::BroadcastType mode;
-        ov::element::Type model_type;
-        std::vector<bool> isConstInputs;
-        std::string deviceName;
-        std::tie(shapes, targetShapes, axesMapping, mode, model_type, isConstInputs, deviceName) = obj.param;
+        const auto& [shapes, targetShapes, axesMapping, mode, model_type, isConstInputs, deviceName] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -60,11 +54,10 @@ protected:
     std::vector<int64_t> targetShape, axesMapping;
 
     void SetUp() override {
-        std::vector<InputShape> shapes;
-        ov::op::BroadcastType mode;
-        ov::element::Type model_type;
-        std::vector<bool> isConstInput;
-        std::tie(shapes, targetShape, axesMapping, mode, model_type, isConstInput, targetDevice) = this->GetParam();
+        const auto& [shapes, _targetShape, _axesMapping, mode, model_type, isConstInput, _targetDevice] = this->GetParam();
+        targetShape = _targetShape;
+        axesMapping = _axesMapping;
+        targetDevice = _targetDevice;
 
         bool isTargetShapeConst = isConstInput[0];
         bool isAxesMapConst = isConstInput[1];
