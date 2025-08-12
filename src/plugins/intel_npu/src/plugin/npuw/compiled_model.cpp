@@ -88,9 +88,6 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace ov
 
 namespace {
-uint32_t align_to(uint32_t value, uint32_t alignment) {
-    return (value + alignment - 1) & ~(alignment - 1);
-}
 template <typename T>
 auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
     const auto& opt_name = std::string(T::key());
