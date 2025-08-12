@@ -31,15 +31,15 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
     if (std::holds_alternative<OpenVINOParams::ModelPath>(params.path)) {
         network->cfgEnsureNamedTensors();
 
-        if (params.clamp_outputs) {
-            LOG_INFO() << "Clamping outputs" << std::endl;
-            network->cfgClampOutputs();
-        }
-
         if (std::holds_alternative<int>(params.output_precision)) {
             network->cfgOutputTensorPrecision(std::get<int>(params.output_precision));
         } else if (std::holds_alternative<AttrMap<int>>(params.output_precision)) {
             network->cfgOutputTensorPrecision(std::get<AttrMap<int>>(params.output_precision));
+        }
+
+        if (params.clamp_outputs && !std::holds_alternative<std::monostate>(params.output_precision)) {
+            LOG_INFO() << "Clamping outputs" << std::endl;
+            network->cfgClampOutputs();
         }
 
         if (std::holds_alternative<std::string>(params.input_layout)) {
