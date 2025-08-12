@@ -28,6 +28,7 @@ protected:
      */
     void filter_shape_info(const std::set<size_t>& idces_to_remove);
     virtual std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) = 0;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
     MatMulType matmul_type;
 };
