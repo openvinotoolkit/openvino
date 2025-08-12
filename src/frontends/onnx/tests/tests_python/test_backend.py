@@ -49,7 +49,6 @@ from tests import (
     xfail_issue_99968,
     xfail_issue_99969,
     xfail_issue_99970,
-    xfail_issue_99973,
     xfail_issue_101965,
     xfail_issue_113506,
     skip_dynamic_model,
@@ -454,11 +453,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_scatternd_min_cpu",
     ),
     (
-        xfail_issue_99973,
-        "OnnxBackendNodeModelTest.test_split_1d_uneven_split_opset18_cpu",
-        "OnnxBackendNodeModelTest.test_split_2d_uneven_split_opset18_cpu",
-    ),
-    (
         xfail_issue_101965,
         "OnnxBackendNodeModelTest.test_dft_axis_cpu",
         "OnnxBackendNodeModelTest.test_dft_cpu",
@@ -565,9 +559,7 @@ tests_expected_to_fail = [
     (
         xfail_issue_125485,
         "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_expanded_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",

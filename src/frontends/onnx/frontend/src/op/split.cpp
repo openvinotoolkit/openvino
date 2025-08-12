@@ -4,6 +4,7 @@
 
 #include "utils/split.hpp"
 
+#include "core/null_node.hpp"
 #include "core/operator_set.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -35,7 +36,7 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     const auto inputs = node.get_ov_inputs();
     const auto axis = node.get_attribute_value<int64_t>("axis", 0);
 
-    if (inputs.size() < 2) {
+    if (inputs.size() < 2 || ov::op::util::is_null(inputs.at(1))) {
         const auto outputs_number = node.get_output_names().size();
         return ov::op::util::make_split(inputs.at(0), outputs_number, axis);
     } else {
