@@ -17,6 +17,7 @@
 
 #include "dnnl_extension_utils.h"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
+#include "nodes/executors/dnnl/dnnl_post_op_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
