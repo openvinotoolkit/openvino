@@ -26,7 +26,7 @@ using ConfigParams = std::tuple<bool,          // if THROUGHPUT
 class ExecNetworkget_propertyOptimalNumInferReq : public tests::AutoTest,
                                                   public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [isThroughput,
                      cpuOptimalNum,
                      cpuCustomerNum,
@@ -95,7 +95,7 @@ using modelPrioPerfHintTestParams = std::tuple<bool,         // is New API
 class ExecNetworkget_propertyOtherTest : public tests::AutoTest,
                                          public ::testing::TestWithParam<modelPrioPerfHintTestParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<modelPrioPerfHintTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<modelPrioPerfHintTestParams>& obj) {
         const auto& [isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority] = obj.param;
         std::ostringstream result;
         if (isNewAPI) {
@@ -335,7 +335,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
 class ExecNetworkGetMetricOtherTest : public tests::AutoTest,
                                       public ::testing::TestWithParam<modelPrioPerfHintTestParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<modelPrioPerfHintTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<modelPrioPerfHintTestParams>& obj) {
         const auto& [isNewAPI, actualSleep, actualDeviceName, performanceMode, modelPriority] = obj.param;
         std::ostringstream result;
         if (isNewAPI) {
