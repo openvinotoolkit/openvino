@@ -22,6 +22,7 @@
 
 #include "input_model.hpp"
 #include "onnx_common/onnx_model_validator.hpp"
+#include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/so_extension.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/frontend/extension/telemetry.hpp"
@@ -39,6 +40,21 @@ using namespace ov::frontend::onnx;
 using namespace ov::frontend::onnx::common;
 using ::ONNX_NAMESPACE::ModelProto;
 using ::ONNX_NAMESPACE::Version;
+
+namespace {
+// !!! Experimental feature, it may be changed or removed in the future !!!
+void enumerate_constants(const std::shared_ptr<ov::Model>& model) {
+    const auto& operations = model->get_ordered_ops();
+    for (uint32_t idx = 0; idx < operations.size(); ++idx) {
+        const auto& const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(operations[idx]);
+        if (const_node == nullptr)
+            continue;
+        const_node->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
+            ov::WeightlessCacheAttribute(0, idx, const_node->get_element_type());
+    }
+}
+// !!! End of Experimental feature
+}  // namespace
 
 ONNX_FRONTEND_C_API ov::frontend::FrontEndVersion get_api_version() {
     return OV_FRONTEND_API_VERSION;
@@ -131,6 +147,10 @@ std::shared_ptr<ov::Model> FrontEnd::convert_partially(const InputModel::Ptr& in
 }
 
 void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
+    // !!! Experimental feature, it may be changed or removed in the future !!!
+    enumerate_constants(model);
+    // !!! End of Experimental feature
+
     // Here, you can register transformations as a second step of importing process
     // In particular, you can operate on not supported ops (it allows to N:N ONNX->OV mapping).
     ov::pass::Manager manager("Frontend:ONNX:normalize");
