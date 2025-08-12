@@ -472,6 +472,13 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
         ASSERT_EQ(origShape, t.get_shape());
         ASSERT_EQ(orig_data, t.data());
     }
+
+    // set shape bigger than maximum allocation size
+    {
+        constexpr auto max_dim = std::numeric_limits<size_t>::max();
+        OV_EXPECT_THROW(t.set_shape(Shape({3, max_dim / 80})), ov::Exception, _);
+        OV_EXPECT_THROW(t.set_shape(Shape({1, max_dim / 80})), ov::Exception, _);
+    }
 }
 
 TEST_F(OVTensorTest, cannotSetShapeOfBiggerSizeOnPreallocatedMemory) {

@@ -323,7 +323,7 @@ public:
 private:
     void destroy_elements(size_t begin_ind, size_t end_ind) {
         // it removes elements from tail
-        if (get_element_type() == element::Type_t::string) {
+        if (m_ptr != nullptr && get_element_type() == element::string) {
             auto strings = static_cast<std::string*>(m_ptr);
             for (size_t ind = begin_ind; ind < end_ind; ++ind) {
                 using std::string;
@@ -333,11 +333,9 @@ private:
     }
 
     void destroy_memory() {
-        if (m_ptr != nullptr) {
-            destroy_elements(0, get_capacity());
-            m_allocator.deallocate(m_ptr, get_bytes_capacity());
-            m_ptr = nullptr;
-        }
+        destroy_elements(0, get_capacity());
+        m_allocator.deallocate(m_ptr, get_bytes_capacity());
+        m_ptr = nullptr;
     }
 
     static void initialize_elements(void* data, const element::Type& element_type, const Shape& shape) {
