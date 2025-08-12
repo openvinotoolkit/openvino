@@ -100,19 +100,25 @@ jobs:
         run: |
           # Add `gh` to PATH
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
-          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_package -n openvino_tests --dir ${{ env.INSTALL_DIR }}
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_package -n openvino_tests --dir ${{ github.workspace }}
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
 
-          ls ${{ env.INSTALL_DIR }}
+          ls ${{ github.workspace }}
           ls ${{ env.INSTALL_WHEELS_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
 
       - name: Extract OpenVINO packages
         run: |
-            Expand-Archive openvino_package.zip -DestinationPath . -Verbose
-            Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
-        working-directory: ${{ env.INSTALL_DIR }}
+            mkdir ${{ env.INSTALL_DIR }}
+            pushd ${{ github.workspace }}/openvino_package
+              Expand-Archive openvino_package.zip -DestinationPath ${{ env.INSTALL_DIR }} -Verbose
+            popd
+            
+            mkdir ${{ env.INSTALL_TEST_DIR }}
+            pushd ${{ github.workspace }}/openvino_tests
+              Expand-Archive openvino_tests.zip -DestinationPath ${{ env.INSTALL_TEST_DIR }} -Verbose
+            popd
 
       - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
