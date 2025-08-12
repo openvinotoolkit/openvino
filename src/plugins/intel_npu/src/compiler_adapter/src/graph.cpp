@@ -128,7 +128,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
         _logger.info(str.str().c_str());
     }
 
-    size_t size = utils::align_size_to_standarg_page_size(blobSize);
+    size_t size = utils::align_size_to_standard_page_size(blobSize);
     size_t paddingSize = size - blobSize;
     if (paddingSize > 0) {
         std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
@@ -288,43 +288,6 @@ void Graph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t Graph::get_last_submitted_id() const {
     return _lastSubmittedId;
-}
-
-std::optional<size_t> Graph::determine_dynamic_batch_size(size_t index,
-                                                          const std::shared_ptr<ov::ITensor>& tensor,
-                                                          const std::optional<size_t> batchSize,
-                                                          const bool isInput) const {
-    if (tensor == nullptr && !batchSize.has_value()) {
-        _logger.debug("Batch size is not provided and tensor is null, returning std::nullopt");
-        return std::nullopt;
-    }
-
-    const auto& desc = isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index);
-
-    if (!desc.shapeFromIRModel.has_value() || !desc.shapeFromIRModel.value().is_dynamic()) {
-        return std::nullopt;
-    }
-
-    if (batchSize.has_value()) {
-        return batchSize.value();
-    }
-
-    if (tensor == nullptr || tensor->get_shape().empty()) {
-        return std::nullopt;
-    }
-
-    const auto& shapeFromIRModel = isInput ? *desc.shapeFromIRModel : *desc.shapeFromIRModel;
-    const auto& shapeFromCompiler = isInput ? desc.shapeFromCompiler : desc.shapeFromCompiler;
-
-    if (*shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
-        return std::nullopt;
-    }
-
-    if (shapeFromIRModel[utils::BATCH_AXIS].is_dynamic()) {
-        return tensor->get_shape()[utils::BATCH_AXIS];
-    }
-
-    return std::nullopt;
 }
 
 std::optional<size_t> Graph::determine_batch_size() {
