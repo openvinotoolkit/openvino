@@ -135,17 +135,6 @@ void ov::frontend::onnx::transform::expand_onnx_functions(ModelProto& model_prot
     }
 }
 
-void ov::frontend::onnx::transform::fixup_legacy_operators(ModelProto& model_proto) {
-    auto graph_proto = model_proto.mutable_graph();
-    for (auto& node : *graph_proto->mutable_node()) {
-        auto it = std::find(legacy_ops_to_fixup.begin(), legacy_ops_to_fixup.end(), node.op_type());
-        if (it != legacy_ops_to_fixup.end()) {
-            if (!node.has_domain() || node.domain().empty() || node.domain() == "ai.onnx") {
-                node.set_domain(OPENVINO_ONNX_DOMAIN);
-            }
-        }
-    }
-}
 
 #if defined(_MSC_VER)
 #    pragma warning(pop)
