@@ -104,7 +104,7 @@ public:
                                                const bool alternativeWeights = false) {
         constexpr auto precision = element::f32;
 
-        const float weightsValue = !alternativeWeights ? 1 : 2;
+        const float weightsValue = !alternativeWeights ? 1.0f : 2.0f;
         auto weights = std::make_shared<op::v0::Constant>(element::f32, Shape{5}, std::vector<float>{weightsValue});
         auto input = std::make_shared<op::v0::Parameter>(precision, Shape{1});
         auto add = std::make_shared<op::v1::Add>(input, weights);
