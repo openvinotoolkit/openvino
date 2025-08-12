@@ -514,10 +514,6 @@ std::shared_ptr<ov::Model> deBatchModel(std::shared_ptr<ov::Model>& model) {
         auto partShape = item->get_partial_shape();
         if (ov::layout::has_batch(layout)) {
             partShape[ov::layout::batch_idx(layout)] = 1;
-            std::cout << "name : " << item->get_friendly_name() << "\n";
-            for (auto dim : partShape) {
-                std::cout << "\tdim : " << dim << "\n";
-            }
         }
         newShapes.emplace(item->get_friendly_name(), partShape);
         inputIdx++;
