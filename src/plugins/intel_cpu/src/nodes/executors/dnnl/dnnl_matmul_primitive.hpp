@@ -25,25 +25,6 @@ namespace ov::intel_cpu {
 
 class DnnlMatMulPrimitive {
     struct Key {
-        Key(DnnlMemoryDescCPtr srcDesc,
-            DnnlMemoryDescCPtr weiDesc,
-            DnnlMemoryDescCPtr biasDesc,
-            DnnlMemoryDescCPtr dstDesc,
-            dnnl::primitive_attr attr,
-            impl_desc_type implType,
-            bool transposeA = false,
-            bool transposeB = false,
-            bool fcSemantic = false)
-            : src(std::move(srcDesc)),
-              wei(std::move(weiDesc)),
-              bias(std::move(biasDesc)),
-              dst(std::move(dstDesc)),
-              attr(std::move(attr)),
-              implType(implType),
-              transposeA(transposeA),
-              transposeB(transposeB),
-              fcSemantic(fcSemantic) {}
-
         DnnlMemoryDescCPtr src;
         DnnlMemoryDescCPtr wei;
         DnnlMemoryDescCPtr bias;
