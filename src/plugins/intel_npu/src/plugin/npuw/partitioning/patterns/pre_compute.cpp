@@ -115,7 +115,7 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
     rpe->callback = [=](ov::pass::pattern::Matcher& m) -> bool {
         auto inv_freq_size = ov::shape_size(rpe->matched_inv_freq->get_shape());
 
-        LOG_INFO("Making sin-cos cache for tensor size: " << max_prompt_len << "x" << inv_freq_size);
+        LOG_INFO("Making sin-cos cache of size: " << max_prompt_len << "x" << inv_freq_size);
 
         // shapes  that matches max possible position
         auto cache = makeCosSinCache(max_prompt_len, rpe->matched_inv_freq);
@@ -136,7 +136,8 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         auto squeeze_cos = std::make_shared<ov::op::v0::Squeeze>(gather_cos, axis);
         auto squeeze_sin = std::make_shared<ov::op::v0::Squeeze>(gather_sin, axis);
 
-        LOG_INFO("Created squeeze op to reduce axis=1: "<< squeeze_cos->get_name() << ", " << squeeze_cos->get_shape());
+        LOG_INFO("Created squeeze_cos op to reduce axis=1: "<< squeeze_cos->get_name() << ", " << squeeze_cos->get_shape());
+        LOG_INFO("Created squeeze_sin op to reduce axis=1: "<< squeeze_sin->get_name() << ", " << squeeze_sin->get_shape());
 
         LOG_INFO("Rope cos detected at: "<< rpe->matched_cos->get_name() << ", replacing by cache node: "
             << gather_cos->get_name() << ", " << gather_cos->get_shape());
