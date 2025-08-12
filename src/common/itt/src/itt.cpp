@@ -31,8 +31,7 @@ static uint64_t nextRegionId() {
     return region_id_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-// Thread-local stack to track active region IDs for parent-child relationships
-static thread_local std::vector<uint64_t> region_id_stack;
+static thread_local uint64_t current_region_id = 0;
 
 domain_t domain(const char* name) {
     return reinterpret_cast<domain_t>(__itt_domain_create(name));
@@ -44,15 +43,9 @@ handle_t handle(const char* name) {
 
 void taskBegin(domain_t d, handle_t t) {
     if (!callStackDepth() || call_stack_depth++ < callStackDepth()) {
-        __itt_id parent_id = __itt_null;
-        if (!region_id_stack.empty()) {
-            // Use the current region ID as parent ID for this task
-            parent_id = __itt_id_make(nullptr, region_id_stack.back());
-        }
-        // Create a unique task ID
-        __itt_id task_id = __itt_id_make(reinterpret_cast<void*>(t), nextRegionId());
+        __itt_id parent_id = current_region_id != 0 ? __itt_id_make(nullptr, current_region_id) : __itt_null;
         __itt_task_begin(reinterpret_cast<__itt_domain*>(d),
-                         task_id,
+                         __itt_null,
                          parent_id,
                          reinterpret_cast<__itt_string_handle*>(t));
     }
@@ -69,18 +62,18 @@ void threadName(const char* name) {
 
 void regionBegin(domain_t d, handle_t t) {
     auto region_id = nextRegionId();
-    region_id_stack.push_back(region_id);
+    current_region_id = region_id;
     __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), region_id);
     __itt_region_begin(reinterpret_cast<__itt_domain*>(d), id, __itt_null, reinterpret_cast<__itt_string_handle*>(t));
 }
 
 void regionEnd(domain_t d, handle_t t) {
-    if (!region_id_stack.empty()) {
-        auto region_id = region_id_stack.back();
-        region_id_stack.pop_back();
-        __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), region_id);
-        __itt_region_end(reinterpret_cast<__itt_domain*>(d), id);
-    }
+    if (current_region_id == 0)
+        return;
+
+    __itt_id id = __itt_id_make(reinterpret_cast<void*>(t), current_region_id);
+    __itt_region_end(reinterpret_cast<__itt_domain*>(d), id);
+    current_region_id = 0;
 }
 
 #else
