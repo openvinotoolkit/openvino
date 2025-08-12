@@ -59,17 +59,15 @@ endif()
 
 if(OpenVINO_SOURCE_DIR)
     # in case if samples are built from OV repo
-    set(OV_MAIN_SAMPLES_DIR "${OpenVINO_SOURCE_DIR}")
+    if (DEFINED OUTPUT_ROOT)
+        set(OV_MAIN_SAMPLES_DIR ${OUTPUT_ROOT})
+    else()
+        set(OV_MAIN_SAMPLES_DIR ${OV_MAIN_SAMPLES_DIR})
+    endif()
     set(OpenVINO_DIR "${CMAKE_BINARY_DIR}")
 else()
     # in case if samples are built out of OV repo
     set(OV_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
-endif()
-
-if (DEFINED OUTPUT_ROOT)
-    set(OV_MAIN_SAMPLES_BINDIR ${OUTPUT_ROOT})
-else()
-    set(OV_MAIN_SAMPLES_BINDIR ${OV_MAIN_SAMPLES_DIR})
 endif()
 
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OV_MAIN_SAMPLES_BINDIR}/${BIN_FOLDER})
