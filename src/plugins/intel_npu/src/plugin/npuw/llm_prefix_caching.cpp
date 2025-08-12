@@ -23,7 +23,6 @@ bool KVBlock::add_block(const std::vector<uint64_t>& token_hashes, const BlocKVC
         return false;
     }
 
-    // Direct assignment
     m_token_hashes = token_hashes;
     m_block_kv_cache = kv_tensors;
     m_ref_count = token_hashes.size();
@@ -55,6 +54,8 @@ uint64_t KVBlock::compute_block_hash(const std::vector<uint64_t>& token_hashes) 
 }
 
 void KVBlock::print_block_info(bool verbose) const {
+    constexpr size_t BYTES_IN_MB = 1024 * 1024;
+
     std::cout << "Block information: " << std::endl;
     std::cout << "  Block size: " << m_block_size << std::endl;
     std::cout << "  Block hash: " << m_block_hash << std::endl;
@@ -72,7 +73,6 @@ void KVBlock::print_block_info(bool verbose) const {
         std::cout << "  KV cache stored in block: " << std::endl;
     }
     size_t total_size = 0;
-    const size_t bytes_MB = 1024 * 1024;
     for (const auto& pair : m_block_kv_cache) {
         const std::string& name = pair.first;
         const ov::SoPtr<ov::ITensor>& tensor = pair.second;
@@ -93,7 +93,7 @@ void KVBlock::print_block_info(bool verbose) const {
         std::cout << "----------------------------------------" << std::endl;
     }
 
-    std::cout << "  KV cache tensor total size: " << total_size / bytes_MB << " MB" << std::endl;
+    std::cout << "  KV cache tensor total size: " << total_size / BYTES_IN_MB << " MB" << std::endl;
 }
 
 void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash) {
@@ -122,29 +122,13 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         block->m_block_id = m_cache_map.size();
 
         if (m_cache_map.size() >= m_max_cache_size) {
-            // Evict the least recently used block which does not have any child block
-            for (auto lru_it = m_lru_list.rbegin(); lru_it != m_lru_list.rend(); ++lru_it) {
-                auto lru_block = *lru_it;
-                if (lru_block->m_next_block_hashes.size() != 1) {
-                    continue;
-                }
-
-                if (lru_block->m_next_block_hashes.front() != block->m_block_hash) {
-                    continue;
-                }
-                std::cout << "Cache is full, evict LRU block" << std::endl;
-                lru_block->print_block_info(false);
-
-                // Unlink LRU blocks
-                const auto lru_prev_block_hash = lru_block->m_prev_block_hash;
-                const auto lru_prev_block = get_block_unsafe(lru_prev_block_hash);
-                if (lru_prev_block != nullptr) {
-                    lru_block->unlink_blocks(lru_prev_block);
-                }
-
-                m_cache_map.erase(lru_block->m_block_hash);
-                m_lru_list.pop_back();
-                break;  // Exit after evicting one block
+            if (!evict_lru_block()) {
+                // Consider the scenario where the cache is full and all preceding blocks have a child block.
+                // e.g. A -> B -> C -> D we are attempting to insert a new block E into the cache.
+                // In this case, all blocks (A, B, C, D) have child blocks or dependencies, making it impossible to
+                // identify an eviction candidate.
+                // As a result, we cannot add block E to the cache.
+                return;
             }
         }
 
@@ -156,6 +140,36 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
 void PrefixCacheManager::update_lru(const std::shared_ptr<KVBlock>& block) {
     m_lru_list.remove(block);
     m_lru_list.push_front(block);
+}
+
+bool PrefixCacheManager::evict_lru_block() {
+    bool eviction_done = false;
+
+    // Evict the least recently used block which does not have any child block
+    for (auto lru_it = m_lru_list.rbegin(); lru_it != m_lru_list.rend(); ++lru_it) {
+        auto lru_block = *lru_it;
+        if (!lru_block->m_next_block_hashes.empty()) {
+            continue;
+        }
+
+        std::cout << "Cache is full, evict LRU block" << std::endl;
+        lru_block->print_block_info(false);
+
+        // Unlink LRU blocks
+        const auto lru_prev_block_hash = lru_block->m_prev_block_hash;
+        const auto lru_prev_block = get_block_unsafe(lru_prev_block_hash);
+        if (lru_prev_block != nullptr) {
+            lru_block->unlink_blocks(lru_prev_block);
+        }
+
+        m_cache_map.erase(lru_block->m_block_hash);
+        m_lru_list.pop_back();
+
+        eviction_done = true;
+        break;  // Exit after evicting one block
+    }
+
+    return eviction_done;
 }
 
 bool PrefixCacheManager::get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block) {
