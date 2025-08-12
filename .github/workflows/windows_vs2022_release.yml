@@ -102,9 +102,6 @@ jobs:
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_package -n openvino_tests --dir ${{ github.workspace }}
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
-
-          ls ${{ github.workspace }}
-          ls ${{ env.INSTALL_WHEELS_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
 
