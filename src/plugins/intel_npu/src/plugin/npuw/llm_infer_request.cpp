@@ -852,9 +852,12 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + kvcache_desc.num_stored_tokens - current_prompts_len);
     }
+
     LOG_DEBUG("Done.");
 
-    m_prefix_cache->print_cache_status();
+    if (enable_prefix_caching) {
+        m_prefix_cache->print_cache_status();
+    }
 }
 
 void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
