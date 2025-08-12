@@ -499,12 +499,14 @@ flowchart LR
       LoopBegin_0
       LoopEnd_0
       LoopBegin_1
+      LoopEnd_1
       VectorBuffer
       Load_0
       Maximum
       HorizonMax
       Load_1
       Subtract
+      ...
 
       LoopBegin_0-->LoopEnd_0 
       LoopBegin_0-->Load_0 
@@ -512,9 +514,12 @@ flowchart LR
       Load_0-->Maximum
       Maximum-->HorizonMax
       LoopEnd_0-->LoopBegin_1
+      LoopBegin_1-->LoopEnd_1
       LoopBegin_1-->Load_1
       HorizonMax-->Subtract
       Load_1-->Subtract
+      Subtract-->...
+      ... -->LoopEnd_1
    end
    OpenVINO_IR
    classDef no-bg-color fill:none,stroke-width:0px
@@ -522,7 +527,7 @@ flowchart LR
    class OpenVINO_IR no-bg-color
 ```
 
-When we look at this diagram, we have the following questions: "What is the exact order of operations? What operations are performed within the loop `LoopBegin_0 -> LoopEnd_0`? Why is the `LoopEnd_0` connected to the `LoopBegin_1`?". 
+When we look at this diagram, we have the following questions: "What is the exact order of operations? What operations are performed within the loops `LoopBegin_0 -> LoopEnd_0` and `LoopBegin_1 -> LoopEnd_1`? Why is the `LoopEnd_0` connected to the `LoopBegin_1`?". 
 At the same time, to configure the execution order of operations, we have to call the following lines of code in the transformation `SoftmaxDecomposition`:
 
 ```cpp
@@ -544,12 +549,14 @@ flowchart LR
       LoopBegin_0
       LoopEnd_0
       LoopBegin_1
+      LoopEnd_1
       VectorBuffer
       Load_0
       Maximum
       HorizonMax
       Load_1
       Subtract
+      ...
 
       VectorBuffer-->LoopBegin_0
       LoopBegin_0-->Load_0 
@@ -560,6 +567,9 @@ flowchart LR
       HorizonMax-->LoopBegin_1
       LoopBegin_1-->Load_1
       Load_1-->Subtract
+      Subtract-->...
+      ... -->LoopEnd_1
+      LoopBegin_1-->LoopEnd_1
    end
    Linear_IR
    classDef no-bg-color fill:none,stroke-width:0px
@@ -568,7 +578,7 @@ flowchart LR
 ```
 
 This representation defines the execution order.
-Also we can see which operations are performed in the loop `LoopBegin_0 -> LoopEnd_0`.
+Also we can see which operations are performed in the loops `LoopBegin_0 -> LoopEnd_0` and `LoopBegin_1 -> LoopEnd_1`.
 Due to this understanding, we decided to develop the similar `IR` for managing and optimizing control flow of the kernel.
 This `IR` is called `Linear IR` (or simply `LIR`), let's discuss it first, before we consider the transformation pipeline.
 
@@ -812,10 +822,14 @@ This approach ensures efficient support for shape-agnostic kernels.
 
 Please see [runtime_configurator.hpp](../include/snippets/runtime_configurator.hpp) and [kernel_executor_table.hpp](../include/snippets/kernel_executor_table.hpp) for more info regarding the recalculation of runtime parameters and kernel recompilation for specific expressions.
 
+As a result of the work on implementing support for the dynamic shapes support in the Snippets, we published the article ["Dynamic shapes support in OpenVINO JIT compiler boosts inference performance by 40%"](https://blog.openvino.ai/blog-posts/dynamic-shapes-support-in-openvino-jit-compiler-boosts-inference-performance-by-40) on [blog.openvino.ai](https://blog.openvino.ai).
+In this article, we described the steps to implement support, the problems we faced, how we solved them, and what kind of performance we managed to achieve on real user cases.
+
 ## See also
 
  * [OpenVINO™ README](../../../../README.md)
  * [OpenVINO Snippets](../README.md)
  * [OpenVINO Core Components](../../../README.md)
  * [Developer documentation](../../../../docs/dev/index.md)
+ * [Dynamic shapes support in OpenVINO JIT compiler boosts inference performance by 40%](https://blog.openvino.ai/blog-posts/dynamic-shapes-support-in-openvino-jit-compiler-boosts-inference-performance-by-40)
 
