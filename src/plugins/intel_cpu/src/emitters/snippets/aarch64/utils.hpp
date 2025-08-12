@@ -85,6 +85,7 @@ void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::aarch64::jit_generato
 
 /**
  * @brief Push multiple data pointers on stack with offsets and load them back to specified registers
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
  * @param h generator
  * @param mem_ptrs vector of registers containing data pointers
  * @param memory_offsets vector of memory offsets (can be dynamic or static)
@@ -98,5 +99,24 @@ void push_and_load_ptrs_with_offsets(dnnl::impl::cpu::aarch64::jit_generator* h,
                                      const std::vector<size_t>& buffer_ids,
                                      const std::vector<Xbyak_aarch64::XReg>& aux_regs,
                                      const std::vector<Xbyak_aarch64::XReg>& load_regs);
+
+/**
+ * @brief Push multiple data pointers to specific stack offsets with applied memory offsets
+ * This is designed for struct-based calling conventions where pointers need to be stored
+ * at specific stack locations rather than loaded back to registers.
+ * Note: This helper doesn't allocate stack space - the user should guarantee allocated space on stack
+ * @param h generator
+ * @param mem_ptrs vector of registers containing data pointers
+ * @param memory_offsets vector of memory offsets (can be dynamic or static)
+ * @param buffer_ids vector of buffer IDs for runtime offset calculation
+ * @param aux_regs vector of available auxiliary registers
+ * @param stack_offsets vector of stack offsets where adjusted pointers should be stored
+ */
+void push_ptrs_with_offsets_to_stack(dnnl::impl::cpu::aarch64::jit_generator* h,
+                                     const std::vector<Xbyak_aarch64::XReg>& mem_ptrs,
+                                     const std::vector<size_t>& memory_offsets,
+                                     const std::vector<size_t>& buffer_ids,
+                                     const std::vector<Xbyak_aarch64::XReg>& aux_regs,
+                                     const std::vector<int32_t>& stack_offsets);
 
 }  // namespace ov::intel_cpu::aarch64::utils
