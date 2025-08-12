@@ -1231,24 +1231,41 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(rtPrecision, getOutputShapeAtPort(0)));
 
-    // Determine the correct implementation type based on compile flags and runtime capabilities
+    // Determine the correct implementation type based on compile flags, runtime capabilities and precision
     impl_desc_type implType = impl_desc_type::ref_any;
 #if defined(OPENVINO_ARCH_X86_64)
-    #ifdef OV_CPU_WITH_MLAS
-        // MLAS is preferred on x86 when available
-        implType = impl_desc_type::mlas;
-    #else
-        // On x86_64, check for available instruction sets
-        if (cpu::x64::mayiuse(cpu::x64::avx512_core)) {
+    if (rtPrecision == ov::element::bf16) {
+        // BF16 requires specific hardware support
+        if (ov::with_cpu_x86_bfloat16()) {
+            // oneDNN will be used for BF16
             implType = impl_desc_type::jit_avx512;
-        } else if (cpu::x64::mayiuse(cpu::x64::avx2)) {
-            implType = impl_desc_type::jit_avx2;
-        } else if (cpu::x64::mayiuse(cpu::x64::sse41)) {
-            implType = impl_desc_type::jit_sse42;
+        } else {
+            implType = impl_desc_type::ref_any;
         }
-    #endif
+    } else if (rtPrecision == ov::element::f16) {
+        // F16 requires AVX512_CORE_FP16
+        if (with_cpu_x86_avx512_core_fp16()) {
+            // oneDNN will be used for F16 
+            implType = impl_desc_type::jit_avx512;
+        } else {
+            implType = impl_desc_type::ref_any;
+        }
+    } else {
+        // F32 path
+        #ifdef OV_CPU_WITH_MLAS
+            // MLAS is preferred for F32 when available
+            implType = impl_desc_type::mlas;
+        #else
+            // oneDNN requires AVX512_CORE for F32
+            if (with_cpu_x86_avx512_core()) {
+                implType = impl_desc_type::jit_avx512;
+            } else {
+                implType = impl_desc_type::ref_any;
+            }
+        #endif
+    }
 #elif defined(OV_CPU_WITH_ACL)
-    // On ARM with ACL support
+    // On ARM with ACL support - ACL supports both F16 and F32
     implType = impl_desc_type::acl;
 #else
     // Pure reference implementation
