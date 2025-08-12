@@ -100,6 +100,7 @@ jobs:
       - name: Download OpenVINO artifacts (tarballs)
         run: |
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+          gh --help
           Write-Host "PATH: $env:Path"
           Write-Host "RUN_ID: $env:GITHUB_RUN_ID"
           Write-Host "REPO: $env:GITHUB_REPOSITORY"
