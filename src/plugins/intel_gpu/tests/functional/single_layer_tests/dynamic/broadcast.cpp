@@ -26,7 +26,7 @@ typedef std::tuple<
 class BroadcastLayerGPUTest : public testing::WithParamInterface<BroadcastLayerTestParamsSet>,
                               virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<BroadcastLayerTestParamsSet> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<BroadcastLayerTestParamsSet>& obj) {
         const auto& [shapes, targetShapes, axesMapping, mode, model_type, isConstInputs, deviceName] = obj.param;
 
         std::ostringstream result;
