@@ -203,44 +203,6 @@ ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run,
     }
 }
 
-namespace {
-// Helper enum to track the original state of a pass
-enum class PassState {
-    Default,   // Neither disabled nor force-enabled (default behavior)
-    Disabled,  // Explicitly disabled
-    Enabled    // Force-enabled
-};
-
-// Helper function to capture the current state of a pass
-template <typename T>
-PassState get_pass_state(const std::shared_ptr<ov::pass::PassConfig>& config) {
-    if (config->is_disabled<T>())
-        return PassState::Disabled;
-    if (config->is_enabled<T>())
-        return PassState::Enabled;
-    return PassState::Default;
-}
-
-// Helper function to restore a pass to its original state
-template <typename T>
-void restore_pass_state(const std::shared_ptr<ov::pass::PassConfig>& config, PassState original_state) {
-    switch (original_state) {
-    case PassState::Default:
-        // Perfectly restore default state by removing from both disabled and enabled sets
-        config->restore_default<T>();
-        break;
-    case PassState::Disabled:
-        // Ensure the pass is disabled
-        config->disable<T>();
-        break;
-    case PassState::Enabled:
-        // Ensure the pass is force-enabled
-        config->enable<T>();
-        break;
-    }
-}
-}  // namespace
-
 bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_FUNCTION_SCOPE(SymbolicOptimizations);
 
@@ -249,9 +211,7 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     // So we decided to disable these passes in SymbolicOptimizations.
     const auto& pass_config = m_manager->get_pass_config();
 
-    // Capture original states of the passes we're going to modify
-    auto squeeze_original_state = get_pass_state<EliminateSqueeze>(pass_config);
-    auto unsqueeze_original_state = get_pass_state<EliminateUnsqueeze>(pass_config);
+    const auto old_pass_config = *pass_config;
 
     // Temporarily disable passes for SymbolicOptimizations execution
     pass_config->disable<EliminateSqueeze>();
@@ -261,15 +221,11 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     try {
         result = m_manager->run_passes(m);
     } catch (...) {
-        // Ensure state restoration even if an exception occurs
-        restore_pass_state<EliminateSqueeze>(pass_config, squeeze_original_state);
-        restore_pass_state<EliminateUnsqueeze>(pass_config, unsqueeze_original_state);
+        *pass_config = old_pass_config;  // Restore original pass config on exception
         throw;  // Re-throw the exception
     }
 
-    // Restore original pass states to avoid affecting subsequent transformations
-    restore_pass_state<EliminateSqueeze>(pass_config, squeeze_original_state);
-    restore_pass_state<EliminateUnsqueeze>(pass_config, unsqueeze_original_state);
+    *pass_config = old_pass_config;
 
     ov::remove_skip_invalidation_rti(m);
     return result;
