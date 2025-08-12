@@ -94,22 +94,17 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\build"
     steps:
       - name: Install GH CLI
-        run: |
-          choco install gh
+        run: choco install gh
 
-      - name: Download OpenVINO artifacts (tarballs)
+      - name: Download OpenVINO artifacts (tarballs & wheels)
         run: |
+          # Add `gh` to PATH
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
-          gh --help
-          Write-Host "PATH: $env:Path"
-          Write-Host "RUN_ID: $env:GITHUB_RUN_ID"
-          Write-Host "REPO: $env:GITHUB_REPOSITORY"
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_package -n openvino_tests --dir ${{ env.INSTALL_DIR }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-      
-      - name: Download OpenVINO artifacts (wheels)
-        run: gh run download --repo "$env:GITHUB_REPOSITORY" "$env:GITHUB_RUN_ID" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
+
+          ls ${{ env.INSTALL_DIR }}
+          ls ${{ env.INSTALL_WHEELS_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
 
