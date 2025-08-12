@@ -333,11 +333,9 @@ private:
     }
 
     void destroy_memory() {
-        if (m_ptr != nullptr) {
-            destroy_elements(0, get_capacity());
-            m_allocator.deallocate(m_ptr, get_bytes_capacity());
-            m_ptr = nullptr;
-        }
+        destroy_elements(0, get_capacity());
+        m_allocator.deallocate(m_ptr, get_bytes_capacity());
+        m_ptr = nullptr;
     }
 
     static void initialize_elements(void* data, const element::Type& element_type, const Shape& shape) {
