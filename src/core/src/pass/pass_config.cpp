@@ -36,8 +36,3 @@ void ov::pass::PassConfig::add_disabled_passes(const PassConfig& rhs) {
         disable(pass);
     }
 }
-
-void ov::pass::PassConfig::restore_default(const ov::DiscreteTypeInfo& type_info) {
-    m_disabled.erase(type_info);
-    m_enabled.erase(type_info);
-}
