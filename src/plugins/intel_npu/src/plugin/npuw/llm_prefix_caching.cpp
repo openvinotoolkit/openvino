@@ -35,15 +35,13 @@ bool KVBlock::add_block(const std::vector<uint64_t>& token_hashes, const BlocKVC
 }
 
 void KVBlock::link_blocks(std::shared_ptr<KVBlock> prev_block) {
-    prev_block->m_next_block_hashes.push_back(m_block_hash);
+    prev_block->m_next_block_hashes.insert(m_block_hash);
 
     m_prev_block_hash = prev_block->m_block_hash;
 }
 
 void KVBlock::unlink_blocks(std::shared_ptr<KVBlock> prev_block) {
-    auto new_end =
-        std::remove(prev_block->m_next_block_hashes.begin(), prev_block->m_next_block_hashes.end(), m_block_hash);
-    prev_block->m_next_block_hashes.erase(new_end, prev_block->m_next_block_hashes.end());
+    prev_block->m_next_block_hashes.erase(m_block_hash);
 
     m_prev_block_hash = 0;
 }
@@ -65,8 +63,13 @@ void KVBlock::print_block_info(bool verbose) const {
     std::cout << "  Token start: " << m_token_start << std::endl;
 
     std::cout << "  Children blocks: " << std::endl;
-    for (size_t index = 0; index < m_next_block_hashes.size(); ++index) {
-        std::cout << "    hash [" << index << "]: " << m_next_block_hashes[index] << std::endl;
+    if (m_next_block_hashes.empty()) {
+        std::cout << "    Null" << std::endl;
+    } else {
+        size_t index = 0;
+        for (auto it = m_next_block_hashes.begin(); it != m_next_block_hashes.end(); ++it, ++index) {
+            std::cout << "    hash [" << index << "]: " << *it << std::endl;
+        }
     }
 
     if (verbose) {
@@ -115,6 +118,12 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         // Link current block with previous block
         const auto prev_block = get_block_unsafe(prev_block_hash);
         if (prev_block != nullptr) {
+            // Link current block with previous block before evict_lru_block().
+            // Consider the scenario where the cache is full and all preceding blocks have a child block.
+            // e.g. A -> B -> C -> D we are attempting to insert a new block E into the cache.
+            // In this case, Linking blocks first ensures all blocks (A, B, C, D) have child blocks or dependencies,
+            // making it impossible to identify an eviction candidate. So that, block E will not be added into the
+            // cache.
             block->link_blocks(prev_block);
             // Prev block is not a leaf node
             m_lru_leaf_nodes.erase(prev_block);
@@ -125,12 +134,10 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
 
         if (m_cache_map.size() >= m_max_cache_size) {
             if (!evict_lru_block()) {
-                // Consider the scenario where the cache is full and all preceding blocks have a child block.
-                // e.g. A -> B -> C -> D we are attempting to insert a new block E into the cache.
-                // In this case, all blocks (A, B, C, D) have child blocks or dependencies, making it impossible to
-                // identify an eviction candidate.
-                // As a result, we cannot add block E to the cache.
-                m_lru_leaf_nodes.erase(block);
+                // New block is not added into the cache
+                if (prev_block != nullptr) {
+                    block->unlink_blocks(prev_block);
+                }
                 return;
             }
         }

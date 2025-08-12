@@ -33,7 +33,7 @@ public:
     std::chrono::time_point<std::chrono::system_clock> m_timestamp;
 
     // One block may have multiply children blocks
-    std::vector<uint64_t> m_next_block_hashes;
+    std::unordered_set<uint64_t> m_next_block_hashes;
     // One block only has single previous block
     uint64_t m_prev_block_hash;
 
