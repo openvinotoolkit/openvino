@@ -1231,11 +1231,17 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(rtPrecision, getOutputShapeAtPort(0)));
 
-    // Determine the correct implementation type based on compile flags and runtime precision
+    // Determine the correct implementation type based on compile flags and runtime capabilities
     impl_desc_type implType = impl_desc_type::ref_any;
 #if defined(OPENVINO_ARCH_X86_64)
-    // On x86_64, we use either oneDNN or reference implementation
-    implType = impl_desc_type::ref_any;  // Will be oneDNN for AVX512, ref otherwise
+    // On x86_64, check for available instruction sets
+    if (cpu::x64::mayiuse(cpu::x64::avx512_core)) {
+        implType = impl_desc_type::jit_avx512;
+    } else if (cpu::x64::mayiuse(cpu::x64::avx2)) {
+        implType = impl_desc_type::jit_avx2;
+    } else if (cpu::x64::mayiuse(cpu::x64::sse41)) {
+        implType = impl_desc_type::jit_sse42;
+    }
 #elif defined(OV_CPU_WITH_ACL)
     // On ARM with ACL support
     implType = impl_desc_type::acl;
