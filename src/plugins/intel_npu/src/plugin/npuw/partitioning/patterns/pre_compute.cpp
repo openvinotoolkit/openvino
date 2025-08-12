@@ -77,6 +77,7 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() {
 
         this->matched_position_ids = node_to_output.at(position_ids).get_node_shared_ptr();
 
+        this->matched_concat =  node_to_output.at(concat_1).get_node_shared_ptr();
         auto matched_concat_2 = node_to_output.at(concat_2).get_node_shared_ptr();
 
         // TODO: maybe check for it's dims
@@ -120,21 +121,21 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         // shapes  that matches max possible position
         auto cache = makeCosSinCache(max_prompt_len, rpe->matched_inv_freq);
 
-        // Step 2: convert fp16->fp32
-        auto cos_fp32 = std::make_shared<ov::op::v0::Convert>(cache[0], ov::element::f32);
-        auto sin_fp32 = std::make_shared<ov::op::v0::Convert>(cache[1], ov::element::f32);
-
-        // Step 3: Define axis (gather along axis 1)
+        // Step 1: Define axis (gather along axis 1)
         auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
 
-        // Step 4: Apply Gather for cos and sin
-        auto gather_cos = std::make_shared<ov::op::v8::Gather>(cos_fp32, rpe->matched_position_ids, axis);
-        auto gather_sin = std::make_shared<ov::op::v8::Gather>(sin_fp32, rpe->matched_position_ids, axis);
+        // Step 2: Apply Gather for cos and sin
+        auto gather_cos = std::make_shared<ov::op::v8::Gather>(cache[0], rpe->matched_position_ids, axis);
+        auto gather_sin = std::make_shared<ov::op::v8::Gather>(cache[1], rpe->matched_position_ids, axis);
         LOG_INFO("Created gather op facilitate LUT search: "<< gather_cos->get_name() << ", " << gather_cos->get_shape());
 
+        // Step 2: convert fp16->fp32
+        auto cos_fp32 = std::make_shared<ov::op::v0::Convert>(gather_cos, ov::element::f32);
+        auto sin_fp32 = std::make_shared<ov::op::v0::Convert>(gather_sin, ov::element::f32);
+
         // Create the squeeze operation required after gather
-        auto squeeze_cos = std::make_shared<ov::op::v0::Squeeze>(gather_cos, axis);
-        auto squeeze_sin = std::make_shared<ov::op::v0::Squeeze>(gather_sin, axis);
+        auto squeeze_cos = std::make_shared<ov::op::v0::Squeeze>(cos_fp32, axis);
+        auto squeeze_sin = std::make_shared<ov::op::v0::Squeeze>(sin_fp32, axis);
 
         LOG_INFO("Created squeeze_cos op to reduce axis=1: "<< squeeze_cos->get_name() << ", " << squeeze_cos->get_shape());
         LOG_INFO("Created squeeze_sin op to reduce axis=1: "<< squeeze_sin->get_name() << ", " << squeeze_sin->get_shape());
@@ -147,6 +148,11 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         // replacing sin with gather op
         ov::replace_node(rpe->matched_cos, squeeze_cos);
         ov::replace_node(rpe->matched_sin, squeeze_sin);
+
+        // TODO: concat_1 still reacheable in partitioning - how to avoid that
+        for (size_t i = 0; i < rpe->matched_concat->get_input_size(); ++i) {
+        //     rpe->matched_concat->input(i).replace_source_output(ov::Output<ov::Node>()); // empty output
+        }
 
         return true;  // root changed
     };

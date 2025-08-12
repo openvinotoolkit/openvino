@@ -18,6 +18,7 @@ public:
     std::shared_ptr<ov::Node> matched_position_ids;
     std::shared_ptr<ov::Node> matched_sin;
     std::shared_ptr<ov::Node> matched_cos;
+    std::shared_ptr<ov::Node> matched_concat;
     //TODO: can be moved to private and init in ctor
     ov::matcher_pass_callback callback;
 

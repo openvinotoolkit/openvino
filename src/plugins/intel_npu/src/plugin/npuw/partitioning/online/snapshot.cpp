@@ -88,7 +88,6 @@ void Snapshot::buildGraph() {
         if (!isOp(ov_node)) {
             continue;
         }
-
         m_node_to_prod_cons->insert({ov_node, {}});
 
         auto nh = m_graph->create();
@@ -110,6 +109,11 @@ void Snapshot::buildGraph() {
 
             for (const auto& target_output : target_outputs) {
                 auto ov_node_child = target_output.get_node()->shared_from_this();
+                //TBD: some child nodes are present but not listed as ordered ops
+                if (_(m_node_to_gr).m->find(ov_node_child) == _(m_node_to_gr).m->end()) {
+                    LOG_INFO("skipping child node:" << ov_node_child->get_name() << " as not found in ordered_ops");
+                    continue;
+                }
 
                 // Insert readers from other layers
                 _(m_node_to_prod_cons).at(ov_node).second.insert(ov_node_child);
