@@ -506,9 +506,31 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& argument
     return _properties->get_property(name, arguments);
 }
 
+std::shared_ptr<ov::Model> deBatchModel(std::shared_ptr<ov::Model>& model) {
+    size_t inputIdx = 0;
+    std::map<std::string, ov::PartialShape> newShapes;
+    for (auto&& item : model->get_parameters()) {
+        auto layout = item->get_layout();
+        auto partShape = item->get_partial_shape();
+        if (ov::layout::has_batch(layout)) {
+            partShape[ov::layout::batch_idx(layout)] = 1;
+            std::cout << "name : " << item->get_friendly_name() << "\n";
+            for (auto dim : partShape) {
+                std::cout << "\tdim : " << dim << "\n";
+            }
+        }
+        newShapes.emplace(item->get_friendly_name(), partShape);
+        inputIdx++;
+    }
+    model->reshape(newShapes);
+
+    return model;
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<const ov::Model>& model,
                                                           const ov::AnyMap& properties) const {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "Plugin::compile_model");
+    auto modelForCompilation = model->clone();
 
     // Before going any further: if
     // ... 1 - NPUW mode is activated
@@ -554,6 +576,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         std::stringstream strStream;
         strStream << ov::intel_npu::BatchMode::AUTO;
         localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    }
+
+    if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
+        localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
+        try {
+            ov::set_batch(modelForCompilation, 1);
+        } catch (const std::exception& ex) {
+            _logger.warning("The plugin couldn't resize a batched model due to exception: {0}.\nProbably, the "
+                            "model is a dynamic model and layout hasn't been specified. Trying to debatch it...",
+                            ex.what());
+            modelForCompilation = deBatchModel(modelForCompilation);
+            if (!modelForCompilation) {
+                OPENVINO_THROW("Cannot debatch a model");
+            }
+            _logger.info("The model has been debatched successfully");
+        }
     }
 
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) && !model->get_variables().empty()) {
@@ -614,10 +652,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         _logger.debug("performing compile");
 
         if (!localConfig.get<WEIGHTLESS_BLOB>()) {
-            graph = compiler->compile(model->clone(), localConfig);
+            graph = compiler->compile(modelForCompilation->clone(), localConfig);
         } else {
             check_weightless_cache_attribute_occurrence(model);
-            graph = compiler->compileWS(model->clone(), localConfig);
+            graph = compiler->compileWS(modelForCompilation->clone(), localConfig);
         }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
