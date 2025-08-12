@@ -675,6 +675,61 @@ Another important function of the `KernelEmitter` is to calculate input/output d
 Keep in mind however, that the required functionality of the `KernelEmitter` depends on how the rest of the emitters are implemented (particularly for `Load`/`Store` `Ops`). 
 We've discussed above how the emitters for the `intel_cpu` plugin are implemented (see [jit_snippets_emitters.cpp](../../../plugins/intel_cpu/src/emitters/snippets/x64/jit_snippets_emitters.cpp) for more details), but a different backend might require a different approach depending on hardware specifics.
 
+### Dynamic shapes support
+
+The graph compiler Snippets also supports subgraphs with dynamic shapes.
+In this case as for subgraphs with static shapes, subgraph lowering (data flow and control flow transformations) is performed only once at model compilation stage.
+However, since code generation may depend on static shapes available only at inference stage, the actual code generation step should be performed during the inference stage using the method `snippets::op::Subgraph::generate(const void*)`.
+Before the code generation, a serie of shape-dependent transformations is applied in this method:
+1. `SetLoadStoreScalar` sets the scalar count for `Load` and `Store` operations when the processing dimension is scalar, ensuring the correct number of elements is loaded or stored.
+2. `InsertBroadcastMove` inserts a `BroadcastMove` operation where element broadcasting is required.
+3. `LoadMoveBroadcastToBroadcastLoad` fuses a `Load` operation with a `BroadcastMove` into a single instruction `BroadcastLoad`.
+
+After these transformations, the `LinearIR` is ready for code generation. More details about these transformations could be found in the `snippets::op::Subgraph::generate(const void*)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
+
+Note that Snippets support shape-agnostic kernel compilation.
+It means that we can recompile kernel only in some specific cases (for example, when broadcasting pattern has been changed and now we need to insert `BroadcastMove` instruction to the kernel).
+In other cases we can skip the kernel recompilation and just recalculate runtime parameters which are stored in `RuntimeConfig`.
+The structure `snippets::RuntimeConfig` contains all necessary runtime parameters for the kernel, such as input and output offsets, size of `Buffer scratchpad`, offsets of `BufferClusters`, kernel and tensor ranks etc.
+For example, the [`CPURuntimeConfig`](../../../plugins/intel_cpu/src/emitters/snippets/cpu_runtime_configurator.hpp) for the CPU Plugin also stores loop parameters: `work_amount`, `increment` and data pointer shift parameters which are read by `Load` JIT emitter in the compiled kernel during execution.
+Please note that the backend should implement support of runtime parameters reading from `RuntimeConfig` in the kernel during the execution.
+
+```mermaid
+flowchart LR
+    subgraph Implementation
+       direction TB 
+       RuntimeConfigurator
+       RuntimeConfig
+       AnyRuntimeParameters
+       KernelExecutorTable
+       KernelExecutor
+       Config
+       Kernel
+       
+       RuntimeConfigurator-->|Contains and Updates|RuntimeConfig 
+       RuntimeConfig-->|Contains|AnyRuntimeParameters
+       RuntimeConfig-->|Contains|KernelExecutorTable
+       KernelExecutorTable-->|Contains|KernelExecutor
+       KernelExecutor-->|Contains and Updates|Config
+       KernelExecutor-->|Contains and Updates|Kernel
+
+   end
+   Implementation
+   classDef no-bg-color fill:none,stroke-width:0px
+   class Implementation no-bg-color
+```
+
+All these runtime parameters are calculated by the `snippets::RuntimeConfigurator` class, which allows recalculating all required runtime parameters for a new `LinearIR` state.
+To update the `RuntimeConfig` state and obtain its refreshed version, need to call the method `snippets::op::Subgraph::get_updated_config()` inside [subgraph.cpp](../src/op/subgraph.cpp). 
+
+Since a generated kernel may invoke microkernels, Snippets support on-demand recompilation of such microkernels for specific shapes via the `KernelExecutorTable` which is also stored in `RuntimeConfig`.
+The class `snippets::KernelExecutorTable` contains mapping between `Expressions` from the `LinearIR` and its corresponding `KernelExecutor`.
+The class `snippets::KernelExecutor` stores the compiled microkernel and its configuration, providing an interface to update the configuration and trigger recompilation when the parameters of the associated expression change using the method `snippets::KernelExecutor::update_by_expression(...)`.
+This mechanism allows recompiling only shape-dependent microkernels which are called in the subgraph kernel, instead of recompiling the entire kernel for updated `LinearIR`.
+This approach ensures efficient support for shape-agnostic kernels.
+
+Please see [runtime_configurator.hpp](../include/snippets/runtime_configurator.hpp) and [kernel_executor_table.hpp](../include/snippets/kernel_executor_table.hpp) for more info regarding the recalculation of runtime parameters and kernel recompilation for specific expressions.
+
 ## See also
 
  * [OpenVINO™ README](../../../../README.md)
