@@ -65,7 +65,7 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
         return;
     }
     if ((f_block*VEC_SIZE) == OUTPUT_FEATURE_NUM) {
-        half8 out = (half8)(0.0f);
+        MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) out = (MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE))(0);
         vstore8(out, global_id, output);
         return;
     }
