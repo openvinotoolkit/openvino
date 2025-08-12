@@ -32,7 +32,7 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
         network->cfgEnsureNamedTensors();
 
         if (params.clamp_outputs) {
-            LOG_INFO() << "Clamping applied" << std::endl;
+            LOG_INFO() << "Clamping outputs" << std::endl;
             network->cfgClampOutputs();
         }
 
