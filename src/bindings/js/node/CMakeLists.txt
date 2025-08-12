@@ -48,6 +48,7 @@ FetchContent_MakeAvailable(node-addon-api)
 add_library(${PROJECT_NAME} SHARED
     ${CMAKE_CURRENT_SOURCE_DIR}/src/node_output.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_reader.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_queue.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/pre_post_process_wrap.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/preprocess/preprocess_steps.cpp
