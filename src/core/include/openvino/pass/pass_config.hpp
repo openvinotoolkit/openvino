@@ -158,6 +158,16 @@ public:
 
     void add_disabled_passes(const PassConfig& rhs);
 
+    /// \brief Restore transformation to its default state (neither disabled nor force-enabled)
+    /// \param type_info Transformation type_info
+    void restore_default(const DiscreteTypeInfo& type_info);
+
+    /// \brief Restore transformation to its default state by class type
+    template <class T>
+    void restore_default() {
+        restore_default(T::get_type_info_static());
+    }
+
 private:
     param_callback m_callback;
     param_callback_map m_callback_map;
