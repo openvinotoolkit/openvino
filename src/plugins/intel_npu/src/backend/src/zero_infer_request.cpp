@@ -651,14 +651,13 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
             _logger.debug("Update input graph descriptor with the new tensor");
             OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
 
-            if (!inputDescriptor.isStateInput) {
-                check_tensor(_compiledModel->inputs()[ioIndex], zeroTensor);
-                zeroTensor->reset_memory_flag();
-            }
-
             _pipeline->update_graph_arguments(_graph->get_input_descriptors().at(ioIndex).idx,
                                               zeroTensor->data(),
                                               zeroTensor->get_byte_size());
+
+            if (!inputDescriptor.isStateInput) {
+                zeroTensor->reset_memory_flag();
+            }
         }
 
         ++ioIndex;
@@ -678,10 +677,6 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
         if (zeroTensor->memory_address_changed()) {
             _logger.debug("Update output graph descriptor with the new tensor");
             OPENVINO_ASSERT(zeroTensor->data(), "Empty buffer");
-
-            if (!outputDescriptor.isStateOutput) {
-                check_tensor(_compiledModel->outputs()[ioIndex], zeroTensor);
-            }
 
             _pipeline->update_graph_arguments(_graph->get_output_descriptors().at(ioIndex).idx,
                                               zeroTensor->data(),
