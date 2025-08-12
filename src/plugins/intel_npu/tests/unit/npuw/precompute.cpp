@@ -39,8 +39,8 @@ namespace npuw_utest{
 
 // TODO: some patterns to be extracted from llama
 enum class NetworkKind {
-    llama2,
-    llama3
+    prefill,
+    generate
 };
 
 typedef std::tuple <
@@ -58,13 +58,10 @@ struct PrecomputeTestParams {
     _AT(0)  inputShape;
     _AT(1)  hasSin;
     _AT(2)  hasCos;
-    // _AT(3)  withSDPA;
-    // _AT(4)  withHpAttenMask;
     _AT(3)  kind;
     #undef _AT
 
     PrecomputeTestParams(const PrecomputeTestParamsTuple& tup) {
-       // std::tie(inputShape, withConvert, withTranspose, withSDPA, withHpAttenMask, kind) = tup;
        std::tie(inputShape, hasSin, hasCos, kind) = tup;
     }
 };
@@ -166,21 +163,22 @@ static std::shared_ptr<ov::Model> buildROPE_Llama2(const size_t batch,
     return std::make_shared<ov::Model>(ov::OutputVector{add_Add}, parameters);
 }
 
-bool verify_rope_layer_detected(std::shared_ptr<ov::Model> model) {
+// means no sin / cos operators remained
+namespace opp = ov::pass::pattern;
+bool verify_rope_cached(std::shared_ptr<ov::Model> model) {
     GraphRewrite rwt;
-    auto rpe = ov::pass::pattern::wrap_type<ov::op::internal::RoPE>({ov::pass::pattern::any_input()});
+    auto sin_cos = opp::wrap_type<ov::op::v0::Sin, ov::op::v0::Cos>({opp::any_input()});
 
     auto rpe_present = false;
-    auto callback = [=, &rpe_present](ov::pass::pattern::Matcher& m) {
+    auto callback = [&rpe_present](ov::pass::pattern::Matcher& m) {
         rpe_present = true;
         return false;  // root hasn't changed
     };
 
-    auto m = std::make_shared<ov::pass::pattern::Matcher>(rpe, "rpe_layer");
-    //ov::pass::MatcherPass mp{p, std::move(callback)};
+    auto m = std::make_shared<ov::pass::pattern::Matcher>(sin_cos, "sin_cos_matcher");
     rwt.add_matcher<ov::pass::MatcherPass>(m, std::move(callback));
     rwt.run_on_model(model);
-    return rpe_present;
+    return !rpe_present;
 }
 
 
@@ -213,11 +211,14 @@ public:
        // SAVE_MODEL(model, "rope_with_cosin_cache.xml");
         
         ov::Core core;
-       // auto llama2_location = "C:\\Users\\esmirno1\\Downloads\\work\\models\\model_with_rope_subgraph.xml";
-       // auto llama2_location = "C:\\Users\\esmirno1\\Downloads\\mlperf_v1.0_beta_offline-intel\\dependencies\\llm\\llama2\\models\\NativeOpenVINO\\Llama-2-7b-chat-hf_ov-int4-CHw\\openvino_model.xml";
-        auto llama2_location = "C:\\Users\\esmirno1\\Downloads\\work\\models\\Model0_00_FCEW000.xml";
-        //model = core.read_model("qwen1-7b/openvino_model.xml");
-        model = core.read_model(llama2_location);
+        auto llama2_location_gen = "C:\\Users\\esmirno1\\Downloads\\work\\models\\Model0_00_FCEW000.xml";
+        auto llama2_location_prefill = "C:\\Users\\esmirno1\\Downloads\\work\\models\\Model0_prefill_00_FCEW000.xml";
+
+        if (test.kind == NetworkKind::prefill) {
+            model = core.read_model(llama2_location_prefill);
+        } else {
+            model = core.read_model(llama2_location_gen);
+        }
 
        // SAVE_MODEL(model, "model_with_rope_subgraph.xml");
 
@@ -270,11 +271,11 @@ public:
 
 
 
-        ov::npuw::patterns::pre_compute::RopeCache rpe_fuse_only{true};
+        ov::npuw::patterns::pre_compute::RopeCache rpe_fuse_only{1024};
         rpe_fuse_only.run_on_model(model_ref);
 
         SAVE_MODEL(model_ref, "C:\\Users\\esmirno1\\Downloads\\work\\models\\model_with_rope_cached.xml");
-        ASSERT_TRUE(verify_rope_layer_detected(model_ref));  
+        ASSERT_TRUE(verify_rope_cached(model_ref));  
         
 
         comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
@@ -410,7 +411,7 @@ public:
 
         std::ostringstream result;
         result << "npuw_llm_pipeline_precompute_" << test.inputShape << "_" 
-               << (test.kind == NetworkKind::llama3 ?  "LLAMA3" : "LLAMA2") 
+               << (test.kind == NetworkKind::generate ?  "GEN" : "PREFIL") 
                << (test.hasSin ? "_with_sin" : "")
                << (test.hasCos ? "_with_cos" : "");
         return result.str();
@@ -571,6 +572,7 @@ public:
         const size_t ndims = 128;
         const size_t num_head = 32;
 
+       // TODO: restore build-rope function 
        // model = buildROPE_Llama2(batch, seq_length, max_position_embeddings, ndims, false); 
        // SAVE_MODEL(model, "rope_with_cosin_cache.xml");
         
@@ -593,8 +595,8 @@ public:
         ASSERT_EQ(values.size(), inv_freq_values.size());
 
         for (int i = 0; i < values.size(); ++i) {
-            std::cout<< "index: " << i << " v= " << values[i] << ", ref="<< inv_freq_values[i] << "\n";
-            //ASSERT_NEAR(values[i], inv_freq_values[i], 1e-5) << "Mismatch at index: " << i << ", by: " << std::abs(values[i] - inv_freq_values[i]);
+            //std::cout<< "index: " << i << " v= " << values[i] << ", ref="<< inv_freq_values[i] << "\n";
+            ASSERT_NEAR(values[i], inv_freq_values[i], 1e-5) << "Mismatch at index: " << i << ", by: " << std::abs(values[i] - inv_freq_values[i]);
         }
      }
 };
@@ -610,15 +612,15 @@ TEST_P(PrecomputeValidateInverseFreq, smoke_Run_MatchInverseFreqInRope) {
  
 namespace {
 // eliminate direct shape dependency to match llama2, as in test and in optimize function
-const std::vector<ov::Shape> input_shapes{{1, 0, 1151, 128}, {1, 0, 1141, 64}};
+const std::vector<ov::Shape> input_shapes{{1, 0, 1024, 128}, {1, 0, 1141, 64}};
 
 const std::vector<bool> hasSin{true, false};
 const std::vector<bool> hasCos{true, false};
 
 
 const std::vector<NetworkKind> networkKind = {
-    // llama2 or llama3 type of concat, with convert layer or without
-    NetworkKind::llama2,  NetworkKind::llama3
+    NetworkKind::prefill,  
+    NetworkKind::generate
 };
 
  INSTANTIATE_TEST_SUITE_P(smoke_Run_MatchAndPrecomputeSinCos,

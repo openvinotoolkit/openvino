@@ -47,7 +47,7 @@ DEFINE_OPT(NPUW_DQ_FULL, bool, true, npuw::partitioning::dyn_quant_full, Compile
 DEFINE_OPT(NPUW_PMM, std::string, "2", npuw::partitioning::par_matmul_merge_dims, CompileTime);
 DEFINE_OPT(NPUW_SLICE_OUT, bool, false, npuw::partitioning::slice_out, CompileTime);
 DEFINE_OPT(NPUW_HOST_GATHER, bool, true, npuw::partitioning::host_gather, CompileTime);
-DEFINE_OPT(NPUW_CACHE_RPE_SUBGRAPH, bool, true, npuw::partitioning::cache_rope, CompileTime);
+DEFINE_OPT(NPUW_CACHE_ROPE_SUBGRAPH, bool, true, npuw::partitioning::cache_rope, CompileTime);
 DEFINE_OPT(NPUW_SPATIAL, bool, false, npuw::partitioning::spatial, CompileTime);
 DEFINE_OPT(NPUW_F16IC, bool, false, npuw::partitioning::f16_interconnect, CompileTime);
 DEFINE_OPT(NPUW_SPATIAL_NWAY, std::size_t, 128, npuw::partitioning::spatial_nway, CompileTime);

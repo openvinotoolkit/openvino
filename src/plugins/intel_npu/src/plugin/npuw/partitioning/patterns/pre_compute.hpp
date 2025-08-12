@@ -5,32 +5,46 @@
 #pragma once
 
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 namespace ov :: npuw :: patterns :: pre_compute {
 
-class RPEPattern {
-    std::function<bool(ov::pass::pattern::Matcher&, RPEPattern &)>callback_keep;
+class RopePatternDesc {
+protected:
+    ov::matcher_pass_callback verifier_cb;
 public:
-    RPEPattern();
     std::shared_ptr<ov::Node> pattern;
-    bool callback(ov::pass::pattern::Matcher& m) {
-        return callback_keep(m, *this);
-    }
-
     std::shared_ptr<ov::Node> matched_inv_freq;
     std::shared_ptr<ov::Node> matched_position_ids;
     std::shared_ptr<ov::Node> matched_sin;
     std::shared_ptr<ov::Node> matched_cos;
+    //TODO: can be moved to private and init in ctor
+    ov::matcher_pass_callback callback;
+
+    ov::matcher_pass_callback make_matcher_callback() {
+        return [this](pass::pattern::Matcher& m) {
+            if (!verifier_cb(m)) {
+                return false;
+            }
+            return callback(m);
+        };
+    }
 };
-class SinCosLLama2 : public ov::pass::MatcherPass {
+
+class RopePatternLLama2 : public RopePatternDesc {
+public:
+    //using RopePatternDesc::callback;
+    RopePatternLLama2();
+};
+
+class RopeCacheMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::precompute::SinCosLLama2");
-
-    SinCosLLama2(const uint32_t max_prompt_len = 1024);
+    RopeCacheMatcher(const uint32_t max_prompt_len);
 };
 
-
-// keep only inverse freq results - TODO: adapt for any pattern
+// TODO: not used - only in tests
+// matches inverse freq tensor
 class RopeInverseFreq : public ov::pass::MatcherPass {
     public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::precompute::InverseFreq");
@@ -42,7 +56,6 @@ class RopeInverseFreq : public ov::pass::MatcherPass {
 };
 
 class RopeCache : public ov::pass::ModelPass {
-    const bool m_build_cache = false;
     const uint32_t m_max_prompt_len = 0;
 
 public:
@@ -50,8 +63,8 @@ public:
     /*
      * Rope cache is NPUW  pass that removes sin/cos subgraph and replaces it with corresponding LUT/gather operations
      */
-    RopeCache(const bool build_cache = true, const uint32_t max_prompt_len = 1024)
-        : m_build_cache(build_cache), m_max_prompt_len(max_prompt_len) {}
+    RopeCache(const uint32_t max_prompt_len)
+        : m_max_prompt_len(max_prompt_len) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 

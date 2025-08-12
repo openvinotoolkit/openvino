@@ -18,6 +18,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
+#include "partitioning/patterns/pre_compute.hpp"
 #include "util.hpp"
 
 namespace opp = ov::pass::pattern;
@@ -665,6 +666,18 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
     LOG_DEBUG("9. Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
+
+    // if (m_cfg.get<::intel_npu::NPUW_CACHE_ROPE_SUBGRAPH>()) {
+    //     LOG_DEBUG("10. Caching preROPE ");
+    //     ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+    //     rope_prefill_cacher.run_on_model(kvcache_model);
+
+    //     ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(max_prompt_len + min_response_len);
+    //     rope_generate_cacher.run_on_model(kvcache_model);
+    // } else {
+    //     LOG_DEBUG("10. Caching preROPE  --- SKIPPED");
+    // }
+
 
     auto npudesc = extract_npu_descriptor(plugin);
 

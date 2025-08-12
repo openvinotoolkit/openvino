@@ -20,7 +20,6 @@
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
 #include "partitioning/patterns/opt.hpp"
-#include "partitioning/patterns/pre_compute.hpp"
 #include "plugin.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
@@ -89,6 +88,9 @@ ov::npuw::DeviceProperties get_properties_per_device(const std::shared_ptr<const
 }  // namespace ov
 
 namespace {
+uint32_t align_to(uint32_t value, uint32_t alignment) {
+    return (value + alignment - 1) & ~(alignment - 1);
+}
 template <typename T>
 auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
     const auto& opt_name = std::string(T::key());
@@ -127,10 +129,6 @@ void pre_load_transform(const std::shared_ptr<ov::Model>& model, const ov::AnyMa
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulTranspose>();
         rewr.add_matcher<ov::npuw::patterns::opt::SliceLastMatmulMultiply>();
         rewr.run_on_model(model);
-    }
-    if (cfg_get<::intel_npu::NPUW_CACHE_RPE_SUBGRAPH>(props)) {
-        ov::npuw::patterns::pre_compute::RopeCache rpe_cacher;
-        rpe_cacher.run_on_model(model);
     }
     model->validate_nodes_and_infer_types();
 }
@@ -1696,7 +1694,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY),
                           BIND(npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN),
                           BIND(npuw::partitioning::host_gather, NPUW_HOST_GATHER),
-                          BIND(npuw::partitioning::cache_rope, NPUW_CACHE_RPE_SUBGRAPH),
+                          BIND(npuw::partitioning::cache_rope, NPUW_CACHE_ROPE_SUBGRAPH),
                           BIND(npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL),
                           BIND(npuw::partitioning::f16_interconnect, NPUW_F16IC),
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),

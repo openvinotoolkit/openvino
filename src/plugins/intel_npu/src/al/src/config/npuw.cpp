@@ -34,7 +34,7 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_SPATIAL_NWAY>();
     desc.add<NPUW_SPATIAL_DYN>();
     desc.add<NPUW_HOST_GATHER>();
-    desc.add<NPUW_CACHE_RPE_SUBGRAPH>();
+    desc.add<NPUW_CACHE_ROPE_SUBGRAPH>();
     desc.add<NPUW_F16IC>();
     desc.add<NPUW_DCOFF_TYPE>();
     desc.add<NPUW_DCOFF_SCALE>();
