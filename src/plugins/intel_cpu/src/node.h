@@ -362,7 +362,7 @@ public:
 
     virtual void addFusedNode(const NodePtr& fusingNode);
 
-    virtual void fuseInto(NodePtr& parentNode) {
+    virtual void fuseInto(const NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input
         // port a node was fused into parent one.
         for (size_t i = 0; i < getParentEdges().size(); i++) {

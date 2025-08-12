@@ -23,18 +23,14 @@
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/assign.hpp"
-#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/multiply.hpp"
 #include "openvino/op/read_value.hpp"
-#include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
@@ -45,6 +41,7 @@
 #include "transformations/defs.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 #include "transformations/transpose_sinking/ts_shape_of.hpp"
+#include "transformations/utils/utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include "transformations/cpu_opset/x64/pass/sdpa_fuse_transpose_reshape.hpp"
@@ -77,49 +74,12 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
     auto concat_k = wrap_type<ov::op::v0::Concat>({gather_input_k, cur_k});
     auto concat_v = wrap_type<ov::op::v0::Concat>({gather_input_v, cur_v});
 
-    std::shared_ptr<Node> reshape_k;
-    std::shared_ptr<Node> reshape_v;
-    std::shared_ptr<Node> unsqueeze_k;
-    std::shared_ptr<Node> unsqueeze_v;
-    std::shared_ptr<Node> computed_bcst_k;
-    std::shared_ptr<Node> computed_bcst_v;
-    std::shared_ptr<Node> multiply_k;
-    std::shared_ptr<Node> multiply_v;
-    std::shared_ptr<Node> mq_reshape_k;
-    std::shared_ptr<Node> mq_reshape_v;
-    std::shared_ptr<Node> computed_bcst3_k;
-    std::shared_ptr<Node> computed_bcst3_v;
-    auto multi_query_bcst = [](const std::shared_ptr<Node>& kv) {
-        auto reshape_kv = wrap_type<ov::op::v1::Reshape>({kv, any_input()});
-        auto unsqueeze_kv = wrap_type<ov::op::v0::Unsqueeze>({kv, any_input()});
-
-        auto check_one = [](const Output<Node>& output) -> bool {
-            auto node = ov::as_type_ptr<ov::op::v0::Constant>(output.get_node_shared_ptr());
-            if (!node) {
-                return false;
-            }
-            const auto& bcst_arg = node->cast_vector<float>();
-            return std::all_of(bcst_arg.begin(), bcst_arg.end(), [](float i) {
-                return i == 1.0F;
-            });
-        };
-        auto constant_bcst = wrap_type<ov::op::v0::Constant>(check_one);
-
-        auto computed_bcst =
-            wrap_type<ov::op::v1::Broadcast>({constant_bcst, any_input(), any_input()}, {{"mode", "numpy"}});
-
-        auto multiply_kv = wrap_type<ov::op::v1::Multiply>({reshape_kv | unsqueeze_kv, constant_bcst | computed_bcst});
-        auto computed_bcst3 =
-            wrap_type<ov::op::v3::Broadcast>({unsqueeze_kv, any_input()}, {{"mode", "bidirectional"}});
-
-        auto result = wrap_type<ov::op::v1::Reshape>({multiply_kv | computed_bcst3, any_input()});
-        return std::make_tuple(result, reshape_kv, unsqueeze_kv, computed_bcst, multiply_kv, computed_bcst3);
-    };
-
+    std::shared_ptr<Node> mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k;
     std::tie(mq_reshape_k, reshape_k, unsqueeze_k, computed_bcst_k, multiply_k, computed_bcst3_k) =
-        multi_query_bcst(concat_k);
+        ov::op::util::match_multi_query_bcst(concat_k);
+    std::shared_ptr<Node> mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v;
     std::tie(mq_reshape_v, reshape_v, unsqueeze_v, computed_bcst_v, multiply_v, computed_bcst3_v) =
-        multi_query_bcst(concat_v);
+        ov::op::util::match_multi_query_bcst(concat_v);
     auto present_k = concat_k | mq_reshape_k;
     auto present_v = concat_v | mq_reshape_v;
 

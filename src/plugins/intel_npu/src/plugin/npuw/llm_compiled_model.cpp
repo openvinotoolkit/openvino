@@ -7,6 +7,7 @@
 #include "logging.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/ops.hpp"
+#include "openvino/op/util/node_util.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/opsets/opset13.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
@@ -716,9 +717,8 @@ public:
             new_param->output(0).add_names({ov::npuw::LLMCompiledModel::output_embeds});
             matched_matmul->input(0).replace_source_output(new_param);
             auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            lm_head_model = std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)},
-                                                        ov::ParameterVector{new_param},
-                                                        "NPUW_LMHead");
+            lm_head_model =
+                std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
 
             return true;
         };
@@ -732,6 +732,7 @@ std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     rewr.add_matcher<CutLMHead>(lm_head_model);
     rewr.run_on_model(model);
+    lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
     model->validate_nodes_and_infer_types();
 
     return lm_head_model;
@@ -740,7 +741,8 @@ std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
 void reshape_to_static(std::shared_ptr<ov::Model> model,
                        const uint32_t input_size,
                        const uint32_t kvcache_size,
-                       const KVAxesPosition& kv_axes_position) {
+                       const KVAxesPosition& kv_axes_position,
+                       const uint32_t lora_rank) {
     std::map<std::string, ov::PartialShape> new_shapes;
     for (const auto& input : model->inputs()) {
         const auto& input_name = input.get_any_name();
@@ -762,6 +764,12 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             new_shape =
                 partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
+        } else if (ov::npuw::matchLoRAMatMulAString(input_name)) {
+            new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
+        } else if (ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
+            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
+        } else if (ov::npuw::matchLoRAMatMulBString(input_name)) {
+            new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else {
             const auto& partial_shape = input.get_partial_shape();
             new_shape = partial_shape;
@@ -1006,6 +1014,48 @@ std::map<std::string, std::string> any_copy(const ov::AnyMap& params) {
 }
 }  // namespace
 
+void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model) {
+    typedef std::shared_ptr<ov::op::util::AssignBase> PAssign;
+    typedef std::shared_ptr<ov::op::util::ReadValueBase> PReadValue;
+    std::vector<PReadValue> readValues;
+    std::vector<PAssign> assigns;
+    auto sinks = model->get_sinks();
+    for (size_t i = 0; i < sinks.size(); ++i) {
+        if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
+            auto variable_name = assign->get_variable_id();
+            if (!ov::npuw::matchLoRAMatMulAString(variable_name) && !ov::npuw::matchLoRAMatMulBString(variable_name) &&
+                !ov::npuw::matchLoRAMatMulAlphaString(variable_name)) {
+                continue;
+            }
+
+            auto read_value = ov::as_type_ptr<ov::op::util::ReadValueBase>(assign->get_input_node_shared_ptr(0));
+            OPENVINO_ASSERT(read_value, "Can't find ReadValue");
+            readValues.push_back(read_value);
+            assigns.push_back(assign);
+        }
+    }
+
+    ov::ParameterVector new_parameters;
+    new_parameters.reserve(readValues.size());
+    for (size_t i = 0; i < readValues.size(); ++i) {
+        auto read_value = readValues[i];
+        auto variable_name = read_value->get_variable_id();
+        const auto element_type = read_value->get_output_element_type(0);
+        const auto shape = read_value->get_output_partial_shape(0);
+
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(element_type, shape);
+        ov::op::util::set_name(*parameter, variable_name);
+        replace_node(read_value, parameter);
+
+        auto assign = assigns[i];
+        model->remove_sink(assign);
+        model->remove_variable(model->get_variable_by_id(variable_name));
+        new_parameters.push_back(parameter);
+    }
+
+    model->add_parameters(new_parameters);
+}
+
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties)
@@ -1043,6 +1093,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto kvcache_model = model->clone();
     LOG_DEBUG("Transform kvcache model from stateful to stateless.");
     ov::pass::StatefulToStateless().run_on_model(kvcache_model);
+    convert_stateful_lora_to_stateless(kvcache_model);
     LOG_DEBUG("   ...also convert BF16 to FP16");
     // Note: we need to identify original bf16 constants for potential weightless deserialization later
     // And only then do bf16 to f16 transformation
@@ -1105,16 +1156,22 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     m_kvcache_desc = KVCacheDesc{max_prompt_len, max_prompt_len + min_response_len, 0u, seq_len_dim};
     LOG_DEBUG("Make prefill model with static shapes");
+    m_max_lora_rank = m_cfg.get<::intel_npu::NPUW_LLM_MAX_LORA_RANK>();
     if (m_use_chunk_prefill) {
         reshape_to_static(prefill_model,
                           static_cast<uint32_t>(m_prefill_chunk_size),
                           m_kvcache_desc.max_prompt_size,
-                          axes);
+                          axes,
+                          m_max_lora_rank);
     } else {
-        reshape_to_static(prefill_model, m_kvcache_desc.max_prompt_size, m_kvcache_desc.max_prompt_size, axes);
+        reshape_to_static(prefill_model,
+                          m_kvcache_desc.max_prompt_size,
+                          m_kvcache_desc.max_prompt_size,
+                          axes,
+                          m_max_lora_rank);
     }
     LOG_DEBUG("Make kvcache model with static shapes");
-    reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes);
+    reshape_to_static(kvcache_model, 1u, m_kvcache_desc.total_size, axes, m_max_lora_rank);
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, 1, embed size], so only apply slice to
@@ -1299,6 +1356,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_kvcache_desc.v_tensors_transposed);
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
+        write(model_stream, m_max_lora_rank);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1506,6 +1564,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_kvcache_desc.v_tensors_transposed);
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
+        read(model_stream, compiled->m_max_lora_rank);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);

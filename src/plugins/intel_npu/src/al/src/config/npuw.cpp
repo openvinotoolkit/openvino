@@ -34,7 +34,6 @@ void intel_npu::registerNPUWOptions(OptionsDesc& desc) {
     desc.add<NPUW_SPATIAL_NWAY>();
     desc.add<NPUW_SPATIAL_DYN>();
     desc.add<NPUW_HOST_GATHER>();
-    desc.add<NPUW_HOST_GATHER_QUANT>();
     desc.add<NPUW_F16IC>();
     desc.add<NPUW_DCOFF_TYPE>();
     desc.add<NPUW_DCOFF_SCALE>();
@@ -63,6 +62,7 @@ void intel_npu::registerNPUWLLMOptions(OptionsDesc& desc) {
     desc.add<NPUW_LLM_SEQ_LEN_DIM>();
     desc.add<NPUW_LLM_MAX_PROMPT_LEN>();
     desc.add<NPUW_LLM_MIN_RESPONSE_LEN>();
+    desc.add<NPUW_LLM_MAX_LORA_RANK>();
     desc.add<NPUW_LLM_OPTIMIZE_V_TENSORS>();
     desc.add<NPUW_LLM_PREFILL_CHUNK_SIZE>();
     desc.add<NPUW_LLM_PREFILL_HINT>();
