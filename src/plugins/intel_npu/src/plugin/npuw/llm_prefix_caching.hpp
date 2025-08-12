@@ -30,6 +30,7 @@ public:
     size_t m_ref_count;
     bool m_is_full;
     BlocKVCache m_block_kv_cache;
+    std::chrono::time_point<std::chrono::system_clock> m_timestamp;
 
     // One block may have multiply children blocks
     std::vector<uint64_t> m_next_block_hashes;
@@ -95,15 +96,17 @@ private:
     // Mapping from hash to KV blocks
     std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> m_cache_map;
 
-    // LRU list to track the least recently used blocks
-    std::list<std::shared_ptr<KVBlock>> m_lru_list;
+    // Set to track track the least recently used blocks with no children
+    struct TimeStampOrder {
+        bool operator()(const std::shared_ptr<KVBlock>& lhs, const std::shared_ptr<KVBlock>& rhs) const {
+            return lhs->m_timestamp < rhs->m_timestamp;
+        }
+    };
+    std::set<std::shared_ptr<KVBlock>> m_lru_leaf_nodes;
 
     std::mutex m_mutex;
 
-    // Update the LRU list
-    void update_lru(const std::shared_ptr<KVBlock>& block);
-
-    // Evict the least recently used block which does not have any child block
+    // Evict the least recently used blocks with no children
     bool evict_lru_block();
 };
 
