@@ -28,23 +28,6 @@ using namespace cldnn;
 using namespace ::tests;
 using namespace testing;
 
-namespace {
-
-// TODO: Move somewhere
-template <class vecElementType>
-std::string vec2str(const std::vector<vecElementType>& vec) {
-    if (!vec.empty()) {
-        std::ostringstream result;
-        result << "(";
-        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
-        result << vec.back() << ")";
-        return result.str();
-    }
-    return "()";
-}
-
-}  // namespace
-
 TEST(permute_gpu_f32, output_ordering_test)
 {
     auto& engine = get_test_engine();

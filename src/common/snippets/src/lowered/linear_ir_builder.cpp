@@ -32,7 +32,7 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
         if (node_map.count(node.get()) == 0) {
             // get (already) cloned arguments and clone the node
             OutputVector cloned_args;
-            for (auto input : node->inputs()) {
+            for (const auto& input : node->inputs()) {
                 ov::Output<Node> output = input.get_source_output();
                 cloned_args.push_back(output.for_node(node_map.at(output.get_node())));
             }
@@ -50,13 +50,13 @@ std::vector<std::shared_ptr<ov::Node>> clone_nodes(const std::vector<std::shared
             auto rt_info = node->get_rt_info();
             cloned_node->get_rt_info() = rt_info;
 
-            for (auto output : node->outputs()) {
+            for (const auto& output : node->outputs()) {
                 const auto& output_rt_info = output.get_rt_info();
                 auto new_output = output.for_node(cloned_node);
                 new_output.get_rt_info() = output_rt_info;
             }
 
-            for (auto input : node->inputs()) {
+            for (const auto& input : node->inputs()) {
                 const auto& output_rt_info = input.get_rt_info();
                 auto new_input = cloned_node->input(input.get_index());
                 new_input.get_rt_info() = output_rt_info;
