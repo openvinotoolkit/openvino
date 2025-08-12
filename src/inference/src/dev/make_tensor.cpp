@@ -288,11 +288,7 @@ public:
                      [&shape, &element_type, &allocator] {
                          OPENVINO_ASSERT(allocator, "Allocator was not initialized");
                          const auto byte_size = util::get_memory_size_safe(element_type, shape);
-                         OPENVINO_ASSERT(byte_size,
-                                         "Cannot allocate memory for type: ",
-                                         element_type,
-                                         " and shape: ",
-                                         shape);
+                         OPENVINO_ASSERT(byte_size, bad_alloc_error_msg(element_type, shape));
                          auto data = const_cast<Allocator&>(allocator).allocate(*byte_size);
                          OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
                          initialize_elements(data, element_type, shape);
@@ -308,14 +304,15 @@ public:
         if (m_shape == new_shape)
             return;
 
+        const auto byte_size = util::get_memory_size_safe(m_element_type, new_shape);
+        OPENVINO_ASSERT(byte_size, bad_alloc_error_msg(m_element_type, new_shape));
         m_shape = std::move(new_shape);
 
-        if (get_size() > get_capacity()) {
+        if (*byte_size > get_bytes_capacity()) {
             destroy_memory();
-
             // allocate buffer and initialize objects from scratch
             m_capacity = m_shape;
-            m_ptr = m_allocator.allocate(get_bytes_capacity());
+            m_ptr = m_allocator.allocate(*byte_size);
             initialize_elements(m_ptr, m_element_type, m_shape);
         }
 
@@ -336,9 +333,11 @@ private:
     }
 
     void destroy_memory() {
-        destroy_elements(0, get_capacity());
-        m_allocator.deallocate(m_ptr, get_bytes_capacity());
-        m_ptr = nullptr;
+        if (m_ptr != nullptr) {
+            destroy_elements(0, get_capacity());
+            m_allocator.deallocate(m_ptr, get_bytes_capacity());
+            m_ptr = nullptr;
+        }
     }
 
     static void initialize_elements(void* data, const element::Type& element_type, const Shape& shape) {
@@ -355,6 +354,10 @@ private:
 
     size_t get_bytes_capacity() const {
         return element::get_memory_size(get_element_type(), get_capacity());
+    }
+
+    static std::string bad_alloc_error_msg(const element::Type& element_type, const Shape& shape) {
+        return "Cannot allocate memory for type: " + element_type.to_string() + " and shape: " + shape.to_string();
     }
 
     Allocator m_allocator;
