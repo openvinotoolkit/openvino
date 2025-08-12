@@ -40,7 +40,6 @@
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "memory_desc/dnnl_memory_desc.h"
 #    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
-#    include "onednn/iml_type_mapper.h"
 #endif
 
 #if defined(OV_CPU_WITH_KLEIDIAI)

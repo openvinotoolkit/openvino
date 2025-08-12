@@ -252,7 +252,7 @@ static dnnl::matmul::primitive_desc createDescriptorInternal(const dnnl::memory:
                                                              const dnnl::engine& engine,
                                                              const bool transposeA,
                                                              const bool transposeB) {
-    auto transpose = [](const dnnl::memory::desc& md) {
+    auto transposeDesc = [](const dnnl::memory::desc& md) {
         auto dims = md.get_dims();
         if (dims.size() < 2) {
             return md;
@@ -265,10 +265,17 @@ static dnnl::matmul::primitive_desc createDescriptorInternal(const dnnl::memory:
         return dnnl::memory::desc(dims, md.get_data_type(), strides);
     };
 
-    const dnnl::memory::desc& inputDescToUse = transposeA ? transpose(inputDesc) : inputDesc;
-    const dnnl::memory::desc& weightDescToUse = transposeB ? transpose(weightDesc) : weightDesc;
+    const dnnl::memory::desc& inputDescToUse = transposeA ? transposeDesc(inputDesc) : inputDesc;
+    const dnnl::memory::desc& weightDescToUse = transposeB ? transposeDesc(weightDesc) : weightDesc;
+    const size_t biasRank = biasDesc.get_ndims();
+    const size_t outputRank = outputDesc.get_ndims();
+    const dnnl::memory::desc& biasDescToUse = biasRank == outputRank
+                                                  ? biasDesc
+                                                  : dnnl::memory::desc(normalizeToRank(biasDesc.get_dims(), outputRank),
+                                                                       biasDesc.get_data_type(),
+                                                                       memory::format_tag::any);
 
-    return {engine, inputDescToUse, weightDescToUse, biasDesc, outputDesc, attr};
+    return {engine, inputDescToUse, weightDescToUse, biasDescToUse, outputDesc, attr};
 }
 
 static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
