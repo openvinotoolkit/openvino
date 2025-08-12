@@ -3,13 +3,12 @@
 //
 
 #include <cstddef>
-#include <iostream>
 #include <optional>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
 #include "debug_messages.hpp"
-#include "implementation_utils.hpp"
+#include "nodes/executors/implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/executor.hpp"
@@ -77,7 +76,7 @@ static const TypeMapping dnnlMatMulTypeMapping {
 static const TypeMapping aclMatMulTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
     {{_f32 | _f16, _f32 | _f16, _any, _any}, {bypass(), bypass(), use<0>(), use<0>()}},
-    {{_any, _any, _any, _any},               {just<f32>(), just<f32>(), just<f32>(), just<f32>()}}}
+    {{_any, _any, _any, _any},               {just<f32>(), just<f32>(), just<f32>(), just<f32>()}}
 };
 #endif
 

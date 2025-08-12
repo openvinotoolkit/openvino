@@ -37,7 +37,7 @@ public:
           m_context(std::move(context)),
           m_suitableImplementations(std::move(suitableImplementations)),
           m_executors(m_suitableImplementations.size()),
-          m_implId(0) {}
+    {}
 
     bool update(const MemoryArgs& memory) override {
         for (auto implId = select(memory, 0); implId < m_suitableImplementations.size();
@@ -104,7 +104,7 @@ private:
     std::vector<ExecutorImplementationRef> m_suitableImplementations;
     // executors cache
     std::vector<ExecutorPtr> m_executors;
-    size_t m_implId;
+    size_t m_implId = 0;
 };
 
 }  // namespace ov::intel_cpu
