@@ -736,6 +736,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             if (activation_node.get_dependencies().size() >= 3)
                 return;
 
+            if (activation_func == cldnn::activation_func::softplus) {
+                // This is WA :
+                // - SoftPlus can overflow on f16 so that jitter.cpp currently resolves by typecasting to f32
+                // - But it doesn't guarantee the case of fusion.
+                // - For now it needs to disable fusion for SoftPlus.
+                return;
+            }
+
             if (!input_data_supports_fusings(input, activation_node.id()) || input.get_dependencies().empty())
                 return;
 
