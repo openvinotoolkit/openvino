@@ -44,6 +44,7 @@ private:
     std::vector<float> dequantizationScales;
     std::vector<float> inputScale, outputScale;
     std::vector<float> inputShift, outputShift;
+    std::vector<float> weightScale;
 };
 
 using ACLConvolutionExecutorPtr = std::shared_ptr<ACLConvolutionExecutor>;

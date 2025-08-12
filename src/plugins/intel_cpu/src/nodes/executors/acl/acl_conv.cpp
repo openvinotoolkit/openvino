@@ -54,6 +54,7 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
 
     dilation = arm_compute::Size2D(attrs.dilation[1] + 1, attrs.dilation[0] + 1);
 
+    weightScale = attrs.dqScales;
     //TODO: do we need to check there is only 1 post op?
     if (!attrs.postOps.empty() && attrs.postOps.size() == 1) {
         if (const auto activation = std::any_cast<ActivationPostOp>(&attrs.postOps[0])) {
@@ -62,8 +63,13 @@ ACLConvolutionExecutor::ACLConvolutionExecutor(const ConvAttrs& attrs,
                                                         activation->beta(),
                                                         activation->gamma());
         } else if (const auto fq = std::any_cast<FakeQuantizePostOp>(&attrs.postOps[0])) {
+            //char* sc = std::getenv("OV_CPU_SCALE");
+            //float fl = std::stof(sc);
             inputScale = fq->inputScale();
             inputShift = fq->inputShift();
+            //inputScale.push_back(std::stof(std::getenv("OV_CPU_D_SCALE")));//fq->inputScale();
+            //inputShift.push_back(std::stof(std::getenv("OV_CPU_D_SHIFT")));//fq->inputShift();
+            std::cout << "inputScale: " << inputScale[0] << "inputShift: " << inputShift[0] << std::endl;
             outputScale = fq->outputScale();
             outputShift = fq->outputShift();
         } else {
@@ -94,17 +100,17 @@ bool ACLConvolutionExecutor::supports(const ConvConfig& config) {
 
 arm_compute::Status ACLConvolutionExecutor::validateTensorsInfo(const ACLInfos& aclMemoryInfos) {
     //auto& tensor_info = aclMemoryInfos[ACLArgs::ACL_SRC_0];
-    if (inputScale.empty()) {//(dequantizationScales.empty()) {
-        aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0, 0, false));
-    } else {
+    //if (inputScale.empty()) {//(dequantizationScales.empty()) {
+    //    aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0, 0, false));
+    //} else {
         //tensor_info->set_quantization_info(arm_compute::QuantizationInfo(inputScale[0], inputShift[0], true/*dequantizationScales[0]*/));
-        aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0, 0, false));
-    }
+        aclMemoryInfos[ACLArgs::ACL_SRC_0]->set_quantization_info(arm_compute::QuantizationInfo(1.0, std::stof(std::getenv("OV_CPU_S_SHIFT"))/*1, 0*/, false));
+    //}
 
     //auto& tensor_info_weights = aclMemoryInfos[ACLArgs::ACL_WEI];
-    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(arm_compute::QuantizationInfo(1, 0, false));
+    aclMemoryInfos[ACLArgs::ACL_WEI]->set_quantization_info(arm_compute::QuantizationInfo(weightScale.empty() ? 1.0 : weightScale[0], std::stof(std::getenv("OV_CPU_W_SHIFT"))/*1, 0*/, false));
     //auto& tensor_info_out = aclMemoryInfos[ACLArgs::ACL_DST];
-    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(arm_compute::QuantizationInfo(inputScale[0], inputShift[0], false));
+    aclMemoryInfos[ACLArgs::ACL_DST]->set_quantization_info(arm_compute::QuantizationInfo(inputScale.empty() ? 1.0 : 1.0 / inputScale[0], std::stof(std::getenv("OV_CPU_D_SHIFT"))/*inputScale[0], inputShift[0]*//*1, 0*/, false));
     //tensor_info_out->set_quantization_info(arm_compute::QuantizationInfo(outputScale[0], outputShift[0], true));
     /*dstTensorInfo = std::make_shared<arm_compute::TensorInfo>(aclMemoryInfos[ACLArgs::ACL_DST].get()->tensor_shape(),
                                             aclMemoryInfos[ACLArgs::ACL_DST].get()->num_channels(),

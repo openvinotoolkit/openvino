@@ -1530,14 +1530,14 @@ void FakeQuantize::initSupportedPrimitiveDescriptors() {
         }
         return impl_desc_type::ref;
     }();
-    if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
+    /*if (!mayiuse(cpu::x64::sse41) || getAxis() != 1) {
         impl_type = impl_desc_type::ref;
 
         if (!isBinarization()) {
             inputPrecision = ov::element::f32;
             outputPrecision = ov::element::f32;
         }
-    }
+    }*/
 
     std::vector<LayoutType> dataFormats;
     // reference implementation supports only planar format
@@ -1793,16 +1793,16 @@ void FakeQuantize::executeReference() {
             dst[dst_off / nbits] = bin_val;
         });
     } else {
-        auto* dst = dstMemory->getDataAs<float>();
+        auto* dst = dstMemory->getDataAs<int8_t>();
 
         parallel_nd(N, C, D, H, W, [&](dim_t n, dim_t c, dim_t d, dim_t h, dim_t w) {
             size_t src_off = n * s_str[0];
             if (srcDims.size() == 5) {
-                src_off += d * s_str[2] + h * s_str[3] + w * s_str[4];
+                src_off += c * s_str[1] + d * s_str[2] + h * s_str[3] + w * s_str[4];
             } else if (srcDims.size() == 4) {
-                src_off += h * s_str[2] + w * s_str[3];
+                src_off += c * s_str[1] + h * s_str[2] + w * s_str[3];
             } else if (srcDims.size() == 3) {
-                src_off += h * s_str[2];
+                src_off += c * s_str[1] + h * s_str[2];
             } else if (srcDims.size() == 2) {
                 src_off += c * s_str[1];
             }
@@ -1826,13 +1826,15 @@ void FakeQuantize::executeReference() {
             dst_val = roundf(dst_val);
             dst_val = dst_val * osc + osh;
 
-            size_t dst_off = n * d_str[0] + c * d_str[1];
+            size_t dst_off = n * d_str[0];
             if (dstDims.size() == 5) {
-                dst_off += d * d_str[2] + h * d_str[3] + w * d_str[4];
+                dst_off += c * d_str[1] + d * d_str[2] + h * d_str[3] + w * d_str[4];
             } else if (dstDims.size() == 4) {
-                dst_off += h * d_str[2] + w * d_str[3];
+                dst_off += c * d_str[1] + h * d_str[2] + w * d_str[3];
             } else if (dstDims.size() == 3) {
-                dst_off += h * d_str[2];
+                dst_off += c * d_str[1] + h * d_str[2];
+            } else if (dstDims.size() == 2) {
+                dst_off += c * d_str[1];
             }
 
             dst[dst_off] = dst_val;

@@ -263,7 +263,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(common, ConvolutionBackpropDataTransformation, params)
     ADD_MATCHER(common, DepthToSpaceTransformation, params)
     ADD_MATCHER(common, FakeQuantizeDecompositionTransformation, params)
-    ADD_MATCHER(common, FakeQuantizeTransformation, params)
+    //ADD_MATCHER(common, FakeQuantizeTransformation, params)
     ADD_MATCHER(common, InterpolateTransformation, params)
     ADD_MATCHER(common, GroupConvolutionTransformation, params)
     ADD_MATCHER(common, MatMulTransformation, params)
@@ -300,7 +300,7 @@ bool ov::pass::low_precision::LowPrecision::run_on_model(const std::shared_ptr<o
     ADD_MATCHER(cleanup, FoldConvertTransformation, params)
     ADD_MATCHER(cleanup, FuseConvertTransformation, params)
     ADD_MATCHER(cleanup, FuseSubtractToFakeQuantizeTransformation, params)
-    ADD_MATCHER(cleanup, FuseMultiplyToFakeQuantizeTransformation, params)
+    //ADD_MATCHER(cleanup, FuseMultiplyToFakeQuantizeTransformation, params)
 
     // WA: precision restrictions for groupConv must be propagated to MultiplyToGroupConvolution transformation
     ADD_MATCHER(cleanup,

@@ -21,7 +21,7 @@ public:
 
         std::tie(inFmts, outFmts, priority, selectedType) = CPUSpecificParams{{}, {}, {}, CPUTestsBase::any_type};
         const auto precision = element::f32;
-        const auto input_static_shape = Shape{16, 3, 9, 9};
+        const auto input_static_shape = Shape{4, 3, 2, 2};
 
         auto in_shapes = static_shapes_to_test_representation({input_static_shape});
         init_input_shapes({in_shapes});
@@ -31,19 +31,19 @@ public:
         auto fq_before = ov::test::utils::make_fake_quantize(input_params[0], precision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
         // Weights
-        auto weights_shape = Shape{16, 3, 9, 9};
+        auto weights_shape = Shape{4, 3, 2, 2};
         auto weights = utils::make_constant(element::i8, weights_shape, ov::test::utils::InputGenerateData(0, 2, 1));
         auto convert = std::make_shared<op::v0::Convert>(weights, element::f32);
-        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, {1, 1}, {1.0}));
+        auto multiply = std::make_shared<op::v1::Multiply>(convert, op::v0::Constant::create(element::f32, /*weights_shape*/{1, 1}, {0.625}));
 
         std::shared_ptr<Node> conv;
         {
-            const std::vector<size_t> kernelSize = {3, 3};
+            const std::vector<size_t> kernelSize = {1, 1};
             const std::vector<size_t> strides = {1, 1};
             const std::vector<ptrdiff_t> padBegin = {0, 0};
             const std::vector<ptrdiff_t> padEnd = {0, 0};
             const std::vector<size_t> dilation = {1, 1};
-            const size_t numOutChannels = 16;
+            const size_t numOutChannels = 4;
             const op::PadType paddingType = op::PadType::EXPLICIT;
             conv = ov::test::utils::make_convolution(fq_before,
                                                      multiply,
@@ -67,6 +67,18 @@ public:
 
         function = makeNgraphFunction(precision, input_params, matMul, "ConvFQ");
     }
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& funcInputs = function->inputs();
+            const auto& funcInput = funcInputs[0];
+            ov::Tensor tensor;
+                ov::test::utils::InputGenerateData in_data;
+                in_data.start_from = -1;
+                in_data.range = 2;
+                in_data.resolution = 256;
+                tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[0], in_data);
+            inputs.insert({funcInput.get_node_shared_ptr(), tensor});
+        }
 };
 
 namespace {

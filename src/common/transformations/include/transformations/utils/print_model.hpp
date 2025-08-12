@@ -161,7 +161,7 @@ std::string to_code(std::shared_ptr<ov::op::v0::Constant> constop, bool force_br
     auto ele_size = shape_size(constop->get_shape());
     if (ele_size < 9) {
         const char* sep = "";
-        for (auto v : constop->get_value_strings()) {
+        for (auto v : constop->toString()) {
             ss << sep << v;
             sep = ", ";
         }
