@@ -12,18 +12,6 @@ using namespace tests;
 
 namespace {
 
-template <class vecElementType>
-std::string vec2str(const std::vector<vecElementType>& vec) {
-    if (!vec.empty()) {
-        std::ostringstream result;
-        result << "(";
-        std::copy(vec.begin(), vec.end() - 1, std::ostream_iterator<vecElementType>(result, "."));
-        result << vec.back() << ")";
-        return result.str();
-    }
-    return "()";
-}
-
 template <class T>
 std::vector<T> convert(const std::vector<float>& v) {
     std::vector<T> result(v.begin(), v.end());
