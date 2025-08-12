@@ -2,19 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <cstddef>
-#include <iostream>
 #include <optional>
 #include <vector>
 
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "debug_messages.hpp"
-#include "implementation_utils.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/dnnl/dnnl_matmul_primitive.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
 #include "nodes/executors/executor_implementation.hpp"
+#include "nodes/executors/implementation_utils.hpp"
 #include "nodes/executors/implementations.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/memory_arguments.hpp"
@@ -23,15 +20,13 @@
 #include "nodes/executors/type_mask.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "utils/arch_macros.h"
-#include "utils/general_utils.h"
 
 #ifdef OPENVINO_ARCH_X86_64
-#    include "nodes/executors/x64/matmul_small.hpp"
-#endif
+#    include <cstddef>
 
-#if defined(OV_CPU_WITH_ACL)
-#    include "nodes/executors/acl/acl_fullyconnected.hpp"
-#    include "nodes/executors/common/common_utils.hpp"
+#    include "debug_messages.hpp"
+#    include "nodes/executors/x64/matmul_small.hpp"
+#    include "utils/general_utils.h"
 #endif
 
 namespace ov::intel_cpu {
@@ -77,7 +72,7 @@ static const TypeMapping dnnlMatMulTypeMapping {
 static const TypeMapping aclMatMulTypeMapping {
     // {src, wei, bia, dst}                  pt<src, wei, bias, dst>
     {{_f32 | _f16, _f32 | _f16, _any, _any}, {bypass(), bypass(), use<0>(), use<0>()}},
-    {{_any, _any, _any, _any},               {just<f32>(), just<f32>(), just<f32>(), just<f32>()}}}
+    {{_any, _any, _any, _any},               {just<f32>(), just<f32>(), just<f32>(), just<f32>()}}
 };
 #endif
 
