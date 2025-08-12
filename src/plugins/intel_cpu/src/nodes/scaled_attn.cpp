@@ -1235,17 +1235,13 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     impl_desc_type implType = impl_desc_type::ref_any;
 #if defined(OPENVINO_ARCH_X86_64)
     if (rtPrecision == ov::element::bf16) {
-        // BF16 requires specific hardware support
         if (ov::with_cpu_x86_bfloat16()) {
-            // oneDNN will be used for BF16
             implType = impl_desc_type::jit_avx512;
         } else {
             implType = impl_desc_type::ref_any;
         }
     } else if (rtPrecision == ov::element::f16) {
-        // F16 requires AVX512_CORE_FP16
         if (with_cpu_x86_avx512_core_fp16()) {
-            // oneDNN will be used for F16 
             implType = impl_desc_type::jit_avx512;
         } else {
             implType = impl_desc_type::ref_any;
@@ -1253,10 +1249,8 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     } else {
         // F32 path
         #ifdef OV_CPU_WITH_MLAS
-            // MLAS is preferred for F32 when available
             implType = impl_desc_type::mlas;
         #else
-            // oneDNN requires AVX512_CORE for F32
             if (with_cpu_x86_avx512_core()) {
                 implType = impl_desc_type::jit_avx512;
             } else {
@@ -1265,10 +1259,8 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
         #endif
     }
 #elif defined(OV_CPU_WITH_ACL)
-    // On ARM with ACL support - ACL supports both F16 and F32
     implType = impl_desc_type::acl;
 #else
-    // Pure reference implementation
     implType = impl_desc_type::ref_any;
 #endif
 
