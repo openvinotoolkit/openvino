@@ -26,6 +26,7 @@
 #include "dnnl_extension_utils.h"
 #include "edge.h"
 #include "graph_context.h"
+#include "itt.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
@@ -820,6 +821,7 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
+    OV_ITT_SCOPED_TASK(ov::intel_cpu::itt::domains::intel_cpu, getName() + ".execute")
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {
