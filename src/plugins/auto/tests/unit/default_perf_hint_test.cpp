@@ -13,7 +13,7 @@ static std::vector<ConfigParams> testConfigs;
 
 class AutoDefaultPerfHintTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<ConfigParams>& obj) {
         const auto& [deviceName, targetDevices, deviceConfigs] = obj.param;
         std::ostringstream result;
         result << deviceName;
