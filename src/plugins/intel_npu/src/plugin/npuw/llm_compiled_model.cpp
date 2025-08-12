@@ -1215,7 +1215,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
-    if (m_cfg.get<::intel_npu::NPUW_CACHE_ROPE_SUBGRAPH>()) {
+    if (m_cfg.get<::intel_npu::NPUW_CACHE_ROPE>()) {
         LOG_DEBUG("Caching preROPE ");
         ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
         rope_prefill_cacher.run_on_model(prefill_model);
@@ -1224,13 +1224,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         rope_generate_cacher.run_on_model(kvcache_model);
     }
 
-    auto npudesc = extract_npu_descriptor(plugin);
-
-    // NB: PREFILL_HINT is only applicable for default prefill config!
-    if (prefill_config_opt.has_value() && npuw_llm_props.count(ov::intel_npu::npuw::llm::prefill_hint.name())) {
-        OPENVINO_THROW("PREFILL_HINT only works with default prefill config!");
-    }
-    const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
