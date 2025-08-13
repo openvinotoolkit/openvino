@@ -1515,9 +1515,7 @@ void Transformations::MainSnippets() {
         [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
-#if defined(OPENVINO_ARCH_ARM64)
-        return false;
-#elif defined(SNIPPETS_LIBXSMM_TPP)
+#if defined(SNIPPETS_LIBXSMM_TPP)
         // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
         if (!n->is_dynamic()) {
             std::vector<std::vector<size_t>> layouts(3);
@@ -1543,7 +1541,14 @@ void Transformations::MainSnippets() {
             return !ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions);
         }
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+        // KleidiAI matmul primitives do not support transposed B input
+        return false;
+#elif defined(OPENVINO_ARCH_X86_64)
         return true;
+#else
+        OPENVINO_ASSERT(false, "ExplicitTransposeMatMulInputs callback is not supported on this architecture");
+#endif
     };
 
     CPU_SET_CALLBACK_COMMON(
