@@ -458,6 +458,10 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
                 // user tensor?
                 _logger.debug("Reuse current L0 tensor, since user tensor is not L0 tensor & can not be imprt & is not "
                               "shared from last round, and old L0 tensor is large enough");
+                if (_graph->use_dynamic_pipeline()) {
+                    // Update to use user info
+                    updateCommandListArg = true;
+                }
             }
         }
     }
