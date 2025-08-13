@@ -127,10 +127,9 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         ov::replace_node(rpe->matched_cos, squeeze_cos);
         ov::replace_node(rpe->matched_sin, squeeze_sin);
 
-        // TODO: concat_1 still reacheable in partitioning - how to avoid that
-        for (size_t i = 0; i < rpe->matched_concat->get_input_size(); ++i) {
-        //     rpe->matched_concat->input(i).replace_source_output(ov::Output<ov::Node>()); // empty output
-        }
+        // disconnecting gather from rest or subgraph started from concat_1
+        auto gather_input_to_concat = rpe->matched_concat->input(0);
+        gather_input_to_concat.get_source_output().remove_target_input(gather_input_to_concat);
     };
     rpe->run_on_model(model);
 }
