@@ -139,7 +139,7 @@ def init_test_scope():
                 test_case = model_id, precision, device
                 if device == "GPU" and sys.platform == "win32":
                     test_case = pytest.param(*test_case, marks=pytest.mark.xfail(
-                        reason="Random exceptions and crushes. Ticket win32", run=False
+                        reason="Random exceptions and crashes. Ticket win32", run=False
                     ))
                 test_scope.append(test_case)
 
