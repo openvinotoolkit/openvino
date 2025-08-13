@@ -7,7 +7,6 @@
 
 #include "scenario/inference.hpp"
 #include "utils/error.hpp"
-#include "utils/logger.hpp"
 
 #include <opencv2/gapi/infer/onnx.hpp>  // onnx::Params
 #include <opencv2/gapi/infer/ov.hpp>    // ov::Params
@@ -37,8 +36,7 @@ static cv::gapi::GNetPackage getNetPackage(const std::string& tag, const OpenVIN
             network->cfgOutputTensorPrecision(std::get<AttrMap<int>>(params.output_precision));
         }
 
-        if (params.clamp_outputs && !std::holds_alternative<std::monostate>(params.output_precision)) {
-            LOG_INFO() << "Clamping outputs" << std::endl;
+        if (params.clamp_outputs) {
             network->cfgClampOutputs();
         }
 
