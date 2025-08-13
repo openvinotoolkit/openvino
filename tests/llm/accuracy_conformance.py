@@ -2,7 +2,6 @@ import gc
 import logging
 import os
 import shutil
-import sys
 import tempfile
 
 import pytest
@@ -41,7 +40,6 @@ TEST_CATALOG = {
         },
     },
 }
-
 
 NUMBER_OF_SAMPLES = 15
 METRIC_OF_INTEREST = "similarity"
@@ -137,7 +135,7 @@ def init_test_scope():
         for device in TEST_CATALOG[model_id].keys():
             for precision in TEST_CATALOG[model_id][device].keys():
                 test_case = model_id, precision, device
-                if device == "GPU" and sys.platform == "win32":
+                if device == "GPU" and os.name == "nt":
                     test_case = pytest.param(*test_case, marks=pytest.mark.xfail(
                         reason="Random exceptions and crashes. Ticket win32", run=False
                     ))
