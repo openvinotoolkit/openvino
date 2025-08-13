@@ -186,3 +186,4 @@ xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2
 xfail_issue_171768 = pytest.mark.skip(reason="Unsupported feature: RMSNormalization")
 xfail_issue_171770 = pytest.mark.skip(reason="Unsupported feature: RotaryEmbedding")
 xfail_issue_171771 = pytest.mark.skip(reason="Mismatches in tests: Top K values")
+xfail_issue_171772 = pytest.mark.skip(reason="AveragePool last window starts on pad test fails")
