@@ -2,6 +2,7 @@ import gc
 import logging
 import os
 import shutil
+import sys
 import tempfile
 
 import pytest
@@ -41,10 +42,6 @@ TEST_CATALOG = {
     },
 }
 
-# Extract configuration from catalog
-MODEL_IDS = list(TEST_CATALOG.keys())
-DEVICES = list(set(device for model_config in TEST_CATALOG.values() 
-                  for device in model_config.keys()))
 
 NUMBER_OF_SAMPLES = 15
 METRIC_OF_INTEREST = "similarity"
@@ -93,7 +90,7 @@ def get_gt_path(model_id, use_chat_template):
 def init_test_scope():
     test_scope = []
 
-    for model_id in MODEL_IDS:
+    for model_id in TEST_CATALOG.keys():
         logger.info(f"Downloading and quantizing model: {model_id}")
         model = AutoModelForCausalLM.from_pretrained(model_id)
         tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -139,7 +136,12 @@ def init_test_scope():
         # Generate test cases for all device/precision combinations in catalog
         for device in TEST_CATALOG[model_id].keys():
             for precision in TEST_CATALOG[model_id][device].keys():
-                test_scope.append((model_id, precision, device))
+                test_case = model_id, precision, device
+                if device == "GPU" and sys.platform == "win32":
+                    test_case = pytest.param(*test_case, marks=pytest.mark.xfail(
+                        reason="Random exceptions and crushes. Ticket win32", run=False
+                    ))
+                test_scope.append(test_case)
 
     return test_scope
 
@@ -152,7 +154,7 @@ def teardown_module():
         logger.info(f"Cleanup disabled - preserving directory: {tmp_dir}")
     else:
         logger.info(f"Deleting temporary directory: {tmp_dir}")
-        shutil.rmtree(tmp_dir)
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 test_scope = init_test_scope()
