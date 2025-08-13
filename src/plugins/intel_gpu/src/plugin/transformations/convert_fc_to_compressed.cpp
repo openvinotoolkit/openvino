@@ -35,11 +35,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 output.get_element_type() == ov::element::i4);
     };
 
-    auto reshape_3d_to_2d = [](const ov::Output<ov::Node>& output) {
+    auto reshape_unsqueeze = [](const ov::Output<ov::Node>& output) {
         auto in_ps = output.get_node()->get_input_partial_shape(0);
         auto out_ps = output.get_node()->get_output_partial_shape(0);
-        return in_ps.rank().is_static() && out_ps.rank().is_static() && in_ps.size() == 3 && out_ps.size() == 2;
+        return in_ps.rank().is_static() && out_ps.rank().is_static() &&
+            ((in_ps.size() == 3 && out_ps.size() == 2) || (in_ps.size() == 4 && out_ps.size() == 3));
     };
+
 
     auto weights_m = wrap_type<ov::op::v0::Constant>(compressed_constant);
     auto convert_m = wrap_type<ov::op::v0::Convert>({weights_m});
@@ -56,7 +58,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
     auto mul_m = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{mul_with_sub_m, mul_no_sub_m});
 
     auto reshape_const_m = wrap_type<ov::op::v0::Constant>();
-    auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, reshape_3d_to_2d);
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({mul_m, reshape_const_m}, reshape_unsqueeze);
+    auto convert_reshape_m = wrap_type<ov::op::v0::Convert>({reshape_m});
 
     auto mul2_const_m = wrap_type<ov::op::v0::Constant>();
     auto mul2_m = wrap_type<ov::op::v1::Multiply>({reshape_m, mul2_const_m});
@@ -67,7 +70,8 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
 
     auto data_m = any_input();
     auto bias_m = any_input();
-    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(ov::OutputVector{reshape_m, transpose_m, mul_m, mul2_m});
+    auto weights_input_m = std::make_shared<ov::pass::pattern::op::Or>(
+        ov::OutputVector{reshape_m, convert_reshape_m, transpose_m, mul_m, mul2_m});
     auto fully_connected_m = wrap_type<op::FullyConnected>({data_m, weights_input_m, bias_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
@@ -81,18 +85,13 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (!fc || transformation_callback(fc)) {
             return false;
         }
-
-        bool has_reshape_2d = false;
-        if (pattern_map.count(reshape_m)) {
-            const auto& reshape_node = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(reshape_m).get_node_shared_ptr());
-            const auto& reshape_target_shape = reshape_node->get_output_partial_shape(0);
-            has_reshape_2d = reshape_target_shape.size() == 2;
-        }
         bool has_transpose = pattern_map.count(transpose_m);
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) { return d > 1; }) > 1;
         bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
-        bool is_3d_fc = !has_reshape_2d && scale_shape.size() == 3 && scale_shape[0] > 1;
+
+        auto weight_shape = fc->get_input_shape(1);
+        bool is_3d_fc = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) { return d > 1; }) == 3);
 
         auto weight_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
         bool weight_u8 = false;
@@ -106,13 +105,18 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             if (current_shape.size() <= 2)
                 return constant;
 
-            OPENVINO_ASSERT(current_shape.size() == 3);
-            if (is_3d_fc)
-                return constant;
-
-            auto new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
-                                                         : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
-
+            ov::Shape new_shape;
+            if (current_shape.size() == 3) {
+                if (is_3d_fc)
+                    return constant;
+                else
+                    new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0] * current_shape[1], current_shape[2]}
+                                                            : ov::Shape{current_shape[0], current_shape[1] * current_shape[2]};
+            } else {
+                OPENVINO_ASSERT(current_shape.size() == 4 && is_3d_fc);
+                    new_shape = (has_transpose || !grouped) ? ov::Shape{current_shape[0], current_shape[1] * current_shape[2], current_shape[3]}
+                                                            : ov::Shape{current_shape[0], current_shape[1], current_shape[3] * current_shape[1]};
+            }
             auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
 
             ov::copy_weightless_cache_attr(constant, new_constant);
