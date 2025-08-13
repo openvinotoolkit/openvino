@@ -1216,7 +1216,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
-    if (m_cfg.get<::intel_npu::NPUW_CACHE_ROPE>()) {
+    if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
         LOG_DEBUG("Caching preROPE ");
         ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
         rope_prefill_cacher.run_on_model(prefill_model);

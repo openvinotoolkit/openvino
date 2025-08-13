@@ -253,14 +253,6 @@ static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
 /**
  * @brief
- * Type: boolean
- * Substitute part of the RoPE with compile-time precalculation in higher precision
- * Default value: true.
- */
-static constexpr ov::Property<bool> cache_rope{"NPUW_CACHE_ROPE"};
-
-/**
- * @brief
  * Type: std::string.
  * Promotional data type for weights decompression. Works only with function "NPUW_FOLD"ing.
  * Possible values: "i8", "f16"
@@ -456,6 +448,14 @@ static constexpr ov::Property<uint32_t> max_lora_rank{"NPUW_LLM_MAX_LORA_RANK"};
  * Default value: false.
  */
 static constexpr ov::Property<bool> optimize_v_tensors{"NPUW_LLM_OPTIMIZE_V_TENSORS"};
+
+/**
+ * @brief
+ * Type: boolean
+ * Substitute part of the RoPE with compile-time precalculation in higher precision
+ * Default value: true.
+ */
+static constexpr ov::Property<bool> cache_rope{"NPUW_LLM_CACHE_ROPE"};
 
 /**
  * @brief
