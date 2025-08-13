@@ -35,15 +35,15 @@ bool KVBlock::add_block(const std::vector<uint64_t>& token_hashes, const BlocKVC
 }
 
 void KVBlock::link_blocks(std::shared_ptr<KVBlock> prev_block) {
-    prev_block->m_next_block_hashes.insert(m_block_hash);
+    prev_block->m_child_block_hashes.insert(m_block_hash);
 
-    m_prev_block_hash = prev_block->m_block_hash;
+    m_parent_block_hash = prev_block->m_block_hash;
 }
 
 void KVBlock::unlink_blocks(std::shared_ptr<KVBlock> prev_block) {
-    prev_block->m_next_block_hashes.erase(m_block_hash);
+    prev_block->m_child_block_hashes.erase(m_block_hash);
 
-    m_prev_block_hash = 0;
+    m_parent_block_hash = 0;
 }
 
 uint64_t KVBlock::compute_block_hash(const std::vector<uint64_t>& token_hashes) const {
@@ -59,15 +59,14 @@ void KVBlock::print_block_info(bool verbose) const {
     std::cout << "  Block hash: " << m_block_hash << std::endl;
     std::cout << "  Ref Count: " << m_ref_count << std::endl;
     std::cout << "  Status: " << (m_is_full ? "Full" : "Not Full") << std::endl;
-    std::cout << "  Block index: " << m_block_id << std::endl;
     std::cout << "  Token start: " << m_token_start << std::endl;
 
     std::cout << "  Children blocks: " << std::endl;
-    if (m_next_block_hashes.empty()) {
+    if (m_child_block_hashes.empty()) {
         std::cout << "    Null" << std::endl;
     } else {
         size_t index = 0;
-        for (auto it = m_next_block_hashes.begin(); it != m_next_block_hashes.end(); ++it, ++index) {
+        for (auto it = m_child_block_hashes.begin(); it != m_child_block_hashes.end(); ++it, ++index) {
             std::cout << "    hash [" << index << "]: " << *it << std::endl;
         }
     }
@@ -101,7 +100,7 @@ void KVBlock::print_block_info(bool verbose) const {
 
 void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash) {
     // Do not cache incomplete blocks
-    if (!block->m_is_full) {
+    if (!block->is_full()) {
         return;
     }
 
@@ -109,7 +108,7 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         std::lock_guard<std::mutex> lock(m_mutex);
 
         // Check if the block is already cached
-        const auto curr_block = get_block_unsafe(block->m_block_hash);
+        const auto curr_block = get_block_unsafe(block->get_block_hash());
         if (curr_block != nullptr) {
             update_lru(curr_block);
             return;
@@ -128,9 +127,6 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
             return;
         }
 
-        // Add block to cache
-        block->m_block_id = m_cache_map.size();
-
         if (m_cache_map.size() >= m_max_cache_size) {
             if (!evict_lru_block()) {
                 // New block is not added into the cache
@@ -141,7 +137,7 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
             }
         }
 
-        m_cache_map[block->m_block_hash] = block;
+        m_cache_map[block->get_block_hash()] = block;
         // New added block is a leaf node
         update_lru(block);
     }
@@ -158,7 +154,7 @@ bool PrefixCacheManager::evict_lru_block() {
     // Evict the least recently used block which does not have any child block
     for (auto lru_it = m_lru_list.rbegin(); lru_it != m_lru_list.rend(); ++lru_it) {
         auto lru_block = *lru_it;
-        if (!lru_block->m_next_block_hashes.empty()) {
+        if (!lru_block->get_child_block_hashes().empty()) {
             continue;
         }
 
@@ -166,13 +162,13 @@ bool PrefixCacheManager::evict_lru_block() {
         lru_block->print_block_info(false);
 
         // Unlink LRU blocks
-        const auto lru_prev_block_hash = lru_block->m_prev_block_hash;
+        const auto lru_prev_block_hash = lru_block->get_parent_block_hash();
         const auto lru_prev_block = get_block_unsafe(lru_prev_block_hash);
         if (lru_prev_block != nullptr) {
             lru_block->unlink_blocks(lru_prev_block);
         }
 
-        m_cache_map.erase(lru_block->m_block_hash);
+        m_cache_map.erase(lru_block->get_block_hash());
         // Convert reverse iterator to regular iterator for erase
         m_lru_list.erase(std::next(lru_it).base());
 
