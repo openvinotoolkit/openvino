@@ -111,22 +111,21 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         // Check if the block is already cached
         const auto curr_block = get_block_unsafe(block->m_block_hash);
         if (curr_block != nullptr) {
-            curr_block->m_timestamp = std::chrono::system_clock::now();
+            update_lru(curr_block);
             return;
         }
 
         // Link current block with previous block
         const auto prev_block = get_block_unsafe(prev_block_hash);
         if (prev_block != nullptr) {
-            // Link current block with previous block before evict_lru_block().
-            // Consider the scenario where the cache is full and all preceding blocks have a child block.
-            // e.g. A -> B -> C -> D we are attempting to insert a new block E into the cache.
-            // In this case, Linking blocks first ensures all blocks (A, B, C, D) have child blocks or dependencies,
-            // making it impossible to identify an eviction candidate. So that, block E will not be added into the
-            // cache.
+            // Link the current block with the previous block before attempting eviction.
+            // When the cache is full and all preceding blocks have child dependencies (e.g., A -> B -> C -> D),
+            // linking ensures no eviction candidates are available, preventing block E from being added.
             block->link_blocks(prev_block);
-            // Prev block is not a leaf node
-            m_lru_leaf_nodes.erase(prev_block);
+        } else if (prev_block_hash != 0) {
+            // If the previous block wasn't added due to full cache capacity,
+            // there's no need to add the current block, as it won't be accessed in the cache.
+            return;
         }
 
         // Add block to cache
@@ -144,43 +143,51 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
 
         m_cache_map[block->m_block_hash] = block;
         // New added block is a leaf node
-        m_lru_leaf_nodes.insert(block);
+        update_lru(block);
     }
 }
 
+void PrefixCacheManager::update_lru(const std::shared_ptr<KVBlock>& block) {
+    m_lru_list.remove(block);
+    m_lru_list.push_front(block);
+}
+
 bool PrefixCacheManager::evict_lru_block() {
-    if (m_lru_leaf_nodes.empty()) {
-        std::cout << "Cache is full but no candidate for eviction" << std::endl;
-        return false;
-    }
+    bool eviction_done = false;
 
-    auto lru_block = *m_lru_leaf_nodes.begin();
-
-    std::cout << "Cache is full, evict LRU block" << std::endl;
-    lru_block->print_block_info(false);
-
-    // Unlink LRU blocks
-    const auto lru_prev_block_hash = lru_block->m_prev_block_hash;
-    const auto lru_prev_block = get_block_unsafe(lru_prev_block_hash);
-    if (lru_prev_block != nullptr) {
-        lru_block->unlink_blocks(lru_prev_block);
-        if (lru_prev_block->m_next_block_hashes.empty()) {
-            // LRU prev block is a leaf node
-            m_lru_leaf_nodes.insert(lru_prev_block);
+    // Evict the least recently used block which does not have any child block
+    for (auto lru_it = m_lru_list.rbegin(); lru_it != m_lru_list.rend(); ++lru_it) {
+        auto lru_block = *lru_it;
+        if (!lru_block->m_next_block_hashes.empty()) {
+            continue;
         }
+
+        std::cout << "Cache is full, evict LRU block" << std::endl;
+        lru_block->print_block_info(false);
+
+        // Unlink LRU blocks
+        const auto lru_prev_block_hash = lru_block->m_prev_block_hash;
+        const auto lru_prev_block = get_block_unsafe(lru_prev_block_hash);
+        if (lru_prev_block != nullptr) {
+            lru_block->unlink_blocks(lru_prev_block);
+        }
+
+        m_cache_map.erase(lru_block->m_block_hash);
+        // Convert reverse iterator to regular iterator for erase
+        m_lru_list.erase(std::next(lru_it).base());
+
+        eviction_done = true;
+        break;  // Exit after evicting one block
     }
 
-    m_cache_map.erase(lru_block->m_block_hash);
-    m_lru_leaf_nodes.erase(m_lru_leaf_nodes.begin());
-
-    return true;
+    return eviction_done;
 }
 
 bool PrefixCacheManager::get_block(uint64_t combined_hash, std::shared_ptr<KVBlock>& out_block) {
     std::lock_guard<std::mutex> lock(m_mutex);
     out_block = get_block_unsafe(combined_hash);
     if (out_block != nullptr) {
-        out_block->m_timestamp = std::chrono::system_clock::now();
+        update_lru(out_block);
         return true;
     }
 
