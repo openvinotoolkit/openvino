@@ -13,6 +13,8 @@
 namespace cldnn {
 
 const uint32_t INTEL_VENDOR_ID = 0x8086;
+const uint32_t NVIDIA_VENDOR_ID = 0x10DE;
+const uint32_t AMD_VENDOR_ID = 0x1002;
 
 /// @brief Represents detected GPU device object. Use device_query to get list of available objects.
 struct device {

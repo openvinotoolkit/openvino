@@ -16,6 +16,12 @@ file(GLOB LIBRARY_SOURCES_OCL
     "${CMAKE_CURRENT_SOURCE_DIR}/ocl/*.cpp"
 )
 
+file(GLOB LIBRARY_SOURCES_SYCL
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sycl/*.cpp"
+)
+
 set(LIBRARY_SOURCES_ALL
     ${LIBRARY_SOURCES_MAIN}
     ${LIBRARY_SOURCES_OCL}
@@ -23,8 +29,11 @@ set(LIBRARY_SOURCES_ALL
 
 file(GLOB_RECURSE SYCL_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/ocl/sycl_*.cpp")
 
-if(NOT OV_COMPILER_IS_INTEL_LLVM)
+if(NOT OV_GPU_WITH_SYCL)
     list(REMOVE_ITEM LIBRARY_SOURCES_ALL ${SYCL_SOURCES})
+else()
+    list(APPEND LIBRARY_SOURCES_ALL ${LIBRARY_SOURCES_SYCL})
+    message(STATUS ${LIBRARY_SOURCES_ALL})
 endif()
 
 add_library(${TARGET_NAME} STATIC ${LIBRARY_SOURCES_ALL})
@@ -50,7 +59,12 @@ target_compile_options(${TARGET_NAME} PRIVATE
 
 if(OV_COMPILER_IS_INTEL_LLVM)
     add_sycl_to_target(TARGET ${TARGET_NAME} SOURCES ${SYCL_SOURCES})
+endif()
+
+if(OV_GPU_WITH_SYCL)
+    target_compile_options(${TARGET_NAME} PUBLIC -fsycl)
     target_compile_definitions(${TARGET_NAME} PUBLIC OV_GPU_WITH_SYCL)
+    target_link_libraries(${TARGET_NAME} PRIVATE sycl)
 endif()
 
 if(ENABLE_ONEDNN_FOR_GPU)

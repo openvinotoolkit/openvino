@@ -27,11 +27,13 @@ inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
 /// @brief Defines available runtime types
 enum class runtime_types : int32_t {
     ocl,
+    sycl,
 };
 
 inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
     switch (type) {
     case runtime_types::ocl: os << "ocl"; break;
+    case runtime_types::sycl: os << "sycl"; break;
     default: os << "unknown"; break;
     }
 

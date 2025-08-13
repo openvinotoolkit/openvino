@@ -9,3 +9,7 @@ ov_gpu_add_backend_target(
 )
 
 ov_build_target_faster(${TARGET_NAME} PCH)
+
+set_source_files_properties(kernels_cache.cpp PROPERTIES
+    COMPILE_FLAGS "-fsycl"
+)

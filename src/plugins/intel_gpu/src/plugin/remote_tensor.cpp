@@ -317,7 +317,9 @@ void RemoteTensorImpl::allocate() {
 
     switch (m_mem_type) {
     case TensorType::BT_BUF_INTERNAL: {
-        m_memory_object = engine.allocate_memory(m_layout, cldnn::allocation_type::cl_mem, reset);
+        auto allocation_type = engine.runtime_type() == cldnn::runtime_types::ocl ? cldnn::allocation_type::cl_mem
+                                                                                  : cldnn::allocation_type::sycl_buffer;
+        m_memory_object = engine.allocate_memory(m_layout, allocation_type, reset);
         break;
     }
     case TensorType::BT_USM_HOST_INTERNAL: {

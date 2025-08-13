@@ -115,6 +115,13 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     set(OV_COMPILER_IS_INTEL_LLVM ON)
 endif()
 
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-fsycl HAVE_FSYCL_FLAG)
+if(HAVE_FSYCL_FLAG)
+    set(OV_GPU_WITH_SYCL ON)
+endif() 
+set(OV_GPU_WITH_SYCL ON)
+
 get_property(OV_GENERATOR_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 
 function(ov_detect_libc_type)
