@@ -44,6 +44,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       MODEL_HUB_TESTS_INSTALL_DIR: ${{ github.workspace }}/install/tests/model_hub_tests
       USE_SYSTEM_CACHE: False # Using remote HuggingFace cache
+      GH_DEBUG: 1
     steps:
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch custom actions

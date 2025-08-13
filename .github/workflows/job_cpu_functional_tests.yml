@@ -43,6 +43,7 @@ jobs:
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
       PARALLEL_TEST_CACHE: ${{ github.workspace }}/install/tests/test_cache.lst
       GTEST_FILTER: ${{ inputs.scope == 'nightly' && '' || '--gtest_filter=*smoke*' }}
+      GH_DEBUG: 1
     steps:
       - name: Fetch setup_python action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

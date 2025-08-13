@@ -170,6 +170,7 @@ jobs:
       CONFORMANCE_TOOLS_DIR: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary
       CONFORMANCE_ARTIFACTS_DIR: ${{ github.workspace }}/install/conformance_artifacts
       TEST_DEVICE: 'CPU'
+      GH_DEBUG: 1
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
 
     steps:
@@ -486,6 +487,7 @@ jobs:
       NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_Release
+      GH_DEBUG: 1
     if: fromJSON(needs.smart_ci.outputs.affected_components).NVIDIA
 
     steps:

@@ -386,6 +386,7 @@ jobs:
       ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
       WHEELS_DIR: ${{ github.workspace }}/wheels
       ARTIFACTS_SHARE: "/mount/build-artifacts"
+      GH_DEBUG: 1
 
     steps:
       - name: Checkout OpenVINO actions

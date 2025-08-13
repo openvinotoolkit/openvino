@@ -54,6 +54,7 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       OPENVINO_TOKENIZERS_REPO: ${{ github.workspace }}/openvino_tokenizers
       EXTENSION_BUILD_DIR: ${{ github.workspace }}/build
+      GH_DEBUG: 1
 
     steps:
       - name: checkout actions

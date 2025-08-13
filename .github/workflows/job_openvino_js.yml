@@ -34,6 +34,7 @@ jobs:
       OPENVINO_JS_LIBS_DIR: ${{ github.workspace }}/src/bindings/js/node/bin
       NODE_VERSION: 21
       DISPLAY: ':99'
+      GH_DEBUG: 1
     steps:
       - name: Fetch OpenVINO JS sources
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

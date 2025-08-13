@@ -29,6 +29,7 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       DEBIAN_PACKAGES_DIR: ${{ github.workspace }}/packages
+      GH_DEBUG: 1
     steps:
       - name: Set apt retries
         if: runner.os == 'Linux'

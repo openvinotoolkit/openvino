@@ -46,6 +46,7 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       GTEST_PARALLEL_SCRIPT: ${{ github.workspace }}/gtest_parallel.py
+      GH_DEBUG: 1
     steps:
       - name: Download OpenVINO artifacts (package & tests)
         run: |

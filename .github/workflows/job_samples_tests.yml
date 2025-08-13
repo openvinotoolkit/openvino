@@ -37,6 +37,7 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       BUILD_DIR: ${{ github.workspace }}/build
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
+      GH_DEBUG: 1
     steps:
       # checkout action cleans up the workspace and have to be the first step
       - name: Fetch setup_python and install wheels actions

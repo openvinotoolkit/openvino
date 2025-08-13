@@ -123,6 +123,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.fedora_33 }}
     env:
       RPM_PACKAGES_DIR: /__w/openvino/packages/
+      GH_DEBUG: 1
 
     steps:
       - name: Download OpenVINO RPM packages

@@ -92,6 +92,7 @@ jobs:
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
       BUILD_DIR: "${{ github.workspace }}\\build"
+      GH_DEBUG: 1
     steps:
       - name: Install GH CLI
         run: choco install gh
@@ -99,7 +100,7 @@ jobs:
       - name: Download OpenVINO artifacts (tarballs & wheels)
         run: |
           # Add `gh` to PATH
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.INSTALL_DIR }}
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
@@ -173,6 +174,7 @@ jobs:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
       NODE_VERSION: 21
+      GH_DEBUG: 1
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
@@ -190,7 +192,7 @@ jobs:
       - name: Download OpenVINO artifacts (JS)
         run: |
           # Add `gh` to PATH
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_js_package --dir ${{ env.OPENVINO_JS_LIBS_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -262,6 +264,7 @@ jobs:
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      GH_DEBUG: 1
 
     steps:
       - name: Install GH CLI
@@ -270,7 +273,7 @@ jobs:
       - name: Download OpenVINO artifacts (tarballs & wheels)
         run: |
           # Add `gh` to PATH
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
         env:
@@ -400,6 +403,7 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
+      GH_DEBUG: 1
     steps:
       - name: Install GH CLI
         run: choco install gh
@@ -407,7 +411,7 @@ jobs:
       - name: Download OpenVINO artifacts (tarballs & wheels)
         run: |
           # Add `gh` to PATH
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
         env:
@@ -528,6 +532,7 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache.lst"
+      GH_DEBUG: 1
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Install GH CLI
@@ -536,7 +541,7 @@ jobs:
       - name: Download OpenVINO artifacts (tarballs & wheels)
         run: |
           # Add `gh` to PATH
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User") 
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.INSTALL_DIR }}
           gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
         env:

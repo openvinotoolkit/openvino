@@ -294,6 +294,7 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_cc_Release
+      GH_DEBUG: 1
 
     steps:
       - name: Clone OpenVINO
