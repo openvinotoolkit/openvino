@@ -254,7 +254,7 @@ static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 /**
  * @brief
  * Type: boolean
- * convert low-precision fp16 kernels, that might give incorrect results into precomputed consts & gather
+ * Substitute part of the RoPE with compile-time precalculation in higher precision
  * Default value: true.
  */
 static constexpr ov::Property<bool> cache_rope{"NPUW_CACHE_ROPE"};
