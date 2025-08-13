@@ -36,17 +36,6 @@ TensorExternalData::TensorExternalData(const TensorProto& tensor) {
 
 Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::string& model_dir,
                                                                      MappedMemoryHandles cache) const {
-    if (m_data_location == ORT_MEM_ADDR) {
-        char* addr_ptr = reinterpret_cast<char*>(m_offset);
-        if (!addr_ptr || m_data_length == 0) {
-            throw error::invalid_external_data{*this};
-        }
-        auto mapped_memory = std::make_shared<MappedMemoryHolder>(addr_ptr, m_data_length);
-        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mapped_memory->data(),
-                                                                                     mapped_memory->size(),
-                                                                                     mapped_memory);
-    }
-
     const auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
     const int64_t file_size = ov::util::file_size(full_path);
     if (file_size <= 0 || m_offset + m_data_length > static_cast<uint64_t>(file_size)) {
@@ -70,18 +59,6 @@ Buffer<ov::MappedMemory> TensorExternalData::load_external_mmap_data(const std::
 }
 
 Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::string& model_dir) const {
-    if (m_data_location == ORT_MEM_ADDR) {
-        char* addr_ptr = reinterpret_cast<char*>(m_offset);
-        if (!addr_ptr || m_data_length == 0) {
-            throw error::invalid_external_data{*this};
-        }
-        auto aligned_memory = std::make_shared<ov::AlignedBuffer>(m_data_length);
-        std::memcpy(aligned_memory->get_ptr<char>(), addr_ptr, m_data_length);
-        return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(aligned_memory->get_ptr<char>(),
-                                                                                      aligned_memory->size(),
-                                                                                      aligned_memory);
-    }
-
     auto full_path = ov::util::get_absolute_file_path(ov::util::path_join({model_dir, m_data_location}).string());
 #if defined(OPENVINO_ENABLE_UNICODE_PATH_SUPPORT) && defined(_WIN32)
     ov::util::convert_path_win_style(full_path);
@@ -113,6 +90,18 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::stri
                                                                                          read_data);
 
     return buffer;
+}
+
+Buffer<ov::AlignedBuffer> TensorExternalData::load_external_mem_data() const {
+    char* addr_ptr = reinterpret_cast<char*>(m_offset);
+    if (m_data_location != ORT_MEM_ADDR || !addr_ptr || m_data_length == 0) {
+        throw error::invalid_external_data{*this};
+    }
+    auto aligned_memory = std::make_shared<ov::AlignedBuffer>(m_data_length);
+    std::memcpy(aligned_memory->get_ptr<char>(), addr_ptr, m_data_length);
+    return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(aligned_memory->get_ptr<char>(),
+                                                                                  aligned_memory->size(),
+                                                                                  aligned_memory);
 }
 
 std::string TensorExternalData::to_string() const {
