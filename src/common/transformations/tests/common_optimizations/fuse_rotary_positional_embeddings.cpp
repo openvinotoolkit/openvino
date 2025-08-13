@@ -1366,11 +1366,9 @@ TEST_P(ConvertToROPETest, ConvertToROPE_Qwen_PagedAttention) {
         auto qkv = std::make_shared<opset1::Parameter>(element::f32, PartialShape{-1, 1, 3 * head_cnt * head_size});
 
         // Split QKV and reshape to [batch, 1, head_cnt, head_size]
-        auto qkv_proj = makeOP<opset1::VariadicSplit>(
-            {qkv, 2, {head_cnt * head_size, head_cnt * head_size, -1}});
-        auto view = makeOP<opset1::Reshape>(
-            {qkv_proj->output(output_idx), {0, 0, head_cnt, head_size}},
-            {{"special_zero", true}});
+        auto qkv_proj = makeOP<opset1::VariadicSplit>({qkv, 2, {head_cnt * head_size, head_cnt * head_size, -1}});
+        auto view = makeOP<opset1::Reshape>({qkv_proj->output(output_idx), {0, 0, head_cnt, head_size}},
+                                            {{"special_zero", true}});
 
         // Slice out rotary dims
         auto slice = makeOP<opset8::Slice>({view, {0}, {128}, {1}, {3}});
@@ -1380,28 +1378,23 @@ TEST_P(ConvertToROPETest, ConvertToROPE_Qwen_PagedAttention) {
         auto pos_i32 = makeOP<opset1::Convert>({position_ids}, {{"destination_type", "i32"}});
         auto pos_reshaped = makeOP<opset1::Reshape>({pos_i32, {-1, 1}}, {{"special_zero", false}});
         auto gathered = makeOP<opset8::Gather>({rotary_emp, pos_reshaped, 1}, {{"batch_dims", 0}});
-        auto gathered_reshape = makeOP<opset1::Reshape>(
-            {gathered, {-1, 1, 1, 128}}, {{"special_zero", false}});
+        auto gathered_reshape = makeOP<opset1::Reshape>({gathered, {-1, 1, 1, 128}}, {{"special_zero", false}});
 
         // Elementwise multiply
         auto mul = makeOP<opset1::Multiply>({slice, gathered_reshape}, {{"auto_broadcast", "numpy"}});
 
         // Interleave/stack for rotary
-        auto reshaped = makeOP<opset1::Reshape>(
-            {slice, {0, 0, 32, 2, 64}}, {{"special_zero", true}});
+        auto reshaped = makeOP<opset1::Reshape>({slice, {0, 0, 32, 2, 64}}, {{"special_zero", true}});
         auto split = makeOP<opset1::Split>({reshaped, -2}, {{"num_splits", 2}});
         auto neg = makeOP<opset1::Multiply>({split->output(1), -1.0f}, {{"auto_broadcast", "numpy"}});
-        auto squeeze0 = makeOP<opset1::Reshape>(
-            {neg, {-1, 1, 32, 64}}, {{"special_zero", false}});
-        auto squeeze1 = makeOP<opset1::Reshape>(
-            {split->output(0), {-1, 1, 32, 64}}, {{"special_zero", false}});
+        auto squeeze0 = makeOP<opset1::Reshape>({neg, {-1, 1, 32, 64}}, {{"special_zero", false}});
+        auto squeeze1 = makeOP<opset1::Reshape>({split->output(0), {-1, 1, 32, 64}}, {{"special_zero", false}});
         auto cat = makeOP<opset1::Concat>({squeeze0, squeeze1}, {{"axis", -1}});
 
         // Second rotary embedding gather and multiply
         auto rotary_emp2 = makeConst(element::f32, {1, 4096, 1, 128}, {1});
         auto gathered2 = makeOP<opset8::Gather>({rotary_emp2, pos_reshaped, 1}, {{"batch_dims", 0}});
-        auto gathered2_reshape = makeOP<opset1::Reshape>(
-            {gathered2, {-1, 1, 1, 128}}, {{"special_zero", false}});
+        auto gathered2_reshape = makeOP<opset1::Reshape>({gathered2, {-1, 1, 1, 128}}, {{"special_zero", false}});
         auto mul2 = makeOP<opset1::Multiply>({cat, gathered2_reshape}, {{"auto_broadcast", "numpy"}});
 
         // Final add
@@ -1415,8 +1408,8 @@ TEST_P(ConvertToROPETest, ConvertToROPE_Qwen_PagedAttention) {
     {
         int slice_start = output_idx == 0 ? 0 : head_cnt * head_size;
         int slice_stop = slice_start + head_cnt * head_size;
-    
-        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{-1, 1, 4096 * 3});   
+
+        auto input = std::make_shared<opset1::Parameter>(element::f32, PartialShape{-1, 1, 4096 * 3});
         auto rotary_emp_sin = makeConst(element::f32, {1, 4096, 1, 128}, {1});
         auto rotary_emp_cos = makeConst(element::f32, {1, 4096, 1, 128}, {1});
         auto position_ids = std::make_shared<opset1::Parameter>(element::i64, PartialShape{-1, -1});
