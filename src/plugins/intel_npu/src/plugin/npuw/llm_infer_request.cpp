@@ -648,7 +648,7 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::IT
         }
 
         // Cache hit
-        auto token_start = retrieved_block->m_token_start;
+        auto token_start = retrieved_block->get_token_start();
         BlocKVCache block_kv_cache = retrieved_block->m_block_kv_cache;
         std::cout << "[Cache hit] Block found with block hash: " << block_hash << " token_start: " << token_start
                   << std::endl;
@@ -725,19 +725,19 @@ void ov::npuw::LLMInferRequest::store_blocks_in_cache(
 
         // 3. Create a new KVBlock with token hashes and KV cache tensors
         auto block = std::make_shared<KVBlock>(curr_block_size);
-        block->m_token_start = token_idx - curr_block_size;
+        block->set_token_start(token_idx - curr_block_size);
         block->add_block(token_hashes, kvcache_block);
 
         // 4. Store block in cache
         uint64_t prev_block_hash = 0;
-        if (block->m_token_start > 0) {
-            size_t last_token_id_in_prev_block = block->m_token_start - 1;
+        if (block->get_token_start() > 0) {
+            size_t last_token_id_in_prev_block = block->get_token_start() - 1;
             prev_block_hash = prompt_hashes[last_token_id_in_prev_block];
         }
 
         m_prefix_cache->put_block(block, prev_block_hash);
         std::cout << "[Cache store]Got a full block, block id: " << block->m_block_id
-                  << " token_start:" << block->m_token_start << " block hash: " << block->m_block_hash << std::endl;
+                  << " token_start:" << block->get_token_start() << " block hash: " << block->m_block_hash << std::endl;
     }
 }
 
