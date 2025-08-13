@@ -211,22 +211,23 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     // So we decided to disable these passes in SymbolicOptimizations.
     const auto& pass_config = m_manager->get_pass_config();
 
-    const auto old_pass_config = *pass_config;
+    const bool squeeze_was_enabled = !pass_config->is_disabled<EliminateSqueeze>() &&
+                                      pass_config->is_enabled<EliminateSqueeze>();
+    const bool unsqueeze_was_enabled = !pass_config->is_disabled<EliminateUnsqueeze>() &&
+                                       pass_config->is_enabled<EliminateUnsqueeze>();
 
-    // Temporarily disable passes for SymbolicOptimizations execution
     pass_config->disable<EliminateSqueeze>();
     pass_config->disable<EliminateUnsqueeze>();
 
-    bool result;
-    try {
-        result = m_manager->run_passes(m);
-    } catch (...) {
-        *pass_config = old_pass_config;  // Restore original pass config on exception
-        throw;                           // Re-throw the exception
+    m_manager->run_passes(m);
+
+    if (squeeze_was_enabled) {
+        pass_config->enable<EliminateSqueeze>();
+    }
+    if (unsqueeze_was_enabled) {
+        pass_config->enable<EliminateUnsqueeze>();
     }
 
-    *pass_config = old_pass_config;
-
     ov::remove_skip_invalidation_rti(m);
-    return result;
+    return true;
 }
