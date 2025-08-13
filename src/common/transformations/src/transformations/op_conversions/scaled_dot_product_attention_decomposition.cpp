@@ -159,11 +159,8 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             // take part in attention. A float mask of the same type as query, key, value that is added to the attention
             // score.
             if (mask.get_element_type() == element::boolean) {
-                auto zero = register_new_node(v0::Constant::create(element::f32, Shape{}, {0}))->output(0);
-                zero = register_new_node<v1::ConvertLike>(zero, scaled_atten);
-                atten_mask = register_new_node<v1::ConvertLike>(mask, scaled_atten);
                 auto inv_mask = register_new_node<v1::LogicalNot>(mask);
-                atten_mask = register_new_node<v1::Select>(inv_mask, minus_inf, zero);
+                atten_mask = register_new_node<v1::Select>(inv_mask, minus_inf, zero_f);
             } else {
                 atten_mask = mask;
             }
