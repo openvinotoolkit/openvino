@@ -82,11 +82,17 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             return false;
         }
 
+        bool has_reshape_2d = false;
+        if (pattern_map.count(reshape_m)) {
+            const auto& reshape_node = ov::as_type_ptr<ov::op::v1::Reshape>(pattern_map.at(reshape_m).get_node_shared_ptr());
+            const auto& reshape_target_shape = reshape_node->get_output_partial_shape(0);
+            has_reshape_2d = reshape_target_shape.size() == 2;
+        }
         bool has_transpose = pattern_map.count(transpose_m);
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool grouped = std::count_if(scale_shape.begin(), scale_shape.end(), [](size_t d) { return d > 1; }) > 1;
         bool sub_with_convert = (pattern_map.count(sub_with_convert_m) > 0) ? true : false;
-        bool is_3d_fc = scale_shape.size() == 3 && scale_shape[0] > 1;
+        bool is_3d_fc = !has_reshape_2d && scale_shape.size() == 3 && scale_shape[0] > 1;
 
         auto weight_ptr = ov::as_type_ptr<ov::op::v0::Constant>(pattern_map.at(weights_m).get_node_shared_ptr());
         bool weight_u8 = false;
