@@ -106,12 +106,18 @@ std::vector<std::vector<ov::test::InputShape>> transpose_b_shapes{
     }
 };
 
+#ifdef OPENVINO_ARCH_ARM64
+static constexpr size_t expected_num_subgraphs = 2; // MatMul + Transpose
+#else
+static constexpr size_t expected_num_subgraphs = 1; // MatMul
+#endif
+
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulTransposeB, MatMulTransposeB,
                          ::testing::Combine(
                              ::testing::ValuesIn(transpose_b_shapes),
                              ::testing::ValuesIn(precisions()),
                              ::testing::Values(MatMulType::MatMul),
-                             ::testing::Values(1), // MatMul
+                             ::testing::Values(expected_num_subgraphs),
                              ::testing::Values(1), // Tokenized MatMul
                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                              ::testing::Values(CPUTestUtils::empty_plugin_config)),
