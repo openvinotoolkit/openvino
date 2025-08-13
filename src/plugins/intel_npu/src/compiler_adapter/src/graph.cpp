@@ -42,6 +42,10 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
     }
 }
 
+void Graph::set_metadata(NetworkMetadata metadata) {
+    _metadata = metadata;
+}
+
 const NetworkMetadata& Graph::get_metadata() const {
     return _metadata;
 }

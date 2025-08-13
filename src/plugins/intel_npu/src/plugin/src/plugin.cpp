@@ -574,10 +574,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
     }
 
+    ov::Dimension originalBatch;
+    bool modelDeBached = false;
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
-        localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN) {
+        localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN && model->is_dynamic()) {
         try {
+            originalBatch = ov::get_batch(modelForCompilation);
             ov::set_batch(modelForCompilation, 1);
+            modelDeBached = true;
         } catch (const std::exception& ex) {
             _logger.warning("The plugin couldn't resize a batched model due to exception: {0}.\nProbably, the "
                             "model is a dynamic model and layout hasn't been specified. Trying to debatch it...",
@@ -587,6 +591,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                 OPENVINO_THROW("Cannot debatch a model");
             }
             _logger.info("The model has been debatched successfully");
+            modelDeBached = true;
         }
     }
 
@@ -658,6 +663,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     } catch (...) {
         _logger.error("Unexpected exception");
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
+    }
+
+    if (modelDeBached) {
+        auto metadata = graph->get_metadata();
+        for (auto& in : metadata.inputs) {
+            if (in.shapeFromIRModel.has_value() && originalBatch.get_max_length() != 1) {
+                in.shapeFromIRModel.value()[0] = originalBatch;
+            }
+        }
+        graph->set_metadata(metadata);
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
