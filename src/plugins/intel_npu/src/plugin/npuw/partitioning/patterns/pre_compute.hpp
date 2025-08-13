@@ -63,6 +63,4 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
 
-//
-} // namespace ov
-//
+}  // namespace ov::npuw::patterns::pre_compute  // NOLINT(readability/namespace)
