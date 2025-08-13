@@ -109,7 +109,9 @@ private:
 
 class PrefixCacheManager {
 public:
-    PrefixCacheManager(size_t max_cache_size = 100) : m_max_cache_size(max_cache_size) {}
+    PrefixCacheManager(size_t max_cache_size = 100, bool debug = false)
+        : m_max_cache_size(max_cache_size),
+          m_debug(debug) {}
 
     // Add a block to the cache
     void put_block(const std::shared_ptr<KVBlock>& block, uint64_t prev_block_hash);
@@ -127,6 +129,8 @@ private:
     size_t m_max_cache_size;
 
     std::mutex m_mutex;
+
+    bool m_debug;
 
     // Mapping from hash to KV blocks
     std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> m_cache_map;
