@@ -67,7 +67,7 @@ def get_tmp_dir():
     cleanup_after_test = CLEANUP_AFTER_TEST
 
     if cleanup_after_test:
-        # Use temp directory when cleanup is disabled
+        # Use temp directory when cleanup is enabled
         tmp_dir = tempfile.mkdtemp(dir=os.getcwd())
     else:
         # Use fixed directory by default (could use tempfile.mkdtemp for true temporary)
@@ -140,7 +140,7 @@ def setup_model(model_id):
 
     # Prepare ground truth data
     set_seed(42)
-    use_chat_template = (tokenizer is not None and tokenizer.chat_template is not None)
+    use_chat_template = False # (tokenizer is not None and tokenizer.chat_template is not None)
     gt_path = get_gt_path(model_id, use_chat_template)
     if not os.path.exists(gt_path):
         logger.info(f'Creating ground truth data: {gt_path}')
@@ -195,19 +195,18 @@ test_scope = init_test_scope()
     test_scope,
 )
 def test_accuracy_conformance(model_id, precision, device):
+    # Get expected values from catalog (use original device for lookup)
+    expected_reference = get_reference(model_id, device, precision)
+    if expected_reference == NOTEST:
+        pytest.xfail(f'Test is skipped for {model_id}, {precision}, {device}. Ticket 172236')
+        return
+
     # Ensure model is set up
     if model_id not in DOWNLOADED_MODELS:
         logger.info(f"Model {model_id} not found in downloaded models, setting up now...")
         setup_model(model_id)
 
     # os.environ["OV_GPU_DYNAMIC_QUANTIZATION_THRESHOLD"] = "1"
-
-    # Get expected values from catalog (use original device for lookup)
-    expected_reference = get_reference(model_id, device, precision)
-
-    if expected_reference == NOTEST:
-        logger.info(f'Test is skipped for {model_id}, {precision}, {device}')
-        return
 
     task        = 'text'
     ov_config   = None
@@ -221,7 +220,7 @@ def test_accuracy_conformance(model_id, precision, device):
 
     tokenizer = AutoTokenizer.from_pretrained(model_path)
 
-    use_chat_template = (tokenizer is not None and tokenizer.chat_template is not None)
+    use_chat_template = False # (tokenizer is not None and tokenizer.chat_template is not None)
 
     gt_data = get_gt_path(model_id, use_chat_template)
     evaluator = wwb.Evaluator(
