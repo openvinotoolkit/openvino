@@ -106,8 +106,8 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
                             ++out_ptr;
                             off += out_shape_d0;
                         }
-                }
-            };
+                    }
+                };
             if (arg.get_shape().size() == 2) {
                 auto out_ptr = int4_iterator(static_cast<uint8_t*>(out.data()));
                 auto in_ptr = int4_iterator(static_cast<uint8_t*>(const_cast<void*>(arg.data())));
