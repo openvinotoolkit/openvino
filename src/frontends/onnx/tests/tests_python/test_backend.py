@@ -80,6 +80,7 @@ from tests import (
     xfail_issue_171768,
     xfail_issue_171770,
     xfail_issue_171771,
+    xfail_issue_171772,
 )
 from tests.tests_python.utils.onnx_backend import OpenVinoTestBackend
 
@@ -759,6 +760,10 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_top_k_same_values_2d_cpu",
         "OnnxBackendNodeModelTest.test_top_k_same_values_cpu",
         "OnnxBackendNodeModelTest.test_top_k_same_values_largest_cpu",
+    ),
+    (
+        xfail_issue_171772,
+        "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_1_ceil_mode_is_True_cpu",
     ),
 ]
 
