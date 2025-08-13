@@ -111,4 +111,5 @@ NormalizeL2Decomposition::NormalizeL2Decomposition(bool use_fp32_reducesum) {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(normalize_l2_pattern, "NormalizeL2DecompositionGPU");
     register_matcher(m, callback);
 }
+
 } // namespace ov::intel_gpu

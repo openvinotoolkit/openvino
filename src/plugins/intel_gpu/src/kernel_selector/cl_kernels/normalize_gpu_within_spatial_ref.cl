@@ -22,29 +22,29 @@ KERNEL (normalize_gpu_within_spatial_ref)(
     uint input_idx;
     float norm = EPSILON;
 #if NORM_AXIS == 1
+    x = gws0;
+    y = gws1;
     for (f = 0; f < INPUT0_FEATURE_NUM; f++)
     {
-        x = gws0;
-        y = gws1;
         input_idx = INPUT0_GET_INDEX(b, f , y, x);
         float value = (float)input[input_idx];
         norm = mad(value, value, norm);
 
     }
 #elif NORM_AXIS == 2
+    x = gws0;
+    f = gws1;
     for (y = 0; y < INPUT0_SIZE_Y; y++)
     {
-        x = gws0;
-        f = gws1;
         input_idx = INPUT0_GET_INDEX(b, f, y, x);
         float value = (float)input[input_idx];
         norm = mad(value, value, norm);
     }
 #elif NORM_AXIS == 3
+    y = gws0;
+    f = gws1;
     for (x = 0; x < INPUT0_SIZE_X; x++)
     {
-        y = gws0;
-        f = gws1;
         input_idx = INPUT0_GET_INDEX(b, f, y, x);
         float value = (float)input[input_idx];
         norm = mad(value, value, norm);
