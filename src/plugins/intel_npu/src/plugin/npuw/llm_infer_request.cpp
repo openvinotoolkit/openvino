@@ -615,8 +615,6 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::IT
                                                           std::unordered_map<std::string, std::string> input_name_map) {
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
-    const char* data = reinterpret_cast<const char*>(input_ids->data());
-    const auto data_elem_size = input_ids->get_element_type().size();
     size_t actual_token_num = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
     size_t num_blocks = (actual_token_num + block_size - 1) / block_size;  // Calculate number of blocks
 
@@ -703,7 +701,6 @@ void ov::npuw::LLMInferRequest::store_blocks_in_cache(
         auto kvcache_block = BlocKVCache();
         for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
             const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
-            const auto& input_name = input_name_map.at(output_name);
 
             const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
                                      ? 3u
