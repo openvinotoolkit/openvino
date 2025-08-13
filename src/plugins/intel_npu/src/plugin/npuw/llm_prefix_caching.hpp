@@ -24,13 +24,11 @@ class KVBlock {
 public:
     size_t m_block_size;
     std::vector<uint64_t> m_token_hashes;
-    size_t m_token_start;
     uint64_t m_block_hash;
     size_t m_block_id;
     size_t m_ref_count;
     bool m_is_full;
     BlocKVCache m_block_kv_cache;
-    std::chrono::time_point<std::chrono::system_clock> m_timestamp;
 
     // One block may have multiply children blocks
     std::unordered_set<uint64_t> m_next_block_hashes;
@@ -45,6 +43,14 @@ public:
           m_block_hash(0),
           m_prev_block_hash(0) {
         m_token_hashes.reserve(m_block_size);
+    }
+
+    void set_token_start(size_t token_start) {
+        m_token_start = token_start;
+    }
+
+    size_t get_token_start() {
+        return m_token_start;
     }
 
     /**
@@ -72,6 +78,8 @@ private:
      * a cumulative representation of the block's content.
      */
     uint64_t compute_block_hash(const std::vector<uint64_t>& token_hashes) const;
+
+    size_t m_token_start;
 };
 
 class PrefixCacheManager {
@@ -93,18 +101,15 @@ public:
 private:
     size_t m_max_cache_size;
 
+    std::mutex m_mutex;
+
     // Mapping from hash to KV blocks
     std::unordered_map<uint64_t, std::shared_ptr<KVBlock>> m_cache_map;
 
-    // Set to track track the least recently used blocks with no children
-    struct TimeStampOrder {
-        bool operator()(const std::shared_ptr<KVBlock>& lhs, const std::shared_ptr<KVBlock>& rhs) const {
-            return lhs->m_timestamp < rhs->m_timestamp;
-        }
-    };
-    std::set<std::shared_ptr<KVBlock>> m_lru_leaf_nodes;
+    // LRU list to track the least recently used blocks
+    std::list<std::shared_ptr<KVBlock>> m_lru_list;
 
-    std::mutex m_mutex;
+    void update_lru(const std::shared_ptr<KVBlock>& block);
 
     // Evict the least recently used blocks with no children
     bool evict_lru_block();
