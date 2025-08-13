@@ -17,6 +17,7 @@ RUN apt-get update && \
     apt-get update && \
     apt-get install \
         curl \
+        wget \
         git \
         gpg-agent \
         tzdata \

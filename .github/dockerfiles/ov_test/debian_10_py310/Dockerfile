@@ -15,6 +15,7 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 RUN apt-get update && \
     apt-get install  \
         git \
+        wget \
         libc6-dev \
         # parallel gzip
         pigz \
