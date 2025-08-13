@@ -15,6 +15,7 @@
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/opsets/opset10_decl.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
+#include "openvino/pass/graph_rewrite.hpp"
 
 // /*
 // * conditional compilation that can be used during test regression debug
