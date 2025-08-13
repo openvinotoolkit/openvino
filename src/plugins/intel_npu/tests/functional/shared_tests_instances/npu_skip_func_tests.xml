@@ -806,6 +806,14 @@ Example:
         </filters>
     </skip_config>
 
+    <!-- E###### -->
+    <skip_config>
+        <message>Current driver cannot import a memory map file</message>
+        <filters>
+            <filter>.*CheckRemoteTensorImportFile.*</filter>
+        </filters>
+    </skip_config>
+
     <!-- C#139118 -->
     <skip_config>
         <message>Failing runtime model tests</message>
