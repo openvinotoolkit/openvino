@@ -90,6 +90,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_hint, ov::hint::model_priority, "model_priority");
     wrap_property_RW(m_hint, ov::hint::performance_mode, "performance_mode");
     wrap_property_RW(m_hint, ov::hint::enable_cpu_pinning, "enable_cpu_pinning");
+    wrap_property_RW(m_hint, ov::hint::enable_cpu_reservation, "enable_cpu_reservation");
     wrap_property_RW(m_hint, ov::hint::scheduling_core_type, "scheduling_core_type");
     wrap_property_RW(m_hint, ov::hint::model_distribution_policy, "model_distribution_policy");
     wrap_property_RW(m_hint, ov::hint::enable_hyper_threading, "enable_hyper_threading");

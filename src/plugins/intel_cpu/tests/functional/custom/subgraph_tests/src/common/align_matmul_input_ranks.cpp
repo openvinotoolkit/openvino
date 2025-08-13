@@ -22,7 +22,7 @@ class AlignMatMulInputRanksTest : public testing::WithParamInterface<AlignMatMul
                                   public CpuTestWithFusing,
                                   virtual public SubgraphBaseStaticTest {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<AlignMatMulInputRanksTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<AlignMatMulInputRanksTestParams>& obj) {
         const auto& [supportedInputShapes, fusingParams] = obj.param;
         ov::Shape inputShapeA = supportedInputShapes.first;
         ov::Shape inputShapeB = supportedInputShapes.second;

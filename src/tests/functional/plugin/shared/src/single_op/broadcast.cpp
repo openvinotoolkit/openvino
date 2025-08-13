@@ -12,13 +12,7 @@
 namespace ov {
 namespace test {
 std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<BroadcastParamsTuple>& obj) {
-    ov::Shape target_shape;
-    ov::AxisSet axes_mapping;
-    ov::op::BroadcastType mode;
-    std::vector<InputShape> shapes;
-    ov::element::Type type;
-    std::string device_name;
-    std::tie(target_shape, axes_mapping, mode, shapes, type, device_name) = obj.param;
+    const auto& [target_shape, axes_mapping, mode, shapes, type, device_name] = obj.param;
 
     std::ostringstream result;
     result << "targetShape=" << ov::test::utils::vec2str(target_shape) << "_";
@@ -39,12 +33,8 @@ std::string BroadcastLayerTest::getTestCaseName(const testing::TestParamInfo<Bro
 }
 
 void BroadcastLayerTest::SetUp() {
-    std::vector<size_t> target_shape;
-    ov::AxisSet axes_mapping;
-    ov::op::BroadcastType mode;
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::tie(target_shape, axes_mapping, mode, shapes, model_type, targetDevice) = this->GetParam();
+    const auto& [target_shape, axes_mapping, mode, shapes, model_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     auto target_shape_const = ov::op::v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);

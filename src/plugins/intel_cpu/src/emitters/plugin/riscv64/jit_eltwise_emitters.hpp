@@ -9,6 +9,7 @@
 namespace ov::intel_cpu::riscv64 {
 
 class jit_exp_emitter;
+class jit_tanh_emitter;
 
 class jit_abs_emitter : public jit_emitter {
 public:
@@ -238,6 +239,45 @@ private:
 
     void register_table_entries() override;
 };
+class jit_floor_mod_emitter : public jit_emitter {
+public:
+    jit_floor_mod_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
+    jit_floor_mod_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_vecs_count() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void register_table_entries() override;
+};
+
+/// Greater///
+class jit_greater_emitter : public jit_emitter {
+public:
+    jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
+    jit_greater_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
+};
 
 class jit_gelu_erf_emitter : public jit_emitter {
 public:
@@ -262,6 +302,32 @@ public:
 
 private:
     std::unique_ptr<jit_erf_emitter> erf_emitter{nullptr};
+
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void register_table_entries() override;
+};
+
+class jit_gelu_tanh_emitter : public jit_emitter {
+public:
+    jit_gelu_tanh_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
+    jit_gelu_tanh_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+    size_t aux_fp_gprs_count() const override;
+    size_t aux_vecs_count() const override;
+
+    void emit_data() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    std::unique_ptr<jit_tanh_emitter> tanh_emitter{nullptr};
 
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
 
@@ -342,6 +408,124 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+};
+class jit_less_emitter : public jit_emitter {
+public:
+    jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
+    jit_less_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_fp_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
+};
+class jit_logical_or_emitter : public jit_emitter {
+public:
+    jit_logical_or_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
+    jit_logical_or_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_vecs_count() const override;
+    size_t aux_gprs_count() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
+};
+
+class jit_is_finite_emitter : public jit_emitter {
+public:
+    jit_is_finite_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                          ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                          ov::element::Type exec_prc = ov::element::f32);
+    jit_is_finite_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                          ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                          const std::shared_ptr<ov::Node>& node,
+                          ov::element::Type exec_prc = ov::element::f32);
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+    size_t get_inputs_num() const override;
+
+    size_t aux_gprs_count() const override;
+
+    size_t aux_vecs_count() const override;
+
+    size_t aux_fp_gprs_count() const override;
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
+};
+
+class jit_is_inf_emitter : public jit_emitter {
+public:
+    jit_is_inf_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       bool detect_negative,
+                       bool detect_positive,
+                       ov::element::Type exec_prc = ov::element::f32);
+    jit_is_inf_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       const std::shared_ptr<ov::Node>& node,
+                       ov::element::Type exec_prc = ov::element::f32);
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+    size_t get_inputs_num() const override;
+
+    size_t aux_gprs_count() const override;
+
+    size_t aux_vecs_count() const override;
+
+    size_t aux_fp_gprs_count() const override;
+
+private:
+    bool detect_negative, detect_positive;
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
+};
+
+class jit_is_nan_emitter : public jit_emitter {
+public:
+    jit_is_nan_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       ov::element::Type exec_prc = ov::element::f32);
+    jit_is_nan_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       ov::intel_cpu::riscv64::cpu_isa_t host_isa,
+                       const std::shared_ptr<ov::Node>& node,
+                       ov::element::Type exec_prc = ov::element::f32);
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+    size_t get_inputs_num() const override;
+
+    size_t aux_fp_gprs_count() const override;
+
+private:
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+    void register_table_entries() override;
 };
 
 class jit_less_equal_emitter : public jit_emitter {
@@ -429,7 +613,7 @@ public:
                             const std::shared_ptr<ov::Node>& node);
 
     size_t get_inputs_num() const override;
-    size_t aux_gprs_count() const override;
+    size_t aux_fp_gprs_count() const override;
     size_t aux_vecs_count() const override;
 
     static std::set<std::vector<element::Type>> get_supported_precisions(
@@ -702,6 +886,8 @@ public:
     size_t aux_vecs_count() const override;
     size_t aux_fp_gprs_count() const override;
 
+    void emit_data() const override;
+
     static std::set<std::vector<element::Type>> get_supported_precisions(
         const std::shared_ptr<ov::Node>& node = nullptr);
 
@@ -709,7 +895,6 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
-    void emit_data() const override;
 
     void register_table_entries() override;
 
@@ -754,6 +939,32 @@ private:
     void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
     template <ov::intel_cpu::riscv64::cpu_isa_t isa>
     void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+};
+
+class jit_tanh_emitter : public jit_emitter {
+public:
+    jit_tanh_emitter(jit_generator_t* host, cpu_isa_t host_isa, element::Type exec_prc = element::f32);
+    jit_tanh_emitter(jit_generator_t* host, cpu_isa_t host_isa, const std::shared_ptr<ov::Node>& node);
+
+    size_t get_inputs_num() const override;
+    size_t aux_gprs_count() const override;
+    size_t aux_fp_gprs_count() const override;
+    size_t aux_vecs_count() const override;
+
+    void emit_data() const override;
+
+    static std::set<std::vector<element::Type>> get_supported_precisions(
+        const std::shared_ptr<ov::Node>& node = nullptr);
+
+private:
+    std::unique_ptr<jit_sigmoid_emitter> sigmoid_emitter{nullptr};
+
+    void emit_impl(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const override;
+
+    template <cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in_vec_idxs, const std::vector<size_t>& out_vec_idxs) const;
+
+    void register_table_entries() override;
 };
 
 }  // namespace ov::intel_cpu::riscv64
