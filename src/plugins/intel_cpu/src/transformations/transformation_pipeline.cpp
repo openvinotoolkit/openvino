@@ -1515,7 +1515,7 @@ void Transformations::MainSnippets() {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) {
+    auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
         [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
@@ -1552,12 +1552,13 @@ void Transformations::MainSnippets() {
         return true;
 #else
         OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
+        return false;
 #endif
     };
 
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
-        [&mm_supports_transpose_b](const std::shared_ptr<const ov::Node>& n) {
+        [&mm_supports_transpose_b](const std::shared_ptr<const ov::Node>& n) -> bool {
             return mm_supports_transpose_b(n);
         },
         snippets::pass::ExplicitTransposeMatMulInputs);
