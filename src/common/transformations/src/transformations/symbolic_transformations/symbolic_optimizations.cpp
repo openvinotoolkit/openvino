@@ -211,10 +211,10 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     // So we decided to disable these passes in SymbolicOptimizations.
     const auto& pass_config = m_manager->get_pass_config();
 
-    const bool squeeze_was_enabled = !pass_config->is_disabled<EliminateSqueeze>() &&
-                                      pass_config->is_enabled<EliminateSqueeze>();
-    const bool unsqueeze_was_enabled = !pass_config->is_disabled<EliminateUnsqueeze>() &&
-                                       pass_config->is_enabled<EliminateUnsqueeze>();
+    const bool squeeze_was_enabled =
+        !pass_config->is_disabled<EliminateSqueeze>() && pass_config->is_enabled<EliminateSqueeze>();
+    const bool unsqueeze_was_enabled =
+        !pass_config->is_disabled<EliminateUnsqueeze>() && pass_config->is_enabled<EliminateUnsqueeze>();
 
     pass_config->disable<EliminateSqueeze>();
     pass_config->disable<EliminateUnsqueeze>();
