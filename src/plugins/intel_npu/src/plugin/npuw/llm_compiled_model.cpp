@@ -19,9 +19,9 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "partitioning/patterns/pre_compute.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
-#include "partitioning/patterns/pre_compute.hpp"
 #include "util.hpp"
 
 namespace opp = ov::pass::pattern;
