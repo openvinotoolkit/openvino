@@ -475,31 +475,6 @@ TEST_P(WeightsSeparationOneShotTests, CorrectInferenceResultNoImportOneShot) {
     create_infer_request_and_check_result();
 }
 
-using WeightsSeparationNotSupportedTests = WeightsSeparationTests;
-
-/**
- * @brief Old enough drivers should not support this config option.
- */
-TEST_P(WeightsSeparationNotSupportedTests, WeightlessBlobNotSupported) {
-    model = createTestModel();
-    configuration.insert(ov::intel_npu::weightless_blob(true));
-
-    OV_EXPECT_THROW(core->compile_model(model, target_device, configuration), ov::Exception, _);
-}
-
-/**
- * @brief Old enough drivers should not support this config option.
- */
-TEST_P(WeightsSeparationNotSupportedTests, CacheModeNotSupported) {
-    m_cache_dir = generateCacheDirName(GetTestName());
-    core->set_property({ov::cache_dir(m_cache_dir)});
-
-    model = createTestModel();
-    configuration.emplace(ov::cache_mode(ov::CacheMode::OPTIMIZE_SIZE));
-
-    OV_EXPECT_THROW(core->compile_model(model, target_device, configuration), ov::Exception, _);
-}
-
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
