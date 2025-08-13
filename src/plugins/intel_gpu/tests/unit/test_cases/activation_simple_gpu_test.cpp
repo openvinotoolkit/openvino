@@ -703,7 +703,7 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
     }
 }
 
-TEST(activation_f16_fw_gpu, softplus_fused_no_overflow) {
+TEST(activation_f16_fw_gpu, softplus_do_not_fuse_for_f16_prevent_overflow) {
     auto& engine = get_test_engine();
 
     tensor input_shape{2, 4, 2, 3};
@@ -713,7 +713,13 @@ TEST(activation_f16_fw_gpu, softplus_fused_no_overflow) {
     auto zero = engine.allocate_memory({data_types::f16, format::bfyx, input_shape});
     set_values<ov::float16>(zero, std::vector<ov::float16>(input_shape.count(), ov::float16(0.0f)));
 
-    topology topology(input_layout("input", input->get_layout()),
+    topology topology1(input_layout("input", input->get_layout()),
+                      data("zero", zero),
+                      eltwise("sum", input_info("input"), input_info("zero"), eltwise_mode::sum),
+                      activation("softplus", input_info("sum"), activation_func::softplus),
+                      permute("permute", input_info("softplus"), {0, 1, 2, 3}));
+
+    topology topology2(input_layout("input", input->get_layout()),
                       data("zero", zero),
                       eltwise("sum", input_info("input"), input_info("zero"), eltwise_mode::sum),
                       activation("softplus", input_info("sum"), activation_func::softplus),
@@ -721,13 +727,13 @@ TEST(activation_f16_fw_gpu, softplus_fused_no_overflow) {
 
     ExecutionConfig config_fuse = get_test_default_config(engine);
     config_fuse.set_property(ov::intel_gpu::optimize_data(true));
-    network network_fuse(engine, topology, config_fuse);
+    network network_fuse(engine, topology1, config_fuse);
     network_fuse.set_input_data("input", input);
     auto output_fuse = network_fuse.execute().begin()->second.get_memory();
 
     ExecutionConfig config_unfuse = get_test_default_config(engine);
     config_unfuse.set_property(ov::intel_gpu::optimize_data(false));
-    network network_unfuse(engine, topology, config_unfuse);
+    network network_unfuse(engine, topology2, config_unfuse);
     network_unfuse.set_input_data("input", input);
     auto output_unfuse = network_unfuse.execute().begin()->second.get_memory();
 
