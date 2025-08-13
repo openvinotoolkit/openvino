@@ -568,7 +568,15 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                                            kvcache_desc.num_stored_tokens - num_tokens,
                                            kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
-        copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        if (src_tensor->get_shape()[kv_dim] == dst_slice->get_shape()[kv_dim]) {
+            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        } else {
+            auto src_slice = make_tensor_slice(src_tensor,
+                                               kv_dim,
+                                               static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]) - num_tokens,
+                                               static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]));
+            copy_tensor_by_dim(src_slice, dst_slice, kv_dim);
+        }
     }
     LOG_DEBUG("Done.");
 }
@@ -774,6 +782,33 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+
+        // When prefix caching is enabled, the first chunk size is set to ensure we can always get full chunks in the
+        // past KV. Scenario explanation in below:
+        // 1. Maximum prompt length is 1024, with a chunk size of 256.
+        // 2. Past KV length is calculated as 1024 - 256 = 768.
+        // 3. When prefix caching is enabled and the block size is smaller than the chunk size:
+        //    - Assume 128 tokens are cached, and the input prompt length is 1024, processed in chunks:
+        //      - After processing the first chunk, the past KV in the infer request holds 128 + 256 tokens, leaving 640
+        //      tokens remaining.
+        //      - After processing the second chunk, the past KV holds 128 + 256 + 256 tokens, leaving 384 tokens
+        //      remaining.
+        //      - After processing the third chunk, the past KV holds 128 + 256 + 256 + 256 tokens, exceeding the
+        //      maximum past KV length of 768.
+        // 4. To accommodate this, the first chunk size is set to ensure we can always get full chunks in the past KV:
+        //    - Assume 128 tokens are cached, and the input prompt length is 1024, processed in chunks:
+        //      - After processing the first chunk, the past KV in the infer request holds 128 + 128 tokens, leaving 768
+        //      tokens remaining.
+        //      - After processing the second chunk, the past KV holds 128 + 128 + 256 tokens, leaving 512 tokens
+        //      remaining.
+        //      - After processing the third chunk, the past KV holds 128 + 128 + 256 + 256 tokens, leaving 256 tokens
+        //      remaining.
+        //      - After processing the fourth chunk, the past KV holds 128 + 128 + 256 + 256 + 256 tokens, all tokens
+        //      have been prefilled.
+        uint64_t remainder = kvcache_desc.num_stored_tokens % chunk_prompt_len;
+        uint64_t additional_tokens_to_a_full_chunk = (remainder == 0) ? 0 : chunk_prompt_len - remainder;
+        current_prompts_len =
+            (additional_tokens_to_a_full_chunk > 0) ? additional_tokens_to_a_full_chunk : current_prompts_len;
 
         // Populate the attention mask for the present chunk
         // For the already processed tokens, they will be added into the attention mask after inference call
