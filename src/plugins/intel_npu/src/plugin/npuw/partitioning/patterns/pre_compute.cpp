@@ -55,7 +55,7 @@ namespace {
     }
 }  // namespace
 
-ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() {
+ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matcher("sin-cos-matcher") {
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
     auto gather = opp::wrap_type<ov::op::v8::Gather>({shape_of, opp::any_input(), opp::any_input()});
     auto concat_1 = opp::wrap_type<ov::op::v0::Concat>({gather, opp::any_input(), opp::any_input()});
@@ -69,51 +69,33 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() {
     auto matmul = opp::wrap_type<ov::op::v0::MatMul>({broadcast, convert});
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
     auto concat_2 = opp::wrap_type<ov::op::v0::Concat>({transpose, opp::any_input()});
-    auto sin_cos = opp::wrap_type<ov::op::v0::Sin, ov::op::v0::Cos>({concat_2});
+    auto output_sin = opp::wrap_type<ov::op::v0::Sin>({concat_2});
+    auto output_cos = opp::wrap_type<ov::op::v0::Cos>({concat_2});
 
-    pattern = sin_cos;
-    verifier_cb = [=](ov::pass::pattern::Matcher& m) {
-        auto& node_to_output = m.get_pattern_value_map();
+    init_cb = [=](const auto & matches) {
+        const auto& map_sin = matches.at(output_sin)[0];
+        const auto& map_cos = matches.at(output_cos)[0];
 
-        this->matched_position_ids = node_to_output.at(position_ids).get_node_shared_ptr();
+        this->matched_position_ids = map_sin.at(position_ids).get_node_shared_ptr();
+        this->matched_concat =  map_sin.at(concat_1).get_node_shared_ptr();
+        this->matched_inv_freq = map_sin.at(inv_freq).get_node_shared_ptr();
 
-        this->matched_concat =  node_to_output.at(concat_1).get_node_shared_ptr();
-        auto matched_concat_2 = node_to_output.at(concat_2).get_node_shared_ptr();
+        this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
+        this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
-        // TODO: maybe check for it's dims
-        this->matched_inv_freq = node_to_output.at(inv_freq).get_node_shared_ptr();
-
-        // locating sin and cos
-        auto concat_users = matched_concat_2->output(0).get_target_inputs();
-        if (concat_users.size() != 2) {
-            LOG_INFO("Rope sin_cos invalid at: "<< matched_concat_2->get_name());
-            return false;
-        }
-        auto concat_it = concat_users.begin();
-        auto cos_node = concat_it->get_node();
-        concat_it++;
-        auto sin_node  = concat_it->get_node();
-
-        if (ov::as_type<ov::op::v0::Sin>(sin_node) == nullptr) {
-            std::swap(sin_node, cos_node);
-        }
-        if (ov::as_type<ov::op::v0::Sin>(sin_node) == nullptr ||
-            ov::as_type<ov::op::v0::Cos>(cos_node) == nullptr) {
-            LOG_INFO("Rope sin_cos nodes are not valid: sin=" << sin_node->get_name() << ", cos=" << cos_node->get_name());
-            return false;
-        }
-        LOG_INFO("Rope sin_cos nodes found : sin=" << sin_node->get_name() << ", cos=" << cos_node->get_name());
-        this->matched_cos = cos_node->shared_from_this();
-        this->matched_sin = sin_node->shared_from_this();
+        LOG_INFO("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
 
         return true;
     };
+
+    matcher.register_patterns({output_sin, output_cos}, std::move(make_matcher_callback()));
 }
 
-ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32_t max_prompt_len) {
+ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32_t max_prompt_len,
+                                                                    const std::shared_ptr<ov::Model>& model) {
     auto rpe = std::make_shared<RopePatternLLama2>();
 
-    rpe->callback = [=](ov::pass::pattern::Matcher& m) -> bool {
+    rpe->transform_cb = [=]() {
         auto inv_freq_size = ov::shape_size(rpe->matched_inv_freq->get_shape());
 
         LOG_INFO("Making sin-cos cache of size: " << max_prompt_len << "x" << inv_freq_size);
@@ -153,18 +135,16 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         for (size_t i = 0; i < rpe->matched_concat->get_input_size(); ++i) {
         //     rpe->matched_concat->input(i).replace_source_output(ov::Output<ov::Node>()); // empty output
         }
-
-        return true;  // root changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(rpe->pattern, "TagSinCos"), std::move(rpe->make_matcher_callback()));
+    rpe->run_on_model(model);
 }
 
-
 ov::npuw::patterns::pre_compute::RopeInverseFreq::RopeInverseFreq(
-    ov::npuw::patterns::pre_compute::RopeInverseFreq::Results need_freq_consts) {
+    ov::npuw::patterns::pre_compute::RopeInverseFreq::Results need_freq_consts,
+    const std::shared_ptr<ov::Model>& model) {
     auto rpe = std::make_shared<ov::npuw::patterns::pre_compute::RopePatternLLama2>();
 
-    rpe->callback = [=](ov::pass::pattern::Matcher& m) {
+    rpe->transform_cb = [=]() {
         if (auto inverse_freq_constant = ov::as_type_ptr<ov::op::v0::Constant>(rpe->matched_inv_freq)) {
             LOG_INFO("Inverse Frequences Constant found: " << inverse_freq_constant->get_name());
             need_freq_consts.get().push_back(inverse_freq_constant);
@@ -172,11 +152,10 @@ ov::npuw::patterns::pre_compute::RopeInverseFreq::RopeInverseFreq(
         }
         return false; //root hasnt changed
     };
-    register_matcher(std::make_shared<opp::Matcher>(rpe->pattern, "TagSinCos_InverseFrequencies"), std::move(rpe->make_matcher_callback()));
+    rpe->run_on_model(model);
 }
 
 bool ov::npuw::patterns::pre_compute::RopeCache::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ov::npuw::patterns::pre_compute::RopeCacheMatcher>(m_max_prompt_len);
-    return rewr.run_on_model(model);
+    ov::npuw::patterns::pre_compute::RopeCacheMatcher ropeCache(m_max_prompt_len, model);
+    return true;
 }

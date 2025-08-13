@@ -6,54 +6,52 @@
 
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
-
+#include "openvino/pass/pattern/multi_matcher.hpp"
 namespace ov :: npuw :: patterns :: pre_compute {
 
 class RopePatternDesc {
 protected:
-    ov::matcher_pass_callback verifier_cb;
+    ov::pass::MultiMatcher::Callback init_cb;
+
 public:
-    std::shared_ptr<ov::Node> pattern;
     std::shared_ptr<ov::Node> matched_inv_freq;
     std::shared_ptr<ov::Node> matched_position_ids;
     std::shared_ptr<ov::Node> matched_sin;
     std::shared_ptr<ov::Node> matched_cos;
     std::shared_ptr<ov::Node> matched_concat;
-    //TODO: can be moved to private and init in ctor
-    ov::matcher_pass_callback callback;
 
-    ov::matcher_pass_callback make_matcher_callback() {
-        return [this](pass::pattern::Matcher& m) {
-            if (!verifier_cb(m)) {
-                return false;
-            }
-            return callback(m);
+    std::function<void()> transform_cb;
+
+
+    ov::pass::MultiMatcher::Callback make_matcher_callback() {
+        return [this](const auto & matches) {
+            init_cb(matches);
+            transform_cb();
         };
     }
 };
 
 class RopePatternLLama2 : public RopePatternDesc {
+    ov::pass::MultiMatcher matcher;
 public:
-    //using RopePatternDesc::callback;
+    using RopePatternDesc::transform_cb;
     RopePatternLLama2();
+    bool run_on_model(const std::shared_ptr<ov::Model>& m) {return matcher.run_on_model(m);}
 };
 
-class RopeCacheMatcher : public ov::pass::MatcherPass {
+class RopeCacheMatcher  {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::precompute::SinCosLLama2");
-    RopeCacheMatcher(const uint32_t max_prompt_len);
+    RopeCacheMatcher(const uint32_t max_prompt_len, const std::shared_ptr<ov::Model>& m);
 };
 
 // TODO: not used - only in tests
 // matches inverse freq tensor
-class RopeInverseFreq : public ov::pass::MatcherPass {
+class RopeInverseFreq{
     public:
-    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::precompute::InverseFreq");
-
     using CPtr = std::shared_ptr<ov::op::v0::Constant>;
     using Results = std::reference_wrapper<std::vector<CPtr>>;
 
-    RopeInverseFreq(Results need_freq_consts);
+    RopeInverseFreq(Results need_freq_consts, const std::shared_ptr<ov::Model>& m);
 };
 
 class RopeCache : public ov::pass::ModelPass {

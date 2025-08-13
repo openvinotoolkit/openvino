@@ -586,8 +586,7 @@ public:
         std::vector<CPtr> to_keep;
     
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::pre_compute::RopeInverseFreq>(std::ref(to_keep));
-        rewr.run_on_model(model);
+        ov::npuw::patterns::pre_compute::RopeInverseFreq infreq(std::ref(to_keep), model);
 
         ASSERT_TRUE(!to_keep.empty());
 
