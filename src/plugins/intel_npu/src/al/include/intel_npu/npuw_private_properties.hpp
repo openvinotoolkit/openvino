@@ -250,7 +250,6 @@ static constexpr ov::Property<bool> f16_interconnect{"NPUW_F16IC"};
  */
 static constexpr ov::Property<bool> host_gather{"NPUW_HOST_GATHER"};
 
-
 /**
  * @brief
  * Type: std::string.
