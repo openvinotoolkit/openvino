@@ -22,27 +22,18 @@ using BlocKVCache = std::vector<std::pair<std::string, ov::SoPtr<ov::ITensor>>>;
 
 class KVBlock {
 public:
-    size_t m_block_size;
-    std::vector<uint64_t> m_token_hashes;
-    uint64_t m_block_hash;
-    size_t m_block_id;
-    size_t m_ref_count;
-    bool m_is_full;
-    BlocKVCache m_block_kv_cache;
-
-    // One block may have multiply children blocks
-    std::unordered_set<uint64_t> m_next_block_hashes;
-    // One block only has single previous block
-    uint64_t m_prev_block_hash;
-
     KVBlock(size_t block_size)
         : m_block_size(block_size),
           m_token_start(0),
           m_ref_count(0),
           m_is_full(false),
           m_block_hash(0),
-          m_prev_block_hash(0) {
+          m_parent_block_hash(0) {
         m_token_hashes.reserve(m_block_size);
+    }
+
+    bool is_full() {
+        return m_is_full;
     }
 
     void set_token_start(size_t token_start) {
@@ -51,6 +42,22 @@ public:
 
     size_t get_token_start() {
         return m_token_start;
+    }
+
+    uint64_t get_block_hash() {
+        return m_block_hash;
+    }
+
+    const std::unordered_set<uint64_t>& get_child_block_hashes() {
+        return m_child_block_hashes;
+    }
+
+    uint64_t get_parent_block_hash() {
+        return m_parent_block_hash;
+    }
+
+    const BlocKVCache& get_block_kv_cache() {
+        return m_block_kv_cache;
     }
 
     /**
@@ -79,7 +86,25 @@ private:
      */
     uint64_t compute_block_hash(const std::vector<uint64_t>& token_hashes) const;
 
+    size_t m_block_size;
+
+    std::vector<uint64_t> m_token_hashes;
+
+    size_t m_ref_count;
+
+    bool m_is_full;
+
     size_t m_token_start;
+
+    uint64_t m_block_hash;
+
+    // One block may have multiply child blocks
+    std::unordered_set<uint64_t> m_child_block_hashes;
+
+    // One block only has single parent block
+    uint64_t m_parent_block_hash;
+
+    BlocKVCache m_block_kv_cache;
 };
 
 class PrefixCacheManager {
