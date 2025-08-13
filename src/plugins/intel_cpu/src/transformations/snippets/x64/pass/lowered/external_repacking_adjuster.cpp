@@ -106,10 +106,13 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
     const auto idx = config->is_transposed_B() ? 0 : 1;
     const auto copy_wei_stride =
         ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * dnnl_data_type_size(config->get_original_wei_dt());
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(N) && !ov::snippets::utils::is_dynamic_value(K),
+                    "N and K shape should not be dynamic at BrgemmExternalRepackingAdjuster update kernel stage.");
+    const auto N_signed = static_cast<int64_t>(N);
+    const auto K_signed = static_cast<int64_t>(K);
     const auto LDB =
-        brgemm_utils::repacking::compute_K_blocked_stride(N, config->get_wei_N_blk(), config->are_wei_blocked());
-    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(LDB), "LDB should not be dynamic at update kernel stage.");
-    config->update(N, N, K, K, copy_wei_stride, static_cast<int64_t>(LDB));
+        brgemm_utils::repacking::compute_K_blocked_stride(N_signed, config->get_wei_N_blk(), config->are_wei_blocked());
+    config->update(N_signed, N_signed, K_signed, K_signed, copy_wei_stride, LDB);
     executor->update_by_config(*config);
 }
 
