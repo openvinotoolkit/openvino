@@ -351,10 +351,10 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_selective_build_stat
-          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Extract selective build statistics package
         run: Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
@@ -415,10 +415,10 @@ jobs:
 
     steps:
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_TEST_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Extract OpenVINO tests package
         run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"

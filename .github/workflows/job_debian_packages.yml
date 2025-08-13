@@ -35,10 +35,10 @@ jobs:
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO debian packages
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_debian_packages
-          path: ${{ env.DEBIAN_PACKAGES_DIR }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_debian_packages --dir ${{ env.DEBIAN_PACKAGES_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Install debian packages & check conflicts
         run: |

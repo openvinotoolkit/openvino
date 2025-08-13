@@ -485,42 +485,21 @@ jobs:
             .github/actions/store_artifacts
           path: ${{ env.OPENVINO_REPO }}
 
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_package
-          path: ${{ env.ARTIFACTS_DIR }}
-
-      - name: Download OpenVINO developer package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_developer_package
-          path: ${{ env.ARTIFACTS_DIR }}
-
-      - name: Download OpenVINO JS package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_js_package
-          path: ${{ env.ARTIFACTS_DIR }}
-
-      - name: Download OpenVINO Node NPM package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_node_npm_package
-          path: ${{ env.ARTIFACTS_DIR }}
-
-      - name: Download OpenVINO package manifest
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_package_manifest
-          path: ${{ env.ARTIFACTS_DIR }}
+      - name: Download OpenVINO artifacts (package, dev package, js, node & manifest)
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_developer_package --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_js_package --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_node_npm_package --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package_manifest --dir ${{ env.ARTIFACTS_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Download OpenVINO wheels
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_wheels
-          path: ${{ env.WHEELS_DIR }}
-          merge-multiple: true
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.WHEELS_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
