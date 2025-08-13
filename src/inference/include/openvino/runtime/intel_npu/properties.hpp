@@ -89,11 +89,11 @@ static constexpr ov::Property<bool> qdq_optimization{"NPU_QDQ_OPTIMIZATION"};
 /**
  * @brief [Only for NPU compiler]
  * Type: boolean
- * This option enables additional optimizations and balances performance and accuracy for QDQ format models, quantized
- * using ONNX Runtime
+ * This option enables additional optimizations to improve performance for QDQ format models, quantized using ONNX
+ * Runtime
  * @ingroup ov_runtime_npu_prop_cpp_api
  */
-static constexpr ov::Property<bool> qdq_optimization_forced{"NPU_QDQ_OPTIMIZATION_FORCED"};
+static constexpr ov::Property<bool> qdq_optimization_aggressive{"NPU_QDQ_OPTIMIZATION_AGGRESSIVE"};
 
 /**
  * @brief [Only for NPU plugin]

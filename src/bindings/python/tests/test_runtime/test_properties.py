@@ -478,8 +478,8 @@ def test_properties_ro(ov_property_ro, expected_value):
             ((True, True),),
         ),
         (
-            intel_npu.qdq_optimization_forced,
-            "NPU_QDQ_OPTIMIZATION_FORCED",
+            intel_npu.qdq_optimization_aggressive,
+            "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
         ),
     ],

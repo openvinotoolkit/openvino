@@ -1226,9 +1226,9 @@ struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
     }
 };
 
-struct QDQ_OPTIMIZATION_FORCED final : OptionBase<QDQ_OPTIMIZATION_FORCED, bool> {
+struct QDQ_OPTIMIZATION_AGGRESSIVE final : OptionBase<QDQ_OPTIMIZATION_AGGRESSIVE, bool> {
     static std::string_view key() {
-        return ov::intel_npu::qdq_optimization_forced.name();
+        return ov::intel_npu::qdq_optimization_aggressive.name();
     }
 
     static bool defaultValue() {
