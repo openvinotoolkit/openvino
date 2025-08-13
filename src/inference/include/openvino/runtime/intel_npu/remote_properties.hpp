@@ -24,6 +24,12 @@ using npu_handle_param = void*;
 enum class MemType {
     L0_INTERNAL_BUF = 0,  //!< Internal Level Zero buffer type allocated by plugin
     SHARED_BUF = 1,       //!< Shared buffer
+    MMAPED_FILE = 2,      //!< Memory-mapped file buffer
+};
+
+struct FileDescriptor {
+    std::filesystem::path file_name;  //!< File name
+    std::size_t offset_in_bytes = 0;  //!< Offset in bytes to read from the file
 };
 
 /** @cond INTERNAL */
@@ -33,6 +39,8 @@ inline std::ostream& operator<<(std::ostream& os, const MemType& mem_type) {
         return os << "L0_INTERNAL_BUF";
     case MemType::SHARED_BUF:
         return os << "SHARED_BUF";
+    case MemType::MMAPED_FILE:
+        return os << "MMAPED_FILE";
     default:
         OPENVINO_THROW("Unsupported memory type");
     }
@@ -45,6 +53,8 @@ inline std::istream& operator>>(std::istream& is, MemType& mem_type) {
         mem_type = MemType::L0_INTERNAL_BUF;
     } else if (str == "SHARED_BUF") {
         mem_type = MemType::SHARED_BUF;
+    } else if (str == "MMAPED_FILE") {
+        mem_type = MemType::MMAPED_FILE;
     } else {
         OPENVINO_THROW("Unsupported memory type: ", str);
     }
@@ -72,6 +82,13 @@ static constexpr Property<npu_handle_param> mem_handle{"MEM_HANDLE"};
  * @ingroup ov_runtime_level_zero_npu_cpp_api
  */
 static constexpr Property<npu_handle_param> l0_context{"L0_CONTEXT"};
+
+/**
+ * @brief This key identifies file descriptor
+ * in a shared memory mapped tensor parameter map
+ * @ingroup ov_runtime_level_zero_npu_cpp_api
+ */
+static constexpr Property<FileDescriptor> file_descriptor{"FILE_DESCRIPTOR"};
 
 /**
  * @brief Enum to define the type of the tensor

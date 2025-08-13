@@ -5,6 +5,7 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 
 #include <ze_api.h>
+#include <ze_mem_import_system_memory_ext.h>
 
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -49,6 +50,10 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
             _external_memory_support = true;
         }
 #endif
+
+        if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
+            _mmaped_file_support = true;
+        }
     }
 
     allocate(byte_size);
@@ -120,7 +125,8 @@ ZeroRemoteTensor::~ZeroRemoteTensor() {
 bool ZeroRemoteTensor::deallocate() noexcept {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF:
-    case MemType::SHARED_BUF: {
+    case MemType::SHARED_BUF:
+    case MemType::MMAPED_FILE: {
         if (_data) {
             auto result = zeMemFree(_init_structs->getContext(), _data);
             if (ZE_RESULT_SUCCESS != result) {
@@ -194,6 +200,18 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             "zeMemAllocHost",
             zeMemAllocHost(_init_structs->getContext(), &desc, bytes, utils::STANDARD_PAGE_SIZE, &_data));
 #endif
+        break;
+    }
+    case MemType::MMAPED_FILE: {
+        if (!_mmaped_file_support) {
+            OPENVINO_THROW("Importing memory from a memory-mapped file is not supported with this driver version");
+        }
+
+        // memory map the file
+        // read_tensor_data_from_mmaped_file(file_descriptor->file_name,
+        //                                   file_descriptor->offset_in_bytes
+        //                                   );
+
         break;
     }
     default:

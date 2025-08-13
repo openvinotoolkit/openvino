@@ -37,6 +37,7 @@ RemoteContextImpl::RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBack
         _mem_type_object = extract_object(remote_properties, mem_type);
         _tensor_type_object = extract_object(remote_properties, tensor_type);
         _mem_handle_object = extract_object(remote_properties, mem_handle);
+        _file_descriptor_object = extract_object(remote_properties, file_descriptor);
     }
 }
 
@@ -51,12 +52,14 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
     std::optional<ov::intel_npu::MemType> mem_type_object = std::nullopt;
     std::optional<ov::intel_npu::TensorType> tensor_type_object = std::nullopt;
     std::optional<void*> mem_handle_object = std::nullopt;
+    std::optional<ov::intel_npu::FileDescriptor> file_descriptor_object = std::nullopt;
 
     if (!params.empty()) {
         // Save local remote properties.
         mem_type_object = extract_object(params, mem_type);
         tensor_type_object = extract_object(params, tensor_type);
         mem_handle_object = extract_object(params, mem_handle);
+        file_descriptor_object = extract_object(params, file_descriptor);
     }
 
     // Merge local remote properties with global remote properties.
