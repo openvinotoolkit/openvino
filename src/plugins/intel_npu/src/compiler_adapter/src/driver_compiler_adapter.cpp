@@ -19,6 +19,7 @@
 #include "intel_npu/utils/zero/zero_result.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "ir_serializer.hpp"
+#include "irgraph.hpp"
 #include "mem_usage.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
@@ -363,6 +364,10 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     std::optional<std::vector<ov::Tensor>> initBlobs,
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
+
+    if (is_dynamic_shape_blob(mainBlob)) {
+        OPENVINO_THROW("Dynamic shape blob is only supported by MLIR compiler type now!");
+    }
 
     _logger.debug("parse start");
     auto mainGraphDesc = _zeGraphExt->getGraphDescriptor(mainBlob.data(), mainBlob.get_byte_size());

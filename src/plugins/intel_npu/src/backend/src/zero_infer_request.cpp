@@ -1,6 +1,10 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef _MSC_VER
+#    pragma warning(push)
+#    pragma warning(disable : 4146 4267 4244 4996)
+#endif
 
 #include "zero_infer_request.hpp"
 
@@ -14,7 +18,15 @@
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "zero_memory.hpp"
+#include "zero_pipeline.hpp"
 #include "zero_variable_state.hpp"
+
+#ifdef NPU_LLVM_BACKEND
+#    include <cstdlib>
+#    include <sstream>
+
+#    include "zero_dynamic_pipeline.hpp"
+#endif
 
 using namespace intel_npu;
 
@@ -33,6 +45,8 @@ constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
  * @param zeDescriptor The Level Zero specific structure used for comparison.
  */
 void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const ArgumentDescriptor& zeDescriptor) {
+    // FIXME: disable the check for now
+    // return;
     std::string zeDescriptorName = zeDescriptor.info.name;
 
     if (isStateInputName(zeDescriptorName)) {
@@ -63,12 +77,13 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
                     "Maximum number of dimensions supported: " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE) +
                         '\n' + "Given: " + std::to_string(ovDimensions.size()));
 
+    const uint32_t dynamicDim = std::numeric_limits<uint32_t>::max();
     for (size_t index = 0; index < ovDimensions.size(); ++index) {
-        OPENVINO_ASSERT(ovDimensions[index] == zeDescriptor.info.dims[index],
-                        "Shape mismatch for input/output named \"" + ioDescriptor.nameFromCompiler +
-                            "\" by dimension index: " + std::to_string(index) +
-                            ". L0 has: " + std::to_string(zeDescriptor.info.dims[index]) +
-                            " but meta has: " + std::to_string(ovDimensions[index]));
+        OPENVINO_ASSERT(
+            ovDimensions[index] == zeDescriptor.info.dims[index] || zeDescriptor.info.dims[index] == dynamicDim,
+            "Shape mismatch for input/output named \"" + ioDescriptor.nameFromCompiler + "\" by dimension index: " +
+                std::to_string(index) + ". L0 has: " + std::to_string(zeDescriptor.info.dims[index]) +
+                " but meta has: " + std::to_string(ovDimensions[index]));
     }
     for (size_t index = ovDimensions.size(); index < ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE; ++index) {
         OPENVINO_ASSERT(zeDescriptor.info.dims[index] == 0 || zeDescriptor.info.dims[index] == 1,
@@ -78,7 +93,6 @@ void check_level_zero_attributes_match(const IODescriptor& ioDescriptor, const A
 
 }  // namespace
 
-//------------------------------------------------------------------------------
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
                                    const Config& config)
@@ -99,6 +113,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
     if (res == ZE_RESULT_SUCCESS) {
         if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
             _externalMemoryStandardAllocationSupported = true;
+            _logger.debug("externalMemoryStandardAllocation supported is true");
+        } else {
+            _logger.debug("externalMemoryStandardAllocation supported is false");
         }
     }
 
@@ -121,7 +138,8 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
             continue;
         }
 
-        get_level_zero_input(ioIndex) = allocate_tensor(inputDescriptor, ioIndex, INPUT, *_inputAllocator, batchSize);
+        get_level_zero_input(ioIndex) =
+            allocate_tensor_for_pipeline(inputDescriptor, ioIndex, INPUT, *_inputAllocator, batchSize);
 
         ++ioIndex;
     }
@@ -136,7 +154,7 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
 
         _levelZeroOutputTensors.at(ioIndex) =
-            allocate_tensor(outputDescriptor, ioIndex, OUTPUT, *_outputAllocator, batchSize);
+            allocate_tensor_for_pipeline(outputDescriptor, ioIndex, OUTPUT, *_outputAllocator, batchSize);
 
         ++ioIndex;
     }
@@ -169,8 +187,11 @@ void ZeroInferRequest::create_pipeline() {
                                   _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                                   batchSize.value());
 
-                    get_level_zero_input(inputIndex, i) =
-                        allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, true, *_inputAllocator, batchSize);
+                    get_level_zero_input(inputIndex, i) = allocate_tensor_for_pipeline(_metadata.inputs.at(inputIndex),
+                                                                                       inputIndex,
+                                                                                       true,
+                                                                                       *_inputAllocator,
+                                                                                       batchSize);
                 }
             }
             continue;
@@ -184,8 +205,11 @@ void ZeroInferRequest::create_pipeline() {
             continue;
         }
 
-        get_level_zero_input(inputIndex) =
-            allocate_tensor(_metadata.inputs.at(inputIndex), inputIndex, INPUT, *_inputAllocator, batchSize);
+        get_level_zero_input(inputIndex) = allocate_tensor_for_pipeline(_metadata.inputs.at(inputIndex),
+                                                                        inputIndex,
+                                                                        INPUT,
+                                                                        *_inputAllocator,
+                                                                        batchSize);
         _logger.debug("ZeroInferRequest::create_pipeline - new input tensor %s allocated, size: %zu",
                       _metadata.inputs.at(inputIndex).nodeFriendlyName.c_str(),
                       get_level_zero_input(inputIndex)->get_byte_size());
@@ -199,8 +223,11 @@ void ZeroInferRequest::create_pipeline() {
         }
         _logger.debug("ZeroInferRequest::create_pipeline - allocate new output tensor %s",
                       _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str());
-        _levelZeroOutputTensors.at(outputIndex) =
-            allocate_tensor(_metadata.outputs.at(outputIndex), outputIndex, OUTPUT, *_outputAllocator, batchSize);
+        _levelZeroOutputTensors.at(outputIndex) = allocate_tensor_for_pipeline(_metadata.outputs.at(outputIndex),
+                                                                               outputIndex,
+                                                                               OUTPUT,
+                                                                               *_outputAllocator,
+                                                                               batchSize);
         _logger.debug("ZeroInferRequest::create_pipeline - new output tensor %s allocated, size: %zu",
                       _metadata.outputs.at(outputIndex).nodeFriendlyName.c_str(),
                       _levelZeroOutputTensors.at(outputIndex)->get_byte_size());
@@ -254,15 +281,88 @@ void ZeroInferRequest::create_pipeline() {
 
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
 
-    // Construct pipeline
-    _pipeline = std::make_unique<Pipeline>(_config,
-                                           _initStructs,
-                                           _graph,
-                                           _levelZeroInputTensors,
-                                           _levelZeroOutputTensors,
-                                           batchSize.has_value() ? batchSize.value() : DEFAULT_BATCH_SIZE);
+#ifdef NPU_LLVM_BACKEND
+    if (_graph->get_handle() == nullptr) {
+        // Construct pipeline
+        _pipeline = std::make_unique<DynamicPipeline>(_config,
+                                                      _initStructs,
+                                                      _graph,
+                                                      _levelZeroInputTensors,
+                                                      _levelZeroOutputTensors,
+                                                      batchSize.has_value() ? batchSize.value() : DEFAULT_BATCH_SIZE);
+    } else
+#endif
+    {
+        // Construct pipeline
+        _pipeline = std::make_unique<Pipeline>(_config,
+                                               _initStructs,
+                                               _graph,
+                                               _levelZeroInputTensors,
+                                               _levelZeroOutputTensors,
+                                               batchSize.has_value() ? batchSize.value() : DEFAULT_BATCH_SIZE);
+    }
 
     _logger.debug("ZeroInferRequest::create_pipeline - SyncInferRequest completed");
+}
+
+std::shared_ptr<ov::ITensor> ZeroInferRequest::allocate_tensor_for_pipeline(
+    const IODescriptor& descriptor,
+    const size_t index,
+    const bool isInput,
+    const ov::Allocator& allocator,
+    const std::optional<std::size_t> batchSize) const {
+#ifdef NPU_LLVM_BACKEND
+    if (_graph->use_dynamic_pipeline()) {
+        IODescriptor descriptorWithUserInfo = descriptor;
+        // Create new IODescriptor based on user input|output and descriptor
+        if (isInput && get_user_input(index) != nullptr) {
+            _logger.debug("Update input descriptor with shape from user input : %s instead of %s",
+                          get_user_input(index)->get_shape().to_string().c_str(),
+                          descriptor.shapeFromCompiler.to_string().c_str());
+            descriptorWithUserInfo.shapeFromCompiler = get_user_input(index)->get_shape();
+        } else if (!isInput && _userOutputTensors.at(index) != nullptr) {
+            _logger.debug("Update output descriptor with shape from user output : %s instead of %s",
+                          _userOutputTensors.at(index)->get_shape().to_string().c_str(),
+                          descriptor.shapeFromCompiler.to_string().c_str());
+            descriptorWithUserInfo.shapeFromCompiler = _userOutputTensors.at(index)->get_shape();
+        }
+
+        if (!isInput) {
+            // TODO : remove workaround to force output tensor shape, not set_tensor for output in benchmark now
+            //  set HACK_OURPUT_SHAPE=1*2*3*4
+            const char* env_p = std::getenv("HACK_OUTPUT_SHAPE");
+            if (env_p != nullptr) {
+                std::string env_value(env_p);
+                std::stringstream ss(env_value);
+                std::string item;
+
+                bool hack = true;
+                std::vector<size_t> a;
+                while (std::getline(ss, item, '*')) {
+                    try {
+                        size_t number = std::stoul(item);
+                        a.push_back(number);
+                    } catch (std::exception e) {
+                        std::cerr << "Number out of range in environment variable: " << item << std::endl;
+                        hack = false;
+                        break;
+                    }
+                }
+                if (hack) {
+                    ov::Shape hackedShape = a;
+                    _logger.debug("Hack output descriptor shape from %s to %s",
+                                  descriptorWithUserInfo.shapeFromCompiler.to_string().c_str(),
+                                  hackedShape.to_string().c_str());
+                    descriptorWithUserInfo.shapeFromCompiler = hackedShape;
+                }
+            }
+        }
+        // If we use user buffer info, does not need to pass batch size
+        return allocate_tensor(descriptorWithUserInfo, index, isInput, allocator, std::nullopt);
+    }
+#endif
+
+    return allocate_tensor(descriptor, index, isInput, allocator, batchSize);
 }
 
 void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tensor,
@@ -275,6 +375,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
 
     OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "check_data_allocation");
     if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_initStructs->getContext(), tensor->data())) {
+        _logger.debug("User tensor can be used as L0 tensor since allocated in same L0 context");
         _logger.debug("ZeroInferRequest::set_tensor_data - tensor was created in the same L0 context, size: %zu",
                       tensor->get_byte_size());
         levelZeroTensors = tensor;
@@ -288,6 +389,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
     } else {
         if (_externalMemoryStandardAllocationSupported &&
             utils::memory_and_size_aligned_to_standard_page_size(tensor->data(), tensor->get_byte_size())) {
+            _logger.debug("User tensor ptr can be imported as L0 tensor since device support this feature");
             _logger.debug("ZeroInferRequest::set_tensor_data - import memory from a system memory pointer");
             auto hostMemSharedAllocator =
                 zeroMemory::HostMemSharedAllocator(_initStructs,
@@ -305,7 +407,10 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         } else {
             auto zeroTensor = std::dynamic_pointer_cast<ZeroTensor>(levelZeroTensors);
 
-            if (zeroTensor == nullptr || (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user())) {
+            if (zeroTensor == nullptr || (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user()) ||
+                zeroTensor->get_byte_size() < tensor->get_byte_size()) {
+                _logger.debug("Create L0 tensor since no old tensor or old tensor is shared from last user tensor or "
+                              "old tensor is too small");
                 _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
@@ -317,13 +422,23 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
                     tensorVector,
                     isInput ? _graphInputDescriptors.at(index) : _graphOutputDescriptors.at(index));
 
-                levelZeroTensors = allocate_tensor(isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index),
-                                                   index,
-                                                   isInput,
-                                                   isInput ? *_inputAllocator : *_outputAllocator,
-                                                   batch);
+                levelZeroTensors =
+                    allocate_tensor_for_pipeline(isInput ? _metadata.inputs.at(index) : _metadata.outputs.at(index),
+                                                 index,
+                                                 isInput,
+                                                 isInput ? *_inputAllocator : *_outputAllocator,
+                                                 batch);
 
                 updateCommandListArg = true;
+            } else {
+                // TODO: shall we reuse old L0 tensor if it large enough, or just recreate a L0 tensor with same size of
+                // user tensor?
+                _logger.debug("Reuse current L0 tensor, since user tensor is not L0 tensor & can not be imprt & is not "
+                              "shared from last round, and old L0 tensor is large enough");
+                if (_graph->use_dynamic_pipeline()) {
+                    // Update to use user info
+                    updateCommandListArg = true;
+                }
             }
         }
     }
@@ -334,10 +449,23 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         OPENVINO_ASSERT(levelZeroTensors->data(), "Empty buffer");
 
         OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
-        _pipeline->update_graph_arguments(
-            isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
-            levelZeroTensors->data(),
-            levelZeroTensors->get_byte_size());
+        if (_graph->use_dynamic_pipeline() && levelZeroTensors->get_byte_size() > tensor->get_byte_size()) {
+            // This L0 tensor is larger than user tensor, but we only use part of it
+            _pipeline->update_graph_arguments(isInput ? _graph->get_input_descriptors().at(index).idx
+                                                      : _graph->get_output_descriptors().at(index).idx,
+                                              levelZeroTensors->data(),
+                                              tensor->get_byte_size(),
+                                              tensor->get_strides(),
+                                              tensor->get_shape());
+        } else {
+            // This L0 tensor shal have same info with user tensor
+            _pipeline->update_graph_arguments(isInput ? _graph->get_input_descriptors().at(index).idx
+                                                      : _graph->get_output_descriptors().at(index).idx,
+                                              levelZeroTensors->data(),
+                                              levelZeroTensors->get_byte_size(),
+                                              levelZeroTensors->get_strides(),
+                                              levelZeroTensors->get_shape());
+        }
     }
 }
 
@@ -364,12 +492,20 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
         _pipeline->update_graph_arguments(
             isInput ? _graph->get_input_descriptors().at(index).idx : _graph->get_output_descriptors().at(index).idx,
             data,
-            tensor->get_byte_size());
+            tensor->get_byte_size(),
+            tensor->get_strides(),
+            tensor->get_shape());
     }
 }
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "set_tensor");
+    std::ostringstream oss;
+    oss << tensor->get_strides();
+    _logger.debug("set user tensor: tensor shape: %s, stride: %s, size: %zu",
+                  tensor->get_shape().to_string().c_str(),
+                  oss.str().c_str(),
+                  tensor->get_byte_size());
 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
@@ -380,6 +516,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
+        _logger.debug("update input tensor");
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
             // Got set_tensor with the same object - do nothing
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
@@ -394,6 +531,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         // Check if batch has been changed
         if (batchSizeCandidate.has_value()) {
             if (get_user_input(foundPort.idx) != nullptr) {
+                _logger.debug("Detect size");
                 _logger.debug("ZeroInferRequest::set_tensor - check if input tensors may have their sizes changed, "
                               "existing: %zu and "
                               "count: %zu, new: %zu - to determine whether we need for pipeline reallocation",
@@ -402,6 +540,10 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                               tensor->get_byte_size());
                 if (get_user_input(foundPort.idx)->get_byte_size() * get_user_inputs(foundPort.idx).size() !=
                     tensor->get_byte_size()) {
+                    _logger.debug(
+                        "Need to recreate pipeline since tensor size change, old size: %zu new size: %zu",
+                        get_user_input(foundPort.idx)->get_byte_size() * get_user_inputs(foundPort.idx).size(),
+                        tensor->get_byte_size());
                     _pipelineNeedsReallocation = true;
                 }
             }
@@ -415,7 +557,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             get_user_inputs(foundPort.idx).resize(1);
             get_user_inputs(foundPort.idx).shrink_to_fit();
         }
-
+        _logger.debug("set new user input tensor");
         get_user_input(foundPort.idx) = tensor;
     } else {
         if (_userOutputTensors.at(foundPort.idx)._ptr == tensor._ptr) {
@@ -431,8 +573,14 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
                           tensor->get_byte_size());
             if (_userOutputTensors.at(foundPort.idx)->get_byte_size() != tensor->get_byte_size()) {
                 _pipelineNeedsReallocation = true;
+                if (_graph->use_dynamic_pipeline() &&
+                    _userOutputTensors.at(foundPort.idx)->get_byte_size() > tensor->get_byte_size()) {
+                    _logger.debug("Reuse current pipeline if old user tensor size is larger than current tensor");
+                    _pipelineNeedsReallocation = false;
+                }
             }
         }
+        _logger.debug("set new user output tensor");
         _userOutputTensors.at(foundPort.idx) = tensor;
     }
 
@@ -455,6 +603,8 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     if (tensors.size() == 1) {
         set_tensor(port, tensors[0]);
         return;
+    } else if (_graph->use_dynamic_pipeline()) {
+        OPENVINO_THROW("Dynamic pipeline does not support btach now");
     }
 
     auto foundPort = find_port(port);
@@ -470,7 +620,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
     _logger.debug("ZeroInferRequest::set_tensors: %zu", tensors.size());
     auto batch_size = _graph->get_batch_size(_metadata, tensors, _graphInputDescriptors.at(foundPort.idx));
-
+    // TODO: When to reallocate pipeline for dynamic shape?
     if (batch_size.has_value()) {
         _logger.debug("ZeroInferRequest::set_tensors: determined batch: %zu, preallocated L0 tensors: %zu ",
                       batch_size.value(),
@@ -479,6 +629,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
             batch_size = tensors.size();
             _logger.debug("ZeroInferRequest::set_tensors: batch sized has been changed to: %zu", batch_size.value());
             _graph->set_batch_size(tensors.size());
+            _logger.debug("Need to recreate pipeline");
             _pipelineNeedsReallocation = true;
         }
     }
@@ -525,11 +676,12 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
                         _logger.debug("ZeroInferRequest::set_tensors - tensor wasn't created in the same L0 context, "
                                       "create a L0 tensor");
 
-                        get_level_zero_input(foundPort.idx, i) = allocate_tensor(_metadata.inputs.at(foundPort.idx),
-                                                                                 foundPort.idx,
-                                                                                 true,
-                                                                                 *_inputAllocator,
-                                                                                 batch_size);
+                        get_level_zero_input(foundPort.idx, i) =
+                            allocate_tensor_for_pipeline(_metadata.inputs.at(foundPort.idx),
+                                                         foundPort.idx,
+                                                         true,
+                                                         *_inputAllocator,
+                                                         batch_size);
                     }
 
                     data = get_level_zero_input(foundPort.idx, i)->data();
@@ -547,6 +699,8 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
 
                     _pipeline->update_graph_arguments_batching(_graph->get_input_descriptors().at(foundPort.idx).idx,
                                                                data,
+                                                               tensors[i]->get_strides(),
+                                                               tensors[i]->get_shape(),
                                                                i);
                 }
             }
@@ -653,7 +807,9 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
 
             _pipeline->update_graph_arguments(_graph->get_input_descriptors().at(ioIndex).idx,
                                               zeroTensor->data(),
-                                              zeroTensor->get_byte_size());
+                                              zeroTensor->get_byte_size(),
+                                              zeroTensor->get_strides(),
+                                              zeroTensor->get_shape());
 
             if (!inputDescriptor.isStateInput) {
                 zeroTensor->reset_memory_flag();
@@ -680,7 +836,9 @@ void ZeroInferRequest::update_pipeline_if_memory_changed() {
 
             _pipeline->update_graph_arguments(_graph->get_output_descriptors().at(ioIndex).idx,
                                               zeroTensor->data(),
-                                              zeroTensor->get_byte_size());
+                                              zeroTensor->get_byte_size(),
+                                              zeroTensor->get_strides(),
+                                              zeroTensor->get_shape());
 
             zeroTensor->reset_memory_flag();
         }
@@ -720,12 +878,16 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       levelZeroInput->data(),
-                                                      levelZeroInput->get_byte_size());
+                                                      levelZeroInput->get_byte_size(),
+                                                      levelZeroInput->get_strides(),
+                                                      levelZeroInput->get_shape());
 
                     _pipeline->update_graph_arguments(
                         _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
                         levelZeroInput->data(),
-                        levelZeroInput->get_byte_size());
+                        levelZeroInput->get_byte_size(),
+                        levelZeroInput->get_strides(),
+                        levelZeroInput->get_shape());
 
                     zeroState->reset_tensor_imported_flag();
                 } else {
@@ -736,12 +898,16 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       userBuffer,
-                                                      zeroState->get_state()->get_byte_size());
+                                                      zeroState->get_state()->get_byte_size(),
+                                                      zeroState->get_state()->get_strides(),
+                                                      zeroState->get_state()->get_shape());
 
                     _pipeline->update_graph_arguments(
                         _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
                         userBuffer,
-                        zeroState->get_state()->get_byte_size());
+                        zeroState->get_state()->get_byte_size(),
+                        zeroState->get_state()->get_strides(),
+                        zeroState->get_state()->get_shape());
 
                     levelZeroInput = zeroState->get_state()._ptr;
                     levelZeroOutput = zeroState->get_state()._ptr;
@@ -761,12 +927,16 @@ void ZeroInferRequest::update_states_if_memory_changed() {
 
                     _pipeline->update_graph_arguments(_graphInputDescriptors.at(zeroState->get_tensor_index()).idx,
                                                       levelZeroOutput->data(),
-                                                      levelZeroOutput->get_byte_size());
+                                                      levelZeroOutput->get_byte_size(),
+                                                      levelZeroOutput->get_strides(),
+                                                      levelZeroOutput->get_shape());
 
                     _pipeline->update_graph_arguments(
                         _graphOutputDescriptors.at(zeroState->get_related_tensor_index()).idx,
                         levelZeroOutput->data(),
-                        levelZeroOutput->get_byte_size());
+                        levelZeroOutput->get_byte_size(),
+                        levelZeroOutput->get_strides(),
+                        levelZeroOutput->get_shape());
 
                     zeroState->reset_zero_tensor_updated_flag();
                 }
@@ -793,6 +963,9 @@ void ZeroInferRequest::infer_async() {
 
         if (!_pipelineIsCreated || _pipelineNeedsReallocation) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
+            _logger.debug("create pipeline : pipelineCreated - %s , recreate - %s",
+                          _pipelineIsCreated ? "true" : "false",
+                          _pipelineNeedsReallocation ? "true" : "false");
             create_pipeline();  // Reallocate pipeline if necessary
             _pipelineIsCreated = true;
             _pipelineNeedsReallocation = false;  // Reset reallocation flag
@@ -1049,3 +1222,7 @@ std::shared_ptr<ov::ITensor>& ZeroInferRequest::get_level_zero_input(size_t inde
 std::vector<std::shared_ptr<ov::ITensor>>& ZeroInferRequest::get_level_zero_inputs(size_t index) const {
     return _levelZeroInputTensors.at(index);
 }
+
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#endif

@@ -38,6 +38,22 @@ private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
     /**
+     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
+     * @param descriptor Tensor's metadata
+     * @param index The index which the allocated tensor shall use.
+     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
+     * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
+     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
+     * @return Pointer towards the allocated tensor
+     */
+    std::shared_ptr<ov::ITensor> allocate_tensor_for_pipeline(
+        const IODescriptor& descriptor,
+        const size_t index,
+        const bool isInput,
+        const ov::Allocator& allocator = {},
+        const std::optional<std::size_t> batchSize = std::nullopt) const;
+
+    /**
      * @brief Check the received tensor and set the Level Zero tensor accordingly
      * @param tensor Reference to a tensor.
      * @param index The index corresponding to the position of the tensor inside the I/O structures.
@@ -69,6 +85,8 @@ private:
 
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();
+
+    IODescriptor prepare_io_descriptor_with_user_info(const IODescriptor& descriptor, bool isInput);
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
