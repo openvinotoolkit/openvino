@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
-
 #include "llm_prefix_caching.hpp"
 
 #include "llm_infer_request.hpp"
@@ -225,7 +223,6 @@ void PrefixCacheManager::print_cache_status(bool verbose) const {
 }
 
 std::vector<uint64_t> calculate_hashes(const ov::SoPtr<ov::ITensor>& input_ids) {
-    const char* data = reinterpret_cast<const char*>(input_ids->data());
     const auto data_elem_size = input_ids->get_element_type().size();
     size_t total_size = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
 
