@@ -277,6 +277,10 @@
 #    include "openvino/op/softmax.hpp"
 #endif
 
+#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/core/except.hpp"
+#endif
+
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
