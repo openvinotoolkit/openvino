@@ -555,6 +555,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
 
+            // - The attn mask type of SDPA should be fp16
+            if (!sdpa->get_causal() && sdpa->get_input_size() >= 3 && sdpa->get_input_element_type(3) != ov::element::f16) {
+                return false;
+            }
+
             // - The number of dimensions for each input is expected to be 4 or 3
             if (!(query_ps.size() == 3 || query_ps.size() == 4) ||
                 !(key_ps.size() == 3 || key_ps.size() == 4) ||
