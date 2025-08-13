@@ -24,9 +24,9 @@ class KVBlock {
 public:
     KVBlock(size_t block_size)
         : m_block_size(block_size),
-          m_token_start(0),
           m_ref_count(0),
           m_is_full(false),
+          m_token_start(0),
           m_block_hash(0),
           m_parent_block_hash(0) {
         m_token_hashes.reserve(m_block_size);
