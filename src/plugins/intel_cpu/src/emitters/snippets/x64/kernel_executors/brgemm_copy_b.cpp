@@ -459,11 +459,12 @@ void BrgemmCopyBKernelExecutor::update_config(const ov::snippets::lowered::Expre
 
     const auto LDB =
         brgemm_utils::repacking::compute_K_blocked_stride(N_dim, config.get_wei_N_blk(), config.are_wei_blocked());
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(LDB), "LDB should not be dynamic at update config stage.");
     const auto copy_B_wei_stride =
         ov::snippets::utils::get_dim_stride(expr->get_input_port(0), config.is_transposed_B() ? 0 : 1) *
         dnnl_data_type_size(config.get_original_wei_dt());
 
-    config.update(N_dim, N_blk, K_dim, K_blk, copy_B_wei_stride, LDB);
+    config.update(N_dim, N_blk, K_dim, K_blk, copy_B_wei_stride, static_cast<int64_t>(LDB));
 }
 
 void BrgemmCopyBKernelExecutor::execute(const BrgemmCopyBKernelExecutor* executor, BrgemmCopyBKernel::call_args* args) {
