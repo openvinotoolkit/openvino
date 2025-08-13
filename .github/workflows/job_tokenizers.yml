@@ -57,6 +57,10 @@ jobs:
       GH_DEBUG: 1
 
     steps:
+      - name: Install GH CLI
+        if: runner.os == 'Windows'
+        run: choco install gh
+
       - name: checkout actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15
@@ -87,7 +91,17 @@ jobs:
           should-setup-pip-paths: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
-      - name: Download OpenVINO artifacts (wheels)
+      - name: Download OpenVINO artifacts (wheels) (Win)
+        if: runner.os == 'Windows'
+        run: |
+          # Add `gh` to PATH
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "env:$GITHUB_RUN_ID" --repo "env:$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Download OpenVINO artifacts (wheels) (*nix)
+        if: runner.os != 'Windows'
         run: |
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
         env:
