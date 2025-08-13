@@ -193,6 +193,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                 return false;
         }
 
+
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
             // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
             if (!concat_node.is_dynamic() || is_runtime) {
@@ -238,6 +239,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             lower_padd_in_axis += pred_params[idx].get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
         idx++;
     }
+
+    if (concat_node.get_preferred_impl_type() == impl_types::onednn)
+        if (concat_axis != 1)
+            return false;
 
     // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
