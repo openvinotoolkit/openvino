@@ -173,9 +173,10 @@ ov::pass::LabelResolvingThroughSelect::LabelResolvingThroughSelect() {
 
 ov::pass::SymbolicOptimizations::SymbolicOptimizations(bool full_run,
                                                        std::shared_ptr<ov::pass::PassConfig> pass_config) {
-    if (pass_config)
-        m_manager = std::make_shared<pass::Manager>(pass_config, "Symbolic");
-    else
+    if (pass_config) {
+        auto new_pass_config = std::make_shared<ov::pass::PassConfig>(*pass_config);
+        m_manager = std::make_shared<pass::Manager>(new_pass_config, "Symbolic");
+    } else
         m_manager = std::make_shared<pass::Manager>("Symbolic");
 
     m_manager->set_per_pass_validation(false);
@@ -210,23 +211,10 @@ bool ov::pass::SymbolicOptimizations::run_on_model(const std::shared_ptr<ov::Mod
     // it may break NNCF patterns and lead to unexpected FakeQuantize ops in the model.
     // So we decided to disable these passes in SymbolicOptimizations.
     const auto& pass_config = m_manager->get_pass_config();
-
-    const auto old_pass_config = *pass_config;
-
-    // Temporarily disable passes for SymbolicOptimizations execution
     pass_config->disable<EliminateSqueeze>();
     pass_config->disable<EliminateUnsqueeze>();
 
-    bool result;
-    try {
-        result = m_manager->run_passes(m);
-    } catch (...) {
-        *pass_config = old_pass_config;  // Restore original pass config on exception
-        throw;                           // Re-throw the exception
-    }
-
-    *pass_config = old_pass_config;
-
+    m_manager->run_passes(m);
     ov::remove_skip_invalidation_rti(m);
-    return result;
+    return true;
 }
