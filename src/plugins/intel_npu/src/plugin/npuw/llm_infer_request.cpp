@@ -251,6 +251,48 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
     return std::make_pair(low_rank_dim, full_rank_dim);
 }
 
+size_t adjust_chunk_size(size_t restored_token_num, size_t chunk_len) {
+    // This function calculates the number of tokens needed to complete a full chunk
+    // based on the current restored token number and the chunk prompt length.
+
+    // Ensure that the past KV in the inference request can accommodate a full chunk after the first inference run.
+    // Consider the scenario when prefix caching is enabled:
+    // - The input prompt length is 1024, and the chunk size is 256. Initially, the present KV length in the inference
+    // request is 256, and the past KV length is 768.
+    // - Initially, 128 tokens have been restored from the cache, leaving 1024 - 128 = 896 tokens that need to be
+    // computed. Round 1:
+    // - 128 tokens are stored in the past KV.
+    // - Infer for 256 tokens in the present KV.
+    // - After updating the KV cache, the past KV will hold 128 + 256 tokens, leaving 896 - 256 = 640 tokens.
+    // Round 2:
+    // - 128 + 256 tokens are stored in the past KV.
+    // - Infer for another 256 tokens in the present KV.
+    // - After updating the KV cache, the past KV will hold 128 + 256 + 256 tokens, leaving 896 - 256 - 256 = 384
+    // tokens. Round 3:
+    // - 128 + 256 + 256 tokens are stored in the past KV.
+    // - Infer for another 256 tokens in the present KV.
+    // - KV cache update would fail because the past KV cannot accommodate 128 + 256 + 256 + 256 tokens.
+
+    // To address this issue, ensure that the past KV can hold a full chunk after round 1:
+    // Round 1:
+    // - 128 tokens are stored in the past KV.
+    // - Infer for 128 tokens in the present KV.
+    // - After updating the KV cache, the past KV will hold 128 + 128 tokens, leaving 896 - 128 = 768 tokens.
+    // Round 2:
+    // - 256 tokens are stored in the past KV.
+    // - Infer for 256 tokens in the present KV.
+    // - After updating the KV cache, the past KV will hold 256 + 256 tokens, leaving 896 - 128 - 256 = 512 tokens.
+    // Round 3:
+    // - 256 + 256 tokens are stored in the past KV.
+    // - Infer for 256 tokens in the present KV.
+    // - After updating the KV cache, the past KV will hold 256 + 256 + 256 tokens, leaving 896 - 128 - 256 - 256 = 256
+    // tokens. Round 4:
+    // - 256 + 256 + 256 tokens are stored in the past KV.
+    // - Infer for the last 256 tokens in the present KV, completing the prefill for all prompts.
+
+    return chunk_len - restored_token_num % chunk_len;
+}
+
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
@@ -515,11 +557,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             // The task is to copy both parts into the KV-cache input tensor for the decoding process
 
             // Copy part 1 KV results
-            auto tokens_in_present_chunk = kvcache_desc.num_stored_tokens % prefill_chunk_size;
-            tokens_in_present_chunk = tokens_in_present_chunk ? tokens_in_present_chunk : prefill_chunk_size;
-
-            // tokens_in_past_chunks may be 0 in case short prompts are prefilled in single chunk
-            auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - tokens_in_present_chunk;
+            auto tokens_in_past_chunks = kvcache_desc.num_stored_tokens - m_tokens_in_present_chunk;
             if (tokens_in_past_chunks > 0) {
                 auto prefill_past_kv = m_prefill_request->get_tensor(m_prefill_in_ports.at(input_name));
                 auto prefill_past_kv_chunks =
@@ -535,7 +573,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
             auto prefill_present_kv_chunk =
                 make_tensor_slice(prefill_out_tensor,
                                   kv_dim,
-                                  static_cast<uint32_t>(prefill_chunk_size - tokens_in_present_chunk),
+                                  static_cast<uint32_t>(prefill_chunk_size - m_tokens_in_present_chunk),
                                   static_cast<uint32_t>(prefill_chunk_size));
 
             auto kvcache_last_kv_chunk = make_tensor_slice(kvcache_in_tensor,
@@ -586,7 +624,17 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                                            kvcache_desc.num_stored_tokens - num_tokens,
                                            kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
-        copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        if (src_tensor->get_shape()[kv_dim] != dst_slice->get_shape()[kv_dim]) {
+            // When prefix caching is enabled, there might be padding data on the left side after the first chunking
+            // inference
+            auto src_slice = make_tensor_slice(src_tensor,
+                                               kv_dim,
+                                               static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]) - num_tokens,
+                                               static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]));
+            copy_tensor_by_dim(src_slice, dst_slice, kv_dim);
+        } else {
+            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        }
     }
     LOG_DEBUG("Done.");
 }
@@ -621,6 +669,7 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::IT
     uint64_t restored_token_num = 0;
     size_t token_idx = 0;
 
+    uint64_t max_restored_token_num = kvcache_desc.max_prompt_size - m_npuw_llm_compiled_model->m_prefill_chunk_size;
     for (size_t block_index = 0; block_index < num_blocks; ++block_index) {
         size_t current_block_size = std::min(block_size, actual_token_num - block_index * block_size);
         if (current_block_size < block_size) {
@@ -668,6 +717,17 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::IT
         }
 
         restored_token_num += block_size;
+
+        // Ensure the cached tokens can be loaded into infer request
+        if (restored_token_num + block_size > max_restored_token_num) {
+            break;
+        }
+
+        // At least we should infer "1" token to generate "logit"
+        if (restored_token_num == actual_token_num) {
+            restored_token_num -= block_size;
+            break;
+        }
     }
 
     return restored_token_num;
@@ -679,12 +739,18 @@ void ov::npuw::LLMInferRequest::store_blocks_in_cache(
     const std::vector<uint64_t>& prompt_hashes,
     size_t& token_idx,
     const std::unordered_map<std::string, std::string>& input_name_map) {
+    if (chunk_size < block_size) {
+        return;
+    }
+
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
     const auto& prefill_compiled = m_prefill_request->get_compiled_model();
 
     // Process input chunk in blocks
-    for (size_t block_start = 0; block_start < chunk_size; block_start += block_size) {
-        size_t curr_block_size = std::min(block_size, chunk_size - block_start);
+    const uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
+    size_t offset = chunk_size < chunk_prompt_len ? chunk_prompt_len - chunk_size : 0;
+    for (size_t block_start = offset; block_start < chunk_prompt_len; block_start += block_size) {
+        size_t curr_block_size = std::min(block_size, chunk_prompt_len - block_start);
         if (curr_block_size < block_size) {
             // Not a full block, drop it.
             break;
@@ -733,8 +799,6 @@ void ov::npuw::LLMInferRequest::store_blocks_in_cache(
         }
 
         m_prefix_cache->put_block(block, prev_block_hash);
-        std::cout << "[Cache store]Got a full block. Token start: " << block->get_token_start()
-                  << " block hash: " << block->get_block_hash() << std::endl;
     }
 }
 
@@ -787,11 +851,17 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         restore_prefix_cache = scheduled_token_num < input_prompt_len;
     }
 
+    bool is_first_chunk = true;
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+        if (enable_prefix_caching && current_prompts_len == chunk_prompt_len && is_first_chunk) {
+            auto token_num_to_a_full_chunk = adjust_chunk_size(kvcache_desc.num_stored_tokens, chunk_prompt_len);
+            current_prompts_len = token_num_to_a_full_chunk;
+            is_first_chunk = false;
+        }
 
         // Populate the attention mask for the present chunk
         // For the already processed tokens, they will be added into the attention mask after inference call
@@ -853,6 +923,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         // Do not copy last computed chunk and preserve it in present k/v layer
         if (remaining_prompts <= 0) {
             LOG_DEBUG("All prompts have been prefilled in chunks");
+            m_tokens_in_present_chunk = current_prompts_len;
             break;
         }
 

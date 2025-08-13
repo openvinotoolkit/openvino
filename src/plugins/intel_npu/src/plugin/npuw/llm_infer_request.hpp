@@ -92,6 +92,8 @@ private:
 
     bool m_generate_initialized = false;
 
+    uint64_t m_tokens_in_present_chunk = 0;
+
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();

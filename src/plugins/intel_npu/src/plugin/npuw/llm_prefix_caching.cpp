@@ -138,6 +138,9 @@ void PrefixCacheManager::put_block(const std::shared_ptr<KVBlock>& block, uint64
         m_cache_map[block->get_block_hash()] = block;
         // New added block is a leaf node
         update_lru(block);
+
+        std::cout << "[Cache store]Got a full block. Token start: " << block->get_token_start()
+                  << " block hash: " << block->get_block_hash() << std::endl;
     }
 }
 
