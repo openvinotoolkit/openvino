@@ -134,5 +134,9 @@
     {
         "error_text": "THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE",
         "ticket": 163749
+    },
+    {
+        "error_text": "OperationStopped:",
+        "ticket": 171334
     }
 ]
