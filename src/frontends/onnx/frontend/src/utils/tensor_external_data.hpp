@@ -61,6 +61,14 @@ private:
     std::string m_sha1_digest{};
 };
 
+/*
+As
+https://github.com/microsoft/onnxruntime/blob/4f6ae14e09729b3e3aba921de2e5bcc26d3e7768/onnxruntime/core/framework/tensorprotoutils.h#L206
+describes, this is a special marker used to indicate the external weights is already in the shared memory from ORT. if
+location field is set to this marker, the offset field contain the address of the memory.
+*/
+const std::string ORT_MEM_ADDR = "*/_ORT_MEM_ADDR_/*";
+
 class MappedMemoryHolder : public ov::MappedMemory {
 public:
     MappedMemoryHolder(char* addr_ptr, size_t length) : m_size(length) {
