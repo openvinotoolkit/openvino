@@ -132,3 +132,11 @@ RUN wget -O git-2.49.0.tar.gz https://github.com/git/git/archive/refs/tags/v2.49
     tar -zxf git-2.49.0.tar.gz
 RUN cd git-2.49.0 && \
     make configure && ./configure --prefix=/usr && make install
+
+# `gh` cli - Download and install GitHub CLI
+RUN curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_amd64.tar.gz -o /tmp/gh.tar.gz && \
+    tar -xzf /tmp/gh.tar.gz -C /opt && \
+    mv /opt/gh_2.76.2_linux_amd64 /opt/gh && \
+    rm /tmp/gh.tar.gz
+
+ENV PATH="/opt/gh/bin:$PATH"

@@ -210,20 +210,19 @@ jobs:
       INSTALL_DIR: ${{ github.workspace }}/install
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
     steps:
-      - name: Download OpenVINO packages (package & tests)
-        run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.INSTALL_DIR }}
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_TEST_DIR }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "SETUPVARS_COMMAND=source $GITHUB_WORKSPACE/install/setupvars.sh" >> "$GITHUB_ENV"
+
+      - name: Download OpenVINO packages (package & tests)
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package --dir $INSTALL_DIR
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_tests --dir $INSTALL_TEST_DIR
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Extract OpenVINO packages
         run: |
@@ -263,19 +262,19 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
     steps:
-      - name: Download OpenVINO packages (package & tests)
-        run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.INSTALL_DIR }}
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_TEST_DIR }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       # Needed as ${{ github.workspace }} is not working correctly when using Docker
       - name: Setup Variables
         run: |
           echo "INSTALL_DIR=$GITHUB_WORKSPACE/install" >> "$GITHUB_ENV"
           echo "INSTALL_TEST_DIR=$GITHUB_WORKSPACE/install/tests" >> "$GITHUB_ENV"
           echo "PARALLEL_TEST_SCRIPT=$GITHUB_WORKSPACE/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py" >> "$GITHUB_ENV"
+
+      - name: Download OpenVINO packages (package & tests)
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package --dir $INSTALL_DIR
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_tests --dir $INSTALL_TEST_DIR
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Extract OpenVINO packages
         run: |
