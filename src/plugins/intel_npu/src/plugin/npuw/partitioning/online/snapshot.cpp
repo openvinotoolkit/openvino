@@ -110,7 +110,6 @@ void Snapshot::buildGraph() {
             for (const auto& target_output : target_outputs) {
                 auto ov_node_child = target_output.get_node()->shared_from_this();
 
-
                 // Insert readers from other layers
                 _(m_node_to_prod_cons).at(ov_node).second.insert(ov_node_child);
 

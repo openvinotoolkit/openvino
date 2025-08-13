@@ -58,7 +58,7 @@ public:
     /*
      * Rope cache is NPUW  pass that removes sin/cos subgraph and replaces it with corresponding LUT/gather operations
      */
-    RopeCache(const uint32_t max_prompt_len)
+    explicit RopeCache(const uint32_t max_prompt_len)
         : m_max_prompt_len(max_prompt_len) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
