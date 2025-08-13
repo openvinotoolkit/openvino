@@ -488,7 +488,7 @@ which allows the plugin to flexibly register its own passes.
 
 As follows from its name, the main objective of `Control flow optimizer` is to manage and optimize control flow of the kernel.
 
-After data flow transformations we get `OpenVINO IR`.
+After data flow transformations, we get `OpenVINO IR`.
 So let's take a look at `OpenVINO IR` and its opportunities as part of control flow representation.
 This IR provides interface to adjust control flow execution (for example, by the method [`ov::Node::add_control_dependency(...)`](../../../core/include/openvino/core/node.hpp)). But this interface might be not enough for flexible setting and may be inconvenient in some cases. For more understanding, let's consider the part of subgraph after `Softmax` decomposition (`ReduceMax` decomposition and the following `Subtract`) implemented on `OpenVINO IR`:
 
@@ -527,7 +527,7 @@ flowchart LR
    class OpenVINO_IR no-bg-color
 ```
 
-When we look at this diagram, we have the following questions: "What is the exact order of operations? What operations are performed within the loops `LoopBegin_0 -> LoopEnd_0` and `LoopBegin_1 -> LoopEnd_1`? Why is the `LoopEnd_0` connected to the `LoopBegin_1`?". 
+When we look at this diagram, we have the following questions: "What is the exact execution order of operations? What operations are performed within the loops `LoopBegin_0 -> LoopEnd_0` and `LoopBegin_1 -> LoopEnd_1`? Why is the `LoopEnd_0` connected to the `LoopBegin_1`?". 
 At the same time, to configure the execution order of operations, we have to call the following lines of code in the transformation `SoftmaxDecomposition`:
 
 ```cpp
@@ -540,7 +540,7 @@ LoopBegin_1->add_control_dependency(HorizonMax);
 
 From the both examples above we can see that the `OpenVINO IR` doesn't have an explicit control flow representation and we need to develop own special control-flow-oriented `IR`. 
 This `IR` should have a flexible setting of the execution order of operations and a clear display of this order. 
-For example, it would look like this:
+For example, the same subgraph after `Softmax` decomposition can be represented in control-flow-oriented graph in the following way:
 
 ```mermaid
 flowchart LR
@@ -563,13 +563,13 @@ flowchart LR
       Load_0-->Maximum 
       Maximum-->LoopEnd_0
       LoopEnd_0-->HorizonMax
-      LoopBegin_0-->LoopEnd_0
+      LoopEnd_0-->LoopBegin_0
       HorizonMax-->LoopBegin_1
       LoopBegin_1-->Load_1
       Load_1-->Subtract
       Subtract-->...
       ... -->LoopEnd_1
-      LoopBegin_1-->LoopEnd_1
+      LoopEnd_1-->LoopBegin_1
    end
    Linear_IR
    classDef no-bg-color fill:none,stroke-width:0px
@@ -745,12 +745,12 @@ This information will be used during code emission to eliminate redundant instru
 Please see [init_registers.cpp](../src/lowered/pass/init_registers.cpp) and [insert_specific_iterations.cpp](../src/lowered/pass/insert_specific_iterations.cpp) for more info regarding the main passes in the pre-generation stage.
 
 More details on control flow optimization passes could be found in the `control_flow_transformations(...)` method inside [subgraph.cpp](../src/op/subgraph.cpp). 
-When all the passes are applied, the `LinearIR` is handled further to the `Generator` to emit executable code.
+When all the passes are applied, the `LinearIR` is passed to the `Generator` to for the further executable code emission.
 
 ### Code generation
 The code generation is performed with the help of a `Generator`.
 The `ov::snippets::Generator` class stores the `TargetMachine` instance, which is responsible for the `Emission` stage. 
-After control flow transformatioms the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
+After control flow transformations, the `Generator` constructs target-specific emitters by calling `init_emitter(target)` method for every `Expression` in the `LinearIR`, where the `target` is a `TargetMachine` instance.
 
 The `TargetMachine` is a class that provides generator with target-specific information, such as supported instruction sets, vector register size etc. 
 `TargetMachine` also maps the OpenVINO's `DiscreteTypeInfo` (stored in the `Expression`) to the emitter that actually implements the operation. 
@@ -770,7 +770,7 @@ We've discussed above how the emitters for the `intel_cpu` plugin are implemente
 ### Dynamic shapes support
 
 The graph compiler Snippets also supports subgraphs with dynamic shapes.
-In this case as for subgraphs with static shapes, subgraph lowering (data flow and control flow transformations) is performed only once at model compilation stage.
+In this case, as for subgraphs with static shapes, subgraph lowering (data flow and control flow transformations) is performed only once at model compilation stage.
 However, since code generation may depend on static shapes available only at inference stage, the actual code generation step should be performed during the inference stage using the method `snippets::op::Subgraph::generate(const void*)`.
 Before the code generation, a series of shape-dependent transformations is applied in this method:
 1. `SetLoadStoreScalar` sets the scalar count for `Load` and `Store` operations when the processing dimension is scalar, ensuring the correct number of elements is loaded or stored.
@@ -781,9 +781,10 @@ After these transformations, the `LinearIR` is ready for code generation. More d
 
 Note that Snippets support shape-agnostic kernel compilation.
 It means that we can recompile kernel only in some specific cases (for example, when broadcasting pattern has been changed and now we need to insert `BroadcastMove` instruction to the kernel).
-In other cases we can skip the kernel recompilation and just recalculate runtime parameters which are stored in `RuntimeConfig`.
-The structure `snippets::RuntimeConfig` contains all necessary runtime parameters for the kernel, such as input and output offsets, size of `Buffer scratchpad`, offsets of `BufferClusters`, kernel and tensor ranks etc.
-For example, the [`CPURuntimeConfig`](../../../plugins/intel_cpu/src/emitters/snippets/cpu_runtime_configurator.hpp) for the CPU Plugin also stores loop parameters: `work_amount`, `increment` and data pointer shift parameters which are read by `Load` JIT emitter in the compiled kernel during execution.
+Although it should be noted that such specific cases are rare in real scenarios. 
+In other cases, we can skip the kernel recompilation and just recalculate runtime parameters which are stored in `RuntimeConfig`.
+The `snippets::RuntimeConfig` structure contains all necessary runtime parameters for the kernel, such as input and output offsets, size of `Buffer scratchpad`, offsets of `BufferClusters`, kernel and tensor ranks, etc.
+For example, the [`CPURuntimeConfig`](../../../plugins/intel_cpu/src/emitters/snippets/cpu_runtime_configurator.hpp) (derived class from `snippets::RuntimeConfig`) from the CPU Plugin also stores loop parameters: `work_amount`, `increment` and data pointer shift parameters which are read by `Load` JIT emitter in the compiled kernel during execution.
 Please note that the backend should implement support of runtime parameters reading from `RuntimeConfig` in the kernel during the execution.
 
 ```mermaid
@@ -812,18 +813,18 @@ flowchart LR
 ```
 
 All these runtime parameters are calculated by the `snippets::RuntimeConfigurator` class, which allows recalculating all required runtime parameters for a new `LinearIR` state.
-To update the `RuntimeConfig` state and obtain its refreshed version, need to call the method `snippets::op::Subgraph::get_updated_config()` inside [subgraph.cpp](../src/op/subgraph.cpp). 
+To update the `RuntimeConfig` state and obtain its refreshed version, we need to call the method `snippets::op::Subgraph::get_updated_config()` inside [subgraph.cpp](../src/op/subgraph.cpp). 
 
 Since a generated kernel may invoke microkernels, Snippets support on-demand recompilation of such microkernels for specific shapes via the `KernelExecutorTable` which is also stored in `RuntimeConfig`.
-The class `snippets::KernelExecutorTable` contains mapping between `Expressions` from the `LinearIR` and its corresponding `KernelExecutor`.
+The class `snippets::KernelExecutorTable` contains a mapping between `Expressions` from the `LinearIR` and their corresponding `KernelExecutors`.
 The class `snippets::KernelExecutor` stores the compiled microkernel and its configuration, providing an interface to update the configuration and trigger recompilation when the parameters of the associated expression change using the method `snippets::KernelExecutor::update_by_expression(...)`.
 This mechanism allows recompiling only shape-dependent microkernels which are called in the subgraph kernel, instead of recompiling the entire kernel for updated `LinearIR`.
 This approach ensures efficient support for shape-agnostic kernels.
 
 Please see [runtime_configurator.hpp](../include/snippets/runtime_configurator.hpp) and [kernel_executor_table.hpp](../include/snippets/kernel_executor_table.hpp) for more info regarding the recalculation of runtime parameters and kernel recompilation for specific expressions.
 
-As a result of the work on implementing support for the dynamic shapes support in the Snippets, we published the article ["Dynamic shapes support in OpenVINO JIT compiler boosts inference performance by 40%"](https://blog.openvino.ai/blog-posts/dynamic-shapes-support-in-openvino-jit-compiler-boosts-inference-performance-by-40) on [blog.openvino.ai](https://blog.openvino.ai).
-In this article, we described the steps to implement support, the problems we faced, how we solved them, and what kind of performance we managed to achieve on real user cases.
+As a result of the work on implementing support for the dynamic shapes support in the Snippets, we published the blog post ["Dynamic shapes support in OpenVINO JIT compiler boosts inference performance by 40%"](https://blog.openvino.ai/blog-posts/dynamic-shapes-support-in-openvino-jit-compiler-boosts-inference-performance-by-40) on [blog.openvino.ai](https://blog.openvino.ai).
+In this post, we discussed Snippets architecture regarding dynamic pipeline support, the challenges we faced during this dynamism enablement, and what kind of performance we managed to achieve on real user cases thanks to the work done.
 
 ## See also
 
