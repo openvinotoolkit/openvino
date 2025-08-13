@@ -196,6 +196,7 @@ Pipeline::Pipeline(const Config& config,
       _id(_graph->get_unique_id()),
       _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
       _logger(logName, _config.get<LOG_LEVEL>()) {}
+
 void Pipeline::push() {
     _logger.debug("Pipeline - push() started");
 

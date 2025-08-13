@@ -118,7 +118,7 @@ public:
     using MemRefType = IRGraph::MemRefType;
 
 public:
-    IRGraphImpl() = default;
+    IRGraphImpl() : _logger("IRGraphImpl", Logger::global().level()) {}
     void initialize(std::optional<ov::Tensor>& blob,
                     NetworkMetadata& metadata,
                     std::vector<ArgumentDescriptor>& inputs,
@@ -165,6 +165,7 @@ public:
     IRGraph::GraphArguments _binding;
     uint64_t _numOfSubgraphs;
     static bool _initializedMLIR;
+    Logger _logger;
 };
 
 bool IRGraphImpl::_initializedMLIR = false;
@@ -188,37 +189,44 @@ void IRGraphImpl::initialize(std::optional<ov::Tensor>& blob,
     _binding._inputs.resize(arg_inputs.size());
 
     // dump output of _metadata
-    std::cout << "Dump metadata info from blob" << std::endl;
-    std::cout << "Metadata inputs: " << metadata.inputs.size() << std::endl;
+    _logger.debug("Dump metadata info from blob");
+    _logger.debug("Metadata inputs: %d", metadata.inputs.size());
     for (const auto& input : metadata.inputs) {
-        std::cout << "Input compiler name: " << input.nameFromCompiler << " input node name: " << input.nodeFriendlyName
-                  << " shape: " << input.shapeFromCompiler << std::endl;
+        _logger.debug("Input compiler name: %s input node name: %s shape: %s",
+                      input.nameFromCompiler.c_str(),
+                      input.nodeFriendlyName.c_str(),
+                      input.shapeFromCompiler.to_string().c_str());
     }
-    std::cout << "Metadata outputs: " << metadata.outputs.size() << std::endl;
+    _logger.debug("Metadata outputs: %d", metadata.outputs.size());
     for (const auto& output : metadata.outputs) {
-        std::cout << "Output compiler name: " << output.nameFromCompiler
-                  << " output node name: " << output.nodeFriendlyName << " shape: " << output.shapeFromCompiler
-                  << std::endl;
+        _logger.debug("Output compiler name: %s output node name: %s shape: %s",
+                      output.nameFromCompiler.c_str(),
+                      output.nodeFriendlyName.c_str(),
+                      output.shapeFromCompiler.to_string().c_str());
     }
 
-    std::cout << "Dump MemRefType from initial metadata:" << std::endl;
-    std::cout << "Inputs:" << std::endl;
+    _logger.debug("Dump MemRefType from initial metadata:");
+    _logger.debug("Inputs:");
     auto& inputs = _binding._inputs;
     for (size_t i = 0; i < inputs.size(); ++i) {
         inputs[i] = new MemRefType();
         inputs[i]->setSize(metadata.inputs[i]);
         inputs[i]->updateStride();
-        std::cout << "MemRefType for input " << i << " : " << *(inputs[i]) << std::endl;
+        std::ostringstream oss;
+        oss << (*inputs[i]);
+        _logger.debug("MemRefType for input %d : %s", i, oss.str().c_str());
     }
 
-    std::cout << "outputs:" << std::endl;
+    _logger.debug("Outputs:");
     _binding._outputs.resize(arg_outputs.size());
     auto& outputs = _binding._outputs;
     for (size_t i = 0; i < outputs.size(); ++i) {
         outputs[i] = new MemRefType();
         outputs[i]->setSize(metadata.outputs[i]);
         outputs[i]->updateStride();
-        std::cout << "MemRefType for output " << i << " : " << *(outputs[i]) << std::endl;
+        std::ostringstream oss;
+        oss << (*outputs[i]);
+        _logger.debug("MemRefType for output %d : %s", i, oss.str().c_str());
     }
 }
 
@@ -310,8 +318,7 @@ void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob,
     if (error) {
         OPENVINO_THROW("Error invoking main: " + llvm::toString(std::move(error)));
     }
-    std::cout << "num of subgraphs: " << _numOfSubgraphs << " inputs: " << inputs.size()
-              << " outputs: " << outputs.size() << std::endl;
+    _logger.debug("num of subgraphs: %d inputs: %d outputs: %d", _numOfSubgraphs, inputs.size(), outputs.size());
 
     metadata.bindRelatedDescriptors();
 }
@@ -319,12 +326,12 @@ void IRGraphImpl::initializeIRGraphExecution(std::optional<ov::Tensor>& blob,
 void IRGraphImpl::setArgumentValue(uint32_t argi, const void* argv) {
     auto inputs = _binding._inputs;
     if (argi < inputs.size()) {
-        std::cout << "setArgumentValue for index " << argi << " (input " << argi << ")" << std::endl;
+        _logger.debug("setArgumentValue for index %d (input %d)", argi, argi);
         inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
     } else {
         auto outputs = _binding._outputs;
         auto idx = argi - inputs.size();
-        std::cout << "setArgumentValue for index " << argi << " (output " << idx << ")" << std::endl;
+        _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
             outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
         }
@@ -335,11 +342,13 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
                                       const void* argv,
                                       const ov::Strides strides,
                                       const ov::Shape& shapes) {
-    std::cout << "setArgumentProperty for index " << argi << std::endl;
+    _logger.debug("setArgumentProperty for index %d", argi);
     auto inputs = _binding._inputs;
     if (argi < inputs.size()) {
-        std::cout << "setArgumentProperty for index " << argi << " (input " << argi << ")" << std::endl;
-        std::cout << "Before change: " << *(inputs[argi]) << std::endl;
+        std::ostringstream oss;
+        oss << *(inputs[argi]);
+        _logger.debug("setArgumentProperty for index %d (input %d)", argi, argi);
+        _logger.debug("Before change: %s", oss.str().c_str());
         inputs[argi]->basePtr = inputs[argi]->data = const_cast<void*>(argv);
         // Now MemRefType only support 4 dimension
         size_t shapesSize = shapes.size();
@@ -364,15 +373,19 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
 
         // Need stride based on element but not byte
         inputs[argi]->updateStride();
-
-        std::cout << "After change: " << *(inputs[argi]) << std::endl;
+        oss.clear();
+        oss.str("");
+        oss << *(inputs[argi]);
+        _logger.debug("After change: %s", oss.str().c_str());
 
     } else {
         auto outputs = _binding._outputs;
         auto idx = argi - inputs.size();
-        std::cout << "setArgumentValue for index " << argi << " (output " << idx << ")" << std::endl;
+        _logger.debug("setArgumentValue for index %d (output %d)", argi, idx);
         if (idx < outputs.size()) {
-            std::cout << "Before change: " << *(outputs[idx]) << std::endl;
+            std::ostringstream oss;
+            oss << *(outputs[idx]);
+            _logger.debug("Before change: %s", oss.str().c_str());
             outputs[idx]->basePtr = outputs[idx]->data = const_cast<void*>(argv);
 
             // Now MemRefType only support 4 dimension
@@ -399,7 +412,10 @@ void IRGraphImpl::setArgumentProperty(uint32_t argi,
             // Need stride based on element but not byte
             outputs[idx]->updateStride();
 
-            std::cout << "After change: " << *(outputs[idx]) << std::endl;
+            oss.clear();
+            oss.str("");
+            oss << *(outputs[idx]);
+            _logger.debug("After change: %s", oss.str().c_str());
         }
     }
 }

@@ -1288,77 +1288,82 @@ int main(int argc, char* argv[]) {
         // wait the latest inference executions
         inferRequestsQueue.wait_all();
 
-        std::cout << "Try dump info" << std::endl;
+        // std::cout << "Try dump info" << std::endl;
 #ifdef NPU_LLVM_BACKEND
-        bool skipDump = false;
-        for (int i = 0; i < inferRequestsQueue.requests.size() && !skipDump; i++) {
-            size_t count = compiledModel.outputs().size();
-            for (int j = 0; j < count && !skipDump; j++) {
-                auto outputTensor = inferRequestsQueue.requests[i]->get_output_tensor(j);
-                // print 10 numbers from the output
-                std::cout << "First 10 numbers of the output: ";
+        if (getenv("DUMP_TENSOR_INFO")) {
+            bool skipDump = false;
+            for (int i = 0; i < inferRequestsQueue.requests.size() && !skipDump; i++) {
+                size_t count = compiledModel.outputs().size();
+                for (int j = 0; j < count && !skipDump; j++) {
+                    auto outputTensor = inferRequestsQueue.requests[i]->get_output_tensor(j);
+                    // print 10 numbers from the output
+                    std::cout << "First 10 numbers of the output: ";
 #    ifdef _WIN32
-                for (size_t x = 0; x < min(outputTensor.get_size(), static_cast<size_t>(10)) && !skipDump; x++) {
+                    for (size_t x = 0; x < min(outputTensor.get_size(), static_cast<size_t>(10)) && !skipDump; x++) {
 #    else
-                for (size_t x = 0; x < std::min(outputTensor.get_size(), static_cast<size_t>(10)) && !skipDump; x++) {
+                    for (size_t x = 0; x < std::min(outputTensor.get_size(), static_cast<size_t>(10)) && !skipDump;
+                         x++) {
 #    endif
-                    switch (outputTensor.get_element_type()) {
-                    case ov::element::f16:
-                        std::cout << outputTensor.data<ov::float16>()[x] << " ";
-                        break;
-                    case ov::element::f32:
-                        std::cout << outputTensor.data<float>()[x] << " ";
-                        break;
-                    case ov::element::i8:
-                        std::cout << outputTensor.data<uint8_t>()[x] << " ";
-                        break;
-                    case ov::element::i32:
-                        std::cout << outputTensor.data<uint32_t>()[x] << " ";
-                        break;
-                    case ov::element::i64:
-                        std::cout << outputTensor.data<uint64_t>()[x] << " ";
-                        break;
-                    default:
-                        std::cout << "Tensor element type " << outputTensor.get_element_type().to_string()
-                                  << " not support dump" << std::endl;
-                        skipDump = true;
+                        switch (outputTensor.get_element_type()) {
+                        case ov::element::f16:
+                            std::cout << outputTensor.data<ov::float16>()[x] << " ";
+                            break;
+                        case ov::element::f32:
+                            std::cout << outputTensor.data<float>()[x] << " ";
+                            break;
+                        case ov::element::i8:
+                            std::cout << outputTensor.data<uint8_t>()[x] << " ";
+                            break;
+                        case ov::element::i32:
+                            std::cout << outputTensor.data<uint32_t>()[x] << " ";
+                            break;
+                        case ov::element::i64:
+                            std::cout << outputTensor.data<uint64_t>()[x] << " ";
+                            break;
+                        default:
+                            std::cout << "Tensor element type " << outputTensor.get_element_type().to_string()
+                                      << " not support dump" << std::endl;
+                            skipDump = true;
+                        }
                     }
+                    std::cout << std::endl;
                 }
-                std::cout << std::endl;
-            }
-            size_t inputCount = compiledModel.inputs().size();
-            for (int k = 0; k < inputCount && !skipDump; k++) {
-                auto inputTensor = inferRequestsQueue.requests[i]->get_input_tensor(k);
-                // print 10 numbers from the output
-                std::cout << "First 10 numbers of the input: ";
+
+                size_t inputCount = compiledModel.inputs().size();
+                for (int k = 0; k < inputCount && !skipDump; k++) {
+                    auto inputTensor = inferRequestsQueue.requests[i]->get_input_tensor(k);
+                    // print 10 numbers from the output
+                    std::cout << "First 10 numbers of the input: ";
 #    ifdef _WIN32
-                for (size_t y = 0; y < min(inputTensor.get_size(), static_cast<size_t>(10)) && !skipDump; y++) {
+                    for (size_t y = 0; y < min(inputTensor.get_size(), static_cast<size_t>(10)) && !skipDump; y++) {
 #    else
-                for (size_t y = 0; y < std::min(inputTensor.get_size(), static_cast<size_t>(10)) && !skipDump; y++) {
+                    for (size_t y = 0; y < std::min(inputTensor.get_size(), static_cast<size_t>(10)) && !skipDump;
+                         y++) {
 #    endif
-                    switch (inputTensor.get_element_type()) {
-                    case ov::element::f16:
-                        std::cout << inputTensor.data<ov::float16>()[y] << " ";
-                        break;
-                    case ov::element::f32:
-                        std::cout << inputTensor.data<float>()[y] << " ";
-                        break;
-                    case ov::element::i8:
-                        std::cout << inputTensor.data<uint8_t>()[y] << " ";
-                        break;
-                    case ov::element::i32:
-                        std::cout << inputTensor.data<uint32_t>()[y] << " ";
-                        break;
-                    case ov::element::i64:
-                        std::cout << inputTensor.data<uint64_t>()[y] << " ";
-                        break;
-                    default:
-                        std::cout << "Tensor element type " << inputTensor.get_element_type().to_string()
-                                  << " not support dump" << std::endl;
-                        skipDump = true;
+                        switch (inputTensor.get_element_type()) {
+                        case ov::element::f16:
+                            std::cout << inputTensor.data<ov::float16>()[y] << " ";
+                            break;
+                        case ov::element::f32:
+                            std::cout << inputTensor.data<float>()[y] << " ";
+                            break;
+                        case ov::element::i8:
+                            std::cout << inputTensor.data<uint8_t>()[y] << " ";
+                            break;
+                        case ov::element::i32:
+                            std::cout << inputTensor.data<uint32_t>()[y] << " ";
+                            break;
+                        case ov::element::i64:
+                            std::cout << inputTensor.data<uint64_t>()[y] << " ";
+                            break;
+                        default:
+                            std::cout << "Tensor element type " << inputTensor.get_element_type().to_string()
+                                      << " not support dump" << std::endl;
+                            skipDump = true;
+                        }
                     }
+                    std::cout << std::endl;
                 }
-                std::cout << std::endl;
             }
         }
 #endif

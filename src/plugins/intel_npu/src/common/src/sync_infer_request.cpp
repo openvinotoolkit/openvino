@@ -333,9 +333,13 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
         tensor = create_tensor(descriptor.precision, allocatedTensorShape, allocator);
     }
 
-    std::cout << "Tensor info after allocate_tensor() : " << std::endl;
-    std::cout << "shape: " << tensor->get_shape().to_string() << " strides: " << tensor->get_strides()
-              << " element type:" << tensor->get_element_type() << std::endl;
+    _logger.debug("Tensor info after allocate_tensor() : ");
+    std::ostringstream oss;
+    oss << tensor->get_strides();
+    _logger.debug("shape: %s, strides:%s , element_type:%s",
+                  tensor->get_shape().to_string().c_str(),
+                  oss.str().c_str(),
+                  tensor->get_element_type().to_string().c_str());
 
     if (isInput) {
         if (get_user_input(index) == nullptr) {
