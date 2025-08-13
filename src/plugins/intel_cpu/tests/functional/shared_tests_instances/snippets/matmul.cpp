@@ -111,7 +111,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MatMulTransposeB, MatMulTransposeB,
                              ::testing::ValuesIn(transpose_b_shapes),
                              ::testing::ValuesIn(precisions()),
                              ::testing::Values(MatMulType::MatMul),
+#ifdef OPENVINO_ARCH_ARM64
+                             ::testing::Values(2), // MatMul + Transpose
+#else
                              ::testing::Values(1), // MatMul
+#endif
                              ::testing::Values(1), // Tokenized MatMul
                              ::testing::Values(ov::test::utils::DEVICE_CPU),
                              ::testing::Values(CPUTestUtils::empty_plugin_config)),

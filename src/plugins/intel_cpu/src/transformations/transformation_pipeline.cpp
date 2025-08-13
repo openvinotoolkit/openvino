@@ -1515,7 +1515,9 @@ void Transformations::MainSnippets() {
         [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
-#if defined(SNIPPETS_LIBXSMM_TPP)
+#if defined(OPENVINO_ARCH_ARM64)
+        return false;
+#elif defined(SNIPPETS_LIBXSMM_TPP)
         // TPP doesn't support dynamic shapes -> there will be BrgemmCPU node
         if (!n->is_dynamic()) {
             std::vector<std::vector<size_t>> layouts(3);
