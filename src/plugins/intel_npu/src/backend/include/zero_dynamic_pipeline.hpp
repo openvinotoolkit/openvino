@@ -71,7 +71,9 @@ struct DynamicPipeline : public Pipeline {
                                       const ov::Strides& strides,
                                       const ov::Shape& shapes) {
             if (arg_index < _binding._inputs.size()) {
-                std::cout << "Orig tensor MemType:" << _binding._inputs[arg_index] << std::endl;
+                std::ostringstream oss;
+                oss << *(_binding._inputs[arg_index]);
+                Logger::global().debug("Orig tensor MemType: %s", oss.str().c_str());
                 _binding._inputs[arg_index]->setArg(arg_value);
                 // Now MemRefType only support 4 dimension
                 size_t shapesSize = shapes.size();
@@ -97,12 +99,17 @@ struct DynamicPipeline : public Pipeline {
                 // Need stride based on element but not byte
                 _binding._inputs[arg_index]->updateStride();
 
-                std::cout << "Updated to MemRefType: " << _binding._inputs[arg_index] << std::endl;
+                oss.clear();
+                oss.str("");
+                oss << *(_binding._inputs[arg_index]);
+                Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
 
             } else {
                 uint32_t output_index = arg_index - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
-                    std::cout << "Orig output tensor MemType:" << _binding._outputs[output_index] << std::endl;
+                    std::ostringstream oss;
+                    oss << *(_binding._outputs[output_index]);
+                    Logger::global().debug("Orig output tensor MemType: %s", oss.str().c_str());
                     _binding._outputs[output_index]->setArg(arg_value);
 
                     // Now MemRefType only support 4 dimension
@@ -129,7 +136,10 @@ struct DynamicPipeline : public Pipeline {
                     // Need stride based on element but not byte
                     _binding._outputs[output_index]->updateStride();
 
-                    std::cout << "Updated to MemRefType: " << _binding._outputs[output_index] << std::endl;
+                    oss.clear();
+                    oss.str("");
+                    oss << *(_binding._outputs[output_index]);
+                    Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
                 }
             }
         }
