@@ -169,7 +169,7 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
 }
 
 inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, size_t qkv_idx) {
-    if (qkv_idx < 0 || qkv_idx > 2) {
+    if (qkv_idx > 2) {
         OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
     if (params.is_type<paged_attention>()) {
@@ -191,7 +191,7 @@ inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, size
 }
 
 inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& params, size_t qkv_idx, int64_t target_seq_len_block_size = 16) {
-    if (qkv_idx < 0 || qkv_idx > 2) {
+    if (qkv_idx > 2) {
         OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
     if (params.is_type<paged_attention>()) {
@@ -1265,16 +1265,23 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
                 wgs.global[2] *= out_ps[0].get_length();
             }
 
+            auto to_int32 = [](size_t value) {
+                if (value > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+                    return static_cast<int32_t>(-1);
+                }
+                return static_cast<int32_t>(value);
+            };
+
             ScalarDescriptor s_d{ScalarDescriptor::Types::INT32};
-            s_d.v.s32 = static_cast<uint32_t>(v_head_size);
+            s_d.v.s32 = to_int32(v_head_size);
             scalars.push_back(s_d);
 
             ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
-            s_k.v.s32 = static_cast<uint32_t>(n_keys.get_length());
+            s_k.v.s32 = to_int32(n_keys.get_length());
             scalars.push_back(s_k);
 
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
-            s_q.v.s32 = static_cast<uint32_t>(n_queries.get_length());
+            s_q.v.s32 = to_int32(n_queries.get_length());
             scalars.push_back(s_q);
         }
     }};
