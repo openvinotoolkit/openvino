@@ -344,6 +344,12 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         }
     }
 
+    ov::Any kvcache_weight_bank_alloc =
+        compiled_model->m_kvcache_compiled->get_property(ov::intel_npu::npuw::weights_bank_alloc.name());
+    if (kvcache_weight_bank_alloc.as<std::string>() == "CPU") {
+        enable_cpu_wa = true;
+    }
+
     if (enable_cpu_wa) {
         const auto& kvcache_compiled = m_kvcache_request->get_compiled_model();
         // FIXME: Find only matching by names outputs and copy them, having previously checked that such inputs exist
