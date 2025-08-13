@@ -191,12 +191,9 @@ jobs:
 
       - name: Extract OpenVINO packages
         run: |
-          pushd ${INSTALL_DIR}
-            pigz -dc openvino_package.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
-          pushd ${INSTALL_DIR}
-            pigz -dc openvino_tests.tar.gz | tar -xf - -C ${INSTALL_DIR}
-          popd
+          pigz -dc openvino_package.tar.gz | tar -xf - -v
+          pigz -dc openvino_tests.tar.gz | tar -xf - -v
+        working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Fetch setup_python action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

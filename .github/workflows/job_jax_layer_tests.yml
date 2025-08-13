@@ -68,7 +68,7 @@ jobs:
         run: |
           # Add `gh` to PATH
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          gh run download "env:$GITHUB_RUN_ID" --repo "env:$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_DIR }}
+          gh run download "env:$GITHUB_RUN_ID" --repo "env:$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_DIR }} && `
           gh run download "env:$GITHUB_RUN_ID" --repo "env:$GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
