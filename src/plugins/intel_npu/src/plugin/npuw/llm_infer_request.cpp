@@ -649,7 +649,7 @@ uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::IT
 
         // Cache hit
         auto token_start = retrieved_block->get_token_start();
-        BlocKVCache block_kv_cache = retrieved_block->m_block_kv_cache;
+        const BlocKVCache block_kv_cache = retrieved_block->get_block_kv_cache();
         std::cout << "[Cache hit] Block found with block hash: " << block_hash << " token_start: " << token_start
                   << std::endl;
         for (auto kv_per_layer : block_kv_cache) {
@@ -736,8 +736,8 @@ void ov::npuw::LLMInferRequest::store_blocks_in_cache(
         }
 
         m_prefix_cache->put_block(block, prev_block_hash);
-        std::cout << "[Cache store]Got a full block, block id: " << block->m_block_id
-                  << " token_start:" << block->get_token_start() << " block hash: " << block->m_block_hash << std::endl;
+        std::cout << "[Cache store]Got a full block. Token start: " << block->get_token_start()
+                  << " block hash: " << block->get_block_hash() << std::endl;
     }
 }
 
