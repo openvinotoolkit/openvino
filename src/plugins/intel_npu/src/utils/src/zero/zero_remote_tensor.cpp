@@ -11,6 +11,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using namespace ov::intel_npu;
 
@@ -22,7 +23,8 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
                                    const ov::Shape& shape,
                                    TensorType tensor_type,
                                    MemType mem_type,
-                                   const void* mem)
+                                   const void* mem,
+                                   const ov::intel_npu::FileDescriptor& file_descriptor)
     : _context(context),
       _init_structs(init_structs),
       _element_type(element_type),
@@ -31,6 +33,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
       _logger("ZeroRemoteContext", Logger::global().level()),
       _tensor_type(tensor_type),
       _mem_type(mem_type),
+      _file_descriptor(file_descriptor),
       _mem(mem) {
     OPENVINO_ASSERT(shape_size(_shape) != 0);
     OPENVINO_ASSERT(_element_type.is_static());
@@ -156,8 +159,8 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
 
         ze_host_mem_alloc_desc_t desc = {};
         if (_tensor_type == TensorType::INPUT) {
-            ze_host_mem_alloc_flag_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
-            desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, static_cast<ze_host_mem_alloc_flags_t>(flag)};
+            uint32_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
+            desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, flag};
         } else {
             desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
         }
@@ -207,10 +210,32 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
             OPENVINO_THROW("Importing memory from a memory-mapped file is not supported with this driver version");
         }
 
+        if (_tensor_type == TensorType::OUTPUT) {
+            OPENVINO_THROW("Importing memory from a memory-mapped file is supported only for input tensors");
+        } else if (_tensor_type == TensorType::BINDED) {
+            _logger.info("Importing memory from a memory-mapped file is supported only for input tensors");
+        }
+
         // memory map the file
-        // read_tensor_data_from_mmaped_file(file_descriptor->file_name,
-        //                                   file_descriptor->offset_in_bytes
-        //                                   );
+        _mmap_tensor = ov::read_tensor_data(_file_descriptor._file_name,
+                                            ov::element::u8,
+                                            ov::PartialShape::dynamic(1),
+                                            _file_descriptor._offset_in_bytes,
+                                            true);
+
+        size_t aligned_size = utils::align_size_to_standard_page_size(_mmap_tensor.get_byte_size());
+        _ze_external_memory_import_system_memory_t memory_import = {
+            ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
+            nullptr,
+            _mmap_tensor.data(),
+            aligned_size};
+
+        uint32_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
+        ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, flag};
+
+        THROW_ON_FAIL_FOR_LEVELZERO(
+            "zeMemAllocHost",
+            zeMemAllocHost(_init_structs->getContext(), &desc, aligned_size, utils::STANDARD_PAGE_SIZE, &_data));
 
         break;
     }
@@ -231,6 +256,7 @@ void ZeroRemoteTensor::update_properties() {
 
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF:
+    case MemType::MMAPED_FILE:
         _properties = {mem_type(_mem_type), mem_handle(_data), tensor_type(_tensor_type)};
 
         break;

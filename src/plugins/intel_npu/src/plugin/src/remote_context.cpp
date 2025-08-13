@@ -72,9 +72,13 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
     if (!mem_handle_object.has_value() && _mem_handle_object.has_value()) {
         mem_handle_object = _mem_handle_object;
     }
+    if (!file_descriptor_object.has_value() && _file_descriptor_object.has_value()) {
+        file_descriptor_object = _file_descriptor_object;
+    }
 
     // Mem_type shall be set if any other property is set.
-    if (!mem_type_object.has_value() && (mem_handle_object.has_value() || tensor_type_object.has_value())) {
+    if (!mem_type_object.has_value() &&
+        (mem_handle_object.has_value() || tensor_type_object.has_value() || file_descriptor_object.has_value())) {
         OPENVINO_THROW("Parameter ", mem_type.name(), " must be set");
     }
 
@@ -87,13 +91,19 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         OPENVINO_THROW("No parameter ", mem_handle.name(), " found in parameters map");
     }
 
+    // File_descriptor shall be set if mem_type is a mmaped file type.
+    if (mem_type_object.value() == MemType::MMAPED_FILE && !file_descriptor_object.has_value()) {
+        OPENVINO_THROW("No parameter ", file_descriptor.name(), " found in parameters map");
+    }
+
     return {std::make_shared<ZeroRemoteTensor>(get_this_shared_ptr(),
                                                _init_structs,
                                                type,
                                                shape,
                                                tensor_type_object.value_or(ov::intel_npu::TensorType::BINDED),
                                                mem_type_object.value_or(ov::intel_npu::MemType::L0_INTERNAL_BUF),
-                                               mem_handle_object.value_or(nullptr))};
+                                               mem_handle_object.value_or(nullptr),
+                                               file_descriptor_object.value_or(FileDescriptor{}))};
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {

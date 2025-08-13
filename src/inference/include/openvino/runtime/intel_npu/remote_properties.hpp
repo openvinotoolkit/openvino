@@ -27,11 +27,6 @@ enum class MemType {
     MMAPED_FILE = 2,      //!< Memory-mapped file buffer
 };
 
-struct FileDescriptor {
-    std::filesystem::path file_name;  //!< File name
-    std::size_t offset_in_bytes = 0;  //!< Offset in bytes to read from the file
-};
-
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const MemType& mem_type) {
     switch (mem_type) {
@@ -82,6 +77,27 @@ static constexpr Property<npu_handle_param> mem_handle{"MEM_HANDLE"};
  * @ingroup ov_runtime_level_zero_npu_cpp_api
  */
 static constexpr Property<npu_handle_param> l0_context{"L0_CONTEXT"};
+
+/**
+ * @brief Struct to define file descriptor
+ * @ingroup ov_runtime_level_zero_npu_cpp_api
+ */
+struct FileDescriptor {
+    FileDescriptor() = default;
+    FileDescriptor(const std::filesystem::path& file_name, std::size_t offset_in_bytes = 0)
+        : _file_name(file_name),
+          _offset_in_bytes(offset_in_bytes) {}
+
+    std::filesystem::path _file_name;  //!< File name
+    std::size_t _offset_in_bytes = 0;  //!< Offset in bytes to read from the file
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const FileDescriptor& file_descriptor) {
+    return os << "FileDescriptor{file_name: " << file_descriptor._file_name
+              << ", offset_in_bytes: " << file_descriptor._offset_in_bytes << "}";
+}
+/** @endcond */
 
 /**
  * @brief This key identifies file descriptor
