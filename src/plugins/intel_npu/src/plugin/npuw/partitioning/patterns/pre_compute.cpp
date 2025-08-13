@@ -14,17 +14,14 @@
 namespace opp = ov::pass::pattern;
 
 namespace {
-    uint32_t align_to(uint32_t value, uint32_t alignment) {
-        return (value + alignment - 1) & ~(alignment - 1);
-    }
     template <typename T>
     std::shared_ptr<ov::Node> makeConst(const ov::element::Type& type, const ov::Shape& shape, const std::vector<T>& values) {
         return std::make_shared<ov::op::v0::Constant>(type, shape, values);
     }
     //TODO: copied from common tests
-    static ov::OutputVector makeCosSinCache(size_t max_position_embeddings, std::shared_ptr<ov::Node> inverse_frequencies) {
+    static ov::OutputVector makeCosSinCache(const size_t max_position_embeddings, const std::shared_ptr<ov::Node> inverse_frequencies) {
         const auto inverse_freq_fp32 = ov::as_type_ptr<ov::op::v0::Constant>(inverse_frequencies)->cast_vector<float>();
-        size_t rotary_ndims = ov::shape_size(inverse_frequencies->get_shape()) * 2;
+        const size_t rotary_ndims = ov::shape_size(inverse_frequencies->get_shape()) * 2;
 
         std::vector<ov::float16> lut_sin(max_position_embeddings * rotary_ndims, 0.0f);
         std::vector<ov::float16> lut_cos(max_position_embeddings * rotary_ndims, 0.0f);
@@ -34,7 +31,6 @@ namespace {
         //   y2 = cos(m*xita_i) * x2 + sin(m*xita_i) * x1
         //
         for (size_t i = 0, k = 0; i < rotary_ndims; i += 2, k++) {
-            //auto xita_i = 1.0 / std::pow(10000.0, static_cast<double>(i) / rotary_ndims);
             auto xita_i = inverse_freq_fp32[i >> 1];
             ov::float16* psin = lut_sin.data();
             ov::float16* pcos = lut_cos.data();
@@ -83,7 +79,7 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
         this->matched_cos = map_cos.at(output_cos).get_node_shared_ptr();
         this->matched_sin = map_sin.at(output_sin).get_node_shared_ptr();
 
-        LOG_INFO("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
+        LOG_VERB("Rope found : sin=" << matched_sin->get_name() << ", cos=" << matched_cos->get_name());
 
         return true;
     };
@@ -98,7 +94,7 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
     rpe->transform_cb = [=]() {
         auto inv_freq_size = ov::shape_size(rpe->matched_inv_freq->get_shape());
 
-        LOG_INFO("Making sin-cos cache of size: " << max_prompt_len << "x" << inv_freq_size);
+        LOG_VERB("Making sin-cos cache of size: " << max_prompt_len << "x" << inv_freq_size);
 
         // shapes  that matches max possible position
         auto cache = makeCosSinCache(max_prompt_len, rpe->matched_inv_freq);
@@ -109,7 +105,7 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         // Step 2: Apply Gather for cos and sin
         auto gather_cos = std::make_shared<ov::op::v8::Gather>(cache[0], rpe->matched_position_ids, axis);
         auto gather_sin = std::make_shared<ov::op::v8::Gather>(cache[1], rpe->matched_position_ids, axis);
-        LOG_INFO("Created gather op facilitate LUT search: "<< gather_cos->get_name() << ", " << gather_cos->get_shape());
+        LOG_VERB("Created gather op facilitate LUT search: "<< gather_cos->get_name() << ", " << gather_cos->get_shape());
 
         // Step 2: convert fp16->fp32
         auto cos_fp32 = std::make_shared<ov::op::v0::Convert>(gather_cos, ov::element::f32);
@@ -119,12 +115,12 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
         auto squeeze_cos = std::make_shared<ov::op::v0::Squeeze>(cos_fp32, axis);
         auto squeeze_sin = std::make_shared<ov::op::v0::Squeeze>(sin_fp32, axis);
 
-        LOG_INFO("Created squeeze_cos op to reduce axis=1: "<< squeeze_cos->get_name() << ", " << squeeze_cos->get_shape());
-        LOG_INFO("Created squeeze_sin op to reduce axis=1: "<< squeeze_sin->get_name() << ", " << squeeze_sin->get_shape());
+        LOG_VERB("Created squeeze_cos op to reduce axis=1: "<< squeeze_cos->get_name() << ", " << squeeze_cos->get_shape());
+        LOG_VERB("Created squeeze_sin op to reduce axis=1: "<< squeeze_sin->get_name() << ", " << squeeze_sin->get_shape());
 
-        LOG_INFO("Rope cos detected at: "<< rpe->matched_cos->get_name() << ", replacing by cache node: "
+        LOG_VERB("Rope cos detected at: "<< rpe->matched_cos->get_name() << ", replacing by cache node: "
             << gather_cos->get_name() << ", " << gather_cos->get_shape());
-        LOG_INFO("Rope sin detected at: "<< rpe->matched_sin->get_name() << ", replacing by cache node: "
+        LOG_VERB("Rope sin detected at: "<< rpe->matched_sin->get_name() << ", replacing by cache node: "
             << gather_sin->get_name() << ", " << gather_sin->get_shape());
 
         // replacing sin with gather op
@@ -146,7 +142,7 @@ ov::npuw::patterns::pre_compute::RopeInverseFreq::RopeInverseFreq(
 
     rpe->transform_cb = [=]() {
         if (auto inverse_freq_constant = ov::as_type_ptr<ov::op::v0::Constant>(rpe->matched_inv_freq)) {
-            LOG_INFO("Inverse Frequences Constant found: " << inverse_freq_constant->get_name());
+            LOG_VERB("Inverse Frequences Constant found: " << inverse_freq_constant->get_name());
             need_freq_consts.get().push_back(inverse_freq_constant);
             return true;
         }

@@ -4,15 +4,12 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
-#include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pattern/multi_matcher.hpp"
 namespace ov :: npuw :: patterns :: pre_compute {
 
 class RopePatternDesc {
 protected:
     ov::pass::MultiMatcher::Callback init_cb;
-
 public:
     std::shared_ptr<ov::Node> matched_inv_freq;
     std::shared_ptr<ov::Node> matched_position_ids;
@@ -21,7 +18,6 @@ public:
     std::shared_ptr<ov::Node> matched_concat;
 
     std::function<void()> transform_cb;
-
 
     ov::pass::MultiMatcher::Callback make_matcher_callback() {
         return [this](const auto & matches) {
