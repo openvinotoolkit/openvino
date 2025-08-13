@@ -772,7 +772,7 @@ We've discussed above how the emitters for the `intel_cpu` plugin are implemente
 The graph compiler Snippets also supports subgraphs with dynamic shapes.
 In this case as for subgraphs with static shapes, subgraph lowering (data flow and control flow transformations) is performed only once at model compilation stage.
 However, since code generation may depend on static shapes available only at inference stage, the actual code generation step should be performed during the inference stage using the method `snippets::op::Subgraph::generate(const void*)`.
-Before the code generation, a serie of shape-dependent transformations is applied in this method:
+Before the code generation, a series of shape-dependent transformations is applied in this method:
 1. `SetLoadStoreScalar` sets the scalar count for `Load` and `Store` operations when the processing dimension is scalar, ensuring the correct number of elements is loaded or stored.
 2. `InsertBroadcastMove` inserts a `BroadcastMove` operation where element broadcasting is required.
 3. `LoadMoveBroadcastToBroadcastLoad` fuses a `Load` operation with a `BroadcastMove` into a single instruction `BroadcastLoad`.
