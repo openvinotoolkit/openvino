@@ -72,7 +72,7 @@ private:
                      std::vector<IODescriptor>& inputs,
                      std::vector<IODescriptor>& outputs) const;
 
-    void initialize_graph_through_command_list(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
+    void initializeGraphThroughCommandList(ze_graph_handle_t graphHandle, uint32_t commandQueueGroupOrdinal) const;
 
     void* importCpuVa(void* data, size_t size, const uint32_t flags = 0) const;
     bool releaseCpuVa(void* data);

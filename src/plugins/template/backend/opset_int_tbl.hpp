@@ -66,6 +66,7 @@ _OPENVINO_OP_REG(Split, op::v1)
 _OPENVINO_OP_REG(Reshape, op::v1)
 _OPENVINO_OP_REG(Select, op::v1)
 _OPENVINO_OP_REG(GatherTree, op::v1)
+_OPENVINO_OP_REG(Subtract, op::v1)
 
 _OPENVINO_OP_REG(Assign, op::v3)
 _OPENVINO_OP_REG(Bucketize, op::v3)
