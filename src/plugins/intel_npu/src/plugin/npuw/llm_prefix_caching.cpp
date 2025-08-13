@@ -200,6 +200,10 @@ std::shared_ptr<KVBlock> PrefixCacheManager::get_block_unsafe(uint64_t combined_
 }
 
 void PrefixCacheManager::print_cache_status(bool verbose) const {
+    if (!m_debug) {
+        return;
+    }
+
     std::cout << "Cache Status:" << std::endl;
     std::cout << "Max Cache Size: " << m_max_cache_size << " blocks" << std::endl;
     std::cout << "Number of Cached Blocks: " << m_cache_map.size() << std::endl;
