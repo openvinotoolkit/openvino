@@ -25,19 +25,19 @@ TEST(PrefixCacheManagerTest, AddAndGetBlock) {
     block3->add_block({0x5, 0x6}, {});
 
     cache.put_block(block1, 0x0);
-    cache.put_block(block2, block1->m_block_hash);
-    cache.put_block(block3, block2->m_block_hash);
+    cache.put_block(block2, block1->get_block_hash());
+    cache.put_block(block3, block2->get_block_hash());
 
     // Retrieve block from cache adn check block hash
     std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block1->m_block_hash, retrieved_block));
-    EXPECT_EQ(block1->m_block_hash, 0x2);
+    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
+    EXPECT_EQ(block1->get_block_hash(), 0x2);
 
-    EXPECT_TRUE(cache.get_block(block2->m_block_hash, retrieved_block));
-    EXPECT_EQ(block2->m_block_hash, 0x4);
+    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
+    EXPECT_EQ(block2->get_block_hash(), 0x4);
 
-    EXPECT_TRUE(cache.get_block(block3->m_block_hash, retrieved_block));
-    EXPECT_EQ(block3->m_block_hash, 0x6);
+    EXPECT_TRUE(cache.get_block(block3->get_block_hash(), retrieved_block));
+    EXPECT_EQ(block3->get_block_hash(), 0x6);
 }
 
 TEST(PrefixCacheManagerTest, LinkBlocks) {
@@ -53,17 +53,17 @@ TEST(PrefixCacheManagerTest, LinkBlocks) {
     block2->add_block({0x3, 0x4}, {});
 
     cache.put_block(block1, 0);
-    cache.put_block(block2, block1->m_block_hash);
+    cache.put_block(block2, block1->get_block_hash());
 
     // Check if block1 points to block2
     std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block1->m_block_hash, retrieved_block));
-    EXPECT_EQ(retrieved_block->m_next_block_hashes.size(), 1);
-    EXPECT_EQ(*retrieved_block->m_next_block_hashes.begin(), block2->m_block_hash);
+    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
+    EXPECT_EQ(retrieved_block->get_child_block_hashes().size(), 1);
+    EXPECT_EQ(*retrieved_block->get_child_block_hashes().begin(), block2->get_block_hash());
 
     // Check if block2 points back to block1
-    EXPECT_TRUE(cache.get_block(block2->m_block_hash, retrieved_block));
-    EXPECT_EQ(retrieved_block->m_prev_block_hash, block1->m_block_hash);
+    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
+    EXPECT_EQ(retrieved_block->get_parent_block_hash(), block1->get_block_hash());
 }
 
 TEST(PrefixCacheManagerTest, EvictLRUBlock) {
@@ -115,29 +115,29 @@ TEST(PrefixCacheManagerTest, EvictLRUBlock) {
     block5->add_block({0x9, 0xa}, {});
 
     cache.put_block(block1, 0);
-    cache.put_block(block2, block1->m_block_hash);
-    cache.put_block(block3, block2->m_block_hash);
-    cache.put_block(block4, block2->m_block_hash);
-    cache.put_block(block5, block2->m_block_hash);
+    cache.put_block(block2, block1->get_block_hash());
+    cache.put_block(block3, block2->get_block_hash());
+    cache.put_block(block4, block2->get_block_hash());
+    cache.put_block(block5, block2->get_block_hash());
 
     auto block6 = std::make_shared<ov::npuw::KVBlock>(block_size);
     block6->add_block({0xb, 0xc}, {});
 
     // This should evict block3 as it is the least recently used and has no children
-    cache.put_block(block6, block5->m_block_hash);
+    cache.put_block(block6, block5->get_block_hash());
 
     std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block1->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block2->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
 
-    EXPECT_FALSE(cache.get_block(block3->m_block_hash, retrieved_block));
+    EXPECT_FALSE(cache.get_block(block3->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block4->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block4->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block5->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block5->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block6->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block6->get_block_hash(), retrieved_block));
 }
 
 TEST(PrefixCacheManagerTest, UpdateLRUList) {
@@ -193,32 +193,32 @@ TEST(PrefixCacheManagerTest, UpdateLRUList) {
     block5->add_block({0x9, 0xa}, {});
 
     cache.put_block(block1, 0);
-    cache.put_block(block2, block1->m_block_hash);
-    cache.put_block(block3, block2->m_block_hash);
-    cache.put_block(block4, block2->m_block_hash);
-    cache.put_block(block5, block2->m_block_hash);
+    cache.put_block(block2, block1->get_block_hash());
+    cache.put_block(block3, block2->get_block_hash());
+    cache.put_block(block4, block2->get_block_hash());
+    cache.put_block(block5, block2->get_block_hash());
 
     // Get block 3 from the cache to update LRU list
     std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block3->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block3->get_block_hash(), retrieved_block));
 
     auto block6 = std::make_shared<ov::npuw::KVBlock>(block_size);
     block6->add_block({0xb, 0xc}, {});
 
     // This should evict block4 as it is the least recently used and has no children
-    cache.put_block(block6, block5->m_block_hash);
+    cache.put_block(block6, block5->get_block_hash());
 
-    EXPECT_TRUE(cache.get_block(block1->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block2->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block3->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block3->get_block_hash(), retrieved_block));
 
-    EXPECT_FALSE(cache.get_block(block4->m_block_hash, retrieved_block));
+    EXPECT_FALSE(cache.get_block(block4->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block5->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block5->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block6->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block6->get_block_hash(), retrieved_block));
 }
 
 TEST(PrefixCacheManagerTest, PreventAddingBlock) {
@@ -258,9 +258,9 @@ TEST(PrefixCacheManagerTest, PreventAddingBlock) {
     block4->add_block({0x7, 0x8}, {});
 
     cache.put_block(block1, 0);
-    cache.put_block(block2, block1->m_block_hash);
-    cache.put_block(block3, block2->m_block_hash);
-    cache.put_block(block4, block3->m_block_hash);
+    cache.put_block(block2, block1->get_block_hash());
+    cache.put_block(block3, block2->get_block_hash());
+    cache.put_block(block4, block3->get_block_hash());
 
     auto block5 = std::make_shared<ov::npuw::KVBlock>(block_size);
     block5->add_block({0x9, 0xa}, {});
@@ -269,19 +269,19 @@ TEST(PrefixCacheManagerTest, PreventAddingBlock) {
     block6->add_block({0xb, 0xc}, {});
 
     // Block 5 and block 6 should not be put into the cache successfully
-    cache.put_block(block5, block4->m_block_hash);
-    cache.put_block(block6, block5->m_block_hash);
+    cache.put_block(block5, block4->get_block_hash());
+    cache.put_block(block6, block5->get_block_hash());
 
     std::shared_ptr<ov::npuw::KVBlock> retrieved_block;
-    EXPECT_TRUE(cache.get_block(block1->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block1->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block2->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block2->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block3->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block3->get_block_hash(), retrieved_block));
 
-    EXPECT_TRUE(cache.get_block(block4->m_block_hash, retrieved_block));
+    EXPECT_TRUE(cache.get_block(block4->get_block_hash(), retrieved_block));
 
-    EXPECT_FALSE(cache.get_block(block5->m_block_hash, retrieved_block));
+    EXPECT_FALSE(cache.get_block(block5->get_block_hash(), retrieved_block));
 
-    EXPECT_FALSE(cache.get_block(block6->m_block_hash, retrieved_block));
+    EXPECT_FALSE(cache.get_block(block6->get_block_hash(), retrieved_block));
 }
