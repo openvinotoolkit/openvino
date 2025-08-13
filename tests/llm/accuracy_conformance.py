@@ -32,7 +32,7 @@ TEST_CATALOG = {
     "Qwen/Qwen2-0.5B-Instruct": {
         "GPU": {
             "INT8": {"reference": 0.86, "threshold": 0.03},
-            "INT4": {"reference": 0.72, "threshold": 0.03},
+            "INT4": {"reference": 0.74, "threshold": 0.03},
         },
         "CPU": {
             "INT8": {"reference": 0.82, "threshold": 0.03},
