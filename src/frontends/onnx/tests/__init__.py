@@ -68,8 +68,6 @@ xfail_issue_99969 = xfail_test(reason="Resize - Results mismatch / "
 xfail_issue_99970 = xfail_test(reason="Scatter and ScatterND - RuntimeError: Check '(reduction == none)' failed at "
                                       "src/frontends/onnx/frontend/src/op/scatter_elements.cpp OR at "
                                       "src/frontends/onnx/frontend/src/op/scatter_nd")
-xfail_issue_99973 = xfail_test(reason="Split -  RuntimeError: While validating ONNX node "
-                                      "'<Node(Split): output_1, output_2, output_3, output_4>'")
 xfail_issue_38710 = xfail_test(reason="RuntimeError: data has zero dimension which is not allowed")
 xfail_issue_38713 = xfail_test(reason="RuntimeError: OV does not support the following ONNX operations: "
                                       "ai.onnx.preview.training.Momentum")
