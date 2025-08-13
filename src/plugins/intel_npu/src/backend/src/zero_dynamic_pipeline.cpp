@@ -128,7 +128,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             //     static_cast<unsigned char*>(data) +
             //         (i * input_tensors.at(io_index).at(0)->get_byte_size()) / _number_of_command_lists);
 
-            std::cout << " update tensor property for input desc index:" << desc.idx << std::endl;
+            _logger.debug(" update tensor property for input desc index: %d", desc.idx);
             irGraph->set_argument_property(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
@@ -154,7 +154,7 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             //     static_cast<unsigned char*>(data) +
             //         (i * output_tensors.at(io_index)->get_byte_size()) / _number_of_command_lists);
 
-            std::cout << " update tensor property for output desc index:" << std::endl;
+            _logger.debug(" update tensor property for output desc index: %d", desc.idx);
             irGraph->set_argument_property(
                 desc.idx,
                 static_cast<unsigned char*>(data) +
@@ -243,25 +243,35 @@ void DynamicPipeline::push() {
 
         auto& command_lists = _command_lists.at(i);
         auto graphArguments = command_lists->getBinding();
-        std::cout << "Inputs info for IRGraph:" << std::endl;
+        _logger.debug("Inputs info for IRGraph:");
         for (auto& memType : graphArguments._inputs) {
-            std::cout << " sizes: " << memType->sizes[0] << "*" << memType->sizes[1] << "*" << memType->sizes[2] << "*"
-                      << memType->sizes[3];
-            std::cout << " strides: " << memType->strides[0] << "*" << memType->strides[1] << "*" << memType->strides[2]
-                      << "*" << memType->strides[3];
-            std::cout << " basePtr: " << memType->basePtr << " data: " << memType->data
-                      << " offset:" << memType->offset;
-            std::cout << std::endl;
+            _logger.debug(" sizes: %d*%d*%d*%d",
+                          memType->sizes[0],
+                          memType->sizes[1],
+                          memType->sizes[2],
+                          memType->sizes[3]);
+            _logger.debug(" strides: %d*%d*%d*%d",
+                          memType->strides[0],
+                          memType->strides[1],
+                          memType->strides[2],
+                          memType->strides[3]);
+            _logger.debug(" basePtr: %p data: %p offset: %d", memType->basePtr, memType->data, memType->offset);
+            _logger.debug("");
         }
-        std::cout << "Outputs info for IRGraph:" << std::endl;
+        _logger.debug("Outputs info for IRGraph:");
         for (auto& memType : graphArguments._outputs) {
-            std::cout << " sizes: " << memType->sizes[0] << "*" << memType->sizes[1] << "*" << memType->sizes[2] << "*"
-                      << memType->sizes[3];
-            std::cout << " strides: " << memType->strides[0] << "*" << memType->strides[1] << "*" << memType->strides[2]
-                      << "*" << memType->strides[3];
-            std::cout << " basePtr: " << memType->basePtr << " data: " << memType->data
-                      << " offset:" << memType->offset;
-            std::cout << std::endl;
+            _logger.debug(" sizes: %d*%d*%d*%d",
+                          memType->sizes[0],
+                          memType->sizes[1],
+                          memType->sizes[2],
+                          memType->sizes[3]);
+            _logger.debug(" strides: %d*%d*%d*%d",
+                          memType->strides[0],
+                          memType->strides[1],
+                          memType->strides[2],
+                          memType->strides[3]);
+            _logger.debug(" basePtr: %p data: %p offset: %d", memType->basePtr, memType->data, memType->offset);
+            _logger.debug("");
         }
 
         dynamic_cast<IRGraph*>(_graph.get())

@@ -117,7 +117,6 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
 
 }  // namespace
 
-//------------------------------------------------------------------------------
 ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
                                    const Config& config)
@@ -170,7 +169,6 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
 }
 
 void ZeroInferRequest::create_pipeline() {
-    std::cout << "Create pipeline" << std::endl;
     _logger.debug("ZeroInferRequest::create_pipeline");
     auto batchSize = _graph->get_batch_size();
 
@@ -343,14 +341,14 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::allocate_tensor_for_pipeline(
         IODescriptor descriptorWithUserInfo = descriptor;
         // Create new IODescriptor based on user input|output and descriptor
         if (isInput && get_user_input(index) != nullptr) {
-            std::cout << "Update input descriptor with shape from user input : "
-                      << get_user_input(index)->get_shape().to_string() << " instead of "
-                      << descriptor.shapeFromCompiler.to_string() << std::endl;
+            _logger.debug("Update input descriptor with shape from user input : %s instead of %s",
+                          get_user_input(index)->get_shape().to_string().c_str(),
+                          descriptor.shapeFromCompiler.to_string().c_str());
             descriptorWithUserInfo.shapeFromCompiler = get_user_input(index)->get_shape();
         } else if (!isInput && _userOutputTensors.at(index) != nullptr) {
-            std::cout << "Update output descriptor with shape from user output : "
-                      << _userOutputTensors.at(index)->get_shape().to_string() << " instead of "
-                      << descriptor.shapeFromCompiler.to_string() << std::endl;
+            _logger.debug("Update output descriptor with shape from user output : %s instead of %s",
+                          _userOutputTensors.at(index)->get_shape().to_string().c_str(),
+                          descriptor.shapeFromCompiler.to_string().c_str());
             descriptorWithUserInfo.shapeFromCompiler = _userOutputTensors.at(index)->get_shape();
         }
 
@@ -377,9 +375,9 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::allocate_tensor_for_pipeline(
                 }
                 if (hack) {
                     ov::Shape hackedShape = a;
-                    std::cout << "Hack output descriptor shape from "
-                              << descriptorWithUserInfo.shapeFromCompiler.to_string() << " to "
-                              << hackedShape.to_string() << std::endl;
+                    _logger.debug("Hack output descriptor shape from %s to %s",
+                                  descriptorWithUserInfo.shapeFromCompiler.to_string().c_str(),
+                                  hackedShape.to_string().c_str());
                     descriptorWithUserInfo.shapeFromCompiler = hackedShape;
                 }
             }
@@ -402,7 +400,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
 
     OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "check_data_allocation");
     if (zeroUtils::memory_was_allocated_in_the_same_l0_context(_initStructs->getContext(), tensor->data())) {
-        std::cout << "User tensor can be used as L0 tensor since allocated in same L0 context" << std::endl;
+        _logger.debug("User tensor can be used as L0 tensor since allocated in same L0 context");
         _logger.debug("ZeroInferRequest::set_tensor_data - tensor was created in the same L0 context, size: %zu",
                       tensor->get_byte_size());
 
@@ -423,7 +421,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
     } else {
         if (_externalMemoryStandardAllocationSupported &&
             utils::memory_and_size_aligned_to_standard_page_size(tensor->data(), tensor->get_byte_size())) {
-            std::cout << "User tensor ptr can be imported as L0 tensor since device support this feature" << std::endl;
+            _logger.debug("User tensor ptr can be imported as L0 tensor since device support this feature");
             _logger.debug("ZeroInferRequest::set_tensor_data - import memory from a system memory pointer");
             auto hostMemSharedAllocator =
                 zeroMemory::HostMemSharedAllocator(_initStructs,
@@ -444,9 +442,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
             if (_dynamicBatchValueChanged || zeroTensor == nullptr ||
                 (zeroTensor != nullptr && zeroTensor->tensor_was_shared_with_user()) ||
                 zeroTensor->get_byte_size() < tensor->get_byte_size()) {
-                std::cout << "Create L0 tensor since no old tensor or old tensor is shared from last user tensor or "
-                             "old tensor is too small"
-                          << std::endl;
+                _logger.debug("Create L0 tensor since no old tensor or old tensor is shared from last user tensor or "
+                              "old tensor is too small");
                 _logger.debug("ZeroInferRequest::set_tensor_data - create locally L0 tensor");
                 OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "allocate tensor");
 
@@ -459,9 +456,8 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
             } else {
                 // TODO: shall we reuse old L0 tensor if it large enough, or just recreate a L0 tensor with same size of
                 // user tensor?
-                std::cout << "Reuse current L0 tensor, since user tensor is not L0 tensor & can not be imprt & is not "
-                             "shared from last round, and old L0 tensor is large enough"
-                          << std::endl;
+                _logger.debug("Reuse current L0 tensor, since user tensor is not L0 tensor & can not be imprt & is not "
+                              "shared from last round, and old L0 tensor is large enough");
             }
         }
     }
@@ -523,8 +519,12 @@ void ZeroInferRequest::set_remote_tensor_data(const std::shared_ptr<ZeroRemoteTe
 
 void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "set_tensor");
-    std::cout << "set user tensor:  tensor shape: " << tensor->get_shape().to_string()
-              << ", stride: " << tensor->get_strides() << ", size: " << tensor->get_byte_size() << std::endl;
+    std::ostringstream oss;
+    oss << tensor->get_strides();
+    _logger.debug("set user tensor: tensor shape: %s, stride: %s, size: %zu",
+                  tensor->get_shape().to_string().c_str(),
+                  oss.str().c_str(),
+                  tensor->get_byte_size());
 
     auto foundPort = find_port(port);
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
@@ -535,7 +535,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     }
 
     if (foundPort.is_input()) {
-        std::cout << "update input tensor" << std::endl;
+        _logger.debug("update input tensor");
         if (get_user_input(foundPort.idx)._ptr == tensor._ptr) {
             // Got set_tensor with the same object - do nothing
             _logger.debug("ZeroInferRequest::set_tensor - got the same tensor, do nothing");
@@ -572,7 +572,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
             get_user_inputs(foundPort.idx).resize(1);
             get_user_inputs(foundPort.idx).shrink_to_fit();
         }
-        std::cout << "set new user input tensor" << std::endl;
+        _logger.debug("set new user input tensor");
         get_user_input(foundPort.idx) = tensor;
     } else {
         if (_userOutputTensors.at(foundPort.idx)._ptr == tensor._ptr) {
@@ -610,11 +610,9 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
         auto remoteTensor = std::dynamic_pointer_cast<ZeroRemoteTensor>(tensor._ptr);
 
         if (remoteTensor == nullptr) {
-            std::cout << "set new user tensor data" << std::endl;
             _logger.debug("ZeroInferRequest::set_tensor - set new tensor");
             set_tensor_data(tensor._ptr, foundPort.idx, foundPort.is_input());
         } else {
-            std::cout << "set new user remote tensor data" << std::endl;
             _logger.debug("ZeroInferRequest::set_tensor - set new remote tensor");
             set_remote_tensor_data(std::move(remoteTensor), foundPort.idx, foundPort.is_input());
         }
@@ -1031,8 +1029,9 @@ void ZeroInferRequest::infer_async() {
 
         if (!_pipelineIsCreated || _dynamicBatchValueChanged) {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
-            std::cout << " create pipeline : pipelineCreated - " << _pipelineIsCreated << " , recreate - "
-                      << _pipelineNeedsReallocation << std::endl;
+            _logger.debug("create pipeline : pipelineCreated - %s , recreate - %s",
+                          _pipelineIsCreated ? "true" : "false",
+                          _pipelineNeedsReallocation ? "true" : "false");
             create_pipeline();  // Reallocate pipeline if necessary
             _pipelineIsCreated = true;
             _dynamicBatchValueChanged = false;  // Reset reallocation flag

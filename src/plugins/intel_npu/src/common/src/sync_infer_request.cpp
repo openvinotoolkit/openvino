@@ -329,7 +329,6 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::create_tensor(ov::element::Type t
     return ov::make_tensor(type, shape, allocator);
 }
 
->>>>>>> 17dd1f8013 (Add set_argument_property to update data, strides, shapes)
 void SyncInferRequest::add_state(const IODescriptor& descriptor, const size_t tensorIndex) const {
     _variableStates.push_back(
         std::make_shared<VariableState>(descriptor.nameFromCompiler, get_user_input(tensorIndex)));
