@@ -942,14 +942,21 @@ struct ScaledDotProductAttention::AttentionExecutor : public ScaledDotProductAtt
 
     MHAKernel<KType, T> kernel;
     MHASingleToken kernel_single_token;
+    impl_desc_type impl_desc_t;
 
     explicit AttentionExecutor(GraphContext::CPtr ctx,
                                size_t k_group_size,
                                size_t v_group_size,
-                               bool quant_key_by_channel)
+                               bool quant_key_by_channel,
+                               impl_desc_type impl_desc)
         : context(std::move(ctx)),
           kernel(context),
-          kernel_single_token(k_group_size, v_group_size, quant_key_by_channel) {}
+          kernel_single_token(k_group_size, v_group_size, quant_key_by_channel),
+          impl_desc_t(impl_desc) {}
+
+    [[nodiscard]] impl_desc_type implType() const override {
+        return impl_desc_t;
+    }
 
     void prepare_attn_mask(const MemoryPtr& attn_input) {
         attn_buf.resize<float>(attn_input->getStaticDims());
@@ -1231,39 +1238,7 @@ void ScaledDotProductAttention::initSupportedPrimitiveDescriptors() {
     config.outConfs[0].setMemDesc(
         creatorsMap.at(LayoutType::ncsp)->createSharedDesc(rtPrecision, getOutputShapeAtPort(0)));
 
-    // Determine the correct implementation type based on compile flags, runtime capabilities and precision
-    impl_desc_type implType = impl_desc_type::ref_any;
-#if defined(OPENVINO_ARCH_X86_64)
-    if (rtPrecision == ov::element::bf16) {
-        if (ov::with_cpu_x86_bfloat16()) {
-            implType = impl_desc_type::jit_avx512;
-        } else {
-            implType = impl_desc_type::ref_any;
-        }
-    } else if (rtPrecision == ov::element::f16) {
-        if (with_cpu_x86_avx512_core_fp16()) {
-            implType = impl_desc_type::jit_avx512;
-        } else {
-            implType = impl_desc_type::ref_any;
-        }
-    } else {
-#    ifdef OV_CPU_WITH_MLAS
-        implType = impl_desc_type::mlas;
-#    else
-        if (with_cpu_x86_avx512_core()) {
-            implType = impl_desc_type::jit_avx512;
-        } else {
-            implType = impl_desc_type::ref_any;
-        }
-#    endif
-    }
-#elif defined(OV_CPU_WITH_ACL)
-    implType = impl_desc_type::acl;
-#else
-    implType = impl_desc_type::ref_any;
-#endif
-
-    supportedPrimitiveDescriptors.emplace_back(config, implType);
+    supportedPrimitiveDescriptors.emplace_back(config, impl_desc_type::undef);
 }
 
 void ScaledDotProductAttention::createPrimitive() {
@@ -1303,42 +1278,49 @@ void ScaledDotProductAttention::createPrimitive() {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::bfloat16>>(context,
                                                                                         m_key_quant_param.groupSize,
                                                                                         m_value_quant_param.groupSize,
-                                                                                        m_key_quant_param.isByChannel);
+                                                                                        m_key_quant_param.isByChannel,
+                                                                                        impl_desc_type::jit_avx512);
             } else {
                 executor = std::make_shared<AttentionExecutor<KT_REF, ov::bfloat16>>(context,
                                                                                      m_key_quant_param.groupSize,
                                                                                      m_value_quant_param.groupSize,
-                                                                                     m_key_quant_param.isByChannel);
+                                                                                     m_key_quant_param.isByChannel,
+                                                                                     impl_desc_type::ref_any);
             }
         } else if (rtPrecision == ov::element::f16) {
             if (with_cpu_x86_avx512_core_fp16()) {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, ov::float16>>(context,
                                                                                        m_key_quant_param.groupSize,
                                                                                        m_value_quant_param.groupSize,
-                                                                                       m_key_quant_param.isByChannel);
+                                                                                       m_key_quant_param.isByChannel,
+                                                                                       impl_desc_type::jit_avx512);
             } else {
                 executor = std::make_shared<AttentionExecutor<KT_REF, ov::float16>>(context,
                                                                                     m_key_quant_param.groupSize,
                                                                                     m_value_quant_param.groupSize,
-                                                                                    m_key_quant_param.isByChannel);
+                                                                                    m_key_quant_param.isByChannel,
+                                                                                    impl_desc_type::ref_any);
             }
         } else {
 #    ifdef OV_CPU_WITH_MLAS
             executor = std::make_shared<AttentionExecutor<KT_MLAS, float>>(context,
                                                                            m_key_quant_param.groupSize,
                                                                            m_value_quant_param.groupSize,
-                                                                           m_key_quant_param.isByChannel);
+                                                                           m_key_quant_param.isByChannel,
+                                                                           impl_desc_type::jit_avx512);
 #    else
             if (with_cpu_x86_avx512_core()) {
                 executor = std::make_shared<AttentionExecutor<KT_ONEDNN, float>>(context,
                                                                                  m_key_quant_param.groupSize,
                                                                                  m_value_quant_param.groupSize,
-                                                                                 m_key_quant_param.isByChannel);
+                                                                                 m_key_quant_param.isByChannel,
+                                                                                 impl_desc_type::jit_avx512);
             } else {
                 executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context,
                                                                               m_key_quant_param.groupSize,
                                                                               m_value_quant_param.groupSize,
-                                                                              m_key_quant_param.isByChannel);
+                                                                              m_key_quant_param.isByChannel,
+                                                                              impl_desc_type::ref_any);
             }
 #    endif
         }
@@ -1347,19 +1329,23 @@ void ScaledDotProductAttention::createPrimitive() {
             executor = std::make_shared<AttentionExecutor<KT_ACL, ov::float16>>(context,
                                                                                 m_key_quant_param.groupSize,
                                                                                 m_value_quant_param.groupSize,
-                                                                                m_key_quant_param.isByChannel);
+                                                                                m_key_quant_param.isByChannel,
+                                                                                impl_desc_type::acl);
         } else {
             executor = std::make_shared<AttentionExecutor<KT_ACL, float>>(context,
                                                                           m_key_quant_param.groupSize,
                                                                           m_value_quant_param.groupSize,
-                                                                          m_key_quant_param.isByChannel);
+                                                                          m_key_quant_param.isByChannel,
+                                                                          impl_desc_type::acl);
         }
 #else
         executor = std::make_shared<AttentionExecutor<KT_REF, float>>(context,
                                                                       m_key_quant_param.groupSize,
                                                                       m_value_quant_param.groupSize,
-                                                                      m_key_quant_param.isByChannel);
+                                                                      m_key_quant_param.isByChannel,
+                                                                      impl_desc_type::ref_any);
 #endif
+        getSelectedPrimitiveDescriptor()->setImplementationType(executor->implType());
         return executor;
     };
 
