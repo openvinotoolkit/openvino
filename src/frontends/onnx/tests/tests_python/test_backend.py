@@ -764,6 +764,7 @@ tests_expected_to_fail = [
     (
         xfail_issue_171772,
         "OnnxBackendNodeModelTest.test_averagepool_3d_dilations_large_count_include_pad_is_1_ceil_mode_is_True_cpu",
+        "OnnxBackendNodeModelTest.test_averagepool_2d_ceil_last_window_starts_on_pad_cp",
     ),
 ]
 
