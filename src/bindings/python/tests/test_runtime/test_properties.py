@@ -477,6 +477,11 @@ def test_properties_ro(ov_property_ro, expected_value):
             "NPU_RUN_INFERENCES_SEQUENTIALLY",
             ((True, True),),
         ),
+        (
+            intel_npu.qdq_optimization_aggressive,
+            "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
+            ((True, True),),
+        ),
     ],
 )
 def test_properties_rw(ov_property_rw, expected_value, test_values):
