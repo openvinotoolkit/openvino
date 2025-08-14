@@ -60,16 +60,16 @@ jobs:
           sparse-checkout-cone-mode: false
           submodules: 'false'
       
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz gh
+
       - name: Download OpenVINO artifacts (tarballs & wheels)
         run: |
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
-
-      - name: Install OpenVINO dependencies (mac)
-        if: runner.os == 'macOS'
-        run: brew install pigz
 
       - name: Extract OpenVINO packages
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v

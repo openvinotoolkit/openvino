@@ -45,7 +45,7 @@ jobs:
       
       - name: Install OpenVINO dependencies (mac)
         if: runner.os == 'macOS'
-        run: brew install pigz
+        run: brew install pigz gh
 
       - name: Download OpenVINO artifacts (JS)
         run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_js_package --dir ${{ env.OPENVINO_JS_LIBS_DIR }}

@@ -63,6 +63,10 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install gh
 
+      - name: Install OpenVINO dependencies (mac)
+        if: runner.os == 'macOS'
+        run: brew install pigz gh
+
       - name: Download OpenVINO artifacts (wheels, tests) (Win)
         if: runner.os == 'Windows'
         run: |
@@ -84,10 +88,6 @@ jobs:
       - name: Setup Variables
         run: |
           echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
-
-      - name: Install OpenVINO dependencies (mac)
-        if: runner.os == 'macOS'
-        run: brew install pigz
           
       - name: Extract OpenVINO packages (Linux, macOS)
         if: runner.os != 'Windows'
