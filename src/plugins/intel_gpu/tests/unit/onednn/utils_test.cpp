@@ -259,3 +259,31 @@ INSTANTIATE_TEST_SUITE_P(smoke, memory_desc_to_fmt_conversion_test,
         },
     }),
     memory_desc_to_fmt_conversion_test::PrintToString);
+
+// Test for keep_weights_reorder_shape_consistent function
+TEST(keep_weights_reorder_shape_consistent_test, simple_data_formats) {
+    // Test case 1: bfyx format with matching shapes
+    {
+        auto layout = cldnn::layout{ov::PartialShape{512, 1024, 16}, data_types::f16, format::bfyx};
+        dnnl::memory::desc desc({512, 1024, 16}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::abc);
+        bool result = onednn::keep_weights_reorder_shape_consistent(layout, desc);
+        EXPECT_TRUE(result);
+        EXPECT_EQ(layout.get_shape(), ov::Shape({512, 1024, 16}));
+    }
+    // Test case 2: fbyx format with matching shapes
+    {
+        auto layout = cldnn::layout{ov::PartialShape{512, 1024, 16}, data_types::f16, format::fbyx};
+        dnnl::memory::desc desc({512, 1024, 16}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::abc);
+        bool result = onednn::keep_weights_reorder_shape_consistent(layout, desc);
+        EXPECT_TRUE(result);
+        EXPECT_EQ(layout.get_shape(), ov::Shape({512, 1024, 16}));
+    }
+    // Test case 3: ioyx format with matching shapes
+    {
+        auto layout = cldnn::layout{ov::PartialShape{512, 1024, 16}, data_types::f16, format::ioyx};
+        dnnl::memory::desc desc({512, 1024, 16}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::abc);
+        bool result = onednn::keep_weights_reorder_shape_consistent(layout, desc);
+        EXPECT_TRUE(result);
+        EXPECT_EQ(layout.get_partial_shape(), ov::Shape({512, 1024, 16}));
+    }
+}

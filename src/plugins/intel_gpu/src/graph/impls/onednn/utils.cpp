@@ -745,15 +745,34 @@ bool keep_weights_reorder_shape_consistent(cldnn::layout& layout, const dnnl::me
         auto is_weights = cldnn::format::is_weights_format(layout.format);
         auto is_grouped = cldnn::format::is_grouped(layout.format);
         auto expected_format = cldnn::format::get_default_format(cldnn::format::dimension(layout.format), is_weights, is_grouped);
+
         if (layout.format == expected_format) {
             // Dimension expansion is only allowed when the input layout is in the default format.
             layout.format = cldnn::format::get_default_format(desc_dims.size(), is_weights, is_grouped);
-        } else {
-            // The expected format is not default format.
-            return false;
+            return true;
         }
+
+        // When a constant for weights is transposed via permute, it can be replaced with a reorder.
+        // In such cases, the layout format is preserved.
+        if (layout.get_rank() == 4) {
+            // Check for simple data formats
+            if (format::is_simple_data_format(layout.format)) {
+                return true;
+            }
+
+            // Check for simple weights formats (non-grouped)
+            if (is_weights && !is_grouped) {
+                const auto fmt = layout.format;
+                if (fmt == format::ioyx || fmt == format::yxio || fmt == format::iyxo ||
+                    fmt == format::oyxi || fmt == format::oyix || fmt == format::oxiy) {
+                    return true;
+                }
+            }
+        }
+
+        // The expected format is not default format.
+        return false;
     }
-    return true;
 }
 
 size_t get_post_ops_count(const program_node& node) {
