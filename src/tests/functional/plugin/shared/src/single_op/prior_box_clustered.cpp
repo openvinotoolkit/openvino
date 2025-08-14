@@ -13,16 +13,9 @@
 namespace ov {
 namespace test {
 std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParamInfo<priorBoxClusteredLayerParams>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string target_device;
-    priorBoxClusteredSpecificParams specParams;
-    std::tie(specParams, model_type, shapes, target_device) = obj.param;
+    const auto& [specParams, model_type, shapes, target_device] = obj.param;
 
-    std::vector<float> widths, heights, variances;
-    float step_width, step_height, step, offset;
-    bool clip;
-    std::tie(widths, heights, clip, step_width, step_height, step, offset, variances) = specParams;
+    const auto& [widths, heights, clip, step_width, step_height, step, offset, variances] = specParams;
 
     std::ostringstream result;
     const char separator = '_';
@@ -56,19 +49,9 @@ std::string PriorBoxClusteredLayerTest::getTestCaseName(const testing::TestParam
 }
 
 void PriorBoxClusteredLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::vector<float> widths;
-    std::vector<float> heights;
-    std::vector<float> variances;
-    float step_width;
-    float step_height;
-    float step;
-    float offset;
-    bool clip;
-    priorBoxClusteredSpecificParams specParams;
-    std::tie(specParams, model_type, shapes, targetDevice) = GetParam();
-    std::tie(widths, heights, clip, step_width, step_height, step, offset, variances) = specParams;
+    const auto& [specParams, model_type, shapes, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
+    const auto& [widths, heights, clip, step_width, step_height, step, offset, variances] = specParams;
     init_input_shapes(shapes);
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes[0]),

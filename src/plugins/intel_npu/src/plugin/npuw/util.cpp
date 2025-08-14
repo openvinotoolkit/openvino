@@ -153,6 +153,33 @@ void unpack_f8f16(const ov::SoPtr<ov::ITensor>& from,
     }
 }
 
+void unpack_f16f16(const ov::SoPtr<ov::ITensor>& from,
+                   const ov::SoPtr<ov::ITensor>& scale,
+                   const ov::SoPtr<ov::ITensor>& to,
+                   const ov::npuw::util::UnpackOptions& unpack_options) {
+    auto from_shape = from->get_shape();
+    auto scale_shape = scale->get_shape();
+
+    NPUW_ASSERT(from->is_continuous());
+    NPUW_ASSERT(to->is_continuous());
+    NPUW_ASSERT(scale->is_continuous());
+    NPUW_ASSERT(from->get_size() == to->get_size());
+    NPUW_ASSERT(from_shape[0] == scale_shape[0]);
+    NPUW_ASSERT(scale_shape[1] == 1);
+    NPUW_ASSERT(from->get_element_type() == ov::element::f16);
+    NPUW_ASSERT(scale->get_element_type() == ov::element::f16);
+    NPUW_ASSERT(to->get_element_type() == ov::element::f16);
+
+    const auto* from_ptr = from->data<ov::float16>();
+    const auto* scale_ptr = scale->data<ov::float16>();
+    auto* to_ptr = to->data<ov::float16>();
+    const auto size = to->get_size();
+
+    ov::parallel_for(size, [&](size_t idx) {
+        to_ptr[idx] = from_ptr[idx] * scale_ptr[idx / from_shape[1]];
+    });
+}
+
 }  // namespace
 
 ov::Tensor ov::npuw::util::tensor_from_const(const std::shared_ptr<ov::Node>& node) {
@@ -253,6 +280,9 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                type_from == ov::element::f8e8m0) {
         // FIXME: Implement XARCH::unpack
         unpack_f8f16(from, scale, to, unpack_options);
+    } else if (type_from == ov::element::f16) {
+        // FIXME: Implement XARCH::unpack
+        unpack_f16f16(from, scale, to, unpack_options);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
     }
@@ -399,6 +429,49 @@ void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
         auto pSrcRow = pSrc + src_shape[1] * srcRowIdx * src_type.size();
         std::copy_n(pSrcRow, src_shape[1] * src_type.size(), pDst);
         pDst += dst_shape[2] * dst_type.size();
+    }
+}
+
+void ov::npuw::util::gather_cb4(const ov::SoPtr<ov::ITensor>& src,
+                                const ov::SoPtr<ov::ITensor>& idx,
+                                const ov::SoPtr<ov::ITensor>& dst) {
+    const auto src_type = src->get_element_type();
+    const auto dst_type = dst->get_element_type();
+    NPUW_ASSERT(idx->get_element_type() == ov::element::u4);
+    NPUW_ASSERT(src_type == ov::element::f8e4m3 || src_type == ov::element::f8e5m2 || src_type == ov::element::f8e8m0);
+    NPUW_ASSERT(dst_type == ov::element::f16);
+
+    NPUW_ASSERT(idx->get_shape().size() == 2);
+    NPUW_ASSERT(src->get_shape().size() == 1);
+    NPUW_ASSERT(dst->get_shape().size() == 2);
+
+    NPUW_ASSERT(dst->get_size() % 2 == 0);
+
+    const uint8_t* pIdx = static_cast<uint8_t*>(idx->data());  // u4
+    ov::float16* pDst = dst->data<ov::float16>();
+
+    // FIXME: copypaste with a different type
+    if (src_type == ov::element::f8e4m3) {
+        const auto* pSrc = src->data<ov::float8_e4m3>();
+        for (std::size_t i = 0; i < dst->get_size(); i += 2) {
+            *(pDst + i) = static_cast<float>(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = static_cast<float>(pSrc[hi4(*pIdx)]);
+            pIdx++;
+        }
+    } else if (src_type == ov::element::f8e5m2) {
+        const auto* pSrc = src->data<ov::float8_e5m2>();
+        for (std::size_t i = 0; i < dst->get_size(); i += 2) {
+            *(pDst + i) = static_cast<float>(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = static_cast<float>(pSrc[hi4(*pIdx)]);
+            pIdx++;
+        }
+    } else {
+        const auto* pSrc = src->data<ov::float8_e8m0>();
+        for (std::size_t i = 0; i < dst->get_size(); i += 2) {
+            *(pDst + i) = static_cast<float>(pSrc[lo4(*pIdx)]);
+            *(pDst + i + 1) = static_cast<float>(pSrc[hi4(*pIdx)]);
+            pIdx++;
+        }
     }
 }
 

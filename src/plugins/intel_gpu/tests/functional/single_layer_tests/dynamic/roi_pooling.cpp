@@ -35,17 +35,9 @@ class ROIPoolingLayerGPUTest : public testing::WithParamInterface<ROIPoolingGPUT
                                virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ROIPoolingGPUTestParams> obj) {
-        ROIPoolingParams basic_params_set;
-        ProposalGenerationMode prop_mode;
+        const auto& [basic_params_set, prop_mode] = obj.param;
 
-        std::tie(basic_params_set, prop_mode) = obj.param;
-
-        ROIPoolingShapes shapes;
-        std::vector<size_t> pool_shape;
-        float spatial_scale;
-        ov::test::utils::ROIPoolingTypes pool_method;
-        ov::element::Type model_type;
-        std::tie(shapes, pool_shape, spatial_scale, pool_method, model_type) = basic_params_set;
+        const auto& [shapes, pool_shape, spatial_scale, pool_method, model_type] = basic_params_set;
 
         std::ostringstream result;
         result << "netPRC=" << model_type << "_";
@@ -162,16 +154,9 @@ protected:
     }
 
     void SetUp() override {
-        ROIPoolingParams basic_params_set;
-        ProposalGenerationMode prop_mode;
+        const auto& [basic_params_set, prop_mode] = this->GetParam();
 
-        std::tie(basic_params_set, prop_mode) = this->GetParam();
-        ROIPoolingShapes shapes;
-        std::vector<size_t> pool_shape;
-        float spatial_scale;
-        ov::test::utils::ROIPoolingTypes pool_method;
-        ov::element::Type model_type;
-        std::tie(shapes, pool_shape, spatial_scale, pool_method, model_type) = basic_params_set;
+        const auto& [shapes, pool_shape, spatial_scale, pool_method, model_type] = basic_params_set;
 
         targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes(shapes);
