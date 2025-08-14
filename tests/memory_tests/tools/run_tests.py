@@ -7,6 +7,7 @@ import subprocess
 import json
 
 from pathlib import Path
+from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from collections import defaultdict
 
@@ -146,8 +147,8 @@ class TestSession:
     def api_push_test_result(self, source, modelid, device, result, refsamples=None):
         if refsamples is None:
             refsamples = {}
-        if "error" in result:
-            print("Failed result is not going to be uploaded.")
+        if "error" in result and not refsamples:
+            print("Failed result is not going to be uploaded since no reference results were found.")
             return
         if not self.report_metadata:
             print("No job metadata found, no report will be made.")
@@ -155,11 +156,13 @@ class TestSession:
         model_assumptions = modelid_assume_info(modelid)
         modelname, framework, precision = model_assumptions or (modelid, "unknown", "unknown")
         test_report = []
-        for sname, sample in result["samples"].items():
+        sample_names = result.get("samples", refsamples).keys()
+        for sname in sample_names:
+            sample = result.get("samples", {}).get(sname, MemSample(-1, -1, -1, -1, -1))
             sample_report = self.report_metadata.copy()
             sample_report.update({
                 "test_name": f"{result['test']}:{sname}",
-                "status": "ok",
+                "status": "failed" if "error" in result else "passed",
                 "source": source,
                 "log": result.get("stderr", ""),
                 "model_name": modelname,
@@ -205,15 +208,20 @@ class TestSession:
 
         found_models = set()
 
-        for modelfullpath in glob.glob(f"{cache_dir}/**/*.xml", recursive=True):
-            modelidpath = modelfullpath.removeprefix(cache_dir)
-            yield modelidpath, modelfullpath
+        while True:
+            fileset = set(glob.glob(f"{cache_dir}/**/*.xml", recursive=True))
+            new_files = fileset - found_models
+            if not new_files:
+                # no new tests found, we're finished here
+                return
+            found_models.update(new_files)
+            new_files = sorted(new_files)
+            yield from ((path.removeprefix(cache_dir), path) for path in new_files)
 
     def generate_test_cases(self):
-        found_models = []
         for ir_cache_dir in self.ir_cache_dirs:
-            found_models.extend(self.scan_directory(ir_cache_dir))
-        return itertools.product(found_models, self.devices)
+            yield from itertools.product(
+                self.scan_directory(ir_cache_dir), self.devices)
 
     def run_test_case(self, model_path, device):
         try:
@@ -254,7 +262,7 @@ class TestSession:
             result = self.run_test_case(model_path, device)
             test_name = result.get("test", self.test_name)
             refsamples = self.reference_values.get(test_name, {}).get(modelid)
-            self.api_push_test_result("", modelid, device, result, refsamples)
+            self.api_push_test_result(model_path, modelid, device, result, refsamples)
             if self.report_reference:
                 self.api_push_reference_values(modelid, device, result)
             self.handle_test_result(modelid, device, result, refsamples)
