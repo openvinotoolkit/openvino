@@ -24,7 +24,7 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
                                    TensorType tensor_type,
                                    MemType mem_type,
                                    const void* mem,
-                                   const ov::intel_npu::FileDescriptor& file_descriptor)
+                                   const std::optional<ov::intel_npu::FileDescriptor>& file_descriptor)
     : _context(context),
       _init_structs(init_structs),
       _element_type(element_type),
@@ -210,11 +210,16 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         break;
     }
     case MemType::MMAPED_FILE: {
+        // File_descriptor shall be set if mem_type is a mmaped file type.
+        if (!_file_descriptor.has_value()) {
+            OPENVINO_THROW("No parameter ", file_descriptor.name(), " found in parameters map");
+        }
+
         // memory map the file
-        _mmap_tensor = ov::read_tensor_data(_file_descriptor._file_name,
+        _mmap_tensor = ov::read_tensor_data(_file_descriptor.value()._file_path,
                                             ov::element::u8,
                                             ov::PartialShape::dynamic(1),
-                                            _file_descriptor._offset_in_bytes,
+                                            _file_descriptor.value()._offset_in_bytes,
                                             true);
 
         size_t aligned_size = utils::align_size_to_standard_page_size(_mmap_tensor.get_byte_size());

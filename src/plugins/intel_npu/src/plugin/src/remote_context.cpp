@@ -91,11 +91,6 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
         OPENVINO_THROW("No parameter ", mem_handle.name(), " found in parameters map");
     }
 
-    // File_descriptor shall be set if mem_type is a mmaped file type.
-    if (mem_type_object.value() == MemType::MMAPED_FILE && !file_descriptor_object.has_value()) {
-        OPENVINO_THROW("No parameter ", file_descriptor.name(), " found in parameters map");
-    }
-
     return {std::make_shared<ZeroRemoteTensor>(get_this_shared_ptr(),
                                                _init_structs,
                                                type,
@@ -103,7 +98,7 @@ ov::SoPtr<ov::IRemoteTensor> RemoteContextImpl::create_tensor(const ov::element:
                                                tensor_type_object.value_or(ov::intel_npu::TensorType::BINDED),
                                                mem_type_object.value_or(ov::intel_npu::MemType::L0_INTERNAL_BUF),
                                                mem_handle_object.value_or(nullptr),
-                                               file_descriptor_object.value_or(FileDescriptor{}))};
+                                               file_descriptor_object)};
 }
 
 ov::SoPtr<ov::ITensor> RemoteContextImpl::create_host_tensor(const ov::element::Type type, const ov::Shape& shape) {

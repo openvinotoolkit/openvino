@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -25,7 +26,7 @@ public:
                      ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
                      ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
                      const void* mem = nullptr,
-                     const ov::intel_npu::FileDescriptor& file_descriptor = {});
+                     const std::optional<ov::intel_npu::FileDescriptor>& file_descriptor = std::nullopt);
 
     /**
      * @brief Returns additional information associated with tensor
@@ -92,7 +93,7 @@ private:
 
     ov::intel_npu::TensorType _tensor_type;
     ov::intel_npu::MemType _mem_type;
-    ov::intel_npu::FileDescriptor _file_descriptor;
+    std::optional<ov::intel_npu::FileDescriptor> _file_descriptor;
     const void* _mem = nullptr;
     void* _data = nullptr;
 

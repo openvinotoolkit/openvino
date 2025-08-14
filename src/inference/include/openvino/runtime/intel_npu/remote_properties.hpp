@@ -83,18 +83,21 @@ static constexpr Property<npu_handle_param> l0_context{"L0_CONTEXT"};
  * @ingroup ov_runtime_level_zero_npu_cpp_api
  */
 struct FileDescriptor {
-    FileDescriptor() = default;
-    FileDescriptor(const std::filesystem::path& file_name, std::size_t offset_in_bytes = 0)
-        : _file_name(file_name),
-          _offset_in_bytes(offset_in_bytes) {}
+    FileDescriptor(const std::filesystem::path& file_path, std::size_t offset_in_bytes = 0)
+        : _file_path(file_path),
+          _offset_in_bytes(offset_in_bytes) {
+        if (file_path.empty()) {
+            OPENVINO_THROW("Provided path is empty.");
+        }
+    }
 
-    std::filesystem::path _file_name;  //!< File name
+    std::filesystem::path _file_path;  //!< File path
     std::size_t _offset_in_bytes = 0;  //!< Offset in bytes to read from the file
 };
 
 /** @cond INTERNAL */
 inline std::ostream& operator<<(std::ostream& os, const FileDescriptor& file_descriptor) {
-    return os << "FileDescriptor{file_name: " << file_descriptor._file_name
+    return os << "FileDescriptor{file_path: " << file_descriptor._file_path
               << ", offset_in_bytes: " << file_descriptor._offset_in_bytes << "}";
 }
 /** @endcond */
