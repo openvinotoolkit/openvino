@@ -12,9 +12,9 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
-#include "openvino/core/type/element_iterator.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
 #define USE_SINGLE_THREADED_RUN_INIT 0
@@ -392,7 +392,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).inputs) {
         initInputsByteSize +=
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
     // Due to the large number of init inputs, allocating a single buffer for all of them is more efficient. "View
@@ -410,7 +410,7 @@ WeightlessGraph::InputData WeightlessGraph::allocate_inputs(
             static_cast<unsigned char*>(const_cast<void*>(initInputsAllocatedTensor->data(ov::element::Type_t::u8))) +
             offset;
         const size_t currentInputSize =
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
 
         std::shared_ptr<ov::op::v0::Constant> constant;
         const size_t id = std::stoi(descriptor.nameFromCompiler);
@@ -439,7 +439,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 
     for (const IODescriptor& descriptor : _initsMetadata.at(initIndex).outputs) {
         initOutputsByteSize +=
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+            ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
     const ov::SoPtr<ZeroHostTensor> initOutputsAllocatedTensor = {
@@ -460,8 +460,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 
         initOutputsViewTensorsVector.push_back(hostTensor._ptr);
         initOutputsViewTensorsMap.emplace(descriptor.nameFromCompiler, hostTensor._ptr);
-        offset +=
-            ov::element::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
+        offset += ov::util::get_memory_size(descriptor.precision, shape_size(descriptor.shapeFromCompiler.to_shape()));
     }
 
     return {initOutputsViewTensorsVector, initOutputsAllocatedTensor, initOutputsViewTensorsMap};
