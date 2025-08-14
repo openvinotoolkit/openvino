@@ -65,5 +65,5 @@ public:
     explicit RopeCache(const uint32_t max_prompt_len) : m_max_prompt_len(max_prompt_len) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
 };
-
+// NOLINTNEXTLINE(readability/namespace)
 }  // namespace ov::npuw::patterns::pre_compute
