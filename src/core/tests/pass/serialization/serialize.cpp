@@ -19,7 +19,6 @@
 #include "openvino/pass/serialize.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/tensor.hpp"
-#include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
 #include "read_ir.hpp"
 
