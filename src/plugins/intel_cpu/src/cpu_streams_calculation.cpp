@@ -716,8 +716,8 @@ int get_model_prefer_threads(const int num_streams,
 #    else
         if (proc_type_table[0][EFFICIENT_CORE_PROC] > 0 && proc_type_table[0][MAIN_CORE_PROC] > 0) {
             if ((proc_type_table[0][MAIN_CORE_PROC] < config.threads || config.threads == 0) &&
-                ov::get_number_of_blocked_cores() &&
-                proc_type_table[0][EFFICIENT_CORE_PROC] < 2 * proc_type_table[0][MAIN_CORE_PROC]) {
+                (ov::get_number_of_blocked_cores() || proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) &&
+                proc_type_table[0][EFFICIENT_CORE_PROC] <= 2 * proc_type_table[0][MAIN_CORE_PROC]) {
                 if (ov::op::util::is_large_language_model(*model)) {
                     config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC];
                 } else {
@@ -729,16 +729,31 @@ int get_model_prefer_threads(const int num_streams,
                                              static_cast<float>(networkToleranceForLowCache.total_light_convs) /
                                                      static_cast<float>(networkToleranceForLowCache.total_convs) >
                                                  0.6;
-                        bool static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
-                                             static_cast<float>(networkToleranceForLowCache.total_light_convs) /
-                                                     static_cast<float>(networkToleranceForLowCache.total_convs) <=
-                                                 0.6 &&
-                                             networkToleranceForLowCache.ratio_compute_convs +
-                                                     networkToleranceForLowCache.ratio_mem_limited_convs <
-                                                 0.9 &&
-                                             networkToleranceForLowCache.ratio_mem_limited_convs < 0.11 &&
-                                             networkToleranceForLowCache.ratio_mem_limited_gemms == 0 &&
-                                             networkToleranceForLowCache.ratio_mem_limited_adds < 0.3;
+                        bool static_case_3 = false;
+                        if (proc_type_table[0][LP_EFFICIENT_CORE_PROC] > 0) {
+                            static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
+                                            static_cast<float>(networkToleranceForLowCache.total_light_convs) /
+                                                    static_cast<float>(networkToleranceForLowCache.total_convs) <=
+                                                0.6 &&
+                                            networkToleranceForLowCache.ratio_compute_convs +
+                                                    networkToleranceForLowCache.ratio_mem_limited_convs <
+                                                0.9 &&
+                                            networkToleranceForLowCache.ratio_mem_limited_convs < 0.11 &&
+                                            networkToleranceForLowCache.ratio_mem_limited_gemms == 0 &&
+                                            networkToleranceForLowCache.ratio_mem_limited_adds < 0.15 &&
+                                            networkToleranceForLowCache.total_gemms > 0;
+                        } else {
+                            static_case_3 = networkToleranceForLowCache.total_convs > 0 &&
+                                            static_cast<float>(networkToleranceForLowCache.total_light_convs) /
+                                                    static_cast<float>(networkToleranceForLowCache.total_convs) <=
+                                                0.6 &&
+                                            networkToleranceForLowCache.ratio_compute_convs +
+                                                    networkToleranceForLowCache.ratio_mem_limited_convs <
+                                                0.9 &&
+                                            networkToleranceForLowCache.ratio_mem_limited_convs < 0.11 &&
+                                            networkToleranceForLowCache.ratio_mem_limited_gemms == 0 &&
+                                            networkToleranceForLowCache.ratio_mem_limited_adds < 0.3;
+                        }
                         if (static_case_1 || static_case_2 || static_case_3) {
                             config.tbbPartitioner = TbbPartitioner::STATIC;
                         } else {
