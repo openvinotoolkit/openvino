@@ -485,8 +485,14 @@ jobs:
             .github/actions/store_artifacts
           path: ${{ env.OPENVINO_REPO }}
 
-      - name: Install `gh` CLI
-        run: brew install gh
+      - name: Install gh cli
+        run: |
+          apt-get update -y && apt-get install curl -y
+          curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_amd64.tar.gz -o /tmp/gh.tar.gz
+          tar -xzf /tmp/gh.tar.gz -C /opt && \
+          mv /opt/gh_2.76.2_linux_* /opt/gh && \
+          rm /tmp/gh.tar.gz
+          echo "PATH=/opt/gh/bin:$PATH" >> $GITHUB_ENV
 
       - name: Download OpenVINO artifacts (package, dev package, js, node & manifest)
         run: |
