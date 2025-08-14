@@ -451,8 +451,10 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsMultipleInfer)
     shapes[tensor_name_0] = modelShape;
     shapes[tensor_name_1] = modelShape;
     model->reshape(shapes);
+
     auto execNet = core->compile_model(model, target_device, configuration);
     auto context = core->get_default_context(target_device);
+
     // Create InferRequest
     ov::InferRequest req;
     req = execNet.create_infer_request();
@@ -546,8 +548,10 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsDynamicBatchIn
     shapes[tensor_name_0] = modelShape;
     shapes[tensor_name_1] = modelShape;
     model->reshape(shapes);
+
     auto execNet = core->compile_model(model, target_device, configuration);
     auto context = core->get_default_context(target_device);
+
     // Create InferRequest
     ov::InferRequest req;
     req = execNet.create_infer_request();
@@ -575,8 +579,10 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputRemoteTensorsDynamicBatchDe
     shapes[tensor_name_0] = modelShape;
     shapes[tensor_name_1] = modelShape;
     model->reshape(shapes);
+
     auto execNet = core->compile_model(model, target_device, configuration);
     auto context = core->get_default_context(target_device);
+
     // Create InferRequest
     ov::InferRequest req;
     req = execNet.create_infer_request();
@@ -606,13 +612,15 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorSingleInf
     shapes[tensor_name_0] = modelShape;
     shapes[tensor_name_1] = modelShape;
     model->reshape(shapes);
+
     auto execNet = core->compile_model(model, target_device, configuration);
     auto context = core->get_default_context(target_device);
-    // Create InferRequest
 
+    // Create InferRequest
     ov::InferRequest req;
     req = execNet.create_infer_request();
     std::vector<ov::Tensor> tensors;
+
     // contiguous memory
     auto tensor = context.create_host_tensor(ov::element::f32, tensor_shape);
     tensors.push_back(std::move(tensor));
@@ -690,6 +698,7 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBa
     shapes[tensor_name_0] = modelShape;
     shapes[tensor_name_1] = modelShape;
     model->reshape(shapes);
+
     auto execNet = core->compile_model(model, target_device, configuration);
     auto context = core->get_default_context(target_device);
 
@@ -721,6 +730,32 @@ TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBa
     shapes[tensor_name_0] = modelShape;
     shapes[tensor_name_1] = modelShape;
     model->reshape(shapes);
+
+    auto execNet = core->compile_model(model, target_device, configuration);
+    auto context = core->get_default_context(target_device);
+
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+    for (size_t tensor_batch = model_batch_upper_bound; tensor_batch >= model_batch_bottom_bound; tensor_batch--) {
+        // dynamically change N of contiduous memory tensor in [model_batch_bottom_bound..model_batch_upper_bound]
+        // and check that the output tensor kept modified accordingly
+        executeContiguousTensorBatchInfer(req, tensor_batch, one_shape, context);
+    }
+}
+
+TEST_P(DynamicBatchedTensorsRunTests, SetInputRemoteSingleBatchedTensorDynamicBatchDeflationMultipleDynamicDimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    size_t batch = 2;
+    size_t model_batch_bottom_bound = 1;
+    size_t model_batch_upper_bound = 10;
+
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = PartialShape{ov::Dimension(model_batch_bottom_bound, model_batch_upper_bound), ov::Dimension(1, 4), ov::Dimension(2, 4), 2};
+    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+
     auto execNet = core->compile_model(model, target_device, configuration);
     auto context = core->get_default_context(target_device);
 
@@ -744,14 +779,17 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInf
     auto one_shape_size = ov::shape_size(one_shape);
     auto modelShape = PartialShape{ov::Dimension(1, 10), 2, 2, 2};
     auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, batch_shape, "N...");
+
     const std::string tensor_name_0 = "tensor_input0";
     const std::string tensor_name_1 = "tensor_input1";
     std::map<std::string, ov::PartialShape> shapes;
     shapes[tensor_name_0] = modelShape;
     shapes[tensor_name_1] = modelShape;
     model->reshape(shapes);
+
     auto execNet = core->compile_model(model, target_device, configuration);
     auto context = core->get_default_context(target_device);
+
     // Create InferRequest
     ov::InferRequest req;
     req = execNet.create_infer_request();
@@ -784,6 +822,51 @@ TEST_P(DynamicBatchedTensorsRunTests, DynamicSetInputDifferentTensorsMultipleInf
         for (size_t j = 0; j < one_shape_size * batch; ++j) {
             EXPECT_EQ(actual[j], testNum + 21) << "Infer " << testNum << ": Expected=" << testNum + 21
                                                << ", actual=" << actual[j] << " for index " << j;
+        }
+    }
+}
+
+TEST_P(DynamicBatchedTensorsRunTests, SetInputTensorsMultipleDynamicDimensions) {
+    // Skip test according to plugin specific disabledTestPatterns() (if any)
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    size_t batch = 4;
+    auto one_shape = Shape{1, 2, 2, 2};
+    auto batch_shape = Shape{batch, 2, 2, 2};
+    auto one_shape_size = ov::shape_size(one_shape);
+    auto model = BatchedTensorsRunTests::create_n_inputs(2, element::f32, PartialShape({ov::Dimension(1, 10), ov::Dimension(1, 4), 2, 2}), "N...");
+
+    std::vector<float> buffer(one_shape_size * batch * 2, 0);
+    auto execNet = core->compile_model(model, target_device);
+
+    // Create InferRequest
+    ov::InferRequest req;
+    req = execNet.create_infer_request();
+
+    std::vector<ov::Tensor> tensors;
+    for (size_t i = 0; i < batch; ++i) {
+        // non contiguous memory (i*2)
+        auto tensor = ov::Tensor(element::f32, one_shape, &buffer[(i * 2) * one_shape_size]);
+        tensors.push_back(std::move(tensor));
+    }
+    req.set_tensors("tensor_input0", tensors);
+
+    for (size_t testNum = 0; testNum < 2; testNum++) {
+        for (size_t i = 0; i < batch; ++i) {
+            auto *f = tensors[i].data<float>();
+            for (size_t j = 0; j < one_shape_size; ++j) {
+                f[j] = static_cast<float>(testNum + i);
+            }
+        }
+        req.infer(); // Adds '1' to each element
+        auto actual_tensor = req.get_tensor("tensor_output0");
+        auto* actual = actual_tensor.data<float>();
+        for (size_t i = 0; i < batch; ++i) {
+            for (size_t j = 0; j < one_shape_size; ++j) {
+                EXPECT_EQ(actual[j + i * one_shape_size], testNum + i + 1)
+                                    << "Infer " << testNum << ": Expected=" << testNum + i + 1
+                                    << ", actual=" << actual[ + i * one_shape_size] << " for index " << j;
+            }
         }
     }
 }
