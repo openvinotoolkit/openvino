@@ -136,11 +136,10 @@ public:
      */
     ZeroBufferTensor create_tensor(const element::Type type,
                                    const Shape& shape,
-                                   const std::filesystem::path& file_name,
-                                   std::size_t offset_in_bytes = 0,
+                                   const FileDescriptor& file_descriptor,
                                    const TensorType tensor_type = TensorType::INPUT) {
         AnyMap params = {{ov::intel_npu::mem_type.name(), MemType::MMAPED_FILE},
-                         {ov::intel_npu::file_descriptor.name(), FileDescriptor{file_name, offset_in_bytes}},
+                         {ov::intel_npu::file_descriptor.name(), file_descriptor},
                          {ov::intel_npu::tensor_type.name(), tensor_type}};
         return create_tensor(type, shape, params).as<ZeroBufferTensor>();
     }

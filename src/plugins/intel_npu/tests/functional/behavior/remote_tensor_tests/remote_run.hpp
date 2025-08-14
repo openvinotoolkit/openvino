@@ -288,7 +288,7 @@ TEST_P(RemoteRunTests, CheckRemoteTensorImportFile0) {
     OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, zero_context, configuration));
     OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
 
-    auto remote_tensor = zero_context.create_tensor(ov::element::f32, shape, filename);
+    auto remote_tensor = zero_context.create_tensor(ov::element::f32, shape, ov::intel_npu::FileDescriptor{filename});
 
     ov::Tensor check_remote_tensor;
     OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);

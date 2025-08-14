@@ -5,6 +5,7 @@
 #include <openvino/runtime/core.hpp>
 #include <openvino/runtime/intel_npu/level_zero/level_zero.hpp>
 #include <openvino/runtime/intel_npu/properties.hpp>
+#include <openvino/runtime/intel_npu/remote_properties.hpp>
 
 int main() {
     ov::Core core;
@@ -35,8 +36,8 @@ int main() {
 
     {
         //! [wrap_nt_handle]
-        void* shared_buffer = nullptr;  // create the NT handle
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, static_cast<void*>(shared_buffer));
+        void* shared_buffer = nullptr;
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer);
         //! [wrap_nt_handle]
     }
 
@@ -49,8 +50,8 @@ int main() {
 
     {
         //! [wrap_dmabuf_fd]
-        std::string file_name = "";  // get the name of the file
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, std::filesystem::path(file_name));
+        ov::intel_npu::FileDescriptor file_descriptor{"", 0};  // create the FileDescriptor
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, file_descriptor);
         //! [wrap_dmabuf_fd]
     }
 
