@@ -358,7 +358,7 @@ jobs:
         run: |
           # Add `gh` to PATH
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -428,7 +428,7 @@ jobs:
         run: |
           # Add `gh` to PATH
           $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_TEST_DIR }}
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_TEST_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
 

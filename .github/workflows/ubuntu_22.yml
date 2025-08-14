@@ -156,6 +156,8 @@ jobs:
     runs-on: aks-linux-16-cores-64gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_22_04_x64 }}
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }}
     strategy:
       max-parallel: 2
       fail-fast: false
@@ -175,8 +177,7 @@ jobs:
 
     steps:
       - name: Create Directories
-        run: |
-          mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
+        run: mkdir -p ${CONFORMANCE_ARTIFACTS_DIR}
 
       #
       # Dependencies
