@@ -88,7 +88,7 @@ ov::npuw::patterns::pre_compute::RopePatternLLama2::RopePatternLLama2() : matche
         return true;
     };
 
-    matcher.register_patterns({output_sin, output_cos}, std::move(make_matcher_callback()));
+    matcher.register_patterns({output_sin, output_cos}, make_matcher_callback());
 }
 
 ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32_t max_prompt_len,
