@@ -437,3 +437,62 @@ TEST_F(TransformationTestsF, AbsInTheUnknown) {
         manager.register_pass<pass::AbsSinking>();
     }
 }
+
+TEST_F(TransformationTestsF, AbsSinkingWithNegativeValues) {
+    // Test that AbsSinking correctly processes negative values according to math definition
+    // Abs(-1) = 1, Abs(-2) = 2, following std::abs() behavior
+    {
+        // Create constant with negative values: {-1, -2, 4}
+        auto const_with_negatives = opset7::Constant::create(element::i64, {3}, {-1, -2, 4});
+        auto abs_op = std::make_shared<opset7::Abs>(const_with_negatives);
+        
+        model = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        // Expected: AbsSinking replaces Abs with constant containing absolute values
+        // {-1, -2, 4} -> {1, 2, 4} following mathematical definition
+        auto abs_result = opset7::Constant::create(element::i64, {3}, {1, 2, 4});
+        
+        model_ref = std::make_shared<Model>(OutputVector{abs_result}, ParameterVector{});
+    }
+    
+    // This test verifies correct mathematical behavior: Abs({-1, -2, 4}) -> Constant({1, 2, 4})
+    // Follows reference implementation using std::abs()
+}
+
+TEST_F(TransformationTestsF, AbsSinkingPositiveValuesOptimization) {
+    // Test that AbsSinking correctly removes Abs when input contains only positive values
+    {
+        auto const_with_pos_values = opset7::Constant::create(element::i64, {2}, {1, 2});
+        auto abs = std::make_shared<opset7::Abs>(const_with_pos_values);
+
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        // Expected: AbsSinking should remove Abs when input contains only positive values
+        auto const_with_pos_values = opset7::Constant::create(element::i64, {2}, {1, 2});
+
+        model_ref = std::make_shared<Model>(OutputVector{const_with_pos_values}, ParameterVector{});
+    }
+}
+
+TEST_F(TransformationTestsF, AbsSinkingDynamicInputPreservation) {
+    // Test that AbsSinking preserves Abs for dynamic/parameter inputs (bounds cannot be evaluated)
+    {
+        // Create parameter (dynamic input) -> Abs
+        auto param = std::make_shared<opset7::Parameter>(element::i64, PartialShape{2});
+        auto abs = std::make_shared<opset7::Abs>(param);
+        
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{param});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        // Expected: AbsSinking should NOT remove Abs for dynamic inputs
+        auto param = std::make_shared<opset7::Parameter>(element::i64, PartialShape{2});
+        auto abs = std::make_shared<opset7::Abs>(param);
+        
+        model_ref = std::make_shared<Model>(OutputVector{abs}, ParameterVector{param});
+    }
+}
