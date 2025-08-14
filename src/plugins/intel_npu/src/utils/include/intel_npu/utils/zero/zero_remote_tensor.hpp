@@ -78,7 +78,7 @@ private:
     bool is_allocated() const noexcept;
     void update_strides();
     void update_properties();
-    void create_level_zero_memory(const size_t bytes);
+    void copy_file_data_to_level_zero_memory();
 
     std::shared_ptr<ov::IRemoteContext> _context;
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
