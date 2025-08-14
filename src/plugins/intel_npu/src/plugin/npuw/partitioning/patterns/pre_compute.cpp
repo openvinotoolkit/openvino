@@ -95,7 +95,7 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
                                                                     const std::shared_ptr<ov::Model>& model) {
     auto rpe = std::make_shared<RopePatternLLama2>();
 
-    rpe->transform_cb = [=]() {
+    rpe->transform_cb = [&]() {
         auto inv_freq_size = ov::shape_size(rpe->matched_inv_freq->get_shape());
 
         LOG_VERB("Making sin-cos cache of size: " << max_prompt_len << "x" << inv_freq_size);
@@ -146,7 +146,7 @@ ov::npuw::patterns::pre_compute::RopeInverseFreq::RopeInverseFreq(
     const std::shared_ptr<ov::Model>& model) {
     auto rpe = std::make_shared<ov::npuw::patterns::pre_compute::RopePatternLLama2>();
 
-    rpe->transform_cb = [=]() {
+    rpe->transform_cb = [&]() {
         if (auto inverse_freq_constant = ov::as_type_ptr<ov::op::v0::Constant>(rpe->matched_inv_freq)) {
             LOG_VERB("Inverse Frequences Constant found: " << inverse_freq_constant->get_name());
             need_freq_consts.get().push_back(inverse_freq_constant);
