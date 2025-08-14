@@ -9,7 +9,6 @@
 #include "intel_gpu/runtime/stream.hpp"
 #include "sycl_device.hpp"
 
-#include <sycl/sycl.hpp>
 #include <memory>
 #include <set>
 #include <vector>
@@ -39,7 +38,7 @@ public:
 
     const ::sycl::context& get_sycl_context() const;
     const ::sycl::device& get_sycl_device() const;
-    // const ::sycl::UsmHelper& get_usm_helper() const; // is this exist?
+    // const ::sycl::UsmHelper& get_usm_helper() const;
 
     bool extension_supported(::sycl::aspect extension) const;
 
@@ -58,9 +57,6 @@ public:
     static std::shared_ptr<cldnn::engine> create(const device::ptr device, runtime_types runtime_type);
 
 private:
-    // sycl::context _context;
-    // sycl::device _device;
-    // sycl::queue _queue;
     std::vector<::sycl::aspect> _extensions;
     std::unique_ptr<stream> _service_stream;
 

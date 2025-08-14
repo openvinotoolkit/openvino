@@ -6,7 +6,6 @@
 #include "CL/cl.h"
 #include "intel_gpu/runtime/stream.hpp"
 #include "sycl_event.hpp"
-// #include "sycl_user_event.hpp"
 #include "sycl_command_queues_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "sycl_kernel.hpp"
@@ -17,9 +16,7 @@
 #include <vector>
 #include <memory>
 
-#include "ocl/ocl_common.hpp"  // for testing purposes
 #include "ocl/ocl_kernel.hpp"  // for testing purposes
-
 
 // NOTE: Due to buggy scope transition of warnings we need to disable warning in place of use/instantation
 //       of some types (even though we already disabled them in scope of definition of these types).
@@ -71,19 +68,10 @@ cl_int set_kernel_arg(ocl::ocl_kernel_type& kernel, uint32_t idx, cldnn::memory:
         // return kernel.setArgUsm(idx, buf);
     } else {
         auto buf = std::dynamic_pointer_cast<const sycl::gpu_buffer>(mem)->get_buffer();
-        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (buffer) " << idx << " mem: " << &buf
-                               << " size: " << mem->size() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set arg (buffer) " << idx << " mem: " << &buf << " size: " << mem->size() << std::endl;
         std::vector<cl_mem> cl_buf = ::sycl::get_native<::sycl::backend::opencl>(buf);
         GPU_DEBUG_TRACE_DETAIL << "# of cl_buf: " << cl_buf.size() << std::endl;
         OPENVINO_ASSERT(cl_buf.size() >= 1 && cl_buf[0] != nullptr, "[GPU] SYCL buffer should have one OpenCL buffer handle");
-        {
-            cl::Buffer cl_buf0(cl_buf[0], true);
-            auto cl_buf0_size = cl_buf0.getInfo<CL_MEM_SIZE>();
-            GPU_DEBUG_TRACE_DETAIL << "cl_mem[0] = " << cl_buf[0]
-                                   << ", size = " << cl_buf0_size
-                                   << ", ctx = " << cl_buf0.getInfo<CL_MEM_CONTEXT>().get() << std::endl;
-        }
-
         return kernel.setArg(idx, cl::Buffer(cl_buf[0], true));
     }
 
@@ -145,8 +133,7 @@ void set_arguments_impl(ocl::ocl_kernel_type& kernel,
                     switch (scalar.t) {
                         case scalar_t::UINT8:
                             status = kernel.setArg(i, scalar.v.u8);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << static_cast<int>(scalar.v.u8)
-                                << "\n";
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (u8): " << static_cast<int>(scalar.v.u8) << "\n";
                             break;
                         case scalar_t::UINT16:
                             status = kernel.setArg(i, scalar.v.u16);
@@ -162,8 +149,7 @@ void set_arguments_impl(ocl::ocl_kernel_type& kernel,
                             break;
                         case scalar_t::INT8:
                             status = kernel.setArg(i, scalar.v.s8);
-                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << static_cast<int>(scalar.v.s8)
-                                << "\n";
+                            GPU_DEBUG_TRACE_DETAIL << "kernel: " << kernel.get() << " set scalar " << i << " (s8): " << static_cast<int>(scalar.v.s8) << "\n";
                             break;
                         case scalar_t::INT16:
                             status = kernel.setArg(i, scalar.v.s16);
@@ -221,15 +207,6 @@ sycl_stream::sycl_stream(const sycl_engine &engine, const ExecutionConfig& confi
 
     OPENVINO_ASSERT(m_sync_method != SyncMethods::none || m_queue_type == QueueTypes::in_order,
                     "[GPU] Unexpected sync method (none) is specified for out_of_order queue");
-
-    // bool priorty_extensions = engine.extension_supported("cl_khr_priority_hints") && engine.extension_supported("cl_khr_create_command_queue");
-    // queue_builder.set_priority_mode(config.get_queue_priority(), priorty_extensions);
-
-    // bool throttle_extensions = engine.extension_supported("cl_khr_throttle_hints") && engine.extension_supported("cl_khr_create_command_queue");
-    // queue_builder.set_throttle_mode(config.get_queue_throttle(), throttle_extensions);
-
-    // bool queue_families_extension = engine.get_device_info().supports_queue_families;
-    // queue_builder.set_supports_queue_families(queue_families_extension);
 
     _command_queue = queue_builder.build(context, device);
 }
@@ -326,12 +303,8 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
                 cl::Event ret_ev;
                 auto cl_queue = ih.get_native_queue<::sycl::backend::opencl>();
                 auto command_queue = cl::CommandQueue(cl_queue, true);
-                try {
-                    command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, nullptr, &ret_ev);
-                    ret_ev.wait();
-                } catch (cl::Error const& err) {
-                    ocl::rethrow(err, _engine.get_device_info());
-                }
+                command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, nullptr, &ret_ev);
+                ret_ev.wait();
             });
         });
 
@@ -428,7 +401,7 @@ void sycl_stream::finish() {
 void sycl_stream::wait() {
     // Enqueue barrier with empty wait list to wait for all previously enqueued tasks
     try {
-        ::sycl::event ev = _command_queue.ext_oneapi_submit_barrier();
+        auto ev = _command_queue.ext_oneapi_submit_barrier();
         ev.wait();
     } catch (::sycl::exception const& err) {
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
@@ -439,9 +412,6 @@ void sycl_stream::wait_for_events(const std::vector<event::ptr>& events) {
     if (events.empty())
         return;
 
-    GPU_DEBUG_TRACE_DETAIL << "sycl_stream::wait_for_events: waiting for " << events.size() << " events" << std::endl;
-
-    bool needs_barrier = false;
     std::vector<::sycl::event> syclevents;
     for (auto& ev : events) {
         if (!ev)
@@ -449,16 +419,6 @@ void sycl_stream::wait_for_events(const std::vector<event::ptr>& events) {
 
         if (auto sycl_base_ev = downcast<sycl_base_event>(ev.get())) {
             syclevents.push_back(sycl_base_ev->get());
-        }
-    }
-
-    // dead code, because we always use events sync method
-    if (needs_barrier) {
-        try {
-            ::sycl::event barrier_ev = _command_queue.ext_oneapi_submit_barrier();
-            syclevents.push_back(barrier_ev);
-        } catch (::sycl::exception const& err) {
-            OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }
     }
 

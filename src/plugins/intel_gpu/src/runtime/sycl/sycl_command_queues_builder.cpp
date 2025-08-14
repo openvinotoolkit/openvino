@@ -11,12 +11,9 @@ namespace sycl {
 
 command_queues_builder::command_queues_builder()
     : _profiling(false),
-      _out_of_order(false),
-      _supports_queue_families(false),
-      _priority_mode(),
-      _throttle_mode() {}
+      _out_of_order(false) {}
 
-::sycl::property_list command_queues_builder::get_properties(const ::sycl::device& device, uint16_t stream_id) {
+::sycl::property_list command_queues_builder::get_properties(const ::sycl::device& device) {
     bool profiling = _profiling;
     if (profiling && !device.has(::sycl::aspect::queue_profiling)) {
         profiling = false;
@@ -33,30 +30,12 @@ command_queues_builder::command_queues_builder()
 }
 
 sycl_queue_type command_queues_builder::build(const ::sycl::context& context, const ::sycl::device& device) {
-    static std::atomic<uint16_t> stream_id{0};
-
-    auto properties = get_properties(device, stream_id++);
+    auto properties = get_properties(device);
     try {
         return ::sycl::queue(context, device, properties);
     } catch (const ::sycl::exception& e) {
         OPENVINO_THROW("[GPU] Command queues builder failed to create queue: ", e.what());
     }
-}
-
-void command_queues_builder::set_priority_mode(ov::hint::Priority priority, bool extension_support) {
-    if (extension_support) {
-        _priority_mode = priority;
-    }
-}
-
-void command_queues_builder::set_throttle_mode(ov::intel_gpu::hint::ThrottleLevel throttle, bool extension_support) {
-    if (extension_support) {
-        _throttle_mode = throttle;
-    }
-}
-
-void command_queues_builder::set_supports_queue_families(bool extension_support) {
-    _supports_queue_families = extension_support;
 }
 }  // namespace sycl
 }  // namespace cldnn

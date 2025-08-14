@@ -69,7 +69,7 @@ void sycl_engine::create_onednn_engine(const ExecutionConfig& config) {
         auto casted = std::dynamic_pointer_cast<sycl_device>(_device);
         OPENVINO_ASSERT(casted, "[GPU] Invalid device type stored in sycl_engine");
 
-        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::sycl_interop::make_engine(casted->get_device().get(), casted->get_context().get()));
+        _onednn_engine = std::make_shared<dnnl::engine>(dnnl::sycl_interop::make_engine(casted->get_device(), casted->get_context()));
     }
 }
 
@@ -80,19 +80,19 @@ dnnl::engine& sycl_engine::get_onednn_engine() const {
 #endif
 
 const ::sycl::context& sycl_engine::get_sycl_context() const {
-    auto device = std::dynamic_pointer_cast<sycl_device>(_device);
-    OPENVINO_ASSERT(device, "[GPU] Invalid device type for sycl_engine");
-    return device->get_context();
+    auto sycl_device = std::dynamic_pointer_cast<sycl::sycl_device>(_device);
+    OPENVINO_ASSERT(sycl_device, "[GPU] Invalid device type for sycl_engine");
+    return sycl_device->get_context();
 }
 
 const ::sycl::device& sycl_engine::get_sycl_device() const {
-    auto device = std::dynamic_pointer_cast<sycl_device>(_device);
-    OPENVINO_ASSERT(device, "[GPU] Invalid device type for sycl_engine");
-    return device->get_device();
+    auto sycl_device = std::dynamic_pointer_cast<sycl::sycl_device>(_device);
+    OPENVINO_ASSERT(sycl_device, "[GPU] Invalid device type for sycl_engine");
+    return sycl_device->get_device();
 }
 
 // const ::sycl::UsmHelper& sycl_engine::get_usm_helper() const {
-//     auto sycl_device = std::dynamic_pointer_cast<sycl_device>(_device);
+//     auto sycl_device = std::dynamic_pointer_cast<sycl::sycl_device>(_device);
 //     OPENVINO_ASSERT(sycl_device, "[GPU] Invalid device type for sycl_engine");
 //     return sycl_device->get_usm_helper();
 // }
@@ -134,7 +134,7 @@ bool sycl_engine::check_allocatable(const layout& layout, allocation_type type) 
     }
 
 #ifdef __unix__
-    // Prevent from being killed by Oom Killer of Linux
+    // Prevent from being killed by Ooo Killer of Linux
     OPENVINO_ASSERT(!exceed_available_mem_size,
                     "[GPU] Exceeded max size of memory allocation: ",
                     "Required ", layout.bytes_count(), " bytes, already occupied : ", used_mem, " bytes, ",
@@ -185,7 +185,6 @@ memory::ptr sycl_engine::allocate_memory(const layout& layout, allocation_type t
 
 memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& new_layout, size_t byte_offset) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to create a subbuffer from a buffer allocated by a different engine");
-
     try {
         if (new_layout.format.is_image_2d()) {
             OPENVINO_NOT_IMPLEMENTED;
@@ -195,7 +194,7 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
             auto buffer = downcast<const sycl::gpu_buffer>(memory).get_buffer();
             auto sub_buffer = ::sycl::buffer<std::byte, 1>(buffer,
                                                            ::sycl::id<1>(byte_offset),
-                                                           ::sycl::range<1>(new_layout.bytes_count()));
+                                                           ::sycl::range<1>(new_layout.get_linear_size()));
 
             return std::make_shared<sycl::gpu_buffer>(this,
                                      new_layout,
@@ -206,7 +205,6 @@ memory::ptr sycl_engine::create_subbuffer(const memory& memory, const layout& ne
         OPENVINO_THROW("[GPU] SYCL subbuffer creation failed: ", e.what());
     }
 }
-
 memory::ptr sycl_engine::reinterpret_buffer(const memory& memory, const layout& new_layout) {
     OPENVINO_ASSERT(memory.get_engine() == this, "[GPU] trying to reinterpret buffer allocated by a different engine");
     OPENVINO_ASSERT(new_layout.format.is_image() == memory.get_layout().format.is_image(),
@@ -234,10 +232,10 @@ memory::ptr sycl_engine::reinterpret_handle(const layout& new_layout, shared_mem
         if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_image) {
             OPENVINO_NOT_IMPLEMENTED;
         } else if (new_layout.format.is_image_2d() && params.mem_type == shared_mem_type::shared_mem_vasurface) {
-            OPENVINO_NOT_IMPLEMENTED;
+            OPENVINO_THROW("[GPU] SYCL runtime does not support shared_mem_vasurface for image_2d");
 #ifdef _WIN32
         } else if (params.mem_type == shared_mem_type::shared_mem_dxbuffer) {
-            OPENVINO_NOT_IMPLEMENTED;
+            OPENVINO_THROW("[GPU] SYCL runtime does not support shared_mem_dxbuffer");
 #endif
         } else if (params.mem_type == shared_mem_type::shared_mem_buffer) {
             OPENVINO_NOT_IMPLEMENTED;
@@ -269,9 +267,8 @@ bool sycl_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
 }
 
 void* sycl_engine::get_user_context() const {
-     auto& device = downcast<sycl_device>(*_device);
-     // TODO: don't use const_cast
-     return const_cast<void*>(static_cast<const void*>(&device.get_context()));
+     auto& sycl_device = downcast<sycl::sycl_device>(*_device);
+     return const_cast<void*>(static_cast<const void*>(&sycl_device.get_context()));
 }
 
 kernel::ptr sycl_engine::prepare_kernel(const kernel::ptr kernel) const {
@@ -286,8 +283,7 @@ kernel::ptr sycl_engine::prepare_kernel(const kernel::ptr kernel) const {
 }
 
 bool sycl_engine::extension_supported(::sycl::aspect extension) const {
-    auto it = std::find(_extensions.begin(), _extensions.end(), extension);
-    return it != _extensions.end();
+    return std::find(_extensions.begin(), _extensions.end(), extension) != _extensions.end();
 }
 
 stream::ptr sycl_engine::create_stream(const ExecutionConfig& config) const {
@@ -299,7 +295,6 @@ stream::ptr sycl_engine::create_stream(const ExecutionConfig& config, void* hand
 }
 
 stream& sycl_engine::get_service_stream() const {
-    OPENVINO_ASSERT(_service_stream, "[GPU] Service stream is not initialized");
     return *_service_stream;
 }
 

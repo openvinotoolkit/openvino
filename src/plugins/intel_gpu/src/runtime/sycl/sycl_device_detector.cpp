@@ -24,48 +24,9 @@ static const char create_device_error_msg[] =
     "[GPU] No supported SYCL devices found or unexpected error happened during devices query.\n"
     "[GPU] Please check OpenVINO documentation for GPU drivers setup guide.\n";
 
-std::vector<std::string> split(const std::string& s, char delim) {
-    std::vector<std::string> result;
-    std::stringstream ss(s);
-    std::string item;
-
-    while (getline(ss, item, delim)) {
-        result.push_back(item);
-    }
-    return result;
-}
-
 bool does_device_match_config(const ::sycl::device& device) {
-    // TODO: change behavior when commit
-    if (device.is_gpu()) {
+    if (!device.is_gpu()) {
         return false;
-    }
-
-    int32_t sycl_major = -1;
-    int32_t sycl_minor = -1;
-    // Spec says that the format of this string is OpenCL<space><major_version.minor_version><space><vendor-specific information>
-    auto sycl_version_string = device.get_info<::sycl::info::device::version>();
-    std::cout << "SYCL version string: " << sycl_version_string << std::endl;
-    auto tokens = split(sycl_version_string, ' ');
-
-    if (tokens.size() > 1) {
-        auto version_string = tokens[1];
-        auto version_tokens = split(version_string, '.');
-        if (version_tokens.size() == 2) {
-            sycl_major = std::stoi(version_tokens[0]);
-            sycl_minor = std::stoi(version_tokens[1]);
-        }
-    }
-
-    if (sycl_major != -1 && sycl_minor != -1) {
-        int32_t sycl_version = sycl_major*100 + sycl_minor*10;
-#if CL_TARGET_OPENCL_VERSION >= 200
-        int32_t min_sycl_version = 200;
-#else
-        int32_t min_sycl_version = 120;
-#endif
-        if (sycl_version < min_sycl_version)
-            return false;
     }
 
     return true;
@@ -89,10 +50,6 @@ size_t get_device_priority(const cldnn::device_info& info) {
 
 namespace cldnn {
 namespace sycl {
-static constexpr auto INTEL_PLATFORM_VENDOR = "Intel(R) Corporation";
-#ifdef _WIN32
-static constexpr auto INTEL_D3D11_SHARING_EXT_NAME = "cl_khr_d3d11_sharing";
-#endif // _WIN32
 
 static std::vector<::sycl::device> getSubDevices(::sycl::device& rootDevice) {
     uint32_t maxSubDevices = rootDevice.get_info<::sycl::info::device::partition_max_sub_devices>();
@@ -111,6 +68,7 @@ static std::vector<::sycl::device> getSubDevices(::sycl::device& rootDevice) {
     }
 
     const auto partitionAffinityDomains = rootDevice.get_info<::sycl::info::device::partition_affinity_domains>();
+
     if (std::find(partitionAffinityDomains.begin(), partitionAffinityDomains.end(),
                   ::sycl::info::partition_affinity_domain::numa) == partitionAffinityDomains.end() ||
         std::find(partitionAffinityDomains.begin(), partitionAffinityDomains.end(),
@@ -191,6 +149,7 @@ std::vector<device::ptr> sycl_device_detector::create_device_list() const {
             continue;
         }
     }
+    OPENVINO_ASSERT(!supported_devices.empty(), create_device_error_msg);
     return supported_devices;
 }
 
@@ -211,8 +170,7 @@ std::vector<device::ptr> sycl_device_detector::create_device_list_from_user_cont
 }
 
 std::vector<device::ptr> sycl_device_detector::create_device_list_from_user_device(void* user_device) const {
-    OPENVINO_NOT_IMPLEMENTED;
-    // TODO: implement
+    OPENVINO_THROW("[GPU] User specified device is not supported for SYCL runtime.");
 }
 
 }  // namespace sycl

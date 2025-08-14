@@ -32,7 +32,7 @@ public:
     ~sycl_stream() = default;
 
     void flush() const override;
-    void finish() override; // const qualifier is removed
+    void finish() override;
     void wait() override;
 
     void set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) override;

@@ -27,31 +27,9 @@
 namespace cldnn {
 namespace sycl {
 
-// static inline cldnn::event::ptr create_event(sycl_stream& stream, size_t bytes_count, bool need_user_event) {
-//     if (bytes_count == 0) {
-//         GPU_DEBUG_TRACE_DETAIL << "Skip memory operation for 0 size tensor" << std::endl;
-//         return nullptr;
-//     }
-//
-//     return need_user_event ? nullptr : stream.create_base_event();
-// }
-
 static inline cldnn::event::ptr create_event(sycl_stream& stream, ::sycl::event& ev) {
     return stream.create_base_event(ev);
 }
-
-// static auto get_sycl_map_type(mem_lock_type type) {
-//     switch (type) {
-//         case mem_lock_type::read:
-//             return ::sycl::read_only;
-//         case mem_lock_type::write:
-//             return ::sycl::write_only;
-//         case mem_lock_type::read_write:
-//             return ::sycl::read_write;
-//         default:
-//             throw std::runtime_error("Unsupported lock type for sycl buffer\n");
-//     }
-// }
 
 gpu_buffer::gpu_buffer(sycl_engine* engine,
                        const layout& layout)
@@ -60,7 +38,7 @@ gpu_buffer::gpu_buffer(sycl_engine* engine,
     GPU_DEBUG_TRACE_DETAIL << "gpu_buffer: " << &_buffer << ", size: " << size() << std::endl;
 
     // TODO: remove this if possible
-    // Make write accessor to ensure the buffer is created
+    // Make write accessor to ensure the buffer is created on the device
     try {
         auto q = ::sycl::queue(engine->get_sycl_context(), engine->get_sycl_device());
 
@@ -72,9 +50,9 @@ gpu_buffer::gpu_buffer(sycl_engine* engine,
         OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
     }
 
-    std::vector<cl_mem> cl_bufs = ::sycl::get_native<::sycl::backend::opencl>(_buffer);
-    if (cl_bufs.empty()) {
-        OPENVINO_THROW("Failed to get OpenCL buffer handle from SYCL buffer");
+    if (engine->get_sycl_context().get_backend() == ::sycl::backend::opencl) {
+        std::vector<cl_mem> cl_bufs = ::sycl::get_native<::sycl::backend::opencl>(_buffer);
+        OPENVINO_ASSERT(cl_bufs.size() == 1, "Expected single OpenCL buffer handle from SYCL buffer");
     }
 
     m_mem_tracker = std::make_shared<MemoryTracker>(engine, static_cast<void*>(&_buffer),
@@ -91,15 +69,12 @@ gpu_buffer::gpu_buffer(sycl_engine* engine,
     }
 
 void* gpu_buffer::lock(const stream& stream, mem_lock_type type) {
-    auto& st = const_cast<sycl_stream&>(downcast<const sycl_stream>(stream));
     std::lock_guard<std::mutex> locker(_mutex);
     if (0 == _lock_count) {
         try {
-            st.get_sycl_queue().submit([&](::sycl::handler& cgh) {
-                // TODO: take account of mem_lock_type
-                _host_accessor = std::make_unique<::sycl::host_accessor<std::byte, 1, ::sycl::access::mode::read_write>>(_buffer, ::sycl::read_write);
-                _mapped_ptr = _host_accessor->get_pointer();
-            }).wait_and_throw();
+            // TODO: take account of mem_lock_type
+            _host_accessor = std::make_unique<::sycl::host_accessor<std::byte, 1, ::sycl::access::mode::read_write>>(_buffer, ::sycl::read_write);
+            _mapped_ptr = _host_accessor->get_pointer();
         } catch (::sycl::exception const& err) {
             OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
         }
@@ -161,7 +136,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
     if (size == 0)
         return nullptr;
 
-    auto& sycl_stream = dynamic_cast<sycl::sycl_stream&>(stream);
+    auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
     auto dst_buffer = ::sycl::buffer<std::byte, 1>(_buffer, ::sycl::id<1>(dst_offset), ::sycl::range<1>(size));
 
@@ -171,7 +146,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t sr
             cgh.copy(src_ptr, dst_acc);
         });
         if (blocking) {
-            event.wait();
+            event.wait_and_throw();
             return nullptr;
         } else {
             return create_event(sycl_stream, event);
@@ -213,7 +188,7 @@ event::ptr gpu_buffer::copy_from(stream& stream, const memory& src_mem, size_t s
                     cgh.copy(src_acc, dst_acc);
                 });
                 if (blocking) {
-                    event.wait();
+                    event.wait_and_throw();
                     return nullptr;
                 } else {
                     return create_event(sycl_stream, event);
@@ -234,12 +209,6 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
     if (size == 0)
         return nullptr;
 
-    GPU_DEBUG_TRACE_DETAIL << "gpu_buffer::copy_to:"
-                           << " cl_mem: " << ::sycl::get_native<::sycl::backend::opencl>(_buffer)[0]
-                           << " dst_ptr: " << data_ptr
-                           << " size: " << size
-                           << " blocking: " << blocking << std::endl;
-
     auto& sycl_stream = downcast<sycl::sycl_stream>(stream);
     // const qualifier should be removed to construct ::sycl::accessor
     auto src_buffer = ::sycl::buffer<std::byte, 1>(const_cast<::sycl::buffer<std::byte, 1>&>(_buffer),
@@ -254,7 +223,7 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
         });
 
         if (blocking) {
-            event.wait();
+            event.wait_and_throw();
             return nullptr;
         } else {
             return create_event(sycl_stream, event);
@@ -268,7 +237,7 @@ event::ptr gpu_buffer::copy_to(stream& stream, void* data_ptr, size_t src_offset
 dnnl::memory gpu_buffer::get_onednn_memory(dnnl::memory::desc desc, int64_t offset) const {
     auto onednn_engine = _engine->get_onednn_engine();
     dnnl::memory dnnl_mem(desc, onednn_engine, DNNL_MEMORY_NONE);
-    dnnl::sycl_interop::set_mem_object(dnnl_mem, _buffer.get());
+    dnnl::sycl_interop::set_mem_object(dnnl_mem, _buffer);
     return dnnl_mem;
 }
 #endif

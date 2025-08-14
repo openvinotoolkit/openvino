@@ -40,12 +40,10 @@ struct gpu_buffer : public lockable_gpu_mem, public memory {
         return _buffer;
     }
     const ::sycl::buffer<std::byte, 1>& get_buffer() const {
-        assert(::sycl::get_native<::sycl::backend::opencl>(_buffer).size() <= 1);
         assert(0 == _lock_count);
         return _buffer;
     }
     void* buffer_ptr() const override {
-        // TODO: don't use const_cast here
         return const_cast<void*>(static_cast<const void*>(&(get_buffer())));
     }
 
@@ -151,8 +149,6 @@ struct sycl_surfaces_lock : public surfaces_lock {
     ~sycl_surfaces_lock() = default;
 private:
     std::vector<::sycl::buffer<std::byte, 1>> get_handles(std::vector<memory::ptr> mem) const;
-    // std::vector<::sycl::buffer<std::byte, 1>> _handles;
-    // std::unique_ptr<sycl::SharedSurfLock> _lock;
 };
 }  // namespace sycl
 }  // namespace cldnn

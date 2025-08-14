@@ -165,7 +165,6 @@ bool sycl_events::get_profiling_info_impl(std::list<instrumentation::profiling_i
             } catch (::sycl::exception const& err) {
                 OPENVINO_THROW(SYCL_ERR_MSG_FMT(err));
             }
-
             auto& durations = all_durations[stage];
             bool ev_duration_merged = false;
             auto it = durations.begin();

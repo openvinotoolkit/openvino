@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -35,9 +35,6 @@ private:
     bool is_set_impl() override;
     bool add_event_handler_impl(event_handler, void*) override;
     bool get_profiling_info_impl(std::list<instrumentation::profiling_interval>& info) override;
-
-    // only for OpenCL backend
-    static void CL_CALLBACK ocl_event_completion_callback(cl_event, cl_int, void* me);
 
     friend struct sycl_events;
 

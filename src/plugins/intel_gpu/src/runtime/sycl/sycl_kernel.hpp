@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2016-2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,12 +27,12 @@ public:
     std::string get_id() const override { return _kernel_id; }
     const sycl_kernel_type& get_handle() const { return _compiled_kernel; }
     sycl_kernel_type& get_handle() { return _compiled_kernel; }
-    // std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const override {
-    //     if (reuse_kernel_handle)
-    //         return std::make_shared<sycl_kernel>(get_handle(), _kernel_id);
-    //
-    //     return std::make_shared<sycl_kernel>(get_handle().clone(), _kernel_id);
-    // }
+    std::shared_ptr<kernel> clone(bool reuse_kernel_handle = false) const override {
+        if (reuse_kernel_handle)
+            return std::make_shared<sycl_kernel>(get_handle(), _kernel_id);
+
+        OPENVINO_THROW("SYCL kernel cloning with reuse_kernel_handle=false is not supported.");
+    }
 };
 
 }  // namespace sycl
