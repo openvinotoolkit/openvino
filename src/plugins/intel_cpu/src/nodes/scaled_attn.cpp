@@ -103,7 +103,11 @@ struct MHAKernel {
     explicit MHAKernel(GraphContext::CPtr ctx) : context(std::move(ctx)) {}
 
     static constexpr impl_desc_type getImplType() {
-        return impl_desc_type::undef;
+        if constexpr (KType == ScaledDotProductAttention::KT_REF) {
+            return impl_desc_type::ref_any;
+        } else {
+            return impl_desc_type::undef;
+        }
     }
 
     template <typename D>
