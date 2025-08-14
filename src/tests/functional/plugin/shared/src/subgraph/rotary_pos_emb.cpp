@@ -87,8 +87,8 @@ void RoPETestFlux::generate_inputs(const std::vector<ov::Shape>& targetInputStat
 }
 
 void RoPETestFlux::SetUp() {
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -106,9 +106,7 @@ void RoPETestFlux::SetUp() {
 }
 
 std::string RoPETestFlux::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
-    std::string targetDevice;
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = obj.param;
+    const auto& [element_type, targetDevice] = obj.param;
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << ",element_type=" << element_type.to_string();
     return result.str();
@@ -250,8 +248,8 @@ void RoPETestLlama2StridedSlice::generate_inputs(const std::vector<ov::Shape>& t
 }
 
 void RoPETestLlama2StridedSlice::SetUp() {
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -265,9 +263,7 @@ void RoPETestLlama2StridedSlice::SetUp() {
 }
 
 std::string RoPETestLlama2StridedSlice::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
-    ov::element::Type element_type;
-    std::string targetDevice;
-    std::tie(element_type, targetDevice) = obj.param;
+    const auto& [element_type, targetDevice] = obj.param;
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << ",element_type=" << element_type.to_string();
     return result.str();
@@ -395,8 +391,8 @@ void RoPETestChatGLMStridedSlice::generate_inputs(const std::vector<ov::Shape>& 
 }
 
 void RoPETestChatGLMStridedSlice::SetUp() {
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -409,9 +405,7 @@ void RoPETestChatGLMStridedSlice::SetUp() {
 }
 
 std::string RoPETestChatGLMStridedSlice::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
-    std::string targetDevice;
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = obj.param;
+    const auto& [element_type, targetDevice] = obj.param;
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << ",element_type=" << element_type.to_string();
     return result.str();
@@ -533,9 +527,8 @@ void RoPETestQwen7bStridedSlice::generate_inputs(const std::vector<ov::Shape>& t
 }
 
 void RoPETestQwen7bStridedSlice::SetUp() {
-    bool specialReshape;
-    ov::element::Type element_type;
-    std::tie(specialReshape, element_type, targetDevice) = this->GetParam();
+    const auto& [specialReshape, element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     const int batch = 128;
     const int seq_length = 7;
     InputShape inpShape = {{batch, -1, 4096 + 4096 + 4096}, {{batch, seq_length, 4096 + 4096 + 4096}}};
@@ -544,10 +537,7 @@ void RoPETestQwen7bStridedSlice::SetUp() {
 }
 
 std::string RoPETestQwen7bStridedSlice::getTestCaseName(const testing::TestParamInfo<rope_params_2>& obj) {
-    bool specialReshape;
-    ov::element::Type element_type;
-    std::string targetDevice;
-    std::tie(specialReshape, element_type, targetDevice) = obj.param;
+    const auto& [specialReshape, element_type, targetDevice] = obj.param;
     std::ostringstream result;
     result << "specialReshape=" << specialReshape << "_"
            << "targetDevice=" << targetDevice << "_element_type=" << element_type.to_string();
@@ -660,10 +650,7 @@ void RoPETestGPTJStridedSlice::generate_inputs(const std::vector<ov::Shape>& tar
 }
 
 std::string RoPETestGPTJStridedSlice::getTestCaseName(const testing::TestParamInfo<rope_params_2>& obj) {
-    bool hasShapeOf;
-    ov::element::Type element_type;
-    std::string targetDevice;
-    std::tie(hasShapeOf, element_type, targetDevice) = obj.param;
+    const auto& [hasShapeOf, element_type, targetDevice] = obj.param;
     std::ostringstream result;
     result << "hasShapeOf=" << hasShapeOf << "_"
            << "targetDevice=" << targetDevice;
@@ -671,9 +658,8 @@ std::string RoPETestGPTJStridedSlice::getTestCaseName(const testing::TestParamIn
 }
 
 void RoPETestGPTJStridedSlice::SetUp() {
-    bool hasShapeOf;
-    ov::element::Type element_type;
-    std::tie(hasShapeOf, element_type, targetDevice) = this->GetParam();
+    const auto& [hasShapeOf, element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -821,8 +807,8 @@ void RoPETestRotateHalfWithoutTranspose::generate_inputs(const std::vector<ov::S
 }
 
 void RoPETestRotateHalfWithoutTranspose::SetUp() {
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -836,17 +822,15 @@ void RoPETestRotateHalfWithoutTranspose::SetUp() {
 }
 
 std::string RoPETestRotateHalfWithoutTranspose::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
-    ov::element::Type element_type;
-    std::string targetDevice;
-    std::tie(element_type, targetDevice) = obj.param;
+    const auto& [element_type, targetDevice] = obj.param;
     std::ostringstream result;
     result << "targetDevice=" << targetDevice <<"_element_type=" << element_type.to_string();
     return result.str();
 }
 
 void RoPETestLlama2Slice::SetUp() {
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -913,8 +897,8 @@ std::shared_ptr<ov::Model> RoPETestLlama2Slice::buildROPE_Llama2(int batch,
 }
 
 void RoPETestChatGLMSlice::SetUp() {
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -996,9 +980,8 @@ std::shared_ptr<ov::Model> RoPETestChatGLMSlice::buildROPE_ChatGLM(int batch, in
 }
 
 void RoPETestQwen7bSlice::SetUp() {
-    bool specialReshape;
-    ov::element::Type element_type;
-    std::tie(specialReshape, element_type, targetDevice) = this->GetParam();
+    const auto& [specialReshape, element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     const int batch = 128;
     const int seq_length = 7;
     InputShape inpShape = {{batch, -1, 4096 + 4096 + 4096}, {{batch, seq_length, 4096 + 4096 + 4096}}};
@@ -1061,9 +1044,8 @@ std::shared_ptr<ov::Model> RoPETestQwen7bSlice::buildROPE_Qwen7b(bool specialRes
 }
 
 void RoPETestGPTJSlice::SetUp() {
-    bool hasShapeOf;
-    ov::element::Type element_type;
-    std::tie(hasShapeOf, element_type, targetDevice) = this->GetParam();
+    const auto& [hasShapeOf, element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -1250,8 +1232,8 @@ void RoPETestChatGLM2DRoPEStridedSlice::generate_inputs(const std::vector<ov::Sh
 }
 
 void RoPETestChatGLM2DRoPEStridedSlice::SetUp() {
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int batch = 128;
     const int seq_length = 7;
@@ -1264,9 +1246,7 @@ void RoPETestChatGLM2DRoPEStridedSlice::SetUp() {
 }
 
 std::string RoPETestChatGLM2DRoPEStridedSlice::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
-    ov::element::Type element_type;
-    std::string targetDevice;
-    std::tie(element_type, targetDevice) = obj.param;
+    const auto& [element_type, targetDevice] = obj.param;
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << "_element_type=" << element_type.to_string();
     return result.str();
@@ -1356,8 +1336,8 @@ void RoPETestChatGLMHF::generate_inputs(const std::vector<ov::Shape>& targetInpu
 }
 
 void RoPETestChatGLMHF::SetUp() {
-    ov::element::Type element_type;
-    std::tie(element_type, targetDevice) = this->GetParam();
+    const auto& [element_type, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
 
     const int seq_length = 7;
     const int num_heads = 32;
@@ -1373,9 +1353,7 @@ void RoPETestChatGLMHF::SetUp() {
 }
 
 std::string RoPETestChatGLMHF::getTestCaseName(const testing::TestParamInfo<rope_params>& obj) {
-    ov::element::Type element_type;
-    std::string targetDevice;
-    std::tie(element_type, targetDevice) = obj.param;
+    const auto& [element_type, targetDevice] = obj.param;
     std::ostringstream result;
     result << "targetDevice=" << targetDevice << "_element_type=" << element_type.to_string();
     return result.str();

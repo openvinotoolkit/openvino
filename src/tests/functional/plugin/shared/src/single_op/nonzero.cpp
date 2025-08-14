@@ -13,11 +13,7 @@ namespace ov {
 namespace test {
 
 std::string NonZeroLayerTest::getTestCaseName(const testing::TestParamInfo<NonZeroLayerTestParamsSet>& obj) {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::string target_device;
-    std::map<std::string, std::string> additional_config;
-    std::tie(shapes, model_type, target_device, additional_config) = obj.param;
+    const auto& [shapes, model_type, target_device, additional_config] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -38,10 +34,8 @@ std::string NonZeroLayerTest::getTestCaseName(const testing::TestParamInfo<NonZe
 }
 
 void NonZeroLayerTest::SetUp() {
-    std::vector<InputShape> shapes;
-    ov::element::Type model_type;
-    std::map<std::string, std::string> additional_config;
-    std::tie(shapes, model_type, targetDevice, additional_config) = GetParam();
+    const auto& [shapes, model_type, _targetDevice, additional_config] = GetParam();
+    targetDevice = _targetDevice;
     configuration.insert(additional_config.cbegin(), additional_config.cend());
     init_input_shapes(shapes);
 

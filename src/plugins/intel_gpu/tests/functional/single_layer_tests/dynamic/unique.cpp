@@ -23,11 +23,7 @@ class UniqueLayerDynamicGPUTest : public testing::WithParamInterface<UniqueDynam
                                   virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<UniqueDynamicGPUTestParams>& obj) {
-        std::vector<InputShape> input_shapes;
-        std::tuple<bool, int> flat_or_axis;
-        bool sorted;
-        ov::element::Type model_type;
-        std::tie(input_shapes, flat_or_axis, sorted, model_type) = obj.param;
+        const auto& [input_shapes, flat_or_axis, sorted, model_type] = obj.param;
 
         std::ostringstream result;
         result << "IS=(";
@@ -59,16 +55,10 @@ public:
 
 protected:
     void SetUp() override {
-        std::vector<InputShape> input_shapes;
-        std::tuple<bool, int> flat_or_axis;
-        bool sorted, flattened;
-        int axis;
-        ov::element::Type model_type;
-
-        std::tie(input_shapes, flat_or_axis, sorted, model_type) = this->GetParam();
+        const auto& [input_shapes, flat_or_axis, sorted, model_type] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_GPU;
         init_input_shapes(input_shapes);
-        flattened = std::get<0>(flat_or_axis);
+        auto [flattened, axis] = flat_or_axis;
 
         ov::ParameterVector params;
         for (auto&& shape : inputDynamicShapes) {

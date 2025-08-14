@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "llm_compiled_model.hpp"
+#include "llm_lora_states.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
@@ -36,12 +37,12 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override {
         return {};
     }
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
-    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
 
 private:
     void prepare_for_new_conversation();
+
+    void apply_lora();
 
     void clear_chunk_prefill_kv_cache();
 
@@ -85,6 +86,10 @@ private:
     std::string m_input_ids_name;
 
     bool m_generate_initialized = false;
+
+    // Support LoRA
+    std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
+    void init_lora_states();
 };
 
 }  // namespace npuw
