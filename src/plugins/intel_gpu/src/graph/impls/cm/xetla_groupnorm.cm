@@ -16,6 +16,12 @@
 
 #include "include/batch_headers/cm_xetla.h"
 
+#define POST_OP 0
+
+// POST OP:
+// 0 - none
+// 1 - SiLU / Swish activation
+
 namespace KERNEL_NAME{
         using namespace gpu::xetla;
         using namespace gpu::xetla::group;
@@ -46,6 +52,17 @@ namespace KERNEL_NAME{
 
         static constexpr gpu_arch arch_tag = gpu_arch::Xe;
 
+        using tile_shape = tile_shape_t<wg_tile_c, wg_tile_n * wg_tile_w,
+                sg_tile_c, sg_tile_n * sg_tile_w>;
+
+        using work_group = typename tile_shape::work_group_t;
+
+        #if POST_OP == 0
+        using tile_op_t = chained_tile_op_t<none_op_t>;
+        #elif POST_OP == 1
+        using tile_op_t = chained_tile_op_t<silu_op_t>;
+        #endif
+
         using mem_desc_src_t
                 = mem_desc_t<data_type_src, mem_layout::row_major, mem_space::global>;
         using src_tile_desc_t
@@ -54,9 +71,11 @@ namespace KERNEL_NAME{
         using src_payload_t = subgroup::mem_payload_t<mem_desc_src_t, src_tile_desc_t,
                 msg_type::block_2d, arch_tag>;
 
+        using dst_tile_desc_t 
+                = subgroup::tile_desc_t<sg_tile_c, sg_tile_w * sg_tile_n, sg_tile_c, 1>;
         using mem_desc_dst_t
                 = mem_desc_t<data_type_out, mem_layout::row_major, mem_space::global>;
-        using dst_tile_t = subgroup::tile_t<data_type_out, src_tile_desc_t>;
+        using dst_tile_t = subgroup::tile_t<data_type_out, dst_tile_desc_t >;
         using dst_payload_t = subgroup::mem_payload_t<mem_desc_dst_t, src_tile_desc_t,
                 msg_type::block_2d, arch_tag>;
 
@@ -73,6 +92,13 @@ namespace KERNEL_NAME{
         using weight_tile_t = subgroup::tile_t<data_type_wei, src_tile_desc_t>;
         using weight_payload_t = subgroup::mem_payload_t<mem_desc_weight_t,
                 src_tile_desc_t, msg_type::block_2d, arch_tag>;
+
+        using mat_acc_tile_t = subgroup::tile_t<data_type_acc, dst_tile_t>;
+
+        using epilogue_t = epilogue_t<epilogue_policy_tile_op<tile_op_t, arch_tag>,
+                tile_shape, mem_desc_dst_t>;
+        using epilogue_args_t = typename epilogue_t::arguments_t;
+
 
         inline xetla_vector<data_type_acc, sg_tile_c> replicate_groups(
                 xetla_vector<data_type_acc, sg_tile_c> src, size_t c_offset,
@@ -95,13 +121,21 @@ namespace KERNEL_NAME{
                 data_type_acc *sumxsq, data_type_wei *beta, data_type_wei *gamma,
                 data_type_out *dst) {
         constexpr auto epsilon = static_cast<data_type_acc>(1e-5);
+        epilogue_args_t epilogue_args;
+
+        size_t wg_c_offset
+                = item.get_group(2) * wg_tile_c;
+        size_t wg_w_offset
+                = item.get_group(1) * wg_tile_w;
+        size_t wg_n_offset
+                = item.get_group(0) * wg_tile_n;
 
         size_t c_offset
-                = item.get_local_id(0) * sg_tile_c + item.get_group(0) * wg_tile_c;
+                = item.get_local_id(2) * sg_tile_c + wg_c_offset;
         size_t w_offset
-                = item.get_local_id(1) * sg_tile_w + item.get_group(1) * wg_tile_w;
+                = item.get_local_id(1) * sg_tile_w + wg_w_offset;
         size_t n_offset
-                = item.get_local_id(2) * sg_tile_n + item.get_group(2) * wg_tile_n;
+                = item.get_local_id(0) * sg_tile_n + wg_n_offset;
         size_t nw_offset = n_offset * size_w + w_offset;
         size_t g_offset = c_offset / group_size;
 
@@ -121,13 +155,17 @@ namespace KERNEL_NAME{
         dst_tile_t dst_tile;
         acc_tile_t mean_tile, rsqrt_var_tile;
         weight_tile_t beta_tile, gamma_tile;
-        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached,
+                        acc_tile_t, acc_payload_t>(
                 mean_tile, sumx_payload);
-        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached,
+                        acc_tile_t, acc_payload_t>(
                 rsqrt_var_tile, sumxsq_payload);
-        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached,
+                                weight_tile_t, weight_payload_t>(
                 beta_tile, beta_payload);
-        subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+        subgroup::tile_load<cache_hint::cached, cache_hint::cached,
+                                weight_tile_t, weight_payload_t>(
                 gamma_tile, gamma_payload);
 
         data_type_acc reduce_size = size_w * group_size;
@@ -143,22 +181,31 @@ namespace KERNEL_NAME{
                 = xetla_cvt<data_type_acc, data_type_wei, sg_tile_c>(beta_tile.reg);
         auto gamma_vec = xetla_cvt<data_type_acc, data_type_wei, sg_tile_c>(
                 gamma_tile.reg);
+
+        mat_acc_tile_t matAcc;
+
         #pragma unroll
         for (size_t i = 0; i < inner_loops; ++i) {
-                subgroup::tile_load<cache_hint::cached, cache_hint::cached>(
+                subgroup::tile_load<cache_hint::cached, cache_hint::cached,
+                                src_tile_t, src_payload_t>(
                         src_tile, src_payload);
                 auto tmp = xetla_cvt<data_type_acc, data_type_src, sg_tile_c>(
                         src_tile.reg);
                 tmp = (tmp - mean_vec) * rsqrt_var_vec;
                 tmp = tmp * gamma_vec + beta_vec;
-
-                dst_tile.reg = xetla_cvt<data_type_out, data_type_acc, sg_tile_c>(tmp);
-                subgroup::tile_store<cache_hint::write_back, cache_hint::write_back>(
-                        dst_tile, dst_payload);
-
+                matAcc.reg.template select<sg_tile_c, 1>(i * sg_tile_c) = tmp;
                 src_payload.template update_tdesc<tdesc_update_dir::y_dir>(1);
-                dst_payload.template update_tdesc<tdesc_update_dir::y_dir>(1);
         }
+
+        epilogue_t epilogue;
+        work_group g;
+        g.init(0 /*item.get_local_linear_id() % work_group::size*/);
+        mem_desc_dst_t md_c {{dst},
+                {size_c, size_w * size_n, size_c},
+                {static_cast<int>(c_offset), 
+                        static_cast<int>(w_offset + n_offset * size_w)}};
+        epilogue.template operator()<decltype(matAcc)>(
+                g, matAcc, md_c, epilogue_args);
         }
 
         extern "C" _GENX_MAIN_ void KERNEL_NAME(svmptr_t src [[type("svmptr_t")]],

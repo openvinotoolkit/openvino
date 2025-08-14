@@ -303,15 +303,15 @@ const std::unordered_map<std::string, ConvolutionImplementationManager::NormKnob
     // J (post op variants: [bias], [eltwise_add], [bias+eltwise_add+eltwise_mul+eltwise_add])
     {"1x5x9x512x512x3x1x1x1", NormKnobs{1, 1 * 5 * 8 * 2, 32 * 2, 1, 1 * 8, 32}},
     // VAE Decoder
-    {"1x64x64x4x512x3x1x1x1", NormKnobs{1, 1024, 128, 1, 128, 32}},
-    {"1x64x64x512x512x3x1x1x1", NormKnobs{1, 1024, 128, 1, 128, 32}},
-    {"1x128x128x512x512x3x1x1x1", NormKnobs{1, 1024, 256, 1, 256, 32}},
-    {"1x256x256x512x512x3x1x1x1", NormKnobs{1, 1024, 128, 1, 256, 32}},
-    {"1x256x256x256x256x3x1x1x1", NormKnobs{1, 1024, 256, 1, 256, 32}},
-    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 64 * 16, 64, 1, 8 * 8, 32}},
-    {"1x512x512x256x128x1x0x1x1", NormKnobs{1, 16 * 64, 64, 1, 4 * 16, 32}},
+    {"1x64x64x4x512x3x1x1x1", NormKnobs{1, 512, 64, 1, 64, 16}},
+    {"1x64x64x512x512x3x1x1x1", NormKnobs{1, 512, 64, 1, 64, 16}},
+    {"1x128x128x512x512x3x1x1x1", NormKnobs{1, 512, 128, 1, 128, 16}},
+    {"1x256x256x512x512x3x1x1x1", NormKnobs{1, 512, 64, 1, 128, 16}},
+    {"1x256x256x256x256x3x1x1x1", NormKnobs{1, 512, 128, 1, 128, 16}},
+    {"1x512x512x128x128x3x1x1x1", NormKnobs{1, 512, 32, 1, 64, 16}},
+    {"1x512x512x256x128x1x0x1x1", NormKnobs{1, 512, 32, 1, 64, 16}},
     // {"1x512x512x128x128x1x1x1x1", NormKnobs{1, 16 * 16, 128, 1, 8 * 4, 32}},
-    {"1x512x512x256x128x3x1x1x1", NormKnobs{1, 32 * 32, 64, 1, 8 * 8, 32}}
+    {"1x512x512x256x128x3x1x1x1", NormKnobs{1, 512, 32, 1, 64, 16}}
 };
 }  // namespace ov::intel_gpu::cm
 

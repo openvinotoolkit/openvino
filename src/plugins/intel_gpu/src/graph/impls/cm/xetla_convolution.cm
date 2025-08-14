@@ -102,7 +102,7 @@ using sum_op_t = elemwise_reduce_op_t<reduce_op::sum, data_type_out, arch_tag>;
 using scale_shift_op_t
         = scale_v_offset_v_op_t<data_type_out, data_type_out, arch_tag>;
 #if POST_OP == 0
-using epilogue_t = epilogue_t<epilogue_policy_default<gpu_arch::Xe>, tile_shape,
+using epilogue_t = epilogue_t<epilogue_policy_default<arch_tag>, tile_shape,
         mem_desc_out>;
 #elif POST_OP == 1
 using tile_op_t = chained_tile_op_t<bias_op_t>;
