@@ -851,9 +851,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
     auto qkv_proj = pattern::any_input(pattern::shape_matches("[?, ?, ?]"));           // [?,?,12288]
     auto position_ids = pattern::any_input();
 
-    // QKV split and reshape
-    auto qkv_split =
-        pattern::wrap_type<v1::VariadicSplit>({qkv_proj, 2, {"head_cnt*head_size", "head_cnt*head_size", "?"}});
+    auto qkv_split = pattern::wrap_type<v1::VariadicSplit>({qkv_proj, 2, {"head_cnt*head_size", "head_cnt*head_size", "?"}});
     qkv_split->set_output_size(3);
 
     auto view_reshape = pattern::wrap_type<v1::Reshape>({qkv_split, pattern::any_input()},
@@ -867,8 +865,7 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
                                                        pattern::shape_matches("[?, 1, 1, 128]"),
                                                        {{"special_zero", false}});
     auto mul_cos = pattern::wrap_type<v1::Multiply>(
-        {slice_head,
-         reshape_cos | pattern::wrap_type<v8::Slice>({rotary_emb_cos, pattern::any_input(), INT_MAX, 1, 1})},
+        {slice_head, reshape_cos | pattern::wrap_type<v8::Slice>({rotary_emb_cos, pattern::any_input(), INT_MAX, 1, 1})},
         {{"auto_broadcast", "numpy"}});
 
     // Sine branch
@@ -912,7 +909,6 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
         {cat, reshape_sin | pattern::wrap_type<v8::Slice>({rotary_emb_sin, pattern::any_input(), INT_MAX, 1, 1})},
         {{"auto_broadcast", "numpy"}});
 
-    // Final add
     auto result = pattern::wrap_type<v1::Add>({mul_cos, mul_sin}, {{"auto_broadcast", "numpy"}});
 
     matcher_pass_callback callback = [=](ov::pass::pattern::Matcher& m) {
@@ -930,7 +926,6 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
             head_cnt.i() * head_size.i() != head_cnt_by_head_size.i()) {
             return false;
         }
-
         op::internal::RoPE::Config config;
         config.is_qwen = true;
         config.head_cnt = static_cast<size_t>(head_cnt.i());
@@ -949,14 +944,18 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
             return false;
         }
 
-        OutputVector new_args = {pattern_map.at(qkv_proj),
-                                 pattern_map.at(rotary_emb_cos),
-                                 pattern_map.at(rotary_emb_sin)};
+        OutputVector new_args = {
+            pattern_map.at(qkv_proj),
+            pattern_map.at(rotary_emb_cos),
+            pattern_map.at(rotary_emb_sin)
+        };
 
-        ov::NodeVector rt_from = {pattern_map.at(mul_neg).get_node_shared_ptr(),
-                                  pattern_map.at(cat).get_node_shared_ptr(),
-                                  pattern_map.at(mul_sin).get_node_shared_ptr(),
-                                  pattern_map.at(result).get_node_shared_ptr()};
+        ov::NodeVector rt_from = {
+            pattern_map.at(mul_neg).get_node_shared_ptr(),
+            pattern_map.at(cat).get_node_shared_ptr(),
+            pattern_map.at(mul_sin).get_node_shared_ptr(),
+            pattern_map.at(result).get_node_shared_ptr()
+        };
 
         if (pattern_map.count(position_ids)) {
             new_args.push_back(pattern_map.at(position_ids));
@@ -967,7 +966,6 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
             rt_from.push_back(pattern_map.at(squeeze_0).get_node_shared_ptr());
             rt_from.push_back(pattern_map.at(squeeze_1).get_node_shared_ptr());
         }
-
         auto old_node = root;
         auto new_node = std::make_shared<internal::RoPE>(new_args, config);
         new_node->set_friendly_name(old_node->get_friendly_name());
@@ -975,7 +973,6 @@ ov::pass::RoPEFusionQwen::RoPEFusionQwen() {
         ov::replace_node(old_node, new_node);
         return true;
     };
-
     auto m = std::make_shared<ov::pass::pattern::Matcher>(result, matcher_name);
     this->register_matcher(m, callback);
 }
