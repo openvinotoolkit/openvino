@@ -193,7 +193,6 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                 return false;
         }
 
-
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
             // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
             if (!concat_node.is_dynamic() || is_runtime) {
