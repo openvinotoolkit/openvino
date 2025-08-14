@@ -13,11 +13,7 @@ namespace test {
 // ------------------------------ V0 ------------------------------
 
 std::string RangeAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
-    ov::element::Type input_type;
-    float start, stop, step;
-    std::string targetDevice;
-    std::tie(start, stop, step, input_type, targetDevice) = obj.param;
-
+    const auto& [start, stop, step, input_type, targetDevice] = obj.param;
     std::ostringstream result;
     const char separator = '_';
     result << "Start=" << start << separator;
@@ -29,9 +25,8 @@ std::string RangeAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<R
 }
 
 void RangeAddSubgraphTest::SetUp() {
-    ov::element::Type element_type;
-    float start, stop, step;
-    std::tie(start, stop, step, element_type, targetDevice) = GetParam();
+    const auto& [start, stop, step, element_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     auto startConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, start);
     auto stopConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, stop);
@@ -47,11 +42,7 @@ void RangeAddSubgraphTest::SetUp() {
 // ------------------------------ V4 ------------------------------
 
 std::string RangeNumpyAddSubgraphTest::getTestCaseName(const testing::TestParamInfo<RangeParams>& obj) {
-    ov::element::Type element_type;
-    float start, stop, step;
-    std::string targetDevice;
-    std::tie(start, stop, step, element_type, targetDevice) = obj.param;
-
+    const auto& [start, stop, step, element_type, targetDevice] = obj.param;
     std::ostringstream result;
     const char separator = '_';
     result << "Start=" << start << separator;
@@ -63,9 +54,8 @@ std::string RangeNumpyAddSubgraphTest::getTestCaseName(const testing::TestParamI
 }
 
 void RangeNumpyAddSubgraphTest::SetUp() {
-    ov::element::Type element_type;
-    float start, stop, step;
-    std::tie(start, stop, step, element_type, targetDevice) = GetParam();
+    const auto& [start, stop, step, element_type, _targetDevice] = GetParam();
+    targetDevice = _targetDevice;
 
     auto startConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, start);
     auto stopConstant = std::make_shared<ov::op::v0::Constant>(element_type, ov::Shape{}, stop);

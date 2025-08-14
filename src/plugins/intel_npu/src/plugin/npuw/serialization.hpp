@@ -34,7 +34,7 @@ const constexpr ov::npuw::s11n::IndicatorType NPUW_COMPILED_MODEL_INDICATOR =
 const constexpr ov::npuw::s11n::IndicatorType NPUW_LLM_COMPILED_MODEL_INDICATOR =
     {char{0x4c}, char{0x4c}, char{0x4d}, char{0x43}, char{0x4d}, char{0x4f}};
 
-const constexpr char* NPUW_SERIALIZATION_VERSION = "0.5";
+const constexpr char* NPUW_SERIALIZATION_VERSION = "0.8";
 
 // Forward declaration
 namespace intel_npu {
@@ -89,7 +89,8 @@ public:
 };
 
 using BF16Cache = std::unordered_set<std::pair<std::size_t, std::size_t>, ov::npuw::s11n::PairHash>;
-using Weights = std::shared_ptr<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>;
+using Weights = ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>;
+using WeightsPtr = std::shared_ptr<Weights>;
 
 struct CompiledContext {
     CompiledContext(bool _encrypted,
@@ -115,17 +116,28 @@ struct WeightsContext {
     };
     using ConstsCache = std::unordered_map<std::pair<std::size_t, std::size_t>, std::shared_ptr<ov::Node>, CtxHash>;
 
+    WeightsContext() = default;
+
     // NOTE: This construtor should only be used when exporting blobs
-    explicit WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
+    WeightsContext(bool _is_weightless, const std::unordered_map<const void*, std::size_t>& _const_to_offset);
 
     // NOTE: This construtor can and should only be used when importing weightless blobs
-    explicit WeightsContext(const ov::npuw::s11n::Weights& _weights,
-                            const ConstsCache& _consts_cache,
-                            const BF16Cache& _bf16_consts);
+    WeightsContext(const ov::npuw::s11n::WeightsPtr& _weights,
+                   const std::string& _weights_path,
+                   const ConstsCache& _consts_cache,
+                   const BF16Cache& _bf16_consts);
+
+    WeightsContext& operator=(const WeightsContext& other) = default;
+
+    void reset() {
+        weights = nullptr;
+        consts_cache.clear();
+    }
 
     bool is_weightless = true;
     std::unordered_map<const void*, std::size_t> const_to_offset;
-    ov::npuw::s11n::Weights weights = nullptr;
+    ov::npuw::s11n::WeightsPtr weights = nullptr;
+    std::string weights_path;
     ConstsCache consts_cache;
     BF16Cache bf16_consts;
 };

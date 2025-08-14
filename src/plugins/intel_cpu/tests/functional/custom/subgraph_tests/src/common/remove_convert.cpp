@@ -22,10 +22,7 @@ class RemoveUselessBF16ConvertCPUTest : public testing::WithParamInterface<Remov
                                         public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        ov::AnyMap additionalConfig;
-        std::tie(inType, inputShape, additionalConfig) = obj.param;
+        const auto& [inType, inputShape, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
@@ -39,10 +36,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShape inputShape;
-        ov::AnyMap additionalConfig;
-        std::tie(inType, inputShape, additionalConfig) = this->GetParam();
+        const auto& [inType, inputShape, additionalConfig] = this->GetParam();
         configuration.insert(additionalConfig.begin(), additionalConfig.end());
         targetDevice = ov::test::utils::DEVICE_CPU;
         std::tie(inFmts, outFmts, priority, selectedType) =
@@ -72,10 +66,7 @@ class RemoveUselessConvertCPUTest : public testing::WithParamInterface<RemoveCon
                                     public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<RemoveConvertCPUTestParams>& obj) {
-        ElementType inType;
-        InputShape inputShape;
-        ov::AnyMap additionalConfig;
-        std::tie(inType, inputShape, additionalConfig) = obj.param;
+        const auto& [inType, inputShape, additionalConfig] = obj.param;
         std::ostringstream result;
         result << "IS=" << inputShape << "_";
         result << "Prc=" << inType;
@@ -89,10 +80,7 @@ public:
     }
 
     void SetUp() override {
-        ElementType inType;
-        InputShape inputShape;
-        ov::AnyMap additionalConfig;
-        std::tie(inType, inputShape, additionalConfig) = this->GetParam();
+        const auto& [inType, inputShape, additionalConfig] = this->GetParam();
         targetDevice = ov::test::utils::DEVICE_CPU;
 
         init_input_shapes({inputShape});

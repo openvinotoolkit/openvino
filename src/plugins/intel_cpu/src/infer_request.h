@@ -33,7 +33,7 @@ class AsyncInferRequest;
 
 class SyncInferRequest : public ov::ISyncInferRequest {
 public:
-    SyncInferRequest(CompiledModelHolder compiled_model);
+    explicit SyncInferRequest(CompiledModelHolder compiled_model);
 
     void infer() override;
 

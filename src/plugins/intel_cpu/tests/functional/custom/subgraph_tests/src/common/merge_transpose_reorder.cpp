@@ -67,10 +67,7 @@ using MergeTransposeReorderTestParams = std::tuple<InputShape, ExpectedResult>;
 class MergeTransposeReorderCPUTest : public testing::WithParamInterface<MergeTransposeReorderTestParams>, virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<MergeTransposeReorderTestParams> &obj) {
-        InputShape input_shape;
-        ExpectedResult expected_result;
-        std::tie(input_shape, expected_result) = obj.param;
-
+        const auto& [input_shape, expected_result] = obj.param;
         std::ostringstream results;
         results << "IS=(" << ov::test::utils::partialShape2str({input_shape.first}) << "_";
         results << ")_TS=(";
@@ -86,8 +83,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-        InputShape input_shape;
-        std::tie(input_shape, m_expected_result) = this->GetParam();
+        const auto& [input_shape, _m_expected_result] = this->GetParam();
+        m_expected_result = _m_expected_result;
         init_input_shapes({input_shape});
 
         const auto precision = ov::element::f32;

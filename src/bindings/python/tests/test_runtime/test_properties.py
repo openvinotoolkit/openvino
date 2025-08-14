@@ -296,6 +296,16 @@ def test_properties_ro(ov_property_ro, expected_value):
             ),
         ),
         (
+            hints.enable_cpu_reservation,
+            "ENABLE_CPU_RESERVATION",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
             hints.scheduling_core_type,
             "SCHEDULING_CORE_TYPE",
             ((hints.SchedulingCoreType.PCORE_ONLY, hints.SchedulingCoreType.PCORE_ONLY),),
@@ -465,6 +475,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             intel_npu.run_inferences_sequentially,
             "NPU_RUN_INFERENCES_SEQUENTIALLY",
+            ((True, True),),
+        ),
+        (
+            intel_npu.qdq_optimization_aggressive,
+            "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
         ),
     ],

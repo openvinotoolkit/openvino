@@ -27,7 +27,7 @@ struct MVNAttrs {
     bool initAcrossChannels_ = false;
     bool execAcrossChannels_ = false;
     bool normalizeVariance_ = false;
-    float epsValue_ = 0.0f;
+    float epsValue_ = 0.0F;
     MVNEpsMode epsMode_ = INSIDE_SQRT;
     ov::element::Type src_prc;
     ov::element::Type dst_prc;
@@ -35,7 +35,7 @@ struct MVNAttrs {
 
 class MVNExecutor {
 public:
-    MVNExecutor(ExecutorContext::CPtr context);
+    explicit MVNExecutor(ExecutorContext::CPtr context);
     virtual bool init(const MVNAttrs& mvnAttrs,
                       const std::vector<MemoryDescPtr>& srcDescs,
                       const std::vector<MemoryDescPtr>& dstDescs,

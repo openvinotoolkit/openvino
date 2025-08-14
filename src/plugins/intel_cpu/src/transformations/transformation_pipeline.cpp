@@ -39,8 +39,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/fake_quantize.hpp"
-#include "openvino/op/gru_sequence.hpp"
-#include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/mish.hpp"
@@ -49,7 +47,6 @@
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/softmax.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
@@ -182,6 +179,7 @@
 #    include "openvino/op/divide.hpp"
 #    include "openvino/op/elu.hpp"
 #    include "openvino/op/equal.hpp"
+#    include "openvino/op/erf.hpp"
 #    include "openvino/op/exp.hpp"
 #    include "openvino/op/floor.hpp"
 #    include "openvino/op/floor_mod.hpp"
@@ -189,6 +187,7 @@
 #    include "openvino/op/greater.hpp"
 #    include "openvino/op/greater_eq.hpp"
 #    include "openvino/op/hswish.hpp"
+#    include "openvino/op/less.hpp"
 #    include "openvino/op/less_eq.hpp"
 #    include "openvino/op/logical_and.hpp"
 #    include "openvino/op/logical_not.hpp"
@@ -197,6 +196,8 @@
 #    include "openvino/op/maximum.hpp"
 #    include "openvino/op/minimum.hpp"
 #    include "openvino/op/mod.hpp"
+#    include "openvino/op/negative.hpp"
+#    include "openvino/op/not_equal.hpp"
 #    include "openvino/op/power.hpp"
 #    include "openvino/op/prelu.hpp"
 #    include "openvino/op/relu.hpp"
@@ -204,6 +205,7 @@
 #    include "openvino/op/select.hpp"
 #    include "openvino/op/sigmoid.hpp"
 #    include "openvino/op/sqrt.hpp"
+#    include "openvino/op/squared_difference.hpp"
 #    include "openvino/op/tanh.hpp"
 #    include "openvino/op/xor.hpp"
 #    include "snippets/utils/utils.hpp"
@@ -270,6 +272,13 @@
 #    include "transformations/cpu_opset/common/pass/decompose_integer_divide.hpp"
 #else
 #    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "openvino/op/gru_sequence.hpp"
+#    include "openvino/op/lstm_sequence.hpp"
+#    include "openvino/op/softmax.hpp"
+#endif
+
+#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/core/except.hpp"
 #endif
 
 #if defined(OPENVINO_ARCH_ARM64)
@@ -567,7 +576,13 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                                                 const size_t group_num,
                                                 int64_t& head_size,
                                                 int64_t& block_size) {
-        if (precision == ov::element::u8) {
+        if (precision == ov::element::i8) {
+            if (bychannel) {
+                block_size += sizeof(float);
+            } else {
+                head_size += sizeof(float) * group_num;
+            }
+        } else if (precision == ov::element::u8) {
             if (bychannel) {
                 block_size += 2 * sizeof(float);
             } else {
@@ -961,8 +976,8 @@ void Transformations::runLptPasses(const std::vector<ov::element::Type>& default
     CPU_SET_CALLBACK_ARM(
         lptManager,
         [&](const_node_ptr& node) -> bool {
-            return !(NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) &&
-                     any_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3));
+            return !NetworkHelper::isConstantPath(node->get_input_node_shared_ptr(1)) ||
+                   !any_of(node->input_value(1).get_partial_shape().rank().get_length(), 2, 3);
         },
         MatMulTransformation);
 
@@ -1078,7 +1093,7 @@ void Transformations::PostLpt() {
                 std::string errorMsg;
                 return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
             },
-            MLPFusion);
+            MLPFusionPass);
 
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0) {
@@ -1095,9 +1110,8 @@ void Transformations::PostLpt() {
                                                                  concurrency,
                                                                  fcDynamicQuantizationGroupSize);
             },
-            QKVProjFusion);
+            QKVProjFusionPass1);
 
-        CPU_REGISTER_PASS_X64(postLPTPassManager, QKVProjFusion2);
         CPU_SET_CALLBACK_X64(
             postLPTPassManager,
             [=](const_node_ptr& node) -> bool {
@@ -1107,7 +1121,7 @@ void Transformations::PostLpt() {
                                                                  concurrency,
                                                                  fcDynamicQuantizationGroupSize);
             },
-            QKVProjFusion2);
+            QKVProjFusionPass2);
     }
 #endif  // OPENVINO_ARCH_X86_64
 
@@ -1501,7 +1515,7 @@ void Transformations::MainSnippets() {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) {
+    auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
         [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
@@ -1531,12 +1545,20 @@ void Transformations::MainSnippets() {
             return !ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions);
         }
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+        // KleidiAI matmul primitives do not support transposed B input
+        return false;
+#elif defined(OPENVINO_ARCH_X86_64)
         return true;
+#else
+        OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
+        return false;
+#endif
     };
 
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
-        [&mm_supports_transpose_b](const std::shared_ptr<const ov::Node>& n) {
+        [&mm_supports_transpose_b](const std::shared_ptr<const ov::Node>& n) -> bool {
             return mm_supports_transpose_b(n);
         },
         snippets::pass::ExplicitTransposeMatMulInputs);
