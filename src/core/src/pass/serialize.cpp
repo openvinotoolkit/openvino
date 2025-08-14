@@ -599,21 +599,79 @@ public:
                     m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                     m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
                 } else {
+                    size_t threshold = 16;
+                    const char* env_val = std::getenv("WRITE_TO_XML_THRESHOLD");
+                    if (env_val && *env_val != '\0') {
+                        try {
+                            threshold = std::stoul(env_val);
+                        } catch (...) {
+                            threshold = 16;
+                        }
+                    }
+                    size_t data_size = 0;
                     if (a1) {
-                        // std::cout << "Save one StringAlignedBuffer" << std::endl;
-                        // Save std::shared_ptr<ov::StringAlignedBuffer>*
-                        m_xml_node.append_attribute("ptr").set_value(
-                            reinterpret_cast<unsigned long long>(a1->get()->get_ptr()));
-                        m_xml_node.append_attribute("size").set_value(
-                            static_cast<unsigned long long>(a1->get()->size()));
-                        m_xml_node.append_attribute("type").set_value(0);
+                        data_size = a1->get()->size();
                     } else {
-                        // std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
-                        m_xml_node.append_attribute("ptr").set_value(
-                            reinterpret_cast<unsigned long long>(a2->get()->get_ptr()));
-                        m_xml_node.append_attribute("size").set_value(
-                            static_cast<unsigned long long>(a2->get()->size()));
-                        m_xml_node.append_attribute("type").set_value(1);
+                        data_size = a2->get()->size();
+                    }
+                    if (data_size > threshold) {
+                        if (a1) {
+                            // std::cout << "Save one StringAlignedBuffer" << std::endl;
+                            // Save std::shared_ptr<ov::StringAlignedBuffer>*
+                            m_xml_node.append_attribute("ptr").set_value(
+                                reinterpret_cast<unsigned long long>(a1->get()->get_ptr()));
+                            m_xml_node.append_attribute("size").set_value(
+                                static_cast<unsigned long long>(a1->get()->size()));
+                            m_xml_node.append_attribute("type").set_value(0);
+                        } else {
+                            // std::cout << "Save one SharedStringAlignedBuffer" << std::endl;
+                            m_xml_node.append_attribute("ptr").set_value(
+                                reinterpret_cast<unsigned long long>(a2->get()->get_ptr()));
+                            m_xml_node.append_attribute("size").set_value(
+                                static_cast<unsigned long long>(a2->get()->size()));
+                            m_xml_node.append_attribute("type").set_value(1);
+                        }
+                    } else {
+                        size_t new_size = 0;
+                        size_t inter_size = 0;
+                        std::shared_ptr<uint8_t> header_ptr = nullptr;
+                        size_t header_size = 0;
+                        if (a1) {
+                            a1->get_header(header_ptr, header_size);
+                        } else {
+                            a2->get_header(header_ptr, header_size);
+                        }
+                        int64_t offset = m_constant_write_handler.write(reinterpret_cast<const char*>(header_ptr.get()),
+                                                                        header_size,
+                                                                        inter_size,
+                                                                        m_compress_to_fp16,
+                                                                        m_output_element_type,
+                                                                        true);
+                        new_size += inter_size;
+                        size_t num_elements = 0;
+                        if (a1) {
+                            num_elements = a1->get()->get_num_elements();
+                        } else {
+                            num_elements = a2->get()->get_num_elements();
+                        }
+                        for (size_t ind = 0; ind < num_elements; ++ind) {
+                            const char* raw_string_ptr;
+                            size_t raw_string_size;
+                            if (a1) {
+                                a1->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                            } else {
+                                a2->get_raw_string_by_index(raw_string_ptr, raw_string_size, ind);
+                            }
+                            m_constant_write_handler.write(raw_string_ptr,
+                                                           raw_string_size,
+                                                           inter_size,
+                                                           m_compress_to_fp16,
+                                                           m_output_element_type,
+                                                           m_data_is_temporary);
+                            new_size += inter_size;
+                        }
+                        m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                        m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
                     }
                 }
             }
@@ -632,10 +690,34 @@ public:
                     m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
                     m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
                 } else {
-                    m_xml_node.append_attribute("ptr").set_value(
-                        reinterpret_cast<unsigned long long>(a->get()->get_ptr()));
-                    m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(a->get()->size()));
-                    m_xml_node.append_attribute("type").set_value(2);
+                    size_t threshold = 16;
+                    const char* env_val = std::getenv("WRITE_TO_XML_THRESHOLD");
+                    if (env_val && *env_val != '\0') {
+                        try {
+                            threshold = std::stoul(env_val);
+                        } catch (...) {
+                            threshold = 16;
+                        }
+                    }
+                    size_t data_size = a->get()->size();
+                    if (data_size > threshold) {
+                        m_xml_node.append_attribute("ptr").set_value(
+                            reinterpret_cast<unsigned long long>(a->get()->get_ptr()));
+                        m_xml_node.append_attribute("size").set_value(
+                            static_cast<unsigned long long>(a->get()->size()));
+                        m_xml_node.append_attribute("type").set_value(2);
+                    } else {
+                        size_t new_size = 0;
+                        size_t inter_size = 0;
+                        int64_t offset = m_constant_write_handler.write(static_cast<const char*>(a->get()->get_ptr()),
+                                                                        a->get()->size(),
+                                                                        new_size,
+                                                                        m_compress_to_fp16,
+                                                                        m_output_element_type,
+                                                                        m_data_is_temporary);
+                        m_xml_node.append_attribute("offset").set_value(static_cast<unsigned long long>(offset));
+                        m_xml_node.append_attribute("size").set_value(static_cast<unsigned long long>(new_size));
+                    }
                 }
             }
         } else if (const auto& a = ov::as_type<ov::AttributeAdapter<ov::op::util::FrameworkNodeAttrs>>(&adapter)) {
@@ -1328,9 +1410,8 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     if (m_xmlFile && m_binFile && !m_weightsToXml) {
         serializeFunc(*m_xmlFile, *m_binFile, model, m_version);
-    } else if (m_xmlFile && m_weightsToXml) {
-        std::ofstream fake_bin_file;
-        serializeFunc(*m_xmlFile, fake_bin_file, model, m_version, false, true);
+    } else if (m_xmlFile && m_binFile && m_weightsToXml) {
+        serializeFunc(*m_xmlFile, *m_binFile, model, m_version, false, true);
     } else {
         ov::util::create_directory_recursive(m_xmlPath);
 
@@ -1371,12 +1452,6 @@ pass::Serialize::Serialize(const std::filesystem::path& xmlPath, const std::file
       m_binFile{nullptr},
       m_xmlPath{valid_xml_path(xmlPath)},
       m_binPath{provide_bin_path(xmlPath, binPath)},
-      m_version{version} {}
-
-pass::Serialize::Serialize(std::stringstream& xmlStream, pass::Serialize::Version version)
-    : m_xmlFile{&xmlStream},
-      m_binFile{nullptr},
-      m_weightsToXml(true),
       m_version{version} {}
 
 pass::StreamSerialize::StreamSerialize(std::ostream& stream,

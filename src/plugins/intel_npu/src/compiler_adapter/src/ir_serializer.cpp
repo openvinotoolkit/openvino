@@ -45,7 +45,6 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
     _logger.debug("serializeModelToStream");
     const auto passConfig = std::make_shared<ov::pass::PassConfig>();
     ov::pass::Manager manager(std::move(passConfig), "NPU:serializeModelToStream");
-    std::stringstream xmlStream;
 
     if (_supportedOpset < 11) {
         // Downgrade to opset10
@@ -53,15 +52,7 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
         _logger.info("Downgrade op for opset smaller than 11");
     }
 
-    if (!_serializeWeightsPtrToXml) {
-        _logger.debug("using default serialization");
-        // If weights map is not provided, we use the default serialization
-        manager.register_pass<ov::pass::Serialize>(xml, weights);
-    } else {
-        _logger.debug("serialize weights pointer to xml");
-        // If weights map is provided, we serialize to the map
-        manager.register_pass<ov::pass::Serialize>(xmlStream);
-    }
+    manager.register_pass<ov::pass::Serialize>(xml, weights);
 
     // Depending on the driver version, the compiler attached to it may request this information as an indicator of the
     // precision/layout preprocessing requirement. We are setting this value to "true" since the API version is no
@@ -89,9 +80,6 @@ void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weigh
         rtInfo.erase(newAPIKey);
         rtInfo.erase(useIndicesForIOMetadata);
     }
-    if (_serializeWeightsPtrToXml) {
-        _xmlString = xmlStream.str();
-    }
     _logger.debug("serializeModelToStream end");
 }
 
@@ -114,18 +102,12 @@ void IRSerializer::countModelSize() {
 void IRSerializer::serializeModelToBuffer(uint8_t* xml, uint8_t* weights) {
     _logger.debug("serializeModelToBuffer");
 
-    if (_serializeWeightsPtrToXml) {
-        strcpy(reinterpret_cast<char*>(xml), _xmlString.c_str());
-        xml[_xmlString.size()] = '\0';  // Null-terminate the string
-        *weights = 0;                   // Placeholder for weights
-    } else {
-        writer_streambuf xmlStreamBuf(xml);
-        writer_streambuf weightsStreamBuf(weights);
-        std::ostream xmlStream(&xmlStreamBuf);
-        std::ostream weightsStream(&weightsStreamBuf);
+    writer_streambuf xmlStreamBuf(xml);
+    writer_streambuf weightsStreamBuf(weights);
+    std::ostream xmlStream(&xmlStreamBuf);
+    std::ostream weightsStream(&weightsStreamBuf);
 
-        serializeModelToStream(xmlStream, weightsStream);
-    }
+    serializeModelToStream(xmlStream, weightsStream);
 
     _logger.debug("serializeModelToBuffer end");
 }
