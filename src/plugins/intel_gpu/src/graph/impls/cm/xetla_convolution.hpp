@@ -78,10 +78,16 @@ struct ConvolutionImplementationManager : public ImplementationManager {
         BiasGnReduce,
     };
 
+    enum class GroupnormPostOp : uint32_t{
+        None = 0,
+        SiLU = 1
+    };
+
     struct ConvDesc {
         size_t n, ih, iw, c, k, kernel_size, stride, dilation, padding;
         size_t ow, oh;
         std::optional<size_t> group_count, group_size;
+        std::optional<GroupnormPostOp> gn_post_op;
         PostOp post_op;
 
         bool process_fused_ops(const std::vector<cldnn::fused_primitive_desc> &fused_ops, bool bias) {
@@ -108,9 +114,22 @@ struct ConvolutionImplementationManager : public ImplementationManager {
                         post_op = PostOp::Sum;
                     else
                         post_op = PostOp::BiasSum;
+                    gn_post_op = GroupnormPostOp::None;
                 } else {
                     return false;
                 }
+            } else if (fused_ops.size() == 2) {
+                if (fused_ops[0].is_type<group_normalization>() &&
+                    fused_ops[1].is_type<activation>()) {
+                        auto activation0 = std::static_pointer_cast<const activation>(fused_ops[1].desc);
+                        auto activation_function = activation0->activation_function;
+                        if (!bias)
+                            post_op = PostOp::GnReduce;
+                        else
+                            post_op = PostOp::BiasGnReduce;
+                        if (activation_function == activation_func::swish)
+                            gn_post_op = GroupnormPostOp::SiLU;
+                    }
             } else if (fused_ops_are_one_of<eltwise>(fused_ops) && fused_ops.size() == 3) {
                 auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
                 auto eltwise1 = std::static_pointer_cast<const eltwise>(fused_ops[1].desc);

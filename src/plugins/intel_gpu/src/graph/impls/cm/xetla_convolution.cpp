@@ -10,6 +10,7 @@
 namespace ov::intel_gpu::cm {
 namespace {
     using PostOp = ConvolutionImplementationManager::PostOp;
+    using GNPostOp = ConvolutionImplementationManager::GroupnormPostOp;
 
 class XetlaConvolutionGenerator : public KernelGenerator {
 public:
@@ -167,7 +168,10 @@ protected:
                            make_jit_constant("WG_TILE_C", norm_knobs.wg_tile_c),
                            make_jit_constant("SG_TILE_N", norm_knobs.sg_tile_n),
                            make_jit_constant("SG_TILE_W", norm_knobs.sg_tile_w),
-                           make_jit_constant("SG_TILE_C", norm_knobs.sg_tile_c)});
+                           make_jit_constant("SG_TILE_C", norm_knobs.sg_tile_c)/**/,
+                           make_jit_constant("POST_OP",
+                                static_cast<int>(conv_desc.gn_post_op.value_or(GNPostOp::None)))});
+        std::cout << "GN post op: " << static_cast<int>(conv_desc.gn_post_op.value_or(GNPostOp::None)) << std::endl;
 
         return jit_constants;
     }

@@ -503,11 +503,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             if (preferred_impl_type == impl_types::cm) {
-                if (node.get_fused_primitives().size() > 0 &&
-                    node.get_fused_primitives()[0].is_type<group_normalization>())
-                    return false;
-                else
-                    return true;
+                return true;
             }
 
             if (node.get_output_layout().is_dynamic() || node.get_input_layout().is_dynamic()) {
@@ -774,6 +770,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             bool should_fuse = input.is_type<convolution>() &&
                                 conv_supports_fusings(input.as<convolution>()) &&
                                 preferred_impl_type != impl_types::cm;
+
+            should_fuse |= input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>()) &&
+                                preferred_impl_type == impl_types::cm &&
+                                input.get_fused_primitives().size() == 1 &&
+                                input.get_fused_primitives()[0].is_type<group_normalization>() &&
+                                activation_func == cldnn::activation_func::swish;
 
             should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
 

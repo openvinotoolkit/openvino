@@ -16,8 +16,6 @@
 
 #include "include/batch_headers/cm_xetla.h"
 
-#define POST_OP 0
-
 // POST OP:
 // 0 - none
 // 1 - SiLU / Swish activation
@@ -33,6 +31,8 @@ namespace KERNEL_NAME{
         static constexpr uint32_t size_c = SIZE_C;
         static constexpr uint32_t group_count = GROUP_COUNT;
         static constexpr uint32_t group_size = GROUP_SIZE;
+
+        static constexpr uint32_t post_op = POST_OP;
 
         using data_type_src = SRC_DT;
         using data_type_wei = WEI_DT;
