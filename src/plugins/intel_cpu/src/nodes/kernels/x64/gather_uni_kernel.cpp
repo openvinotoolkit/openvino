@@ -16,6 +16,7 @@
 #include "emitters/plugin/x64/jit_conversion_emitters.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "utils/cpu_utils.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -93,7 +94,7 @@ void jitUniGatherKernel<isa>::create_ker() {
     OPENVINO_ASSERT(code == dnnl::impl::status::success,
                     "Could not create Gather kernel. Error code: ",
                     std::to_string(code));
-    ker_ = (decltype(ker_))jit_ker();
+    ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
 }
 
 template <x64::cpu_isa_t isa>
@@ -786,7 +787,7 @@ template <x64::cpu_isa_t isa>
 void jitUniGatherKernel<isa>::store(const Xbyak::Reg64& reg_dst, Vmm& vmmSrc) {
     if (is_real16_to_f32) {
         // keep reg_dst, incremented outside
-        constexpr bool is_zmm = std::is_same<Vmm, Xbyak::Zmm>::value;
+        constexpr bool is_zmm = std::is_same_v<Vmm, Xbyak::Zmm>;
         Xbyak::Ymm ymmSrc(vmmSrc.getIdx());
         Xbyak::Xmm xmmSrc(vmmSrc.getIdx());
         if (is_zmm) {

@@ -67,6 +67,7 @@
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/visualize_tree.hpp"
+#include "openvino/pass/sdpa_to_vlsdpa.hpp"
 #include "plugin/transformations/bcast_and_pad_zp_buffers.hpp"
 #include "plugin/transformations/binary_conv_to_conv.hpp"
 #include "plugin/transformations/clamp_fp16_output.hpp"
@@ -191,6 +192,7 @@
 #include "openvino/op/roll.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/util/log.hpp"
 
 namespace {
 template<typename T>
@@ -347,6 +349,37 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+
+        // Transformation of SDPA to VLSDPA for QWen2.x-VL,
+        // Note: this should be applied before TransposeFusion.
+        manager.register_pass<ov::pass::SDPAToVLSDPA>();
+        // Disable SDPAToVLSDPA if XMX architectures is unavaiable or IGC incompatiable.
+        pass_config->set_callback<ov::pass::SDPAToVLSDPA>(
+                [&](const_node_ptr &) -> bool {
+                    auto& engine = m_context->get_engine();
+                    const auto& info = engine.get_device_info();
+                    if (!(info.supports_immad)) { // CM optimized for systolic-array architectures
+                        return true;
+                    }
+
+#ifdef GPU_DEBUG_CONFIG
+                    if (!config.get_use_cm()) {
+                        OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                                    "as CM for usage is disabled. Enable it by setting environment variable OV_GPU_USE_CM=ON.");
+                        return true;
+                    }
+#endif
+
+                    if (!check_cm_jit_support(engine, config)) {
+                        OPENVINO_WARN("You may miss SDPAToVLSDPA optimization for QWenVL model,"
+                                    "as current IGC version is not compatible to the CM kernel used. Enable it by update IGC."
+                                    "Please also make sure clangFEWrapper for CM is present by checking environment varibles like "
+                                    "CM_FE_DIR or LD_LIBRARY_PATH if you are using Linux.");
+                        return true;
+                    }
+
+                    return false;
+                });
 
         // Temporary solution, global rt info cleanup is needed
         for (auto& node : func->get_ops()) {
@@ -521,6 +554,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // - The data type of SDPA should be fp16
             if (sdpa->get_output_element_type(0) != ov::element::f16)
                 return false;
+
+            // - The attn mask type of SDPA should be fp16
+            if (!sdpa->get_causal() && sdpa->get_input_size() >= 4 && sdpa->get_input_element_type(3) == ov::element::boolean) {
+                return false;
+            }
 
             // - The number of dimensions for each input is expected to be 4 or 3
             if (!(query_ps.size() == 3 || query_ps.size() == 4) ||
@@ -1227,7 +1265,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::intel_gpu::SinkReshape>();
 
-        if (device_info.supports_immad) {
+        if (device_info.supports_immad && config.get_use_onednn()) {
             bool asymmetric_dyn_quant = config.get_asym_dynamic_quantization();
             auto dynamic_quantization_group_size = config.get_dynamic_quantization_group_size();
             auto dynamic_quantization_group_size_max = config.get_dynamic_quantization_group_size_max();

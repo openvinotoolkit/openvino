@@ -61,10 +61,10 @@ struct RNNParams : public primitive_base<PType> {
         activation_params(activation_params),
         offset_order(offset_order),
         direction(direction) {
-        std::vector<std::string> pids{initial_hidden_state.pid, initial_cell_state.pid, W.pid, R.pid, B.pid, seq_lenghts.pid};
-        for (auto pid : pids) {
-            if (!pid.empty()) {
-                primitive_base<PType>::input.push_back(pid);
+        std::vector<input_info> infos{initial_hidden_state, initial_cell_state, W, R, B, seq_lenghts};
+        for (const auto& info : infos) {
+            if (!info.pid.empty()) {
+                primitive_base<PType>::input.push_back(info);
             }
         }
     }

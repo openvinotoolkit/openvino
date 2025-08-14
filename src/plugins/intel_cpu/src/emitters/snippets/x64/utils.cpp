@@ -7,58 +7,18 @@
 #include <xbyak/xbyak.h>
 
 #include <algorithm>
-#include <common/utils.hpp>
 #include <cpu/x64/jit_generator.hpp>
 #include <cstddef>
-#include <cstdint>
-#include <memory>
 #include <set>
 #include <unordered_set>
 #include <vector>
 
 #include "emitters/utils.hpp"
-#include "openvino/core/except.hpp"
-#include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
-#include "snippets/lowered/expression_port.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
-#include "snippets/op/loop.hpp"
-#include "snippets/op/memory_access.hpp"
-#include "snippets/utils/utils.hpp"
 
 using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::utils {
-
-size_t get_buffer_cluster_id(const ov::snippets::lowered::ExpressionPort& port) {
-    auto get_cluster_id = [](const snippets::lowered::ExpressionPort& p) {
-        const auto buffer = ov::as_type_ptr<ov::snippets::lowered::BufferExpression>(p.get_expr());
-        return buffer ? buffer->get_cluster_id() : SIZE_MAX;
-    };
-    const auto& ma_op = std::dynamic_pointer_cast<ov::snippets::modifier::MemoryAccess>(port.get_expr()->get_node());
-    OPENVINO_ASSERT(ma_op, "Expected MemoryAccess op!");
-    auto offset = ov::snippets::utils::get_dynamic_value<size_t>();
-    size_t id = SIZE_MAX;
-    switch (port.get_type()) {
-    case ov::snippets::lowered::ExpressionPort::Type::Input:
-        offset = ma_op->get_input_offset(port.get_index());
-        id = get_cluster_id(port.get_port_connector_ptr()->get_source());
-        break;
-    case ov::snippets::lowered::ExpressionPort::Type::Output:
-        offset = ma_op->get_output_offset(port.get_index());
-        for (const auto& child : port.get_connected_ports()) {
-            if (!ov::is_type<snippets::op::LoopEnd>(child.get_expr()->get_node())) {
-                id = get_cluster_id(child);
-            }
-        }
-        break;
-    default:
-        OV_CPU_JIT_EMITTER_THROW("Uknown type of expression port!");
-    }
-    OV_CPU_JIT_EMITTER_ASSERT(IMPLICATION(ov::snippets::utils::is_dynamic_value(offset), id != SIZE_MAX),
-                              "In dynamic case Buffer Cluster ID must be known!");
-    return id;
-}
 
 Xbyak::Reg64 get_aux_gpr(const std::vector<size_t>& used_gpr_idxs) {
     // RSP - stack pointer should be preserved, abi_param1 and abi_param2 - runtime parameter register in the kernel

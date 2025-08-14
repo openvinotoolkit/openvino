@@ -149,13 +149,14 @@ void attn_acc_value_block(float* out,
         }
     }
     return;
-#endif
+#else
     for (size_t j = 0; j < block_size; j++) {
         for (size_t i = 0; i < S; i++) {
             out[i] += weight[j] * v[i];
         }
         v += S;
     }
+#endif
 }
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u8, bool> = true>
 void attn_acc_value_block_by_dim(float* out,
@@ -321,7 +322,7 @@ void attn_acc_value_block_by_dim(float* out,
         weight++;
     }
     return;
-#endif
+#else
     for (size_t j = 0; j < block_size; j++) {
         dst_offset = 0;
         src_offset = 0;
@@ -335,6 +336,7 @@ void attn_acc_value_block_by_dim(float* out,
         }
         v += src_stride;
     }
+#endif
 }
 
 template <typename T, ov::element::Type_t SRC_PREC, std::enable_if_t<SRC_PREC == ov::element::u4, bool> = true>
@@ -808,7 +810,7 @@ void dot_product_block(TA* a,
         *c++ = sum;
     }
     return;
-#endif
+#else
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         for (size_t i = 0; i < n; i++) {
@@ -817,6 +819,7 @@ void dot_product_block(TA* a,
         b_src += n;
         *c++ = sum;
     }
+#endif
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
@@ -1303,7 +1306,7 @@ void dot_product_block_quantized_by_dims(TA* a,
         *c++ = sum;
     }
     return;
-#endif
+#else
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         dst_offset = 0;
@@ -1321,6 +1324,7 @@ void dot_product_block_quantized_by_dims(TA* a,
         b_src += src_stride;
         *c++ = sum;
     }
+#endif
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u8), bool> = true>
@@ -1556,7 +1560,7 @@ void dot_product_block_quantized_by_dims(TA* a,
                 svfloat32_t va;
                 pg_a = svwhilelt_b32(i, group_size);
                 pg_f16 = svand_z(svptrue_b16(), svwhilelt_b16(svcnth() / 2, svcnth()), svwhilelt_b16(i, group_size));
-                if constexpr (std::is_same<TA, ov::float16>::value) {
+                if constexpr (std::is_same_v<TA, ov::float16>) {
                     auto load_src = svld1_f16(pg_f16, reinterpret_cast<float16_t*>(a + dst_offset + i));
                     auto src_interleave = svzip1_f16(load_src, scratch);
                     va = svcvt_f32_f16_z(pg_a, src_interleave);
@@ -1576,7 +1580,7 @@ void dot_product_block_quantized_by_dims(TA* a,
         *c++ = sum;
     }
     return;
-#endif
+#else
     for (size_t j = 0; j < block_size; j++) {
         float sum = 0;
         dst_offset = 0;
@@ -1594,6 +1598,7 @@ void dot_product_block_quantized_by_dims(TA* a,
         b += src_stride;
         *c++ = sum;
     }
+#endif
 }
 
 template <typename TA, ov::element::Type_t SRC_PREC, std::enable_if_t<(SRC_PREC == ov::element::u4), bool> = true>

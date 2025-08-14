@@ -38,7 +38,6 @@
 # -cppcoreguidelines-avoid-const-or-ref-data-members
 # -google-default-arguments,
 # -google-explicit-constructor,
-# -google-readability-casting,
 # -modernize-avoid-c-arrays,
 # -misc-header-include-cycle,
 # -misc-non-private-member-variables-in-classes,
@@ -86,7 +85,6 @@ Checks: >
   -cppcoreguidelines-special-member-functions,
   -google-build-using-namespace,
   -google-explicit-constructor,
-  -google-readability-casting,
   -google-readability-todo,
   -modernize-avoid-c-arrays,
   -modernize-use-constraints,
@@ -132,6 +130,8 @@ CheckOptions:
   - key: modernize-use-auto.MinTypeNameLength
     value: "3"
   - key: modernize-use-override.AllowOverrideAndFinal
+    value: true
+  - key: performance-for-range-copy.WarnOnAllAutoCopies
     value: true
   - key: readability-implicit-bool-conversion.AllowIntegerConditions
     value: true

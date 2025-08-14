@@ -543,7 +543,8 @@ public:
     /**
      * @brief Imports a compiled model from the previously exported one.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
-     * @param model_stream Model stream.
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
      * to compile the original mode, an exception is thrown.
      * @param properties Optional pack of pairs: (property name, property value) relevant only for this
@@ -559,8 +560,8 @@ public:
 
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
-     * @param model_stream std::istream input stream containing a model previously exported from
-     * ov::CompiledModel::export_model
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
      * the original mode, an exception is thrown.
      * @param properties Optional map of pairs: (property name, property value) relevant only for this load
@@ -572,10 +573,10 @@ public:
     /**
      * @brief Imports a compiled model from the previously exported one with the specified remote context.
      * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
-     * @param model_stream Model stream.
+     * @param model_stream std::istream input stream containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
      * @param context Pointer to a RemoteContext object.
-     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
-     * load operation.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this load operation.
      * @return A compiled model.
      */
     template <typename... Properties>
@@ -583,6 +584,68 @@ public:
                                                                           const RemoteContext& context,
                                                                           Properties&&... properties) {
         return import_model(model_stream, context, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Imports a compiled model from the previously exported one.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(const ov::Tensor& compiled_blob,
+                               const std::string& device_name,
+                               const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param device_name Name of a device to import a compiled model for. Note, if @p device_name device was not used
+     * to compile the original mode, an exception is thrown.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this
+     * load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(const ov::Tensor& compiled_blob,
+                                                                          const std::string& device_name,
+                                                                          Properties&&... properties) {
+        return import_model(compiled_blob, device_name, AnyMap{std::forward<Properties>(properties)...});
+    }
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param context A reference to a RemoteContext object. Note, if the device from @p context was not used to compile
+     * the original mode, an exception is thrown.
+     * @param properties Optional map of pairs: (property name, property value) relevant only for this load
+     * operation.
+     * @return A compiled model.
+     */
+    CompiledModel import_model(const ov::Tensor& compiled_blob,
+                               const RemoteContext& context,
+                               const AnyMap& properties = {});
+
+    /**
+     * @brief Imports a compiled model from the previously exported one with the specified remote context.
+     * @tparam Properties Should be the pack of `std::pair<std::string, ov::Any>` types.
+     * @param compiled_blob ov::Tensor input blob containing a model previously exported using the
+     * ov::CompiledModel::export_model method.
+     * @param context Pointer to a RemoteContext object.
+     * @param properties Optional pack of pairs: (property name, property value) relevant only for this load operation.
+     * @return A compiled model.
+     */
+    template <typename... Properties>
+    util::EnableIfAllStringAny<CompiledModel, Properties...> import_model(const ov::Tensor& compiled_blob,
+                                                                          const RemoteContext& context,
+                                                                          Properties&&... properties) {
+        return import_model(compiled_blob, context, AnyMap{std::forward<Properties>(properties)...});
     }
 
     /**

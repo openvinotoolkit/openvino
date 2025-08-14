@@ -59,7 +59,7 @@ struct jit_uni_normalize_modulo_kernel {
         ker_(args);
     }
 
-    jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : jcp_(jcp) {}
+    explicit jit_uni_normalize_modulo_kernel(jit_normalize_config_params jcp) : jcp_(jcp) {}
     virtual ~jit_uni_normalize_modulo_kernel() = default;
 
     virtual void create_ker() = 0;

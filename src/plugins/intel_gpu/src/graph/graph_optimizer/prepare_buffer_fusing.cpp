@@ -131,6 +131,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
                                   pred_params[0].get_output_layout().data_padding._lower_size[concat_axis]);
 
     size_t idx = 0;
+    size_t onednn_byte_offset = 0;
     for (const auto& pred : pred_nodes) {
         if (!available_pred(*pred.first))
             return false;
@@ -191,7 +192,17 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             if (pred_l.format == format::b_fs_yx_fsv4 && (pred_l.feature() != 4 || concat_axis != 1))
                 return false;
         }
+
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
+            // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
+            if (!concat_node.is_dynamic() || is_runtime) {
+                if (onednn_byte_offset % 64 != 0)
+                    return false;
+
+                // The assumption here is that onednn will support batch 1 case.
+                onednn_byte_offset += pred_l.bytes_count();
+            }
+
             for (const auto& fused_op : pred_params[idx].fused_desc) {
                 auto add_type = onednn_add_fusing_helpers::get_add_fusing_type(*pred.first, fused_op);
                 if (add_type == add_fusing_type::sum)
@@ -206,8 +217,7 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         }
         // If sibling is using onednn impl and batch > 1, the onednn impl cannot process the implicit concat'ed buffer.
         // Onednn impls can process implicit concat'ed buffer only through buffer pointer manipulation.
-        if ((!concat_node.is_dynamic() || is_runtime) && ((concat_params.get_output_layout().batch() > 1) ||
-            (!concat_node.is_dynamic() && concat_params.get_output_layout().batch() > 1))) {
+        if ((!concat_node.is_dynamic() || is_runtime) && (concat_params.get_output_layout().batch() > 1)) {
             for (auto& sib : pred.first->get_users()) {
                 if (sib->get_preferred_impl_type() == impl_types::onednn) {
                     return false;
@@ -241,19 +251,11 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         } else {
             if (concat_out_l.batch() > 1)
                 return false;
-            // TODO: cldnn cases should be updated. This logic is working for onednn only.
-            //       white list for support fusing formats.
-            const std::vector<format> white_list = {
-                format::bfyx,
-                format::bfzyx,
-                format::b_fs_yx_fsv16,
-                format::b_fs_zyx_fsv16,
-                format::b_fs_yx_fsv32,
-                format::b_fs_zyx_fsv32,
-                format::b_fs_yx_fsv4,
-            };
-            if (std::find_if(white_list.begin(), white_list.end(), [&concat_out_l](format fmt){ return (fmt == concat_out_l.format); }) == std::end(white_list))
-                return false;
+            const auto& dims_order = concat_out_l.format.dims_order();
+            for (auto dim : dims_order) {
+                if (dim == 0) continue;
+                return dim == 1;
+            }
         }
     }
     return true;

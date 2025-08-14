@@ -37,10 +37,7 @@ public:
     }
 
     static std::string getTestCaseName(testing::TestParamInfo<InferRequestPropertiesParams> obj) {
-        std::string target_device;
-        size_t streamExecutorNumber;
-        ov::AnyMap configuration;
-        std::tie(streamExecutorNumber, target_device, configuration) = obj.param;
+        const auto& [streamExecutorNumber, target_device, configuration] = obj.param;
         std::ostringstream result;
         result << "target_device=" << target_device << "_";
         result << "streamExecutorNumber=" << target_device << "_";

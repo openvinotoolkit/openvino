@@ -267,7 +267,7 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
                                 }),
                     "Failed to replace with new Loop: this Loop already exists!");
 
-    const auto old_loop_bounds = get_loop_bounds(linear_ir, old_id);
+    const auto [old_loop_begin, old_loop_end] = get_loop_bounds(linear_ir, old_id);
 
     const auto loop_id = this->add_loop_info(loop_info);
     const auto begin = explicit_loop_bounds ? std::next(loop_begin_pos) : loop_begin_pos;
@@ -278,7 +278,7 @@ size_t LoopManager::replace_with_new_loop(const LinearIR& linear_ir,
 
     // If new bounds are equal to old loop bounds, this means that old Loop is removed totally from LIR
     // In this case old loop info must be completely removed from loop manager
-    if (loop_begin_pos == old_loop_bounds.first && end == old_loop_bounds.second) {
+    if (loop_begin_pos == old_loop_begin && end == old_loop_end) {
         this->remove_loop_info(old_id);
     }
     return loop_id;
@@ -288,8 +288,8 @@ void LoopManager::fuse_loops(const LinearIR& linear_ir,
                              size_t loop_id_upper,
                              size_t loop_id_lower,
                              bool fuse_into_upper) {
-    const auto loop_bounds = get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper);
-    fuse_loops(loop_bounds.first, loop_bounds.second, loop_id_upper, loop_id_lower, fuse_into_upper);
+    const auto [loop_begin, loop_end] = get_loop_bounds(linear_ir, fuse_into_upper ? loop_id_lower : loop_id_upper);
+    fuse_loops(loop_begin, loop_end, loop_id_upper, loop_id_lower, fuse_into_upper);
 }
 
 void LoopManager::fuse_loops(LinearIR::constExprIt loop_begin_target,
