@@ -25,6 +25,7 @@ permissions: read-all
 
 env:
   PIP_CACHE_PATH: /mount/caches/pip/linux
+  GH_DEBUG: 1
 
 jobs:
   Python_Unit_Tests:

@@ -387,7 +387,6 @@ jobs:
       WHEELS_DIR: ${{ github.workspace }}/wheels
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       GH_DEBUG: 1
-
     steps:
       - name: Checkout OpenVINO actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -398,6 +397,9 @@ jobs:
             .github/actions/store_artifacts
           path: ${{ env.OPENVINO_REPO }}
 
+      - name: Install `gh` CLI
+        run: brew install gh
+
       - name: Download OpenVINO artifacts (package, dev package, js, node & manifest)
         run: |
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.ARTIFACTS_DIR }}
@@ -405,11 +407,6 @@ jobs:
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_js_package --dir ${{ env.ARTIFACTS_DIR }}
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_node_npm_package --dir ${{ env.ARTIFACTS_DIR }}
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package_manifest --dir ${{ env.ARTIFACTS_DIR }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Download OpenVINO wheels
-        run: |
           gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.WHEELS_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}

@@ -49,8 +49,7 @@ jobs:
           echo "PATH=/opt/gh/bin:$PATH" >> $GITHUB_ENV
 
       - name: Download OpenVINO debian packages
-        run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_debian_packages --dir ${{ env.DEBIAN_PACKAGES_DIR }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_debian_packages --dir ${{ env.DEBIAN_PACKAGES_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
 

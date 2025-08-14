@@ -22,6 +22,7 @@ permissions: read-all
 env:
   HF_HUB_CACHE_LIN: /mount/caches/huggingface
   HF_HUB_CACHE_WIN: "C:\\mount\\caches\\huggingface"
+  GH_DEBUG: 1
 
 jobs:
   TensorFlow_Models_Tests:

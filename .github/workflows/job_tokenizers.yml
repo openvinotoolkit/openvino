@@ -102,8 +102,7 @@ jobs:
 
       - name: Download OpenVINO artifacts (wheels) (*nix)
         if: runner.os != 'Windows'
-        run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
         env:
           GH_TOKEN: ${{ github.token }}
           

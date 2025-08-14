@@ -21,6 +21,7 @@ permissions: read-all
 
 env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  GH_DEBUG: 1
 
 jobs:
   Smart_CI:

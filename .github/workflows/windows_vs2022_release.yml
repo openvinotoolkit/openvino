@@ -21,6 +21,7 @@ env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
+  GH_DEBUG: 1
 
 permissions: read-all
 
@@ -92,7 +93,6 @@ jobs:
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
       BUILD_DIR: "${{ github.workspace }}\\build"
-      GH_DEBUG: 1
     steps:
       - name: Install GH CLI
         run: choco install gh
@@ -180,7 +180,6 @@ jobs:
       OPENVINO_JS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node"
       OPENVINO_JS_LIBS_DIR: "${{ github.workspace }}\\openvino\\src\\bindings\\js\\node\\bin"
       NODE_VERSION: 21
-      GH_DEBUG: 1
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
 
     steps:
@@ -274,8 +273,6 @@ jobs:
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-      GH_DEBUG: 1
-
     steps:
       - name: Install GH CLI
         run: choco install gh
@@ -417,7 +414,6 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-      GH_DEBUG: 1
     steps:
       - name: Install GH CLI
         run: choco install gh
@@ -550,7 +546,6 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\install\\tests"
       PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\install\\tests\\functional_test_utils\\layer_tests_summary\\run_parallel.py"
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache.lst"
-      GH_DEBUG: 1
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Install GH CLI
