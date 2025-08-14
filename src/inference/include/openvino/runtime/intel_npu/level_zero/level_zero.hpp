@@ -48,35 +48,8 @@ public:
                                  {{std::string(ov::intel_npu::mem_handle.name()), {}},
                                   {std::string(ov::intel_npu::mem_type.name()),
                                    {ov::Any(ov::intel_npu::MemType::L0_INTERNAL_BUF).as<std::string>(),
-                                    ov::Any(ov::intel_npu::MemType::SHARED_BUF).as<std::string>()}}});
-    }
-
-    /**
-     * @brief Returns the underlying LevelZero memory object handle.
-     * @return underlying void* memory object handle
-     */
-    void* get() {
-        return get_params().at(ov::intel_npu::mem_handle.name()).as<void*>();
-    }
-};
-
-/**
- * @brief This class represents an abstraction for NPU plugin remote tensor
- * which can be shared with user-supplied LevelZero buffer.
- * The plugin object derived from this class can be obtained with ZeroContext::create_tensor() call.
- * @note User can obtain Level Zero buffer handle from a file from this class.
- * @ingroup ov_runtime_level_zero_npu_cpp_api
- */
-class ZeroMemoryMmapTensor : public RemoteTensor {
-public:
-    /**
-     * @brief Checks that type defined runtime parameters are presented in remote object
-     * @param tensor a tensor to check
-     */
-    static void type_check(const Tensor& tensor) {
-        RemoteTensor::type_check(tensor,
-                                 {{std::string(ov::intel_npu::mem_type.name()),
-                                   {ov::Any(ov::intel_npu::MemType::MMAPED_FILE).as<std::string>()}}});
+                                    ov::Any(ov::intel_npu::MemType::SHARED_BUF).as<std::string>(),
+                                    ov::Any(ov::intel_npu::MemType::MMAPED_FILE).as<std::string>()}}});
     }
 
     /**
@@ -161,18 +134,15 @@ public:
      * @param tensor_type Type of the tensor to be shared, input, output or binded
      * @return A remote tensor instance
      */
-    ZeroMemoryMmapTensor create_tensor(const element::Type type,
-                                       const Shape& shape,
-                                       const std::filesystem::path& file_name,
-                                       std::size_t offset_in_bytes = 0,
-                                       const TensorType tensor_type = TensorType::INPUT) {
-        FileDescriptor file_descriptor{file_name, offset_in_bytes};
-
+    ZeroBufferTensor create_tensor(const element::Type type,
+                                   const Shape& shape,
+                                   const std::filesystem::path& file_name,
+                                   std::size_t offset_in_bytes = 0,
+                                   const TensorType tensor_type = TensorType::INPUT) {
         AnyMap params = {{ov::intel_npu::mem_type.name(), MemType::MMAPED_FILE},
-                         {ov::intel_npu::file_descriptor.name(), file_descriptor},
+                         {ov::intel_npu::file_descriptor.name(), FileDescriptor{file_name, offset_in_bytes}},
                          {ov::intel_npu::tensor_type.name(), tensor_type}};
-
-        return create_tensor(type, shape, params).as<ZeroMemoryMmapTensor>();
+        return create_tensor(type, shape, params).as<ZeroBufferTensor>();
     }
 
     /**

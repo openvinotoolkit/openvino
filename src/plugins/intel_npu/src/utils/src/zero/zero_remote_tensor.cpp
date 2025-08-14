@@ -152,21 +152,25 @@ bool ZeroRemoteTensor::deallocate() noexcept {
     }
 }
 
+void ZeroRemoteTensor::create_level_zero_memory(const size_t bytes) {
+    ze_host_mem_alloc_desc_t desc = {};
+    if (_tensor_type == TensorType::INPUT) {
+        uint32_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
+        desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, flag};
+    } else {
+        desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
+    }
+    THROW_ON_FAIL_FOR_LEVELZERO(
+        "zeMemAllocHost",
+        zeMemAllocHost(_init_structs->getContext(), &desc, bytes, utils::STANDARD_PAGE_SIZE, &_data));
+}
+
 void ZeroRemoteTensor::allocate(const size_t bytes) {
     switch (_mem_type) {
     case MemType::L0_INTERNAL_BUF: {
         size_t size = utils::align_size_to_standard_page_size(bytes);
 
-        ze_host_mem_alloc_desc_t desc = {};
-        if (_tensor_type == TensorType::INPUT) {
-            uint32_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
-            desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, flag};
-        } else {
-            desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, nullptr, 0};
-        }
-        THROW_ON_FAIL_FOR_LEVELZERO(
-            "zeMemAllocHost",
-            zeMemAllocHost(_init_structs->getContext(), &desc, size, utils::STANDARD_PAGE_SIZE, &_data));
+        create_level_zero_memory(size);
         break;
     }
     case MemType::SHARED_BUF: {
@@ -206,16 +210,6 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         break;
     }
     case MemType::MMAPED_FILE: {
-        if (!_mmaped_file_support) {
-            OPENVINO_THROW("Importing memory from a memory-mapped file is not supported with this driver version");
-        }
-
-        if (_tensor_type == TensorType::OUTPUT) {
-            OPENVINO_THROW("Importing memory from a memory-mapped file is supported only for input tensors");
-        } else if (_tensor_type == TensorType::BINDED) {
-            _logger.info("Importing memory from a memory-mapped file is supported only for input tensors");
-        }
-
         // memory map the file
         _mmap_tensor = ov::read_tensor_data(_file_descriptor._file_name,
                                             ov::element::u8,
@@ -224,6 +218,30 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
                                             true);
 
         size_t aligned_size = utils::align_size_to_standard_page_size(_mmap_tensor.get_byte_size());
+
+        if (!_mmaped_file_support) {
+            _logger.info("Importing mmaped memory isn't supported for this configuration. File data will be copied to "
+                         "the level zero memory");
+
+            create_level_zero_memory(aligned_size);
+            memcpy(_data, _mmap_tensor.data(), _mmap_tensor.get_byte_size());
+            _mmap_tensor = {};  // clear the mmap tensor at this point since memory was copied to level zero memory.
+            break;
+        }
+
+        if (_tensor_type == TensorType::OUTPUT) {
+            _logger.info("Importing mmaped memory isn't supported for output tensors. File data will be copied to the "
+                         "level zero memory");
+
+            create_level_zero_memory(aligned_size);
+            memcpy(_data, _mmap_tensor.data(), _mmap_tensor.get_byte_size());
+            _mmap_tensor = {};  // clear the mmap tensor at this point since memory was copied to level zero memory.
+            break;
+        } else if (_tensor_type == TensorType::BINDED) {
+            _logger.warning("Importing memory from a memory-mapped file is supported only for input tensors");
+            _tensor_type = TensorType::INPUT;
+        }
+
         _ze_external_memory_import_system_memory_t memory_import = {
             ZE_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMPORT_SYSTEM_MEMORY,
             nullptr,
@@ -233,10 +251,16 @@ void ZeroRemoteTensor::allocate(const size_t bytes) {
         uint32_t flag = ZE_HOST_MEM_ALLOC_FLAG_BIAS_WRITE_COMBINED;
         ze_host_mem_alloc_desc_t desc = {ZE_STRUCTURE_TYPE_HOST_MEM_ALLOC_DESC, &memory_import, flag};
 
-        THROW_ON_FAIL_FOR_LEVELZERO(
-            "zeMemAllocHost",
-            zeMemAllocHost(_init_structs->getContext(), &desc, aligned_size, utils::STANDARD_PAGE_SIZE, &_data));
+        auto result =
+            zeMemAllocHost(_init_structs->getContext(), &desc, aligned_size, utils::STANDARD_PAGE_SIZE, &_data);
 
+        if (result != ZE_RESULT_SUCCESS) {
+            _logger.info("Failed to import mmaped memory. File data will be copied to the level zero memory");
+
+            create_level_zero_memory(aligned_size);
+            memcpy(_data, _mmap_tensor.data(), _mmap_tensor.get_byte_size());
+            _mmap_tensor = {};  // clear the mmap tensor at this point since memory was copied to level zero memory.
+        }
         break;
     }
     default:

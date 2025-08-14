@@ -36,7 +36,7 @@ int main() {
     {
         //! [wrap_nt_handle]
         void* shared_buffer = nullptr;  // create the NT handle
-        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, shared_buffer);
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, static_cast<void*>(shared_buffer));
         //! [wrap_nt_handle]
     }
 
@@ -44,6 +44,13 @@ int main() {
         //! [wrap_dmabuf_fd]
         int32_t fd_heap = 0;  // create the DMA-BUF System Heap file descriptor
         auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, fd_heap);
+        //! [wrap_dmabuf_fd]
+    }
+
+    {
+        //! [wrap_dmabuf_fd]
+        std::string file_name = "";  // get the name of the file
+        auto remote_tensor = npu_context.create_tensor(in_element_type, in_shape, std::filesystem::path(file_name));
         //! [wrap_dmabuf_fd]
     }
 
