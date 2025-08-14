@@ -9,6 +9,16 @@ RUN echo 'Acquire::Retries "10";' > /etc/apt/apt.conf && \
     echo 'APT::Get::Fix-Broken "true";' >> /etc/apt/apt.conf && \
     echo 'APT::Get::no-install-recommends "true";' >> /etc/apt/apt.conf
 
+# debian 10 reached EOL, and its packages are not available from the default sources
+# Need to use the archived ones
+RUN cat > /etc/apt/sources.list <<'EOF'
+deb http://archive.debian.org/debian buster main contrib non-free
+deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+deb http://archive.debian.org/debian buster-updates main contrib non-free
+EOF
+
+RUN echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99ignore-release-date
+
 ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 

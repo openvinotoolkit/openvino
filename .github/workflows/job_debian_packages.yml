@@ -37,6 +37,7 @@ jobs:
 
       - name: Install gh cli
         run: |
+          apt-get update -y && apt-get install curl -y
           if [[ ${{ runner.arch }} == "X64" ]]; then
             curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_amd64.tar.gz -o /tmp/gh.tar.gz
           else
