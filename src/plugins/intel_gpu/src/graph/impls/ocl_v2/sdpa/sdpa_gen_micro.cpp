@@ -168,8 +168,8 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
     return -1;
 }
 
-inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, size_t qkv_idx) {
-    if (qkv_idx > 2) {
+inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, int32_t qkv_idx) {
+    if (qkv_idx < 0 || qkv_idx > 2) {
         OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
     if (params.is_type<paged_attention>()) {
@@ -190,8 +190,8 @@ inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, size
     return ov::Dimension();
 }
 
-inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& params, size_t qkv_idx, int64_t target_seq_len_block_size = 16) {
-    if (qkv_idx > 2) {
+inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& params, int32_t qkv_idx, int64_t target_seq_len_block_size = 16) {
+    if (qkv_idx < 0 || qkv_idx > 2) {
         OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
     if (params.is_type<paged_attention>()) {
