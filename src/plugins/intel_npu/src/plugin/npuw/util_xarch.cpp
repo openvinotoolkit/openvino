@@ -45,7 +45,7 @@ inline void unpack_64_i4(__m256i packed, uint8_t* unpacked) {
 #endif
 */
 
-#if defined(HAVE_AVX2)
+//#if defined(HAVE_AVX2)
 // Read a uint8 data and obtain two int4 values.
 inline void tread_2x4b(const ov::Tensor& t,
                        std::size_t r,
@@ -54,57 +54,57 @@ inline void tread_2x4b(const ov::Tensor& t,
                        uint8_t& low,
                        uint8_t& high) {
     const uint8_t* tdata = static_cast<const uint8_t*>(t.data());
-    const uint8_t* trow = tdata + r * COLS / 2;
-    const uint8_t* telem = trow + c / 2;
+    size_t offset = r * COLS + c;
+    const uint8_t* telem = tdata + offset / 2;
     uint8_t byte = *telem;
     low = byte & 0x0F;
     high = (byte >> 4) & 0x0F;
 }
-#endif
+//#endif
 
-#if defined(HAVE_AVX2)
+//#if defined(HAVE_AVX2)
 inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c, std::size_t COLS) {
     uint8_t* tdata = static_cast<uint8_t*>(t.data());
-    uint8_t* trow = tdata + r * COLS / 2;
-    uint8_t* telem = trow + c / 2;
-    if (c % 2 == 0) {
+    size_t offset = r * COLS + c;
+    uint8_t* telem = tdata + offset / 2;
+    if (offset % 2 == 0) {
         *telem = (hi4(*telem) << 4) | lo4(value);
     } else {
         *telem = (lo4(value) << 4) | lo4(*telem);
     }
 }
-#endif
+//#endif
 
-#if defined(HAVE_AVX2)
+//#if defined(HAVE_AVX2)
 inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
 // NOTE: This routine implements the NEW ORDER
-#    define avx2_i4toi8(vinput, vout0, vout1)                                         \
-        {                                                                             \
-            __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
-            __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
-            __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
-            __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
-            __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
-                                                                                      \
-            __m256i vht = _mm256_and_si256(vinput, himask);                           \
-            __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
-            __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
-                                                                                      \
-            __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
-            __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
-            __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
-            __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
-            __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
-            __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
-                                                                                      \
-            __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
-            __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
-            *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
-            *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
-        }
+#define avx2_i4toi8(vinput, vout0, vout1)                                         \
+    {                                                                             \
+        __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
+        __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
+        __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
+        __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
+        __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
+                                                                                  \
+        __m256i vht = _mm256_and_si256(vinput, himask);                           \
+        __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
+        __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
+                                                                                  \
+        __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
+        __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
+        __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
+        __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
+        __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
+        __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
+                                                                                  \
+        __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
+        __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
+        *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
+        *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
+    }
 
 inline __m128i avx2_i8tof16(__m128i vi8) {
     __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
@@ -239,7 +239,7 @@ inline float avx2_load_f32(const int8_t* data, ov::element::Type type) {
         return val;
     }
 }
-#endif
+//#endif
 
 #ifdef UNPACK_PROFILING
 class UnpackStat {
@@ -1517,7 +1517,7 @@ void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& fro
 }
 
 void ov::npuw::util::XARCH::transpose_i4(const ov::Tensor& t, ov::Tensor& tnew, size_t ROWS, size_t COLS) {
-#if defined(HAVE_AVX2)
+    //#if defined(HAVE_AVX2)
     std::cout << "####################transpose_i4" << std::endl;
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
@@ -1569,25 +1569,28 @@ void ov::npuw::util::XARCH::transpose_i4(const ov::Tensor& t, ov::Tensor& tnew, 
 
         // Handle tail
         for (; c < COLS; ++c) {
-            // uint8_t val = tread_4b(t, r, c, COLS);
             uint8_t low, high;
             // Read a uint8 data and obtain two int4 values.
             tread_2x4b(t, r, c, COLS, low, high);
-            twrite_4b(tnew, low, c, r, ROWS);
-            // Handle high value if it's still within the column length.
-            if (c + 1 < COLS) {
-                twrite_4b(tnew, high, c + 1, r, ROWS);
-                c++;
+            if ((COLS % 2 != 0) && (c == 0) && (r % 2 != 0)) {
+                twrite_4b(tnew, high, c, r, ROWS);
+            } else {
+                twrite_4b(tnew, low, c, r, ROWS);
+                // Handle high value if it's still within the column length.
+                if (c + 1 < COLS) {
+                    twrite_4b(tnew, high, c + 1, r, ROWS);
+                    c++;
+                }
             }
         }
     }
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
+    //#else
+    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+    //#endif
 }
 
 void ov::npuw::util::XARCH::transpose_f16(const uint16_t* src, uint16_t* dst, size_t ROWS, size_t COLS) {
-#if defined(HAVE_AVX2)
+    //#if defined(HAVE_AVX2)
     std::cout << "####################transpose_f16" << std::endl;
     const size_t blockSize = 16;  // AVX2 can handle 8 floats per register.
     ov::parallel_for(COLS, [&](size_t c) {
@@ -1618,13 +1621,13 @@ void ov::npuw::util::XARCH::transpose_f16(const uint16_t* src, uint16_t* dst, si
             dst[c * ROWS + r] = src[r * COLS + c];
         }
     });
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
+    //#else
+    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+    //#endif
 }
 
 void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t ROWS, size_t COLS) {
-#if defined(HAVE_AVX2)
+    //#if defined(HAVE_AVX2)
     std::cout << "####################transpose_f32" << std::endl;
     const size_t blockSize = 8;  // AVX2 can handle 8 floats per register.
     ov::parallel_for(COLS, [&](size_t c) {
@@ -1647,9 +1650,9 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t R
             dst[c * ROWS + r] = src[r * COLS + c];
         }
     });
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
+    //#else
+    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+    //#endif
 }
 
 void ov::npuw::util::XARCH::permute021_i4(const ov::Tensor& t,
@@ -1657,7 +1660,7 @@ void ov::npuw::util::XARCH::permute021_i4(const ov::Tensor& t,
                                           size_t PLAS,
                                           size_t ROWS,
                                           size_t COLS) {
-#if defined(HAVE_AVX2)
+//#if defined(HAVE_AVX2)
     std::cout << "####################permute021_i4" << std::endl;
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
@@ -1707,21 +1710,26 @@ void ov::npuw::util::XARCH::permute021_i4(const ov::Tensor& t,
             }
             // Handle tail
             for (; c < COLS; ++c) {
+                // uint8_t val = tread_4b(t, r, c, COLS);
                 uint8_t low, high;
                 // Read a uint8 data and obtain two int4 values.
-                tread_2x4b(t, p * ROWS + r, c, COLS, low, high);
-                twrite_4b(tnew, low, p * ROWS + c, r, COLS);
-                // Handle high value if it's still within the column length.
-                if (c + 1 < COLS) {
-                    twrite_4b(tnew, high, p * ROWS + c + 1, r, COLS);
-                    c++;
+                tread_2x4b(t, r, c, COLS, low, high);
+                if ((COLS % 2 != 0) && (c == 0) && ((p * ROWS + r) % 2 != 0)) {
+                    twrite_4b(tnew, high, c, r, ROWS);
+                } else {
+                    twrite_4b(tnew, low, c, r, ROWS);
+                    // Handle high value if it's still within the column length.
+                    if (c + 1 < COLS) {
+                        twrite_4b(tnew, high, c + 1, r, ROWS);
+                        c++;
+                    }
                 }
             }
         }
     }
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
+//#else
+//    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+//#endif
 }
 
 void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
@@ -1729,7 +1737,7 @@ void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
                                           size_t PLAS,
                                           size_t ROWS,
                                           size_t COLS) {
-#if defined(HAVE_AVX2)
+//#if defined(HAVE_AVX2)
     std::cout << "####################permute102_i4" << std::endl;
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
@@ -1779,21 +1787,24 @@ void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
             }
             // Handle tail.
             for (; c < COLS; ++c) {
-                size_t src_offset = p * ROWS * COLS + r * COLS + c;
-                size_t src_byte = src_offset / 2;
-                uint8_t val = (src_offset % 2 == 0) ? (src[src_byte] & 0x0F) : ((src[src_byte] >> 4) & 0x0F);
-
-                size_t dst_offset = r * PLAS * COLS + p * COLS + c;
-                size_t dst_byte = dst_offset / 2;
-                if (dst_offset % 2 == 0) {
-                    dst[dst_byte] = (dst[dst_byte] & 0xF0) | (val & 0x0F);
+                // uint8_t val = tread_4b(t, r, c, COLS);
+                uint8_t low, high;
+                // Read a uint8 data and obtain two int4 values.
+                tread_2x4b(t, r, c, COLS, low, high);
+                if ((COLS % 2 != 0) && (c == 0) && ((p * ROWS + r) % 2 != 0)) {
+                    twrite_4b(tnew, high, c, r, ROWS);
                 } else {
-                    dst[dst_byte] = (dst[dst_byte] & 0x0F) | ((val & 0x0F) << 4);
+                    twrite_4b(tnew, low, c, r, ROWS);
+                    // Handle high value if it's still within the column length.
+                    if (c + 1 < COLS) {
+                        twrite_4b(tnew, high, c + 1, r, ROWS);
+                        c++;
+                    }
                 }
             }
         }
     }
-#else
-    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-#endif
+//#else
+//    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+//#endif
 }
