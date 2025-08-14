@@ -33,13 +33,7 @@ std::vector<ConfigParams> testConfigs;
 class SelectDeviceTest : public tests::AutoTest, public ::testing::TestWithParam<ConfigParams> {
 public:
     static std::string getTestCaseName(testing::TestParamInfo<ConfigParams> obj) {
-        std::string netPrecision;
-        std::vector<DeviceInformation> devices;
-        DeviceInformation expect;
-        bool throwExcept;
-        bool enabledevice_priority;
-        bool reverse;
-        std::tie(netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse) = obj.param;
+        const auto& [netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse] = obj.param;
         std::ostringstream result;
         result << "_netPrecision_" << netPrecision;
         for (auto& item : devices) {
@@ -195,7 +189,7 @@ public:
         return testConfigs;
     }
 
-    void compare(DeviceInformation& a, DeviceInformation& b) {
+    void compare(const DeviceInformation& a, const DeviceInformation& b) {
         EXPECT_EQ(a.device_name, b.device_name);
         EXPECT_EQ(a.unique_name, b.unique_name);
         EXPECT_EQ(a.default_device_id, b.default_device_id);
@@ -216,14 +210,7 @@ public:
 };
 
 TEST_P(SelectDeviceTest, SelectDevice) {
-    // get Parameter
-    std::string netPrecision;
-    std::vector<DeviceInformation> devices;
-    DeviceInformation expect;
-    bool throwExcept;
-    bool enabledevice_priority;
-    bool reverse;
-    std::tie(netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse) = this->GetParam();
+    const auto& [netPrecision, devices, expect, throwExcept, enabledevice_priority, reverse] = this->GetParam();
 
     EXPECT_CALL(*plugin, select_device(_, _, _)).Times(1);
     if (devices.size() >= 1) {
