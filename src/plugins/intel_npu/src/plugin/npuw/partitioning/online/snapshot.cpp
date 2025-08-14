@@ -88,7 +88,6 @@ void Snapshot::buildGraph() {
         if (!isOp(ov_node)) {
             continue;
         }
-
         m_node_to_prod_cons->insert({ov_node, {}});
 
         auto nh = m_graph->create();

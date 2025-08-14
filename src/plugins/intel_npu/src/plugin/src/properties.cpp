@@ -452,6 +452,7 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_config, NPUW_LLM_PREFILL_CONFIG);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_config, NPUW_LLM_GENERATE_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
 
     // 2. Metrics (static device and enviroment properties)
     // ========

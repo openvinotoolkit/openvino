@@ -66,9 +66,12 @@ public:
         std::string xml_path = test_case_name + ".xml";
         std::string bin_path = test_case_name + ".bin";
 
+
+#ifdef ANALYZE_TEST
         // Save the model
         ov::pass::Serialize serialize_pass(xml_path, bin_path);
         serialize_pass.run_on_model(model);
+#endif
 
      
         // validation of High Precision attention mask - implies enabling SDPA layer to be unrolled, 
