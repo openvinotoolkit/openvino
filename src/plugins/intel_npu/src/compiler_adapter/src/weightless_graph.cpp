@@ -232,7 +232,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             _logger.info(str.str().c_str());
         }
 
-        size_t size = utils::align_size_to_standarg_page_size(blobSize);
+        size_t size = utils::align_size_to_standard_page_size(blobSize);
         size_t paddingSize = size - blobSize;
         if (paddingSize > 0) {
             std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
@@ -581,7 +581,7 @@ void WeightlessGraph::run_pipeline(const size_t initIndex) {
 }
 
 void WeightlessGraph::set_weights_inputs() {
-    for (const auto& desc : _input_descriptors) {
+    for (const auto& desc : _inputDescriptors) {
         if (!isMainInputWeightsName(desc.info.name)) {
             continue;
         }

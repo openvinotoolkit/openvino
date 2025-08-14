@@ -365,10 +365,7 @@ void RefConverter::convert(const T* y,
             auto uv_index = (h / 2) * width + (w / 2) * 2;
             auto u_val = static_cast<float>(uv_ptr[uv_index]);
             auto v_val = static_cast<float>(uv_ptr[uv_index + 1]);
-            T r;
-            T g;
-            T b;
-            std::tie(r, g, b) = yuv_to_rgb<T>(y_val, u_val, v_val);
+            auto [r, g, b] = yuv_to_rgb<T>(y_val, u_val, v_val);
             out[y_index * 3 + _colorFormat[0]] = r;
             out[y_index * 3 + _colorFormat[1]] = g;
             out[y_index * 3 + _colorFormat[2]] = b;
@@ -456,7 +453,7 @@ void JitConverter<T[N]>::generate() {
         const auto& u = std::get<1>(yuv);
         const auto& v = std::get<2>(yuv);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral<T>::value);
+        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
 
         store(dst, y);
         dst += step;
@@ -483,7 +480,7 @@ void JitConverter<T[N]>::generate() {
         const auto& u = std::get<0>(uv_pair);
         const auto& v = std::get<1>(uv_pair);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral<T>::value);
+        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
 
         store_tail(dst, y, u, v, width);
     });
@@ -700,10 +697,7 @@ void RefConverter::convert(const T* y,
             auto uv_index = (h / 2) * (width / 2) + w / 2;
             auto u_val = static_cast<float>(u_ptr[uv_index]);
             auto v_val = static_cast<float>(v_ptr[uv_index]);
-            T r;
-            T g;
-            T b;
-            std::tie(r, g, b) = yuv_to_rgb<T>(y_val, u_val, v_val);
+            auto [r, g, b] = yuv_to_rgb<T>(y_val, u_val, v_val);
             out[y_index * 3 + _colorFormat[0]] = r;
             out[y_index * 3 + _colorFormat[1]] = g;
             out[y_index * 3 + _colorFormat[2]] = b;
@@ -795,7 +789,7 @@ void JitConverter<T[N]>::generate() {
         const auto& u = std::get<1>(yuv);
         const auto& v = std::get<2>(yuv);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral<T>::value);
+        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
 
         store(dst, y);
         dst += step;
@@ -822,7 +816,7 @@ void JitConverter<T[N]>::generate() {
 
         unpack_uv(u, v);
 
-        yuv_to_rgb(y, u, v, colorFormat, std::is_integral<T>::value);
+        yuv_to_rgb(y, u, v, colorFormat, std::is_integral_v<T>);
 
         store_tail(dst, y, u, v, width);
     });

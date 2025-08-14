@@ -697,42 +697,14 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#125086 -->
+    <!-- E####### -->
     <skip_config>
-        <message>Failing tests after functional tests migration to OV</message>
+        <message>Test will set NPU_TILES to -1 which is an invalid value, in this case default values don't work</message>
         <enable_rules>
             <backend>LEVEL0</backend>
-            <device>3720</device>
-            <device>4000</device>
         </enable_rules>
         <filters>
             <filter>.*OVCompiledModelPropertiesDefaultSupportedTests.CanCompileWithDefaultValueFromPlugin.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#125086 -->
-    <skip_config>
-        <message>Failing tests after functional tests migration to OV</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>3720</device>
-            <operating_system>windows</operating_system>
-        </enable_rules>
-        <filters>
-            <filter>.*OVInferRequestPerfCountersExceptionTest.perfCountWereNotEnabledExceptionTest.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#125086 -->
-    <skip_config>
-        <message>Failing tests after functional tests migration to OV</message>
-        <enable_rules>
-            <backend>LEVEL0</backend>
-            <device>3720</device>
-            <operating_system>linux</operating_system>
-        </enable_rules>
-        <filters>
-            <filter>.*OVInferRequestMultithreadingTests.canRun3AsyncRequestsConsistently.*</filter>
         </filters>
     </skip_config>
 
@@ -888,17 +860,6 @@ Example:
         <message>Skip tests with u2 precision not supported on NPU3720.</message>
         <enable_rules>
             <device>3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#176909 -->
-    <skip_config>
-        <message>Tests currently skipped for NPU4000 until u2 precision fully supported (need driver update)</message>
-        <enable_rules>
-            <device>4000</device>
         </enable_rules>
         <filters>
             <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>

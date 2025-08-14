@@ -309,6 +309,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
             continue;
 
+        if (replace_candidate.users.size() > 1)
+            continue;
+
         auto fuse_bias_f = [&p](program_node& prev_node, program_node& new_node, program_node& bias_node, program_node& eltw_node) {
             auto eltw_id = eltw_node.id();
             p.replace(prev_node, new_node);
@@ -726,6 +729,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto activation_func = activation_node.get_primitive()->activation_function;
             if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
+            if (activation_func == cldnn::activation_func::softplus && activation_node.get_output_layout().data_type == data_types::f16) {
+                // This is WA :
+                // - SoftPlus can overflow on f16 so that jitter.cpp currently resolves by typecasting to f32
+                // - But it doesn't guarantee the case of fusion.
+                // - For now it needs to disable fusion for SoftPlus.
                 return;
             }
 
