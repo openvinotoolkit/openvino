@@ -94,6 +94,7 @@ struct OpenVINOParams {
     LayerVariantAttr<std::vector<size_t>> reshape;
     std::map<std::string, std::string> config;
     size_t nireq = 1u;
+    bool clamp_outputs = false;
 };
 
 struct ONNXRTParams {

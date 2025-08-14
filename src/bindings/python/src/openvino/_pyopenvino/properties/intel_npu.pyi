@@ -42,7 +42,7 @@ def driver_version() -> str:
 def max_tiles() -> str:
     ...
 @typing.overload
-def max_tiles(arg0: int) -> tuple[str, openvino._pyopenvino.OVAny]:
+def max_tiles(arg0: typing.SupportsInt) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def qdq_optimization() -> str:
@@ -60,7 +60,7 @@ def run_inferences_sequentially(arg0: bool) -> tuple[str, openvino._pyopenvino.O
 def tiles() -> str:
     ...
 @typing.overload
-def tiles(arg0: int) -> tuple[str, openvino._pyopenvino.OVAny]:
+def tiles(arg0: typing.SupportsInt) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def turbo() -> str:

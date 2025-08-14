@@ -22,7 +22,7 @@
 #include "emitters/plugin/x64/jit_dnnl_emitters.hpp"
 #include "emitters/plugin/x64/jit_eltwise_emitters.hpp"
 #include "emitters/plugin/x64/jit_emitter.hpp"
-#include "nodes/executors/eltwise.hpp"
+#include "nodes/executors/eltwise_config.hpp"
 #include "nodes/kernels/jit_eltwise_common.hpp"
 #include "openvino/cc/selective_build.h"
 #include "openvino/core/except.hpp"
@@ -574,7 +574,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
             uni_vpmovzxbd(vmm_src, op);
             break;
         default:
-            OPENVINO_THROW("unknown src_prc");
+            OPENVINO_THROW("unsupported src_prc: ", src_prc);
         }
 
         switch (dst_prc) {
@@ -589,7 +589,7 @@ void jit_uni_eltwise_generic<isa>::load_vector(Vmm vmm_src,
             }
             break;
         default:
-            OPENVINO_THROW("unknown dst_prc");
+            OPENVINO_THROW("unsupported dst_prc: ", dst_prc);
         }
     }
 }
@@ -610,7 +610,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(Xmm xmm_src,
             uni_vmovd(xmm_src, reg_tmp_32);
             break;
         default:
-            OPENVINO_THROW("unknown prc");
+            OPENVINO_THROW("unsupported prc: ", src_prc);
         }
         return;
     }
@@ -652,7 +652,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(Xmm xmm_src,
         uni_vmovq(xmm_src, reg_tmp_64);
         break;
     default:
-        OPENVINO_THROW("unknown src_prc");
+        OPENVINO_THROW("unsupported src_prc: ", src_prc);
     }
 
     switch (dst_prc) {
@@ -667,7 +667,7 @@ void jit_uni_eltwise_generic<isa>::load_scalar(Xmm xmm_src,
         }
         break;
     default:
-        OPENVINO_THROW("unknown dst_prc");
+        OPENVINO_THROW("unsupported dst_prc: ", dst_prc);
     }
 }
 
@@ -696,7 +696,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
         }
         break;
     default:
-        OPENVINO_THROW("unknown src_prc");
+        OPENVINO_THROW("unsupported src_prc: ", src_prc);
     }
 
     switch (dst_prc) {
@@ -779,7 +779,7 @@ void jit_uni_eltwise_generic<isa>::store_vector(const Xbyak::Address& op,
         }
         break;
     default:
-        OPENVINO_THROW("unknown dst_prc");
+        OPENVINO_THROW("unsupported dst_prc: ", dst_prc);
     }
 }
 
@@ -798,7 +798,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
             mov(op, reg_tmp_8);
             break;
         default:
-            OPENVINO_THROW("unknown prc");
+            OPENVINO_THROW("unsupported prc: ", src_prc);
         }
         return;
     }
@@ -815,7 +815,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
         }
         break;
     default:
-        OPENVINO_THROW("unknown src_prc");
+        OPENVINO_THROW("unsupported src_prc: ", src_prc);
     }
 
     switch (dst_prc) {
@@ -855,7 +855,7 @@ void jit_uni_eltwise_generic<isa>::store_scalar(const Xbyak::Address& op,
         mov(op, reg_tmp_8);
         break;
     default:
-        OPENVINO_THROW("unknown dst_prc");
+        OPENVINO_THROW("unsupported dst_prc: ", dst_prc);
     }
 }
 

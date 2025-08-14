@@ -14,6 +14,7 @@
 #ifndef OPENVINO_ARCH_ARM64
 #    include "cpu/x64/jit_generator.hpp"
 #endif
+#include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
 
@@ -79,7 +80,7 @@ public:
 
     void create_ker() override {
         jit_generator_t::create_kernel();
-        ker_ = (decltype(ker_))jit_ker();
+        ker_ = jit_kernel_cast<decltype(ker_)>(jit_ker());
     }
 
     void generate() override;
