@@ -444,14 +444,14 @@ TEST_F(TransformationTestsF, AbsSinkingWithNegativeValues) {
         // Create constant with negative values: {-1, -2, 4}
         auto const_with_negatives = opset7::Constant::create(element::i64, {3}, {-1, -2, 4});
         auto abs_op = std::make_shared<opset7::Abs>(const_with_negatives);
-        
+
         model = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
         manager.register_pass<pass::AbsSinking>();
     }
     {
         auto const_with_negatives = opset7::Constant::create(element::i64, {3}, {-1, -2, 4});
         auto abs_op = std::make_shared<opset7::Abs>(const_with_negatives);
-        
+
         model_ref = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
     }
 }
