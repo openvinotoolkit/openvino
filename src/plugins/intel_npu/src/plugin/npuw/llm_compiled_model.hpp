@@ -68,11 +68,16 @@ private:
     ov::npuw::s11n::BF16Cache m_bf16_consts;
 
     KVCacheDesc m_kvcache_desc;
-    uint64_t m_prefill_chunk_size;
+    uint64_t m_prefill_chunk_size = 0;
+    bool m_use_chunk_prefill = false;
     std::shared_ptr<ov::npuw::CompiledModel> m_kvcache_compiled;
     std::shared_ptr<ov::npuw::CompiledModel> m_prefill_compiled;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::CompiledModel> m_lm_head_compiled;
+
+    // Support LoRA
+    void convert_stateful_lora_to_stateless(std::shared_ptr<ov::Model>& model);
+    uint32_t m_max_lora_rank = 32;
 };
 
 }  // namespace npuw

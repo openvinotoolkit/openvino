@@ -49,7 +49,7 @@ public:
     [[nodiscard]] const std::string& get_tag() const {
         return tag;
     }
-    operator bool() const {
+    explicit operator bool() const {
         return enabled;
     }
     static void break_at(const std::string& log);
@@ -64,7 +64,7 @@ class IMemory;
 
 class PrintableModel {
 public:
-    PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "")
+    explicit PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "")
         : model(model),
           tag(std::move(tag)),
           prefix(std::move(prefix)) {}
@@ -76,7 +76,7 @@ public:
 template <typename T>
 class PrintableVector {
 public:
-    PrintableVector(const std::vector<T>& values, int maxsize = 80) : values(values), maxsize(maxsize) {}
+    explicit PrintableVector(const std::vector<T>& values, int maxsize = 80) : values(values), maxsize(maxsize) {}
     const std::vector<T>& values;
     int maxsize;
 };
@@ -184,7 +184,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, TS&&... args)
 #    define DEBUG_LOG_EXT(name, ostream, prefix, ...)                                                              \
         do {                                                                                                       \
             static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name);              \
-            if (DEBUG_ENABLE_NAME) {                                                                               \
+            if (DEBUG_ENABLE_NAME || &ostream == &std::cerr) {                                                     \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
                 ostream << ss___.str() << '\n';                                                                    \

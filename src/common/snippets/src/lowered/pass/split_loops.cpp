@@ -95,12 +95,12 @@ void SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t oute
     const auto& loop_manager = linear_ir.get_loop_manager();
 
     const auto& inner_loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_to_split_id);
-    const auto loop_bounds = LoopManager::get_loop_bounds(linear_ir,
-                                                          loop_to_split_id,
-                                                          inner_loop_info->get_input_ports(),
-                                                          inner_loop_info->get_output_ports());
-    const auto outer_loop_id = loop_manager->mark_loop(loop_bounds.first,
-                                                       loop_bounds.second,
+    const auto [loop_begin, loop_end] = LoopManager::get_loop_bounds(linear_ir,
+                                                                     loop_to_split_id,
+                                                                     inner_loop_info->get_input_ports(),
+                                                                     inner_loop_info->get_output_ports());
+    const auto outer_loop_id = loop_manager->mark_loop(loop_begin,
+                                                       loop_end,
                                                        inner_loop_info->get_work_amount(),
                                                        outer_increment,
                                                        inner_loop_info->get_dim_idx(),
@@ -117,11 +117,7 @@ void SplitLoops::split(LinearIR& linear_ir, size_t loop_to_split_id, size_t oute
                                                        inner_loop_info->get_output_port_descs(),
                                                        inner_loop_info->get_handlers(),
                                                        outer_loop_info);
-    loop_manager->replace_with_new_loop(linear_ir,
-                                        loop_bounds.first,
-                                        loop_bounds.second,
-                                        inner_splitted_loop_info,
-                                        loop_to_split_id);
+    loop_manager->replace_with_new_loop(linear_ir, loop_begin, loop_end, inner_splitted_loop_info, loop_to_split_id);
 
     if (!outer_loop_info->get_handlers().get_passes<SpecificLoopIterType::FIRST_ITER>().empty()) {
         outer_loop_info->register_pass_to_handler<SpecificLoopIterType::FIRST_ITER, TransformInnerSplitLoop>();

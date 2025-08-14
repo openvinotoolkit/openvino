@@ -4,21 +4,27 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdlib>
 #include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
 #include <optional>
 #include <vector>
 
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_format_filter.hpp"
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/dnnl/dnnl_fullyconnected.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/executor_config.hpp"
+#include "nodes/executors/executor_implementation.hpp"
 #include "nodes/executors/memory_arguments.hpp"
 #include "nodes/executors/precision_translation.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "post_ops.hpp"
 
 namespace ov::intel_cpu {
 
@@ -73,6 +79,11 @@ size_t srcRank(const Config& config) {
 }
 
 template <typename Config>
+size_t dstRank(const Config& config) {
+    return rank<Config, ARG_DST>(config);
+}
+
+template <typename Config>
 size_t weiRank(const Config& config) {
     return rank<Config, ARG_WEI>(config);
 }
@@ -97,6 +108,13 @@ size_t postOpsNumbers(const Config& config) {
     return config.attrs.postOps.size();
 }
 
+template <typename PostOpType>
+[[maybe_unused]] static inline bool hasPostOp(const PostOps& postOps) {
+    return any_of(postOps.begin(), postOps.end(), [](const auto& postOp) {
+        return postOp.type() == typeid(PostOpType);
+    });
+}
+
 template <typename Attrs>
 struct HasNoOptimalConfig {
     std::optional<executor::Config<Attrs>> operator()([[maybe_unused]] const executor::Config<Attrs>& attrs) const {
@@ -111,12 +129,9 @@ struct SupportsAnyConfig {
     }
 };
 
+// Allows to express 'shape agnostic' intention in a more verbose way
 template <typename Attrs>
-struct AcceptsAnyShape {
-    bool operator()([[maybe_unused]] const Attrs& attrs, [[maybe_unused]] const MemoryArgs& memory) const {
-        return true;
-    }
-};
+const inline typename ExecutorImplementation<Attrs>::AcceptsShapePredicate AcceptsAnyShape{};
 
 template <typename Primitive, typename Attrs>
 struct CreateDefault {
@@ -165,56 +180,65 @@ std::optional<executor::Config<Attrs>> createOptimalConfigCommon(const executor:
                                                                  const MappingNotation& notation) {
     // @todo lambdas inside a template function can potentially increase binary size
     auto fullyMatchConfiguration = [](const MemoryDescArgs& currentDescriptors,
-                                      const InOutTypes& typeConfig,
+                                      const TypeOfArg& typeConfig,
                                       const std::vector<LayoutType>& layoutConfig,
                                       const MappingNotation& notation) {
-        for (size_t i = 0; i < typeConfig.size(); i++) {
-            const auto& type = typeConfig[i];
-            const auto& desc = currentDescriptors.at(notation[i]);
+        return std::all_of(currentDescriptors.begin(), currentDescriptors.end(), [&](const auto& entry) {
+            const auto& [argId, desc] = entry;
+
+            if (!notation.count(argId)) {
+                return true;
+            }
+
+            const int i = notation.at(argId);
+            const auto type = typeConfig.at(argId);
 
             if (desc->empty()) {
-                continue;
+                return true;  // empty descriptor is considered as a match
             }
 
             if (desc->getPrecision() != type) {
                 return false;  // type mismatch
             }
 
-            if (desc->getShape().getRank() > 2 && !desc->hasLayoutType(layoutConfig[i])) {
-                return false;  // layout mismatch
+            if (desc->getShape().getRank() == 1) {
+                return true;  // rank 1 tensors are always ncsp
             }
-        }
 
-        return true;
+            return desc->hasLayoutType(layoutConfig[i]);
+        });
     };
 
     auto createOptimalDescriptors = [](const MemoryDescArgs& currentDescriptors,
-                                       const InOutTypes& typeConfig,
+                                       const TypeOfArg& typeConfig,
                                        const std::vector<LayoutType>& layoutConfig,
                                        const MappingNotation& notation) {
         MemoryDescArgs descs = currentDescriptors;
 
         const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
-        for (size_t i = 0; i < typeConfig.size(); i++) {
-            const auto& desc = currentDescriptors.at(notation[i]);
-            const auto& descType = desc->getPrecision();
-            const auto& type = typeConfig[i];
+        for (const auto& [argId, desc] : currentDescriptors) {
+            if (desc->empty()) {
+                continue;  // skip empty descriptors
+            }
+
+            if (!notation.count(argId)) {
+                continue;  // skip if argId is not in notation
+            }
+
+            const size_t i = notation.at(argId);
+            const auto& type = typeConfig.at(argId);
             const auto& layout = layoutConfig[i];
 
-            if (desc->empty()) {
+            if (desc->getPrecision() == type && desc->hasLayoutType(layout)) {
+                continue;  // already optimal
+            }
+
+            if (desc->getShape().getRank() < 2) {  // rank 1 tensors are always ncsp
+                descs[argId] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(type, desc->getShape());
                 continue;
             }
 
-            if (descType == type && desc->hasLayoutType(layout)) {
-                continue;
-            }
-
-            if (desc->getShape().getRank() < 2) {
-                descs[notation[i]] = creatorsMap.at(LayoutType::ncsp)->createSharedDesc(type, desc->getShape());
-                continue;
-            }
-
-            descs[notation[i]] = creatorsMap.at(layout)->createSharedDesc(type, desc->getShape());
+            descs[argId] = creatorsMap.at(layout)->createSharedDesc(type, desc->getShape());
         }
 
         return descs;
@@ -245,6 +269,55 @@ inline MemoryDescArgs memoryDescsFromMemory(const MemoryArgs& memory) {
 template <typename Attrs>
 executor::Config<Attrs> createConfig(const MemoryArgs& memory, const Attrs& attrs) {
     return executor::Config<Attrs>{memoryDescsFromMemory(memory), attrs};
+}
+
+inline bool MatchesMemoryFormatFilter(const MemoryDescArgs& descs,
+                                      const std::vector<LayoutType>& layoutConfig,
+                                      const MemoryFormatFilter& filter,
+                                      const MappingNotation& notation) {
+    for (const auto& [argId, desc] : descs) {
+        if (argId == ARG_DST) {
+            continue;  // skip output
+        }
+
+        if (desc->empty()) {
+            continue;
+        }
+
+        const size_t filterId = argId - ARG_SRC;
+        if (filterId >= filter.input.size()) {
+            continue;  // no filter for this input
+        }
+
+        if (desc->getShape().getRank() > 1) {
+            continue;  // rank 1 tensors are always ncsp
+        }
+
+        if (desc->getShape().getMinDims()[1] <= 1) {
+            continue;
+        }
+
+        const auto dnnlDesc =
+            DnnlBlockedMemoryDesc(desc->getShape(), dnnl::memory::data_type::f32, filter.input[filterId]);
+
+        if (!notation.count(argId)) {
+            continue;  // skip if argId is not in notation
+        }
+
+        const size_t i = notation.at(argId);
+
+        if (!dnnlDesc.hasLayoutType(layoutConfig[i])) {
+            return false;
+        }
+    }
+
+    if (filter.output.empty()) {
+        return true;
+    }
+
+    const auto desc =
+        DnnlBlockedMemoryDesc(descs.at(ARG_DST)->getShape(), dnnl::memory::data_type::f32, filter.output.front());
+    return desc.hasLayoutType(layoutConfig.back());
 }
 
 }  // namespace ov::intel_cpu
