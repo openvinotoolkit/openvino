@@ -25,6 +25,7 @@ ENV DEBIAN_FRONTEND="noninteractive" \
 RUN apt-get update && \
     apt-get install  \
         git \
+        curl \
         wget \
         libc6-dev \
         # parallel gzip
