@@ -171,7 +171,7 @@ pass::AbsSinking::AbsSinking() {
             if (as_type_ptr<v0::Constant>(abs->get_input_node_shared_ptr(0))) {
                 continue;
             }
-            
+
             auto bounds = ov::util::evaluate_both_bounds(abs->input_value(0));
             if (ov::util::reduce_and(ov::util::greater_equal(bounds.first, 0))) {
                 replace_output_update_name(abs->output(0), abs->input_value(0));
