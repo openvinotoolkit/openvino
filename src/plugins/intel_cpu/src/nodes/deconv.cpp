@@ -1300,9 +1300,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    VectorDims inDims;
-    VectorDims outDims;
-    std::tie(inDims, outDims) = makeDummyInOutShape();
+    auto [inDims, outDims] = makeDummyInOutShape();
     auto tmpInShape = Shape(inDims);
     auto tmpOutShape = Shape(outDims);
     initPaddingR(tmpInShape, tmpOutShape);

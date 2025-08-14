@@ -14,7 +14,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string FuseTransposeAndReorderTest::getTestCaseName(testing::TestParamInfo<FuseTransposeAndReorderParams> obj) {
+std::string FuseTransposeAndReorderTest::getTestCaseName(const testing::TestParamInfo<FuseTransposeAndReorderParams>& obj) {
     std::ostringstream result;
     const auto& [input_shape, in_prec] = obj.param;
     result << "IS=" << ov::test::utils::vec2str(input_shape) << "_";

@@ -137,7 +137,7 @@ size_t Range::getWorkAmount(data_t* startPtr, data_t* stopPtr, data_t* stepPtr) 
     *stepPtr = getSrcDataAtPortAs<const data_t>(RANGE_DELTA)[0];
     const data_t span = *stopPtr - *startPtr;
     const data_t step = *stepPtr;
-    if (std::is_same<data_t, int>::value) {
+    if (std::is_same_v<data_t, int>) {
         auto iSpan = static_cast<int>(span);
         auto iStep = static_cast<int>(step);
         return static_cast<size_t>(div_up(iSpan < 0 ? -iSpan : iSpan, iStep < 0 ? -iStep : iStep));
