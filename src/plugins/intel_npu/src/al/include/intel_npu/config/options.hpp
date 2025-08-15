@@ -315,7 +315,7 @@ struct CACHE_MODE final : OptionBase<CACHE_MODE, ov::CacheMode> {
     }
 
     static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 21);
+        return ONEAPI_MAKE_VERSION(7, 23);
     }
 
     static ov::CacheMode parse(std::string_view val) {
@@ -1244,7 +1244,7 @@ struct QDQ_OPTIMIZATION_AGGRESSIVE final : OptionBase<QDQ_OPTIMIZATION_AGGRESSIV
     }
 
     static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 21);
+        return ONEAPI_MAKE_VERSION(7, 23);
     }
 };
 
@@ -1339,7 +1339,7 @@ struct WEIGHTLESS_BLOB final : OptionBase<WEIGHTLESS_BLOB, bool> {
     }
 
     static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 21);
+        return ONEAPI_MAKE_VERSION(7, 23);
     }
 };
 
