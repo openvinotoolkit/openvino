@@ -79,6 +79,8 @@ public:
                                 MatMulType type)
         : MatMulFunctionBase(inputShapes, type, precisions) {
         OPENVINO_ASSERT(input_shapes.size() == 3, "Got invalid number of input shapes");
+        // Note: bias (3rd input) precision is always f32
+        OPENVINO_ASSERT(precisions.size() == 2, "Got invalid number of precisions");
     }
 
 protected:

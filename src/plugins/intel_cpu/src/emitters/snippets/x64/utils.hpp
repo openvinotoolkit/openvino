@@ -68,6 +68,6 @@ void push_ptr_with_runtime_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t
 void push_ptr_with_static_offset_on_stack(dnnl::impl::cpu::x64::jit_generator_t* h,
                                           size_t stack_offset,
                                           Xbyak::Reg64 ptr_reg,
-                                          size_t ptr_offset);
+                                          size_t ptr_offset = 0);
 
 }  // namespace ov::intel_cpu::utils

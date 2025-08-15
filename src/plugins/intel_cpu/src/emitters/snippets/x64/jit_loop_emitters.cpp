@@ -167,7 +167,6 @@ jit_loop_end_emitter::jit_loop_end_emitter(dnnl::impl::cpu::x64::jit_generator_t
     are_final_offsets_dynamic = std::any_of(finalization_offsets.cbegin(),
                                             finalization_offsets.cend(),
                                             ov::snippets::utils::is_dynamic_value<int64_t>);
-    are_ptr_shifts_dynamic = are_ptr_increments_dynamic || are_final_offsets_dynamic;
 
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_emitter>(begin_expr->get_emitter());

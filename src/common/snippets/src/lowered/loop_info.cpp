@@ -294,13 +294,15 @@ std::shared_ptr<LoopInfo> UnifiedLoopInfo::clone_with_new_expr(const ExpressionM
         const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
         const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
-        loop_map[this] = std::make_shared<UnifiedLoopInfo>(m_work_amount,
-                                                           m_increment,
-                                                           new_input_ports,
-                                                           new_output_ports,
-                                                           m_input_port_descs,
-                                                           m_output_port_descs,
-                                                           m_handlers);
+        const auto& replacement = std::make_shared<UnifiedLoopInfo>(m_work_amount,
+                                                                    m_increment,
+                                                                    new_input_ports,
+                                                                    new_output_ports,
+                                                                    m_input_port_descs,
+                                                                    m_output_port_descs,
+                                                                    m_handlers);
+        replacement->set_is_parallel(m_is_parallel);
+        loop_map[this] = replacement;
     }
     return loop_map.at(this);
 }
@@ -508,13 +510,16 @@ std::shared_ptr<LoopInfo> InnerSplittedUnifiedLoopInfo::clone_with_new_expr(cons
         const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
         const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
-        loop_map[this] = std::make_shared<InnerSplittedUnifiedLoopInfo>(m_increment,
-                                                                        new_input_ports,
-                                                                        new_output_ports,
-                                                                        m_input_port_descs,
-                                                                        m_output_port_descs,
-                                                                        m_handlers,
-                                                                        std::move(cloned_outer_splitted_loop_info));
+        const auto& replacement =
+            std::make_shared<InnerSplittedUnifiedLoopInfo>(m_increment,
+                                                           new_input_ports,
+                                                           new_output_ports,
+                                                           m_input_port_descs,
+                                                           m_output_port_descs,
+                                                           m_handlers,
+                                                           std::move(cloned_outer_splitted_loop_info));
+        replacement->set_is_parallel(m_is_parallel);
+        loop_map[this] = replacement;
     }
     return loop_map.at(this);
 }
@@ -575,16 +580,18 @@ std::shared_ptr<LoopInfo> ExpandedLoopInfo::clone_with_new_expr(const Expression
         const auto& new_input_ports = clone_loop_ports(expr_map, m_input_ports);
         const auto& new_output_ports = clone_loop_ports(expr_map, m_output_ports);
 
-        loop_map[this] = std::make_shared<ExpandedLoopInfo>(m_work_amount,
-                                                            m_increment,
-                                                            new_input_ports,
-                                                            new_output_ports,
-                                                            m_ptr_increments,
-                                                            m_finalization_offsets,
-                                                            m_data_sizes,
-                                                            m_type,
-                                                            std::move(cloned_unified_loop_info),
-                                                            m_evaluate_once);
+        const auto& replacement = std::make_shared<ExpandedLoopInfo>(m_work_amount,
+                                                                     m_increment,
+                                                                     new_input_ports,
+                                                                     new_output_ports,
+                                                                     m_ptr_increments,
+                                                                     m_finalization_offsets,
+                                                                     m_data_sizes,
+                                                                     m_type,
+                                                                     std::move(cloned_unified_loop_info),
+                                                                     m_evaluate_once);
+        replacement->set_is_parallel(m_is_parallel);
+        loop_map[this] = replacement;
     }
     return loop_map.at(this);
 }

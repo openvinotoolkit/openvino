@@ -27,6 +27,7 @@ static inline std::vector<std::vector<element::Type>> precisions() {
 }
 
 std::vector<std::vector<ov::test::InputShape>> input_shapes{
+    { {{}, {{1, 1, 1, 512}}},   {{}, {{1, 1, 512, 256}}} },
     { {{}, {{2, 1, 3, 5}}},   {{}, {{1, 3, 5, 3}}} },
     { {{}, {{3, 1, 32, 14}}},   {{}, {{1, 3, 14, 37}}} },
     { {{}, {{1, 2, 37, 23}}},   {{}, {{2, 1, 23, 37}}} },
