@@ -266,6 +266,195 @@ TEST_P(RemoteRunTests, CheckRemoteTensorInternalBuf) {
     OV_ASSERT_NO_THROW(inference_request.infer());
 }
 
+TEST_P(RemoteRunTests, CheckRemoteTensorImportFile0) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    const std::string filename = "CheckRemoteTensorImportFile0.bin";
+    std::vector<float> data(shape_size, 5.0f);
+
+    {
+        std::ofstream out(filename, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(data.data()), data.size() * sizeof(float));
+        out.close();
+    }
+
+    ov::InferRequest inference_request;
+
+    auto zero_context = core->get_default_context(target_device).as<ov::intel_npu::level_zero::ZeroContext>();
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, zero_context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto remote_tensor = zero_context.create_tensor(ov::element::f32, shape, ov::intel_npu::FileDescriptor{filename});
+
+    ov::Tensor check_remote_tensor;
+    OV_ASSERT_NO_THROW(check_remote_tensor = remote_tensor);
+    ASSERT_THROW(check_remote_tensor.data(), ov::Exception);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(check_remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_output_tensor();
+    float* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+
+    float expected_result = 6.0f;
+    for (size_t j = 0; j < output_tensor.get_size(); ++j) {
+        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+    }
+
+    // destroy inference request and remote tensor to ensure that the file is closed
+    inference_request = {};
+    check_remote_tensor = {};
+    remote_tensor = {};
+
+    std::filesystem::remove(filename);
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorImportFile1) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    const std::string filename = "CheckRemoteTensorImportFile1.bin";
+    std::vector<float> data(shape_size, 5.0f);
+
+    {
+        std::ofstream out(filename, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(data.data()), data.size() * sizeof(float));
+        out.close();
+    }
+
+    ov::InferRequest inference_request;
+
+    auto context = core->get_default_context(target_device);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::MMAPED_FILE},
+                         {ov::intel_npu::file_descriptor.name(), ov::intel_npu::FileDescriptor{filename}},
+                         {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto remote_tensor = context.create_tensor(ov::element::f32, shape, params);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_output_tensor();
+    float* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+
+    float expected_result = 6.0f;
+    for (size_t j = 0; j < output_tensor.get_size(); ++j) {
+        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+    }
+
+    // destroy inference request and remote tensor to ensure that the file is closed
+    inference_request = {};
+    remote_tensor = {};
+
+    std::filesystem::remove(filename);
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorImportFile2) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 16, 16, 16};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    const std::string filename = "CheckRemoteTensorImportFile2.bin";
+    std::vector<float> data(shape_size, 5.0f);
+
+    {
+        std::ofstream out(filename, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(data.data()), data.size() * sizeof(float));
+        out.close();
+    }
+
+    ov::InferRequest inference_request;
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::MMAPED_FILE},
+                         {ov::intel_npu::file_descriptor.name(), ov::intel_npu::FileDescriptor{filename}},
+                         {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto remote_tensor = context.create_tensor(ov::element::f32, shape);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_output_tensor();
+    float* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+
+    float expected_result = 6.0f;
+    for (size_t j = 0; j < output_tensor.get_size(); ++j) {
+        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+    }
+
+    // destroy inference request and remote tensor to ensure that the file is closed
+    inference_request = {};
+    remote_tensor = {};
+
+    std::filesystem::remove(filename);
+}
+
+TEST_P(RemoteRunTests, CheckRemoteTensorImportFile3) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 5, 5, 5};
+    auto shape_size = ov::shape_size(shape);
+    auto model = createModel(element::f32, shape, "N...");
+
+    const std::string filename = "CheckRemoteTensorImportFile3.bin";
+    std::vector<float> data(shape_size, 5.0f);
+
+    {
+        std::ofstream out(filename, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(data.data()), data.size() * sizeof(float));
+        out.close();
+    }
+
+    ov::InferRequest inference_request;
+
+    ov::AnyMap params = {{ov::intel_npu::mem_type.name(), ov::intel_npu::MemType::MMAPED_FILE},
+                         {ov::intel_npu::file_descriptor.name(), ov::intel_npu::FileDescriptor{filename}},
+                         {ov::intel_npu::tensor_type.name(), {ov::intel_npu::TensorType::INPUT}}};
+
+    auto context = core->create_context(target_device, params);
+    OV_ASSERT_NO_THROW(compiled_model = core->compile_model(model, context, configuration));
+    OV_ASSERT_NO_THROW(inference_request = compiled_model.create_infer_request());
+
+    auto remote_tensor = context.create_tensor(ov::element::f32, shape);
+
+    OV_ASSERT_NO_THROW(inference_request.set_input_tensor(remote_tensor));
+    OV_ASSERT_NO_THROW(inference_request.infer());
+
+    auto output_tensor = inference_request.get_output_tensor();
+    float* output_tensor_data = reinterpret_cast<float*>(output_tensor.data());
+
+    float expected_result = 6.0f;
+    for (size_t j = 0; j < output_tensor.get_size(); ++j) {
+        EXPECT_NEAR(output_tensor_data[j], expected_result, 1e-5)
+            << " Expected=" << expected_result << ", actual=" << output_tensor_data[j] << " for index " << j;
+    }
+
+    // destroy inference request and remote tensor to ensure that the file is closed
+    inference_request = {};
+    remote_tensor = {};
+
+    std::filesystem::remove(filename);
+}
+
 TEST_P(RemoteRunTests, CheckRemoteTensorInternalBufSetPropertyInContext) {
     // Skip test according to plugin specific disabledTestPatterns() (if any)
     SKIP_IF_CURRENT_TEST_IS_DISABLED()

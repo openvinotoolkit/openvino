@@ -6,6 +6,7 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "intel_npu/utils/logger/logger.hpp"
@@ -24,7 +25,8 @@ public:
                      const ov::Shape& shape,
                      ov::intel_npu::TensorType tensor_type = ov::intel_npu::TensorType::BINDED,
                      ov::intel_npu::MemType mem_type = ov::intel_npu::MemType::L0_INTERNAL_BUF,
-                     const void* mem = nullptr);
+                     const void* mem = nullptr,
+                     const std::optional<ov::intel_npu::FileDescriptor>& file_descriptor = std::nullopt);
 
     /**
      * @brief Returns additional information associated with tensor
@@ -76,6 +78,7 @@ private:
     bool is_allocated() const noexcept;
     void update_strides();
     void update_properties();
+    void copy_file_data_to_level_zero_memory();
 
     std::shared_ptr<ov::IRemoteContext> _context;
     std::shared_ptr<ZeroInitStructsHolder> _init_structs;
@@ -90,10 +93,14 @@ private:
 
     ov::intel_npu::TensorType _tensor_type;
     ov::intel_npu::MemType _mem_type;
+    std::optional<ov::intel_npu::FileDescriptor> _file_descriptor;
     const void* _mem = nullptr;
     void* _data = nullptr;
 
     bool _external_memory_support = false;
+    bool _mmaped_file_support = false;
+
+    ov::Tensor _mmap_tensor;
 };
 
 inline bool is_remote_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
