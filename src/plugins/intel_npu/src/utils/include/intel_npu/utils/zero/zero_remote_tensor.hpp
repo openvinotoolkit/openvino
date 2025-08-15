@@ -94,6 +94,7 @@ private:
     void* _data = nullptr;
 
     bool _external_memory_support = false;
+    bool _mmaped_file_support = false;
 };
 
 inline bool is_remote_tensor(const std::shared_ptr<ov::ITensor>& tensor) {
