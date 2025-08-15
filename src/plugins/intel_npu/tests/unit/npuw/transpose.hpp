@@ -166,7 +166,21 @@ void showdata(const T* input, T* ref_output, T* output, size_t n){
 void showtensor(ov::Tensor& inTensor, ov::Tensor& outTensor){
     uint8_t* src = static_cast<uint8_t*>(inTensor.data());
     uint8_t* dst = static_cast<uint8_t*>(outTensor.data());
+    std::cout << "################showtensor shape" << std::endl;
+    auto inshape = inTensor.get_shape();
+    auto outshape = outTensor.get_shape();
+    std::cout << "Input shape: ";
+    for (const auto& dim : inshape) {
+        std::cout << dim << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "Output shape: ";
+    for (const auto& dim : outshape) {
+        std::cout << dim << " ";
+    }
+    std::cout << std::endl;
     std::cout << "################showtensor" << std::endl;
+    
     for(size_t i = 0; i < 8; ++i){
         std::cout << static_cast<int>(src[i]) << " ";
     }
@@ -188,7 +202,8 @@ using TransposeTestsParams = std::tuple<ov::element::Type_t,  // Precision
 class TransposeTestsBase {
 protected:
     ov::element::Type type;
-    ov::Tensor inTensor, outTensor;
+    ov::Tensor inTensor;
+    ov::Tensor outTensor;
 
     std::vector<int8_t> input;
     std::vector<int8_t> output;
@@ -237,8 +252,7 @@ protected:
         std::cout << std::endl;
 
         inTensor = ov::Tensor(type, input_shape, input.data());
-        outTensor = ov::Tensor(type, output_shape, output.data());
-        assert(outTensor.data() == output.data());
+        //outTensor = ov::Tensor(type, output_shape, output.data());
     }
 
 public:
@@ -251,7 +265,8 @@ public:
         shapeInit(input);
 
         input_shape = ov::Shape{input.begin(), input.end()};
-        output_shape = ov::Shape{input.begin(), input.end()};
+        //output_shape = ov::Shape{input.begin(), input.end()};
+        //output_shape = ov::Shape{static_cast<size_t>(input[0]), static_cast<size_t>(input[2]), static_cast<size_t>(input[1])};
 
         make_input();
 
