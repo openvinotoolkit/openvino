@@ -41,7 +41,7 @@ protected:
 class MLPSeq : public testing::WithParamInterface<ov::test::snippets::MLPSeqParams>,
             virtual public MLPSeqBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ov::test::snippets::MLPSeqParams> obj);
+    static std::string getTestCaseName(const testing::TestParamInfo<ov::test::snippets::MLPSeqParams>& obj);
 
 protected:
     std::shared_ptr<SnippetsFunctionBase> get_subgraph(size_t num_hidden_layers, size_t hidden_matmul_size) const override;

@@ -12,7 +12,7 @@
 
 namespace ov {
 namespace test {
-std::string GroupConvBackpropLayerTest::getTestCaseName(testing::TestParamInfo<groupConvBackpropLayerTestParamsSet> obj) {
+std::string GroupConvBackpropLayerTest::getTestCaseName(const testing::TestParamInfo<groupConvBackpropLayerTestParamsSet>& obj) {
     const auto& [group_conv_backprop_data_params, model_type, shapes, output_shape, target_device] = obj.param;
 
     const auto& [kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type, out_padding] =
