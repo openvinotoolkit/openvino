@@ -8,6 +8,7 @@
 
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "utils.hpp"
 
 using namespace ov::frontend;
@@ -18,6 +19,7 @@ std::string FrontEndFuzzyOpTest::getTestCaseName(const testing::TestParamInfo<Fu
 }
 
 void FrontEndFuzzyOpTest::SetUp() {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     m_fem = FrontEndManager();  // re-initialize after setting up environment
     initParamTest();
 }
