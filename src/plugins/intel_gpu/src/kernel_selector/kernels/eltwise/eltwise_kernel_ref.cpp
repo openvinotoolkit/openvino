@@ -7,6 +7,8 @@
 
 namespace kernel_selector {
 
+static inline int GetInnerFeatureBlockSize(const DataTensor&);
+
 ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
@@ -58,6 +60,9 @@ KernelsPriority EltwiseKernelRef::GetKernelsPriority(const Params& /*params*/) c
 JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) const {
     auto jit = EltwiseKernelBase::GetJitConstants(params);
 
+    size_t feature_block_size = GetInnerFeatureBlockSize(params.outputs[0]);
+    jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
+
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);
 
@@ -95,5 +100,21 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
     }
 
     return jit;
+}
+
+static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
+    auto layout = tensor.GetLayout();
+    switch (layout) {
+    case DataLayout::b_fs_yx_fsv16:
+        return 16;
+    case DataLayout::b_fs_yx_fsv32:
+        return 32;
+    case DataLayout::bfyx:
+        return 1;
+    default:
+        OPENVINO_THROW("GetInnerFeatureBlockSize : Unexpected format for generic_eltwise_ref kernel.");
+    }
+
+    return 1;
 }
 }  // namespace kernel_selector
