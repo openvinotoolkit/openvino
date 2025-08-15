@@ -22,7 +22,7 @@ void Output<Node>::reset() {
     m_index = 0;
 }
 
-Output<Node> Output<Node>::for_node(const std::shared_ptr<Node>& node) {
+Output<Node> Output<Node>::for_node(const std::shared_ptr<Node>& node) const {
     return Output(node, m_index);
 }
 Node* Output<Node>::get_node() const {
