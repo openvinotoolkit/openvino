@@ -241,15 +241,15 @@ void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
 
 std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_name) {
     uint32_t low_rank_dim, full_rank_dim;
-    if (ov::npuw::matchLoRAMatMulAString(state_name)) {
+    if (ov::npuw::util::matchLoRAMatMulAString(state_name)) {
         // Shape of A is [r, d]
         low_rank_dim = 0;
         full_rank_dim = 1;
-    } else if (ov::npuw::matchLoRAMatMulBString(state_name)) {
+    } else if (ov::npuw::util::matchLoRAMatMulBString(state_name)) {
         // Shape of B is [d, r]
         low_rank_dim = 1;
         full_rank_dim = 0;
-    } else if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
+    } else if (ov::npuw::util::matchLoRAMatMulAlphaString(state_name)) {
         // Shape of alpha is [1, r]
         low_rank_dim = 1;
         full_rank_dim = 0;
@@ -260,17 +260,13 @@ std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_nam
     return std::make_pair(low_rank_dim, full_rank_dim);
 }
 
-constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
-
-constexpr std::size_t kStartOutputKVCacheLayers = 1;
-
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         auto input_name = input_port.get_any_name();
-        if (ov::npuw::matchLoRAMatMulAString(input_name) || ov::npuw::matchLoRAMatMulBString(input_name) ||
-            ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
+        if (ov::npuw::util::matchLoRAMatMulAString(input_name) || ov::npuw::util::matchLoRAMatMulBString(input_name) ||
+            ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
             auto input_tensor = m_prefill_request->get_tensor(input_port);
             m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
         }
@@ -318,6 +314,12 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     const bool use_chunk_prefill = m_npuw_llm_compiled_model->m_use_chunk_prefill;
     if (use_chunk_prefill) {
         clear_chunk_prefill_kv_cache();
+    }
+
+    const bool enable_prefix_caching = m_npuw_llm_compiled_model->m_enable_prefix_caching;
+    if (enable_prefix_caching) {
+        const uint64_t prefix_caching_max_num_blocks = m_npuw_llm_compiled_model->m_prefix_caching_max_num_blocks;
+        m_prefix_cache = std::make_shared<PrefixCacheManager>(prefix_caching_max_num_blocks);
     }
 
     if (compiled_model->m_lm_head_compiled) {
@@ -572,7 +574,15 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                                            kvcache_desc.num_stored_tokens - num_tokens,
                                            kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
-        copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        if (src_tensor->get_shape()[kv_dim] == dst_slice->get_shape()[kv_dim]) {
+            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        } else {
+            auto src_slice = make_tensor_slice(src_tensor,
+                                               kv_dim,
+                                               static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]) - num_tokens,
+                                               static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]));
+            copy_tensor_by_dim(src_slice, dst_slice, kv_dim);
+        }
     }
     LOG_DEBUG("Done.");
 }
@@ -595,28 +605,216 @@ void ov::npuw::LLMInferRequest::clear_chunk_prefill_kv_cache() {
     }
 }
 
+uint64_t ov::npuw::LLMInferRequest::restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                                                          size_t block_size,
+                                                          const std::vector<uint64_t>& prompt_hashes,
+                                                          std::unordered_map<std::string, std::string> input_name_map) {
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+
+    size_t actual_token_num = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    size_t num_blocks = (actual_token_num + block_size - 1) / block_size;  // Calculate number of blocks
+
+    uint64_t restored_token_num = 0;
+    size_t token_idx = 0;
+
+    for (size_t block_index = 0; block_index < num_blocks; ++block_index) {
+        size_t current_block_size = std::min(block_size, actual_token_num - block_index * block_size);
+        if (current_block_size < block_size) {
+            // Not a full block, skip it
+            break;
+        }
+
+        std::vector<uint64_t> token_hashes(block_size);
+        for (size_t i = 0; i < block_size; ++i) {
+            token_hashes[i] = prompt_hashes[token_idx];
+            // std::cout << "[match cache]token_idx: " << token_idx << " token_hash: " << token_hashes[i] <<
+            // std::endl;
+            token_idx++;
+        }
+
+        // block hash is the hash of last token in block
+        uint64_t block_hash = token_hashes.back();
+
+        std::shared_ptr<KVBlock> retrieved_block;
+        if (!m_prefix_cache->get_block(block_hash, retrieved_block)) {
+            std::cout << "[Cache miss] Block not found with block hash: " << block_hash << std::endl;
+            break;
+        }
+
+        // Cache hit
+        auto token_start = retrieved_block->get_token_start();
+        const BlocKVCache block_kv_cache = retrieved_block->get_block_kv_cache();
+        std::cout << "[Cache hit] Block found with block hash: " << block_hash << " token_start: " << token_start
+                  << std::endl;
+        for (auto kv_per_layer : block_kv_cache) {
+            auto kv_out_name = kv_per_layer.first;
+            const auto& kv_in_name = input_name_map[kv_out_name];
+
+            auto kv_tensor = kv_per_layer.second;
+            const auto& kv_dim = (kv_out_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                     ? 3u
+                                     : kvcache_desc.dim;
+
+            auto kv_dst_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(kv_in_name));
+            auto kv_dst_slice = make_tensor_slice(kv_dst_tensor,
+                                                  kv_dim,
+                                                  static_cast<uint32_t>(token_start),
+                                                  static_cast<uint32_t>(token_start + block_size));
+            copy_tensor_by_dim(kv_tensor, kv_dst_slice, kv_dim);
+        }
+
+        restored_token_num += block_size;
+    }
+
+    return restored_token_num;
+}
+
+void ov::npuw::LLMInferRequest::store_blocks_in_cache(
+    size_t chunk_size,
+    size_t block_size,
+    const std::vector<uint64_t>& prompt_hashes,
+    size_t& token_idx,
+    const std::unordered_map<std::string, std::string>& input_name_map) {
+    auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    const auto& prefill_compiled = m_prefill_request->get_compiled_model();
+
+    // Process input chunk in blocks
+    for (size_t block_start = 0; block_start < chunk_size; block_start += block_size) {
+        size_t curr_block_size = std::min(block_size, chunk_size - block_start);
+        if (curr_block_size < block_size) {
+            // Not a full block, drop it.
+            break;
+        }
+
+        // 1. Get token hashes in a new block
+        std::vector<size_t> token_hashes(curr_block_size);
+        for (size_t i = 0; i < curr_block_size; ++i) {
+            token_hashes[i] = prompt_hashes[token_idx];
+            token_idx++;
+        }
+
+        // 2. Allocate KV cache tensors for a new block
+        auto kvcache_block = BlocKVCache();
+        for (std::size_t i = kStartOutputKVCacheLayers; i < prefill_compiled->outputs().size(); ++i) {
+            const auto& output_name = prefill_compiled->outputs()[i].get_any_name();
+
+            const auto& kv_dim = (output_name.find("value") != std::string::npos && kvcache_desc.v_tensors_transposed)
+                                     ? 3u
+                                     : kvcache_desc.dim;
+
+            auto kv_src_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
+            auto kv_src_slice = make_tensor_slice(kv_src_tensor,
+                                                  kv_dim,
+                                                  static_cast<uint32_t>(block_start),
+                                                  static_cast<uint32_t>(block_start + curr_block_size));
+
+            auto new_tensor_elem_type = kv_src_slice->get_element_type();
+            auto new_tensor_shape = kv_src_slice->get_shape();
+            auto new_kv_tensor = ov::get_tensor_impl(ov::Tensor(new_tensor_elem_type, new_tensor_shape));
+            copy_tensor_by_dim(kv_src_slice, new_kv_tensor, kv_dim);
+
+            kvcache_block.push_back(std::make_pair(output_name, new_kv_tensor));
+        }
+
+        // 3. Create a new KVBlock with token hashes and KV cache tensors
+        auto block = std::make_shared<KVBlock>(curr_block_size);
+        block->set_token_start(token_idx - curr_block_size);
+        block->add_block(token_hashes, kvcache_block);
+
+        // 4. Store block in cache
+        uint64_t prev_block_hash = 0;
+        if (block->get_token_start() > 0) {
+            size_t last_token_id_in_prev_block = block->get_token_start() - 1;
+            prev_block_hash = prompt_hashes[last_token_id_in_prev_block];
+        }
+
+        m_prefix_cache->put_block(block, prev_block_hash);
+        std::cout << "[Cache store]Got a full block. Token start: " << block->get_token_start()
+                  << " block hash: " << block->get_block_hash() << std::endl;
+    }
+}
+
 void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                                       ov::SoPtr<ov::ITensor> attention_mask,
                                                       ov::SoPtr<ov::ITensor> position_ids) {
     LOG_DEBUG("Calling chunked inference for prefill model.");
     LOG_BLOCK();
 
+    std::cout << "infer_chunked_prefill: input token len is " << input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]
+              << std::endl;
+
     const auto input_prompt_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
     const auto input_ids_elem_size = input_ids->get_element_type().size();
     auto input_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
-    const int64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
+    const uint64_t chunk_prompt_len = m_npuw_llm_compiled_model->m_prefill_chunk_size;
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
     auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
 
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
 
-    int64_t remaining_prompts = input_prompt_len;
+    uint64_t remaining_prompts = input_prompt_len;
+
+    const bool enable_prefix_caching = m_npuw_llm_compiled_model->m_enable_prefix_caching;
+    const uint64_t prefix_caching_block_size = m_npuw_llm_compiled_model->m_prefix_caching_block_size;
+    std::vector<uint64_t> prompt_hashes;
+    std::unordered_map<std::string, std::string> input_name_map;
+    size_t token_idx = 0;
+    bool restore_prefix_cache = false;
+    if (enable_prefix_caching) {
+        // Calculate input prompts hash
+        prompt_hashes = calculate_hashes(input_ids);
+
+        // Create output to input ports name for convinience
+        const auto& prefill_compiled = m_prefill_request->get_compiled_model();
+        input_name_map = create_output_to_input_name_mapping(prefill_compiled, m_prefill_in_ports);
+
+        // Try to restore prefilled prompts from cache
+        auto restored_token_num =
+            restore_cached_blocks(input_ids, prefix_caching_block_size, prompt_hashes, input_name_map);
+        uint64_t scheduled_token_num = input_prompt_len - restored_token_num;
+        std::cout << "input_prompt_len: " << input_prompt_len << " restored_token_num: " << restored_token_num
+                  << std::endl;
+        std::cout << "scheduled_token_num: " << scheduled_token_num << std::endl;
+        remaining_prompts = scheduled_token_num;
+
+        kvcache_desc.num_stored_tokens = static_cast<uint32_t>(input_prompt_len - remaining_prompts);
+        token_idx = kvcache_desc.num_stored_tokens;
+        restore_prefix_cache = scheduled_token_num < input_prompt_len;
+    }
+
     while (remaining_prompts > 0) {
         // NB: input_ids can be either fp32(VLM) or i64(LLM)
         // The last chunk may not be completely filled if the actual length of the prompts is not evenly divisible by
         // the chunk size
         auto current_prompts_len = std::min(remaining_prompts, chunk_prompt_len);
+
+        // When prefix caching is enabled, the first chunk size is set to ensure we can always get full chunks in the
+        // past KV. Scenario explanation in below:
+        // 1. Maximum prompt length is 1024, with a chunk size of 256.
+        // 2. Past KV length is calculated as 1024 - 256 = 768.
+        // 3. When prefix caching is enabled and the block size is smaller than the chunk size:
+        //    - Assume 128 tokens are cached, and the input prompt length is 1024, processed in chunks:
+        //      - After processing the first chunk, the past KV in the infer request holds 128 + 256 tokens, leaving 640
+        //      tokens remaining.
+        //      - After processing the second chunk, the past KV holds 128 + 256 + 256 tokens, leaving 384 tokens
+        //      remaining.
+        //      - After processing the third chunk, the past KV holds 128 + 256 + 256 + 256 tokens, exceeding the
+        //      maximum past KV length of 768.
+        // 4. To accommodate this, the first chunk size is set to ensure we can always get full chunks in the past KV:
+        //    - Assume 128 tokens are cached, and the input prompt length is 1024, processed in chunks:
+        //      - After processing the first chunk, the past KV in the infer request holds 128 + 128 tokens, leaving 768
+        //      tokens remaining.
+        //      - After processing the second chunk, the past KV holds 128 + 128 + 256 tokens, leaving 512 tokens
+        //      remaining.
+        //      - After processing the third chunk, the past KV holds 128 + 128 + 256 + 256 tokens, leaving 256 tokens
+        //      remaining.
+        //      - After processing the fourth chunk, the past KV holds 128 + 128 + 256 + 256 + 256 tokens, all tokens
+        //      have been prefilled.
+        uint64_t remainder = kvcache_desc.num_stored_tokens % chunk_prompt_len;
+        uint64_t additional_tokens_to_a_full_chunk = (remainder == 0) ? 0 : chunk_prompt_len - remainder;
+        current_prompts_len =
+            (additional_tokens_to_a_full_chunk > 0) ? additional_tokens_to_a_full_chunk : current_prompts_len;
 
         // Populate the attention mask for the present chunk
         // For the already processed tokens, they will be added into the attention mask after inference call
@@ -627,9 +825,22 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // clear the last chunk of the attention mask to ensure non-relevant tokens are masked
             fill_tensor<int64_t>(attn_mask_in_tensor, 0, last_chunk_offset);
         }
+
         std::copy_n(attention_mask->data<int64_t>() + kvcache_desc.num_stored_tokens,
                     current_prompts_len,
                     attn_mask_in_tensor->data<int64_t>() + attn_mask_in_tensor->get_size() - current_prompts_len);
+
+        if (enable_prefix_caching) {
+            // Populate the attention mask for prefix caching:
+            // kvcache_desc.num_stored_tokens has been prefilled already
+            // The calculated key/values blocks will be copied from cache to past k/v inputs for inference
+            if (restore_prefix_cache) {
+                restore_prefix_cache = false;
+                std::copy_n(attention_mask->data<int64_t>(),
+                            kvcache_desc.num_stored_tokens,
+                            attn_mask_in_tensor->data<int64_t>());
+            }
+        }
 
         auto current_prefill_bytes = current_prompts_len * input_ids_elem_size;
         auto prefilled_bytes = kvcache_desc.num_stored_tokens * input_ids_elem_size;
@@ -650,6 +861,14 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
         pad_position_ids(pos_ids_in_tensor, actual_position_ids_slice);
 
         m_prefill_request->infer();
+
+        if (enable_prefix_caching) {
+            store_blocks_in_cache(current_prompts_len,
+                                  prefix_caching_block_size,
+                                  prompt_hashes,
+                                  token_idx,
+                                  input_name_map);
+        }
 
         remaining_prompts -= current_prompts_len;
         kvcache_desc.num_stored_tokens += static_cast<uint32_t>(current_prompts_len);
@@ -673,6 +892,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     }
 
     LOG_DEBUG("Done.");
+
+    if (enable_prefix_caching) {
+        m_prefix_cache->print_cache_status();
+    }
 }
 
 void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,

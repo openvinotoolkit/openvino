@@ -8,11 +8,16 @@
 
 #include "llm_compiled_model.hpp"
 #include "llm_lora_states.hpp"
+#include "llm_prefix_caching.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 
 namespace ov {
 namespace npuw {
+
+constexpr uint32_t INPUT_IDS_SEQ_LEN_DIM = 1;
+
+constexpr std::size_t kStartOutputKVCacheLayers = 1;
 
 class LLMInferRequest final : public ov::ISyncInferRequest {
 public:
@@ -90,6 +95,18 @@ private:
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
+
+    // Support prefix caching
+    std::shared_ptr<PrefixCacheManager> m_prefix_cache;
+    uint64_t restore_cached_blocks(const ov::SoPtr<ov::ITensor>& input_ids,
+                                   size_t block_size,
+                                   const std::vector<size_t>& prompt_hashes,
+                                   std::unordered_map<std::string, std::string> input_name_map);
+    void store_blocks_in_cache(size_t chunk_size,
+                               size_t block_size,
+                               const std::vector<size_t>& prompt_hashes,
+                               size_t& token_idx,
+                               const std::unordered_map<std::string, std::string>& input_name_map);
 };
 
 }  // namespace npuw

@@ -769,11 +769,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             new_shape =
                 partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
-        } else if (ov::npuw::matchLoRAMatMulAString(input_name)) {
+        } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
-        } else if (ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
+        } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else if (ov::npuw::matchLoRAMatMulBString(input_name)) {
+        } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else {
             const auto& partial_shape = input.get_partial_shape();
@@ -1028,8 +1028,9 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
     for (size_t i = 0; i < sinks.size(); ++i) {
         if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
             auto variable_name = assign->get_variable_id();
-            if (!ov::npuw::matchLoRAMatMulAString(variable_name) && !ov::npuw::matchLoRAMatMulBString(variable_name) &&
-                !ov::npuw::matchLoRAMatMulAlphaString(variable_name)) {
+            if (!ov::npuw::util::matchLoRAMatMulAString(variable_name) &&
+                !ov::npuw::util::matchLoRAMatMulBString(variable_name) &&
+                !ov::npuw::util::matchLoRAMatMulAlphaString(variable_name)) {
                 continue;
             }
 
@@ -1134,7 +1135,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
     const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
     KVAxesPosition axes{batch_dim, seq_len_dim};
-    const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), prompt_alignment);
+    uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), prompt_alignment);
     const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
 
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
@@ -1157,6 +1158,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                            ") is not a multiple of chunk size (",
                            m_prefill_chunk_size,
                            "). Please adjust NPUW_LLM_MAX_PROMPT_LEN to be a multiple of NPUW_LLM_PREFILL_CHUNK_SIZE.");
+        }
+
+        m_enable_prefix_caching = m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_PREFIX_CACHING>();
+        if (m_enable_prefix_caching) {
+            std::cout << "Prefix caching is enabled" << std::endl;
+            m_prefix_caching_block_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_BLOCK_SIZE>();
+            if (m_prefix_caching_block_size > m_prefill_chunk_size) {
+                std::cout << "Prefix caching block size is adjusted to " << m_use_chunk_prefill << std::endl;
+                m_prefix_caching_block_size = m_prefill_chunk_size;
+            }
+            m_prefix_caching_max_num_blocks = m_cfg.get<::intel_npu::NPUW_LLM_PREFIX_CACHING_MAX_NUM_BLOCKS>();
+            std::cout << "Prefix caching block size: " << m_prefix_caching_block_size << std::endl;
+            std::cout << "Prefix caching maximum number of blocks: " << m_prefix_caching_max_num_blocks << std::endl;
         }
     }
 
@@ -1372,6 +1386,9 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& stream, const ov::npuw:
         write(model_stream, m_prefill_chunk_size);
         write(model_stream, m_use_chunk_prefill);
         write(model_stream, m_max_lora_rank);
+        write(model_stream, m_enable_prefix_caching);
+        write(model_stream, m_prefix_caching_block_size);
+        write(model_stream, m_prefix_caching_max_num_blocks);
 
         // Write config
         write(model_stream, m_cfg);
@@ -1580,6 +1597,9 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         read(model_stream, compiled->m_prefill_chunk_size);
         read(model_stream, compiled->m_use_chunk_prefill);
         read(model_stream, compiled->m_max_lora_rank);
+        read(model_stream, compiled->m_enable_prefix_caching);
+        read(model_stream, compiled->m_prefix_caching_block_size);
+        read(model_stream, compiled->m_prefix_caching_max_num_blocks);
 
         // Deserialize config
         read(model_stream, compiled->m_cfg);
