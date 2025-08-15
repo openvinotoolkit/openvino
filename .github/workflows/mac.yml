@@ -41,6 +41,7 @@ env:
   MANIFEST_FILE: manifest.yml
   PRODUCT_TYPE: public_macos_x86_64_release
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  GH_DEBUG: 1
 
 jobs:
 
