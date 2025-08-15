@@ -101,6 +101,23 @@ AssignRegisters::RegMap AssignRegisters::assign_regs_manually(const LinearIR& li
             }
             manually_assigned[input.get_descriptor_ptr()->get_reg()] = assigned;
             vec_pool.erase(vec_pool.begin());
+        } else if (ov::is_type<op::Fill>(op)) {
+            const auto fill = ov::as_type_ptr<op::Fill>(op);
+            const auto input_connector = expr->get_input_port_connector(0);
+            const auto input_reg = input_connector->get_source().get_descriptor_ptr()->get_reg();
+            const auto output_reg = expr->get_output_port_descriptor(0)->get_reg();
+
+            const auto element_size = fill->get_element_type().size();
+            constexpr size_t vector_bytes = 16;
+            const size_t register_capacity = vector_bytes / element_size;
+
+            if (fill->get_offset() == register_capacity) {
+                if (manually_assigned.count(input_reg)) {
+                    manually_assigned[output_reg] = manually_assigned[input_reg];
+                } else if (manually_assigned.count(output_reg)) {
+                    manually_assigned[input_reg] = manually_assigned[output_reg];
+                }
+            }
         }
     }
     gpr_pool.erase(gpr_pool.begin(), std::next(gpr_pool.begin(), max_buffer_group + 1));
@@ -199,10 +216,68 @@ bool AssignRegisters::run(LinearIR& linear_ir) {
         return register_map;
     };
 
+    // Handle inplace register assignment for Fill operations
+    auto handle_inplace_assignment = [&](const decltype(live_intervals_vec)& live_intervals) {
+        for (const auto& expr : exprs) {
+            const auto op = expr->get_node();
+            if (ov::is_type<op::Fill>(op)) {
+                const auto fill = ov::as_type_ptr<op::Fill>(op);
+                const auto element_size = fill->get_element_type().size();
+                constexpr size_t vector_bytes = 16;  // 128-bit vector register
+                const size_t register_capacity = vector_bytes / element_size;
+
+                if (fill->get_offset() == register_capacity) {
+                    const auto input_reg = expr->get_input_port_descriptor(0)->get_reg();
+                    const auto output_reg = expr->get_output_port_descriptor(0)->get_reg();
+
+                    // If both regs are in live intervals and not manually assigned, make them the same
+                    if (!assigned_reg_map.count(input_reg) && !assigned_reg_map.count(output_reg)) {
+                        // Find the intervals for both registers
+                        for (const auto& [interval, reg] : live_intervals) {
+                            if (reg == input_reg) {
+                                // Assign output register to map to the same physical register as input
+                                // This will be resolved in the automatic assignment phase
+                                for (const auto& [interval2, reg2] : live_intervals) {
+                                    if (reg2 == output_reg) {
+                                        // Mark these as requiring the same physical register
+                                        // We'll handle this by modifying the register assignment map after assignment
+                                        break;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    handle_inplace_assignment(live_intervals_vec);
+
     const auto& map_vec = assign_registers(live_intervals_vec, vec_pool);
     assigned_reg_map.insert(map_vec.begin(), map_vec.end());
     const auto& map_gpr = assign_registers(live_intervals_gpr, gpr_pool);
     assigned_reg_map.insert(map_gpr.begin(), map_gpr.end());
+
+    for (const auto& expr : exprs) {
+        const auto op = expr->get_node();
+        if (ov::is_type<op::Fill>(op)) {
+            const auto fill = ov::as_type_ptr<op::Fill>(op);
+            const auto element_size = fill->get_element_type().size();
+            constexpr size_t vector_bytes = 16;
+            const size_t register_capacity = vector_bytes / element_size;
+
+            if (fill->get_offset() == register_capacity) {
+                const auto input_reg = expr->get_input_port_descriptor(0)->get_reg();
+                const auto output_reg = expr->get_output_port_descriptor(0)->get_reg();
+
+                if (assigned_reg_map.count(input_reg) && assigned_reg_map.count(output_reg)) {
+                    assigned_reg_map[output_reg] = assigned_reg_map[input_reg];
+                }
+            }
+        }
+    }
 
     for (const auto& expr : exprs) {
         // Note: manually assigned regs are always live => add them to all expressions
