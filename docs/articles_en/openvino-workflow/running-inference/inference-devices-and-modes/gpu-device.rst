@@ -450,6 +450,7 @@ Read-only Properties
 - ``ov::device::type``
 - ``ov::device::uuid``
 - ``ov::intel_gpu::device_total_mem_size``
+- ``ov::intel_gpu::device_max_alloc_mem_size``
 - ``ov::intel_gpu::execution_units_count``
 - ``ov::intel_gpu::memory_statistics``
 - ``ov::intel_gpu::uarch_version``

@@ -33,6 +33,12 @@ namespace intel_gpu {
 static constexpr Property<uint64_t, PropertyMutability::RO> device_total_mem_size{"GPU_DEVICE_TOTAL_MEM_SIZE"};
 
 /**
+ * @brief Read-only property which defines max size of memory object allocation in bytes
+ * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
+ */
+static constexpr Property<uint64_t, PropertyMutability::RO> device_max_alloc_mem_size{"GPU_DEVICE_MAX_ALLOC_MEM_SIZE"};
+
+/**
  * @brief Read-only property to get microarchitecture identifier in major.minor.revision format
  * @ingroup ov_runtime_ocl_gpu_prop_cpp_api
  */

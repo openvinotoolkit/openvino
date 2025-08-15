@@ -118,6 +118,7 @@ void regmodule_properties(py::module m) {
         m_properties.def_submodule("intel_gpu", "openvino.properties.intel_gpu submodule that simulates ov::intel_gpu");
 
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_total_mem_size, "device_total_mem_size");
+    wrap_property_RO(m_intel_gpu, ov::intel_gpu::device_max_alloc_mem_size, "device_max_alloc_mem_size");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::uarch_version, "uarch_version");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::execution_units_count, "execution_units_count");
     wrap_property_RO(m_intel_gpu, ov::intel_gpu::memory_statistics, "memory_statistics");
