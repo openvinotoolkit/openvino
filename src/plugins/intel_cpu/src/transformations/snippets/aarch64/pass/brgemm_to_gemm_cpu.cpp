@@ -20,6 +20,7 @@
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
 #include "snippets/op/brgemm.hpp"
+#include "snippets/op/buffer.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
@@ -61,10 +62,18 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
         const auto offset_b = brgemm->get_offset_b();
         const auto offset_c = brgemm->get_offset_c();
 
-        snippets::modifier::MemoryAccess::PortDescriptor copyb_in_port_desc(0, offset_b);
+        // TODO: Support real bias if there are after MatMul
+        // For better shape inference, we set scalar shape to this buffer.
+        // However, allocation size will be correctly initialized on LinearIR
+        auto nullified_bias_buffer = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{1});
+
+        snippets::modifier::MemoryAccess::PortDescriptor copyb_in_port_desc_0(0, offset_b);
+        snippets::modifier::MemoryAccess::PortDescriptor copyb_in_port_desc_1(0, 0);
         snippets::modifier::MemoryAccess::PortDescriptor copyb_out_port_desc(0, 0);
         auto gemm_repacking = std::make_shared<aarch64::GemmCopyB>(brgemm->input_value(1),
-                                                                   copyb_in_port_desc,
+                                                                   nullified_bias_buffer,
+                                                                   copyb_in_port_desc_0,
+                                                                   copyb_in_port_desc_1,
                                                                    copyb_out_port_desc,
                                                                    layout_b);
         PortDescriptorUtils::set_port_descriptor(gemm_repacking->input(0), brgemm_in1_desc->get_subtensor(), layout_b);
@@ -93,6 +102,7 @@ pass::BrgemmToGemmCPU::BrgemmToGemmCPU() {
 
         // need to run validate_and_infer_types manually: either input shapes were updated or
         // output Layout was updated (out shape will be updated in validate_and_infer_types())
+        nullified_bias_buffer->validate_and_infer_types();
         gemm_repacking->validate_and_infer_types();
         gemm_cpu->validate_and_infer_types();
 

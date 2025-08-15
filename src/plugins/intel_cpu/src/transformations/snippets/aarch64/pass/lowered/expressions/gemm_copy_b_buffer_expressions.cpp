@@ -55,31 +55,44 @@ void RepackedWeightsBufferExpression::init_allocation_size(
     const size_t N = *in_shape.rbegin();
     const size_t K = *++in_shape.rbegin();
 
-    const auto& consumers = get_output_port_connector(0)->get_consumers();
-    ExpressionPtr child_gemm_expr = nullptr;
-    // maybe connected to loopEnd besides gemm
-    for (const auto& consumer : consumers) {
-        if (ov::is_type<ov::intel_cpu::aarch64::GemmCPU>(consumer.get_expr()->get_node())) {
-            child_gemm_expr = consumer.get_expr();
-            break;
-        }
-    }
-    OPENVINO_ASSERT(child_gemm_expr, "RepackedWeightsBufferExpression must connect to gemm");
-    const auto& gemm_in_subtensor = ov::snippets::utils::get_projected_subtensor(child_gemm_expr->get_input_port(1));
-    const size_t n_block_size = *gemm_in_subtensor.rbegin();
-    if (snippets::utils::is_dynamic_value(N) || snippets::utils::is_dynamic_value(K) ||
-        snippets::utils::is_dynamic_value(n_block_size)) {
+    if (snippets::utils::is_dynamic_value(N) || snippets::utils::is_dynamic_value(K)) {
         m_allocation_size = snippets::utils::get_dynamic_value<size_t>();
         return;
     }
-    size_t n_block_num = N / n_block_size;
-    size_t n_tail_size = N % n_block_size;
-    m_allocation_size = n_block_num * kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_block_size, K);
-    if (n_tail_size > 0) {
-        m_allocation_size += kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(n_tail_size, K);
-    }
     // convert byte size to element type size
-    m_allocation_size = m_allocation_size / element_type.size();
+    m_allocation_size = kai_get_rhs_packed_size_rhs_pack_kxn_f32p8x1biasf32_f32_f32_neon(N, K) / element_type.size();
+}
+
+NullifiedBiasBufferExpression::NullifiedBiasBufferExpression(
+    const std::shared_ptr<ov::Node>& n,
+    const std::shared_ptr<snippets::IShapeInferSnippetsFactory>& factory)
+    : BufferExpression(n, factory) {}
+
+snippets::lowered::ExpressionPtr NullifiedBiasBufferExpression::clone() const {
+    return std::make_shared<NullifiedBiasBufferExpression>(*this);
+}
+
+void NullifiedBiasBufferExpression::validate() const {
+    BufferExpression::validate();
+    OPENVINO_ASSERT(is_independent_memory(), "NullifiedBiasBufferExpression must have not inputs");
+    OPENVINO_ASSERT(get_output_count() == 1, "NullifiedBiasBufferExpression must have only one output");
+    OPENVINO_ASSERT(any_of(get_node()->get_output_element_type(0), ov::element::u8),
+                    "NullifiedBiasBufferExpression after GemmCopyB currently only support u8 data type on arm");
+}
+
+void NullifiedBiasBufferExpression::init_allocation_size(
+    [[maybe_unused]] const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
+    [[maybe_unused]] size_t allocation_rank) {
+    const auto& consumers = get_output_port_connector(0)->get_consumers();
+    OPENVINO_ASSERT(consumers.size() == 1, "NullifiedBiasBufferExpression must have only one consumer");
+    const auto consumer = consumers.begin()->get_expr();
+    const auto copy_b = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCopyB>(consumer->get_node());
+    OPENVINO_ASSERT(copy_b, "NullifiedBiasBufferExpression expects GemmCopyB on output");
+    const auto& element_type = copy_b->get_input_element_type(0);
+
+    const auto& shape = ov::snippets::utils::get_planar_vdims(consumer->get_input_port(0));
+    // // N dimension * sizeof(float) - since the buffer has u8 element type
+    m_allocation_size = ov::snippets::utils::dynamic_safe_mul(*shape.rbegin(), element_type.size());
 }
 
 }  // namespace ov::intel_cpu::aarch64

@@ -26,4 +26,22 @@ private:
     snippets::lowered::ExpressionPtr clone() const override;
 };
 
+class NullifiedBiasBufferExpression : public snippets::lowered::BufferExpression {
+    friend class snippets::lowered::ExpressionFactory;
+
+public:
+    OPENVINO_RTTI("NullifiedBiasBufferExpression", "0", BufferExpression)
+    NullifiedBiasBufferExpression() = default;
+
+    void validate() const override;
+    void init_allocation_size(const std::shared_ptr<snippets::lowered::LoopManager>& loop_manager,
+                              size_t allocation_rank) override;
+
+private:
+    NullifiedBiasBufferExpression(const std::shared_ptr<ov::Node>& n,
+                                  const std::shared_ptr<snippets::IShapeInferSnippetsFactory>& factory);
+
+    snippets::lowered::ExpressionPtr clone() const override;
+};
+
 }  // namespace ov::intel_cpu::aarch64
