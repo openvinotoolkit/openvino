@@ -41,6 +41,7 @@ env:
   MANIFEST_FILE: manifest.yml
   PRODUCT_TYPE: public_macos_x86_64_release
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+  GH_DEBUG: 1
 
 jobs:
 
@@ -386,7 +387,7 @@ jobs:
       ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
       WHEELS_DIR: ${{ github.workspace }}/wheels
       ARTIFACTS_SHARE: "/mount/build-artifacts"
-
+      GH_DEBUG: 1
     steps:
       - name: Checkout OpenVINO actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -397,42 +398,25 @@ jobs:
             .github/actions/store_artifacts
           path: ${{ env.OPENVINO_REPO }}
 
-      - name: Download OpenVINO artifacts (package)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_package
-          path: ${{ env.ARTIFACTS_DIR }}
-      
-      - name: Download OpenVINO artifacts (dev package)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_developer_package
-          path: ${{ env.ARTIFACTS_DIR }}
+      - name: Install gh cli
+        run: |
+          apt-get update -y && apt-get install curl -y
+          curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_amd64.tar.gz -o /tmp/gh.tar.gz
+          tar -xzf /tmp/gh.tar.gz -C /opt && \
+          mv /opt/gh_2.76.2_linux_* /opt/gh && \
+          rm /tmp/gh.tar.gz
+          echo "PATH=/opt/gh/bin:$PATH" >> $GITHUB_ENV
 
-      - name: Download OpenVINO artifacts (openvino_js_package)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_js_package
-          path: ${{ env.ARTIFACTS_DIR }}
-
-      - name: Download OpenVINO artifacts (openvino_node_npm_package)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_node_npm_package
-          path: ${{ env.ARTIFACTS_DIR }}
-      
-      - name: Download OpenVINO artifacts (openvino_package_manifest)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_package_manifest
-          path: ${{ env.ARTIFACTS_DIR }}
-
-      - name: Download OpenVINO wheels
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_wheels
-          path: ${{ env.WHEELS_DIR }}
-          merge-multiple: true
+      - name: Download OpenVINO artifacts (package, dev package, js, node & manifest)
+        run: |
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_developer_package --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_js_package --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_node_npm_package --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_package_manifest --dir ${{ env.ARTIFACTS_DIR }}
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.WHEELS_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Store artifacts to a shared drive
         id: store_artifacts

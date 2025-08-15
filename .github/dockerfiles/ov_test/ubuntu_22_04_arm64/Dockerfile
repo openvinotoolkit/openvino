@@ -41,6 +41,14 @@ RUN chmod +x /install_openvino_dependencies.sh && \
     /install_openvino_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
+# `gh` cli - Download and install GitHub CLI
+RUN curl -L https://github.com/cli/cli/releases/download/v2.76.2/gh_2.76.2_linux_arm64.tar.gz -o /tmp/gh.tar.gz && \
+    tar -xzf /tmp/gh.tar.gz -C /opt && \
+    mv /opt/gh_2.76.2_linux_arm64 /opt/gh && \
+    rm /tmp/gh.tar.gz
+
+ENV PATH="/opt/gh/bin:$PATH"
+
 # Setup pip
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \

@@ -294,6 +294,7 @@ jobs:
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
       SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_cc_Release
+      GH_DEBUG: 1
 
     steps:
       - name: Clone OpenVINO
@@ -313,10 +314,9 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_selective_build_stat
-          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Extract selective build statistics package
         run: |
