@@ -935,38 +935,82 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
 
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
     OPENVINO_ASSERT(node.is_dynamic());
+
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout();
-    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
-    bool is_fp16_input = input_layout.data_type == data_types::f16;
+    auto rank = input_layout.get_partial_shape().size();
+
+    OPENVINO_ASSERT(rank == output_layout.get_partial_shape().size(), "Input and output ranks must match");
+    OPENVINO_ASSERT(rank <= 5, "Not supported rank");
+
+    bool i8_u8_input = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8);
+    bool i8_u8_output = (output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8);
+    bool is_fp16_input = (input_layout.data_type == data_types::f16);
+
     if (i8_u8_input) {
-        node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
-        bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
+        // Set input format based on rank
+        if (rank <= 4) {
+            node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
+        } else if (rank == 5) {
+            node.set_preferred_input_fmt(0, cldnn::format::b_fs_zyx_fsv32);
+        }
+
+        // Set output format based on output data type and rank
         if (i8_u8_output) {
-            node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            if (rank <= 4) {
+                node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            } else if (rank == 5) {
+                node.set_preferred_output_fmt(0, cldnn::format::b_fs_zyx_fsv32);
+            }
         } else {
-            node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+            if (rank <= 4) {
+                node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+            } else if (rank == 5) {
+                node.set_preferred_output_fmt(0, cldnn::format::b_fs_zyx_fsv16);
+            }
         }
-        // shallow channel
-        if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 16) {
-            node.set_preferred_input_fmt(0, cldnn::format::byxf);
+
+        // Special handling for shallow channels (≤ 16)
+        bool shallow_input_channels = (input_layout.get_partial_shape()[1].is_static() &&
+                                    input_layout.get_partial_shape()[1].get_length() <= 16);
+        bool shallow_output_channels = (output_layout.get_partial_shape()[1].is_static() &&
+                                      output_layout.get_partial_shape()[1].get_length() <= 16);
+
+        if (shallow_input_channels) {
+            if (rank <= 4) {
+                node.set_preferred_input_fmt(0, cldnn::format::byxf);
+            } else if (rank == 5) {
+                node.set_preferred_input_fmt(0, cldnn::format::bzyxf);
+            }
         }
-        if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
-            node.set_preferred_output_fmt(0, cldnn::format::byxf);
+
+        if (shallow_output_channels) {
+            if (rank <= 4) {
+                node.set_preferred_output_fmt(0, cldnn::format::byxf);
+            } else if (rank == 5) {
+                node.set_preferred_output_fmt(0, cldnn::format::bzyxf);
+            }
         }
     } else if (is_fp16_input) {
-        if (output_layout.get_partial_shape().size() <= 4)
+        // Set output format for FP16 input
+        if (rank <= 4) {
             node.set_preferred_output_fmt(0, format::b_fs_yx_fsv16);
-        else if (output_layout.get_partial_shape().size() == 5)
+        } else if (rank == 5) {
             node.set_preferred_output_fmt(0, format::b_fs_zyx_fsv16);
-        else
-            OPENVINO_ASSERT(false, "Unsupported input layout partial shape size ", input_layout.get_partial_shape().size());
-        // Use planar format for dynamic convolution with small input/output channel(IC <= 4)
-        if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 4) {
-            node.set_preferred_input_fmt(0, format::get_default_format(input_layout.get_partial_shape().size()));
         }
-        if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 4) {
-            node.set_preferred_output_fmt(0, format::get_default_format(output_layout.get_partial_shape().size()));
+
+        // Use planar format for dynamic convolution with small input/output channels (≤ 4)
+        bool small_input_channels = (input_layout.get_partial_shape()[1].is_static() &&
+                                   input_layout.get_partial_shape()[1].get_length() <= 4);
+        bool small_output_channels = (output_layout.get_partial_shape()[1].is_static() &&
+                                    output_layout.get_partial_shape()[1].get_length() <= 4);
+
+        if (small_input_channels) {
+            node.set_preferred_input_fmt(0, format::get_default_format(rank));
+        }
+
+        if (small_output_channels) {
+            node.set_preferred_output_fmt(0, format::get_default_format(rank));
         }
     }
 }
