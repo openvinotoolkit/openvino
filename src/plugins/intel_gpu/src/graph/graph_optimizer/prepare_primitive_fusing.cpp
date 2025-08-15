@@ -29,6 +29,7 @@
 #include "gather_inst.h"
 #include "gather_nd_inst.h"
 #include "gather_elements_inst.h"
+#include "group_normalization_inst.h"
 #include "scatter_update_inst.h"
 #include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
@@ -499,8 +500,12 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         };
 
         auto conv_supports_fusings = [&](convolution_node& node) -> bool {
-            if (lo.has_all_enabled_onednn_impls_optimization_attribute() &&
-                lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/) == impl_types::onednn) {
+            auto preferred_impl_type = lo.get_preferred_impl_type(node, format::byxf /*dummy value to disable format checking*/);
+            if (lo.has_all_enabled_onednn_impls_optimization_attribute() && preferred_impl_type == impl_types::onednn) {
+                return true;
+            }
+
+            if (preferred_impl_type == impl_types::cm) {
                 return true;
             }
 
@@ -741,6 +746,7 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             auto& input = activation_node.get_dependency(0);
+            auto preferred_impl_type = lo.get_preferred_impl_type(input, format::byxf /*dummy value to disable format checking*/);
             if (activation_node.get_dependencies().size() >= 3)
                 return;
 
@@ -772,7 +778,15 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 }
             }
 
-            bool should_fuse = input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>());
+            bool should_fuse = input.is_type<convolution>() &&
+                                conv_supports_fusings(input.as<convolution>()) &&
+                                preferred_impl_type != impl_types::cm;
+
+            should_fuse |= input.is_type<convolution>() && conv_supports_fusings(input.as<convolution>()) &&
+                                preferred_impl_type == impl_types::cm &&
+                                input.get_fused_primitives().size() == 1 &&
+                                input.get_fused_primitives()[0].is_type<group_normalization>() &&
+                                activation_func == cldnn::activation_func::swish;
 
             should_fuse |= input.is_type<fully_connected>() && fc_supports_fusings(input.as<fully_connected>());
 
@@ -826,7 +840,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
 
             should_fuse |= input.is_type<lora>() && lora_supports_fusings(input.as<lora>());
 
-            bool legacy_fusion = activation_node.get_dependencies().size() == 1 &&
+            bool legacy_fusion = preferred_impl_type != impl_types::cm &&
+                                  activation_node.get_dependencies().size() == 1 &&
                                  !input.can_be_optimized() &&
                                  !activation_node.is_constant() &&
                                  !activation_node.has_fused_primitives() &&
@@ -1283,10 +1298,29 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(*fused_node, node, &fusing_history);
         };
 
-        program_helpers::do_for_types<activation, quantize, eltwise>(*node,
-                fuse_activation_f,
-                fuse_quantize_f,
-                fuse_eltwise_f);
+        auto fuse_groupnorm_f = [&](group_normalization_node& groupnorm_node) {
+            auto& input_data = groupnorm_node.get_dependency(0);
+
+            if (input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
+                return;
+
+            if (!input_data.is_type<convolution>() || !conv_supports_fusings(input_data.as<convolution>()))
+                return;
+
+            if (!(lo.get_preferred_impl_type(input_data.as<convolution>(), format::byxf) == impl_types::cm))
+                return;
+
+            if (input_data.get_fused_primitives().size() > 0 || groupnorm_node.get_fused_primitives().size() > 0)
+                return;
+
+            p.fuse_nodes(input_data, groupnorm_node, &fusing_history);
+        };
+
+        program_helpers::do_for_types<activation, quantize, eltwise, group_normalization>(*node,
+            fuse_activation_f,
+            fuse_quantize_f,
+            fuse_eltwise_f,
+            fuse_groupnorm_f);
     }
 
     // Need to update processing order to handle cases when peer node processing number is greater
