@@ -766,6 +766,7 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
     const size_t flush_frequency = needs_flushing ? 16 : 0;
     size_t executed_prims = 0;
 
+    std::cout << "-----------------------------------------------------------------" << std::endl;
     for (auto& inst : _exec_order) {
         NODE_DEBUG(*inst);
 
@@ -776,12 +777,22 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         }
 
         inst->prepare_primitive();
+        std::cout << "Execute " << inst->id() << " (type: " << inst->get_impl_params()->desc->type_string() << ") " << std::endl;
+        auto impl_params = inst->get_impl_params();
+        auto depends = inst->dependencies();
+        for (size_t i = 0; i < depends.size(); ++i) {
+            std::cout << "- inputs[" << i << "] : " << depends[i].first->id() << ", " << impl_params->get_input_layout(i).to_short_string() << std::endl;
+        }
+        for (size_t i = 0; i < impl_params->output_layouts.size(); ++i) {
+            std::cout << "- outputs[" << i << "] : " << impl_params->output_layouts[i].to_short_string() << std::endl;
+        }
         inst->execute();
 
         executed_prims++;
         if (needs_flushing && executed_prims % flush_frequency == 0)
             get_stream().flush();
     }
+    std::cout << "-----------------------------------------------------------------" << std::endl;
 
     // Using output of previous network as input to another one may cause hazard (in OOOQ mode) if user would not
     // provide proper event to execution. Flushing pipeline should prevent this kind of issues.
