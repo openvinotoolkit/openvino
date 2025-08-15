@@ -435,6 +435,13 @@ TEST_F(OVTensorTest, canSetShape) {
         ASSERT_EQ(origShape, t.get_shape());
         ASSERT_EQ(orig_data, t.data());
     }
+
+    // set shape bigger than maximum allocation size
+    {
+        constexpr auto max_dim = std::numeric_limits<size_t>::max();
+        OV_EXPECT_THROW(t.set_shape(Shape({max_dim, 2})), ov::Exception, _);
+        OV_EXPECT_THROW(t.set_shape(Shape({3, max_dim / 8})), ov::Exception, _);
+    }
 }
 
 TEST_F(OVTensorTest, canSetShapeStringTensor) {
@@ -464,6 +471,13 @@ TEST_F(OVTensorTest, canSetShapeStringTensor) {
         OV_ASSERT_NO_THROW(t.set_shape(origShape));
         ASSERT_EQ(origShape, t.get_shape());
         ASSERT_EQ(orig_data, t.data());
+    }
+
+    // set shape bigger than maximum allocation size
+    {
+        constexpr auto max_dim = std::numeric_limits<size_t>::max();
+        OV_EXPECT_THROW(t.set_shape(Shape({3, max_dim / 80})), ov::Exception, _);
+        OV_EXPECT_THROW(t.set_shape(Shape({1, max_dim / 80})), ov::Exception, _);
     }
 }
 
@@ -929,6 +943,15 @@ TEST_F(OVTensorTest, createReadOnlyView) {
 
 TEST_F(OVTensorTest, createReadOnlyViewFromNullptr) {
     OV_EXPECT_THROW(Tensor(ov::element::i32, ov::Shape{10}, static_cast<const void*>(nullptr)), ov::Exception, _);
+}
+
+TEST_F(OVTensorTest, createAllocationOverflow) {
+    OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max()}),
+                    Exception,
+                    HasSubstr("Cannot allocate memory"));
+    OV_EXPECT_THROW(Tensor(element::i32, Shape{std::numeric_limits<size_t>::max(), 2}),
+                    Exception,
+                    HasSubstr("Cannot allocate memory"));
 }
 
 struct TestParams {
