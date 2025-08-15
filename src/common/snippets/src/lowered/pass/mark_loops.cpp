@@ -18,6 +18,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/op/buffer.hpp"
 #include "snippets/op/rank_normalization.hpp"
 #include "snippets/op/reshape.hpp"
 
@@ -37,7 +38,8 @@ bool MarkLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, l
                                   ov::op::v0::Constant,
                                   ov::op::v0::Parameter,
                                   op::RankNormalization,
-                                  op::Reshape>(node);
+                                  op::Reshape,
+                                  op::Buffer>(node);
     };
 
     auto are_conflicted = [](const ExpressionPort& lhs, const ExpressionPort& rhs) {

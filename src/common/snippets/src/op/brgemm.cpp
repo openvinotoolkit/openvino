@@ -64,6 +64,24 @@ Brgemm::Brgemm(const Output<Node>& A,
 
 Brgemm::Brgemm(const Output<Node>& A,
                const Output<Node>& B,
+               const Output<Node>& pre_scale,
+               size_t offset_a,
+               size_t offset_b,
+               size_t offset_c,
+               const std::vector<size_t>& layout_a,
+               const std::vector<size_t>& layout_b,
+               const std::vector<size_t>& layout_c)
+    : MemoryAccess(std::set<size_t>{0, 1, 2}, std::set<size_t>{0}),
+      Op({A, B, pre_scale}) {
+    set_output_size(1);
+    set_input_offset(offset_a, 0);
+    set_input_offset(offset_b, 1);
+    set_output_offset(offset_c, 0);
+    custom_constructor_validate_and_infer_types(layout_a, layout_b, layout_c);
+}
+
+Brgemm::Brgemm(const Output<Node>& A,
+               const Output<Node>& B,
                const PortDescriptor& desc_a,
                const PortDescriptor& desc_b,
                const PortDescriptor& desc_c,

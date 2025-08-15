@@ -99,6 +99,10 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
 
         auto brgemm_in0 = brgemm->input_value(0);
         auto brgemm_in1 = brgemm->input_value(1);
+        ov::Output<ov::Node> brgemm_in2;
+        if (brgemm->get_input_size() > 2) {
+            brgemm_in2 = brgemm->input_value(2);
+        }
 
         std::shared_ptr<BrgemmCPU> brgemm_cpu = nullptr;
         std::shared_ptr<BrgemmCopyB> brgemm_copy_b = nullptr;
@@ -144,9 +148,16 @@ bool pass::BrgemmToBrgemmCPU::run_on_model(const std::shared_ptr<ov::Model>& mod
                                                      layout_b,
                                                      layout_c);
         } else {
-            brgemm_cpu = std::make_shared<BrgemmCPU>(ov::OutputVector{brgemm_in0, brgemm_in1},
+            ov::OutputVector in = {brgemm_in0, brgemm_in1};
+            std::vector<PortDescriptor> desc = {{0, offset_a}, {0, offset_b}};
+            if (brgemm->get_input_size() > 2) {
+                in = {brgemm_in0, brgemm_in1, brgemm_in2};
+                desc = {{0, offset_a}, {0, offset_b}, {0, 0}};
+            }
+            brgemm_cpu = std::make_shared<BrgemmCPU>(in,
                                                      brgemm_config,
-                                                     std::vector<PortDescriptor>{{0, offset_a}, {0, offset_b}},
+                                                     // std::vector<PortDescriptor>{{0, offset_a}, {0, offset_b}},
+                                                     desc,
                                                      PortDescriptor{0, offset_c},
                                                      layout_a,
                                                      layout_b,
