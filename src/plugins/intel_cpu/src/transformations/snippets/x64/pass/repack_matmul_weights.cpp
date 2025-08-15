@@ -27,6 +27,7 @@
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
 #include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "transformations/snippets/x64/op/fa.hpp"
 
 namespace ov::intel_cpu::pass {
 
@@ -64,6 +65,11 @@ bool RepackMatMulWeights::run_on_model(const std::shared_ptr<ov::Model>& model) 
         const auto shape_infer_leaf = ov::snippets::utils::get_leaf_node_of_first_child_shape_infer_seq(parameter);
         const auto& first_child = shape_infer_leaf ? shape_infer_leaf : parameter;
         const auto consumers = first_child->output(0).get_target_inputs();
+
+        const auto fa_cpu = ov::as_type_ptr<FACPU>(consumers.cbegin()->get_node()->shared_from_this());
+        if (fa_cpu) {
+            continue;
+        }
 
         const auto brgemm_cpu = ov::as_type_ptr<BrgemmCPU>(consumers.cbegin()->get_node()->shared_from_this());
         OPENVINO_ASSERT(consumers.size() == 1 && brgemm_cpu != nullptr, "Expected one consumer - BrgemmCPU");
