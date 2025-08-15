@@ -239,6 +239,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         idx++;
     }
 
+    if (concat_node.get_preferred_impl_type() == impl_types::onednn)
+        if (concat_axis != 1)
+            return false;
+
     // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
         bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
