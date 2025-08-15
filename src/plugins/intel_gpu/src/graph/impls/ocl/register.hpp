@@ -56,6 +56,7 @@
 #include "intel_gpu/primitives/shuffle_channels.hpp"
 #include "intel_gpu/primitives/slice.hpp"
 #include "intel_gpu/primitives/space_to_batch.hpp"
+#include "intel_gpu/primitives/sparse_fill_empty_rows.hpp"
 #include "intel_gpu/primitives/strided_slice.hpp"
 #include "intel_gpu/primitives/swiglu.hpp"
 #include "intel_gpu/primitives/tile.hpp"
@@ -152,6 +153,7 @@ REGISTER_OCL(unique_gather);
 REGISTER_OCL(search_sorted);
 REGISTER_OCL(STFT);
 REGISTER_OCL(ISTFT);
+REGISTER_OCL(sparse_fill_empty_rows);
 
 #undef REGISTER_OCL
 
