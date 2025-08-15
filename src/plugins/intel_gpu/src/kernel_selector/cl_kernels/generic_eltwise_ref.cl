@@ -175,6 +175,28 @@ KERNEL(eltwise)(
         const uint d4 = (uint)get_global_id(2) / OUTPUT_SIZES[2];
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
+
+        // Fill padded memory with zeros for b_fs_yx_fsv format
+        if(d4 + d3 + d2 + d1 == 0) {
+            uint offset = 0;
+            uint bs = OUTPUT_SIZES[3], features = OUTPUT_SIZES[2], ys = OUTPUT_SIZES[1], xs = OUTPUT_SIZES[0];
+            uint fs_pad = (features + FEATURE_BLOCK_SIZE -1) / FEATURE_BLOCK_SIZE;
+            for (uint b = 0; b < bs; ++b) {
+                for (uint f = fs_pad - 1; f < fs_pad; ++f) {
+                    for (uint y = 0; y < ys; ++y) {
+                        for (uint x = 0; x < xs; ++x) {
+                            for (uint fsv = 0; fsv < FEATURE_BLOCK_SIZE; ++fsv) {
+                                if (f * FEATURE_BLOCK_SIZE + fsv >= features) {
+                                    offset = b * fs_pad * ys * xs * FEATURE_BLOCK_SIZE + f * ys * xs * FEATURE_BLOCK_SIZE +
+                                             y * xs * FEATURE_BLOCK_SIZE + x * FEATURE_BLOCK_SIZE + fsv;
+                                    output[offset] = 0;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     #endif
 #endif
 

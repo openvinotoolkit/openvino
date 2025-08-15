@@ -61,10 +61,12 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     const uint f_block = (inner_f + outer_f * F_BLOCK_COUNT);
 
     // Feature axis of input tensor is smaller than inner block size : No need to calculate this block
-    if ((f_block*VEC_SIZE) > OUTPUT_FEATURE_NUM || b > OUTPUT_BATCH_NUM) {
+    if (b > OUTPUT_BATCH_NUM || (f_block*VEC_SIZE + VEC_SIZE) > (OUT_F_BLOCK * FEATURE_BLOCK_SIZE)) {
         return;
     }
-    if ((f_block*VEC_SIZE) == OUTPUT_FEATURE_NUM) {
+
+    // Fill padded memory with zeros for b_fs_yx_fsv format
+    if ((f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM && FEATURE_BLOCK_SIZE != 1) {
         MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) out = (MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE))(0);
         vstore8(out, global_id, output);
         return;
