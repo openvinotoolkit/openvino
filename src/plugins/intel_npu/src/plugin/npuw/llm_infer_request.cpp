@@ -207,35 +207,26 @@ void pad_position_ids(const ov::SoPtr<ov::ITensor>& padded_position_ids, const o
     }
 }
 
-std::string shape_to_String(const ov::Shape& shape) {
-    std::ostringstream oss;
-    oss << "[";
-    for (size_t i = 0; i < shape.size(); ++i) {
-        oss << shape[i];
-        if (i < shape.size() - 1) {
-            oss << ", ";
-        }
-    }
-    oss << "]";
-    return oss.str();
-}
-
 void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
                                       const ov::Shape& infer_tensor_shape,
                                       size_t full_rank_dim,
                                       size_t low_rank_dim,
                                       uint32_t max_low_rank_dim_size) {
     if (state_tensor_shape[full_rank_dim] != infer_tensor_shape[full_rank_dim]) {
-        OPENVINO_THROW("LoRA adapter tensor shape: " + shape_to_String(state_tensor_shape) +
-                       " is not compatible with inference tensor shape: " + shape_to_String(infer_tensor_shape) +
+        OPENVINO_THROW("LoRA adapter tensor shape: ",
+                       state_tensor_shape,
+                       " is not compatible with inference tensor shape: ",
+                       infer_tensor_shape,
                        ". Please check if adapter is compatible with the base model.");
     }
 
     uint32_t state_tensor_low_rank_size = static_cast<uint32_t>(state_tensor_shape[low_rank_dim]);
     if (state_tensor_low_rank_size > max_low_rank_dim_size) {
-        OPENVINO_THROW("LoRA tensor low-rank size: " + std::to_string(state_tensor_low_rank_size) +
-                       " is larger than the maximum LoRA low-rank size " + std::to_string(max_low_rank_dim_size) +
-                       +". Please adjust NPUW_LLM_MAX_LORA_RANK configuration.");
+        OPENVINO_THROW("LoRA tensor low-rank size: ",
+                       state_tensor_low_rank_size,
+                       " is larger than the maximum LoRA low-rank size ",
+                       max_low_rank_dim_size,
+                       ". Please adjust NPUW_LLM_MAX_LORA_RANK configuration.");
     }
 }
 
