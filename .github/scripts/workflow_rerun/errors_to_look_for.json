@@ -138,5 +138,9 @@
     {
         "error_text": "OperationStopped:",
         "ticket": 171334
+    },
+    {
+        "error_text": "No connection could be made",
+        "ticket": 171953
     }
 ]
