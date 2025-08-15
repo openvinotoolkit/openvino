@@ -76,6 +76,11 @@ void ActivationLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targe
         startFrom = 0;
         range = 2;
         resolution = 1;
+    } else if (activationType == utils::ActivationTypes::RoundHalfAwayFromZero ||
+               activationType == utils::ActivationTypes::RoundHalfToEven) {
+        startFrom = -10;
+        range = 20;
+        resolution = 4;
     } else {
         startFrom = 0;
         range = 15;
