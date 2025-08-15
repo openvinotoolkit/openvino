@@ -17,6 +17,7 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
     std::string layerName = layer_type_name_ID(op);
 
     int64_t axis = op->get_axis();
+    const bool is_normalize_mode = op->get_negative_indices_mode() == ov::op::v1::OneHot::NegativeIndicesMode::NORMALIZE;
     auto depth_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
     auto on_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(2));
     auto off_value_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(3));
@@ -58,6 +59,7 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          axis,
                                          depth,
+                                         is_normalize_mode,
                                          on_value,
                                          off_value);
 
@@ -69,6 +71,7 @@ static void CreateOneHotOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::
                                          out_tensor,
                                          cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                          axis,
+                                         is_normalize_mode,
                                          on_value,
                                          off_value);
 
