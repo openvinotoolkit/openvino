@@ -8,6 +8,8 @@
 
 #include <fstream>
 #include <iterator>
+#include <ov_ops/rms.hpp>
+#include <ov_ops/rotary_positional_embeddings.hpp>
 
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/graph_comparator.hpp"
@@ -129,6 +131,10 @@ public:
         std::string filePrefix = ov::test::utils::generateTestFilePrefix();
         m_out_xml_path = filePrefix + ".xml";
         m_out_bin_path = filePrefix + ".bin";
+        std::cout << "m_model_path: " << m_model_path << std::endl;
+        std::cout << "m_binary_path: " << m_binary_path << std::endl;
+        std::cout << "m_out_xml_path: " << m_out_xml_path << std::endl;
+        std::cout << "m_out_bin_path: " << m_out_bin_path << std::endl;
     }
 
     void TearDown() override {
@@ -169,6 +175,43 @@ TEST_P(SerializationTest, SaveModelByPath) {
         ov::save_model(m, out_xml_path, false);
     });
 }
+/*
+// The new pass and original pass all can not pass tests
+TEST_P(SerializationTest, SerializeWithMap) {
+    CompareSerialized([this](const auto& m) {
+        std::stringstream xmlStringStream;
+        ov::pass::Serialize(xmlStringStream, &weightsMapWrapper).run_on_model(m);
+
+        // Read model with the xml and weights map
+        std::vector<uint8_t> weightsMapPtrData(sizeof(void*));
+        ov::Tensor weightsTensor =
+            ov::Tensor(ov::element::u8, {sizeof(void*)}, reinterpret_cast<uint8_t*>(weightsMapPtrData.data()));
+        ov::Core core;
+        auto modelNew = core.read_model(xmlStringStream.str(), weightsTensor);
+        ov::serialize(modelNew, m_out_xml_path, m_out_bin_path);
+    });
+}
+
+TEST_P(SerializationTest, SerializeWithNormalPass) {
+    CompareSerialized([this](const auto& m) {
+        std::stringstream xmlStringStream;
+        std::stringstream weightsStream;
+        ov::pass::Serialize(xmlStringStream, weightsStream).run_on_model(m);
+        // Read model with the xml and weights map
+        std::string weights = weightsStream.str();
+        std::vector<uint8_t> weightsData(weights.size() + 1);
+        strcpy(reinterpret_cast<char*>(weightsData.data()), weights.c_str());
+        weightsData[weights.size()] = '\0';  // Null-terminate the string
+
+        ov::Tensor weightsTensor = ov::Tensor(ov::element::u8,
+                                              {static_cast<size_t>(weightsData.size())},
+                                              reinterpret_cast<uint8_t*>(weightsData.data()));
+        ov::Core core;
+        auto modelNew = core.read_model(xmlStringStream.str(), weightsTensor);
+        ov::serialize(modelNew, m_out_xml_path, m_out_bin_path);
+    });
+}
+*/
 
 INSTANTIATE_TEST_SUITE_P(
     IRSerialization,

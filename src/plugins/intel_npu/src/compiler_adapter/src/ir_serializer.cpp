@@ -5,6 +5,7 @@
 #include "ir_serializer.hpp"
 
 #include <cstdint>
+#include <fstream>
 #include <istream>
 #include <mutex>
 #include <streambuf>
@@ -14,9 +15,12 @@
 
 namespace intel_npu::driver_compiler_utils {
 
-IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, const uint32_t supportedOpset)
+IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel,
+                           const uint32_t supportedOpset,
+                           bool serializeWeightsPtrToXml)
     : _logger("IRSerializer", Logger::global().level()),
-      _supportedOpset(supportedOpset) {
+      _supportedOpset(supportedOpset),
+      _serializeWeightsPtrToXml(serializeWeightsPtrToXml) {
     // There is no const variant of run_passes so use const_cast here
     // as model serialization does not mutate the model
     _model = std::const_pointer_cast<ov::Model>(origModel);
@@ -27,7 +31,14 @@ IRSerializer::IRSerializer(const std::shared_ptr<const ov::Model>& origModel, co
         _logger.info("Clone model for offset smaller than 11");
     }
 
-    countModelSize();
+    if (_serializeWeightsPtrToXml) {
+        // Serialize directly to avoid size counter
+        std::ofstream xmlStream;
+        std::ofstream weightsStream;
+        serializeModelToStream(xmlStream, weightsStream);
+    } else {
+        countModelSize();
+    }
 }
 
 void IRSerializer::serializeModelToStream(std::ostream& xml, std::ostream& weights) {
