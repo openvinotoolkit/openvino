@@ -1186,6 +1186,70 @@ void primitive_inst::fill_shape_info_data(const layout& runtime_layout, const la
     }
 }
 
+bool primitive_inst::check_memory_reuse_compatibility(const std::shared_ptr<primitive_inst>& candidate_inst) const {
+    if (!candidate_inst) {
+        return false;
+    }
+
+    // Check if there's a dependency conflict between this instance and the candidate
+    // Use _runtime_memory_dependencies to check for conflicts
+    const auto& this_deps = this->_runtime_memory_dependencies;
+    const auto& candidate_deps = candidate_inst->_runtime_memory_dependencies;
+
+    // Convert primitive_inst* to uint32_t (unique_id) for compatibility with memory_restricter
+    auto this_unique_id = this->get_node().get_unique_id();
+    auto candidate_unique_id = candidate_inst->get_node().get_unique_id();
+
+    // If this instance depends on the candidate, memory reuse is not safe
+    if (this_deps.contains(candidate_unique_id)) {
+        return false;
+    }
+
+    // If the candidate depends on this instance, memory reuse is not safe
+    if (candidate_deps.contains(this_unique_id)) {
+        return false;
+    }
+
+    // Check for any common dependencies that could cause conflicts
+    // Since memory_restricter doesn't have iterator interface, we'll use a simpler approach
+    // This is a limitation - we can't easily check for common dependencies without access to internal sets
+    // For now, we'll assume no common dependency conflicts if direct dependencies are safe
+
+    return true; // No direct conflicts detected, memory reuse should be safe
+}
+
+bool primitive_inst::has_memory_dependency_conflict(const std::vector<uint32_t>& memory_user_unique_ids) const {
+    // Check if any of the memory users are in this primitive's dependency list
+    for (const auto& user_id : memory_user_unique_ids) {
+        if (_runtime_memory_dependencies.contains(user_id)) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " has dependency conflict with unique_id: " << user_id << std::endl;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool primitive_inst::can_safely_release_memory_record(const std::vector<uint32_t>& memory_user_unique_ids,
+                                                      const std::vector<std::shared_ptr<primitive_inst>>& remaining_exec_order) const {
+    // First check if current primitive has direct dependency conflicts
+    if (has_memory_dependency_conflict(memory_user_unique_ids)) {
+        GPU_DEBUG_TRACE_DETAIL << id() << " cannot release memory - direct dependency conflict" << std::endl;
+        return false;
+    }
+
+    // Check if any remaining primitives in execution order have dependency conflicts
+    for (const auto& remaining_inst : remaining_exec_order) {
+        if (remaining_inst && remaining_inst->has_memory_dependency_conflict(memory_user_unique_ids)) {
+            GPU_DEBUG_TRACE_DETAIL << id() << " cannot release memory - " << remaining_inst->id()
+                                   << " has dependency conflict" << std::endl;
+            return false;
+        }
+    }
+
+    GPU_DEBUG_TRACE_DETAIL << id() << " can safely release memory record" << std::endl;
+    return true;
+}
+
 void primitive_inst::set_shape_info_memory(memory::ptr addr) {
     _shape_info_memory = addr;
 }
@@ -1862,6 +1926,11 @@ void primitive_inst::reset_flags() {
     _impl_params->flags.reset();
 }
 
+void primitive_inst::reset_output_memory() {
+    clear_output_memory();
+    set_flag(ExecutionFlags::MEMORY_CHANGED);
+}
+
 void primitive_inst::prepare_primitive() {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("primitive_inst::execute: " + id()));
     const auto& primitive_id = id();
@@ -1959,7 +2028,9 @@ void primitive_inst::prepare_primitive() {
             _impl->update(*this, *_impl_params);
 
             realloc_if_needed(prev_execution_skipped);
-        }
+        } else if (_outputs[0] == nullptr) {
+             realloc_if_needed(prev_execution_skipped);
+         }
 
         OPENVINO_ASSERT(_impl_params->get_output_layout().is_static(),
                         "[GPU] Can't execute ", primitive_id, " primitive as output layout is dynamic in runtime");
