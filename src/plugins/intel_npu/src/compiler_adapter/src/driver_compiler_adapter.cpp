@@ -365,7 +365,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::parse(
     const std::optional<std::shared_ptr<const ov::Model>>& model) const {
     OV_ITT_TASK_CHAIN(PARSE_BLOB, itt::domains::NPUPlugin, "DriverCompilerAdapter", "parse");
 
-    if (is_dynamic_shape_blob(mainBlob)) {
+    if (config.get<COMPILATION_MODE>() == "HostCompile") {
         OPENVINO_THROW("Dynamic shape blob is only supported by MLIR compiler type now!");
     }
 

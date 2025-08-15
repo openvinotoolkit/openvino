@@ -29,7 +29,7 @@ public:
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
-    ~Pipeline() = default;
+    virtual ~Pipeline() = default;
 
     virtual void push();
 

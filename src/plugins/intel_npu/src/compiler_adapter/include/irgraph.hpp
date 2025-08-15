@@ -137,17 +137,4 @@ private:
 };
 
 #endif  // NPU_LLVM_BACKEND
-
-inline bool is_dynamic_shape_blob(const ov::Tensor& blob) {
-    // TODO: A way to detect if the blob is ELF or IR, check if first 20 bytes has 'ELF' string
-    // Check If blob is ELF, if not, create Graph for LLVM IR
-
-    size_t blobSize = blob.get_byte_size();
-    // Temporarily use 20 as header length
-    size_t headerSize = blobSize > 20 ? 20 : blobSize;
-    std::string header(reinterpret_cast<const char*>(blob.data()), headerSize);
-
-    return (header.find("ELF") == std::string::npos);
-}
-
 }  // namespace intel_npu
