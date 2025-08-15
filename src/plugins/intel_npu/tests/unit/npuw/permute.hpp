@@ -39,24 +39,6 @@ namespace {
 
 namespace details {
 
-// /// Read a 4-bit value from packed int4 array
-// inline uint8_t read_4b(const uint8_t* data, size_t r, size_t c, size_t cols) {
-//     size_t idx = r * cols + c;
-//     uint8_t byte = data[idx / 2];
-//     return (idx % 2 == 0) ? (byte & 0x0F) : (byte >> 4);
-// }
-
-// // Write a 4-bit value to packed int4 array
-// inline void write_4b(uint8_t* data, uint8_t val, size_t r, size_t c, size_t cols) {
-//     size_t idx = r * cols + c;
-//     uint8_t& byte = data[idx / 2];
-//     if (idx % 2 == 0) {
-//         byte = (byte & 0xF0) | (val & 0x0F);
-//     } else {
-//         byte = (byte & 0x0F) | ((val & 0x0F) << 4);
-//     }
-// }
-
 template <typename T>
 inline T read_value(const T* src, std::size_t r, std::size_t c, std::size_t cols) {
     std::size_t idx = r * cols + c;
@@ -92,36 +74,6 @@ void permute(const T* input, T* output, int rows, int cols) {
     }
 }
 
-// template <typename T>
-// ::testing::AssertionResult ArraysMatch(const T& actual, const T& expected) {
-//     if (actual.size() != expected.size()) {
-//         return ::testing::AssertionFailure()
-//                << "Size mismatch: actual.size()=" << actual.size() << ", expected.size()=" << expected.size();
-//     }
-//     for (size_t i = 0; i < expected.size(); ++i) {
-//         using ElemType = typename T::value_type;
-//         ElemType a = actual[i];
-//         ElemType e = expected[i];
-
-//         // For float types, use a tolerance for comparison
-//         if constexpr (std::is_floating_point<ElemType>::value) {
-//             float tol = 1e-3f;
-//             if (std::fabs(static_cast<float>(a) - static_cast<float>(e)) > tol) {
-//                 return ::testing::AssertionFailure()
-//                        << "Mismatch at index " << i << ": actual=" << a << ", expected=" << e;
-//             }
-//         } else {
-//             // For integer types, direct comparison
-//             if (a != e) {
-//                 return ::testing::AssertionFailure() << "Mismatch at index " << i << ": actual=" <<
-//                 static_cast<int>(a)
-//                                                      << ", expected=" << static_cast<int>(e);
-//             }
-//         }
-//     }
-//     return ::testing::AssertionSuccess();
-// }
-
 }  // namespace details
 
 using ShapesInitializer = std::function<void(std::vector<int>&)>;
@@ -134,7 +86,8 @@ using PermuteTestsParams = std::tuple<ov::element::Type_t,      // Precision
 class PermuteTestsBase {
 protected:
     ov::element::Type type;
-    ov::Tensor inTensor, outTensor;
+    ov::Tensor inTensor;
+    ov::Tensor outTensor;
 
     std::vector<std::size_t> axes;
 
@@ -142,7 +95,6 @@ protected:
     std::vector<int8_t> output;
     std::vector<int8_t> ref_output;
     ov::Shape input_shape;
-    ov::Shape output_shape;
 
     void make_input() {
         size_t nElements = shape_size(input_shape);
@@ -167,7 +119,6 @@ protected:
         }
 
         inTensor = ov::Tensor(type, input_shape, input.data());
-        outTensor = ov::Tensor(type, output_shape, output.data());
     }
 
 public:
@@ -197,7 +148,7 @@ public:
 
         result << "_axis";
 
-        for(size_t i = 0;  i < axes.size(); i++) {
+        for (size_t i = 0; i < axes.size(); i++) {
             result << "_" << axes[i];
         }
 
@@ -341,11 +292,4 @@ TEST_P(PermuteTests, permute) {
 
 #define Tensors [](std::vector<int> & input)
 
-// namespace details {
-// ::testing::internal::ParamGenerator<typename std::vector<ShapesInitializer>::value_type> ShapesIn(
-//     const std::vector<ShapesInitializer>& container) {
-//     return ::testing::ValuesIn(container.begin(), container.end());
-// }
-
-// }  // namespace details
 }  // anonymous namespace

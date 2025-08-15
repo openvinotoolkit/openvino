@@ -49,7 +49,7 @@ uint8_t read_4b(const uint8_t* data, size_t r, size_t c, size_t cols) {
 // Write a 4-bit value to packed int4 array
 void write_4b(uint8_t* data, uint8_t val, size_t r, size_t c, size_t cols) {
     size_t idx = r * cols + c;
-    //uint8_t* byte = data + idx;
+    // uint8_t* byte = data + idx;
     uint8_t& byte = data[idx / 2];
     if (idx % 2 == 0) {
         byte = (byte & 0xF0) | (val & 0x0F);
@@ -64,11 +64,9 @@ void transpose_i4(const uint8_t* input, uint8_t* output, size_t rows, size_t col
     // Zero output buffer
     std::fill(output, output + (total + 1) / 2, 0);
 
-    //std::cout << "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" << std::endl; 
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
             uint8_t val = read_4b(input, i, j, cols);
-            //std::cout << static_cast<int>(val) << "_";
             write_4b(output, val, j, i, rows);
         }
     }
@@ -76,25 +74,11 @@ void transpose_i4(const uint8_t* input, uint8_t* output, size_t rows, size_t col
 
 template <typename T>
 void transpose(const T* input, T* output, size_t rows, size_t cols) {
-    //std::cout << "####################rows" << rows << std::endl;
-    //std::cout << "####################cols" << cols << std::endl;
     for (size_t i = 0; i < rows; ++i) {
         for (size_t j = 0; j < cols; ++j) {
             output[j * rows + i] = input[i * cols + j];
         }
     }
-    // std::cout << "#########################input:" << std::endl;
-    // for (size_t i = 0; i < rows * cols; ++i) {
-    //     std::cout << input[i];
-    //     std::cout << " ";
-    // }
-    // std::cout << std::endl;
-    // std::cout << "#########################output:" << std::endl;
-    // for (size_t i = 0; i < rows * cols; ++i) {
-    //     std::cout << output[i];
-    //     std::cout << " ";
-    // }
-    // std::cout << std::endl;
 }
 
 template <typename T>
@@ -103,24 +87,6 @@ template <typename T>
         return ::testing::AssertionFailure()
                << "Size mismatch: actual.size()=" << actual.size() << ", expected.size()=" << expected.size();
     }
- 
-    // std::cout << "####################expected:" << std::endl;
-    // for(size_t i = 0; i < expected.size(); ++i){
-    //     using ElemType = typename T::value_type;
-    //     ElemType e = expected[i];
-    //     std::cout << static_cast<float>(e) << " ";
-    // }
-    // std::cout << std::endl;
-
-    // std::cout << "####################actual:" << std::endl;
-    // for(size_t i = 0; i < actual.size(); ++i){
-    //     using ElemType = typename T::value_type;
-    //     ElemType a = actual[i];
-    //     std::cout << static_cast<float>(a) << " ";
-    // }
-    // std::cout << std::endl;
-
-
     for (size_t i = 0; i < expected.size(); ++i) {
         using ElemType = typename T::value_type;
         ElemType a = actual[i];
@@ -144,53 +110,6 @@ template <typename T>
     return ::testing::AssertionSuccess();
 }
 
-template <typename T>
-void showdata(const T* input, T* ref_output, T* output, size_t n){
-    std::cout << "####################input:" << std::endl;
-    for(size_t i = 0; i < n; ++i){
-        std::cout << static_cast<int>(input[i]) << " ";
-    }
-    std::cout << std::endl;
-    std::cout << "####################ref_output:" << std::endl;
-    for(size_t i = 0; i < n; ++i){
-        std::cout << static_cast<int>(ref_output[i]) << " ";
-    }
-    std::cout << std::endl;
-    std::cout << "####################output:" << std::endl;
-    for(size_t i = 0; i < n; ++i){
-        std::cout << static_cast<int>(output[i]) << " ";
-    }
-    std::cout << std::endl;
-}
-
-void showtensor(ov::Tensor& inTensor, ov::Tensor& outTensor){
-    uint8_t* src = static_cast<uint8_t*>(inTensor.data());
-    uint8_t* dst = static_cast<uint8_t*>(outTensor.data());
-    std::cout << "################showtensor shape" << std::endl;
-    auto inshape = inTensor.get_shape();
-    auto outshape = outTensor.get_shape();
-    std::cout << "Input shape: ";
-    for (const auto& dim : inshape) {
-        std::cout << dim << " ";
-    }
-    std::cout << std::endl;
-    std::cout << "Output shape: ";
-    for (const auto& dim : outshape) {
-        std::cout << dim << " ";
-    }
-    std::cout << std::endl;
-    std::cout << "################showtensor" << std::endl;
-    
-    for(size_t i = 0; i < 8; ++i){
-        std::cout << static_cast<int>(src[i]) << " ";
-    }
-    std::cout << std::endl;
-    for(size_t i = 0; i < 8; ++i){
-        std::cout << static_cast<int>(dst[i]) << " ";
-    }
-    std::cout << std::endl;
-}
-
 }  // namespace details
 
 using ShapesInitializer = std::function<void(std::vector<int>&)>;
@@ -209,14 +128,13 @@ protected:
     std::vector<int8_t> output;
     std::vector<int8_t> ref_output;
     ov::Shape input_shape;
-    ov::Shape output_shape;
 
     void make_input() {
         size_t nElements = shape_size(input_shape);
 
-        ASSERT_EQ((type.bitwidth() * nElements) % 8, 0) << "Input len has to be byte boundary aligned, but was "
-                                                            << type.bitwidth() * nElements << " bits";
-        const size_t nBytes  = type.bitwidth() * nElements  / 8;
+        ASSERT_EQ((type.bitwidth() * nElements) % 8, 0)
+            << "Input len has to be byte boundary aligned, but was " << type.bitwidth() * nElements << " bits";
+        const size_t nBytes = type.bitwidth() * nElements / 8;
 
         input.resize(nBytes);
         ref_output.resize(nBytes);
@@ -225,34 +143,15 @@ protected:
         std::fill(ref_output.begin(), ref_output.end(), 0);
         std::fill(output.begin(), output.end(), 0);
 
-        std::array<int8_t, 32> input_local = {
-                0x0A, 0x0B, 0x1C, 0x1D, 0x2E, 0x2F, 0x35, 0x36,
-                0x4A, 0x4B, 0x5A, 0x5B, 0x6A, 0x6B, 0x7A, 0x7B,
-                0x0C, 0x0D, 0x1C, 0x1D, 0x2C, 0x2D, 0x3C, 0x3D,
-                0x4C, 0x4D, 0x5C, 0x5D, 0x6C, 0x6D, 0x7C, 0x7D
-        };
+        std::array<int8_t, 32> input_local = {0x0A, 0x0B, 0x1C, 0x1D, 0x2E, 0x2F, 0x35, 0x36, 0x4A, 0x4B, 0x5A,
+                                              0x5B, 0x6A, 0x6B, 0x7A, 0x7B, 0x0C, 0x0D, 0x1C, 0x1D, 0x2C, 0x2D,
+                                              0x3C, 0x3D, 0x4C, 0x4D, 0x5C, 0x5D, 0x6C, 0x6D, 0x7C, 0x7D};
 
         for (size_t idx = 0, k = 0; k < nBytes; k++, idx = (idx + 1) % input_local.size()) {
-           input[k] = input_local[idx];
-           std::cout << static_cast<int>(input[k]) << "_";
+            input[k] = input_local[idx];
         }
-
-        std::cout << "################original input:" << std::endl;
-        std::cout << "################original input size:" << input.size() << std::endl;
-        for(size_t i = 0; i < input.size(); ++i) {
-            std::cout << static_cast<int>(input[i]) << "_";
-        }
-        std::cout << std::endl;
-
-        std::cout << "################original input uint8_t:" << std::endl;
-        uint8_t* input8 = reinterpret_cast<uint8_t*>(input.data());
-        for(size_t i = 0; i < input.size(); ++i) {
-            std::cout << static_cast<int>(input8[i]) << "_";
-        }
-        std::cout << std::endl;
 
         inTensor = ov::Tensor(type, input_shape, input.data());
-        //outTensor = ov::Tensor(type, output_shape, output.data());
     }
 
 public:
@@ -265,8 +164,6 @@ public:
         shapeInit(input);
 
         input_shape = ov::Shape{input.begin(), input.end()};
-        //output_shape = ov::Shape{input.begin(), input.end()};
-        //output_shape = ov::Shape{static_cast<size_t>(input[0]), static_cast<size_t>(input[2]), static_cast<size_t>(input[1])};
 
         make_input();
 
@@ -298,11 +195,20 @@ public:
         auto cols = input_shape[2];
 
         if (type == ov::element::i4) {
-            details::transpose_i4(reinterpret_cast<const uint8_t*>(input.data()), reinterpret_cast<uint8_t*>(ref_output.data()), rows, cols);
+            details::transpose_i4(reinterpret_cast<const uint8_t*>(input.data()),
+                                  reinterpret_cast<uint8_t*>(ref_output.data()),
+                                  rows,
+                                  cols);
         } else if (type == ov::element::f16) {
-            details::transpose<uint16_t>(reinterpret_cast<const uint16_t*>(input.data()), reinterpret_cast<uint16_t*>(ref_output.data()), rows, cols);
+            details::transpose<uint16_t>(reinterpret_cast<const uint16_t*>(input.data()),
+                                         reinterpret_cast<uint16_t*>(ref_output.data()),
+                                         rows,
+                                         cols);
         } else if (type == ov::element::f32) {
-            details::transpose<float>(reinterpret_cast<const float*>(input.data()), reinterpret_cast<float*>(ref_output.data()), rows, cols);
+            details::transpose<float>(reinterpret_cast<const float*>(input.data()),
+                                      reinterpret_cast<float*>(ref_output.data()),
+                                      rows,
+                                      cols);
         }
     }
 };
@@ -326,11 +232,6 @@ public:
 
 using TransposeTests = TransposeTestsTmpl<TransposeTestsBase>;
 class TransposeTestsRef : public TransposeTests {};
-
-// TEST_P(TransposeTests, transpose) {
-//     ASSERT_NO_THROW_WITH_MESSAGE(outTensor = ov::npuw::util::transpose(inTensor));
-//     ASSERT_TRUE(details::ArraysMatch(output, ref_output));
-// }
 
 #define Tensors [](std::vector<int> & input)
 

@@ -693,11 +693,9 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
         case ov::element::i4: {
-            std::cout << "#################permute 102 case i4" << shape[2] << std::endl;
             const uint8_t* src = static_cast<const uint8_t*>(t.data());
             uint8_t* dst = static_cast<uint8_t*>(tnew.data());
             if (shape[2] % 2 == 0) {
-                std::cout << "#################permute 102 case i4 if even copy" << std::endl;
                 for (size_t p = 0; p < shape[0]; ++p) {
                     for (size_t r = 0; r < shape[1]; ++r) {
                         std::copy_n(&src[(p * shape[1] * shape[2] + r * shape[2]) / 2],
@@ -711,7 +709,6 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
             break;
         }
         case ov::element::f16: {
-            std::cout << "#################permute 102 case f16" << std::endl;
             const uint16_t* src = static_cast<const uint16_t*>(t.data());
             uint16_t* dst = static_cast<uint16_t*>(tnew.data());
             ov::parallel_for(shape[0], [&](size_t p) {
