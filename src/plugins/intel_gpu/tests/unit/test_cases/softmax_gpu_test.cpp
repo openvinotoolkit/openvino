@@ -911,10 +911,8 @@ struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<SoftmaxParamsWithFormat<T> > &param) {
         std::stringstream buf;
-        SoftmaxParams<T> p;
-        format::type plain_format;
-        format::type target_format;
-        std::tie(p, plain_format, target_format) = param.param;
+
+        const auto& [p, plain_format, target_format] = param.param;
         buf << "_inputTensor=" << p.input_tensor.to_string()
             << "_axis=" << p.axis
             << "_plainFormat=" << fmt_to_str(plain_format)
@@ -932,11 +930,8 @@ struct softmax_gpu_formats_test
 public:
     void test(bool is_caching_test) {
         const auto data_type = ov::element::from<T>();
-        SoftmaxParams<T> params;
-        format::type plain_format;
-        format::type target_format;
 
-        std::tie(params, plain_format, target_format) = this->GetParam();
+        const auto& [params, plain_format, target_format] = this->GetParam();
 
         auto& engine = get_test_engine();
         const auto input = engine.allocate_memory({data_type, plain_format, params.input_tensor});

@@ -11,10 +11,7 @@ namespace test {
 namespace snippets {
 
 std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::MaxNumParamsEltwiseParams> obj) {
-    ov::test::InputShape inputShapes;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    const auto& [inputShapes, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS[0]=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -30,8 +27,10 @@ std::string MaxNumParamsEltwise::getTestCaseName(testing::TestParamInfo<ov::test
 }
 
 void MaxNumParamsEltwise::SetUp() {
-    ov::test::InputShape inputShape;
-    std::tie(inputShape, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     std::vector<ov::test::InputShape> expandedShapes(9, inputShape);
     init_input_shapes(expandedShapes);
 

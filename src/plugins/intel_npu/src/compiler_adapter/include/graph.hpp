@@ -20,11 +20,11 @@ class Graph : public IGraph {
 public:
     Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-          ze_graph_handle_t graphHandle,
+          const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          const bool persistentBlob,
           const Config& config,
+          const bool blobIsPersistent = false,
           const ov::SoPtr<ICompiler>& compiler = {nullptr},
           const bool calledFromWeightlessGraph = false);
 
@@ -37,19 +37,64 @@ public:
 
     void initialize(const Config& config) override;
 
+    const NetworkMetadata& get_metadata() const override;
+    ze_graph_handle_t get_handle() const override;
+
+    void update_network_name(std::string_view name) override;
+
+    const std::vector<ArgumentDescriptor>& get_input_descriptors() const override;
+    const std::vector<ArgumentDescriptor>& get_output_descriptors() const override;
+    const std::shared_ptr<CommandQueue>& get_command_queue() const override;
+    uint32_t get_command_queue_group_ordinal() const override;
+
+    void set_workload_type(const ov::WorkloadType workloadType) const override;
+
+    void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
+    const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
+    void resize_last_submitted_event(size_t batch) override;
+    void set_batch_size(std::size_t batch) override;
+
+    const std::optional<std::size_t> get_batch_size() const override;
+
+    uint32_t get_unique_id() override;
+    void set_last_submitted_id(uint32_t id_index) override;
+    uint32_t get_last_submitted_id() const override;
+
     ~Graph() override;
 
 protected:
     bool release_blob(const Config& config);
+    std::optional<size_t> determine_batch_size();
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
 
+    GraphDescriptor _graphDesc;
+    NetworkMetadata _metadata;
+
+    std::vector<ArgumentDescriptor> _inputDescriptors;
+    std::vector<ArgumentDescriptor> _outputDescriptors;
+
+    std::shared_ptr<CommandQueue> _commandQueue;
+    uint32_t _commandQueueGroupOrdinal = 0;
+    std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
+
+    std::optional<ov::Tensor> _blob;
+
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-    bool _persistentBlob = false;
+    bool _blobIsPersistent = false;
+
+    uint32_t _uniqueId = 0;
+    uint32_t _lastSubmittedId = 0;
+
+    /**
+     * @brief The batch size used by the corresponding model.
+     * @details The attribute contains a value only if the plugin performs the batches splitting operation.
+     */
+    std::optional<std::size_t> _batchSize = std::nullopt;
 
     const ov::SoPtr<ICompiler> _compiler;
     Logger _logger;

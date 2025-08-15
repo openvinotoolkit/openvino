@@ -168,8 +168,8 @@ protected:
         // Transform weights_layout according to input layout
         {
             ov::PartialShape new_weights_pshape;
-            std::vector<int32_t> lower_sizes;
-            std::vector<int32_t> upper_sizes;
+            std::vector<ov::Dimension::value_type> lower_sizes;
+            std::vector<ov::Dimension::value_type> upper_sizes;
 
             for (size_t i = 0; i < (prim_input_size - prim_weights_rank); i++) {
                 new_weights_pshape.push_back(1);
@@ -365,8 +365,6 @@ public:
         dnnl::memory::data_type dzp_data_type = dnnl::memory::data_type::undef;
         int idx = !arg.bias_term() ? 1 : 2;
 
-        // There may be a performance difference between InnerProduct and MatMul primitives in oneDNN,
-        // so use MatMul only for weights compression and IP for all other cases.
         if (prim->compressed_weights) {
             bool is_dyn_quan_input = impl_params.get_input_layout(0).data_type == data_types::i8 || impl_params.get_input_layout(0).data_type == data_types::u8;
             if (is_dyn_quan_input) {

@@ -282,7 +282,7 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
                 continue;
             }
         } else {
-            cldnn::tensor::value_type out_features = node->get_output_layout().feature();
+            ov::Dimension::value_type out_features = node->get_output_layout().feature();
             bool is_3d_fc = false;
 
             // Change out_features value to proper dimension for 3D FC case
@@ -307,6 +307,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         auto& replace_candidate = eltw_node.get_dependency(non_const_dep_idx);
 
         if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
+            continue;
+
+        if (replace_candidate.users.size() > 1)
             continue;
 
         auto fuse_bias_f = [&p](program_node& prev_node, program_node& new_node, program_node& bias_node, program_node& eltw_node) {
@@ -726,6 +729,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto fuse_activation_f = [&](activation_node& activation_node) {
             auto activation_func = activation_node.get_primitive()->activation_function;
             if (supports_immad && activation_func == cldnn::activation_func::hyperbolic_tan) {
+                return;
+            }
+
+            if (activation_func == cldnn::activation_func::softplus && activation_node.get_output_layout().data_type == data_types::f16) {
+                // This is WA :
+                // - SoftPlus can overflow on f16 so that jitter.cpp currently resolves by typecasting to f32
+                // - But it doesn't guarantee the case of fusion.
+                // - For now it needs to disable fusion for SoftPlus.
                 return;
             }
 
@@ -1165,7 +1176,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
                     && !fused_node->is_type<fully_connected>()
-                    && !fused_node->is_type<convolution>())
+                    && !fused_node->is_type<convolution>()
+                    && !fused_node->is_type<gemm>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
