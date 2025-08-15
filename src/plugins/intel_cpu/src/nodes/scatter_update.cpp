@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <unordered_map>
@@ -1049,6 +1050,10 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     std::vector<size_t> srcBlockND = getBlockND(srcDataDim);
 
     size_t k = indicesDim[indicesRank - 1];
+    // mutexVec and updatedIdxVec are used for idxValue conflicts,
+    // only the last idxValues of update vec is valid when there are idxValue conflicts,
+    std::vector<std::mutex> mutexVec(srcBlockND[0] / srcBlockND[k]);
+    std::vector<int64_t> updatedIdxVec(srcBlockND[0] / srcBlockND[k], -1);
     size_t idxTupleNum = 1;
     for (size_t ri = 0; ri < indicesRank - 1; ri++) {
         idxTupleNum *= indicesDim[ri];
@@ -1058,6 +1063,8 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
     parallel_for(idxTupleNum, [&](size_t tupleIdx) {
         size_t indicesOffset = tupleIdx * k;
         size_t dstOffset = 0;
+        // sliceIdx is the updating index of src data vec, sliceIdx = dstOffset / (srcBlockND[k] * datasize)
+        // sliceIdx should be in range 0 to (srcBlockND[0] / srcBlockND[k] - 1)
         for (size_t i = 0; i < k; i++) {
             int64_t idxValue = getIndicesValue(indices, indicesOffset + i);
             if (idxValue < 0) {
@@ -1066,15 +1073,19 @@ void ScatterUpdate::scatterNDUpdate(const MemoryPtr& mem_data,
             }
             dstOffset += idxValue * srcBlockND[i + 1];
         }
-
+        size_t sliceIdx = dstOffset / srcBlockND[k];
         // Exception must be thrown according to the specification
         CPU_NODE_ASSERT(dstOffset < elementsCount,
                         " indices contain values that points to non-existing data tensor element");
 
         dstOffset *= dataSize;
         size_t updateOffset = tupleIdx * sizeToUpdate;
-
-        cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
+        mutexVec[sliceIdx].lock();
+        if (static_cast<int64_t>(tupleIdx) > updatedIdxVec[sliceIdx]) {
+            cpu_memcpy(dstData + dstOffset, update + updateOffset, sizeToUpdate);
+            updatedIdxVec[sliceIdx] = tupleIdx;
+        }
+        mutexVec[sliceIdx].unlock();
     });
 }
 
