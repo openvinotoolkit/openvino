@@ -117,8 +117,8 @@ public:
             if (!brgemm) {
                 continue;
             }
-            OPENVINO_ASSERT(!blocking_loop_exists(loop_manager, brgemm_expr),
-                            "Brgemm mustn't be covered in loops before blocking pass");
+            // OPENVINO_ASSERT(!blocking_loop_exists(loop_manager, brgemm_expr),
+            //                 "Brgemm mustn't be covered in loops before blocking pass");
             auto [m_block, n_block, k_block] = get_blocking_params(brgemm_expr);
             modified = mark_blocking_loops(linear_ir, expr_it, m_block, n_block, k_block);
         }

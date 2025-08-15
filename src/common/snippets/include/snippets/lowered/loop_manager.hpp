@@ -110,7 +110,9 @@ public:
                      size_t increment,
                      const std::vector<T>& entries,
                      const std::vector<T>& exits,
-                     bool set_default_handlers = true) {
+                     bool set_default_handlers = true,
+                     bool before = true,
+                     size_t target_id = SIZE_MAX) {
         const auto normalized_increment =
             utils::is_dynamic_value(work_amount) || work_amount == 0 ? increment : std::min(increment, work_amount);
         const auto loop_info = std::make_shared<UnifiedLoopInfo>(work_amount, normalized_increment, entries, exits);
@@ -121,7 +123,8 @@ public:
 
         const auto loop_id = this->add_loop_info(loop_info);
         for (auto expr_it = loop_begin_pos; expr_it != loop_end_pos; ++expr_it) {
-            insert_loop_id(*expr_it, loop_id);
+            // insert_loop_id(*expr_it, loop_id);
+            insert_loop_id(*expr_it, loop_id, before, target_id);
         }
         return loop_id;
     }
@@ -147,9 +150,12 @@ public:
                      size_t dim_idx,
                      const std::vector<T>& entries,
                      const std::vector<T>& exits,
-                     bool set_default_handlers = true) {
+                     bool set_default_handlers = true,
+                     bool before = true,
+                     size_t target_id = SIZE_MAX) {
         const auto loop_id =
-            mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers);
+            mark_loop(loop_begin_pos, loop_end_pos, work_amount, increment, entries, exits, set_default_handlers,
+            before, target_id);
         const auto loop_info = get_loop_info<UnifiedLoopInfo>(loop_id);
         loop_info->set_dim_idx(dim_idx);
         return loop_id;
