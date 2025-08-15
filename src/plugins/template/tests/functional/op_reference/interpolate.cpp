@@ -640,6 +640,22 @@ std::vector<InterpolateV4TestParams> generateParamsForInterpolate_v4_linear_onnx
                 NearestMode::ROUND_PREFER_FLOOR},
             {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f},
             {1.0f, 4.0f},
+        },
+        {   "linear_onnx.resize3dims_upsample_scales_linear",
+            Shape{1, 1, 2, 2},
+            {1, 2, 4, 4},
+            Shape{1, 2, 4, 4},
+            {1.0f, 2.0f, 2.0f, 2.0f},
+            {0, 1, 2, 3},
+            {   InterpolateMode::LINEAR_ONNX,
+                ShapeCalcMode::SCALES,
+                zero_pads,
+                zero_pads,
+                CoordinateTransformMode::HALF_PIXEL,
+                NearestMode::ROUND_PREFER_FLOOR},
+            {1.0f, 2.0f, 3.0f, 4.0f},
+            {1.0f, 1.25f, 1.75f, 2.0f, 1.5f, 1.75f, 2.25f, 2.5f, 2.5f, 2.75f, 3.25f, 3.5f, 3.0f, 3.25f, 3.75f, 4.0f,
+             1.0f, 1.25f, 1.75f, 2.0f, 1.5f, 1.75f, 2.25f, 2.5f, 2.5f, 2.75f, 3.25f, 3.5f, 3.0f, 3.25f, 3.75f, 4.0f},
         }
     };
     // clang-format on
