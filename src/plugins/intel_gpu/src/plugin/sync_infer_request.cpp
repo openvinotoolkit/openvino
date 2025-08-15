@@ -356,13 +356,25 @@ void SyncInferRequest::wait() {
         auto output_tensor = output_tensor_wrapper.ptr;
         auto remote_tensor_impl_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(output_tensor);
         auto iremote_tensor_ptr = std::dynamic_pointer_cast<IRemoteTensor>(output_tensor);
+        auto usm_host_tensor_ptr = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
         bool is_remote_tensor_impl = remote_tensor_impl_ptr != nullptr;
         bool is_generic_remote = iremote_tensor_ptr != nullptr && remote_tensor_impl_ptr == nullptr;
+        bool is_usm_host_tensor = usm_host_tensor_ptr != nullptr;
         bool is_dynamic = port.get_partial_shape().is_dynamic();
 
-        if (is_remote_tensor_impl || is_generic_remote) {
-            GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (remote) with index: " << port_idx << ": "
-                                   << remote_tensor_impl_ptr->get_original_memory_buf_ptr() << std::endl;
+        GPU_DEBUG_TRACE_DETAIL << internal_name << " tensor analysis: "
+                               << "is_remote_tensor_impl=" << is_remote_tensor_impl
+                               << ", is_usm_host_tensor=" << is_usm_host_tensor
+                               << ", is_generic_remote=" << is_generic_remote << std::endl;
+
+        if (is_remote_tensor_impl || is_generic_remote || is_usm_host_tensor) {
+            if (is_usm_host_tensor) {
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (USM host) with index: " << port_idx << ": "
+                                       << usm_host_tensor_ptr->get_impl()->get_original_memory_buf_ptr() << std::endl;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (remote) with index: " << port_idx << ": "
+                                       << remote_tensor_impl_ptr->get_original_memory_buf_ptr() << std::endl;
+            }
         } else {
             GPU_DEBUG_TRACE_DETAIL << internal_name << " handle output tensor (host) with index: " << port_idx << ": "
                                    << output_tensor->data() << std::endl;
@@ -388,48 +400,47 @@ void SyncInferRequest::wait() {
         if (need_output_update) {
             OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::wait::update_output");
             auto mem_shape = output_layout.get_shape();
-            // In case of old shape infer we need to shrink out tensor shape to avoid redudnant dimensions that occur due to rank extension
-            // For new shape infer this shouldn't happen, thus remove that WA once we migrate to ngraph-based shape infer for all cases
             if (!m_graph->get_config().get_allow_new_shape_infer()) {
                 OPENVINO_ASSERT(port.get_partial_shape().is_static(), "[GPU] Unexpected dynamic shape for legacy shape inference");
                 OPENVINO_ASSERT(ov::shape_size(port.get_shape()) == ov::shape_size(mem_shape), "[GPU] Unexpected elements count for output tensor");
                 mem_shape = port.get_shape();
             }
-            if (is_dynamic) {
-                bool need_reallocate = true;
-                auto usm_host_tensor = std::dynamic_pointer_cast<USMHostTensor>(output_tensor);
-                if (usm_host_tensor && output_memory)
-                    need_reallocate = usm_host_tensor->get_impl()->get_original_memory()->size() < output_memory->size();
-                else if (!is_remote_tensor_impl && output_memory)
-                    need_reallocate = output_tensor_wrapper.actual_size < output_memory->size();
-                else if (is_remote_tensor_impl && output_memory)
-                    need_reallocate = false;
-
-                if (need_reallocate) {
-                    std::string internal_name = m_output_names_map.at(port_idx);
-                    auto actual_memory_shape = predict_shape(internal_name, cldnn::layout(mem_shape,
-                                                                                          output_tensor->get_element_type(),
-                                                                                          cldnn::format::get_default_format(mem_shape.size())),
-                                                             *m_shape_predictor);
-                    output_tensor->set_shape(actual_memory_shape);
-                }
+            if (is_dynamic && output_memory) {
+                // Fully zero-copy: USMHostTensor directly wraps output_memory, no new allocation
+                GPU_DEBUG_TRACE_DETAIL << "[USMHostTensor alloc ZERO-COPY] output_memory shape=" << output_memory->get_layout().get_shape()
+                          << ", size=" << output_memory->size() << ", ptr=" << output_memory->buffer_ptr() << std::endl;
+                auto remote_tensor = std::make_shared<RemoteTensorImpl>(m_context, output_memory);
+                auto usm_host_tensor = std::make_shared<USMHostTensor>(remote_tensor);
+                usm_host_tensor->set_shape(output_memory->get_layout().get_shape());
+                GPU_DEBUG_TRACE_DETAIL << "[USMHostTensor alloc ZERO-COPY] usm_host_tensor shape=" << usm_host_tensor->get_shape()
+                          << ", size=" << usm_host_tensor->get_byte_size() << ", data=" << usm_host_tensor->data() << std::endl;
+                m_user_outputs[port_idx] = TensorWrapper(usm_host_tensor, TensorOwner::PLUGIN);
+                output_tensor = usm_host_tensor;
+                output_tensor->set_shape(output_memory->get_layout().get_shape());
+            } else {
+                output_tensor->set_shape(mem_shape);
             }
-
-            output_tensor->set_shape(mem_shape);
         }
 
         // mapping remote blobs not needed -
         // let the user take care of them explicitly
-        if (!is_remote_tensor_impl && output_memory) {
+        // Zero-copy optimization: USMHostTensor should be treated as remote tensor to avoid copy
+        if ((!is_remote_tensor_impl && !is_usm_host_tensor) && output_memory) {
             if (!is_generic_remote) {
                 auto dst_ptr = static_cast<uint8_t*>(output_tensor->data());
                 bool same_mem = same_host_mem(output_memory, dst_ptr);
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " Host tensor memory check: output_memory="
+                                       << output_memory->buffer_ptr() << ", dst_ptr=" << dst_ptr
+                                       << ", same_mem=" << same_mem << std::endl;
                 if (!same_mem && output_memory->size()) {
                     GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx << " copy from: " << output_memory->buffer_ptr() << " to "
                         << (!is_remote_tensor_impl ? output_tensor->data() : remote_tensor_impl_ptr->get_original_memory_buf_ptr()) << std::endl;
+
                     if (auto ev = copy_output_data(output_memory, *output_tensor)) {
                         copy_events.push_back(ev);
                     }
+                } else if (same_mem) {
+                    GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx << " ZERO-COPY: Same memory detected, no copy needed!" << std::endl;
                 }
             } else {
                 OPENVINO_ASSERT(!is_dynamic, "[GPU] Unsupported RemoteTensor type for dynamic output");
@@ -442,11 +453,60 @@ void SyncInferRequest::wait() {
                     iremote_tensor_ptr->copy_from(plugin_tensor.ptr);
                 }
             }
-        } else if (is_remote_tensor_impl && is_dynamic) {
-            auto& stream = m_graph->get_network()->get_stream();
-            auto user_mem = remote_tensor_impl_ptr->get_original_memory();
-            if (!m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
-                copy_events.push_back(output_memory->copy_to(stream, *user_mem, false));
+        } else if ((is_remote_tensor_impl || is_usm_host_tensor) && is_dynamic) {
+            //auto& stream = m_graph->get_network()->get_stream();
+            cldnn::memory::ptr user_mem;
+            if (is_usm_host_tensor) {
+                user_mem = usm_host_tensor_ptr->get_impl()->get_original_memory();
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " Dynamic USMHostTensor: user_mem="
+                                   << user_mem->buffer_ptr() << ", user_mem size=" << user_mem->size()
+                                   << ", output_memory=" << output_memory->buffer_ptr() << ", output_memory size=" << output_memory->size() << std::endl;
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " USMHostTensor: shape=" << usm_host_tensor_ptr->get_shape()
+                                   << ", size=" << usm_host_tensor_ptr->get_byte_size() << ", data=" << usm_host_tensor_ptr->data() << std::endl;
+
+                // AUTO-FIX branch: fully zero-copy, directly reuse output_memory, no reallocation needed
+                if (user_mem->buffer_ptr() != output_memory->buffer_ptr() || user_mem->size() != output_memory->size()) {
+                    GPU_DEBUG_TRACE_DETAIL << internal_name << " [AUTO-FIX] user_mem buffer/size mismatch, forcibly reuse output_memory!" << std::endl;
+                    auto remote_tensor = std::make_shared<RemoteTensorImpl>(m_context, output_memory);
+                    auto usm_host_tensor = std::make_shared<USMHostTensor>(remote_tensor);
+                    usm_host_tensor->set_shape(output_memory->get_layout().get_shape());
+                    m_user_outputs[port_idx] = { usm_host_tensor, TensorOwner::PLUGIN };
+                    output_tensor = usm_host_tensor;
+                    user_mem = usm_host_tensor->get_impl()->get_original_memory();
+                    GPU_DEBUG_TRACE_DETAIL << internal_name << " [AUTO-FIX] new USMHostTensor: shape=" << usm_host_tensor->get_shape()
+                               << ", size=" << usm_host_tensor->get_byte_size() << ", data=" << usm_host_tensor->data() << std::endl;
+                }
+            } else {
+                user_mem = remote_tensor_impl_ptr->get_original_memory();
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " Dynamic RemoteTensor: user_mem="
+                                   << user_mem->buffer_ptr() << ", output_memory=" << output_memory->buffer_ptr() << std::endl;
+            }
+            // zero-copy: Only skip copy when both buffer address and size are identical, otherwise throw exception or warning
+            if (m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem) && output_memory->size() == user_mem->size()) {
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx <<
+                " ZERO-COPY: Same buffer and size detected in dynamic case!" << std::endl;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx
+                    << " [FALLBACK] ZERO-COPY failed: Buffer/size mismatch! src_size="
+                    << output_memory->size() << ", dst_size=" << user_mem->size() << std::endl;
+                // Fallback: copy output data from device buffer to user buffer
+                if (auto ev = copy_output_data(output_memory, *output_tensor)) {
+                    copy_events.push_back(ev);
+                }
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx
+                    << " [FALLBACK] Data copied from device buffer to user buffer due to mismatch." << std::endl;
+            }
+        } else if (is_usm_host_tensor && !is_dynamic) {
+            // For static USMHostTensor, verify that zero-copy is actually working
+            auto user_mem = usm_host_tensor_ptr->get_impl()->get_original_memory();
+            GPU_DEBUG_TRACE_DETAIL << internal_name << " Static USMHostTensor: user_mem="
+                                   << user_mem->buffer_ptr() << ", output_memory=" << output_memory->buffer_ptr() << std::endl;
+            if (m_graph->get_engine().is_the_same_buffer(*output_memory, *user_mem)) {
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx
+                                       << " ZERO-COPY: Perfect! Same buffer in static case!" << std::endl;
+            } else {
+                GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << port_idx
+                                       << " WARNING: Zero-copy failed! Different buffers in static case!" << std::endl;
             }
         }
     }
@@ -542,6 +602,7 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
                      && can_use_usm_host(engine, total_output_bytes)
                      && !generic_remote_tensor;
 
+    // Zero-copy strategy: prioritize USM shared memory
     if (usm_host_tensor && can_share && m_context == usm_host_tensor->get_impl()->get_context()) {
         return { usm_host_tensor->get_impl(), user_tensor_wrapper.owner };
     } else if (usm_host_raw_ptr && can_share) {
@@ -558,6 +619,15 @@ TensorWrapper SyncInferRequest::create_or_share_device_tensor(const TensorWrappe
                                                                 element_type,
                                                                 cldnn::format::get_default_format(tensor_shape.size())),
                                             *m_shape_predictor);
+    }
+
+    // Zero-copy strategy: For static tensors, try to create USM host memory directly
+    if (!is_dynamic && can_share && engine.use_unified_shared_memory()) {
+        GPU_DEBUG_TRACE_DETAIL << "Creating USM_HOST_INTERNAL tensor for " << name << std::endl;
+        return { std::make_shared<RemoteTensorImpl>(m_context,
+                                                    actual_memory_shape,
+                                                    ::data_type_for_remote_tensor(element_type),
+                                                    TensorType::BT_USM_HOST_INTERNAL), TensorOwner::PLUGIN };
     }
 
     return { create_device_tensor(actual_memory_shape, element_type, need_lockable_mem), TensorOwner::PLUGIN };
@@ -585,12 +655,32 @@ void SyncInferRequest::allocate_input(const ov::Output<const ov::Node>& port, si
     const auto& shape = port.get_partial_shape();
     auto element_type = port.get_element_type();
 
-    m_user_inputs[input_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
-    if (element_type == ov::element::string) {
-        // In case the element type is string and input data is an empty string,
-        // it produces the segmentation fault unless the each element of tensor.data is initialized.
-        auto data = m_user_inputs.at(input_idx).ptr->data<std::string>();
-        std::uninitialized_fill_n(data, m_user_inputs.at(input_idx).ptr->get_size(), std::string());
+    // Zero-copy optimization: Prefer USM shared memory for inputs to avoid copies
+    auto& engine = m_graph->get_engine();
+    bool use_usm_shared = engine.use_unified_shared_memory() &&
+                         can_use_usm_host(engine, total_output_bytes) &&
+                         engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
+                         !port.get_partial_shape().is_dynamic();
+
+    if (use_usm_shared && element_type != ov::element::string) {
+        // Create USM host tensor directly - zero copy strategy using USM_HOST_INTERNAL to allocate new USM host memory
+        auto remote_tensor = std::make_shared<RemoteTensorImpl>(m_context,
+                                                               get_tensor_shape(shape),
+                                                               ::data_type_for_remote_tensor(element_type),
+                                                               TensorType::BT_USM_HOST_INTERNAL);
+        m_user_inputs[input_idx] = { std::make_shared<USMHostTensor>(remote_tensor), TensorOwner::PLUGIN };
+
+        GPU_DEBUG_TRACE_DETAIL << "Zero-copy input allocated for port " << input_idx
+                               << " with USM_HOST_INTERNAL memory type" << std::endl;
+    } else {
+        // Fallback to host tensor
+        m_user_inputs[input_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+        if (element_type == ov::element::string) {
+            // In case the element type is string and input data is an empty string,
+            // it produces the segmentation fault unless the each element of tensor.data is initialized.
+            auto data = m_user_inputs.at(input_idx).ptr->data<std::string>();
+            std::uninitialized_fill_n(data, m_user_inputs.at(input_idx).ptr->get_size(), std::string());
+        }
     }
     ov::ISyncInferRequest::set_tensor(port, m_user_inputs.at(input_idx).ptr);
 }
@@ -599,7 +689,26 @@ void SyncInferRequest::allocate_output(const ov::Output<const ov::Node>& port, s
     const auto& shape = port.get_partial_shape();
     auto element_type = port.get_element_type();
 
-    m_user_outputs[output_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+    // Zero-copy optimization: Prefer USM shared memory for outputs to avoid copies
+    auto& engine = m_graph->get_engine();
+    bool use_usm_shared = engine.use_unified_shared_memory() &&
+                         can_use_usm_host(engine, total_output_bytes) &&
+                         engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu;
+
+    if (use_usm_shared && !port.get_partial_shape().is_dynamic()) {
+        // Create USM host tensor directly - zero copy strategy using USM_HOST_INTERNAL to allocate new USM host memory
+        auto remote_tensor = std::make_shared<RemoteTensorImpl>(m_context,
+                                                               get_tensor_shape(shape),
+                                                               ::data_type_for_remote_tensor(element_type),
+                                                               TensorType::BT_USM_HOST_INTERNAL);
+        m_user_outputs[output_idx] = { std::make_shared<USMHostTensor>(remote_tensor), TensorOwner::PLUGIN };
+
+        GPU_DEBUG_TRACE_DETAIL << "Zero-copy output allocated for port " << output_idx
+                               << " with USM_HOST_INTERNAL memory type" << std::endl;
+    } else {
+        // Fallback to host tensor
+        m_user_outputs[output_idx] = { create_host_tensor(shape, element_type), TensorOwner::PLUGIN };
+    }
     ov::ISyncInferRequest::set_tensor(port, m_user_outputs.at(output_idx).ptr);
 }
 
@@ -629,7 +738,19 @@ void SyncInferRequest::allocate_inputs() {
 void SyncInferRequest::allocate_outputs() {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "SyncInferRequest::allocate_outputs");
 
+    // Pre-calculate total_output_bytes for USM decision
     total_output_bytes = 0;
+    for (const auto& it : m_output_ports_map) {
+        const auto& port = it.second;
+        if (!port.get_partial_shape().is_dynamic()) {
+            auto shape = get_tensor_shape(port.get_partial_shape());
+            auto element_type = port.get_element_type();
+            total_output_bytes += ov::shape_size(shape) * element_type.size();
+        }
+    }
+
+    GPU_DEBUG_TRACE_DETAIL << "Pre-calculated total output bytes: " << total_output_bytes << std::endl;
+
     // allocate outputs
     for (const auto& it : m_output_ports_map) {
         size_t output_idx = it.first;
@@ -637,6 +758,12 @@ void SyncInferRequest::allocate_outputs() {
         GPU_DEBUG_LOG << "[init output blob with index: " << output_idx << "]" << std::endl;
 
         allocate_output(port, output_idx);
+    }
+
+    // Recalculate actual total_output_bytes for profiling
+    total_output_bytes = 0;
+    for (const auto& it : m_output_ports_map) {
+        const auto& port = it.second;
         total_output_bytes += ov::ISyncInferRequest::get_tensor(port)->get_byte_size();
     }
 }
@@ -909,11 +1036,15 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto user_tensor = user_tensor_wrapper.ptr;
     auto iremote_tensor_ptr = std::dynamic_pointer_cast<IRemoteTensor>(user_tensor);
     auto remote_tensor_impl_ptr = std::dynamic_pointer_cast<RemoteTensorImpl>(user_tensor);
+    auto usm_host_tensor_ptr = std::dynamic_pointer_cast<USMHostTensor>(user_tensor);
     auto internal_name = m_output_names_map.at(output_idx);
     bool is_remote_tensor_impl = remote_tensor_impl_ptr != nullptr;
     bool is_generic_remote = iremote_tensor_ptr != nullptr && remote_tensor_impl_ptr == nullptr;
+    bool is_usm_host_tensor = usm_host_tensor_ptr != nullptr;
 
-    GPU_DEBUG_TRACE_DETAIL << "Prepare output for " << internal_name << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "Prepare output for " << internal_name
+                           << " (is_remote_tensor_impl=" << is_remote_tensor_impl
+                           << ", is_usm_host_tensor=" << is_usm_host_tensor << ")" << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    port shape       : " << pshape.to_string() << std::endl;
     GPU_DEBUG_TRACE_DETAIL << "    user_tensor shape: " << user_tensor->get_shape().to_string() << std::endl;
 
@@ -933,8 +1064,14 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
     // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
-    if (is_remote_tensor_impl && !convert_needed) {
-        m_plugin_outputs[output_idx] = user_tensor_wrapper;
+    if ((is_remote_tensor_impl || is_usm_host_tensor) && !convert_needed) {
+        if (is_usm_host_tensor) {
+            // For USMHostTensor, use the underlying RemoteTensorImpl
+            m_plugin_outputs[output_idx] = { usm_host_tensor_ptr->get_impl(), user_tensor_wrapper.owner };
+            GPU_DEBUG_TRACE_DETAIL << "Using USMHostTensor's RemoteTensorImpl for output " << output_idx << std::endl;
+        } else {
+            m_plugin_outputs[output_idx] = user_tensor_wrapper;
+        }
     }
 
     if (!is_dynamic) {
@@ -942,9 +1079,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
         bool has_device_buffer = m_plugin_outputs.count(output_idx) > 0;
         bool update_device_tensor = !has_device_buffer ||
                                     is_generic_remote ||
-                                    (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl);
+                                    (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl && !is_usm_host_tensor);
         if (update_device_tensor) {
-            if (!is_remote_tensor_impl) {
+            if (!is_remote_tensor_impl && !is_usm_host_tensor) {
                 m_plugin_outputs[output_idx] =
                     create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
             } else {
@@ -959,8 +1096,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
 
     auto output_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(m_plugin_outputs.at(output_idx).ptr);
     auto output_memory = output_tensor->get_memory();
-    GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr() << std::endl;
-    return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || user_tensor));
+    GPU_DEBUG_TRACE_DETAIL << internal_name << " with index " << output_idx << " prepare output: " << output_memory->buffer_ptr()
+                           << " alloc_type: " << output_memory->get_allocation_type() << std::endl;
+    return network->set_output_memory(internal_name, output_memory, is_dynamic && (is_remote_tensor_impl || is_usm_host_tensor || user_tensor));
 }
 
 void SyncInferRequest::init_mappings() {
