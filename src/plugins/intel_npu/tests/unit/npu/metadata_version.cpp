@@ -128,7 +128,7 @@ public:
 
     void TestBody() override {}
 
-    static std::string getTestCaseName(testing::TestParamInfo<MetadataVersionTestFixture::ParamType> info);
+    static std::string getTestCaseName(const testing::TestParamInfo<MetadataVersionTestFixture::ParamType>& info);
 };
 
 std::string MetadataVersionTestFixture::getTestCaseName(
