@@ -410,16 +410,14 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             // Generate without LoRA:
             // the size of applied LoRA tensor from GenAI is 0
 
-            // Initialize a new tensor for inference
-            // Note: Clearing data in inference requests may lead to a segmentation fault on Linux systems
             auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-            auto new_tensor_for_infer = ov::get_tensor_impl(
-                ov::Tensor(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape()));
-            fill_tensor<float>(new_tensor_for_infer, 0.0f);
+            auto kvcach_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
 
-            // Set new tensor for inference
-            m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), new_tensor_for_infer);
-            m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), new_tensor_for_infer);
+            // Disable adapter by setting alpha to 0
+            if (matchLoRAMatMulAlphaString(state_name)) {
+                fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
+                fill_tensor<float>(kvcach_lora_in_tensor, 0.0f);
+            }
         } else {
             // Generate with LoRA
             auto infer_tensor_shape = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name))->get_shape();
@@ -434,28 +432,34 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 
             uint32_t state_tensor_rank = static_cast<uint32_t>(state_tensor_shape[low_rank_dim]);
             uint32_t target_lora_rank = static_cast<uint32_t>(infer_tensor_shape[low_rank_dim]);
-            if (state_tensor_rank == target_lora_rank) {
-                // Use state tensor directly in case rank is compatible with LoRA input tensor
-                m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), state_tensor);
-                m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), state_tensor);
-            } else {
-                // Fill LoRA into a new tensor
-                auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-                auto new_tensor_for_infer = ov::get_tensor_impl(
-                    ov::Tensor(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape()));
 
-                fill_tensor<float>(new_tensor_for_infer, 0.0f);
-                auto new_tensor_slice = make_tensor_slice(new_tensor_for_infer, low_rank_dim, 0u, state_tensor_rank);
+            auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
+            auto kvcach_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
+            bool has_padding = state_tensor_rank != target_lora_rank;
+            if (has_padding) {
+                // Clear padding tensor in infer request
+                fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
+                fill_tensor<float>(kvcach_lora_in_tensor, 0.0f);
+            }
+
+            // Fill LoRA into infer request
+            auto fill_lora_in_tensor = [low_rank_dim, state_tensor_rank](ov::SoPtr<ov::ITensor> state_tensor,
+                                                                         ov::SoPtr<ov::ITensor> infer_tensor,
+                                                                         bool has_padding) {
+                if (!has_padding) {
+                    state_tensor->copy_to(infer_tensor._ptr);
+                    return;
+                }
+
+                auto new_tensor_slice = make_tensor_slice(infer_tensor, low_rank_dim, 0u, state_tensor_rank);
                 if (low_rank_dim == 1) {
                     copy_columns_by_row_chunks_2d(state_tensor, new_tensor_slice);
                 } else {
                     state_tensor->copy_to(new_tensor_slice._ptr);
                 }
-
-                // Set new tensor for inference
-                m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), new_tensor_for_infer);
-                m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), new_tensor_for_infer);
-            }
+            };
+            fill_lora_in_tensor(state_tensor, prefill_lora_in_tensor, has_padding);
+            fill_lora_in_tensor(state_tensor, kvcach_lora_in_tensor, has_padding);
         }
         variableState->clear_state_updated();
     }
