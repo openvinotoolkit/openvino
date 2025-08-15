@@ -30,7 +30,7 @@ intel_cpu::LoadConvertSaturation::LoadConvertSaturation(const Output<Node>& x,
 
 bool intel_cpu::LoadConvertSaturation::visit_attributes(AttributeVisitor& visitor) {
     INTERNAL_OP_SCOPE(LoadConvert_visit_attributes);
-    Load::visit_attributes(visitor);
+    MemoryAccess::visit_attributes(visitor);
     visitor.on_attribute("destination_type", m_destination_type);
     return true;
 }

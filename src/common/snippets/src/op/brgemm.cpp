@@ -111,10 +111,6 @@ std::shared_ptr<Node> Brgemm::clone_with_new_inputs(const OutputVector& new_args
                                     lowered::PortDescriptorUtils::get_port_descriptor_ptr(output(0))->get_layout());
 }
 
-bool Brgemm::visit_attributes(AttributeVisitor& visitor) {
-    return MemoryAccess::visit_attributes(visitor);
-}
-
 ov::element::Type Brgemm::get_output_type(const ov::element::Type& in_type0, const ov::element::Type& in_type1) {
     const bool is_f32 = utils::all_of(element::f32, in_type0, in_type1);
     const bool is_int8 = utils::any_of(in_type0, element::i8, element::u8) && in_type1 == element::i8;

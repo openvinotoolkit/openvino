@@ -28,11 +28,6 @@ BroadcastLoad::BroadcastLoad(const Output<Node>& x, ov::Dimension bcast_dimensio
     constructor_validate_and_infer_types();
 }
 
-bool BroadcastLoad::visit_attributes(AttributeVisitor& visitor) {
-    MemoryAccess::visit_attributes(visitor);
-    return true;
-}
-
 std::shared_ptr<Node> BroadcastLoad::clone_with_new_inputs(const OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(BroadcastLoad);
     check_new_args_count(this, new_args);
