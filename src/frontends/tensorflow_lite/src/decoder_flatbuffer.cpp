@@ -262,6 +262,24 @@ ov::Any DecoderFlatBuffer::get_attribute(const std::string& name) const {
         return "NHWC";
     } else if (name == "activation" && m_type == "CONV_2D") {
         return EnumNameActivationFunctionType(this->get_attribute(&tflite::Conv2DOptions::fused_activation_function));
+    } else if (name == "strides" && m_type == "CONV_3D") {
+        return std::vector<int64_t>{1,
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_d),
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_h),
+                                    this->get_attribute(&tflite::Conv3DOptions::stride_w),
+                                    1};
+    } else if (name == "padding" && m_type == "CONV_3D") {
+        return std::string(EnumNamePadding(this->get_attribute(&tflite::Conv3DOptions::padding)));
+    } else if (name == "dilations" && m_type == "CONV_3D") {
+        return std::vector<int64_t>{1,
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_d_factor),
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_h_factor),
+                                    this->get_attribute(&tflite::Conv3DOptions::dilation_w_factor),
+                                    1};
+    } else if (name == "data_format" && m_type == "CONV_3D") {
+        return "NDHWC";
+    } else if (name == "activation" && m_type == "CONV_3D") {
+        return EnumNameActivationFunctionType(this->get_attribute(&tflite::Conv3DOptions::fused_activation_function));
     } else if (name == "strides" && m_type == "DEPTHWISE_CONV_2D") {
         return std::vector<int64_t>{1,
                                     this->get_attribute(&tflite::DepthwiseConv2DOptions::stride_h),
