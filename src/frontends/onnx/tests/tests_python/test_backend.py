@@ -558,11 +558,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_125485,
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_align_corners_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_2d_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_align_corners_expanded_cpu",
-        "OnnxBackendNodeModelTest.test_affine_grid_3d_cpu",
         "OnnxBackendNodeModelTest.test_affine_grid_3d_expanded_cpu",
     ),
     (
