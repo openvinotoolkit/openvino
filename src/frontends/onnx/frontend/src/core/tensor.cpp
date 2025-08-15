@@ -282,7 +282,9 @@ std::shared_ptr<ov::op::v0::Constant> Tensor::get_ov_constant() const {
     }
     if (has_external_data()) {
         const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
-        if (m_mmap_cache) {
+        if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
+            constant = std::make_shared<ov::op::v0::Constant>(ov_type, m_shape, ext_data.load_external_mem_data());
+        } else if (m_mmap_cache) {
             constant =
                 std::make_shared<ov::op::v0::Constant>(ov_type,
                                                        m_shape,

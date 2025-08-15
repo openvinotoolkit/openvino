@@ -198,7 +198,9 @@ private:
     std::vector<T> get_external_data() const {
         const auto ext_data = detail::TensorExternalData(*m_tensor_proto);
         std::shared_ptr<ov::AlignedBuffer> buffer = nullptr;
-        if (m_mmap_cache) {
+        if (ext_data.data_location() == detail::ORT_MEM_ADDR) {
+            buffer = ext_data.load_external_mem_data();
+        } else if (m_mmap_cache) {
             buffer = ext_data.load_external_mmap_data(m_model_dir, m_mmap_cache);
         } else {
             buffer = ext_data.load_external_data(m_model_dir);
