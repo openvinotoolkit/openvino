@@ -437,3 +437,38 @@ TEST_F(TransformationTestsF, AbsInTheUnknown) {
         manager.register_pass<pass::AbsSinking>();
     }
 }
+
+TEST_F(TransformationTestsF, AbsSinkingWithNegativeValues) {
+    // Test that AbsSinking does NOT process constants (leaves them for ConstantFolding)
+    {
+        // Create constant with negative values: {-1, -2, 4}
+        auto const_with_negatives = opset7::Constant::create(element::i64, {3}, {-1, -2, 4});
+        auto abs_op = std::make_shared<opset7::Abs>(const_with_negatives);
+
+        model = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        auto const_with_negatives = opset7::Constant::create(element::i64, {3}, {-1, -2, 4});
+        auto abs_op = std::make_shared<opset7::Abs>(const_with_negatives);
+
+        model_ref = std::make_shared<Model>(OutputVector{abs_op}, ParameterVector{});
+    }
+}
+
+TEST_F(TransformationTestsF, AbsSinkingPositiveValuesOptimization) {
+    // Test that AbsSinking does NOT process constants (leaves them for ConstantFolding)
+    {
+        auto const_with_pos_values = opset7::Constant::create(element::i64, {2}, {1, 2});
+        auto abs = std::make_shared<opset7::Abs>(const_with_pos_values);
+
+        model = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
+        manager.register_pass<pass::AbsSinking>();
+    }
+    {
+        auto const_with_pos_values = opset7::Constant::create(element::i64, {2}, {1, 2});
+        auto abs = std::make_shared<opset7::Abs>(const_with_pos_values);
+
+        model_ref = std::make_shared<Model>(OutputVector{abs}, ParameterVector{});
+    }
+}
