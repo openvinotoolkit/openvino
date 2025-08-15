@@ -43,6 +43,8 @@ public:
      */
     virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
 
+    virtual int32_t get_blob_type() const;
+
     virtual ~MetadataBase() = default;
 
     static std::streampos getFileSize(std::istream& stream);
@@ -101,11 +103,12 @@ constexpr std::string_view MAGIC_BYTES = "OVNPU";
  */
 constexpr uint32_t METADATA_VERSION_2_0{MetadataBase::make_version(2, 0)};
 constexpr uint32_t METADATA_VERSION_2_1{MetadataBase::make_version(2, 1)};
+constexpr uint32_t METADATA_VERSION_2_2{MetadataBase::make_version(2, 2)};
 
 /**
  * @brief Current metadata version.
  */
-constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_1};
+constexpr uint32_t CURRENT_METADATA_VERSION{METADATA_VERSION_2_2};
 
 constexpr uint16_t CURRENT_METADATA_MAJOR_VERSION{MetadataBase::get_major(CURRENT_METADATA_VERSION)};
 constexpr uint16_t CURRENT_METADATA_MINOR_VERSION{MetadataBase::get_minor(CURRENT_METADATA_VERSION)};
@@ -244,9 +247,39 @@ public:
 
     size_t get_metadata_size() const override;
 
-private:
+protected:
     std::optional<std::vector<uint64_t>> _initSizes;
     uint64_t _numberOfInits = 0;
+};
+
+template <>
+class Metadata<METADATA_VERSION_2_2> : public Metadata<METADATA_VERSION_2_1> {
+public:
+    Metadata(uint64_t blobSize,
+             std::optional<OpenvinoVersion> ovVersion = std::nullopt,
+             const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
+             int32_t blobType = 0);
+
+    /**
+     * @details The number of init schedules, along with the size of each init binary object are read in addition to the
+     * information provided by the previous metadata versions.
+     */
+    void read(std::istream& stream) override;
+
+    void read(const ov::Tensor& tensor) override;
+
+    /**
+     * @details The number of init schedules, along with the size of each init binary object are written in addition to
+     * the information registered by the previous metadata versions.
+     */
+    void write(std::ostream& stream) override;
+
+    size_t get_metadata_size() const override;
+
+private:
+    // 0 - ELF blob
+    // 1 - LLVM IR blob
+    int32_t _blobType;
 };
 
 /**
@@ -272,10 +305,5 @@ std::unique_ptr<MetadataBase> read_metadata_from(std::istream& stream);
  * MetadataBase object; otherwise, returns 'nullptr'.
  */
 std::unique_ptr<MetadataBase> read_metadata_from(const ov::Tensor& tensor);
-
-/*
- * @brief Check if the stream contains traditional ELF blob or is IR
- */
-bool isELFBlob(std::istream& stream);
 
 }  // namespace intel_npu

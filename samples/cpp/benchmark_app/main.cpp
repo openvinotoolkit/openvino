@@ -1058,7 +1058,7 @@ int main(int argc, char* argv[]) {
         bool useNpuMem = false;
 
         std::vector<std::map<std::string, ov::TensorVector>> inputsDatas;
-        for (int i = nireq; i > 0; i--) {
+        for (uint64_t i = nireq; i > 0; i--) {
             std::map<std::string, ov::TensorVector> inputsData;
             if (isFlagSetInCommandLine("use_device_mem")) {
                 if (device_name.find("GPU") == 0) {
