@@ -413,7 +413,9 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             // Generate with LoRA
             auto infer_tensor_shape = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name))->get_shape();
             auto state_tensor_shape = state_tensor->get_shape();
-            auto [low_rank_dim, full_rank_dim] = get_lora_dims_by_name(state_name);
+            auto lora_dims = get_lora_dims_by_name(state_name);
+            auto low_rank_dim = std::get<0>(lora_dims);
+            auto full_rank_dim = std::get<1>(lora_dims);
 
             check_tensor_shape_compatibility(state_tensor_shape,
                                              infer_tensor_shape,
