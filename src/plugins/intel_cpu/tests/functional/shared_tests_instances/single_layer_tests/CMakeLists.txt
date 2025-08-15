@@ -1,0 +1,99 @@
+# Copyright (C) 2018-2025 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+set(current_dir_sources
+  ${CMAKE_CURRENT_SOURCE_DIR}/activation.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/adaptive_pooling.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/batch_norm.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/batch_to_space.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/binary_convolution.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/broadcast.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/bucketize.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/clamp.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/comparison.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/concat.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/constant.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/conversion.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/convert_color_i420.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/convert_color_nv12.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/convolution_backprop_data.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/convolution.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ctc_greedy_decoder.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ctc_greedy_decoder_seq_len.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/ctc_loss.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/cum_sum.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/deformable_convolution.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/deformable_psroi_pooling.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/depth_to_space.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/detection_output.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/dft.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/eltwise.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/embedding_bag_offsets_sum.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/embedding_bag_packed_sum.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/embedding_segments_sum.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/experimental_detectron_detection_output.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/experimental_detectron_generate_proposals_single_image.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/experimental_detectron_prior_grid_generator.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/experimental_detectron_roifeatureextractor.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/experimental_detectron_topkrois.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/extract_image_patches.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/fake_convert.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/fake_quantize.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/gather.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/gather_elements.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/gather_nd.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/gather_tree.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/generate_proposals.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/grn.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/group_convolution_backprop_data.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/group_convolution.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/group_normalization.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/gru_cell.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/gru_sequence.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/interpolate.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/is_inf.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/istft.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/logical.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/log_softmax.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/loop.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/lrn.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/lstm_cell.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/lstm_sequence.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mat_mul.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/matrix_nms.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/memory.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/minimum_maximum.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/multiclass_nms.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/mvn.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/non_max_suppression.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/nonzero.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/normalize_l2.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/one_hot.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/pad.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/pooling.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/prior_box_clustered.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/prior_box.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/proposal.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/psroi_pooling.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/range.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rdft.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/reduce_ops.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/region_yolo.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/reorg_yolo.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/reshape.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/result.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/reverse_sequence.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rnn_cell.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/rnn_sequence.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/roi_align.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/roi_pooling.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/roll.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/scatter_elements_update.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/scatter_ND_update.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/scatter_update.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/variadic_split.cpp
+)
+
+get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
+list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
+set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")
