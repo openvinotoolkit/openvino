@@ -113,7 +113,7 @@ jobs:
 
   Build:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     timeout-minutes: 150
     defaults:
       run:
@@ -180,7 +180,7 @@ jobs:
 
   Build-aarch64:
     needs: [Docker_Arm, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     timeout-minutes: 150
     defaults:
       run:
@@ -249,7 +249,7 @@ jobs:
 
   Build-riscv64:
     needs: [Docker, Smart_CI]
-    if: "!needs.smart_ci.outputs.skip_workflow"
+    if: fromJSON(needs.smart_ci.outputs.affected_components).CPU && !needs.smart_ci.outputs.skip_workflow
     timeout-minutes: 150
     defaults:
       run:
