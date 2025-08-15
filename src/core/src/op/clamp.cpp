@@ -88,6 +88,7 @@ bool Clamp::has_evaluate() const {
     case element::bf16:
     case element::f16:
     case element::f32:
+    case element::f64:
     case element::i8:
     case element::i16:
     case element::i32:
