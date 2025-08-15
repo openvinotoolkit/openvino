@@ -31,6 +31,7 @@ bool InsertGemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt begin
     const auto& factory = linear_ir.get_expr_factory();
 
     auto insert_copy_b_buffer = [&](const ExpressionPtr& copy_b_expr, LinearIR::constExprIt insertion_pos) {
+        OPENVINO_ASSERT(copy_b_expr->get_output_count() == 1, "gemm copyb must have only one output");
         const auto& copy_b = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCopyB>(copy_b_expr->get_node());
         const auto& copy_b_out = copy_b_expr->get_output_port_connector(0);
         const auto copy_b_consumers = copy_b_out->get_consumers();
@@ -46,14 +47,28 @@ bool InsertGemmCopyBuffers::run(LinearIR& linear_ir, LinearIR::constExprIt begin
                               {copy_b_consumers});
     };
 
+    auto insert_nullified_bias_buffer = [&](const ExpressionPtr& copy_b_expr) {
+        OPENVINO_ASSERT(copy_b_expr->get_input_count() == 2, "GemmCopyB should have two inputs");
+        const auto& current_buffer_expr = copy_b_expr->get_input_port_connector(1)->get_source().get_expr();
+        OPENVINO_ASSERT(ov::is_type<ov::snippets::op::Buffer>(current_buffer_expr->get_node()),
+                        "Expected Buffer on bias input");
+        const auto& empty_buffer_op = std::make_shared<ov::snippets::op::Buffer>(ov::Shape{1});
+        BufferExpressionPtr new_buffer_expr =
+            factory->build<ov::intel_cpu::aarch64::NullifiedBiasBufferExpression>(empty_buffer_op, {});
+        new_buffer_expr->set_loop_ids(current_buffer_expr->get_loop_ids());
+        linear_ir.replace_with_expr({current_buffer_expr}, new_buffer_expr);
+        // Force allocation size recalculation
+        new_buffer_expr->init_allocation_size(linear_ir.get_loop_manager(), linear_ir.get_config().m_loop_depth);
+    };
+
     bool modified = false;
     for (auto expr_it = begin; expr_it != end; ++expr_it) {
         const auto& gemm_expr = *expr_it;
         if (const auto gemm_cpu = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(gemm_expr->get_node())) {
             if (const auto copy_b_expr = get_copy_b_expr(gemm_expr)) {
                 auto insertion_it = std::next(linear_ir.find_before(expr_it, copy_b_expr));
-                OPENVINO_ASSERT(copy_b_expr->get_output_count() == 1, "gemm copyb must have only one output");
                 insert_copy_b_buffer(copy_b_expr, insertion_it);
+                insert_nullified_bias_buffer(copy_b_expr);
                 modified = true;
             } else {
                 OPENVINO_THROW("GemmCopyB must connect to gemmCPU in subgraph, and not be extracted from the body");

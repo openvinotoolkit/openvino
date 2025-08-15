@@ -17,6 +17,7 @@
 #include "openvino/op/op.hpp"
 #include "snippets/itt.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/buffer.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/shape_inference/shape_inference.hpp"
 #include "snippets/shape_types.hpp"
@@ -26,19 +27,40 @@
 namespace ov::intel_cpu::aarch64 {
 
 GemmCopyB::GemmCopyB(const Output<Node>& x,
+                     const Output<Node>& bias,
                      const PortDescriptor& desc_in0,
+                     const PortDescriptor& desc_in1,
                      const PortDescriptor& desc_out0,
                      const std::vector<size_t>& layout_input)
-    : snippets::modifier::MemoryAccess(1, 1),
-      op::Op({x}) {
+    : snippets::modifier::MemoryAccess(2, 1),
+      op::Op({x, bias}) {
     set_output_size(1);
     set_input_port_descriptor(desc_in0, 0);
+    set_input_port_descriptor(desc_in1, 1);
     set_output_port_descriptor(desc_out0, 0);
     custom_constructor_validate_and_infer_types(layout_input);
 }
 
+bool GemmCopyB::visit_attributes(AttributeVisitor& visitor) {
+    INTERNAL_OP_SCOPE(GemmCopyB_visit_attributes);
+    MemoryAccess::visit_attributes(visitor);
+    return true;
+}
+
+void GemmCopyB::validate_bias_input() const {
+    OPENVINO_ASSERT(get_input_size() == 2, "Expected two inputs");
+    const auto bias = input_value(1).get_node_shared_ptr();
+    OPENVINO_ASSERT(
+        ov::is_type<ov::snippets::op::Buffer>(bias) && bias->get_input_size() == 0 && bias->get_output_size() == 1,
+        "GemmCopyB supports only empty buffer on bias input");
+    OPENVINO_ASSERT(bias->get_output_partial_shape(0).is_static() && bias->get_output_shape(0) == ov::Shape{1},
+                    "GemmCopyB supports only scalar buffer for bias");
+    OPENVINO_ASSERT(bias->get_output_element_type(0) == ov::element::u8, "GemmCopyB supports only u8 buffer for bias");
+}
+
 void GemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<size_t>& layout_input) {
     INTERNAL_OP_SCOPE(GemmRepack_ctor_validate_and_infer_types);
+    validate_bias_input();
     // During ctor call, GemmCopyB doesn't know his port descriptors.
     // So we use port descs from source inputs
     const auto& element_type = get_input_element_type(0);
@@ -51,6 +73,7 @@ void GemmCopyB::custom_constructor_validate_and_infer_types(const std::vector<si
 
 void GemmCopyB::validate_and_infer_types() {
     INTERNAL_OP_SCOPE(GemmRepack_validate_and_infer_types);
+    validate_bias_input();
     const auto& element_type = get_input_element_type(0);
     validate_element_type(element_type);
     const auto port = snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0));
@@ -69,7 +92,9 @@ std::shared_ptr<ov::Node> GemmCopyB::clone_with_new_inputs(const OutputVector& n
     check_new_args_count(this, new_args);
     return std::make_shared<GemmCopyB>(
         new_args.at(0),
+        new_args.at(1),
         get_input_port_descriptor(0),
+        get_input_port_descriptor(1),
         get_output_port_descriptor(0),
         snippets::lowered::PortDescriptorUtils::get_port_descriptor_ptr(input(0))->get_layout());
 }
@@ -82,7 +107,7 @@ GemmCopyB::ShapeInfer::ShapeInfer(const std::shared_ptr<ov::Node>& n) {
 
 ov::snippets::IShapeInferSnippets::Result GemmCopyB::ShapeInfer::infer(
     const std::vector<ov::snippets::VectorDimsRef>& input_shapes) {
-    OPENVINO_ASSERT(input_shapes.size() == 1, "Got unexpected number of input shapes");
+    OPENVINO_ASSERT(input_shapes.size() == 2, "Got unexpected number of input shapes");
     auto planar_shape = ov::snippets::utils::get_planar_vdims(input_shapes[0].get(), m_layout);
     std::vector<ov::snippets::VectorDims> new_shapes(1, planar_shape);
     return {new_shapes, ov::snippets::ShapeInferStatus::success};
