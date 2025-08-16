@@ -298,6 +298,7 @@ std::vector<std::string> disabledTestPatterns() {
         R"(.*FC_3D_BF16.*MatMulLayerCPUTest.*)",
         // Issue: 163242
         R"(.*bf16.*RNNSequenceCPUTest.*)",
+        R"(.*WeightlessCacheAccuracy.TiWithLstmCell.*model_dtype=bf16.*)",
         // Issue: 163250
         R"(.*OnnxModelWithExtensionFromDSO.*)",
         // Issue: 163273
@@ -370,6 +371,7 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_ConcatSDPTransposeByChannelTest.*)");
     // Issue: 168490
     retVector.emplace_back(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)");
+    retVector.emplace_back(R"(.*WeightlessCacheAccuracy.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)

@@ -53,7 +53,9 @@ protected:
     virtual void set_constant_num_buffer(ov::AttributeAdapter<std::shared_ptr<ov::AlignedBuffer>>& adapter);
 
     const pugi::xml_node& get_node() const;
-    const std::shared_ptr<ov::AlignedBuffer>& get_weights() const;
+    const std::shared_ptr<ov::AlignedBuffer>& get_weights() const {
+        return m_weights;
+    }
 
 private:
     struct IoMap {

@@ -43,14 +43,16 @@
 #include "openvino/runtime/threading/cpu_message.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
+#include "openvino/util/xml_parse_utils.hpp"
 #include "sigstack_manager.h"
 #include "transformations/transformation_pipeline.h"
 #include "transformations/utils/utils.hpp"
 #include "utils/codec_xor.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/denormals.hpp"
+#include "utils/graph_serializer/deserializer.hpp"
+#include "utils/graph_serializer/serializer.hpp"
 #include "utils/precision_support.h"
-#include "utils/serialize.hpp"
 #include "weights_cache.hpp"
 #include "xbyak/xbyak_util.h"
 
@@ -375,6 +377,10 @@ ov::Any Plugin::get_property(const std::string& name, const ov::AnyMap& options)
         return decltype(ov::value_cache_group_size)::value_type(engConfig.valueCacheGroupSize);
     }
 
+    if (name == ov::weights_path) {
+        return decltype(ov::weights_path)::value_type(std::string(""));
+    }
+
     return get_ro_property(name, options);
 }
 
@@ -384,6 +390,9 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
     };
     auto RW_property = [](const std::string& propertyName) {
         return ov::PropertyName(propertyName, ov::PropertyMutability::RW);
+    };
+    auto WO_property = [](const std::string& propertyName) {
+        return ov::PropertyName(propertyName, ov::PropertyMutability::WO);
     };
 
     if (name == ov::supported_properties) {
@@ -399,30 +408,30 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RO_property(ov::device::architecture.name()),
         };
         // the whole config is RW before model is loaded.
-        std::vector<ov::PropertyName> rwProperties{
-            RW_property(ov::num_streams.name()),
-            RW_property(ov::inference_num_threads.name()),
-            RW_property(ov::enable_profiling.name()),
-            RW_property(ov::hint::inference_precision.name()),
-            RW_property(ov::hint::performance_mode.name()),
-            RW_property(ov::hint::execution_mode.name()),
-            RW_property(ov::hint::num_requests.name()),
-            RW_property(ov::hint::enable_cpu_pinning.name()),
-            RW_property(ov::hint::enable_cpu_reservation.name()),
-            RW_property(ov::hint::scheduling_core_type.name()),
-            RW_property(ov::hint::model_distribution_policy.name()),
-            RW_property(ov::hint::enable_hyper_threading.name()),
-            RW_property(ov::device::id.name()),
-            RW_property(ov::intel_cpu::denormals_optimization.name()),
-            RW_property(ov::log::level.name()),
-            RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
-            RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
-            RW_property(ov::hint::dynamic_quantization_group_size.name()),
-            RW_property(ov::hint::kv_cache_precision.name()),
-            RW_property(ov::key_cache_precision.name()),
-            RW_property(ov::value_cache_precision.name()),
-            RW_property(ov::key_cache_group_size.name()),
-            RW_property(ov::value_cache_group_size.name()),
+        std::vector<ov::PropertyName> rwProperties{RW_property(ov::num_streams.name()),
+                                                   RW_property(ov::inference_num_threads.name()),
+                                                   RW_property(ov::enable_profiling.name()),
+                                                   RW_property(ov::hint::inference_precision.name()),
+                                                   RW_property(ov::hint::performance_mode.name()),
+                                                   RW_property(ov::hint::execution_mode.name()),
+                                                   RW_property(ov::hint::num_requests.name()),
+                                                   RW_property(ov::hint::enable_cpu_pinning.name()),
+                                                   RW_property(ov::hint::enable_cpu_reservation.name()),
+                                                   RW_property(ov::hint::scheduling_core_type.name()),
+                                                   RW_property(ov::hint::model_distribution_policy.name()),
+                                                   RW_property(ov::hint::enable_hyper_threading.name()),
+                                                   RW_property(ov::device::id.name()),
+                                                   RW_property(ov::intel_cpu::denormals_optimization.name()),
+                                                   RW_property(ov::log::level.name()),
+                                                   RW_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+                                                   RW_property(ov::intel_cpu::enable_tensor_parallel.name()),
+                                                   RW_property(ov::hint::dynamic_quantization_group_size.name()),
+                                                   RW_property(ov::hint::kv_cache_precision.name()),
+                                                   RW_property(ov::key_cache_precision.name()),
+                                                   RW_property(ov::value_cache_precision.name()),
+                                                   RW_property(ov::key_cache_group_size.name()),
+                                                   RW_property(ov::value_cache_group_size.name()),
+                                                   WO_property(ov::weights_path.name())
         };
 
         std::vector<ov::PropertyName> supportedProperties;
@@ -566,13 +575,71 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_str
         decript_from_string = true;
     }
 
+    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    std::string origin_weights_path;
+    auto cm_it = config.find(ov::cache_mode.name());
+    if (cm_it != config.end()) {
+        cache_mode = cm_it->second.as<ov::CacheMode>();
+    }
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
+        auto wp_it = config.find(ov::weights_path.name());
+        if (wp_it != config.end()) {
+            origin_weights_path = wp_it->second.as<std::string>();
+        }
+    }
+
     ModelDeserializer deserializer(
         model_stream,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-            return get_core()->read_model(model, weights);
+        [this, is_weightless_mode = (cache_mode == ov::CacheMode::OPTIMIZE_SIZE)](
+            const std::shared_ptr<ov::AlignedBuffer>& model,
+            const std::shared_ptr<ov::AlignedBuffer>& weights,
+            const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
+            if (!is_weightless_mode) {
+                return get_core()->read_model(model, weights);
+            } else {
+                // Custom deserialization for weightless mode
+
+                pugi::xml_document xml_doc;
+                const auto root = [&] {
+                    auto res =
+                        xml_doc.load_buffer(model->get_ptr(), model->size(), pugi::parse_default, pugi::encoding_utf8);
+                    OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
+                    return xml_doc.document_element();
+                }();
+                const auto opsets = [] {
+                    std::unordered_map<std::string, ov::OpSet> opsets;
+                    for (const auto& [name, mk_opset] : ov::get_available_opsets()) {
+                        opsets[name] = mk_opset();
+                    }
+                    return opsets;
+                }();
+                const auto version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
+
+                auto create_extensions_map =
+                    [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
+                    std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
+                    std::vector<ov::Extension::Ptr> m_extensions;
+                    create_extensions(m_extensions);
+                    for (const auto& ext : m_extensions) {
+                        if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
+                            exts.insert({base_ext->get_type_info(), base_ext});
+                    }
+                    return exts;
+                }();
+
+                // std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> extensions{};
+                std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
+                const auto& w = (weights != nullptr && weights->size() != 0) ? weights : origin_weights;
+                XmlDeserializer visitor(root, w, origin_weights, opsets, create_extensions_map, variables, version);
+                std::shared_ptr<ov::Model> model;
+                visitor.on_attribute("net", model);
+                model->get_rt_info()["version"] = int64_t(version);
+                return model;
+            }
         },
         decrypt,
-        decript_from_string);
+        decript_from_string,
+        origin_weights_path);
 
     return deserialize_model(deserializer, config);
 }
@@ -594,13 +661,71 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
                                                        model_tensor.get_byte_size(),
                                                        model_tensor);
 
+    ov::CacheMode cache_mode = ov::CacheMode::OPTIMIZE_SPEED;
+    std::string origin_weights_path;
+    auto cm_it = config.find(ov::cache_mode.name());
+    if (cm_it != config.end()) {
+        cache_mode = cm_it->second.as<ov::CacheMode>();
+    }
+    if (cache_mode == ov::CacheMode::OPTIMIZE_SIZE) {
+        auto wp_it = config.find(ov::weights_path.name());
+        if (wp_it != config.end()) {
+            origin_weights_path = wp_it->second.as<std::string>();
+        }
+    }
+
     ModelDeserializer deserializer(
         model_buffer,
-        [this](const std::shared_ptr<ov::AlignedBuffer>& model, const std::shared_ptr<ov::AlignedBuffer>& weights) {
-            return get_core()->read_model(model, weights);
+        [this, is_weightless_mode = (cache_mode == ov::CacheMode::OPTIMIZE_SIZE)](
+            const std::shared_ptr<ov::AlignedBuffer>& model,
+            const std::shared_ptr<ov::AlignedBuffer>& weights,
+            const std::shared_ptr<ov::AlignedBuffer>& origin_weights) {
+            if (!is_weightless_mode) {
+                return get_core()->read_model(model, weights);
+            } else {
+                // Custom deserialization for weightless mode
+
+                pugi::xml_document xml_doc;
+                const auto root = [&] {
+                    auto res =
+                        xml_doc.load_buffer(model->get_ptr(), model->size(), pugi::parse_default, pugi::encoding_utf8);
+                    OPENVINO_ASSERT(res.status == pugi::status_ok, res.description(), " at offset ", res.offset);
+                    return xml_doc.document_element();
+                }();
+                const auto opsets = [] {
+                    std::unordered_map<std::string, ov::OpSet> opsets;
+                    for (const auto& [name, mk_opset] : ov::get_available_opsets()) {
+                        opsets[name] = mk_opset();
+                    }
+                    return opsets;
+                }();
+                const auto version = static_cast<size_t>(ov::util::pugixml::get_uint64_attr(root, "version", 0));
+
+                auto create_extensions_map =
+                    [&]() -> std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> {
+                    std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> exts;
+                    std::vector<ov::Extension::Ptr> m_extensions;
+                    create_extensions(m_extensions);
+                    for (const auto& ext : m_extensions) {
+                        if (auto base_ext = std::dynamic_pointer_cast<ov::BaseOpExtension>(ext))
+                            exts.insert({base_ext->get_type_info(), base_ext});
+                    }
+                    return exts;
+                }();
+
+                // std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr> extensions{};
+                std::unordered_map<std::string, std::shared_ptr<ov::op::util::Variable>> variables;
+                const auto& w = (weights != nullptr && weights->size() != 0) ? weights : origin_weights;
+                XmlDeserializer visitor(root, w, origin_weights, opsets, create_extensions_map, variables, version);
+                std::shared_ptr<ov::Model> model;
+                visitor.on_attribute("net", model);
+                model->get_rt_info()["version"] = int64_t(version);
+                return model;
+            }
         },
         decrypt,
-        decript_from_string);
+        decript_from_string,
+        origin_weights_path);
 
     return deserialize_model(deserializer, config);
 }
