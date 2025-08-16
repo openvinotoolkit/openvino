@@ -5,17 +5,12 @@
 #include "intel_npu/common/sync_infer_request.hpp"
 
 #include "intel_npu/prefix.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/plugin_itt.hpp"
 #include "openvino/util/common_util.hpp"
 #include "transformations/utils/utils.hpp"
-
-namespace {
-
-constexpr size_t BATCH_AXIS = 0;
-
-}
 
 namespace intel_npu {
 
@@ -247,7 +242,7 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
 
     if (layout.empty()) {
         _logger.warning("set_input_tensors/set_tensors layout is not set, assuming batch dimension is found on 0 axis");
-        batch_idx = BATCH_AXIS;
+        batch_idx = utils::BATCH_AXIS;
     } else {
         OPENVINO_ASSERT(ov::layout::has_batch(layout),
                         "set_input_tensors/set_tensors can be used only for inputs with N(batch) dimension"
@@ -257,9 +252,9 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
     }
 
     if (batch_idx < 0) {
-        batch_idx += static_cast<int64_t>(tensors[BATCH_AXIS]->get_shape().size());
+        batch_idx += static_cast<int64_t>(tensors[utils::BATCH_AXIS]->get_shape().size());
     }
-    OPENVINO_ASSERT(batch_idx == BATCH_AXIS,
+    OPENVINO_ASSERT(batch_idx == utils::BATCH_AXIS,
                     "set_input_tensors/set_tensors is not currently supported for batch dimension index ",
                     batch_idx,
                     " != 0");
@@ -288,8 +283,8 @@ void SyncInferRequest::check_batched_tensors(const ov::Output<const ov::Node>& p
                         tensors_size);
     }
 
-    auto batched_shape = tensors[BATCH_AXIS]->get_shape();
-    auto element_type = tensors[BATCH_AXIS]->get_element_type();
+    auto batched_shape = tensors[utils::BATCH_AXIS]->get_shape();
+    auto element_type = tensors[utils::BATCH_AXIS]->get_element_type();
     batched_shape[batch_idx] = tensors_size;
     for (const auto& item : tensors) {
         OPENVINO_ASSERT(item, "Unintialized tensor is provided!");
@@ -339,7 +334,7 @@ std::shared_ptr<ov::ITensor> SyncInferRequest::allocate_tensor(const IODescripto
     ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
 
     if (batchSize.has_value()) {
-        allocatedTensorShape[BATCH_AXIS] = *batchSize;
+        allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
     }
 
     if (descriptor.isStateOutput) {
