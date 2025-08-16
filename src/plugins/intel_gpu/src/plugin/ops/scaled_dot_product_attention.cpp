@@ -77,7 +77,7 @@ static void GetNewOrder(ProgramBuilder&p, const std::shared_ptr<ov::op::internal
 
 static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v13::ScaledDotProductAttention>& op) {
     // if transpose fusion is disabled, this is used
-    validate_inputs_count(op, {3, 4, 5});
+    validate_inputs_count(op, {3, 4, 5, 6});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 
@@ -109,7 +109,7 @@ static void CreateScaledDotProductAttentionOp(ProgramBuilder& p, const std::shar
 }
 
 static void CreateSDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::SDPA>& op) {
-    validate_inputs_count(op, {3, 4, 5});
+    validate_inputs_count(op, {3, 4, 5, 6});
     auto inputs = p.GetInputInfo(op);
     auto layerName = layer_type_name_ID(op);
 

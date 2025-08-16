@@ -52,11 +52,14 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
             }
             has_attn_mask_input = data_inputs_num > 3;
             has_scale_input = data_inputs_num > 4;
+            has_sink_input = data_inputs_num > 5;
+            std::cout << "has_sink_input " << has_sink_input << std::endl;
         }
 
     bool is_causal = false;
     bool has_attn_mask_input = false;
     bool has_scale_input = false;
+    bool has_sink_input = false;
     int64_t indirect_axis = -1;
 
     bool is_kv_compressed = false;
@@ -75,6 +78,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         seed = hash_combine(seed, is_causal);
         seed = hash_combine(seed, has_attn_mask_input);
         seed = hash_combine(seed, has_scale_input);
+        seed = hash_combine(seed, has_sink_input);
         seed = hash_combine(seed, indirect_axis);
         seed = hash_range(seed, input_q_transpose_order.begin(), input_q_transpose_order.end());
         seed = hash_range(seed, input_k_transpose_order.begin(), input_k_transpose_order.end());
@@ -109,6 +113,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         return is_causal == rhs_casted.is_causal &&
                has_attn_mask_input == rhs_casted.has_attn_mask_input &&
                has_scale_input == rhs_casted.has_scale_input &&
+               has_sink_input == rhs_casted.has_sink_input &&
                indirect_axis == rhs_casted.indirect_axis &&
                input_q_transpose_order == rhs_casted.input_q_transpose_order &&
                input_k_transpose_order == rhs_casted.input_k_transpose_order &&
@@ -132,6 +137,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ob << is_kv_compressed;
         ob << has_attn_mask_input;
         ob << has_scale_input;
+        ob << has_sink_input;
         ob << indirect_axis;
         ob << input_q_transpose_order;
         ob << input_k_transpose_order;
@@ -160,6 +166,7 @@ struct scaled_dot_product_attention : public primitive_base<scaled_dot_product_a
         ib >> is_kv_compressed;
         ib >> has_attn_mask_input;
         ib >> has_scale_input;
+        ib >> has_sink_input;
         ib >> indirect_axis;
         ib >> input_q_transpose_order;
         ib >> input_k_transpose_order;
