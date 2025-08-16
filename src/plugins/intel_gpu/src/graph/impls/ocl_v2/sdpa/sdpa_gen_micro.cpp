@@ -942,7 +942,12 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
             jit.add(make_layout_jit_constants("OUTPUT" + to_code_string(1), params.output_layouts[1], out_offsets_map.at(1)));
         }
     } else {
+        const auto desc = params.typed_desc<scaled_dot_product_attention>();
         jit.add(make_tensors_jit_constants(params));
+        if (desc->has_sink_input) {
+            jit.make("SINK_DATA_T", "half");
+            jit.make("HAS_SINK_INPUT", 1);
+        }
     }
     const auto& device_info = params.get_device_info();
 
@@ -1203,10 +1208,13 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
     } else {
         const uint32_t attn_mask_idx = 3;
         const uint32_t scale_idx = 4;
+        const uint32_t sink_idx = 5;
         if (config.input_num > attn_mask_idx && !config.has_const_attn_mask_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
         if (config.input_num > scale_idx && !config.has_const_scale_val)
             args.push_back({ArgumentDescriptor::Types::INPUT, scale_idx});  // Scale
+        if (config.input_num > sink_idx)
+            args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Scale
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
