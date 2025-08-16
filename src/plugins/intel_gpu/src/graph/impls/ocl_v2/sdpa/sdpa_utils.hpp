@@ -149,7 +149,8 @@ inline ChannelName get_transposed_channel(ChannelName c, const std::vector<int64
 
 inline bool is_prefill_stage(const RuntimeParams& params) {
     auto desc = params.typed_desc<cldnn::scaled_dot_product_attention>();
-    const auto target_seq_len = extract_channel(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), params.input_layouts[0]);
+    auto channel = desc->input_q_transpose_order.size() == 4 ? ChannelName::Y : ChannelName::FEATURE;
+    const auto target_seq_len = extract_channel(get_transposed_channel(channel, desc->input_q_transpose_order), params.input_layouts[0]);
     // const auto target_seq_len_0 = get_seq_length(params.get_input_layout(0), desc->input_q_transpose_order);
 
     return target_seq_len > 1;
@@ -158,8 +159,14 @@ inline bool is_prefill_stage(const RuntimeParams& params) {
 inline bool unaligned_head_size(const RuntimeParams& params) {
     auto desc = params.typed_desc<cldnn::scaled_dot_product_attention>();
     constexpr size_t subgroup_size = 16;
-    const auto k_head_size = get_head_size(params.get_input_layout(1), desc->input_k_transpose_order);
-    const auto v_head_size = get_head_size(params.get_input_layout(2), desc->input_v_transpose_order);
+    auto extended_input_k_transpose_order = desc->input_k_transpose_order;
+    auto extended_input_v_transpose_order = desc->input_v_transpose_order;
+    if (extended_input_k_transpose_order.size() < params.get_input_layout(1).get_partial_shape().size())
+        extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+    if (extended_input_v_transpose_order.size() < params.get_input_layout(2).get_partial_shape().size())
+        extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+    const auto k_head_size = get_head_size(params.get_input_layout(1), extended_input_k_transpose_order);
+    const auto v_head_size = get_head_size(params.get_input_layout(2), extended_input_v_transpose_order);
     return (k_head_size % subgroup_size != 0) || (v_head_size % subgroup_size != 0);
 }
 
