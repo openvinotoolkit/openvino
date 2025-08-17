@@ -1851,7 +1851,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_gpu_implicit::PrintToStringParamName);
 
 template <typename Type>
-struct concat_gpu_4d_explicit_onednn : public concat_gpu_implicit {
+struct concat_gpu_4d_explicit : public concat_gpu_implicit {
 public:
     cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input,
                                         format::type fmt,
@@ -1990,7 +1990,7 @@ public:
     }
 };
 
-using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explicit_onednn<ov::float16>;
+using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explicit<ov::float16>;
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16, default) {
     ASSERT_NO_FATAL_FAILURE(test());
