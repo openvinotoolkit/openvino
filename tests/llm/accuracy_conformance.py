@@ -33,8 +33,8 @@ def add_test_case(catalog, model, gpu_int8_ref, gpu_int4_ref, cpu_int8_ref, cpu_
 TEST_CATALOG = {}
 NOTEST=0.0
 #                           NAME,                                   GPU_i8, GPU_i4, CPU_i8, CPU_i4
-add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   NOTEST, NOTEST, 0.94,   0.77)
-add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             NOTEST, NOTEST, 0.82,   0.68)
+add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.98, 0.71, 0.94,   0.77)
+add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.86, 0.74, 0.82,   0.68)
 
 # Extract configuration from catalog
 MODEL_IDS = list(TEST_CATALOG.keys())
