@@ -1853,9 +1853,7 @@ INSTANTIATE_TEST_SUITE_P(smoke,
 template <typename Type>
 struct concat_gpu_4d_explicit : public concat_gpu_implicit {
 public:
-    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input,
-                                        format::type fmt,
-                                        ExecutionConfig config) {
+    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
         auto data_type = ov::element::from<Type>();
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
