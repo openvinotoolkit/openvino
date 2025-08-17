@@ -196,6 +196,8 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
             // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
             if (!concat_node.is_dynamic() || is_runtime) {
+                if (concat_axis != 1)
+                    return false;
                 if (onednn_byte_offset % 64 != 0)
                     return false;
 
@@ -239,10 +241,6 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         idx++;
     }
 
-    if (concat_node.get_preferred_impl_type() == impl_types::onednn)
-        if (concat_axis != 1)
-            return false;
-
     // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
         bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
@@ -254,6 +252,8 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return true;
         } else {
             if (concat_out_l.batch() > 1)
+                return false;
+            if (concat_axis != 1)
                 return false;
             const auto& dims_order = concat_out_l.format.dims_order();
             for (auto dim : dims_order) {
