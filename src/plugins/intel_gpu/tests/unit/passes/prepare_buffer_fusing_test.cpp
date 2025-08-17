@@ -494,7 +494,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     topology.add(reorder("reorder1", input_info("input1"), format::bfyx, data_types::f16));
     topology.add(reorder("reorder2", input_info("input2"), format::bfyx, data_types::f16));
 
-    topology.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2") }, 0));
+    topology.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2") }, 2));
     topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
 
     ExecutionConfig config;

@@ -1850,46 +1850,12 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         ),
                         concat_gpu_implicit::PrintToStringParamName);
 
-// Added parameters for exception to be explicit concat
-using TestExtendedParamType_implicit_concat = ::testing::tuple<size_t,      // 0 - Input Batch size
-    std::vector<size_t>,                                            // 1 - Inputs Features Sizes
-    size_t,                                                         // 2 - Input Y Size
-    size_t,                                                         // 3 - Input X Size
-    format::type,                                                   // 4 - Format
-    bool,                                                           // 5 - Implicit concat
-    bool,                                                           // 6 - is_caching_test
-    size_t>;                                                        // 7 - Concat axis
-struct concat_gpu_explicit : public ::testing::TestWithParam<TestExtendedParamType_implicit_concat>
-{
-    tests::random_generator rg;
-
-    void SetUp() override {
-        rg.set_seed(GET_SUITE_NAME);
-    }
-
-    static std::string
-    PrintToStringParamName(testing::TestParamInfo<TestExtendedParamType_implicit_concat> param_info)
-    {
-        std::string in;
-        for (size_t i = 0; i < testing::get<1>(param_info.param).size() - 1; i++) {
-            in += std::to_string(testing::get<1>(param_info.param)[i]) + "_";
-        }
-        in += std::to_string(testing::get<1>(param_info.param)[testing::get<1>(param_info.param).size() - 1]);
-        format::type fmt = testing::get<4>(param_info.param);
-        return "in" + std::to_string(testing::get<0>(param_info.param))
-               + "x" + in + "x" + std::to_string(testing::get<2>(param_info.param))
-               + 'x' + std::to_string(testing::get<3>(param_info.param))
-               + "_format_" + format(fmt).to_string()
-               + "_implicit_concat" + std::to_string(testing::get<5>(param_info.param))
-               + "_is_caching_test" + std::to_string(testing::get<6>(param_info.param))
-               + "_concat_axis" + std::to_string(testing::get<7>(param_info.param));
-    }
-};
-
 template <typename Type>
-struct concat_gpu_4d_explicit : public concat_gpu_explicit {
+struct concat_gpu_4d_explicit_onednn : public concat_gpu_implicit {
 public:
-    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input, format::type fmt, ExecutionConfig config) {
+    cldnn::memory::ptr run_concat_network(std::vector<std::vector<std::vector<std::vector<std::vector<Type>>>>> input,
+                                        format::type fmt,
+                                        ExecutionConfig config) {
         auto data_type = ov::element::from<Type>();
         auto& engine = get_test_engine();
         const size_t batch_num = testing::get<0>(GetParam());
@@ -1897,7 +1863,6 @@ public:
         const size_t input_y = testing::get<2>(GetParam());
         const size_t input_x = testing::get<3>(GetParam());
         const bool is_implicit_concat = testing::get<5>(GetParam());
-        const size_t concat_axis = testing::get<7>(GetParam());
         size_t output_f = in_features[0];
 
         topology topology;
@@ -1959,11 +1924,8 @@ public:
         }
         topology.add(data("weights" , weights_mem));
         topology.add(convolution("conv", input_info("eltwise2"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-        topology.add(concatenation("concat", {input_info("eltwise1"), input_info("eltwise2")}, concat_axis));
+        topology.add(concatenation("concat", {input_info("eltwise1"), input_info("eltwise2")}, 1));
         topology.add(reorder("reorder", input_info("concat"), layout(data_types::f32, format::bfyx, {(int32_t)batch_num, (int32_t)(output_f * 2), (int32_t)input_y, (int32_t)input_x})));
-
-        ov::intel_gpu::ImplementationDesc impl = { fmt, std::string(""), impl_types::onednn };
-        config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"concat", impl} }));
 
         network concat_network(engine, topology, config);
         for (size_t i = 0; i < 4; i++) {
@@ -1971,7 +1933,9 @@ public:
         }
         auto outputs = concat_network.execute();
 
-        bool concat_opt_enabled = is_implicit_concat;
+        bool concat_opt_enabled = config.get_optimize_data();
+        if (concat_opt_enabled)
+            concat_opt_enabled = is_implicit_concat;
         bool concat_opt_result = std::static_pointer_cast<concatenation_inst>(concat_network.get_primitive("concat"))->get_node().can_be_optimized();
 
         EXPECT_EQ(concat_opt_enabled, concat_opt_result);
@@ -2026,18 +1990,17 @@ public:
     }
 };
 
-using concat_explicit_gpu_onednn_4d_f16 = concat_gpu_4d_explicit<ov::float16>;
+using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explicit_onednn<ov::float16>;
 
-TEST_P(concat_explicit_gpu_onednn_4d_f16, default) {
+TEST_P(concat_no_implicit_gpu_onednn_4d_f16, default) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke,
-                        concat_explicit_gpu_onednn_4d_f16,
+                        concat_no_implicit_gpu_onednn_4d_f16,
                         ::testing::Values(
-                            TestExtendedParamType_implicit_concat(1, { 16 }, 2, 2, format::b_fs_yx_fsv16, true, false, 1),
-                            TestExtendedParamType_implicit_concat(2, { 16 }, 2, 2, format::b_fs_yx_fsv16, false, false, 1),
-                            TestExtendedParamType_implicit_concat(1, { 16 }, 2, 2, format::b_fs_yx_fsv16, false, false, 2)
+                            TestParamType_implicit_concat(1, { 16 }, 2, 2, format::b_fs_yx_fsv16, true, false),
+                            TestParamType_implicit_concat(2, { 16 }, 2, 2, format::b_fs_yx_fsv16, false, false)
                         ),
-                        concat_gpu_explicit::PrintToStringParamName);
+                        concat_gpu_implicit::PrintToStringParamName);
 #endif
