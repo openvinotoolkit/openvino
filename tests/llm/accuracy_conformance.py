@@ -34,7 +34,6 @@ TEST_CATALOG = {}
 NOTEST=0.0
 
 
-
 #                           NAME,                                   GPU_i8, GPU_i4, CPU_i8, CPU_i4
 add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.98, 0.71, 0.94,   0.77)
 add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.86, 0.74, 0.82,   0.68)
