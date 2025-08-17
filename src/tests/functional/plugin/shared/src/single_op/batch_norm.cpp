@@ -10,11 +10,7 @@
 namespace ov {
 namespace test {
 std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<BatchNormLayerTestParams>& obj) {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    double epsilon;
-    std::string target_device;
-    std::tie(epsilon, model_type, shapes, target_device) = obj.param;
+    const auto& [epsilon, model_type, shapes, target_device] = obj.param;
 
     std::ostringstream result;
     result << "IS=(";
@@ -34,10 +30,8 @@ std::string BatchNormLayerTest::getTestCaseName(const testing::TestParamInfo<Bat
 }
 
 void BatchNormLayerTest::SetUp() {
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    double epsilon;
-    std::tie(epsilon, model_type, shapes, targetDevice) = this->GetParam();
+    const auto& [epsilon, model_type, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
     ov::ParameterVector params {std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};
 

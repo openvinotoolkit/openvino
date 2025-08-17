@@ -566,7 +566,7 @@ void ROIPooling::prepareParams() {
 template <typename T>
 class ROIPooling::ROIPoolingJitExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
+    explicit ROIPoolingJitExecutor(const jit_roi_pooling_params& jpp) {
 #if defined(OPENVINO_ARCH_X86_64)
         if (mayiuse(cpu::x64::avx512_core)) {
             roi_pooling_kernel = std::make_shared<jit_uni_roi_pooling_kernel_f32<cpu::x64::avx512_core>>(jpp);
@@ -720,7 +720,7 @@ private:
 template <typename T>
 class ROIPooling::ROIPoolingRefExecutor : public ROIPooling::ROIPoolingExecutor {
 public:
-    ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp) : jpp(_jpp) {}
+    explicit ROIPoolingRefExecutor(const jit_roi_pooling_params& _jpp) : jpp(_jpp) {}
     void exec(const IMemory& srcData, const IMemory& srcRoi, const IMemory& dst) override {
         auto src_strides = srcData.getDescWithType<BlockedMemoryDesc>()->getStrides();
         auto src_roi_step = srcRoi.getDescWithType<BlockedMemoryDesc>()->getStrides()[0];

@@ -158,7 +158,7 @@ bool DeconvKey::operator==(const DeconvKey& rhs) const {
  */
 class DeconvolutionShapeInferFactory : public ShapeInferFactory {
 public:
-    DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit DeconvolutionShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
 
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<DeconvolutionShapeInfer>(m_op);
@@ -167,7 +167,7 @@ public:
 private:
     class DeconvolutionShapeInfer : public IShapeInfer {
     public:
-        DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
+        explicit DeconvolutionShapeInfer(const std::shared_ptr<ov::Node>& op)
             : m_shape_infer(make_shape_inference(op)),
               m_port_mask((op->get_input_size() > 2) ? PortMask(2) : EMPTY_PORT_MASK) {}
 
@@ -1300,9 +1300,7 @@ void Deconvolution::initSupportedPrimitiveDescriptors() {
         return;
     }
 
-    VectorDims inDims;
-    VectorDims outDims;
-    std::tie(inDims, outDims) = makeDummyInOutShape();
+    auto [inDims, outDims] = makeDummyInOutShape();
     auto tmpInShape = Shape(inDims);
     auto tmpOutShape = Shape(outDims);
     initPaddingR(tmpInShape, tmpOutShape);

@@ -13,11 +13,7 @@
 namespace ov {
 namespace test {
 std::string ScaleShiftLayerTest::getTestCaseName(const testing::TestParamInfo<ScaleShiftParamsTuple> &obj) {
-    std::vector<ov::Shape> inputShapes;
-    ov::element::Type type;
-    std::string targetName;
-    std::vector<float> scale, shift;
-    std::tie(inputShapes, type, targetName, scale, shift) = obj.param;
+    const auto& [inputShapes, type, targetName, scale, shift] = obj.param;
     std::ostringstream results;
 
     results << "IS=" << ov::test::utils::vec2str(inputShapes) << "_";
@@ -29,10 +25,8 @@ std::string ScaleShiftLayerTest::getTestCaseName(const testing::TestParamInfo<Sc
 }
 
 void ScaleShiftLayerTest::SetUp() {
-    std::vector<ov::Shape> inputShapes;
-    ov::element::Type type;
-    std::vector<float> scale, shift;
-    std::tie(inputShapes, type, targetDevice, scale, shift) = this->GetParam();
+    const auto& [inputShapes, type, _targetDevice, scale, shift] = this->GetParam();
+    targetDevice = _targetDevice;
     auto paramsShape = ov::Shape{1};
     if (inputShapes.size() > 1)
         paramsShape = inputShapes[1];
