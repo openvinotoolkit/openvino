@@ -121,14 +121,18 @@ struct ConvolutionImplementationManager : public ImplementationManager {
             } else if (fused_ops.size() == 2) {
                 if (fused_ops[0].is_type<group_normalization>() &&
                     fused_ops[1].is_type<activation>()) {
+                        auto groupnorm0 = std::static_pointer_cast<const group_normalization>(fused_ops[0].desc);
+                        group_count = groupnorm0->num_groups;
+                        group_size = k / group_count.value();
                         auto activation0 = std::static_pointer_cast<const activation>(fused_ops[1].desc);
                         auto activation_function = activation0->activation_function;
-                        if (!bias)
-                            post_op = PostOp::GnReduce;
-                        else
-                            post_op = PostOp::BiasGnReduce;
-                        if (activation_function == activation_func::swish)
+                        if (activation_function == activation_func::swish) {
+                            if (!bias)
+                                post_op = PostOp::GnReduce;
+                            else
+                                post_op = PostOp::BiasGnReduce;
                             gn_post_op = GroupnormPostOp::SiLU;
+                        }
                     }
             } else if (fused_ops_are_one_of<eltwise>(fused_ops) && fused_ops.size() == 3) {
                 auto eltwise0 = std::static_pointer_cast<const eltwise>(fused_ops[0].desc);
