@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 namespace ov {
 namespace intel_cpu {
@@ -43,10 +43,10 @@ public:
 /**
  * @brief GridSampleDecomposition is a composite transformation that registers
  * all three GridSample decomposition passes (Nearest, Bilinear, Bicubic).
- * 
+ *
  * This pass registers the following transformations:
  * - GridSampleDecompositionNearest
- * - GridSampleDecompositionBilinear  
+ * - GridSampleDecompositionBilinear
  * - GridSampleDecompositionBicubic
  */
 class GridSampleDecomposition : public ov::pass::GraphRewrite {
