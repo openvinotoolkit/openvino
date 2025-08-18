@@ -96,11 +96,13 @@ protected:
 
         model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data, grid});
 
-        // Create reference model by applying the transformation on a clone
+        // Build reference model - the expected result after transformation
+        auto ref_data = std::make_shared<ov::op::v0::Parameter>(p.data_type, p.data_shape);
+        auto ref_grid = std::make_shared<ov::op::v0::Parameter>(p.grid_type, p.grid_shape);
+
+        // Create a clone and apply transformation to get expected decomposed graph
         model_ref = model->clone();
-        // GridSample decomposition should always apply
         ov::pass::Manager ref_manager;
-        ref_manager.register_pass<ov::pass::InitNodeInfo>();
         ref_manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
         ref_manager.run_passes(model_ref);
 
@@ -259,10 +261,9 @@ TEST_F(GridSampleDecompositionSpecialTest, MultipleGridSamples) {
     model = std::make_shared<ov::Model>(ov::ResultVector{result1, result2},
                                         ov::ParameterVector{data1, grid1, data2, grid2});
 
-    // Create reference model by applying the transformation
+    // Create reference model - expected result after transformation
     model_ref = model->clone();
     ov::pass::Manager ref_manager;
-    ref_manager.register_pass<ov::pass::InitNodeInfo>();
     ref_manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
     ref_manager.run_passes(model_ref);
 }
@@ -284,10 +285,9 @@ TEST_F(GridSampleDecompositionSpecialTest, PreserveOutputShape) {
 
     model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data, grid});
 
-    // Create reference model by applying the transformation
+    // Create reference model - expected result after transformation
     model_ref = model->clone();
     ov::pass::Manager ref_manager;
-    ref_manager.register_pass<ov::pass::InitNodeInfo>();
     ref_manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
     ref_manager.run_passes(model_ref);
 }
@@ -307,10 +307,9 @@ TEST_F(GridSampleDecompositionSpecialTest, RuntimeInfoPreservation) {
     auto result = std::make_shared<ov::op::v0::Result>(grid_sample);
     model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data, grid});
 
-    // Create reference model by applying the transformation
+    // Create reference model - expected result after transformation
     model_ref = model->clone();
     ov::pass::Manager ref_manager;
-    ref_manager.register_pass<ov::pass::InitNodeInfo>();
     ref_manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
     ref_manager.run_passes(model_ref);
 }
