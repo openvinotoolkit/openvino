@@ -1488,7 +1488,7 @@ void Transformations::MainSnippets() {
             snippets::pass::TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_ARM(
             snippetsManager,
-            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+            [&]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
                 // TODO: Enable TokenizeMLPSeqSnippets on ARM
                 return true;
             },
