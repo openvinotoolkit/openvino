@@ -48,8 +48,8 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov::intel_cpu {
