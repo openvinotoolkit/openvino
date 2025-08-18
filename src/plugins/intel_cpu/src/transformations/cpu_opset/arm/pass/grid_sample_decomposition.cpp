@@ -690,17 +690,29 @@ bool decompose_impl(const std::shared_ptr<ov::op::v9::GridSample>& gs,
 class GridSampleDecompositionNearestStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionNearestStatic() {
-        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        // Match GridSample with 4D inputs and static shapes
+        auto data_pattern = ov::pass::pattern::any_input(
+            [](const Output<Node>& output) {
+                return output.get_partial_shape().rank().is_static() &&
+                       output.get_partial_shape().rank().get_length() == 4 &&
+                       output.get_partial_shape().is_static();
+            });
+        auto grid_pattern = ov::pass::pattern::any_input(
+            [](const Output<Node>& output) {
+                return output.get_partial_shape().rank().is_static() &&
+                       output.get_partial_shape().rank().get_length() == 4 &&
+                       output.get_partial_shape().is_static();
+            });
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>({data_pattern, grid_pattern},
+            [](const Output<Node>& output) {
+                auto gs = ov::as_type_ptr<op::v9::GridSample>(output.get_node_shared_ptr());
+                return gs && gs->get_attributes().mode == op::v9::GridSample::InterpolationMode::NEAREST;
+            });
+        
         matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
                 return false;
-            }
-            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::NEAREST) {
-                return false;
-            }
-            if (!gs->get_input_partial_shape(0).is_static() || !gs->get_input_partial_shape(1).is_static()) {
-                return false;  // static-only
             }
             return decompose_impl(
                 gs,
@@ -716,16 +728,28 @@ public:
 class GridSampleDecompositionBilinearStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBilinearStatic() {
-        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        // Match GridSample with 4D inputs and static shapes
+        auto data_pattern = ov::pass::pattern::any_input(
+            [](const Output<Node>& output) {
+                return output.get_partial_shape().rank().is_static() &&
+                       output.get_partial_shape().rank().get_length() == 4 &&
+                       output.get_partial_shape().is_static();
+            });
+        auto grid_pattern = ov::pass::pattern::any_input(
+            [](const Output<Node>& output) {
+                return output.get_partial_shape().rank().is_static() &&
+                       output.get_partial_shape().rank().get_length() == 4 &&
+                       output.get_partial_shape().is_static();
+            });
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>({data_pattern, grid_pattern},
+            [](const Output<Node>& output) {
+                auto gs = ov::as_type_ptr<op::v9::GridSample>(output.get_node_shared_ptr());
+                return gs && gs->get_attributes().mode == op::v9::GridSample::InterpolationMode::BILINEAR;
+            });
+        
         matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
-                return false;
-            }
-            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BILINEAR) {
-                return false;
-            }
-            if (!gs->get_input_partial_shape(0).is_static() || !gs->get_input_partial_shape(1).is_static()) {
                 return false;
             }
             return decompose_impl(
@@ -743,16 +767,28 @@ public:
 class GridSampleDecompositionBicubicStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBicubicStatic() {
-        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        // Match GridSample with 4D inputs and static shapes
+        auto data_pattern = ov::pass::pattern::any_input(
+            [](const Output<Node>& output) {
+                return output.get_partial_shape().rank().is_static() &&
+                       output.get_partial_shape().rank().get_length() == 4 &&
+                       output.get_partial_shape().is_static();
+            });
+        auto grid_pattern = ov::pass::pattern::any_input(
+            [](const Output<Node>& output) {
+                return output.get_partial_shape().rank().is_static() &&
+                       output.get_partial_shape().rank().get_length() == 4 &&
+                       output.get_partial_shape().is_static();
+            });
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>({data_pattern, grid_pattern},
+            [](const Output<Node>& output) {
+                auto gs = ov::as_type_ptr<op::v9::GridSample>(output.get_node_shared_ptr());
+                return gs && gs->get_attributes().mode == op::v9::GridSample::InterpolationMode::BICUBIC;
+            });
+        
         matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
-                return false;
-            }
-            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BICUBIC) {
-                return false;
-            }
-            if (!gs->get_input_partial_shape(0).is_static() || !gs->get_input_partial_shape(1).is_static()) {
                 return false;
             }
             return decompose_impl(
@@ -769,18 +805,26 @@ public:
 class GridSampleDecompositionNearestDynamic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionNearestDynamic() {
-        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        // Match GridSample with 4D inputs (can be dynamic shapes)
+        auto data_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::rank_equals(4));
+        auto grid_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::rank_equals(4));
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>({data_pattern, grid_pattern},
+            [](const Output<Node>& output) {
+                auto gs = ov::as_type_ptr<op::v9::GridSample>(output.get_node_shared_ptr());
+                if (!gs || gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::NEAREST) {
+                    return false;
+                }
+                // Only match if at least one shape is dynamic
+                return !gs->get_input_partial_shape(0).is_static() || 
+                       !gs->get_input_partial_shape(1).is_static();
+            });
+        
         matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
                 return false;
-            }
-            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::NEAREST) {
-                return false;
-            }
-            // dynamic path if any input shape is not static
-            if (gs->get_input_partial_shape(0).is_static() && gs->get_input_partial_shape(1).is_static()) {
-                return false;  // let static pass handle
             }
             return decompose_impl(
                 gs,
@@ -797,16 +841,25 @@ public:
 class GridSampleDecompositionBilinearDynamic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBilinearDynamic() {
-        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        // Match GridSample with 4D inputs (can be dynamic shapes)
+        auto data_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::rank_equals(4));
+        auto grid_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::rank_equals(4));
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>({data_pattern, grid_pattern},
+            [](const Output<Node>& output) {
+                auto gs = ov::as_type_ptr<op::v9::GridSample>(output.get_node_shared_ptr());
+                if (!gs || gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BILINEAR) {
+                    return false;
+                }
+                // Only match if at least one shape is dynamic
+                return !gs->get_input_partial_shape(0).is_static() || 
+                       !gs->get_input_partial_shape(1).is_static();
+            });
+        
         matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
-                return false;
-            }
-            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BILINEAR) {
-                return false;
-            }
-            if (gs->get_input_partial_shape(0).is_static() && gs->get_input_partial_shape(1).is_static()) {
                 return false;
             }
             return decompose_impl(
@@ -824,16 +877,25 @@ public:
 class GridSampleDecompositionBicubicDynamic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBicubicDynamic() {
-        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
+        // Match GridSample with 4D inputs (can be dynamic shapes)
+        auto data_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::rank_equals(4));
+        auto grid_pattern = ov::pass::pattern::any_input(
+            ov::pass::pattern::rank_equals(4));
+        auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>({data_pattern, grid_pattern},
+            [](const Output<Node>& output) {
+                auto gs = ov::as_type_ptr<op::v9::GridSample>(output.get_node_shared_ptr());
+                if (!gs || gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BICUBIC) {
+                    return false;
+                }
+                // Only match if at least one shape is dynamic
+                return !gs->get_input_partial_shape(0).is_static() || 
+                       !gs->get_input_partial_shape(1).is_static();
+            });
+        
         matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
-                return false;
-            }
-            if (gs->get_attributes().mode != op::v9::GridSample::InterpolationMode::BICUBIC) {
-                return false;
-            }
-            if (gs->get_input_partial_shape(0).is_static() && gs->get_input_partial_shape(1).is_static()) {
                 return false;
             }
             return decompose_impl(
