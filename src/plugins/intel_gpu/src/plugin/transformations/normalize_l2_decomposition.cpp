@@ -53,11 +53,9 @@ NormalizeL2Decomposition::NormalizeL2Decomposition(bool use_fp32_reducesum) {
         auto input_type = normalize_l2->get_input_element_type(0);
 
         std::shared_ptr<ov::Node> input = normalize_l2->input_value(0).get_node_shared_ptr();
-        std::shared_ptr<ov::Node> input_fp32 = nullptr;
         // Convert to fp32 if requested
         if (use_fp32_reducesum) {
-            input_fp32 = std::make_shared<ov::op::v0::Convert>(normalize_l2->input_value(0), ov::element::f32);
-            input = input_fp32;
+            input = std::make_shared<ov::op::v0::Convert>(normalize_l2->input_value(0), ov::element::f32);
         }
 
         ov::element::Type decomposition_data_type = use_fp32_reducesum ? ov::element::f32 : input_type;
@@ -82,11 +80,7 @@ NormalizeL2Decomposition::NormalizeL2Decomposition(bool use_fp32_reducesum) {
         std::shared_ptr<ov::Node> dividend = normalize_l2->input_value(0).get_node_shared_ptr();
         std::shared_ptr<ov::Node> final_convert = nullptr;
 
-        if (use_fp32_reducesum) {
-            dividend = input_fp32;
-        }
-
-        auto div = std::make_shared<ov::op::v1::Divide>(dividend, sqrt);
+        auto div = std::make_shared<ov::op::v1::Divide>(input, sqrt);
         div->set_friendly_name(normalize_l2->get_friendly_name());
 
         std::shared_ptr<ov::Node> final_result = div;
@@ -99,7 +93,6 @@ NormalizeL2Decomposition::NormalizeL2Decomposition(bool use_fp32_reducesum) {
 
         // Copy runtime info and replace node
         std::vector<std::shared_ptr<ov::Node>> new_ops = {power, reduce_sum, eps_node, sqrt, div};
-        if (input_fp32) new_ops.push_back(input_fp32);
         if (final_convert) new_ops.push_back(final_convert);
 
         ov::copy_runtime_info(normalize_l2, new_ops);
