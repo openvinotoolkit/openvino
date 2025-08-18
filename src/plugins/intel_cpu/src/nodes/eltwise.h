@@ -56,7 +56,7 @@ public:
                            bool isLastPostOp,
                            dnnl::memory::data_type outDataType,
                            bool allowBinary = true);
-    void fuseInto(NodePtr& parentNode) override;
+    void fuseInto(const NodePtr& parentNode) override;
     ov::element::Type getRuntimePrecision() const override;
 
     float getAlpha() const {
