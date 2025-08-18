@@ -31,7 +31,7 @@ protected:
 
     void SetUp() override {
         const auto& p = GetParam();
-        const auto rank = p.input_shape.rank().get_length();
+        const auto rank = p.input_shape.size();
 
         auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, p.input_shape);
         auto weights = ov::opset1::Constant::create(ov::element::f32, p.weights_shape, {1});
