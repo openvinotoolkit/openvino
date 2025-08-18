@@ -35,9 +35,9 @@ struct GridSampleTestParams {
     ov::op::v9::GridSample::PaddingMode padding_mode;
 };
 
-// ========== Base test class ==========
-class GridSampleDecompositionTest : public TransformationTestsF,
-                                    public WithParamInterface<GridSampleTestParams> {
+// ========== Base test classes ==========
+class GridSampleDecompositionStaticTest : public TransformationTestsF,
+                                          public WithParamInterface<GridSampleTestParams> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<GridSampleTestParams>& obj) {
         const auto& p = obj.param;
@@ -111,7 +111,84 @@ protected:
     }
 };
 
-TEST_P(GridSampleDecompositionTest, CompareFunctions) {}
+class GridSampleDecompositionDynamicTest : public TransformationTestsF,
+                                           public WithParamInterface<GridSampleTestParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<GridSampleTestParams>& obj) {
+        const auto& p = obj.param;
+        std::ostringstream result;
+        result << "data_shape=" << p.data_shape
+               << "_grid_shape=" << p.grid_shape
+               << "_data_type=" << p.data_type
+               << "_grid_type=" << p.grid_type
+               << "_align=" << p.align_corners
+               << "_interp=";
+
+        switch (p.interp_mode) {
+            case ov::op::v9::GridSample::InterpolationMode::BILINEAR:
+                result << "bilinear";
+                break;
+            case ov::op::v9::GridSample::InterpolationMode::NEAREST:
+                result << "nearest";
+                break;
+            case ov::op::v9::GridSample::InterpolationMode::BICUBIC:
+                result << "bicubic";
+                break;
+        }
+
+        result << "_padding=";
+        switch (p.padding_mode) {
+            case ov::op::v9::GridSample::PaddingMode::ZEROS:
+                result << "zeros";
+                break;
+            case ov::op::v9::GridSample::PaddingMode::BORDER:
+                result << "border";
+                break;
+            case ov::op::v9::GridSample::PaddingMode::REFLECTION:
+                result << "reflection";
+                break;
+        }
+
+        return result.str();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        disable_rt_info_check();
+
+        // Use graph comparator for dynamic cases to verify exact structure
+        comparator.enable(FunctionsComparator::CmpValues::SUBGRAPH_DESCRIPTORS);
+        comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+
+        const auto& p = GetParam();
+
+        auto data = std::make_shared<ov::op::v0::Parameter>(p.data_type, p.data_shape);
+        auto grid = std::make_shared<ov::op::v0::Parameter>(p.grid_type, p.grid_shape);
+
+        ov::op::v9::GridSample::Attributes attrs;
+        attrs.align_corners = p.align_corners;
+        attrs.mode = p.interp_mode;
+        attrs.padding_mode = p.padding_mode;
+
+        auto grid_sample = std::make_shared<ov::op::v9::GridSample>(data, grid, attrs);
+        auto result = std::make_shared<ov::op::v0::Result>(grid_sample);
+
+        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data, grid});
+
+        // Create reference model - expected result after transformation
+        model_ref = model->clone();
+        ov::pass::Manager ref_manager;
+        ref_manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
+        ref_manager.run_passes(model_ref);
+
+        // Register the transformation to be tested
+        manager.register_pass<ov::intel_cpu::GridSampleDecomposition>();
+    }
+};
+
+TEST_P(GridSampleDecompositionStaticTest, CompareFunctions) {}
+TEST_P(GridSampleDecompositionDynamicTest, CompareGraphs) {}
 
 // ========== Test parameters ==========
 const std::vector<GridSampleTestParams> testStaticShapes = {
@@ -216,14 +293,14 @@ const std::vector<GridSampleTestParams> testDynamicShapes = {
 };
 
 INSTANTIATE_TEST_SUITE_P(StaticShapes,
-                        GridSampleDecompositionTest,
+                        GridSampleDecompositionStaticTest,
                         ::testing::ValuesIn(testStaticShapes),
-                        GridSampleDecompositionTest::getTestCaseName);
+                        GridSampleDecompositionStaticTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DynamicShapes,
-                        GridSampleDecompositionTest,
+                        GridSampleDecompositionDynamicTest,
                         ::testing::ValuesIn(testDynamicShapes),
-                        GridSampleDecompositionTest::getTestCaseName);
+                        GridSampleDecompositionDynamicTest::getTestCaseName);
 
 // ========== Special test cases ==========
 class GridSampleDecompositionSpecialTest : public TransformationTestsF {
