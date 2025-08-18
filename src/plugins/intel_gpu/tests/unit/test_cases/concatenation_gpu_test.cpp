@@ -1922,7 +1922,7 @@ public:
         }
         topology.add(data("weights" , weights_mem));
         topology.add(convolution("conv", input_info("eltwise2"), "weights", "", 1, {1, 1}, {1, 1}, {0, 0}, {0, 0}, false));
-        topology.add(concatenation("concat", {input_info("eltwise1"), input_info("eltwise2")}, 1));
+        topology.add(concatenation("concat", {input_info("eltwise1"), input_info("eltwise2")}, concat_axis));
         topology.add(reorder("reorder", input_info("concat"), layout(data_types::f32, format::bfyx, {(int32_t)batch_num, (int32_t)(output_f * 2), (int32_t)input_y, (int32_t)input_x})));
 
         network concat_network(engine, topology, config);
@@ -1986,9 +1986,16 @@ public:
         }
         ASSERT_EQ(diff_count, 0);
     }
+
+    void set_concat_axis(size_t axis) {
+        concat_axis = axis;
+    }
+
+    size_t concat_axis = 1;
 };
 
 using concat_no_implicit_gpu_onednn_4d_f16 = concat_gpu_4d_explicit<ov::float16>;
+using concat_no_implicit_gpu_onednn_4d_f16_spatial = concat_gpu_4d_explicit<ov::float16>;
 
 TEST_P(concat_no_implicit_gpu_onednn_4d_f16, default) {
     ASSERT_NO_FATAL_FAILURE(test());
@@ -1999,6 +2006,24 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                         ::testing::Values(
                             TestParamType_implicit_concat(1, { 16 }, 2, 2, format::b_fs_yx_fsv16, true, false),
                             TestParamType_implicit_concat(2, { 16 }, 2, 2, format::b_fs_yx_fsv16, false, false)
+                        ),
+                        concat_gpu_implicit::PrintToStringParamName);
+
+TEST_P(concat_no_implicit_gpu_onednn_4d_f16_spatial, default) {
+    set_concat_axis(2);
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+TEST_P(concat_no_implicit_gpu_onednn_4d_f16_spatial, other_spatial) {
+    set_concat_axis(3);
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                        concat_no_implicit_gpu_onednn_4d_f16_spatial,
+                        ::testing::Values(
+                            TestParamType_implicit_concat(1, { 16 }, 2, 2, format::b_fs_yx_fsv16, false, false),
+                            TestParamType_implicit_concat(1, { 16 }, 2, 2, format::bfyx, false, false)
                         ),
                         concat_gpu_implicit::PrintToStringParamName);
 #endif
