@@ -76,7 +76,9 @@ Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
                                          const std::optional<std::vector<uint64_t>> initSizes,
                                          int32_t blobType)
     : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion},
-      _blobType(blobType) {}
+      _blobType(blobType) {
+    _version = METADATA_VERSION_2_2;
+}
 
 void Metadata<METADATA_VERSION_2_0>::read(std::istream& stream) {
     _ovVersion.read(stream);
@@ -197,6 +199,8 @@ std::unique_ptr<MetadataBase> create_metadata(uint32_t version, uint64_t blobSiz
         return std::make_unique<Metadata<METADATA_VERSION_2_0>>(blobSize, std::nullopt);
     case METADATA_VERSION_2_1:
         return std::make_unique<Metadata<METADATA_VERSION_2_1>>(blobSize, std::nullopt);
+    case METADATA_VERSION_2_2:
+        return std::make_unique<Metadata<METADATA_VERSION_2_2>>(blobSize, std::nullopt);
     default:
         OPENVINO_THROW("Metadata version is not supported!");
     }

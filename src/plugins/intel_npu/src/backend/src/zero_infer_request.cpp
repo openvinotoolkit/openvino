@@ -388,7 +388,8 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::allocate_tensor_for_pipeline(
                         size_t number = std::stoul(item);
                         a.push_back(number);
                     } catch (std::exception& e) {
-                        std::cerr << "Number out of range in environment variable: " << item << std::endl;
+                        std::cerr << "Number out of range in environment variable: " << item << " error:" << e.what()
+                                  << std::endl;
                         hack = false;
                         break;
                     }

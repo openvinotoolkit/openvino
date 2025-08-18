@@ -276,7 +276,11 @@ public:
 
     size_t get_metadata_size() const override;
 
-private:
+    int32_t get_blob_type() const override {
+        return _blobType;
+    }
+
+protected:
     // 0 - ELF blob
     // 1 - LLVM IR blob
     int32_t _blobType;

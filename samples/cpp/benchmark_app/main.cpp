@@ -1292,9 +1292,9 @@ int main(int argc, char* argv[]) {
 #ifdef NPU_LLVM_BACKEND
         if (getenv("DUMP_TENSOR_INFO")) {
             bool skipDump = false;
-            for (int i = 0; i < inferRequestsQueue.requests.size() && !skipDump; i++) {
+            for (size_t i = 0; i < inferRequestsQueue.requests.size() && !skipDump; i++) {
                 size_t count = compiledModel.outputs().size();
-                for (int j = 0; j < count && !skipDump; j++) {
+                for (size_t j = 0; j < count && !skipDump; j++) {
                     auto outputTensor = inferRequestsQueue.requests[i]->get_output_tensor(j);
                     // print 10 numbers from the output
                     std::cout << "First 10 numbers of the output: ";
@@ -1330,7 +1330,7 @@ int main(int argc, char* argv[]) {
                 }
 
                 size_t inputCount = compiledModel.inputs().size();
-                for (int k = 0; k < inputCount && !skipDump; k++) {
+                for (size_t k = 0; k < inputCount && !skipDump; k++) {
                     auto inputTensor = inferRequestsQueue.requests[i]->get_input_tensor(k);
                     // print 10 numbers from the output
                     std::cout << "First 10 numbers of the input: ";
