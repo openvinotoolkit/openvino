@@ -1779,8 +1779,11 @@ public:
         // implicit concat
         ExecutionConfig config1 = get_test_default_config(engine);
         config1.set_property(ov::intel_gpu::optimize_data(true));
-        ov::intel_gpu::ImplementationDesc impl = { fmt, std::string(""), impl_types::onednn };
-        config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", impl}, {"pool0", impl}, {"pool1", impl} }));
+        ov::intel_gpu::ImplementationDesc onednn_impl = { fmt, std::string(""), impl_types::onednn };
+        ov::intel_gpu::ImplementationDesc ocl_impl = { fmt, std::string(""), impl_types::ocl };
+        config1.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"conv", onednn_impl},
+                                                                                                 {"pool0", ocl_impl},
+                                                                                                 {"pool1", onednn_impl} }));
 
         auto out_mem1 = run_concat_network(input, fmt, config1);
         cldnn::mem_lock<Type> out_ptr1(out_mem1, stream);
