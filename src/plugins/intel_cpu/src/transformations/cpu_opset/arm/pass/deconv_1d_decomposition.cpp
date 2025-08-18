@@ -46,8 +46,8 @@
 namespace ov::intel_cpu {
 
 Deconv1DDecomposition::Deconv1DDecomposition() {
-    auto input_pattern = ov::pass::pattern::any_input();
-    auto weights_pattern = ov::pass::pattern::any_input();
+    auto input_pattern = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
+    auto weights_pattern = ov::pass::pattern::any_input(ov::pass::pattern::rank_equals(3));
 
     // Predicate to check for 3D tensors (1D deconv)
     auto is_1d_deconv = [](const ov::Output<ov::Node>& output) -> bool {
