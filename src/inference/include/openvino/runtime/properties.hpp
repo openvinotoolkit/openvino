@@ -615,6 +615,16 @@ static constexpr Property<float, PropertyMutability::RW> activations_scale_facto
  * The blob can be regular or weightless model. The `weights_path` property is hint where to look for weights.
  */
 inline constexpr Property<Tensor, PropertyMutability::RW> compiled_blob{"COMPILED_BLOB"};
+
+/**
+ * @brief Read-only property to get the model transformation signature
+ * @ingroup ov_runtime_cpp_prop_api
+ * 
+ * This property is used to identify the specific transformations that have been applied to the model
+ * to calculate the model hash.
+ * The signature is a string that represents the sequence of transformations applied to the model.
+ */
+static constexpr Property<std::string, PropertyMutability::RO> model_transform_signature{"MODEL_TRANSFORM_SIGNATURE"};
 }  // namespace hint
 
 /**
