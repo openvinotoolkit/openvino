@@ -130,8 +130,13 @@ std::shared_ptr<DnnlMatMulPrimitive> DnnlMatMulPrimitive::create(const MemoryArg
                       attrs.transposeB,
                       attrs.fcSemantic};
 
-    auto builder = [&context](const Key& dnnlKey) {
-        return std::make_shared<DnnlMatMulPrimitive>(dnnlKey, context->getEngine(), context->getImplPriorities());
+    const auto defaultImplType = shapeAgnosticData->m_implType;
+
+    auto builder = [&context, defaultImplType](const Key& dnnlKey) {
+        return std::make_shared<DnnlMatMulPrimitive>(dnnlKey,
+                                                     context->getEngine(),
+                                                     context->getImplPriorities(),
+                                                     defaultImplType);
     };
 
     auto runtimeCache = context->getRuntimeCache();
@@ -284,12 +289,45 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                           const dnnl::memory::desc& outputDesc,
                                           const dnnl::primitive_attr& attr,
                                           const dnnl::engine& engine,
-                                          const std::vector<impl_desc_type>& implPriorities,
+                                          [[maybe_unused]] const std::vector<impl_desc_type>& implPriorities,
+                                          const impl_desc_type defaultImplType,
                                           const bool transposeA,
                                           const bool transposeB,
                                           [[maybe_unused]] const bool useSparseWeights,
                                           const bool useWeightsDecompression,
                                           const bool fcSemantic) {
+    if (defaultImplType == impl_desc_type::undef) {
+        struct PrimitiveDescWithPriority {
+            dnnl::primitive_desc prim_desc;
+            size_t priority = 0UL;
+        };
+
+        PrimitiveDescWithPriority prim_desc_w_priority{dnnl::primitive_desc(), 0, implPriorities.size()};
+        const bool first_match = implPriorities.front() == impl_desc_type::unknown;
+
+        auto cur_desc =
+            createDescriptorInternal(inputDesc, weightDesc, biasDesc, outputDesc, attr, engine, transposeA, transposeB);
+
+        DnnlExtensionUtils::for_each_implementation(
+            cur_desc,
+            first_match,
+            [&](impl_desc_type implType) {  // is acceptable implementation
+                return contains(implPriorities, implType);
+            },
+            [&](dnnl::primitive_desc& desc) {  // is implementation with highest priority
+                const impl_desc_type descImplType = parse_impl_name(desc.impl_info_str());
+                const auto it = std::find(implPriorities.begin(), implPriorities.end(), descImplType);
+                const size_t priorityId = std::distance(implPriorities.begin(), it);
+                const size_t highestPriority = prim_desc_w_priority.priority;
+                if (priorityId < highestPriority) {
+                    auto desc_copy = dnnl::primitive_desc(DnnlExtensionUtils::clone_primitive_desc(desc.get(true)));
+                    prim_desc_w_priority = {desc_copy, priorityId};
+                }
+            });
+
+        return prim_desc_w_priority.prim_desc;
+    }
+
     auto prim_desc = fcSemantic ? createDescriptorInternalAsFc(inputDesc,
                                                                weightDesc,
                                                                biasDesc,
@@ -305,12 +343,11 @@ static primitive_desc createPrimitiveDesc(const dnnl::memory::desc& inputDesc,
                                                            engine,
                                                            transposeA,
                                                            transposeB);
+
     OPENVINO_ASSERT(prim_desc, "Failed to create matmul primitive descriptor");
     auto first_desc = dnnl::matmul::primitive_desc(prim_desc.get());
 
-    const bool found = DnnlExtensionUtils::find_implementation(prim_desc, [&](impl_desc_type implType) {
-        return any_of_values(implPriorities, implType);
-    });
+    const bool found = DnnlExtensionUtils::find_implementation(prim_desc, defaultImplType);
 
     if (found) {
         return std::move(prim_desc);
@@ -463,10 +500,6 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
     const auto postOpData =
         createPrimitiveAttrs(attrs.postOps, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
-    if (attrs.nonConstantWeights || !cacheWeights) {
-        return std::make_shared<DnnlShapeAgnosticData>(postOpData);
-    }
-
     if (srcDesc->getShape().isDynamic() || weiDesc->getShape().isDynamic()) {
         const auto& inShape = srcDesc->getShape();
         const auto& wShape = weiDesc->getShape();
@@ -490,21 +523,24 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
                                               postOpData.attr,
                                               context->getEngine(),
                                               context->getImplPriorities(),
+                                              impl_desc_type::undef,
                                               attrs.transposeA,
                                               attrs.transposeB,
                                               false,
                                               useWeightsDecompression,
                                               attrs.fcSemantic);
 
-    const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
-    auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
+    if (!attrs.nonConstantWeights && cacheWeights) {
+        const auto weightsDesc = DnnlExtensionUtils::makeDescriptor(primDesc.weights_desc());
+        auto originalWeightsDesc = MemoryDescUtils::convertToDnnlMemoryDesc(weiDesc);
 
-    if (attrs.fcSemantic) {
-        originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, attrs);
+        if (attrs.fcSemantic) {
+            originalWeightsDesc = makeTransposedWeightDescriptor(originalWeightsDesc, weightsDesc, attrs);
+        }
+
+        // ignore the result since we just need to put the packed weights into the cache
+        (void)utils::prepareWeightsMemory(originalWeightsDesc, weightsDesc, memory.at(ARG_WEI), context);
     }
-
-    // ignore the result since we just need to put the packed weights into the cache
-    (void)utils::prepareWeightsMemory(originalWeightsDesc, weightsDesc, memory.at(ARG_WEI), context);
 
     const auto defaultImpType = parse_impl_name(primDesc.impl_info_str());
 
@@ -523,7 +559,8 @@ static impl_desc_type implTypeFromPrimDesc(const dnnl::primitive_desc& primDesc)
 
 DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                          const dnnl::engine& engine,
-                                         const std::vector<impl_desc_type>& implPriorities)
+                                         [[maybe_unused]] const std::vector<impl_desc_type>& implPriorities,
+                                         const impl_desc_type defaultImplType)
     : m_stream(dnnl::stream(engine)),
       m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
                                      key.wei->getDnnlDesc(),
@@ -532,6 +569,7 @@ DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                      key.attr,
                                      engine,
                                      implPriorities,
+                                     defaultImplType,
                                      key.transposeA,
                                      key.transposeB,
                                      false,

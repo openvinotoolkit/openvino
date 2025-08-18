@@ -33,6 +33,7 @@ public:
     [[nodiscard]] bool created() const override;
 
     [[nodiscard]] ov::element::Type getRuntimePrecision() const override;
+    [[nodiscard]] const std::vector<impl_desc_type>& getDefaultImplPriority() override;
 
     [[nodiscard]] int getFusingAxis() const override {
         return getOutputShapeAtPort(0).getRank() - 1;
