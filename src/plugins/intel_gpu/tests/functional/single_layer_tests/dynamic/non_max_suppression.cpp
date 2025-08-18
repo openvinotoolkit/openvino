@@ -49,27 +49,14 @@ class NmsLayerGPUTest : public testing::WithParamInterface<NmsLayerTestParams>,
                         virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<NmsLayerTestParams>& obj) {
-        InputShapeParams inShapeParams;
-        InputPrecisions inPrecisions;
-        int32_t maxOutBoxesPerClass;
-        ThresholdValues thrValues;
-        float iouThr, scoreThr, softNmsSigma;
-        ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
-        bool sortResDescend;
-        ov::element::Type outType;
-        std::string targetDevice;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, boxEncoding, sortResDescend, outType,
-                 targetDevice, additionalConfig) = obj.param;
+        const auto& [inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, boxEncoding, sortResDescend, outType, targetDevice, additionalConfig] =
+            obj.param;
 
-        std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
+        const auto& [iouThr, scoreThr, softNmsSigma] = thrValues;
 
-        ov::element::Type paramsPrec, maxBoxPrec, thrPrec;
-        std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
+        const auto& [paramsPrec, maxBoxPrec, thrPrec] = inPrecisions;
 
-        std::vector<ov::Dimension> bounds;
-        std::vector<TargetShapeParams> targetShapes;
-        std::tie(bounds, targetShapes) = inShapeParams;
+        const auto& [bounds, targetShapes] = inShapeParams;
 
         std::ostringstream result;
         if (!bounds.empty()) {
@@ -77,8 +64,7 @@ public:
             result << "BatchesBounds=" << bounds[BATCHES] << "_BoxesBounds=" << bounds[BOXES] << "_ClassesBounds=" << bounds[CLASSES] << "_";
         }
         for (const auto &ts : targetShapes) {
-            size_t numBatches, numBoxes, numClasses;
-            std::tie(numBatches, numBoxes, numClasses) = ts;
+            const auto& [numBatches, numBoxes, numClasses] = ts;
             result << "(nB=" << numBatches << "_nBox=" << numBoxes << "_nC=" << numClasses << ")_";
         }
         result << "paramsPrec=" << paramsPrec << "_maxBoxPrec=" << maxBoxPrec << "_thrPrec=" << thrPrec << "_";
@@ -115,44 +101,36 @@ public:
                 bboxes = input;
             }
         }
-        size_t numBatches, numBoxes, numClasses;
-        std::tie(numBatches, numBoxes, numClasses) = targetInDims[inferRequestNum];
+
+        const auto& [numBatches, numBoxes, numClasses] = targetInDims[inferRequestNum];
         ov::test::compare_b_boxes(expected, actual, bboxes.second, numBatches, numBoxes);
         inferRequestNum++;
     }
 
 protected:
     void SetUp() override {
-        InputShapeParams inShapeParams;
-        InputPrecisions inPrecisions;
-        ThresholdValues thrValues;
-        float iouThr, scoreThr, softNmsSigma;
-        ov::op::v9::NonMaxSuppression::BoxEncodingType boxEncoding;
-        bool sortResDescend;
-        ov::element::Type outType;
-        std::map<std::string, std::string> additionalConfig;
-        std::tie(inShapeParams, inPrecisions, maxOutBoxesPerClass, thrValues, boxEncoding, sortResDescend, outType,
-                 targetDevice, additionalConfig) = this->GetParam();
-        ov::element::Type paramsPrec, maxBoxPrec, thrPrec;
-        std::tie(paramsPrec, maxBoxPrec, thrPrec) = inPrecisions;
+        const auto& [inShapeParams, inPrecisions, _maxOutBoxesPerClass, thrValues, boxEncoding, sortResDescend, outType, _targetDevice, additionalConfig] =
+            this->GetParam();
+        maxOutBoxesPerClass = _maxOutBoxesPerClass;
+        targetDevice = _targetDevice;
 
-        std::tie(iouThr, scoreThr, softNmsSigma) = thrValues;
+        const auto& [paramsPrec, maxBoxPrec, thrPrec] = inPrecisions;
 
-        std::vector<ov::Dimension> bounds;
-        std::tie(bounds, targetInDims) = inShapeParams;
+        const auto& [iouThr, scoreThr, softNmsSigma] = thrValues;
+
+        const auto& [bounds, _targetInDims] = inShapeParams;
+        targetInDims = _targetInDims;
 
         if (!bounds.empty()) {
             inputDynamicShapes = std::vector<ov::PartialShape>{{bounds[BATCHES], bounds[BOXES], 4}, {bounds[BATCHES], bounds[CLASSES], bounds[BOXES]}};
         } else {
-            size_t batches, boxes, classes;
-            std::tie(batches, boxes, classes) = targetInDims.front();
+            const auto& [batches, boxes, classes] = targetInDims.front();
             ov::Dimension numBatches(batches), numBoxes(boxes), numClasses(classes);
             inputDynamicShapes = std::vector<ov::PartialShape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}};
         }
 
         for (const auto &ts : targetInDims) {
-            size_t numBatches, numBoxes, numClasses;
-            std::tie(numBatches, numBoxes, numClasses) = ts;
+            const auto& [numBatches, numBoxes, numClasses] = ts;
             targetStaticShapes.push_back(std::vector<ov::Shape>{{numBatches, numBoxes, 4}, {numBatches, numClasses, numBoxes}});
         }
 

@@ -44,12 +44,8 @@ using SplitMatMulConcatParams = std::tuple<
 class SplitMatMulConcatTest : public testing::WithParamInterface<SplitMatMulConcatParams>,
                                     virtual public SubgraphBaseTest, public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<SplitMatMulConcatParams> obj) {
-        std::vector<InputShape> inputShapes;
-        std::pair<bool, bool> transpose;
-
-        std::tie(inputShapes, transpose) = obj.param;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<SplitMatMulConcatParams>& obj) {
+        const auto& [inputShapes, transpose] = obj.param;
         std::ostringstream result;
         for (const auto& shape : inputShapes) {
             result << ov::test::utils::partialShape2str({shape.first}) << "_";
@@ -80,12 +76,7 @@ protected:
 
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_CPU;
-
-        std::vector<InputShape> inputShapes;
-        std::pair<bool, bool> transpose;
-
-        std::tie(inputShapes, transpose) = this->GetParam();
-
+        const auto& [inputShapes, transpose] = this->GetParam();
         init_input_shapes(inputShapes);
 
         bool transpA = transpose.first;

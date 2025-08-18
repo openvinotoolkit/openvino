@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <numeric>
@@ -105,9 +106,13 @@ void BrgemmExternalRepackingAdjuster::update_kernel(const RepackExecutorPtr& exe
     const auto idx = config->is_transposed_B() ? 0 : 1;
     const auto copy_wei_stride =
         ov::snippets::utils::get_dim_in_stride(shape, layout, idx) * dnnl_data_type_size(config->get_original_wei_dt());
+    OPENVINO_ASSERT(!ov::snippets::utils::is_dynamic_value(N) && !ov::snippets::utils::is_dynamic_value(K),
+                    "N and K shape should not be dynamic at BrgemmExternalRepackingAdjuster update kernel stage.");
+    const auto N_signed = static_cast<int64_t>(N);
+    const auto K_signed = static_cast<int64_t>(K);
     const auto LDB =
-        brgemm_utils::repacking::compute_K_blocked_stride(N, config->get_wei_N_blk(), config->are_wei_blocked());
-    config->update(N, N, K, K, copy_wei_stride, LDB);
+        brgemm_utils::repacking::compute_K_blocked_stride(N_signed, config->get_wei_N_blk(), config->are_wei_blocked());
+    config->update(N_signed, N_signed, K_signed, K_signed, copy_wei_stride, LDB);
     executor->update_by_config(*config);
 }
 
@@ -145,7 +150,7 @@ bool BrgemmExternalRepackingAdjuster::run(const snippets::lowered::LinearIR& lin
         const auto src_data = N * K * src_dt_size;
         const auto dst_data = std::accumulate(buffer_b_allocation_shape.cbegin(),
                                               buffer_b_allocation_shape.cend(),
-                                              size_t(1),
+                                              static_cast<size_t>(1),
                                               std::multiplies<>()) *
                               dst_dt_size;
         data_size += src_data + dst_data;

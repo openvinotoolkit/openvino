@@ -59,15 +59,6 @@ constexpr bool implication(bool cause, bool cond) {
     return !cause || !!cond;
 }
 
-#ifdef __cpp_lib_make_unique
-using std::make_unique;
-#else
-template <class T, class... Args>
-inline std::unique_ptr<T> make_unique(Args&&... args) {
-    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
-}
-#endif
-
 template <typename T>
 std::string vec2str(const std::vector<T>& vec) {
     if (!vec.empty()) {
@@ -208,6 +199,16 @@ inline bool contains(const std::vector<T>& v, const T& value) {
     return std::any_of(v.begin(), v.end(), [&](const auto& elem) {
         return elem == value;
     });
+}
+
+template <class Map>
+bool contains_key_value(const Map& m, const typename Map::value_type& kv) {
+    const auto& [k, v] = kv;
+    if (auto it = m.find(k); it != m.end()) {
+        return it->second == v;
+    }
+
+    return false;
 }
 
 }  // namespace ov::intel_cpu

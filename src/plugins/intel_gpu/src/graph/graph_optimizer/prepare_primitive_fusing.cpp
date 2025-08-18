@@ -309,6 +309,9 @@ void prepare_primitive_fusing::fuse_bias(program &p) {
         if (bias_node.get_output_layout().data_type != replace_candidate.get_output_layout().data_type)
             continue;
 
+        if (replace_candidate.users.size() > 1)
+            continue;
+
         auto fuse_bias_f = [&p](program_node& prev_node, program_node& new_node, program_node& bias_node, program_node& eltw_node) {
             auto eltw_id = eltw_node.id();
             p.replace(prev_node, new_node);
@@ -1165,7 +1168,8 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 if (eltw_in_size.is_dynamic()
                     // this whitelist condition is temporarily and to be relaxed soon.
                     && !fused_node->is_type<fully_connected>()
-                    && !fused_node->is_type<convolution>())
+                    && !fused_node->is_type<convolution>()
+                    && !fused_node->is_type<gemm>())
                     return;
             }
             if (parent1.first->is_type<convolution>() && !conv_supports_fusings(parent1.first->as<convolution>()))
