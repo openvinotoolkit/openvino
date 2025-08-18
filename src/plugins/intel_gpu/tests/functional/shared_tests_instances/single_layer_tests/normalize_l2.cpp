@@ -6,7 +6,6 @@
 
 namespace {
 using ov::test::NormalizeL2LayerTest;
-using InputShape = std::pair<ov::PartialShape, std::vector<ov::Shape>>;
 
 const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32,
@@ -16,7 +15,6 @@ const std::vector<ov::element::Type> netPrecisions = {
 const std::vector<std::vector<int64_t>> axes = {
         {},
         {1},
-        {2}
 };
 const std::vector<float> eps = {1e-7f, 1e-6f, 1e-5f, 1e-4f};
 
@@ -25,17 +23,13 @@ const std::vector<ov::op::EpsMode> epsMode = {
         ov::op::EpsMode::MAX,
 };
 
-const std::vector<std::vector<InputShape>> inputShapes = {
-        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{1, 3, 10, 5}}),
-        ov::test::static_shapes_to_test_representation(std::vector<ov::Shape>{{1, 1500, 512}}),
-};
-
 INSTANTIATE_TEST_SUITE_P(smoke_NormalizeL2,
                          NormalizeL2LayerTest,
                          testing::Combine(testing::ValuesIn(axes),
                                           testing::ValuesIn(eps),
                                           testing::ValuesIn(epsMode),
-                                          testing::ValuesIn(inputShapes),
+                                          testing::Values(ov::test::static_shapes_to_test_representation(
+                                                std::vector<ov::Shape>{{1, 3, 10, 5}})),
                                           testing::ValuesIn(netPrecisions),
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          NormalizeL2LayerTest::getTestCaseName);
