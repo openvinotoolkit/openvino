@@ -81,7 +81,7 @@ protected:
     void SetUp() override {
         TransformationTestsF::SetUp();
         disable_rt_info_check();
-        const auto& p = this->GetParam();
+        const auto& p = GetParam();
 
         auto data = std::make_shared<ov::op::v0::Parameter>(p.data_type, p.data_shape);
         auto grid = std::make_shared<ov::op::v0::Parameter>(p.grid_type, p.grid_shape);
