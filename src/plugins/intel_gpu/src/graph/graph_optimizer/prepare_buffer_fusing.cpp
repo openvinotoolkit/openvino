@@ -241,6 +241,12 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         idx++;
     }
 
+    if (!concat_node.is_dynamic() || is_runtime) {
+        auto& input = concat_node.get_dependencies().front();
+        if (!input.first->is_type<permute>() && concat_axis != 0 && concat_axis != 1)
+            return false;
+    }
+
     // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
         bool use_usm = concat_node.get_program().get_engine().use_unified_shared_memory();
