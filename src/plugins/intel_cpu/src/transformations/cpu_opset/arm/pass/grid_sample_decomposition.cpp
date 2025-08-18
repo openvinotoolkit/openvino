@@ -681,7 +681,7 @@ class GridSampleDecompositionNearestStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionNearestStatic() {
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
                 return false;
@@ -707,7 +707,7 @@ class GridSampleDecompositionBilinearStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBilinearStatic() {
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
                 return false;
@@ -734,7 +734,7 @@ class GridSampleDecompositionBicubicStatic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBicubicStatic() {
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
                 return false;
@@ -760,7 +760,7 @@ class GridSampleDecompositionNearestDynamic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionNearestDynamic() {
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
                 return false;
@@ -788,7 +788,7 @@ class GridSampleDecompositionBilinearDynamic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBilinearDynamic() {
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
                 return false;
@@ -815,7 +815,7 @@ class GridSampleDecompositionBicubicDynamic : public ov::pass::MatcherPass {
 public:
     GridSampleDecompositionBicubicDynamic() {
         auto pat = ov::pass::pattern::wrap_type<op::v9::GridSample>();
-        matcher_pass_callback cb = [OV_CAPTURE_CPY_AND_THIS](ov::pass::pattern::Matcher& m) {
+        matcher_pass_callback cb = [this](ov::pass::pattern::Matcher& m) {
             auto gs = std::dynamic_pointer_cast<op::v9::GridSample>(m.get_match_root());
             if (!gs || transformation_callback(gs)) {
                 return false;
