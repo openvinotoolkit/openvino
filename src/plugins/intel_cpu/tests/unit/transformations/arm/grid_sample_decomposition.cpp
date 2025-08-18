@@ -24,7 +24,15 @@
 using namespace testing;
 using namespace ov::intel_cpu;
 
-// ========== Helper functions ==========
+// ========== Helper function declarations ==========
+std::shared_ptr<ov::Model> create_expected_decomposed_pattern(
+    const ov::PartialShape& data_shape,
+    const ov::PartialShape& grid_shape,
+    const ov::element::Type& data_type,
+    const ov::element::Type& grid_type,
+    const ov::op::v9::GridSample::Attributes& attrs);
+
+// ========== Helper function implementations ==========
 std::shared_ptr<ov::Model> create_expected_decomposed_pattern(
     const ov::PartialShape& data_shape,
     const ov::PartialShape& grid_shape,

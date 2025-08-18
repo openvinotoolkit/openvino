@@ -370,6 +370,29 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(.*smoke_ConcatSDPTransposeByChannelTest.*)");
     // Issue: 168490
     retVector.emplace_back(R"(.*CPU/CoreThreadingTest.smoke_QueryModel.*)");
+
+    // GridSample tests fail on ARM64 when decomposed to ACL kernels
+    // Issue: GridSample operation is decomposed into multiple ACL (ARM Compute Library) kernels
+    // on ARM platforms. The decomposition involves interpolation operations (bicubic/nearest)
+    // and padding operations (border/reflection) that have precision mismatches between
+    // the reference implementation and ACL kernels.
+    // Specific failures:
+    // 1. BICUBIC interpolation with ZEROS padding - precision loss in cubic weight calculation
+    // 2. NEAREST interpolation with REFLECTION padding - boundary handling differences
+    // 3. NEAREST with BORDER padding on dynamic shapes - edge case handling in ACL
+    // 4. Mixed precision (i32->f16) causing rounding differences in ACL kernels
+    // The ref primitive path shows these issues while optimized ACL kernels work correctly
+    // TODO: Fix GridSample decomposition for ARM or improve reference kernel precision
+
+    // ARM_smoke_dynamic failures (4 tests)
+    retVector.emplace_back(R"(.*ARM_smoke_dynamic/GridSampleLayerTestCPU.*IS=\(\[1..15.\?.\?.\?\]_\[1..16.\?.\?.\?\]\).*interpMode=BICUBIC_padMode=ZEROS.*primitive=ref.*)");
+    retVector.emplace_back(R"(.*ARM_smoke_dynamic/GridSampleLayerTestCPU.*IS=\(\[1..15.\?.\?.\?\]_\[1..16.\?.\?.\?\]\).*interpMode=NEAREST_padMode=REFLECTION.*primitive=ref.*)");
+    retVector.emplace_back(R"(.*ARM_smoke_dynamic/GridSampleLayerTestCPU.*IS=\(\[\?.\?.\?.\?\]_\[\?.\?.\?.2\]\).*interpMode=NEAREST_padMode=(BORDER|REFLECTION).*dataPrc=f32.*primitive=ref.*)");
+
+    // ARM_nightly_dynamic failures (7 tests)
+    retVector.emplace_back(R"(.*ARM_nightly_dynamic/GridSampleLayerTestCPU.*IS=\(\[1..15.\?.\?.\?\]_\[1..16.\?.\?.\?\]\).*interpMode=BICUBIC_padMode=ZEROS.*dataPrc=f16.*primitive=ref.*)");
+    retVector.emplace_back(R"(.*ARM_nightly_dynamic/GridSampleLayerTestCPU.*IS=\(\[1..15.\?.\?.\?\]_\[1..16.\?.\?.\?\]\).*interpMode=NEAREST_padMode=REFLECTION.*dataPrc=(f16|i32).*primitive=ref.*)");
+    retVector.emplace_back(R"(.*ARM_nightly_dynamic/GridSampleLayerTestCPU.*IS=\(\[\?.\?.\?.\?\]_\[\?.\?.\?.2\]\).*interpMode=NEAREST_padMode=(BORDER|REFLECTION).*dataPrc=(f16|i32).*primitive=ref.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_ARM)
@@ -398,29 +421,6 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 149216. For low precision model from original framework, Snippets PropagatePrecision should insert ConvertTruncation instead
     // of ConvertSaturation when converting larger integer to smaller integer to align with c++ standard and ngraph reference.
     retVector.emplace_back(R"(.*smoke_EltwiseChain_MergeConvert_int8/.*Op0=Prod.*Conversion=i8.*)");
-
-    // GridSample tests fail on ARM64 when decomposed to ACL kernels
-    // Issue: GridSample operation is decomposed into multiple ACL (ARM Compute Library) kernels
-    // on ARM platforms. The decomposition involves interpolation operations (bicubic/nearest)
-    // and padding operations (border/reflection) that have precision mismatches between
-    // the reference implementation and ACL kernels.
-    // Specific failures:
-    // 1. BICUBIC interpolation with ZEROS padding - precision loss in cubic weight calculation
-    // 2. NEAREST interpolation with REFLECTION padding - boundary handling differences
-    // 3. NEAREST with BORDER padding on dynamic shapes - edge case handling in ACL
-    // 4. Mixed precision (i32->f16) causing rounding differences in ACL kernels
-    // The ref primitive path shows these issues while optimized ACL kernels work correctly
-    // TODO: Fix GridSample decomposition for ARM or improve reference kernel precision
-
-    // ARM_smoke_dynamic failures (4 tests)
-    retVector.emplace_back(R"(.*ARM_smoke_dynamic/GridSampleLayerTestCPU.*IS=\(\[1..15.\?.\?.\?\]_\[1..16.\?.\?.\?\]\).*interpMode=BICUBIC_padMode=ZEROS.*primitive=ref.*)");
-    retVector.emplace_back(R"(.*ARM_smoke_dynamic/GridSampleLayerTestCPU.*IS=\(\[1..15.\?.\?.\?\]_\[1..16.\?.\?.\?\]\).*interpMode=NEAREST_padMode=REFLECTION.*primitive=ref.*)");
-    retVector.emplace_back(R"(.*ARM_smoke_dynamic/GridSampleLayerTestCPU.*IS=\(\[\?.\?.\?.\?\]_\[\?.\?.\?.2\]\).*interpMode=NEAREST_padMode=(BORDER|REFLECTION).*dataPrc=f32.*primitive=ref.*)");
-
-    // ARM_nightly_dynamic failures (7 tests)
-    retVector.emplace_back(R"(.*ARM_nightly_dynamic/GridSampleLayerTestCPU.*IS=\(\[1..15.\?.\?.\?\]_\[1..16.\?.\?.\?\]\).*interpMode=BICUBIC_padMode=ZEROS.*dataPrc=f16.*primitive=ref.*)");
-    retVector.emplace_back(R"(.*ARM_nightly_dynamic/GridSampleLayerTestCPU.*IS=\(\[1..15.\?.\?.\?\]_\[1..16.\?.\?.\?\]\).*interpMode=NEAREST_padMode=REFLECTION.*dataPrc=(f16|i32).*primitive=ref.*)");
-    retVector.emplace_back(R"(.*ARM_nightly_dynamic/GridSampleLayerTestCPU.*IS=\(\[\?.\?.\?.\?\]_\[\?.\?.\?.2\]\).*interpMode=NEAREST_padMode=(BORDER|REFLECTION).*dataPrc=(f16|i32).*primitive=ref.*)");
 #endif
 
 #if defined(OPENVINO_ARCH_RISCV64)
