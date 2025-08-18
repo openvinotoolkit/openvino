@@ -34,8 +34,8 @@ TEST_CATALOG = {}
 NOTEST=0.0
 
 #                           NAME,                                   GPU_i8, GPU_i4, CPU_i8, CPU_i4
-add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.98, 0.71, 0.94,   0.77)
-add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.86, 0.74, 0.82,   0.68)
+add_test_case(TEST_CATALOG, "TinyLlama/TinyLlama-1.1B-Chat-v1.0",   0.96, 0.71, 0.94,   0.77)
+add_test_case(TEST_CATALOG, "Qwen/Qwen2-0.5B-Instruct",             0.86, 0.73, 0.82,   0.68)
 
 # Extract configuration from catalog
 MODEL_IDS = list(TEST_CATALOG.keys())
@@ -155,6 +155,8 @@ def setup_model(model_id):
 
     # Mark model as downloaded
     DOWNLOADED_MODELS.add(model_id)
+    del model
+    gc.collect()
     logger.info(f"Model setup completed: {model_id}")
 
 def init_test_scope():
@@ -244,3 +246,5 @@ def test_accuracy_conformance(model_id, precision, device):
     abs_metric_diff = abs(expected_reference - metric)
     print(f"Metric: {metric}, Expected: {expected_reference}, Model: {model_id}, Precision: {precision}")
     assert abs_metric_diff <= threshold, f"Metric difference {abs_metric_diff} exceeds threshold {threshold}"
+    del target_model
+    gc.collect()
