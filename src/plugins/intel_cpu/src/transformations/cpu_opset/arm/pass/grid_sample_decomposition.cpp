@@ -529,37 +529,8 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
 
 // ---- ctx builders ----
 
-// Dynamic: extract all size scalars via ShapeOf/Gather
-bool build_ctx_dynamic(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx) {
-    const auto& data = gs->input_value(0);
-    const auto& grid = gs->input_value(1);
-
-    if (data.get_partial_shape().rank().get_length() != 4 || grid.get_partial_shape().rank().get_length() != 4) {
-        return false;
-    }
-
-    ctx.element_type = data.get_element_type();
-    ctx.calc_type = element::f32;
-
-    auto dshape = std::make_shared<op::v3::ShapeOf>(data, element::i32);
-    // Initialize integer constants first (before using them)
-    ctx.i32_0 = op::v0::Constant::create(element::i32, {}, {0});
-    ctx.i32_1 = op::v0::Constant::create(element::i32, {}, {1});
-    ctx.i32_2 = op::v0::Constant::create(element::i32, {}, {2});
-    ctx.i32_3 = op::v0::Constant::create(element::i32, {}, {3});
-    ctx.i32_neg1 = op::v0::Constant::create(element::i32, {}, {-1});
-    ctx.axis_0 = ctx.i32_0;
-    ctx.axis_3 = ctx.i32_3;
-    
-    ctx.n_dim = std::make_shared<op::v8::Gather>(dshape, ctx.i32_0, ctx.axis_0);
-    ctx.c_dim = std::make_shared<op::v8::Gather>(dshape, ctx.i32_1, ctx.axis_0);
-    ctx.h_in = std::make_shared<op::v8::Gather>(dshape, ctx.i32_2, ctx.axis_0);
-    ctx.w_in = std::make_shared<op::v8::Gather>(dshape, ctx.i32_3, ctx.axis_0);
-
-    auto gshape = std::make_shared<op::v3::ShapeOf>(grid, element::i32);
-    ctx.h_out = std::make_shared<op::v8::Gather>(gshape, ctx.i32_1, ctx.axis_0);
-    ctx.w_out = std::make_shared<op::v8::Gather>(gshape, ctx.i32_2, ctx.axis_0);
-
+// Helper to initialize common constants that are shared between static and dynamic paths
+void init_common_constants(Ctx& ctx) {
     // Float constants
     ctx.c0 = op::v0::Constant::create(ctx.calc_type, {}, {0.0F});
     ctx.c1 = op::v0::Constant::create(ctx.calc_type, {}, {1.0F});
@@ -573,12 +544,38 @@ bool build_ctx_dynamic(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& c
     ctx.i32_3 = op::v0::Constant::create(element::i32, {}, {3});
     ctx.i32_neg1 = op::v0::Constant::create(element::i32, {}, {-1});
     
-    // Common axes
+    // Common axes (just references to integer constants)
     ctx.axis_0 = ctx.i32_0;
     ctx.axis_3 = ctx.i32_3;
     
     // NHWC transpose pattern
     ctx.to_nhwc_perm = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
+}
+
+// Dynamic: extract all size scalars via ShapeOf/Gather
+bool build_ctx_dynamic(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx) {
+    const auto& data = gs->input_value(0);
+    const auto& grid = gs->input_value(1);
+
+    if (data.get_partial_shape().rank().get_length() != 4 || grid.get_partial_shape().rank().get_length() != 4) {
+        return false;
+    }
+
+    ctx.element_type = data.get_element_type();
+    ctx.calc_type = element::f32;
+
+    // Initialize all common constants
+    init_common_constants(ctx);
+
+    auto dshape = std::make_shared<op::v3::ShapeOf>(data, element::i32);
+    ctx.n_dim = std::make_shared<op::v8::Gather>(dshape, ctx.i32_0, ctx.axis_0);
+    ctx.c_dim = std::make_shared<op::v8::Gather>(dshape, ctx.i32_1, ctx.axis_0);
+    ctx.h_in = std::make_shared<op::v8::Gather>(dshape, ctx.i32_2, ctx.axis_0);
+    ctx.w_in = std::make_shared<op::v8::Gather>(dshape, ctx.i32_3, ctx.axis_0);
+
+    auto gshape = std::make_shared<op::v3::ShapeOf>(grid, element::i32);
+    ctx.h_out = std::make_shared<op::v8::Gather>(gshape, ctx.i32_1, ctx.axis_0);
+    ctx.w_out = std::make_shared<op::v8::Gather>(gshape, ctx.i32_2, ctx.axis_0);
 
     // split grid channels (x,y)
     auto grid_conv = grid.get_element_type() == ctx.calc_type
@@ -611,6 +608,9 @@ bool build_ctx_static(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ct
     ctx.element_type = data_iv.get_element_type();
     ctx.calc_type = element::f32;
 
+    // Initialize all common constants
+    init_common_constants(ctx);
+
     // sizes as i32 constants
     auto cN = op::v0::Constant::create(element::i32, {}, {static_cast<int32_t>(data_shape[0])});
     auto cC = op::v0::Constant::create(element::i32, {}, {static_cast<int32_t>(data_shape[1])});
@@ -625,26 +625,6 @@ bool build_ctx_static(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ct
     ctx.w_in = cWi;
     ctx.h_out = cHo;
     ctx.w_out = cWo;
-
-    // Float constants
-    ctx.c0 = op::v0::Constant::create(ctx.calc_type, {}, {0.0F});
-    ctx.c1 = op::v0::Constant::create(ctx.calc_type, {}, {1.0F});
-    ctx.c2 = op::v0::Constant::create(ctx.calc_type, {}, {2.0F});
-    ctx.c0_5 = op::v0::Constant::create(ctx.calc_type, {}, {0.5F});
-    
-    // Integer constants
-    ctx.i32_0 = op::v0::Constant::create(element::i32, {}, {0});
-    ctx.i32_1 = op::v0::Constant::create(element::i32, {}, {1});
-    ctx.i32_2 = op::v0::Constant::create(element::i32, {}, {2});
-    ctx.i32_3 = op::v0::Constant::create(element::i32, {}, {3});
-    ctx.i32_neg1 = op::v0::Constant::create(element::i32, {}, {-1});
-    
-    // Common axes
-    ctx.axis_0 = ctx.i32_0;
-    ctx.axis_3 = ctx.i32_3;
-    
-    // NHWC transpose pattern
-    ctx.to_nhwc_perm = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
 
     // grid channels split (keep as graph ops; shapes are const so it folds nicely)
     auto grid = grid_iv.get_node_shared_ptr();
