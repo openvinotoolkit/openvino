@@ -8,7 +8,7 @@
 #include "openvino/runtime/remote_tensor.hpp"
 
 #include "remote_tensor_tests/helpers.hpp"
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 TEST(ZeRemoteContext, smoke_CorrectContextType) {
     auto core = ov::Core();
