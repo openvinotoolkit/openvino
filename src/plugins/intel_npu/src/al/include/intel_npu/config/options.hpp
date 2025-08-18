@@ -1244,7 +1244,7 @@ struct QDQ_OPTIMIZATION_AGGRESSIVE final : OptionBase<QDQ_OPTIMIZATION_AGGRESSIV
     }
 
     static uint32_t compilerSupportVersion() {
-        return ONEAPI_MAKE_VERSION(7, 23);
+        return ONEAPI_MAKE_VERSION(7, 25);
     }
 };
 
