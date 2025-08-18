@@ -104,22 +104,34 @@ std::shared_ptr<ov::Node> make_attention_mask(ov::Output<ov::Node> q,
 
 std::shared_ptr<ov::Node> make_gqa(ov::Output<ov::Node> kv,
                                    size_t num_groups,
-                                   std::vector<int32_t> target_shape_v,
-                                   int32_t n_heads) {
+                                   ov::Dimension n_heads,
+                                   ov::Dimension features,
+                                   std::vector<int64_t> qkv_order) {
+    // Form the target shape: {0, n_heads, -1, features}
+    auto nh = static_cast<int32_t>(n_heads.get_length());
+    auto fs = static_cast<int32_t>(features.get_length());
+    std::vector<int32_t> target_shape_original = {0, nh, -1, fs};
+
+    // Apply qkv_order transformation to target_shape
+    std::vector<int32_t> target_shape(target_shape_original.size());
+    for (size_t i = 0; i < target_shape_original.size(); i++) {
+        target_shape[qkv_order[i]] = target_shape_original[i];
+    }
+
     int32_t num_heads_idx =
-        std::distance(target_shape_v.begin(), std::find(target_shape_v.begin(), target_shape_v.end(), n_heads)) + 1;
+        std::distance(target_shape.begin(), std::find(target_shape.begin(), target_shape.end(), nh)) + 1;
     auto unsqueeze_axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{1}, num_heads_idx);
     auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(kv, unsqueeze_axis);
 
-    const size_t extended_rank = target_shape_v.size() + 1;
+    const size_t extended_rank = target_shape.size() + 1;
     std::vector<int32_t> shape_vec(extended_rank, 1);
     shape_vec[num_heads_idx] = static_cast<int32_t>(num_groups);
     auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i32, {extended_rank}, shape_vec);
     auto broadcast =
         std::make_shared<ov::op::v3::Broadcast>(unsqueeze, broadcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
 
-    auto target_shape = ov::op::v0::Constant::create(ov::element::i32, {4}, target_shape_v);
-    auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, target_shape, true);
+    auto target_shape_const = ov::op::v0::Constant::create(ov::element::i32, {4}, target_shape);
+    auto reshape = std::make_shared<ov::op::v1::Reshape>(broadcast, target_shape_const, true);
 
     return reshape;
 }
@@ -129,9 +141,87 @@ std::shared_ptr<ov::Node> make_qkv_transpose(ov::Output<ov::Node> qkv, std::vect
     return std::make_shared<ov::op::v1::Transpose>(qkv, transpose_const);
 }
 
-std::shared_ptr<ov::Node> make_kv_rearrange(ov::Output<ov::Node> kv_past, ov::Output<ov::Node> beam_idx, int axis_val) {
+std::shared_ptr<ov::Node> make_kv_rearrange(ov::Output<ov::Node> kv_past,
+                                            ov::Output<ov::Node> beam_idx,
+                                            int64_t axis_val) {
     auto axis = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{}, axis_val);
     return std::make_shared<ov::op::v8::Gather>(kv_past, beam_idx, axis, 0);
+}
+
+void make_sdpa_model_stateful(std::shared_ptr<ov::Model> model,
+                              const ov::ParameterVector& params,
+                              std::shared_ptr<ov::op::v0::Result> present_k,
+                              std::shared_ptr<ov::op::v0::Result> present_v,
+                              ov::element::Type_t element_type,
+                              ov::Dimension k_features,
+                              ov::Dimension v_features,
+                              std::vector<int64_t> qkv_order) {
+    ov::pass::MakeStateful({{params[1], present_k}, {params[2], present_v}}).run_on_model(model);
+    auto k_state_initializer =
+        make_state_initializer(params[3], element_type, params[1]->get_partial_shape(), qkv_order);
+    auto v_state_initializer =
+        make_state_initializer(params[4], element_type, params[2]->get_partial_shape(), qkv_order);
+
+    if (k_state_initializer->get_output_element_type(0) != params[1]->get_element_type())
+        k_state_initializer = std::make_shared<ov::op::v0::Convert>(k_state_initializer, params[1]->get_element_type());
+    if (v_state_initializer->get_output_element_type(0) != params[2]->get_element_type())
+        v_state_initializer = std::make_shared<ov::op::v0::Convert>(v_state_initializer, params[2]->get_element_type());
+
+    for (auto op : model->get_ops()) {
+        if (auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
+            auto shape = op->get_output_partial_shape(0);
+            if (shape[3] == k_features)
+                read_value->set_arguments(ov::OutputVector{k_state_initializer});
+            else if (shape[3] == v_features)
+                read_value->set_arguments(ov::OutputVector{v_state_initializer});
+        }
+    }
+}
+
+ov::ParameterVector form_sdpa_params(ov::Dimension batch,
+                                     ov::Dimension n_heads,
+                                     ov::Dimension k_features,
+                                     ov::Dimension v_features,
+                                     ov::element::Type_t qkv_precision,
+                                     ov::element::Type_t past_kv_precision,
+                                     std::vector<int64_t> qkv_order,
+                                     size_t num_groups) {
+    ov::PartialShape k_cache_size_def = {batch, n_heads / num_groups, -1, k_features};
+    ov::PartialShape v_cache_size_def = {batch, n_heads / num_groups, -1, v_features};
+    ov::PartialShape new_k_token_size_def = {batch, n_heads / num_groups, -1, k_features};
+    ov::PartialShape new_v_token_size_def = {batch, n_heads / num_groups, -1, v_features};
+    ov::PartialShape q_size_def = {batch, n_heads, -1, k_features};
+
+    ov::PartialShape k_cache_size = ov::PartialShape::dynamic(4);
+    ov::PartialShape v_cache_size = ov::PartialShape::dynamic(4);
+    ov::PartialShape new_k_token_size = ov::PartialShape::dynamic(4);
+    ov::PartialShape new_v_token_size = ov::PartialShape::dynamic(4);
+    ov::PartialShape q_size = ov::PartialShape::dynamic(4);
+
+    for (size_t i = 0; i < k_cache_size_def.size(); i++) {
+        k_cache_size[qkv_order[i]] = k_cache_size_def[i];
+        v_cache_size[qkv_order[i]] = v_cache_size_def[i];
+        new_k_token_size[qkv_order[i]] = new_k_token_size_def[i];
+        new_v_token_size[qkv_order[i]] = new_v_token_size_def[i];
+        q_size[qkv_order[i]] = q_size_def[i];
+    }
+
+    auto past_k = std::make_shared<ov::op::v0::Parameter>(past_kv_precision, k_cache_size);
+    past_k->set_friendly_name("past_k");
+
+    auto past_v = std::make_shared<ov::op::v0::Parameter>(past_kv_precision, v_cache_size);
+    past_v->set_friendly_name("past_v");
+
+    auto in_k_token = std::make_shared<ov::op::v0::Parameter>(qkv_precision, new_k_token_size);
+    in_k_token->set_friendly_name("new_k_token");
+
+    auto in_v_token = std::make_shared<ov::op::v0::Parameter>(qkv_precision, new_v_token_size);
+    in_v_token->set_friendly_name("new_v_token");
+
+    auto in_q = std::make_shared<ov::op::v0::Parameter>(qkv_precision, q_size);
+    in_q->set_friendly_name("in_q");
+
+    return {in_q, past_k, past_v, in_k_token, in_v_token};
 }
 
 std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
@@ -172,10 +262,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_pattern(ov::Dimension batch,
 
     std::shared_ptr<ov::Node> kv_input = concat;
     if (num_groups > 1) {
-        auto nh = static_cast<int32_t>(n_heads.get_length());
-        auto hs = static_cast<int32_t>(n_features.get_length());
-        std::vector<int32_t> target_shape = {0, nh, -1, hs};
-        kv_input = make_gqa(kv_input, num_groups, target_shape, nh);
+        kv_input = make_gqa(kv_input, num_groups, n_heads, n_features);
     }
 
     auto matmul = std::make_shared<ov::op::v0::MatMul>(in_matmul, kv_input, false, false);
@@ -213,44 +300,16 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch,
                                                           bool stateful,
                                                           bool fuse_cache_reorder,
                                                           size_t num_groups) {
-    ov::PartialShape k_cache_size_def = {batch, n_heads / num_groups, -1, k_features};
-    ov::PartialShape v_cache_size_def = {batch, n_heads / num_groups, -1, v_features};
-    ov::PartialShape new_k_token_size_def = {batch, n_heads / num_groups, -1, k_features};
-    ov::PartialShape new_v_token_size_def = {batch, n_heads / num_groups, -1, v_features};
-    ov::PartialShape q_size_def = {batch, n_heads, -1, k_features};
-
-    ov::PartialShape k_cache_size = ov::PartialShape::dynamic(4);
-    ov::PartialShape v_cache_size = ov::PartialShape::dynamic(4);
-    ov::PartialShape new_k_token_size = ov::PartialShape::dynamic(4);
-    ov::PartialShape new_v_token_size = ov::PartialShape::dynamic(4);
-    ov::PartialShape q_size = ov::PartialShape::dynamic(4);
-
-    for (size_t i = 0; i < k_cache_size_def.size(); i++) {
-        k_cache_size[qkv_order[i]] = k_cache_size_def[i];
-        v_cache_size[qkv_order[i]] = v_cache_size_def[i];
-        new_k_token_size[qkv_order[i]] = new_k_token_size_def[i];
-        new_v_token_size[qkv_order[i]] = new_v_token_size_def[i];
-        q_size[qkv_order[i]] = q_size_def[i];
-    }
+    auto params =
+        form_sdpa_params(batch, n_heads, k_features, v_features, element_type, element_type, qkv_order, num_groups);
+    auto in_q = params[0];
+    auto past_k = params[1];
+    auto past_v = params[2];
+    auto in_k_token = params[3];
+    auto in_v_token = params[4];
 
     int64_t concat_axis = qkv_order[2];
 
-    auto past_k = std::make_shared<ov::op::v0::Parameter>(element_type, k_cache_size);
-    past_k->set_friendly_name("past_k");
-
-    auto past_v = std::make_shared<ov::op::v0::Parameter>(element_type, v_cache_size);
-    past_v->set_friendly_name("past_v");
-
-    auto in_k_token = std::make_shared<ov::op::v0::Parameter>(element_type, new_k_token_size);
-    in_k_token->set_friendly_name("new_k_token");
-
-    auto in_v_token = std::make_shared<ov::op::v0::Parameter>(element_type, new_v_token_size);
-    in_v_token->set_friendly_name("new_v_token");
-
-    auto in_q = std::make_shared<ov::op::v0::Parameter>(element_type, q_size);
-    in_q->set_friendly_name("in_q");
-
-    ov::ParameterVector params{in_q, past_k, past_v, in_k_token, in_v_token};
     std::shared_ptr<ov::Node> concat_k_input = past_k;
     std::shared_ptr<ov::Node> concat_v_input = past_v;
     if (fuse_cache_reorder) {
@@ -290,21 +349,8 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch,
     }
 
     if (num_groups > 1) {
-        auto nh = static_cast<int32_t>(n_heads.get_length());
-        auto vs = static_cast<int32_t>(v_features.get_length());
-        auto ks = static_cast<int32_t>(k_features.get_length());
-        std::vector<int32_t> v_target_shape = {0, nh, -1, vs};
-        std::vector<int32_t> v_target_shape_transposed(v_target_shape.size());
-        std::vector<int32_t> k_target_shape = {0, nh, -1, ks};
-        std::vector<int32_t> k_target_shape_transposed(k_target_shape.size());
-
-        for (size_t i = 0; i < v_target_shape.size(); i++) {
-            k_target_shape_transposed[qkv_order[i]] = k_target_shape[i];
-            v_target_shape_transposed[qkv_order[i]] = v_target_shape[i];
-        }
-
-        k = make_gqa(k, num_groups, k_target_shape_transposed, nh);
-        v = make_gqa(v, num_groups, v_target_shape_transposed, nh);
+        k = make_gqa(k, num_groups, n_heads, k_features, qkv_order);
+        v = make_gqa(v, num_groups, n_heads, v_features, qkv_order);
     }
 
     if (qkv_order != std::vector<int64_t>{0, 1, 2, 3}) {
@@ -330,18 +376,7 @@ std::shared_ptr<ov::Model> make_llm_kv_cache_sdpa_pattern(ov::Dimension batch,
     auto model = std::make_shared<ov::Model>(results, params, "LLM-KV-Cache-SDPA");
 
     if (stateful) {
-        ov::pass::MakeStateful({{past_k, present_k}, {past_v, present_v}}).run_on_model(model);
-        auto k_state_initializer = make_state_initializer(in_k_token, element_type, k_cache_size, qkv_order);
-        auto v_state_initializer = make_state_initializer(in_v_token, element_type, v_cache_size, qkv_order);
-        for (auto op : model->get_ops()) {
-            if (auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
-                auto shape = op->get_output_partial_shape(0);
-                if (shape[3] == k_features)
-                    read_value->set_arguments(ov::OutputVector{k_state_initializer});
-                else if (shape[3] == v_features)
-                    read_value->set_arguments(ov::OutputVector{v_state_initializer});
-            }
-        }
+        make_sdpa_model_stateful(model, params, present_k, present_v, element_type, k_features, v_features, qkv_order);
     }
 
     model->validate_nodes_and_infer_types();
