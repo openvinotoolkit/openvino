@@ -182,7 +182,7 @@ public:
                                                  const void* arg_data,
                                                  [[maybe_unused]] const ov::Strides& strides,
                                                  [[maybe_unused]] const ov::Shape& shapes,
-                                                 size_t command_list_index) override;
+                                                 size_t batch_index) override;
 
     virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

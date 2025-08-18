@@ -187,12 +187,13 @@ Pipeline::Pipeline(const Config& config,
 Pipeline::Pipeline(const Config& config,
                    const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
-                   std::string logName)
+                   std::string logName,
+                   size_t batch_size)
     : _init_structs(init_structs),
       _graph(graph),
       _config(config),
       _id(_graph->get_unique_id()),
-      _number_of_command_lists(_graph->get_batch_size().has_value() ? *_graph->get_batch_size() : 1),
+      _number_of_command_lists(batch_size),
       _logger(logName, _config.get<LOG_LEVEL>()) {}
 
 void Pipeline::push() {

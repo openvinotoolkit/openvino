@@ -31,12 +31,11 @@ DynamicPipeline::DynamicPipeline(const Config& config,
                                  const std::vector<std::vector<std::shared_ptr<ov::ITensor>>>& input_tensors,
                                  const std::vector<std::shared_ptr<ov::ITensor>>& output_tensors,
                                  size_t batch_size)
-    : Pipeline(config, init_structs, graph, "DynamicPipeline"),
+    : Pipeline(config, init_structs, graph, "DynamicPipeline", batch_size),
       _levelZeroInputTensors(input_tensors),
       _levelZeroOutputTensors(output_tensors) {
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::DynamicPipeline::DynamicPipeline");
     _logger.debug("DynamicPipeline - initialize started");
-    (void*)(batch_size);  // Unused parameter, but kept for compatibility
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_config.get<RUN_INFERENCES_SEQUENTIALLY>() ||
                         _init_structs->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
@@ -72,7 +71,9 @@ DynamicPipeline::DynamicPipeline(const Config& config,
     }
     _logger.debug("DynamicPipeline - emplace_back _event_pool and _command_queue completed");
 
-    uint64_t num_of_subgraphs = _graph->get_num_subgraphs();
+    intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(graph.get());
+
+    uint64_t num_of_subgraphs = irGraph->get_num_subgraphs();
 
     _command_lists.reserve(_number_of_command_lists);
     for (size_t i = 0; i < _number_of_command_lists; i++) {
@@ -88,8 +89,6 @@ DynamicPipeline::DynamicPipeline(const Config& config,
             _fences.emplace_back(std::make_unique<Fence>(_graph->get_command_queue()));
         }
     }
-
-    intel_npu::IRGraph* irGraph = dynamic_cast<intel_npu::IRGraph*>(graph.get());
 
     for (size_t i = 0; i < _number_of_command_lists; i++) {
         size_t io_index = 0;
@@ -328,7 +327,7 @@ void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
                                                       const void* arg_data,
                                                       [[maybe_unused]] const ov::Strides& strides,
                                                       [[maybe_unused]] const ov::Shape& shapes,
-                                                      size_t command_list_index) {
+                                                      size_t batch_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL,
                       itt::domains::LevelZeroBackend,
                       "DynamicPipeline",
@@ -337,11 +336,11 @@ void DynamicPipeline::update_graph_arguments_batching(uint32_t arg_index,
 
     const size_t number_of_command_lists = _command_lists.size();
 
-    OPENVINO_ASSERT(command_list_index < number_of_command_lists,
-                    "Command list index is higher than the number of Command lists ",
-                    command_list_index);
+    OPENVINO_ASSERT(batch_index < number_of_command_lists,
+                    "batch_index is higher than the number of Command lists ",
+                    batch_index);
 
-    _command_lists.at(command_list_index)->updateMutableCommandList(arg_index, arg_data, strides, shapes);
+    _command_lists.at(batch_index)->updateMutableCommandList(arg_index, arg_data, strides, shapes);
 };
 
 std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
