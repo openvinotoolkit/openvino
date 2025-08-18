@@ -49,7 +49,7 @@ public:
     [[nodiscard]] const std::string& get_tag() const {
         return tag;
     }
-    operator bool() const {
+    explicit operator bool() const {
         return enabled;
     }
     static void break_at(const std::string& log);
@@ -64,7 +64,7 @@ class IMemory;
 
 class PrintableModel {
 public:
-    PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "")
+    explicit PrintableModel(const ov::Model& model, std::string tag = "", std::string prefix = "")
         : model(model),
           tag(std::move(tag)),
           prefix(std::move(prefix)) {}
@@ -76,7 +76,7 @@ public:
 template <typename T>
 class PrintableVector {
 public:
-    PrintableVector(const std::vector<T>& values, int maxsize = 80) : values(values), maxsize(maxsize) {}
+    explicit PrintableVector(const std::vector<T>& values, int maxsize = 80) : values(values), maxsize(maxsize) {}
     const std::vector<T>& values;
     int maxsize;
 };
@@ -135,7 +135,20 @@ std::ostream& operator<<(std::ostream& os, dnnl::memory::format_tag format_tag);
 std::ostream& operator<<(std::ostream& os, const dnnl::primitive_attr& attr);
 std::ostream& operator<<(std::ostream& os, const dnnl::algorithm& alg);
 
-void print_dnnl_memory(const dnnl::memory& memory, size_t size, int id, const char* message = "");
+template <typename T>
+void print_dnnl_memory_as(const dnnl::memory& memory,
+                          const size_t size,
+                          const int id,
+                          const std::string& message = {}) {
+    const size_t s = memory.get_desc().get_size() / sizeof(T);
+    std::cout << message << " ARG_ID: " << id << " size: " << s << ", values: ";
+    auto m = static_cast<T*>(memory.get_data_handle());
+    for (size_t i = 0; i < std::min(s, size); i++) {
+        std::cout << std::to_string(*m) << " ";
+        m++;
+    }
+    std::cout << "\n";
+}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const PrintableVector<T>& vec) {
@@ -159,12 +172,9 @@ std::ostream& operator<<(std::ostream& os, const PrintableVector<T>& vec) {
     return os;
 }
 
-static inline std::ostream& _write_all_to_stream(std::ostream& os) {
-    return os;
-}
-template <typename T, typename... TS>
-static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg, TS&&... args) {
-    return ov::intel_cpu::_write_all_to_stream(os << arg, std::forward<TS>(args)...);
+template <typename... TS>
+static inline std::ostream& _write_all_to_stream(std::ostream& os, TS&&... args) {
+    return (os << ... << std::forward<TS>(args));
 }
 
 }  // namespace ov::intel_cpu
@@ -174,7 +184,7 @@ static inline std::ostream& _write_all_to_stream(std::ostream& os, const T& arg,
 #    define DEBUG_LOG_EXT(name, ostream, prefix, ...)                                                              \
         do {                                                                                                       \
             static DebugLogEnabled DEBUG_ENABLE_NAME(__FILE__, OV_CPU_FUNCTION_NAME, __LINE__, name);              \
-            if (DEBUG_ENABLE_NAME) {                                                                               \
+            if (DEBUG_ENABLE_NAME || &ostream == &std::cerr) {                                                     \
                 ::std::stringstream ss___;                                                                         \
                 ov::intel_cpu::_write_all_to_stream(ss___, prefix, DEBUG_ENABLE_NAME.get_tag(), " ", __VA_ARGS__); \
                 ostream << ss___.str() << '\n';                                                                    \

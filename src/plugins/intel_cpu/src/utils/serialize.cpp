@@ -103,9 +103,7 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
                           ((hdr.model_size = file_size - hdr.model_offset) != 0U);
-    if (!is_valid_model) {
-        OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
-    }
+    OPENVINO_ASSERT(is_valid_model, "[CPU] Could not deserialize by device xml header.");
 
     // Read model input/output precisions.
     pugi::xml_document xml_in_out_doc;
@@ -114,9 +112,7 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
                                               hdr.custom_data_size,
                                               pugi::parse_default,
                                               pugi::encoding_utf8);
-        if (res.status != pugi::status_ok) {
-            OPENVINO_THROW("[CPU] Could to deserialize custom data.");
-        }
+        OPENVINO_ASSERT(res.status == pugi::status_ok, "[CPU] Could to deserialize custom data.");
     }
 
     // Map blob content
@@ -168,9 +164,7 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
                           (hdr.custom_data_size == hdr.consts_offset - hdr.custom_data_offset) &&
                           (hdr.consts_size == hdr.model_offset - hdr.consts_offset) &&
                           ((hdr.model_size = file_size - hdr.model_offset) != 0U);
-    if (!is_valid_model) {
-        OPENVINO_THROW("[CPU] Could not deserialize by device xml header.");
-    }
+    OPENVINO_ASSERT(is_valid_model, "[CPU] Could not deserialize by device xml header.");
 
     // read model input/output precisions
     model_stream.seekg(hdr.custom_data_offset);
@@ -181,9 +175,8 @@ void ModelDeserializer::process_model(std::shared_ptr<ov::Model>& model,
         xmlInOutString.resize(hdr.custom_data_size);
         model_stream.read(const_cast<char*>(xmlInOutString.c_str()), hdr.custom_data_size);
         auto res = xmlInOutDoc.load_string(xmlInOutString.c_str());
-        if (res.status != pugi::status_ok) {
-            OPENVINO_THROW("NetworkNotRead: The inputs and outputs information is invalid.");
-        }
+        OPENVINO_ASSERT(res.status == pugi::status_ok,
+                        "NetworkNotRead: The inputs and outputs information is invalid.");
     }
 
     // read blob content

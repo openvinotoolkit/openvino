@@ -27,9 +27,7 @@ public:
     std::string targetDevice = ov::test::utils::DEVICE_GPU;
 
     static std::string get_test_case_name(testing::TestParamInfo<BF16WeightsDecompressionParams> obj) {
-        float given;
-        float expected;
-        std::tie(given, expected) = obj.param;
+        const auto& [given, expected] = obj.param;
         std::ostringstream result;
         result << "given=" << given << "expected=" << expected;
         return result.str();
@@ -104,9 +102,7 @@ TEST_F(BF16WeightsDecompression, Inference_input_3_f16) {
 }
 
 TEST_P(BF16WeightsDecompression, Inference_without_convert) {
-    float given;
-    float expected;
-    std::tie(given, expected) = GetParam();
+    const auto& [given, expected] = GetParam();
     std::shared_ptr<ov::Model> function_without_convert = init_subgraph_without_convert(given);
     ov::CompiledModel model_without_convert = core->compile_model(function_without_convert, targetDevice, {ov::hint::inference_precision(ov::element::f32)});
     auto request = model_without_convert.create_infer_request();

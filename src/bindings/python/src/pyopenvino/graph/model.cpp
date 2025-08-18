@@ -30,6 +30,7 @@ namespace py = pybind11;
 using PyRTMap = ov::RTMap;
 
 PYBIND11_MAKE_OPAQUE(PyRTMap);
+PYBIND11_MAKE_OPAQUE(ov::TensorVector);
 
 namespace {
 template <class... Args>
@@ -103,7 +104,7 @@ static ov::Output<ov::Node> output_from_handle(ov::Model& model, const py::handl
     } else if (py::isinstance<ov::Output<ov::Node>>(handle)) {
         return handle.cast<ov::Output<ov::Node>>();
     } else {
-        throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect key type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected keys as openvino.Output, int or str.");
     }
 }
@@ -116,7 +117,7 @@ static ov::PartialShape partial_shape_from_handle(const py::handle& handle) {
     } else if (py::isinstance<py::str>(handle)) {
         return ov::PartialShape(handle.cast<std::string>());
     } else {
-        throw py::type_error("Incorrect value type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect value type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected values as openvino.PartialShape, str, list or tuple.");
     }
 }
@@ -125,7 +126,7 @@ static std::string string_from_handle(const py::handle& handle) {
     if (py::isinstance<py::str>(handle)) {
         return handle.cast<std::string>();
     } else {
-        throw py::type_error("Incorrect key type " + std::string(py::str(handle.get_type())) +
+        throw py::type_error("Incorrect key type " + std::string(py::str(py::type::of(handle))) +
                              " to reshape a model, expected values as str.");
     }
 }
@@ -492,7 +493,7 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const ov::PartialShape& partial_shape, const py::dict& variables_shapes) {
             const auto new_variable_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(partial_shape, new_variable_shapes);
         },
         py::arg("partial_shape"),
@@ -534,7 +535,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::list& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape);
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
@@ -576,7 +577,7 @@ void regclass_graph_Model(py::module m) {
         [](ov::Model& self, const py::tuple& partial_shape, const py::dict& variables_shapes) {
             const auto new_shape = Common::partial_shape_from_list(partial_shape.cast<py::list>());
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shape, new_variables_shapes);
         },
         py::arg("partial_shape"),
@@ -617,7 +618,7 @@ void regclass_graph_Model(py::module m) {
         "reshape",
         [](ov::Model& self, const std::string& partial_shape, const py::dict& variables_shapes) {
             const auto new_variables_shape = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(ov::PartialShape(partial_shape), new_variables_shape);
         },
         py::arg("partial_shape"),
@@ -665,7 +666,7 @@ void regclass_graph_Model(py::module m) {
                                         partial_shape_from_handle(item.second));
             }
             const auto new_variables_shapes = get_variables_shapes(variables_shapes);
-            py::gil_scoped_release release;
+            ConditionalGILScopedRelease release;
             self.reshape(new_shapes, new_variables_shapes);
         },
         py::arg("partial_shapes"),
@@ -1121,7 +1122,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::remove_parameter,
               py::arg("parameter"),
               R"(
-            Delete Parameter node from the list of parameters. Method will not delete node from graph. 
+            Delete Parameter node from the list of parameters. Method will not delete node from graph.
             You need to replace Parameter with other operation manually.
 
             Attention: Indexing of parameters can be changed.
@@ -1190,7 +1191,7 @@ void regclass_graph_Model(py::module m) {
               py::arg("results"),
               R"(
                     Add new Result nodes to the list.
-                    
+
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param results: new Result nodes.
@@ -1212,7 +1213,7 @@ void regclass_graph_Model(py::module m) {
         py::arg("sinks"),
         R"(
             Add new sink nodes to the list.
-            
+
             Method doesn't validate graph, it should be done manually after all changes.
 
             :param sinks: new sink nodes.
@@ -1223,8 +1224,8 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::add_variables,
               py::arg("variables"),
               R"(
-                    Add new variables to the list. 
-                    
+                    Add new variables to the list.
+
                     Method doesn't validate graph, it should be done manually after all changes.
 
                     :param variables: new variables to add.
@@ -1253,7 +1254,7 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::get_variable_by_id,
               R"(
                     Return a variable by specified variable_id.
-                    
+
                     :param variable_id: a variable id to get variable node.
                     :type variable_id: str
                     :return: a variable node.
@@ -1301,9 +1302,9 @@ void regclass_graph_Model(py::module m) {
             Evaluate the model on inputs, putting results in outputs
 
             :param output_tensors: Tensors for the outputs to compute. One for each result
-            :type output_tensors: list[openvino.Tensor]
+            :type output_tensors: Union[list[openvino.Tensor], TensorVector]
             :param input_tensors: Tensors for the inputs. One for each inputs.
-            :type input_tensors: list[openvino.Tensor]
+            :type input_tensors: Union[list[openvino.Tensor], TensorVector]
             :param evaluation_context: Storage of additional settings and attributes that can be used
                                        when evaluating the model. This additional information can be
                                        shared across nodes.
@@ -1448,7 +1449,7 @@ void regclass_graph_Model(py::module m) {
         },
         R"(
         Returns a raw address of the Model object from C++.
-        
+
         Use this function in order to compare underlying C++ addresses instead of using `__eq__` in Python.
 
         :return: a raw address of the Model object.
