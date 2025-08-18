@@ -19,6 +19,7 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "transformations/utils/utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
@@ -568,35 +569,16 @@ bool build_ctx(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ctx) {
     // Initialize all common constants
     init_common_constants(ctx);
 
-    // Build shape extraction subgraphs (will be folded to constants if shapes are static)
-    auto dshape = std::make_shared<op::v3::ShapeOf>(data, element::i32);
-    auto n_dim = std::make_shared<op::v8::Gather>(dshape, ctx.i32_0, ctx.axis_0);
-    auto c_dim = std::make_shared<op::v8::Gather>(dshape, ctx.i32_1, ctx.axis_0);
-    auto h_in = std::make_shared<op::v8::Gather>(dshape, ctx.i32_2, ctx.axis_0);
-    auto w_in = std::make_shared<op::v8::Gather>(dshape, ctx.i32_3, ctx.axis_0);
+    // Build shape extraction subgraphs using make_try_fold (automatically folds to constants if shapes are static)
+    auto dshape = ov::op::util::make_try_fold<op::v3::ShapeOf>(data, element::i32);
+    ctx.n_dim = ov::op::util::make_try_fold<op::v8::Gather>(dshape, ctx.i32_0, ctx.axis_0);
+    ctx.c_dim = ov::op::util::make_try_fold<op::v8::Gather>(dshape, ctx.i32_1, ctx.axis_0);
+    ctx.h_in = ov::op::util::make_try_fold<op::v8::Gather>(dshape, ctx.i32_2, ctx.axis_0);
+    ctx.w_in = ov::op::util::make_try_fold<op::v8::Gather>(dshape, ctx.i32_3, ctx.axis_0);
 
-    auto gshape = std::make_shared<op::v3::ShapeOf>(grid, element::i32);
-    auto h_out = std::make_shared<op::v8::Gather>(gshape, ctx.i32_1, ctx.axis_0);
-    auto w_out = std::make_shared<op::v8::Gather>(gshape, ctx.i32_2, ctx.axis_0);
-
-    // Try to fold to constants if shapes are static, otherwise keep as ops
-    auto n_dim_const = ov::util::get_constant_from_source(n_dim);
-    ctx.n_dim = n_dim_const ? std::static_pointer_cast<Node>(n_dim_const) : n_dim;
-    
-    auto c_dim_const = ov::util::get_constant_from_source(c_dim);
-    ctx.c_dim = c_dim_const ? std::static_pointer_cast<Node>(c_dim_const) : c_dim;
-    
-    auto h_in_const = ov::util::get_constant_from_source(h_in);
-    ctx.h_in = h_in_const ? std::static_pointer_cast<Node>(h_in_const) : h_in;
-    
-    auto w_in_const = ov::util::get_constant_from_source(w_in);
-    ctx.w_in = w_in_const ? std::static_pointer_cast<Node>(w_in_const) : w_in;
-    
-    auto h_out_const = ov::util::get_constant_from_source(h_out);
-    ctx.h_out = h_out_const ? std::static_pointer_cast<Node>(h_out_const) : h_out;
-    
-    auto w_out_const = ov::util::get_constant_from_source(w_out);
-    ctx.w_out = w_out_const ? std::static_pointer_cast<Node>(w_out_const) : w_out;
+    auto gshape = ov::op::util::make_try_fold<op::v3::ShapeOf>(grid, element::i32);
+    ctx.h_out = ov::op::util::make_try_fold<op::v8::Gather>(gshape, ctx.i32_1, ctx.axis_0);
+    ctx.w_out = ov::op::util::make_try_fold<op::v8::Gather>(gshape, ctx.i32_2, ctx.axis_0);
 
     // split grid channels (x,y)
     auto grid_conv = grid.get_element_type() == ctx.calc_type
