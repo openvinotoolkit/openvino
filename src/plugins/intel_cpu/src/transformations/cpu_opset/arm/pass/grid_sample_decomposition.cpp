@@ -11,11 +11,15 @@
 
 #include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/validation_util.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -47,6 +51,9 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 #include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
