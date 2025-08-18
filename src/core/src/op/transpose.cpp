@@ -115,7 +115,7 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
                 const auto out_shape_d1 = out_shape[1];
                 transpose_xy(out_ptr, in_ptr, out_shape_d0, out_shape_d1);
             } else if (arg.get_shape().size() == 3) {
-                OPENVINO_ASSERT(axes_order[0] == 0, "Transpose for i4/u4 dtype is supported only for byx=>bxy case");
+                OPENVINO_ASSERT(axes_order[0] == 0 && axes_order[1] == 2 && axes_order[2] == 1, "Unsupported transpose order for i4/u4 type");
                 const auto out_batch = out_shape[0];
                 const auto out_shape_d0 = out_shape[1];
                 const auto out_shape_d1 = out_shape[2];
