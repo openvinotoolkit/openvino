@@ -67,8 +67,14 @@ struct Ctx {
     // Types
     element::Type element_type;
     element::Type calc_type;  // f32 for math
-    // Consts
+    // Float constants
     std::shared_ptr<Node> c0, c1, c2, c0_5;
+    // Integer constants
+    std::shared_ptr<Node> i32_0, i32_1, i32_2, i32_3, i32_neg1;
+    // Common axes
+    std::shared_ptr<Node> axis_0, axis_3;
+    // NHWC transpose pattern
+    std::shared_ptr<Node> to_nhwc_perm;
     // Pixels coords after normalization
     std::shared_ptr<Node> x, y;
     // Normalized coords (from grid, in [-1, 1])
@@ -111,12 +117,12 @@ void normalize_grid_to_pixels(const Ctx& ctx,
 
 // Create [N, H_out, W_out] batch indices tensor for GatherND (broadcasted)
 std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
-    auto range = std::make_shared<op::v4::Range>(op::v0::Constant::create(element::i32, {}, {0}),
+    auto range = std::make_shared<op::v4::Range>(ctx.i32_0,
                                                  ctx.n_dim,
-                                                 op::v0::Constant::create(element::i32, {}, {1}),
+                                                 ctx.i32_1,
                                                  element::i32);
 
-    auto n_dim_1d_bs = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, op::v0::Constant::create(element::i32, {}, {0}));
+    auto n_dim_1d_bs = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
     auto batch_shape = std::make_shared<op::v0::Concat>(OutputVector{n_dim_1d_bs,
                                                                      op::v0::Constant::create(element::i32, {1}, {1}),
                                                                      op::v0::Constant::create(element::i32, {1}, {1})},
@@ -124,9 +130,9 @@ std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
 
     auto batch_indices = std::make_shared<op::v1::Reshape>(range, batch_shape, false);
 
-    auto n_dim_1d = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, op::v0::Constant::create(element::i32, {}, {0}));
-    auto h_out_1d = std::make_shared<op::v0::Unsqueeze>(ctx.h_out, op::v0::Constant::create(element::i32, {}, {0}));
-    auto w_out_1d = std::make_shared<op::v0::Unsqueeze>(ctx.w_out, op::v0::Constant::create(element::i32, {}, {0}));
+    auto n_dim_1d = std::make_shared<op::v0::Unsqueeze>(ctx.n_dim, ctx.i32_0);
+    auto h_out_1d = std::make_shared<op::v0::Unsqueeze>(ctx.h_out, ctx.i32_0);
+    auto w_out_1d = std::make_shared<op::v0::Unsqueeze>(ctx.w_out, ctx.i32_0);
     auto bshape = std::make_shared<op::v0::Concat>(OutputVector{n_dim_1d, h_out_1d, w_out_1d}, 0);
     auto bcast = std::make_shared<op::v3::Broadcast>(batch_indices, bshape);
     return std::make_shared<op::v0::Convert>(bcast, element::i32);
@@ -140,9 +146,9 @@ std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
     auto y_i32 = std::make_shared<op::v0::Convert>(y_coord, element::i32);
     auto bidx = create_batch_indices(ctx);
 
-    auto b_exp = std::make_shared<op::v0::Unsqueeze>(bidx, op::v0::Constant::create(element::i32, {}, {-1}));
-    auto y_exp = std::make_shared<op::v0::Unsqueeze>(y_i32, op::v0::Constant::create(element::i32, {}, {-1}));
-    auto x_exp = std::make_shared<op::v0::Unsqueeze>(x_i32, op::v0::Constant::create(element::i32, {}, {-1}));
+    auto b_exp = std::make_shared<op::v0::Unsqueeze>(bidx, ctx.i32_neg1);
+    auto y_exp = std::make_shared<op::v0::Unsqueeze>(y_i32, ctx.i32_neg1);
+    auto x_exp = std::make_shared<op::v0::Unsqueeze>(x_i32, ctx.i32_neg1);
 
     auto indices = std::make_shared<op::v0::Concat>(OutputVector{b_exp, y_exp, x_exp}, -1);
     return std::make_shared<op::v8::GatherND>(ctx.data_nhwc, indices, 0);
@@ -268,7 +274,7 @@ std::shared_ptr<Node> build_nearest_nhwc(const Ctx& ctx, const ov::op::v9::GridS
         auto ok = std::make_shared<op::v1::LogicalAnd>(std::make_shared<op::v1::LogicalAnd>(x_ge_0, x_le_w1),
                                                        std::make_shared<op::v1::LogicalAnd>(y_ge_0, y_le_h1));
         auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
-        auto maske = std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1}));
+        auto maske = std::make_shared<op::v0::Unsqueeze>(mask, ctx.i32_neg1);
         if (ctx.element_type != ctx.calc_type) {
             out = std::make_shared<op::v0::Convert>(out, ctx.calc_type);
         }
@@ -338,10 +344,10 @@ std::shared_ptr<Node> build_bilinear_nhwc(const Ctx& ctx, const ov::op::v9::Grid
             auto mask = std::make_shared<op::v0::Convert>(ok, ctx.calc_type);
             v = std::make_shared<op::v1::Multiply>(
                 v,
-                std::make_shared<op::v0::Unsqueeze>(mask, op::v0::Constant::create(element::i32, {}, {-1})));
+                std::make_shared<op::v0::Unsqueeze>(mask, ctx.i32_neg1));
         }
 
-        auto wexp = std::make_shared<op::v0::Unsqueeze>(weights[i], op::v0::Constant::create(element::i32, {}, {-1}));
+        auto wexp = std::make_shared<op::v0::Unsqueeze>(weights[i], ctx.i32_neg1);
         auto tap = std::make_shared<op::v1::Multiply>(v, wexp);
         res = res ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(res, tap)) : tap;
     }
@@ -507,7 +513,7 @@ std::shared_ptr<Node> build_bicubic_nhwc(const Ctx& ctx, const ov::op::v9::GridS
                 wxy = std::make_shared<op::v1::Multiply>(wxy, mask);
             }
 
-            auto wexp = std::make_shared<op::v0::Unsqueeze>(wxy, op::v0::Constant::create(element::i32, {}, {-1}));
+            auto wexp = std::make_shared<op::v0::Unsqueeze>(wxy, ctx.i32_neg1);
             auto tap = std::make_shared<op::v1::Multiply>(val, wexp);
 
             row = row ? std::shared_ptr<Node>(std::make_shared<op::v1::Add>(row, tap)) : tap;
@@ -536,43 +542,53 @@ bool build_ctx_dynamic(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& c
     ctx.calc_type = element::f32;
 
     auto dshape = std::make_shared<op::v3::ShapeOf>(data, element::i32);
-    ctx.n_dim = std::make_shared<op::v8::Gather>(dshape,
-                                                 op::v0::Constant::create(element::i32, {}, {0}),
-                                                 op::v0::Constant::create(element::i32, {}, {0}));
-    ctx.c_dim = std::make_shared<op::v8::Gather>(dshape,
-                                                 op::v0::Constant::create(element::i32, {}, {1}),
-                                                 op::v0::Constant::create(element::i32, {}, {0}));
-    ctx.h_in = std::make_shared<op::v8::Gather>(dshape,
-                                                op::v0::Constant::create(element::i32, {}, {2}),
-                                                op::v0::Constant::create(element::i32, {}, {0}));
-    ctx.w_in = std::make_shared<op::v8::Gather>(dshape,
-                                                op::v0::Constant::create(element::i32, {}, {3}),
-                                                op::v0::Constant::create(element::i32, {}, {0}));
+    // Initialize integer constants first (before using them)
+    ctx.i32_0 = op::v0::Constant::create(element::i32, {}, {0});
+    ctx.i32_1 = op::v0::Constant::create(element::i32, {}, {1});
+    ctx.i32_2 = op::v0::Constant::create(element::i32, {}, {2});
+    ctx.i32_3 = op::v0::Constant::create(element::i32, {}, {3});
+    ctx.i32_neg1 = op::v0::Constant::create(element::i32, {}, {-1});
+    ctx.axis_0 = ctx.i32_0;
+    ctx.axis_3 = ctx.i32_3;
+    
+    ctx.n_dim = std::make_shared<op::v8::Gather>(dshape, ctx.i32_0, ctx.axis_0);
+    ctx.c_dim = std::make_shared<op::v8::Gather>(dshape, ctx.i32_1, ctx.axis_0);
+    ctx.h_in = std::make_shared<op::v8::Gather>(dshape, ctx.i32_2, ctx.axis_0);
+    ctx.w_in = std::make_shared<op::v8::Gather>(dshape, ctx.i32_3, ctx.axis_0);
 
     auto gshape = std::make_shared<op::v3::ShapeOf>(grid, element::i32);
-    ctx.h_out = std::make_shared<op::v8::Gather>(gshape,
-                                                 op::v0::Constant::create(element::i32, {}, {1}),
-                                                 op::v0::Constant::create(element::i32, {}, {0}));
-    ctx.w_out = std::make_shared<op::v8::Gather>(gshape,
-                                                 op::v0::Constant::create(element::i32, {}, {2}),
-                                                 op::v0::Constant::create(element::i32, {}, {0}));
+    ctx.h_out = std::make_shared<op::v8::Gather>(gshape, ctx.i32_1, ctx.axis_0);
+    ctx.w_out = std::make_shared<op::v8::Gather>(gshape, ctx.i32_2, ctx.axis_0);
 
+    // Float constants
     ctx.c0 = op::v0::Constant::create(ctx.calc_type, {}, {0.0F});
     ctx.c1 = op::v0::Constant::create(ctx.calc_type, {}, {1.0F});
     ctx.c2 = op::v0::Constant::create(ctx.calc_type, {}, {2.0F});
     ctx.c0_5 = op::v0::Constant::create(ctx.calc_type, {}, {0.5F});
+    
+    // Integer constants
+    ctx.i32_0 = op::v0::Constant::create(element::i32, {}, {0});
+    ctx.i32_1 = op::v0::Constant::create(element::i32, {}, {1});
+    ctx.i32_2 = op::v0::Constant::create(element::i32, {}, {2});
+    ctx.i32_3 = op::v0::Constant::create(element::i32, {}, {3});
+    ctx.i32_neg1 = op::v0::Constant::create(element::i32, {}, {-1});
+    
+    // Common axes
+    ctx.axis_0 = ctx.i32_0;
+    ctx.axis_3 = ctx.i32_3;
+    
+    // NHWC transpose pattern
+    ctx.to_nhwc_perm = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
 
     // split grid channels (x,y)
     auto grid_conv = grid.get_element_type() == ctx.calc_type
                          ? grid
                          : std::shared_ptr<Node>(std::make_shared<op::v0::Convert>(grid, ctx.calc_type));
-    auto axis3 = op::v0::Constant::create(element::i32, {}, {3});
-    ctx.x_norm = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {0}), axis3);
-    ctx.y_norm = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {1}), axis3);
+    ctx.x_norm = std::make_shared<op::v8::Gather>(grid_conv, ctx.i32_0, ctx.axis_3);
+    ctx.y_norm = std::make_shared<op::v8::Gather>(grid_conv, ctx.i32_1, ctx.axis_3);
 
     // NCHW -> NHWC
-    auto to_nhwc = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
-    ctx.data_nhwc = std::make_shared<op::v1::Transpose>(data, to_nhwc);
+    ctx.data_nhwc = std::make_shared<op::v1::Transpose>(data, ctx.to_nhwc_perm);
     return true;
 }
 
@@ -610,23 +626,36 @@ bool build_ctx_static(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ct
     ctx.h_out = cHo;
     ctx.w_out = cWo;
 
+    // Float constants
     ctx.c0 = op::v0::Constant::create(ctx.calc_type, {}, {0.0F});
     ctx.c1 = op::v0::Constant::create(ctx.calc_type, {}, {1.0F});
     ctx.c2 = op::v0::Constant::create(ctx.calc_type, {}, {2.0F});
     ctx.c0_5 = op::v0::Constant::create(ctx.calc_type, {}, {0.5F});
+    
+    // Integer constants
+    ctx.i32_0 = op::v0::Constant::create(element::i32, {}, {0});
+    ctx.i32_1 = op::v0::Constant::create(element::i32, {}, {1});
+    ctx.i32_2 = op::v0::Constant::create(element::i32, {}, {2});
+    ctx.i32_3 = op::v0::Constant::create(element::i32, {}, {3});
+    ctx.i32_neg1 = op::v0::Constant::create(element::i32, {}, {-1});
+    
+    // Common axes
+    ctx.axis_0 = ctx.i32_0;
+    ctx.axis_3 = ctx.i32_3;
+    
+    // NHWC transpose pattern
+    ctx.to_nhwc_perm = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
 
     // grid channels split (keep as graph ops; shapes are const so it folds nicely)
     auto grid = grid_iv.get_node_shared_ptr();
     auto grid_conv = grid_iv.get_element_type() == ctx.calc_type
                          ? grid_iv.get_node_shared_ptr()
                          : std::shared_ptr<Node>(std::make_shared<op::v0::Convert>(grid_iv, ctx.calc_type));
-    auto axis3 = op::v0::Constant::create(element::i32, {}, {3});
-    ctx.x_norm = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {0}), axis3);
-    ctx.y_norm = std::make_shared<op::v8::Gather>(grid_conv, op::v0::Constant::create(element::i32, {}, {1}), axis3);
+    ctx.x_norm = std::make_shared<op::v8::Gather>(grid_conv, ctx.i32_0, ctx.axis_3);
+    ctx.y_norm = std::make_shared<op::v8::Gather>(grid_conv, ctx.i32_1, ctx.axis_3);
 
     // NCHW -> NHWC
-    auto to_nhwc = op::v0::Constant::create(element::i32, {4}, {0, 2, 3, 1});
-    ctx.data_nhwc = std::make_shared<op::v1::Transpose>(data_iv, to_nhwc);
+    ctx.data_nhwc = std::make_shared<op::v1::Transpose>(data_iv, ctx.to_nhwc_perm);
     return true;
 }
 
