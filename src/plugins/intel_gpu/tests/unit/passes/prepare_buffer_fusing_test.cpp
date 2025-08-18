@@ -494,7 +494,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     topology.add(reorder("reorder1", input_info("input1"), format::bfyx, data_types::f16));
     topology.add(reorder("reorder2", input_info("input2"), format::bfyx, data_types::f16));
 
-    topology.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2") }, 2));
+    topology.add(concatenation("concat", { input_info("reorder1"), input_info("reorder2") }, 0));
     topology.add(permute("output", input_info("concat"), {0, 2, 3, 1}));
 
     ExecutionConfig config;
@@ -508,7 +508,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     auto& concat_node_p = prog->get_node("concat");
-    ASSERT_TRUE(concat_node_p.can_be_optimized());
+    ASSERT_FALSE(concat_node_p.can_be_optimized());
     cldnn::network net(prog, 0);
 
     auto input_memory1 = engine.allocate_memory(in_layout1);
@@ -554,7 +554,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     ASSERT_NE(concat_mem.get(), reorder1_mem.get());
     ASSERT_NE(concat_mem.get(), reorder2_mem.get());
     ASSERT_FALSE(concat_inst->can_be_optimized());
-    ASSERT_TRUE(concat_node_n.can_be_optimized());
+    ASSERT_FALSE(concat_node_n.can_be_optimized());
 
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);

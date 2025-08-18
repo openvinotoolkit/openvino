@@ -241,11 +241,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         idx++;
     }
 
-    if (!concat_node.is_dynamic() || is_runtime) {
-        auto& input = concat_node.get_dependencies().front();
-        if (!input.first->is_type<permute>() && concat_axis != 0 && concat_axis != 1)
+    if (concat_node.get_preferred_impl_type() == impl_types::onednn)
+        if (concat_axis != 1)
             return false;
-    }
+
 
     // Implicit concat for onednn only when use_usm and batch 1.
     if (is_onednn_impl) {
@@ -258,8 +257,6 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             return true;
         } else {
             if (concat_out_l.batch() > 1)
-                return false;
-            if (concat_axis != 1)
                 return false;
             const auto& dims_order = concat_out_l.format.dims_order();
             for (auto dim : dims_order) {
