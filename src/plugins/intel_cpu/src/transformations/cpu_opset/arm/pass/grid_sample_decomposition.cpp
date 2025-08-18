@@ -11,10 +11,6 @@
 
 #include "transformations/cpu_opset/arm/pass/grid_sample_decomposition.hpp"
 
-#include <cstdint>
-#include <functional>
-#include <memory>
-#include <vector>
 
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/node.hpp"
