@@ -35,6 +35,10 @@ public:
         return std::make_shared<EltwiseFuseParams>(typed_desc());
     }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+
+    // Inputs of NUMPY broadcast of Eltwise can be different dimensions
+    // Bypass smaller tensor input to let Eltwise align those inputs for NUMPY broadcast
+    bool need_align_for_numpy_broadcast(const layout& input) const;
 };
 
 using eltwise_node = typed_program_node<eltwise>;
