@@ -59,6 +59,11 @@ struct ReduceImplementationManager : public ImplementationManager {
         const auto& in_layout = reduce_node.get_input_layout(0);
         const auto& out_layout = reduce_node.get_output_layout(0);
         auto in_dt = in_layout.data_type;
+        auto out_dt = out_layout.data_type;
+
+        // onednn reduction does not support different input/output data types
+        if (in_dt != out_dt)
+            return false;
 
         static const std::vector<format::type> supported_formats = {
             format::any,
