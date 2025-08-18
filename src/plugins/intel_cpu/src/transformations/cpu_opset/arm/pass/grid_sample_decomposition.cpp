@@ -36,8 +36,6 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
-#include "openvino/op/logical_not.hpp"
-#include "openvino/op/logical_or.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -51,9 +49,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "transformations/rt_info/decompression.hpp"
-#include "transformations/rt_info/disable_constant_folding.hpp"
-#include "transformations/utils/utils.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
 
 namespace ov::intel_cpu {
 
@@ -165,23 +162,22 @@ std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
         auto ad = std::make_shared<op::v0::Abs>(d);
         auto ref = std::make_shared<op::v1::Subtract>(size_m1, ad);
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, ref);
-    } else {
-        auto is_negative = std::make_shared<op::v1::Less>(coord, ctx.c0);
-        auto neg_coord = std::make_shared<op::v0::Negative>(coord);
-        auto neg_minus_one = std::make_shared<op::v1::Subtract>(neg_coord, ctx.c1);
-        auto coord_positive = std::make_shared<op::v1::Select>(is_negative, neg_minus_one, coord);
-
-        auto two_size = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
-        auto two_size_safe = std::make_shared<op::v1::Maximum>(two_size, ctx.c1);
-        auto mod = std::make_shared<op::v1::FloorMod>(coord_positive, two_size_safe);
-
-        auto need_ref = std::make_shared<op::v1::GreaterEqual>(mod, size_f);
-        auto two_size_m1 = std::make_shared<op::v1::Subtract>(two_size_safe, ctx.c1);
-        auto ref_val = std::make_shared<op::v1::Subtract>(two_size_m1, mod);
-        auto result = std::make_shared<op::v1::Select>(need_ref, ref_val, mod);
-
-        return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, result);
     }
+    auto is_negative = std::make_shared<op::v1::Less>(coord, ctx.c0);
+    auto neg_coord = std::make_shared<op::v0::Negative>(coord);
+    auto neg_minus_one = std::make_shared<op::v1::Subtract>(neg_coord, ctx.c1);
+    auto coord_positive = std::make_shared<op::v1::Select>(is_negative, neg_minus_one, coord);
+
+    auto two_size = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
+    auto two_size_safe = std::make_shared<op::v1::Maximum>(two_size, ctx.c1);
+    auto mod = std::make_shared<op::v1::FloorMod>(coord_positive, two_size_safe);
+
+    auto need_ref = std::make_shared<op::v1::GreaterEqual>(mod, size_f);
+    auto two_size_m1 = std::make_shared<op::v1::Subtract>(two_size_safe, ctx.c1);
+    auto ref_val = std::make_shared<op::v1::Subtract>(two_size_m1, mod);
+    auto result = std::make_shared<op::v1::Select>(need_ref, ref_val, mod);
+
+    return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, result);
 }
 
 std::shared_ptr<Node> reflect_index(const Ctx& ctx,
@@ -199,17 +195,16 @@ std::shared_ptr<Node> reflect_index(const Ctx& ctx,
         auto cond = std::make_shared<op::v1::GreaterEqual>(mod2, size_f);
         auto ref = std::make_shared<op::v1::Select>(cond, flipped, mod2);
         return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, ref);
-    } else {
-        auto two_s = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
-        auto two_s_safe = std::make_shared<op::v1::Maximum>(two_s, ctx.c1);
-        auto mod1 = std::make_shared<op::v1::FloorMod>(idx, two_s_safe);
-        auto mod2 = std::make_shared<op::v1::FloorMod>(std::make_shared<op::v1::Add>(mod1, two_s_safe), two_s_safe);
-        auto need_rf = std::make_shared<op::v1::GreaterEqual>(mod2, size_f);
-        auto two_s_m1 = std::make_shared<op::v1::Subtract>(two_s_safe, ctx.c1);
-        auto ref_val = std::make_shared<op::v1::Subtract>(two_s_m1, mod2);
-        auto res = std::make_shared<op::v1::Select>(need_rf, ref_val, mod2);
-        return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, res);
     }
+    auto two_s = std::make_shared<op::v1::Multiply>(ctx.c2, size_f);
+    auto two_s_safe = std::make_shared<op::v1::Maximum>(two_s, ctx.c1);
+    auto mod1 = std::make_shared<op::v1::FloorMod>(idx, two_s_safe);
+    auto mod2 = std::make_shared<op::v1::FloorMod>(std::make_shared<op::v1::Add>(mod1, two_s_safe), two_s_safe);
+    auto need_rf = std::make_shared<op::v1::GreaterEqual>(mod2, size_f);
+    auto two_s_m1 = std::make_shared<op::v1::Subtract>(two_s_safe, ctx.c1);
+    auto ref_val = std::make_shared<op::v1::Subtract>(two_s_m1, mod2);
+    auto res = std::make_shared<op::v1::Select>(need_rf, ref_val, mod2);
+    return std::make_shared<op::v1::Select>(size_is_one, ctx.c0, res);
 }
 
 // Clamp integer-ish indices to [0..size-1] (safe)

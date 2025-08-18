@@ -7,8 +7,7 @@
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief GridSampleDecompositionBilinear decomposes GridSample operation with BILINEAR mode
@@ -55,5 +54,4 @@ public:
     GridSampleDecomposition();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
