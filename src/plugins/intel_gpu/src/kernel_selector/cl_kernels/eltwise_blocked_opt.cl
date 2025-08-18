@@ -66,9 +66,9 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
     }
 
     // Fill padded memory with zeros for b_fs_yx_fsv format
-    if ((f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM && FEATURE_BLOCK_SIZE != 1) {
-        MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE) out = (MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, VEC_SIZE))(0);
-        vstore8(out, global_id, output);
+    if ((f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM && FEATURE_BLOCK_SIZE > 1) {
+        OUTPUT_TYPE_BLOCK out = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE))(0);
+        VSTORE_N(out, global_id, output);
         return;
     }
 

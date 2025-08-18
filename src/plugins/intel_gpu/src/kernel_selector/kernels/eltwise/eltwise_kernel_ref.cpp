@@ -105,14 +105,15 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
 static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
     auto layout = tensor.GetLayout();
     switch (layout) {
+    case DataLayout::b_fs_yx_fsv4:
+        return 4;
     case DataLayout::b_fs_yx_fsv16:
         return 16;
     case DataLayout::b_fs_yx_fsv32:
         return 32;
     case DataLayout::bfyx:
-        return 1;
     default:
-        OPENVINO_THROW("GetInnerFeatureBlockSize : Unexpected format for generic_eltwise_ref kernel.");
+        return 1;
     }
 
     return 1;
