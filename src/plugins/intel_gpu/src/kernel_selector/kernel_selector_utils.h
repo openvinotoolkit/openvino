@@ -16,8 +16,8 @@ struct DimensionAccessHelperBase {
         dims = {
             t.Batch(),
             t.Feature(),
-            t.U(),
             t.V(),
+            t.U(),
             t.W(),
             t.Z(),
             t.Y(),
@@ -29,8 +29,8 @@ struct DimensionAccessHelperBase {
     Tensor::Dim& y_dim() { return dims[6]; }
     Tensor::Dim& z_dim() { return dims[5]; }
     Tensor::Dim& w_dim() { return dims[4]; }
-    Tensor::Dim& v_dim() { return dims[3]; }
-    Tensor::Dim& u_dim() { return dims[2]; }
+    Tensor::Dim& u_dim() { return dims[3]; }
+    Tensor::Dim& v_dim() { return dims[2]; }
     Tensor::Dim& f_dim() { return dims[1]; }
     Tensor::Dim& b_dim() { return dims[0]; }
 
@@ -63,16 +63,16 @@ struct DimensionAccessHelperJit : virtual DimensionAccessHelperBase {
     std::string y() { return dims_sizes[6]; }
     std::string z() { return dims_sizes[5]; }
     std::string w() { return dims_sizes[4]; }
-    std::string v() { return dims_sizes[3]; }
-    std::string u() { return dims_sizes[2]; }
+    std::string u() { return dims_sizes[3]; }
+    std::string v() { return dims_sizes[2]; }
     std::string f() { return dims_sizes[1]; }
     std::string b() { return dims_sizes[0]; }
     std::pair<std::string, std::string> x_pad() { return {pad_before_after_sizes[14], pad_before_after_sizes[15]}; }
     std::pair<std::string, std::string> y_pad() { return {pad_before_after_sizes[12], pad_before_after_sizes[13]}; }
     std::pair<std::string, std::string> z_pad() { return {pad_before_after_sizes[10], pad_before_after_sizes[11]}; }
     std::pair<std::string, std::string> w_pad() { return {pad_before_after_sizes[8], pad_before_after_sizes[9]}; }
-    std::pair<std::string, std::string> v_pad() { return {pad_before_after_sizes[6], pad_before_after_sizes[7]}; }
-    std::pair<std::string, std::string> u_pad() { return {pad_before_after_sizes[4], pad_before_after_sizes[5]}; }
+    std::pair<std::string, std::string> u_pad() { return {pad_before_after_sizes[6], pad_before_after_sizes[7]}; }
+    std::pair<std::string, std::string> v_pad() { return {pad_before_after_sizes[4], pad_before_after_sizes[5]}; }
     std::pair<std::string, std::string> f_pad() { return {pad_before_after_sizes[2], pad_before_after_sizes[3]}; }
     std::pair<std::string, std::string> b_pad() { return {pad_before_after_sizes[0], pad_before_after_sizes[1]}; }
 
