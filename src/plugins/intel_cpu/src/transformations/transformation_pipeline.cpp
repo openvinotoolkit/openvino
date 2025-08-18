@@ -1486,6 +1486,13 @@ void Transformations::MainSnippets() {
                 return output_shape[1].is_dynamic() || output_shape[1].get_length() > 256;
             },
             snippets::pass::TokenizeMLPSeqSnippets);
+        CPU_SET_CALLBACK_ARM(
+            snippetsManager,
+            [&](const std::shared_ptr<const ov::Node>& n) -> bool {
+                // TODO: Enable TokenizeMLPSeqSnippets on ARM
+                return true;
+            },
+            snippets::pass::TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_X64(
             snippetsManager,
             [&](const std::shared_ptr<const ov::Node>& n) -> bool {
