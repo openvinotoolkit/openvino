@@ -19,6 +19,7 @@
 #include "openvino/pass/validate.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "partitioning/patterns/pre_compute.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
@@ -126,8 +127,10 @@ private:
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
+        auto fake_convert =
+            opp::optional<ov::op::v13::FakeConvert>({concat->output(0), opp::any_input(), opp::any_input()});
         auto softmax = opp::wrap_type<ov::op::v8::Softmax>({opp::any_input()});
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, concat});
+        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({softmax, fake_convert});
 
         auto callback = [=](ov::pass::pattern::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
@@ -163,10 +166,12 @@ private:
         auto transpose = opp::wrap_type<ov::op::v1::Transpose>({opp::any_input(), opp::any_input()});
         auto convert = opp::optional<ov::op::v0::Convert>({param->output(0)});
         auto concat = opp::wrap_type<ov::op::v0::Concat>({convert, transpose});
+        auto fake_convert =
+            opp::optional<ov::op::v13::FakeConvert>({concat->output(0), opp::any_input(), opp::any_input()});
 
         // only difference is that broadcast wrapped into unsquese/reshape, while transposed tensor didn't change
         const auto unsqueeze_axes = opp::wrap_type<ov::op::v0::Constant>();
-        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({concat, unsqueeze_axes});
+        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({fake_convert, unsqueeze_axes});
         auto broadcast = opp::wrap_type<ov::op::v1::Broadcast, ov::op::v3::Broadcast>({unsqueeze, opp::any_input()});
         auto reshape = opp::wrap_type<ov::op::v1::Reshape>({broadcast, opp::any_input()});
 
@@ -1119,18 +1124,19 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto prefill_model = kvcache_model->clone();
     prefill_model->set_friendly_name(kvcache_model->get_friendly_name() + "_prefill");
 
-    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
-    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
-    KVAxesPosition axes{batch_dim, seq_len_dim};
-    const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
-    const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
-
     // NB: PREFILL_HINT is now compatible with the PREFILL_CONFIG section, unlike for
     // the generate model they're not mutually exclusive
     const ::intel_npu::npuw::llm::PrefillHint prefill_hint = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_HINT>();
-
     m_prefill_chunk_size = m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_CHUNK_SIZE>();
     m_use_chunk_prefill = (prefill_hint == ::intel_npu::npuw::llm::PrefillHint::DYNAMIC && m_prefill_chunk_size > 0);
+    const auto prompt_alignment = static_cast<uint32_t>(m_use_chunk_prefill ? m_prefill_chunk_size : 64u);
+
+    const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();
+    const uint32_t seq_len_dim = m_cfg.get<::intel_npu::NPUW_LLM_SEQ_LEN_DIM>();
+    KVAxesPosition axes{batch_dim, seq_len_dim};
+    const uint32_t max_prompt_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), prompt_alignment);
+    const uint32_t min_response_len = align_to(m_cfg.get<::intel_npu::NPUW_LLM_MIN_RESPONSE_LEN>(), 64u);
+
     LOG_VERB("Enabled prefill chunking: " << m_use_chunk_prefill);
     LOG_VERB("Prefill chunk size: " << m_prefill_chunk_size);
     LOG_VERB("Maximum prompt length: " << max_prompt_len);
@@ -1213,6 +1219,15 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     kvcache_model = cvt_kvcache_to_fp16(kvcache_model);
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
+
+    if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
+        LOG_DEBUG("Caching preROPE ");
+        ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+        rope_prefill_cacher.run_on_model(prefill_model);
+
+        ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(max_prompt_len + min_response_len);
+        rope_generate_cacher.run_on_model(kvcache_model);
+    }
 
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();

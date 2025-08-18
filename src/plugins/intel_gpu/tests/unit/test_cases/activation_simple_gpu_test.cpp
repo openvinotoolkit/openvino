@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/concatenation.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include "activation_inst.h"
 
 #include <cmath>
@@ -699,6 +700,53 @@ TEST(activation_f16_fw_gpu, pow_basic_yxfb) {
 
     for (size_t i = 0; i < output_vec.size(); ++i) {
         ASSERT_FLOAT_EQ(output_vec[i], output_ptr[i]);
+    }
+}
+
+TEST(activation_f16_fw_gpu, softplus_do_not_fuse_for_f16_prevent_overflow) {
+    auto& engine = get_test_engine();
+
+    tensor input_shape{2, 4, 2, 3};
+    auto input = engine.allocate_memory({data_types::f16, format::bfyx, input_shape});
+    set_values<ov::float16>(input, std::vector<ov::float16>(input_shape.count(), ov::float16(12.0f)));
+
+    auto zero = engine.allocate_memory({data_types::f16, format::bfyx, input_shape});
+    set_values<ov::float16>(zero, std::vector<ov::float16>(input_shape.count(), ov::float16(0.0f)));
+
+    topology topology1(input_layout("input", input->get_layout()),
+                      data("zero", zero),
+                      eltwise("sum", input_info("input"), input_info("zero"), eltwise_mode::sum),
+                      activation("softplus", input_info("sum"), activation_func::softplus),
+                      permute("permute", input_info("softplus"), {0, 1, 2, 3}));
+
+    topology topology2(input_layout("input", input->get_layout()),
+                      data("zero", zero),
+                      eltwise("sum", input_info("input"), input_info("zero"), eltwise_mode::sum),
+                      activation("softplus", input_info("sum"), activation_func::softplus),
+                      permute("permute", input_info("softplus"), {0, 1, 2, 3}));
+
+    ExecutionConfig config_fuse = get_test_default_config(engine);
+    config_fuse.set_property(ov::intel_gpu::optimize_data(true));
+    network network_fuse(engine, topology1, config_fuse);
+    network_fuse.set_input_data("input", input);
+    auto output_fuse = network_fuse.execute().begin()->second.get_memory();
+
+    ExecutionConfig config_unfuse = get_test_default_config(engine);
+    config_unfuse.set_property(ov::intel_gpu::optimize_data(false));
+    network network_unfuse(engine, topology2, config_unfuse);
+    network_unfuse.set_input_data("input", input);
+    auto output_unfuse = network_unfuse.execute().begin()->second.get_memory();
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> fuse_ptr(output_fuse, get_test_stream());
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> unfuse_ptr(output_unfuse, get_test_stream());
+
+    for (size_t i = 0; i < fuse_ptr.size(); ++i) {
+        float fuse_val = static_cast<float>(fuse_ptr[i]);
+        float unfuse_val = static_cast<float>(unfuse_ptr[i]);
+
+        ASSERT_FALSE(std::isinf(fuse_val));
+        ASSERT_FALSE(std::isinf(unfuse_val));
+        ASSERT_NEAR(fuse_val, unfuse_val, 1e-3f);
     }
 }
 
