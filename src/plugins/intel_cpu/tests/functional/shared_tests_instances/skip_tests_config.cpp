@@ -513,7 +513,6 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)");
     retVector.emplace_back(R"(smoke_Snippets_GatedMLP.*)");
     retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
-    retVector.emplace_back(R"(smoke_Snippets_MHA.*)");
     retVector.emplace_back(R"(smoke_Snippets_MLP_SEQ.*)");
     retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
 #endif

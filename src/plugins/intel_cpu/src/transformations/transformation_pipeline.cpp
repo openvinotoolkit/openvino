@@ -1199,8 +1199,6 @@ void Transformations::MainSnippets() {
     // ARM has 32 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters, 1 platform
     // register, 3 registers for temporary use, and 2 stack related registers, it has 23 remaining registers.
     size_t data_ptr_gpr_count = 23;
-    // ARM doesn't even support MHA yet
-    is_dynamic_mha_token_enabled = false;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #elif defined(OPENVINO_ARCH_X86_64)
     // X64 has 16 gprs. After excluding 2 registers for work amounts, 1 register for runtime parameters,
@@ -1267,7 +1265,7 @@ void Transformations::MainSnippets() {
          ov::intel_cpu::brgemm_utils::is_fp16_supported());
     const bool isMHASupported = !is_LLM && is_infer_prc_supported_by_brgemm;
 #else
-    const bool isMHASupported = false;
+    const bool isMHASupported = any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic);
 #endif
 
     if (!isMHASupported) {
