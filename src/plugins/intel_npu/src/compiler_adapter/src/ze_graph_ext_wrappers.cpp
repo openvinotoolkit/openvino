@@ -588,15 +588,9 @@ NetworkMetadata ZeGraphExtWrappers::getNetworkMeta(GraphDescriptor& graphDescrip
 
 std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
     // Early exit if api is not supported
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 14)) {
         return {};
     }
-
-#ifdef _WIN32
-    if (_zeroInitStruct->getDriverVersion() == 2020335 || _zeroInitStruct->getDriverVersion() == 2020298) {
-        return {};
-    }
-#endif
 
     // 1. ask driver for size of compiler supported options list
     _logger.debug("pfnCompilerGetSupportedOptions - obtain string size");
@@ -643,15 +637,9 @@ std::string ZeGraphExtWrappers::getCompilerSupportedOptions() const {
 
 bool ZeGraphExtWrappers::isOptionSupported(std::string optname) const {
     // Early exit if api is not supported
-    if (_graphExtVersion < ZE_MAKE_VERSION(1, 11)) {
+    if (_graphExtVersion < ZE_MAKE_VERSION(1, 14)) {
         return false;
     }
-
-#ifdef _WIN32
-    if (_zeroInitStruct->getDriverVersion() == 2020335 || _zeroInitStruct->getDriverVersion() == 2020298) {
-        return false;
-    }
-#endif
 
     const char* optname_ch = optname.c_str();
     auto result = _zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
