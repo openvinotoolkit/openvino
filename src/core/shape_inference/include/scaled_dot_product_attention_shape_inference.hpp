@@ -18,7 +18,8 @@ std::vector<TRShape> shape_infer(const ScaledDotProductAttention* op,
     const auto& inputs_count = input_shapes.size();
     const auto& has_attention_mask_input = inputs_count >= 4;
     const auto& has_scale_input = inputs_count == 5;
-    NODE_VALIDATION_CHECK(op, inputs_count == 3 || has_attention_mask_input || has_scale_input);
+    const auto& has_sink_input = inputs_count == 6;
+    NODE_VALIDATION_CHECK(op, inputs_count == 3 || has_attention_mask_input || has_scale_input || has_sink_input);
     DimType e_dim{};
     DimType l_dim{};
     DimType s_dim{};
