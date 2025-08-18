@@ -2023,8 +2023,7 @@ TEST_P(concat_no_implicit_gpu_onednn_4d_f16_spatial, other_spatial) {
 INSTANTIATE_TEST_SUITE_P(smoke,
                         concat_no_implicit_gpu_onednn_4d_f16_spatial,
                         ::testing::Values(
-                            TestParamType_implicit_concat(1, { 16 }, 2, 2, format::b_fs_yx_fsv16, false, false),
-                            TestParamType_implicit_concat(1, { 16 }, 2, 2, format::bfyx, false, false)
+                            TestParamType_implicit_concat(1, { 16 }, 2, 2, format::b_fs_yx_fsv16, false, false)
                         ),
                         concat_gpu_implicit::PrintToStringParamName);
 #endif

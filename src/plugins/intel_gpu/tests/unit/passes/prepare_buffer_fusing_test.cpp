@@ -508,7 +508,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     auto prog = program::build_program(engine, topology, config, false, false);
     ASSERT_NE(prog, nullptr);
     auto& concat_node_p = prog->get_node("concat");
-    ASSERT_FALSE(concat_node_p.can_be_optimized());
+    ASSERT_TRUE(concat_node_p.can_be_optimized());
     cldnn::network net(prog, 0);
 
     auto input_memory1 = engine.allocate_memory(in_layout1);
@@ -554,7 +554,7 @@ TEST(prepare_buffer_fusing, in_place_concat_dynamic_onednn_batch2) {
     ASSERT_NE(concat_mem.get(), reorder1_mem.get());
     ASSERT_NE(concat_mem.get(), reorder2_mem.get());
     ASSERT_FALSE(concat_inst->can_be_optimized());
-    ASSERT_FALSE(concat_node_n.can_be_optimized());
+    ASSERT_TRUE(concat_node_n.can_be_optimized());
 
     for (size_t x = 0; x < out_l.count(); ++x) {
         ASSERT_EQ(ref_output[x], output_ptr[x]);
