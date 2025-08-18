@@ -309,12 +309,13 @@ void ZeroInferRequest::create_pipeline() {
 #ifdef NPU_LLVM_BACKEND
     if (_graph->use_dynamic_pipeline()) {
         // Construct pipeline
-        _pipeline = std::make_unique<DynamicPipeline>(_config,
-                                                      _initStructs,
-                                                      _graph,
-                                                      _levelZeroInputTensors,
-                                                      _levelZeroOutputTensors,
-                                                      batchSize.has_value() ? batchSize.value() : DEFAULT_BATCH_SIZE);
+        _pipeline =
+            std::make_unique<DynamicPipeline>(_config,
+                                              _initStructs,
+                                              _graph,
+                                              _levelZeroInputTensors,
+                                              _levelZeroOutputTensors,
+                                              batchSize.has_value() ? batchSize.value() : utils::DEFAULT_BATCH_SIZE);
     } else
 #endif
     {
@@ -367,7 +368,7 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::allocate_tensor_for_pipeline(
                     try {
                         size_t number = std::stoul(item);
                         a.push_back(number);
-                    } catch (std::exception e) {
+                    } catch (std::exception& e) {
                         std::cerr << "Number out of range in environment variable: " << item << std::endl;
                         hack = false;
                         break;
@@ -1035,7 +1036,7 @@ void ZeroInferRequest::infer_async() {
             OV_ITT_TASK_NEXT(ZERO_INFER, "create_pipeline");
             _logger.debug("create pipeline : pipelineCreated - %s , recreate - %s",
                           _pipelineIsCreated ? "true" : "false",
-                          _pipelineNeedsReallocation ? "true" : "false");
+                          _dynamicBatchValueChanged ? "true" : "false");
             create_pipeline();  // Reallocate pipeline if necessary
             _pipelineIsCreated = true;
             _dynamicBatchValueChanged = false;  // Reset reallocation flag

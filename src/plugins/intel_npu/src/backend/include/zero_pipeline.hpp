@@ -25,7 +25,8 @@ public:
     Pipeline(const Config& config,
              const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
              const std::shared_ptr<IGraph>& graph,
-             std::string logName);
+             std::string logName,
+             size_t batch_size = 1);
 
     Pipeline(const Pipeline&) = delete;
     Pipeline& operator=(const Pipeline&) = delete;
@@ -49,7 +50,7 @@ public:
                                                  const void* arg_data,
                                                  [[maybe_unused]] const ov::Strides& strides,
                                                  [[maybe_unused]] const ov::Shape& shapes,
-                                                 size_t command_list_index);
+                                                 size_t batch_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

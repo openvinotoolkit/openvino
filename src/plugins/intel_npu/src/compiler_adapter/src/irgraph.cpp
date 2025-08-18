@@ -9,6 +9,7 @@
 #    include "irgraph.hpp"
 
 #    include "intel_npu/config/options.hpp"
+#    include "intel_npu/utils/utils.hpp"
 #    include "intel_npu/utils/zero/zero_api.hpp"
 #    include "openvino/runtime/make_tensor.hpp"
 
@@ -502,8 +503,8 @@ IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  bool blobAllocatedByPlugin,
                  const Config& config,
                  const ov::SoPtr<ICompiler>& compiler)
-    : IGraph(config, std::move(blob)),
-      _zeroInitStruct(zeroInitStruct),
+    : _zeroInitStruct(zeroInitStruct),
+      _blob(std::move(blob)),
       _blobAllocatedByPlugin(blobAllocatedByPlugin),
       _compiler(compiler),
       _logger("Graph", config.get<LOG_LEVEL>()) {
@@ -515,7 +516,7 @@ IRGraph::IRGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
     _impl = std::make_unique<IRGraphImpl>();
 
     // initialize MLIR execution engine, metadata, input&output descriptors
-    _impl->initialize(_blob, _metadata, _input_descriptors, _output_descriptors);
+    _impl->initialize(_blob, _metadata, _inputDescriptors, _outputDescriptors);
 
     _num_of_subgraphs = _impl->getNumSubgraphs();
 
@@ -561,9 +562,63 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> IRGraph::export_blob(s
         str << "Blob size: " << blobSize << ", hash: " << std::hex << result;
         _logger.info(str.str().c_str());
     }
-    _logger.info("Write blob to stream successfully.");
 
-    return std::make_pair(blobSize, std::nullopt);
+    size_t size = utils::align_size_to_standard_page_size(blobSize);
+    size_t paddingSize = size - blobSize;
+    if (paddingSize > 0) {
+        std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
+        if (!stream) {
+            _logger.error("Write padding to stream failed. Blob is broken!");
+            return std::make_pair(0, std::nullopt);
+        }
+        _logger.info("Blob size with padding: %ld", size);
+    }
+    _logger.info("Write blob to stream successfully.");
+    return std::make_pair(size, std::nullopt);
+}
+
+const NetworkMetadata& IRGraph::get_metadata() const {
+    return _metadata;
+}
+
+void IRGraph::update_network_name(std::string_view name) {
+    _metadata.name = name;
+}
+
+const std::vector<ArgumentDescriptor>& IRGraph::get_input_descriptors() const {
+    return _inputDescriptors;
+}
+
+const std::vector<ArgumentDescriptor>& IRGraph::get_output_descriptors() const {
+    return _outputDescriptors;
+}
+
+const std::shared_ptr<CommandQueue>& IRGraph::get_command_queue() const {
+    return _commandQueue;
+}
+
+uint32_t IRGraph::get_command_queue_group_ordinal() const {
+    return _commandQueueGroupOrdinal;
+}
+
+void IRGraph::set_workload_type(const ov::WorkloadType workloadType) const {
+    if (_commandQueue == nullptr) {
+        return;
+    }
+
+    ze_command_queue_workload_type_t zeWorkloadType;
+    switch (workloadType) {
+    case ov::WorkloadType::DEFAULT:
+        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_DEFAULT;
+        break;
+    case ov::WorkloadType::EFFICIENT:
+        zeWorkloadType = ze_command_queue_workload_type_t::ZE_WORKLOAD_TYPE_BACKGROUND;
+        break;
+    default:
+        OPENVINO_THROW("Unknown value for WorkloadType!");
+    }
+
+    _commandQueue->setWorkloadType(zeWorkloadType);
 }
 
 std::vector<ov::ProfilingInfo> IRGraph::process_profiling_output(const std::vector<uint8_t>& profData,
@@ -607,37 +662,37 @@ void IRGraph::set_argument_property(uint32_t argi,
 void IRGraph::initialize(const Config& config) {
     _logger.debug("Graph initialize start");
 
-    if (_command_queue = nullptr) {
+    if (_commandQueue = nullptr) {
         _logger.debug("Graph initialize without graph handle");
 
-        _command_queue_group_ordinal =
+        _commandQueueGroupOrdinal =
             zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                     ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-        uint32_t command_queue_options = 0;
+        uint32_t commandQueueOptions = 0;
 
         if (config.has<TURBO>() && config.get<TURBO>()) {
             if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 0)) {
                 OPENVINO_THROW("Turbo is not supported by the current driver");
             }
-            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
 
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
             config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
         }
 
-        _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                        zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                        _command_queue_group_ordinal,
-                                                        command_queue_options);
+        _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                       zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                       _commandQueueGroupOrdinal,
+                                                       commandQueueOptions);
 
         if (config.has<WORKLOAD_TYPE>()) {
             set_workload_type(config.get<WORKLOAD_TYPE>());
         }
 
-        _impl->initializeGraph(_command_queue_group_ordinal);
+        _impl->initializeGraph(_commandQueueGroupOrdinal);
 
         _logger.debug("Graph initialize finish");
 
@@ -646,43 +701,42 @@ void IRGraph::initialize(const Config& config) {
         //  releasing it here to avoid unnecessary memory usage.
         //_blobIsReleased = release_blob(config);
 
-        _batch_size = get_batch_size(_metadata, {}, {});
+        _batchSize = determine_batch_size();
 
         if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
             config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-            auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
+            auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
-            _last_submitted_event.resize(number_of_command_lists);
+            _lastSubmittedEvent.resize(numberOfCommandLists);
         }
         return;
     }
 
-    _input_descriptors.shrink_to_fit();
-    _output_descriptors.shrink_to_fit();
+    _inputDescriptors.shrink_to_fit();
+    _outputDescriptors.shrink_to_fit();
 
-    _command_queue_group_ordinal =
-        zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
-                                                ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
+    _commandQueueGroupOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
+                                                                        ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-    uint32_t command_queue_options = 0;
+    uint32_t commandQueueOptions = 0;
 
     if (config.has<TURBO>() && config.get<TURBO>()) {
         if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
             _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
-            command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
         }
     }
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1) &&
         config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
-        command_queue_options = command_queue_options | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
-    _command_queue = std::make_shared<CommandQueue>(_zeroInitStruct,
-                                                    zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
-                                                    _command_queue_group_ordinal,
-                                                    command_queue_options);
+    _commandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
+                                                   zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>()),
+                                                   _commandQueueGroupOrdinal,
+                                                   commandQueueOptions);
 
     if (config.has<WORKLOAD_TYPE>()) {
         set_workload_type(config.get<WORKLOAD_TYPE>());
@@ -699,13 +753,13 @@ void IRGraph::initialize(const Config& config) {
     //  releasing it here to avoid unnecessary memory usage.
     _blobIsReleased = release_blob(config);
 
-    _batch_size = get_batch_size(_metadata, {}, {});
+    _batchSize = determine_batch_size();
 
     if (_zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1) &&
         config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
-        auto number_of_command_lists = _batch_size.has_value() ? *_batch_size : 1;
+        auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
 
-        _last_submitted_event.resize(number_of_command_lists);
+        _lastSubmittedEvent.resize(numberOfCommandLists);
     }
 }
 
@@ -734,18 +788,102 @@ bool IRGraph::release_blob(const Config& config) {
     return false;
 };
 
+void IRGraph::set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
+    _lastSubmittedEvent[indexOfCommandList] = event;
+}
+
+const std::shared_ptr<Event>& IRGraph::get_last_submitted_event(size_t indexOfCommandList) const {
+    return _lastSubmittedEvent[indexOfCommandList];
+}
+
+void IRGraph::resize_last_submitted_event(size_t batch) {
+    _lastSubmittedEvent.resize(batch);
+}
+
+void IRGraph::set_batch_size(std::size_t batch) {
+    _batchSize = batch;
+}
+
+uint32_t IRGraph::get_unique_id() {
+    return _uniqueId++;
+}
+
+void IRGraph::set_last_submitted_id(uint32_t id_index) {
+    _lastSubmittedId = id_index;
+}
+
+uint32_t IRGraph::get_last_submitted_id() const {
+    return _lastSubmittedId;
+}
+
+std::optional<size_t> IRGraph::determine_batch_size() {
+    if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    const ov::PartialShape& firstShape = *_metadata.outputs.at(0).shapeFromIRModel;
+    if (firstShape.is_dynamic() || firstShape.rank().get_length() == 0) {
+        return std::nullopt;
+    }
+
+    const size_t candidateBatchSize = firstShape[utils::BATCH_AXIS].get_max_length();
+    if (candidateBatchSize == 0 || candidateBatchSize == utils::DEFAULT_BATCH_SIZE) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
+        for (const IODescriptor& descriptor : descriptors) {
+            OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
+                            "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
+
+            const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
+            const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
+
+            if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
+                *shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
+                return false;
+            }
+
+            if (!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor) {
+                if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
+                    *shapeFromIRModel.begin() != candidateBatchSize) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    };
+
+    if (!checkDescriptorsUseCandidateBatchSize(_metadata.inputs) ||
+        !checkDescriptorsUseCandidateBatchSize(_metadata.outputs)) {
+        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
+        return std::nullopt;
+    }
+
+    _logger.debug("Batching is handled by the plugin");
+
+    return candidateBatchSize;
+}
+
+const std::optional<std::size_t> IRGraph::get_batch_size() const {
+    return _batchSize;
+}
+
 IRGraph::~IRGraph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
     // if (_handle != nullptr) {
     //     _handle = nullptr;
     // }
 
-    if (!_last_submitted_event.empty()) {
-        _last_submitted_event.clear();
+    if (!_lastSubmittedEvent.empty()) {
+        _lastSubmittedEvent.clear();
     }
 
-    if (_command_queue != nullptr) {
-        _command_queue.reset();
+    if (_commandQueue != nullptr) {
+        _commandQueue.reset();
     }
 }
 
@@ -772,5 +910,10 @@ void IRGraph::getBinding(GraphArguments& args) {
 
     impl->getBinding(args);
 }
+
+uint64_t IRGraph::get_num_subgraphs() const {
+    return _num_of_subgraphs;
+}
+
 }  // namespace intel_npu
 #endif  // NPU_LLVM_BACKEND

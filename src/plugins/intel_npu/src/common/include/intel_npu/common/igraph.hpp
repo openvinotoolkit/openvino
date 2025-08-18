@@ -21,8 +21,6 @@ class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
     IGraph() = default;
 
-    IGraph(const Config& config, std::optional<ov::Tensor> blob);
-
     /**
      * @brief Writes the compiled model along with some metadata to the provided stream. The content of the stream can
      * later be used for importing the model.
@@ -71,8 +69,6 @@ public:
     virtual uint32_t get_unique_id() = 0;
     virtual void set_last_submitted_id(uint32_t id_index) = 0;
     virtual uint32_t get_last_submitted_id() const = 0;
-
-    virtual uint64_t get_num_subgraphs() const;
 
 protected:
     // Used to protect zero pipeline creation in the graph. The pipeline should be created only once per graph when the
