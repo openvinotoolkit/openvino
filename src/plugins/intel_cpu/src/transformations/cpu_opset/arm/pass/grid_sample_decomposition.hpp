@@ -10,8 +10,62 @@
 namespace ov::intel_cpu {
 
 /**
- * @brief GridSampleDecompositionBilinear decomposes GridSample operation with BILINEAR mode
- * into primitive operations for ARM platforms.
+ * @brief Decompose GridSample with BILINEAR interpolation into primitive operations
+ *
+ * Before:
+ *    +-------------------+    +----------------------+
+ *    | Data[N,C,H,W]     |    | Grid[N,H_out,W_out,2]|
+ *    +--------+----------+    +---------+------------+
+ *             |                         |
+ *        +----v-------------------------v----+
+ *        | GridSample                        |
+ *        | (mode=bilinear, padding, align)   |
+ *        +----------------+------------------+
+ *                         |
+ *                +--------v---------------+
+ *                | Output[N,C,H_out,W_out]|
+ *                +------------------------+
+ *
+ * After:
+ *    +-------------------+    +----------------------+
+ *    | Data[N,C,H,W]     |    | Grid[N,H_out,W_out,2]|
+ *    +--------+----------+    +---------+------------+
+ *             |                         |
+ *             |                   +-----v------+
+ *             |                   | Split      |
+ *             |                   | x,y coords |
+ *             |                   +--+-----+---+
+ *             |                      |     |
+ *             |                 +----v-+  +v----+
+ *             |                 | Norm |  | Norm|
+ *             |                 | X    |  | Y   |
+ *             |                 +----+-+  +-+---+
+ *             |                      |      |
+ *             |                 +----v------v---+
+ *             |                 | Floor & Clip  |
+ *             |                 | (x0,y0,x1,y1) |
+ *             |                 +----+----------+
+ *             |                      |
+ *             |                 +----v----------+
+ *             |                 | Calc weights  |
+ *             |                 | (wa,wb,wc,wd) |
+ *             |                 +----+----------+
+ *             |                      |
+ *        +----v----------------------v----+
+ *        | GatherND (4 corner pixels)     |
+ *        +----------------+---------------+
+ *                         |
+ *                   +-----v--------+
+ *                   | Multiply &   |
+ *                   | Add (interp) |
+ *                   +-----+--------+
+ *                         |
+ *                +--------v---------------+
+ *                | Output[N,C,H_out,W_out]|
+ *                +------------------------+
+ *
+ * This transformation enables execution on ARM platforms without native GridSample support
+ * by decomposing the operation into simpler primitives that can be optimized by ACL.
  */
 class GridSampleDecompositionBilinear : public ov::pass::MatcherPass {
 public:
@@ -20,8 +74,57 @@ public:
 };
 
 /**
- * @brief GridSampleDecompositionNearest decomposes GridSample operation with NEAREST mode
- * into primitive operations for ARM platforms.
+ * @brief Decompose GridSample with NEAREST interpolation into primitive operations
+ *
+ * Before:
+ *    +-------------------+    +----------------------+
+ *    | Data[N,C,H,W]     |    | Grid[N,H_out,W_out,2]|
+ *    +--------+----------+    +---------+------------+
+ *             |                         |
+ *        +----v-------------------------v----+
+ *        | GridSample                        |
+ *        | (mode=nearest, padding, align)    |
+ *        +----------------+------------------+
+ *                         |
+ *                +--------v---------------+
+ *                | Output[N,C,H_out,W_out]|
+ *                +------------------------+
+ *
+ * After:
+ *    +-------------------+    +----------------------+
+ *    | Data[N,C,H,W]     |    | Grid[N,H_out,W_out,2]|
+ *    +--------+----------+    +---------+------------+
+ *             |                         |
+ *             |                   +-----v------+
+ *             |                   | Split      |
+ *             |                   | x,y coords |
+ *             |                   +--+-----+---+
+ *             |                      |     |
+ *             |                 +----v-+  +v----+
+ *             |                 | Norm |  | Norm|
+ *             |                 | X    |  | Y   |
+ *             |                 +----+-+  +-+---+
+ *             |                      |      |
+ *             |                 +----v------v---+
+ *             |                 | Round         |
+ *             |                 | (nearest idx) |
+ *             |                 +----+----------+
+ *             |                      |
+ *             |                 +----v----------+
+ *             |                 | Clip          |
+ *             |                 | (boundaries)  |
+ *             |                 +----+----------+
+ *             |                      |
+ *        +----v----------------------v----+
+ *        | GatherND                       |
+ *        +----------------+---------------+
+ *                         |
+ *                +--------v---------------+
+ *                | Output[N,C,H_out,W_out]|
+ *                +------------------------+
+ *
+ * This transformation is simpler than bilinear as it only requires finding
+ * the nearest pixel without interpolation between neighboring pixels.
  */
 class GridSampleDecompositionNearest : public ov::pass::MatcherPass {
 public:
@@ -30,8 +133,67 @@ public:
 };
 
 /**
- * @brief GridSampleDecompositionBicubic decomposes GridSample operation with BICUBIC mode
- * into primitive operations for ARM platforms.
+ * @brief Decompose GridSample with BICUBIC interpolation into primitive operations
+ *
+ * Before:
+ *    +-------------------+    +----------------------+
+ *    | Data[N,C,H,W]     |    | Grid[N,H_out,W_out,2]|
+ *    +--------+----------+    +---------+------------+
+ *             |                         |
+ *        +----v-------------------------v----+
+ *        | GridSample                        |
+ *        | (mode=bicubic, padding, align)    |
+ *        +----------------+------------------+
+ *                         |
+ *                +--------v---------------+
+ *                | Output[N,C,H_out,W_out]|
+ *                +------------------------+
+ *
+ * After:
+ *    +-------------------+    +----------------------+
+ *    | Data[N,C,H,W]     |    | Grid[N,H_out,W_out,2]|
+ *    +--------+----------+    +---------+------------+
+ *             |                         |
+ *             |                   +-----v------+
+ *             |                   | Split      |
+ *             |                   | x,y coords |
+ *             |                   +--+-----+---+
+ *             |                      |     |
+ *             |                 +----v-+  +v----+
+ *             |                 | Norm |  | Norm|
+ *             |                 | X    |  | Y   |
+ *             |                 +----+-+  +-+---+
+ *             |                      |      |
+ *             |                 +----v------v---+
+ *             |                 | Get 4x4       |
+ *             |                 | neighborhood  |
+ *             |                 +----+----------+
+ *             |                      |
+ *             |                 +----v----------+
+ *             |                 | Cubic weights |
+ *             |                 | calculation   |
+ *             |                 +----+----------+
+ *             |                      |
+ *        +----v----------------------v----+
+ *        | GatherND (16 pixels)           |
+ *        +----------------+---------------+
+ *                         |
+ *                   +-----v--------+
+ *                   | Multiply     |
+ *                   | by weights   |
+ *                   +-----+--------+
+ *                         |
+ *                   +-----v--------+
+ *                   | ReduceSum    |
+ *                   | (weighted)   |
+ *                   +-----+--------+
+ *                         |
+ *                +--------v---------------+
+ *                | Output[N,C,H_out,W_out]|
+ *                +------------------------+
+ *
+ * Bicubic interpolation uses a 4x4 pixel neighborhood with cubic weighting
+ * functions, providing smoother results than bilinear at higher computational cost.
  */
 class GridSampleDecompositionBicubic : public ov::pass::MatcherPass {
 public:
