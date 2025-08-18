@@ -149,10 +149,8 @@ inline ChannelName get_transposed_channel(ChannelName c, const std::vector<int64
 
 inline bool is_prefill_stage(const RuntimeParams& params) {
     auto desc = params.typed_desc<cldnn::scaled_dot_product_attention>();
-    const auto target_seq_len = extract_channel(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), params.input_layouts[0]);
-    // const auto target_seq_len_0 = get_seq_length(params.get_input_layout(0), desc->input_q_transpose_order);
-
-    return target_seq_len > 1;
+    const auto target_seq_len = extract_dim(get_transposed_channel(ChannelName::Y, desc->input_q_transpose_order), params.input_layouts[0]);
+    return target_seq_len.is_static() ? target_seq_len.get_length() > 1 : false;
 }
 
 inline bool unaligned_head_size(const RuntimeParams& params) {
