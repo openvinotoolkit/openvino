@@ -15,7 +15,6 @@ struct normalize_params : public base_params {
     normalize_params() : base_params(KernelType::NORMALIZE) {}
 
     NormalizeMode normMode = NormalizeMode::ACROSS_SPATIAL;
-    size_t axis = 1;
     float epsilon = 1e-10f;
     DataTensor scaleTable;
 

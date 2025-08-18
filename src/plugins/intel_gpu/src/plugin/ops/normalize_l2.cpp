@@ -23,7 +23,7 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
     OPENVINO_ASSERT(const_axis != nullptr, "[GPU] Unsupported axis node type in ", op->get_friendly_name(), " (", op->get_type_name(), ")");
 
     auto axis = const_axis->cast_vector<size_t>();
-    bool across_spatial = !(axis.size() == 1 && (axis[0] == 1 || axis[0] == 2 || axis[0] == 3));
+    bool across_spatial = !(axis.size() == 1 && axis[0] == 1);
     float eps = op->get_eps();
 
     // WA for OVC outputting %.6f
@@ -50,7 +50,6 @@ static void CreateNormalizeL2Op(ProgramBuilder& p, const std::shared_ptr<ov::op:
                                      inputs[0],
                                      scalesName,
                                      across_spatial,
-                                     axis.size() == 1 ? axis[0] : -1,
                                      eps);
 
     p.add_primitive(*op, normPrim);

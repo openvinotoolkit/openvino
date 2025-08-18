@@ -13,45 +13,21 @@ KERNEL (normalize_gpu_within_spatial_ref)(
     const __global SCALE_TABLE_TYPE* scale_input
 )
 {
-    const uint gws0 = get_global_id(0);
-    const uint gws1 = get_global_id(1);
+    const uint x = get_global_id(0);
+    const uint y = get_global_id(1);
     const uint b = get_global_id(2);
-    uint f, y, x = 0;
 
     // Compute norm
     uint input_idx;
     float norm = EPSILON;
-#if NORM_AXIS == 1
-    x = gws0;
-    y = gws1;
-    for (f = 0; f < INPUT0_FEATURE_NUM; f++)
+    for (int i = 0; i < INPUT0_FEATURE_NUM; i++)
     {
-        input_idx = INPUT0_GET_INDEX(b, f , y, x);
+        input_idx = INPUT0_GET_INDEX(b, i , y, x);
         float value = (float)input[input_idx];
         norm = mad(value, value, norm);
 
     }
-#elif NORM_AXIS == 2
-    x = gws0;
-    f = gws1;
-    for (y = 0; y < INPUT0_SIZE_Y; y++)
-    {
-        input_idx = INPUT0_GET_INDEX(b, f, y, x);
-        float value = (float)input[input_idx];
-        norm = mad(value, value, norm);
-    }
-#elif NORM_AXIS == 3
-    y = gws0;
-    f = gws1;
-    for (x = 0; x < INPUT0_SIZE_X; x++)
-    {
-        input_idx = INPUT0_GET_INDEX(b, f, y, x);
-        float value = (float)input[input_idx];
-        norm = mad(value, value, norm);
-    }
-#else
-#error "Unsupported NORM_AXIS value"
-#endif
+
     uint output_idx;
 
     if(norm <= THRESHOLD)
@@ -63,15 +39,7 @@ KERNEL (normalize_gpu_within_spatial_ref)(
         norm = native_powr(norm, -0.5f);
     }
 
-#if NORM_AXIS == 1
-    for (f = 0; f < INPUT0_FEATURE_NUM; f++)
-#elif NORM_AXIS == 2
-    for (y = 0; y < INPUT0_SIZE_Y; y++)
-#elif NORM_AXIS == 3
-    for (x = 0; x < INPUT0_SIZE_X; x++)
-#else
-#error "Unsupported NORM_AXIS value"
-#endif
+    for (int f = 0; f < INPUT0_FEATURE_NUM; f++)
     {
         output_idx =  OUTPUT_GET_INDEX(b, f, y, x);
         input_idx =  INPUT0_GET_INDEX(b, f, y, x);
