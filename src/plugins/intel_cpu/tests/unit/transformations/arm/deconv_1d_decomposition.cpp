@@ -61,7 +61,7 @@ protected:
                 auto in_size = p.input_shape[2].is_static() ? p.input_shape[2].get_length() : 100;
                 auto kernel_size = p.weights_shape[2];
                 auto out_size = p.stride * (in_size - 1) + kernel_size;
-                output_shape = {out_size};  // Only spatial dimension
+                output_shape = {static_cast<unsigned int>(out_size)};  // Only spatial dimension
             } else {
                 output_shape = {100, 100};  // 4D case - two spatial dimensions
             }
