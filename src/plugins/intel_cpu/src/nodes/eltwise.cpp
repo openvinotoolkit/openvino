@@ -883,7 +883,7 @@ bool Eltwise::canBeInPlace() const {
     return getInputShapeAtPort(0) == getOutputShapeAtPort(0);
 }
 
-void Eltwise::fuseInto(NodePtr& parentNode) {
+void Eltwise::fuseInto(const NodePtr& parentNode) {
     // Handle special convolution add fusing case
     m_attrs.specialConvolutionAddFusing =
         (parentNode->getType() == Type::Convolution || parentNode->getType() == Type::BinaryConvolution) &&
