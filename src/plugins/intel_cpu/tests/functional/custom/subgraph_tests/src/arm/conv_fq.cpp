@@ -57,8 +57,8 @@ public:
                                                      numOutChannels);
         }
 
-        auto add = std::make_shared<ov::op::v1::Add>(conv, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
-        auto fq_after = ov::test::utils::make_fake_quantize(add, precision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
+        //auto add = std::make_shared<ov::op::v1::Add>(conv, op::v0::Constant::create(element::f32, {1, 1}, {0.625}));
+        auto fq_after = ov::test::utils::make_fake_quantize(conv, precision, 256, {}, {-1.28f}, {1.27f}, {-1.28f}, {1.27f});
 
         auto matmul_const = ov::test::utils::make_constant(ov::element::i8, {1, 1});
         auto convert_mm = std::make_shared<op::v0::Convert>(matmul_const, element::f32);
