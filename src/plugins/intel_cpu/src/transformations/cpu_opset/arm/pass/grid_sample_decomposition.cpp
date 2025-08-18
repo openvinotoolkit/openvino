@@ -86,13 +86,13 @@ std::shared_ptr<Node> to_f32(const std::shared_ptr<Node>& i) {
 
 // Normalize grid [-1, 1] to pixel coordinates (no padding/reflection here)
 void normalize_grid_to_pixels(const Ctx& ctx,
-                                     const std::shared_ptr<Node>& x_grid,
-                                     const std::shared_ptr<Node>& y_grid,
-                                     const std::shared_ptr<Node>& w_in_f,
-                                     const std::shared_ptr<Node>& h_in_f,
-                                     bool align_corners,
-                                     std::shared_ptr<Node>& x_out,
-                                     std::shared_ptr<Node>& y_out) {
+                              const std::shared_ptr<Node>& x_grid,
+                              const std::shared_ptr<Node>& y_grid,
+                              const std::shared_ptr<Node>& w_in_f,
+                              const std::shared_ptr<Node>& h_in_f,
+                              bool align_corners,
+                              std::shared_ptr<Node>& x_out,
+                              std::shared_ptr<Node>& y_out) {
     if (align_corners) {
         auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
         auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
@@ -136,8 +136,8 @@ std::shared_ptr<Node> create_batch_indices(const Ctx& ctx) {
 
 // Gather from NHWC by (b, y, x)
 std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
-                                            const std::shared_ptr<Node>& x_coord,
-                                            const std::shared_ptr<Node>& y_coord) {
+                                     const std::shared_ptr<Node>& x_coord,
+                                     const std::shared_ptr<Node>& y_coord) {
     auto x_i32 = std::make_shared<op::v0::Convert>(x_coord, element::i32);
     auto y_i32 = std::make_shared<op::v0::Convert>(y_coord, element::i32);
     auto bidx = create_batch_indices(ctx);
@@ -152,9 +152,9 @@ std::shared_ptr<Node> gather_hw_nhwc(const Ctx& ctx,
 
 // Reflection helpers (continuous/indexed)
 std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
-                                           const std::shared_ptr<Node>& coord,
-                                           const std::shared_ptr<Node>& size_f,
-                                           bool align_corners) {
+                                    const std::shared_ptr<Node>& coord,
+                                    const std::shared_ptr<Node>& size_f,
+                                    bool align_corners) {
     auto size_is_one = std::make_shared<op::v1::Equal>(size_f, ctx.c1);
     if (align_corners) {
         auto size_m1 = std::make_shared<op::v1::Subtract>(size_f, ctx.c1);
@@ -185,9 +185,9 @@ std::shared_ptr<Node> reflect_coord(const Ctx& ctx,
 }
 
 std::shared_ptr<Node> reflect_index(const Ctx& ctx,
-                                           const std::shared_ptr<Node>& idx,
-                                           const std::shared_ptr<Node>& size_f,
-                                           bool align_corners) {
+                                    const std::shared_ptr<Node>& idx,
+                                    const std::shared_ptr<Node>& size_f,
+                                    bool align_corners) {
     auto size_is_one = std::make_shared<op::v1::Equal>(size_f, ctx.c1);
     if (align_corners) {
         auto size_m1 = std::make_shared<op::v1::Subtract>(size_f, ctx.c1);
@@ -214,10 +214,10 @@ std::shared_ptr<Node> reflect_index(const Ctx& ctx,
 
 // Clamp integer-ish indices to [0..size-1] (safe)
 void clamp_indices_inplace(const Ctx& ctx,
-                                  std::shared_ptr<Node>& xi,
-                                  std::shared_ptr<Node>& yi,
-                                  const std::shared_ptr<Node>& w_in_f,
-                                  const std::shared_ptr<Node>& h_in_f) {
+                           std::shared_ptr<Node>& xi,
+                           std::shared_ptr<Node>& yi,
+                           const std::shared_ptr<Node>& w_in_f,
+                           const std::shared_ptr<Node>& h_in_f) {
     auto w_m1 = std::make_shared<op::v1::Subtract>(w_in_f, ctx.c1);
     auto h_m1 = std::make_shared<op::v1::Subtract>(h_in_f, ctx.c1);
     xi = std::make_shared<op::v1::Minimum>(std::make_shared<op::v1::Maximum>(xi, ctx.c0), w_m1);
@@ -226,10 +226,10 @@ void clamp_indices_inplace(const Ctx& ctx,
 
 // Inside mask for ZEROS padding (check BEFORE clamp)
 std::shared_ptr<Node> inside_mask_indexed(const Ctx& ctx,
-                                                 const std::shared_ptr<Node>& xi,
-                                                 const std::shared_ptr<Node>& yi,
-                                                 const std::shared_ptr<Node>& w_in_f,
-                                                 const std::shared_ptr<Node>& h_in_f) {
+                                          const std::shared_ptr<Node>& xi,
+                                          const std::shared_ptr<Node>& yi,
+                                          const std::shared_ptr<Node>& w_in_f,
+                                          const std::shared_ptr<Node>& h_in_f) {
     auto x_ge_0 = std::make_shared<op::v1::GreaterEqual>(xi, ctx.c0);
     auto y_ge_0 = std::make_shared<op::v1::GreaterEqual>(yi, ctx.c0);
     auto x_lt_w = std::make_shared<op::v1::Less>(xi, w_in_f);
@@ -637,8 +637,8 @@ bool build_ctx_static(const std::shared_ptr<ov::op::v9::GridSample>& gs, Ctx& ct
 // Common glue: build ctx, normalize, build mode, NHWC->NCHW, replace
 using BuildModeFn = std::function<std::shared_ptr<Node>(const Ctx&, const ov::op::v9::GridSample::Attributes&)>;
 bool decompose_impl(const std::shared_ptr<ov::op::v9::GridSample>& gs,
-                           const BuildModeFn& build_mode_result_nhwc,
-                           bool use_static_ctx) {
+                    const BuildModeFn& build_mode_result_nhwc,
+                    bool use_static_ctx) {
     Ctx ctx{};
     if (!(use_static_ctx ? build_ctx_static(gs, ctx) : build_ctx_dynamic(gs, ctx))) {
         return false;
