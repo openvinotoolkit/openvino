@@ -655,8 +655,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
     }
 
-    bool modelDeBached = false;
-    ov::Dimension originalBatch;
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) && modelForCompilation->is_dynamic()) {
         bool autoOrPluginBatch = localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::PLUGIN ||
                                  localConfig.get<BATCH_MODE>() == ov::intel_npu::BatchMode::AUTO;
@@ -664,9 +662,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (autoOrPluginBatch && pluginBatchingIsSupported) {
             try {
                 _logger.info("Attempting to handle batching on the plugin side.");
-                originalBatch = ov::get_batch(modelForCompilation);
                 ov::set_batch(modelForCompilation, 1);
-                modelDeBached = true;
             } catch (const std::exception& ex) {
                 _logger.info("Couldn't reshape the model. Batching will be handed by compiler.", ex.what());
             }
@@ -743,16 +739,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     } catch (...) {
         _logger.error("Unexpected exception");
         OPENVINO_THROW("NPU plugin: got an unexpected exception from compiler");
-    }
-
-    if (modelDeBached) {
-        auto metadata = graph->get_metadata();
-        for (auto& in : metadata.inputs) {
-            if (in.shapeFromIRModel.has_value() && originalBatch.get_max_length() != 1) {
-                in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS] = originalBatch;
-            }
-        }
-        graph->set_metadata(metadata);
     }
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;

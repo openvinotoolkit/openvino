@@ -81,10 +81,6 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    if (!desc.shapeFromIRModel.has_value() || !desc.shapeFromIRModel.value().is_dynamic()) {
-        return std::nullopt;
-    }
-
     if (batchSize.has_value()) {
         return batchSize.value();
     }
@@ -93,11 +89,7 @@ std::optional<size_t> determine_dynamic_batch_size(const IODescriptor& desc,
         return std::nullopt;
     }
 
-    if ((*desc.shapeFromIRModel)[intel_npu::utils::BATCH_AXIS].is_dynamic()) {
-        return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
-    }
-
-    return std::nullopt;
+    return tensor->get_shape()[intel_npu::utils::BATCH_AXIS];
 }
 
 }  // namespace
