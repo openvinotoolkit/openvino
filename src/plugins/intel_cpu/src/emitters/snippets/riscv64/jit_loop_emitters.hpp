@@ -8,6 +8,7 @@
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "snippets/lowered/expression.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
@@ -31,18 +32,20 @@ public:
 
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
-    Xbyak_riscv::Label get_begin_label() const { return loop_begin_label; }
-    void set_loop_end_label(const Xbyak_riscv::Label& lbl) { this->loop_end_label = const_cast<Xbyak_riscv::Label*>(&lbl); }
+    std::shared_ptr<const Xbyak_riscv::Label> get_begin_label() const { return loop_begin_label; }
+    void set_loop_end_label(const std::shared_ptr<const Xbyak_riscv::Label>& lbl) { this->loop_end_label = lbl; }
 
 private:
     ov::intel_cpu::riscv64::cpu_isa_t isa;
     ov::intel_cpu::riscv64::jit_generator_t* h;
     bool evaluate_once = false;
     size_t work_amount = 0lu;
-    int64_t increment = 0;
+    size_t wa_increment = 0;
+    size_t loop_id = 0;
     bool is_work_amount_dynamic = false;
-    mutable Xbyak_riscv::Label loop_begin_label;
-    mutable Xbyak_riscv::Label* loop_end_label = nullptr;
+    mutable std::shared_ptr<Xbyak_riscv::Label> loop_begin_label = nullptr;
+    mutable std::shared_ptr<const Xbyak_riscv::Label> loop_end_label = nullptr;
+    mutable bool begin_label_bound = false;
 };
 
 /* =================== jit_loop_end_emitter ======================= */
@@ -73,7 +76,8 @@ private:
     size_t num_inputs = 0;
     size_t num_outputs = 0;
     int64_t work_amount = 0;
-    int64_t increment = 0;
+    size_t wa_increment = 0;
+    size_t loop_id = 0;
     std::vector<bool> is_incremented;
     std::vector<int64_t> ptr_increments;
     std::vector<int64_t> finalization_offsets;
@@ -82,8 +86,9 @@ private:
     bool is_increment_dynamic = false;
     bool are_ptr_increments_dynamic = false;
     bool are_final_offsets_dynamic = false;
-    mutable Xbyak_riscv::Label loop_begin_label;
-    mutable Xbyak_riscv::Label loop_end_label;
+    mutable std::shared_ptr<const Xbyak_riscv::Label> loop_begin_label = nullptr;
+    mutable std::shared_ptr<Xbyak_riscv::Label> loop_end_label = nullptr;
+    mutable bool end_label_bound = false;
 };
 
 }  // namespace ov::intel_cpu::riscv64

@@ -92,7 +92,7 @@ size_t jit_memory_emitter::get_consumer_buffer_cluster_id(const ov::snippets::lo
 jit_load_memory_emitter::jit_load_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     bool is_supported_precision =
-        any_of(src_prc, ov::element::f32, ov::element::i32) && src_prc == dst_prc;
+        any_of(src_prc, ov::element::f32, ov::element::i32, ov::element::f16) && src_prc == dst_prc;
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
     const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
@@ -138,7 +138,8 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
     if (is_offset_runtime) {
         // load the runtime offset from args.buffer_offsets[buffer_cluster_id]
         const auto offset = GET_OFF(buffer_offsets) + buffer_cluster_id * sizeof(size_t);
-        h->lw(aux_gpr, reg_runtime_params, static_cast<int32_t>(offset));
+        // RV64 uses 64-bit size_t
+        h->ld(aux_gpr, reg_runtime_params, static_cast<int32_t>(offset));
         // bump the pointer
         h->add(data_reg, data_reg, aux_gpr);
     }
@@ -166,19 +167,26 @@ void jit_load_memory_emitter::emit_isa(const std::vector<size_t>& in, const std:
     auto src = Xbyak_riscv::Reg(in[0]);
     auto dst = Xbyak_riscv::VReg(out[0]);
 
-    // Set vector configuration for the load
-    h->vsetivli(Xbyak_riscv::zero, count, 
-               byte_size == 4 ? Xbyak_riscv::SEW::e32 : Xbyak_riscv::SEW::e32, 
-               Xbyak_riscv::LMUL::m1);
-    
+    // Set vector configuration for the load (e16 for 2-byte, e32 for 4-byte)
+    auto sew = (byte_size == 2) ? Xbyak_riscv::SEW::e16 : Xbyak_riscv::SEW::e32;
+    h->vsetivli(Xbyak_riscv::zero, count, sew, Xbyak_riscv::LMUL::m1);
+
     // Load vector data from memory
     if (compiled_byte_offset == 0) {
-        h->vle32_v(dst, src);  // Vector load for 32-bit elements
+        if (byte_size == 2) {
+            h->vle16_v(dst, src);
+        } else {
+            h->vle32_v(dst, src);
+        }
     } else {
         // Use temporary register to calculate address with offset
         auto tmp_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.empty() ? Xbyak_riscv::t0.getIdx() : aux_gpr_idxs[0]);
         h->addi(tmp_gpr, src, static_cast<int32_t>(compiled_byte_offset));
-        h->vle32_v(dst, tmp_gpr);
+        if (byte_size == 2) {
+            h->vle16_v(dst, tmp_gpr);
+        } else {
+            h->vle32_v(dst, tmp_gpr);
+        }
     }
 }
 
@@ -189,7 +197,7 @@ void jit_load_memory_emitter::emit_data() const {
 jit_store_memory_emitter::jit_store_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::vec_to_gpr) {
     bool is_supported_precision =
-        any_of(dst_prc, ov::element::f32, ov::element::i32) && src_prc == dst_prc;
+        any_of(dst_prc, ov::element::f32, ov::element::i32, ov::element::f16) && src_prc == dst_prc;
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
     const auto store = ov::as_type_ptr<snippets::op::Store>(expr->get_node());
@@ -212,18 +220,25 @@ void jit_store_memory_emitter::emit_isa(const std::vector<size_t>& in, const std
     auto dst = Xbyak_riscv::Reg(out[0]);
 
     // Set vector configuration for the store
-    h->vsetivli(Xbyak_riscv::zero, count, 
-               byte_size == 4 ? Xbyak_riscv::SEW::e32 : Xbyak_riscv::SEW::e32, 
-               Xbyak_riscv::LMUL::m1);
-    
+    auto sew = (byte_size == 2) ? Xbyak_riscv::SEW::e16 : Xbyak_riscv::SEW::e32;
+    h->vsetivli(Xbyak_riscv::zero, count, sew, Xbyak_riscv::LMUL::m1);
+
     // Store vector data to memory
     if (compiled_byte_offset == 0) {
-        h->vse32_v(src, dst);  // Vector store for 32-bit elements
+        if (byte_size == 2) {
+            h->vse16_v(src, dst);
+        } else {
+            h->vse32_v(src, dst);
+        }
     } else {
         // Use temporary register to calculate address with offset
         auto tmp_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.empty() ? Xbyak_riscv::t0.getIdx() : aux_gpr_idxs[0]);
         h->addi(tmp_gpr, dst, static_cast<int32_t>(compiled_byte_offset));
-        h->vse32_v(src, tmp_gpr);
+        if (byte_size == 2) {
+            h->vse16_v(src, tmp_gpr);
+        } else {
+            h->vse32_v(src, tmp_gpr);
+        }
     }
 }
 
@@ -263,6 +278,8 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     // Set vector configuration for appropriate element size
     if (byte_size == 4) {
         h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+    } else if (byte_size == 2) {
+        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e16, Xbyak_riscv::LMUL::m1);
     } else {
         OV_CPU_JIT_EMITTER_THROW("Unsupported byte size: ", byte_size);
     }
@@ -273,11 +290,19 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     
     // Calculate effective address if there's an offset
     if (compiled_byte_offset == 0) {
-        h->lw(tmp_gpr, src_gpr, 0);  // Load word from memory
+        if (byte_size == 2) {
+            h->lhu(tmp_gpr, src_gpr, 0);
+        } else {
+            h->lw(tmp_gpr, src_gpr, 0);
+        }
     } else {
         auto addr_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.size() > 1 ? aux_gpr_idxs[1] : Xbyak_riscv::t1.getIdx());
         h->addi(addr_gpr, src_gpr, static_cast<int32_t>(compiled_byte_offset));
-        h->lw(tmp_gpr, addr_gpr, 0);  // Load word from memory with offset
+        if (byte_size == 2) {
+            h->lhu(tmp_gpr, addr_gpr, 0);
+        } else {
+            h->lw(tmp_gpr, addr_gpr, 0);
+        }
     }
     
     // Move scalar to vector register and broadcast

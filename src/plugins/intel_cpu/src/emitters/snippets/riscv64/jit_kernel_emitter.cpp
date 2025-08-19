@@ -126,9 +126,15 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, [[maybe_unused
             OPENVINO_THROW("Unsupported emitter_in_out_map instance");
         }
     };
+    // Provide up to two temporary GPRs for pointer initialization math
     std::vector<Xbyak_riscv::Reg> aux_tmp_regs{};
     if (!available_gpr.empty()) {
-        aux_tmp_regs.emplace_back(static_cast<int>(available_gpr.begin()->idx));
+        auto it = available_gpr.begin();
+        aux_tmp_regs.emplace_back(static_cast<int>(it->idx));
+        ++it;
+        if (it != available_gpr.end()) {
+            aux_tmp_regs.emplace_back(static_cast<int>(it->idx));
+        }
     }
     init_data_pointers(utils::transform_idxs_to_regs(in), data_ptr_regs, aux_tmp_regs);
     for (const auto& expression : *body) {
@@ -186,8 +192,8 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(jit_generator_t* h,
 }
 
 void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak_riscv::Reg>& arg_regs,
-                                                   const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
-                                                   const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
+                                                  const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
+                                                  const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
     OPENVINO_ASSERT(arg_regs.size() == 2, "Invalid arg regs size");
     auto reg_runtime_params = arg_regs[0];
     auto reg_indexes = arg_regs[1];
@@ -197,28 +203,35 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak_riscv
     const size_t offset_rank = master_shape.size() - 1;
 
     // helper: pointer += offsets[j] * indexes[j]
-    auto init_ptr_with_offset = [&](Xbyak_riscv::Reg pointer, const std::vector<size_t>& offsets, Xbyak_riscv::Reg reg_tmp) {
+    // uses two temporaries to avoid clobbering the offset constant while loading the index
+    auto init_ptr_with_offset = [&](Xbyak_riscv::Reg pointer,
+                                    const std::vector<size_t>& offsets,
+                                    Xbyak_riscv::Reg tmp0,
+                                    Xbyak_riscv::Reg tmp1) {
         for (size_t j = 0; j < offset_rank; j++) {
             if (master_shape[j] != 1 && offsets[j] != 0) {
-                h->uni_li(reg_tmp, offsets[j]);
-                // load index value (size_t)
-                Xbyak_riscv::Reg idx_addr = reg_tmp;  // reuse tmp
-                h->uni_li(idx_addr, j * sizeof(size_t));
-                h->add(idx_addr, reg_indexes, idx_addr);
-                Xbyak_riscv::Reg reg_index = reg_tmp;  // reuse tmp
-                h->ld(reg_index, idx_addr, 0);
-                h->mul(reg_tmp, reg_tmp, reg_index);
-                h->add(pointer, pointer, reg_tmp);
+                // tmp0 = offsets[j]
+                h->uni_li(tmp0, offsets[j]);
+                // tmp1 = address of index[j]
+                h->uni_li(tmp1, j * sizeof(size_t));
+                h->add(tmp1, reg_indexes, tmp1);
+                // tmp1 = load index[j]
+                h->ld(tmp1, tmp1, 0);
+                // tmp0 *= tmp1
+                h->mul(tmp0, tmp0, tmp1);
+                // pointer += tmp0
+                h->add(pointer, pointer, tmp0);
             }
         }
     };
 
-    // choose tmp reg
-    Xbyak_riscv::Reg reg_tmp = !aux_gprs.empty() ? aux_gprs.front() : Xbyak_riscv::t0;
+    // choose tmp regs
+    Xbyak_riscv::Reg tmp0 = !aux_gprs.empty() ? aux_gprs[0] : Xbyak_riscv::t0;
+    Xbyak_riscv::Reg tmp1 = aux_gprs.size() > 1 ? aux_gprs[1] : Xbyak_riscv::t1;
 
     // Initialize buffer scratchpad pointers
     for (size_t i = 0; i < num_unique_buffers; ++i) {
-        Xbyak_riscv::Reg addr = reg_tmp;
+        Xbyak_riscv::Reg addr = tmp0;
         h->uni_li(addr, GET_OFF(buffer_scratchpad_ptr));
         h->add(addr, reg_runtime_params, addr);
         h->ld(data_ptr_regs[num_params + i], addr, 0);
@@ -226,7 +239,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak_riscv
 
     // Load input/output pointers and apply static offsets
     for (size_t i = 0; i < num_params; i++) {
-        Xbyak_riscv::Reg addr = reg_tmp;
+        Xbyak_riscv::Reg addr = tmp0;
         if (i < num_inputs) {
             h->uni_li(addr, GET_OFF(src_ptrs) + i * sizeof(void*));
         } else {
@@ -234,7 +247,7 @@ void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak_riscv
         }
         h->add(addr, reg_runtime_params, addr);
         h->ld(data_ptr_regs[i], addr, 0);
-        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], reg_tmp);
+        init_ptr_with_offset(data_ptr_regs[i], data_offsets[i], tmp0, tmp1);
     }
 }
 
@@ -260,7 +273,7 @@ void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak_risc
         h->ld(data_ptr_regs[num_params + i], addr, 0);
     }
     for (size_t i = 0; i < num_params; i++) {
-        Xbyak_riscv::Reg addr = Xbyak_riscv::t0;
+        Xbyak_riscv::Reg addr = aux_gprs.empty() ? Xbyak_riscv::t0 : aux_gprs.front();
         if (i < num_inputs) {
             h->uni_li(addr, GET_OFF(src_ptrs) + i * sizeof(void*));
         } else {
