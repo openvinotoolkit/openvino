@@ -359,24 +359,6 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
 }
 }  // namespace
 
-<<<<<<< HEAD
-namespace ov::npuw::util {
-bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
-    ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<ScaledDotProductAttentionDecomposition>(isPrefill);
-    TransposeValueTensors::Context ctx;
-    rewr.add_matcher<TransposeValueTensors_llama2>(std::ref(ctx));
-    rewr.add_matcher<TransposeValueTensors_llama3>(std::ref(ctx));
-    rewr.run_on_model(model);
-
-    ov::pass::Validate().run_on_model(model);
-
-    // NB: matmul parameters gets transposed, if pass applied
-    return ctx.bTransposed;
-}
-}  // namespace ov::npuw::util
-=======
->>>>>>> fixed unit-test build under ENABLE_SANITIZER=ON
 
 namespace {
 struct KVAxesPosition {
