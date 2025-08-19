@@ -66,7 +66,7 @@ Xbyak_riscv::Reg init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_
 
     // Find an available register and mark it for spilling
     auto aux_reg = get_aux_gpr(used_gpr_reg_idxs);
-    regs_to_spill.insert({snippets::RegType::gpr, aux_reg.getIdx()});
+    regs_to_spill.insert({snippets::RegType::gpr, static_cast<size_t>(aux_reg.getIdx())});
     return aux_reg;
 }
 

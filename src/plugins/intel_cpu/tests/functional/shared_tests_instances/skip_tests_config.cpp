@@ -512,6 +512,10 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
     retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
 #endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    // Skip all snippets tests except Add operations - using negative lookahead
+    retVector.emplace_back(R"(smoke_Snippets_(?!.*Eltwise.*Add).*)");
+#endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
     retVector.emplace_back(R"(.*smoke_LPT/ConvolutionTransformation.CompareWithRefImpl/f32_\[(1|4),3,16,16\]_CPU_f32_rank=4D_fq_on_data=\{level=256_shape=\[1,1,1,1\]_input_low=\{ 0 \}_input_high=\{ 255 \}_output_low=\{ -12.7 \}_output_high\{ 12.8 \}_precision=\}_fq_on_weights=\{_255_\[1,1,1,1\]_\{ -12.7 \}_\{ 12.7 \}\}.*)");
