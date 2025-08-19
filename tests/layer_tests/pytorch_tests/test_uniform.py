@@ -23,7 +23,7 @@ class TestUniform(PytorchLayerTest):
         ref_net = None
         return aten_uniform(from_val, to_val), ref_net, "aten::uniform_"
 
-    @pytest.mark.parametrize("input_shape", [(2, 3), (4, 5)])
+    @pytest.mark.parametrize("input_shape", [(1000, 100), (1000, 100)])
     @pytest.mark.parametrize("dtype", [np.float32, np.float64])
     @pytest.mark.parametrize("from_val,to_val", [(0.0, 1.0), (-1.0, 1.0)])
     
