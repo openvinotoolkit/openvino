@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <cpu/x64/xbyak/xbyak.h>
+#include <xbyak/xbyak.h>
 
 #include <common/utils.hpp>
 #include <cpu/x64/cpu_isa_traits.hpp>
@@ -36,7 +36,7 @@ struct PhiloxGeneratorCallArgs {
     const void* n_ptr = nullptr;
     const void* min_ptr = nullptr;
     const void* range_ptr = nullptr;
-    uint64_t work_amount = 0lu;
+    uint64_t work_amount = 0LU;
 };
 
 struct MersenneTwisterGeneratorCallArgs {
@@ -46,8 +46,8 @@ struct MersenneTwisterGeneratorCallArgs {
     const void* range_ptr = nullptr;
     uint64_t output_idx = 0;
     uint64_t max_output_idx = 0;
-    uint64_t state_accesses_count = 0lu;
-    int64_t elements_to_generate = 0lu;
+    uint64_t state_accesses_count = 0LU;
+    int64_t elements_to_generate = 0LU;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
@@ -119,7 +119,7 @@ private:
 
     void tail(const std::vector<Vmm>& vmm_dst);
 
-    static constexpr uint64_t ROUNDS_NUMBER = 10lu;
+    static constexpr uint64_t ROUNDS_NUMBER = 10LU;
     static constexpr uint32_t CRUSH_RESISTANCE_CONST_LOWER_VALUE = 0x9E3779B9;
     static constexpr uint32_t CRUSH_RESISTANCE_CONST_UPPER_VALUE = 0xBB67AE85;
     static constexpr uint64_t STATISTIC_MAXIMIZING_MULTIPLIER_N = 0xD2511F53;

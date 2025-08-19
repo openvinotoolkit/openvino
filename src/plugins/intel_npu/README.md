@@ -180,7 +180,8 @@ The following properties are supported (may differ based on current system confi
 | `ov::hint::model_priority`/</br>`MODEL_PRIORITY` | RW | Assigns a priority for the model execution. | `LOW`/</br>`MEDIUM`/</br>`HIGH` | `MEDIUM` |
 | `ov::hint::enable_cpu_pinning`/</br>`ENABLE_CPU_PINNING` | RW | Allows CPU threads pinning during inference. | `YES`/ `NO` /</br>`NO` 
 | `ov::log::level`/</br>`LOG_LEVEL` | RW |  Sets the log level for NPU Plugin. An environment variable is also made available to expose logs from early initialization phase: OV_NPU_LOG_LEVEL. | `LOG_NONE`/</br>`LOG_ERROR`/</br>`LOG_WARNING`/</br>`LOG_INFO`/</br>`LOG_DEBUG`/</br>`LOG_TRACE` |  `LOG_NONE` |
-| `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | `N/A` | empty |
+| `ov::cache_dir`/</br>`CACHE_DIR` | RW | Folder path to be used by the OpenVINO cache. | Any string pointing towards a valid directory path | empty |
+| `ov::cache_mode`/</br>`CACHE_MODE` | RW | If `CACHE_DIR` has been set, then this option indicates whether or not the size of the compiled model binary object will be reduced by decoupling a portion of the weights. | `OPTIMIZE_SIZE` /</br>`OPTIMIZE_SPEED` | `OPTIMIZE_SPEED` |
 | `ov::available_devices`/</br>`AVAILABLE_DEVICES` | RO | Returns the list of enumerated NPU devices. </br> NPU plugin does not currently support multiple devices. | `N/A`| `N/A` |
 | `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3720`/</br> `4000` | empty |
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
@@ -197,6 +198,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::intel_npu::compilation_mode_params`/</br>`NPU_COMPILATION_MODE_PARAMS` | RW | Set various parameters supported by the NPU compiler. (See bellow) | `<std::string>`| `N/A` |
 | `ov::intel_npu::compiler_dynamic_quantization`/</br>`NPU_COMPILER_DYNAMIC_QUANTIZATION` | RW | Enable/Disable dynamic quantization by NPU compiler | `YES` / `NO` | `N/A` |
 | `ov::intel_npu::qdq_optimization`/</br>`NPU_QDQ_OPTIMIZATION` | RW | Enable/Disable additional optimizations and balances performance and accuracy for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
+| `ov::intel_npu::qdq_optimization_aggressive`/</br>`NPU_QDQ_OPTIMIZATION_AGGRESSIVE` | RW | Enable/Disable additional optimizations to improve performance for QDQ format models, quantized using ONNX Runtime | `YES` / `NO` | `NO` |
 | `ov::intel_npu::turbo`/</br>`NPU_TURBO` | RW | Set Turbo mode on/off | `YES`/ `NO`| `NO` |
 | `ov::intel_npu::tiles`/</br>`NPU_TILES` | RW | Sets the number of npu tiles to compile the model for | `[0-]` | `-1` |
 | `ov::intel_npu::max_tiles`/</br>`NPU_MAX_TILES` | RW | Maximum number of tiles supported by the device we compile for. Can be set for offline compilation. If not set, it will be populated by driver.| `[0-]` | `[1-6] depends on npu platform` |

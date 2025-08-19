@@ -17,7 +17,7 @@ namespace ov::intel_cpu::aarch64 {
 struct GemmCopyBKernelKaiConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     GemmCopyBKernelKaiConfig() = default;
-    GemmCopyBKernelKaiConfig(const size_t n_blk_size);
+    GemmCopyBKernelKaiConfig(size_t n_blk_size);
 
     bool operator==(const GemmCopyBKernelKaiConfig& rhs) const;
     bool operator!=(const GemmCopyBKernelKaiConfig& rhs) const {
@@ -32,12 +32,12 @@ public:
     [[nodiscard]] bool is_empty() const;
 
 #ifdef SNIPPETS_DEBUG_CAPS
-    virtual std::string to_string() const override;
+    [[nodiscard]] std::string to_string() const override;
 #endif
 
-    void update(size_t N, size_t K);
+    void update(size_t N, size_t K, size_t stride);
 
-    size_t hash() const override {
+    [[nodiscard]] size_t hash() const override {
         return m_hash;
     }
 
@@ -46,6 +46,9 @@ public:
     }
     [[nodiscard]] size_t get_K() const {
         return m_K;
+    }
+    [[nodiscard]] size_t get_copy_b_wei_stride() const {
+        return m_copy_b_wei_stride;
     }
     [[nodiscard]] size_t get_n_blk_size() const {
         return m_static_params->wei_N_blk;
@@ -76,6 +79,7 @@ private:
     std::shared_ptr<StaticParams> m_static_params;
     size_t m_N = 0;
     size_t m_K = 0;
+    size_t m_copy_b_wei_stride = 0;
     size_t m_hash{SIZE_MAX};
 };
 

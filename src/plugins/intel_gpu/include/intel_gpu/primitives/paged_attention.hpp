@@ -31,6 +31,9 @@ struct paged_attention : public primitive_base<paged_attention> {
         ROTATED_BLOCK_INDICES = 14,
         ROTATION_DELTAS = 15,
         ROTATION_TRIG_LUT = 16,
+        XATTENTION_THRESHOLD = 17,
+        XATTENTION_BLOCK_SIZE = 18,
+        XATTENTION_STRIDE = 19,
     };
 
     static constexpr size_t block_size = 16;
@@ -40,7 +43,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     paged_attention(const primitive_id& id,
                     const std::vector<input_info>& inputs)
         : primitive_base(id, inputs) {
-        OPENVINO_ASSERT((inputs.size() == 14) || (inputs.size() == 17),
+        OPENVINO_ASSERT((inputs.size() == 20),
                         "[GPU] Unexpected inputs number for PagedAttention primitive: ",
                         inputs.size());
     }
@@ -77,6 +80,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ob << has_rotated_blocks;
         ob << sliding_window;
         ob << has_score_aggregation;
+        ob << has_xattention;
 
         if (scale_val.has_value()) {
             ob << true;
@@ -84,6 +88,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         } else {
             ob << false;
         }
+        ob << is_key_by_channel;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -97,6 +102,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> has_rotated_blocks;
         ib >> sliding_window;
         ib >> has_score_aggregation;
+        ib >> has_xattention;
 
         bool has_scale;
         ib >> has_scale;
@@ -107,6 +113,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         } else {
             scale_val = std::optional<float>();
         }
+        ib >> is_key_by_channel;
     }
 
     std::optional<float> scale_val{};
@@ -118,5 +125,7 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool has_alibi = false;
     bool has_rotated_blocks = false;
     bool has_score_aggregation = false;
+    bool has_xattention = false;
+    bool is_key_by_channel = false;
 };
 }  // namespace cldnn

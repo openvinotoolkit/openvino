@@ -185,8 +185,8 @@ PerfCountEnd::PerfCountEnd(const Output<Node>& pc_begin,
                            std::vector<std::shared_ptr<utils::Dumper>> dumpers,
                            const std::string& params)
     : PerfCountEndBase({pc_begin}),
-      accumulation(0ul),
-      iteration(0u),
+      accumulation(0UL),
+      iteration(0U),
       dumpers(std::move(dumpers)) {
     constructor_validate_and_infer_types();
     init_pc_begin();

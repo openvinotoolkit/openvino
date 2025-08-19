@@ -259,9 +259,8 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
     for (size_t i = 0; i < m_npuw_model->inputs().size(); i++) {
         const auto& port = m_npuw_model->inputs()[i];
         ov::SoPtr<ov::ITensor> allocated = allocOut(port, m_npuw_model->global_mem_device());
-        m_input_tensors.push_back(allocated);
         m_input_allocated.insert(allocated->data());
-        m_port_to_tensor[port] = TensorStorage{m_input_tensors.back(), true};
+        m_port_to_tensor[port] = TensorStorage{allocated, true};
     }  // for(inputs)
 
     // Preallocate output tensors
@@ -276,8 +275,16 @@ void ov::npuw::IBaseInferRequest::alloc_io() {
         LOG_INFO("Produced by Subgraph[" << from_submodel.first << "] / " << from_submodel.second);
 
         auto tensor = alloc_global_out(i);
-        m_output_tensors.push_back(tensor);
         m_port_to_tensor[port] = TensorStorage{tensor, true};
+    }
+
+    // Try to allocate intermediate tensors to gather into, when host quant gather is enabled
+    for (size_t i = 0; i < m_num_submodels; i++) {
+        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+        if (!comp_model_desc.compiled_model && !comp_model_desc.replaced_by) {
+            continue;  // Optimized out
+        }
+        alloc_quant_gather_tensors(i, m_subrequests[i]);
     }
 }
 
@@ -465,10 +472,105 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto& vocab = comp_model_desc.closure[comp_model_desc.host_gather.src_idx - comp_model_desc.param_base];
         const auto& lport = comp_model_desc.compiled_model->inputs()[comp_model_desc.host_gather.idx_idx];
         const auto lookup = request->get_tensor(lport);
+
         ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
     }
 
+    // Run host-side quantized gather, if required
+    handle_quant_host_gather(idx, request);
+
     LOG_DEBUG("Done");
+}
+
+void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
+
+    if (quant_unpack_gather.dst_idx != -1) {
+        NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
+
+        const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
+        const auto& lookup = request->get_tensor(lport);
+
+        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
+        const auto& vocabw = request->get_tensor(wport);
+
+        auto ids_shape = lookup->get_shape();
+
+        auto get_gathered_shape = [&ids_shape](const ov::Shape& shape) {
+            return ov::Shape{1, ids_shape[1], shape.size() == 3 ? shape[1] * shape[2] : shape[1]};
+        };
+
+        m_quant_gather_tensors.w = ov::Tensor(vocabw->get_element_type(), get_gathered_shape(vocabw->get_shape()));
+
+        if (quant_unpack_gather.src_z_idx != -1 && quant_unpack_gather.src_s_idx != -1) {
+            const auto& zport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_z_idx];
+            const auto& vocabz = request->get_tensor(zport);
+
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            m_quant_gather_tensors.z = ov::Tensor(vocabz->get_element_type(), get_gathered_shape(vocabz->get_shape()));
+            m_quant_gather_tensors.s = ov::Tensor(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+        } else if (quant_unpack_gather.src_s_idx != -1) {
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            m_quant_gather_tensors.s = ov::Tensor(vocabs->get_element_type(), get_gathered_shape(vocabs->get_shape()));
+        }
+    }
+}
+
+void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPtr request) {
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
+
+    if (quant_unpack_gather.dst_idx != -1) {
+        NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
+
+        const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
+        const auto& lookup = request->get_tensor(lport);
+
+        const auto& gport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.dst_idx];
+        const auto& gather = request->get_tensor(gport);
+
+        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
+        const auto& vocabw = request->get_tensor(wport);
+
+        // Gather weight
+        ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(m_quant_gather_tensors.w));
+
+        if (quant_unpack_gather.src_z_idx != -1 && quant_unpack_gather.src_s_idx != -1) {
+            const auto& zport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_z_idx];
+            const auto& vocabz = request->get_tensor(zport);
+
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            // Gather first
+            ov::npuw::util::gather(vocabz, lookup, ov::get_tensor_impl(m_quant_gather_tensors.z));
+            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(m_quant_gather_tensors.s));
+
+            // Then unpack
+            ov::npuw::util::unpack(ov::get_tensor_impl(m_quant_gather_tensors.w),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.z),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.s),
+                                   gather);
+        } else if (quant_unpack_gather.src_s_idx != -1) {
+            const auto& sport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_s_idx];
+            const auto& vocabs = request->get_tensor(sport);
+
+            // Gather first
+            ov::npuw::util::gather(vocabs, lookup, ov::get_tensor_impl(m_quant_gather_tensors.s));
+
+            // Then unpack
+            ov::npuw::util::unpack(ov::get_tensor_impl(m_quant_gather_tensors.w),
+                                   ov::get_tensor_impl(m_quant_gather_tensors.s),
+                                   gather);
+        } else {
+            NPUW_ASSERT(false && "Not supported");
+        }
+    }
 }
 
 void ov::npuw::IBaseInferRequest::bind_global_results(std::size_t idx, RqPtr request) {

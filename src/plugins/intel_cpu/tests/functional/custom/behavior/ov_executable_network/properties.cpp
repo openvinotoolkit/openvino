@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/subgraph_builders/matmul_bias.hpp"
+#include "internal_properties.hpp"
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
@@ -44,6 +47,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::intel_cpu::denormals_optimization.name()),
         RO_property(ov::log::level.name()),
         RO_property(ov::intel_cpu::sparse_weights_decompression_rate.name()),
+        RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
         RO_property(ov::hint::dynamic_quantization_group_size.name()),
         RO_property(ov::hint::kv_cache_precision.name()),
         RO_property(ov::key_cache_precision.name()),
@@ -515,6 +519,26 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCPURuntimOptionsWithCorePr
     ASSERT_EQ(valueSize.as<uint64_t>(), 8);
     ASSERT_EQ(keyCacheType.as<ov::element::Type>(), ov::element::f16);
     ASSERT_EQ(valueCacheType.as<ov::element::Type>(), ov::element::bf16);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
+    ov::Core core;
+    std::shared_ptr<ov::Model> model = ov::test::utils::make_matmul_bias();
+    std::set<ov::hint::ModelDistributionPolicy> setModels = {ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+    ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), setModels},
+                         {ov::intel_cpu::enable_tensor_parallel.name(), true},
+                         {ov::num_streams.name(), 1},
+                         {ov::inference_num_threads.name(), 1}};
+
+    core.set_property(deviceName, config);
+    ov::CompiledModel compiledModel = core.compile_model(model, deviceName);
+
+    std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy_value = {};
+    bool enable_tensor_parallel = false;
+    OV_ASSERT_NO_THROW(model_distribution_policy_value = compiledModel.get_property(ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(enable_tensor_parallel = compiledModel.get_property(ov::intel_cpu::enable_tensor_parallel));
+    ASSERT_EQ(model_distribution_policy_value, setModels);
+    ASSERT_EQ(enable_tensor_parallel, true);
 }
 
 }  // namespace

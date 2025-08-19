@@ -9,17 +9,17 @@ type SupportedTypedArray =
   | Float64Array;
 
 type elementTypeString =
-  | 'u8'
-  | 'u32'
-  | 'u16'
-  | 'u64'
-  | 'i8'
-  | 'i64'
-  | 'i32'
-  | 'i16'
-  | 'f64'
-  | 'f32'
-  | 'string';
+  | "u8"
+  | "u32"
+  | "u16"
+  | "u64"
+  | "i8"
+  | "i64"
+  | "i32"
+  | "i16"
+  | "f64"
+  | "f32"
+  | "string";
 
 type OVAny = string | number | boolean;
 
@@ -35,7 +35,7 @@ interface Core {
   /**
    * It constructs a new Core object.
    */
-  new(): Core;
+  new (): Core;
   /**
    * Registers extensions to a Core object.
    * @param libraryPath Path to the library with ov::Extension.
@@ -79,11 +79,7 @@ interface Core {
    * A synchronous version of {@link Core.compileModel}.
    * It creates a compiled model from a source model object.
    */
-  compileModelSync(
-    model: Model,
-    deviceName: string,
-    config?: Record<string, OVAny>,
-  ): CompiledModel;
+  compileModelSync(model: Model, deviceName: string, config?: Record<string, OVAny>): CompiledModel;
   /**
    * A synchronous version of {@link Core.compileModel}.
    * It reads a model and creates a compiled model from the IR/ONNX/PDPD file.
@@ -114,10 +110,7 @@ interface Core {
    * @param deviceName The name of a device, the properties of which you get.
    * @param propertyName Property name.
    */
-  getProperty(
-    deviceName: string,
-    propertyName: string,
-  ): OVAny;
+  getProperty(deviceName: string, propertyName: string): OVAny;
   /**
    * It returns information on the version of device plugins.
    * @param deviceName A device name to identify a plugin.
@@ -180,10 +173,7 @@ interface Core {
    * in the IR / ONNX / PDPD / TF or TFLite format.
    * @param weightsBuffer Binary data with tensor data.
    */
-  readModel(
-    modelBuffer: Uint8Array,
-    weightsBuffer?: Uint8Array,
-  ): Promise<Model>;
+  readModel(modelBuffer: Uint8Array, weightsBuffer?: Uint8Array): Promise<Model>;
   /**
    * A synchronous version of {@link Core.readModel}.
    * It reads models from the IR / ONNX / PDPD / TF and TFLite formats.
@@ -230,7 +220,7 @@ interface Model {
    * It constructs a default Model object. Use {@link Core.readModel}
    * to read Model from supported file format.
    */
-  new(): Model;
+  new (): Model;
   /**
    * It returns a cloned model.
    */
@@ -309,7 +299,7 @@ interface Model {
    */
   reshape(
     partialShape: PartialShape | string,
-    variablesShapes?: Record<string, PartialShape | string>
+    variablesShapes?: Record<string, PartialShape | string>,
   ): Model;
   /** Reshapes model inputs.
    * @param partialShapes A Map with partial shapes.
@@ -321,7 +311,7 @@ interface Model {
    */
   reshape(
     partialShapes: Map<number | string | Output, PartialShape | string>,
-    variablesShapes?: Record<string, PartialShape | string>
+    variablesShapes?: Record<string, PartialShape | string>,
   ): Model;
   /**
    * It gets all the model inputs as an array.
@@ -343,7 +333,7 @@ interface CompiledModel {
    * It constructs a default CompiledModel object. Use {@link Core.compileModel}
    * or {@link Core.importModel} to get model compiled for a specific device.
    */
-  new(): CompiledModel;
+  new (): CompiledModel;
   /** It gets all inputs of a compiled model. */
   inputs: Output[];
   /** It gets all outputs of a compiled model. */
@@ -437,11 +427,7 @@ interface Tensor {
    * @param tensorData A subclass of TypedArray that will be wrapped
    * by a {@link Tensor}.
    */
-  new (
-    type: element | elementTypeString,
-    shape: number[],
-    tensorData: SupportedTypedArray,
-  ): Tensor;
+  new (type: element | elementTypeString, shape: number[], tensorData: SupportedTypedArray): Tensor;
   /**
    * It constructs a tensor using the element type and shape. The strings from
    * the array are used to fill the new tensor. Each element of a string tensor
@@ -495,7 +481,7 @@ interface InferRequest {
    * Use {@link CompiledModel.createInferRequest}
    * to get InferRequest object specific for a given deployed model.
    */
-  new(): InferRequest;
+  new (): InferRequest;
   /**
    * It infers specified input(s) in the synchronous mode.
    * @remarks
@@ -612,7 +598,7 @@ interface InferRequest {
 type Dimension = number | [number, number];
 
 interface Output {
-  new(): Output;
+  new (): Output;
   anyName: string;
   shape: number[];
   toString(): string;
@@ -669,6 +655,54 @@ interface PartialShape {
   getDimensions(): Dimension[];
 }
 
+/**
+ * Callback function type for AsyncInferQueue operations.
+ * @param inferRequest The {@link InferRequest} object from the queue's pool.
+ * It allows to access input and output tensors.
+ * @param userData User data that was passed to the startAsync method. If data was not
+ * passed, it will be undefined.
+ * @param error Optional error that occurred during inference, if any.
+ */
+type AsyncInferQueueCallback = (
+  error: null | Error,
+  inferRequest: InferRequest,
+  userData: object,
+) => void;
+
+interface AsyncInferQueue {
+  /**
+   * Creates AsyncInferQueue.
+   * @param compiledModel The compiledModel that will be used
+   * to create InferRequests in the pool.
+   * @param jobs Number of InferRequest objects in the pool. If not provided,
+   * jobs number will be set automatically to the optimal number.
+   */
+  new (compiledModel: CompiledModel, jobs?: number): AsyncInferQueue;
+  /**
+   * Sets unified callback on all InferRequests from queue's pool.
+   * The callback that was previously set will be replaced.
+   * @param callback - Any function that matches callback's requirements.
+   */
+  setCallback(callback: AsyncInferQueueCallback): void;
+  /**
+   * It starts asynchronous inference for the specified input data.
+   * @param inputData An object with the key-value pairs where the key is the
+   * input name and value is a tensor or an array with tensors.
+   * @param userData User data that will be passed to the callback.
+   * @returns A Promise that can be used to track the callback completion.
+   */
+  startAsync(
+    inputData: { [inputName: string]: Tensor } | Tensor[],
+    userData?: object,
+  ): Promise<object>;
+  /**
+   * Releases resources associated with this AsyncInferQueue instance.
+   * Call this method after all `startAsync` requests have completed
+   * and the AsyncInferQueue is no longer needed.
+   */
+  release(): void;
+}
+
 declare enum element {
   u8,
   u32,
@@ -697,6 +731,7 @@ export interface NodeAddon {
   InferRequest: InferRequest;
   Output: Output;
   PartialShape: PartialShape;
+  AsyncInferQueue: AsyncInferQueue;
 
   preprocess: {
     resizeAlgorithm: typeof resizeAlgorithm;
@@ -722,5 +757,4 @@ export interface NodeAddon {
   resizeAlgorithm: typeof resizeAlgorithm;
 }
 
-export default // eslint-disable-next-line
-require('../bin/ov_node_addon.node') as NodeAddon;
+export default require("../bin/ov_node_addon.node") as NodeAddon;
