@@ -8,6 +8,7 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
+#include "common_test_utils/unicode_utils.hpp"
 #include "functional_test_utils/test_model/test_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/util/file_util.hpp"
@@ -19,13 +20,36 @@ protected:
         model_file_name = prefix + name + ".xml";
         weight_file_name = prefix + name + ".bin";
         ov::test::utils::generate_test_model(model_file_name, weight_file_name);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+            std::wstring postfix_w = ov::util::string_to_wstring(prefix) + L"_" +
+                                     ov::test::utils::test_unicode_postfix_vector[testIndex] +
+                                     ov::util::string_to_wstring(name);
+            auto model_file_path_w = postfix_w + L".xml";
+            auto weight_file_path_w = postfix_w + L".bin";
+            ov::test::utils::generate_test_model(model_file_path_w, weight_file_path_w);
+            model_files_name_w.push_back(model_file_path_w);
+            weight_files_name_w.push_back(weight_file_path_w);
+        }
+#endif
     }
 
     void TearDown() override {
         ov::test::utils::removeIRFiles(model_file_name, weight_file_name);
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+        for (auto& m_path_w : model_files_name_w) {
+            ov::test::utils::removeFile(m_path_w);
+        }
+        for (auto& w_path_w : weight_files_name_w) {
+            ov::test::utils::removeFile(w_path_w);
+        }
+#endif
     }
 
     std::string model_file_name, weight_file_name;
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    std::vector<std::wstring> model_files_name_w, weight_files_name_w;
+#endif
 };
 
 #ifndef OPENVINO_STATIC_LIBRARY
@@ -114,6 +138,24 @@ TEST_F(CoreBaseTest, LoadOVFolderOverCWPathPluginXML) {
 
 #endif
 
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+TEST_F(CoreBaseTest, read_model_with_std_fs_path_unicode) {
+    generate_test_model_files("test-model");
+    ov::Core core;
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::filesystem::path model_path = model_files_name_w[testIndex];
+        std::filesystem::path weight_path = weight_files_name_w[testIndex];
+        {
+            const auto model = core.read_model(model_path);
+            EXPECT_NE(model, nullptr);
+        }
+        {
+            const auto model = core.read_model(model_path, weight_path);
+            EXPECT_NE(model, nullptr);
+        }
+    }
+}
+#endif
 namespace ov::test {
 TEST_F(CoreBaseTest, read_model_with_std_fs_path) {
     generate_test_model_files("test-model");
@@ -149,5 +191,20 @@ TEST_F(CoreBaseTest, compile_model_with_std_fs_path) {
         const auto model = core.compile_model(model_path, devices.at(0), ov::AnyMap{});
         EXPECT_TRUE(model);
     }
+#ifdef OPENVINO_ENABLE_UNICODE_PATH_SUPPORT
+    for (std::size_t testIndex = 0; testIndex < ov::test::utils::test_unicode_postfix_vector.size(); testIndex++) {
+        std::filesystem::path model_path_w = model_files_name_w[testIndex];
+        {
+            const auto model = core.compile_model(model_path_w);
+            EXPECT_TRUE(model);
+        }
+        {
+            const auto devices = core.get_available_devices();
+
+            const auto model = core.compile_model(model_path_w, devices.at(0), ov::AnyMap{});
+            EXPECT_TRUE(model);
+        }
+    }
+#endif
 }
 }  // namespace ov::test

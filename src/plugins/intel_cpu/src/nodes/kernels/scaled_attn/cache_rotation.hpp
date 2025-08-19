@@ -3,8 +3,10 @@
 //
 #pragma once
 
-#include "common.hpp"
-#include "openvino/openvino.hpp"
+#include <cstddef>
+#include <cstdint>
+
+#include "openvino/core/except.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
@@ -230,5 +232,5 @@ inline void rotate_kv_cache_block([[maybe_unused]] uint8_t* cache_block_ptr,
                                   [[maybe_unused]] size_t num_heads,
                                   [[maybe_unused]] size_t block_size,
                                   [[maybe_unused]] size_t embedding_size) {
-    OPENVINO_THROW("cache rotation is not implemented for quantized u8/u4 key cache");
+    OPENVINO_THROW("cache rotation is not implemented for quantized u8/u4 kv cache");
 }

@@ -6,7 +6,7 @@
 
 #include <filesystem>
 
-#include "base/ov_behavior_test_utils.hpp"
+#include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "behavior/ov_plugin/properties_tests.hpp"
 #include "common/functions.h"
 #include "common/npu_test_env_cfg.hpp"

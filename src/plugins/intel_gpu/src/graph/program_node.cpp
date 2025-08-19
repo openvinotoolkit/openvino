@@ -36,7 +36,7 @@ static size_t get_shape_data_size(const layout& l) {
     if (l.is_static())
         return 0;
 
-    size_t size = layout::max_rank(); // all dimenstions are stored
+    size_t size = layout::max_rank(); // all dimensions are stored
     const auto& dynamic_pad = l.data_padding._dynamic_dims_mask;
     for (size_t j = 0; j < layout::max_rank(); ++j) {
         if (dynamic_pad[j] == 1) {
@@ -797,6 +797,13 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
             }
             ob << f_desc.outer_dep_start_idx;
             ob << f_desc.total_num_deps;
+
+            ob << f_desc.inputs.size();
+            for (const auto& f_in : f_desc.inputs) {
+                ob << static_cast<int32_t>(f_in.m_element_type);
+                ob << static_cast<int32_t>(f_in.m_type);
+                ob << f_in.m_idx;
+            }
         }
     }
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -1023,6 +1030,23 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
             }
             ib >> f_desc.outer_dep_start_idx;
             ib >> f_desc.total_num_deps;
+
+            size_t num_fused_inputs;
+            ib >> num_fused_inputs;
+            for (size_t i = 0; i < num_fused_inputs; ++i) {
+                int32_t input_type, element_type;
+                size_t idx;
+
+                ib >> element_type;
+                ib >> input_type;
+                ib >> idx;
+
+                auto input_desc = fused_primitive_desc::InputDescriptor{static_cast<FusedInputType>(input_type),
+                                                                        idx,
+                                                                        static_cast<ov::element::Type_t>(element_type)};
+                f_desc.inputs.emplace_back(input_desc);
+            }
+
             fused_prims.emplace_back(f_desc);
         }
     }
@@ -1084,6 +1108,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
             case onednn_post_op_type::binary_mul:
             case onednn_post_op_type::binary_max:
             case onednn_post_op_type::binary_min:
+            case onednn_post_op_type::binary_div:
             {
                 dnnl::algorithm alg;
                 dnnl::memory::desc desc;
@@ -1514,6 +1539,7 @@ void program_node::create_onednn_primitive_attributes(
                                   type == onednn_post_op_type::binary_max ||
                                   type == onednn_post_op_type::binary_min ||
                                   type == onednn_post_op_type::binary_relu ||
+                                  type == onednn_post_op_type::binary_div ||
                                   type == onednn_post_op_type::scale ||
                                   type == onednn_post_op_type::sum;
 
@@ -1609,7 +1635,8 @@ void program_node::create_onednn_primitive_attributes(
                     post_ops.append_binary(alg, dnnl::memory::desc(dims, dt, fmt));
                     update_onednn_post_op_list(op_type, dep_idx, fmt, false, dims, dt);
                 } else {
-                    auto mem_desc = onednn::layout_to_memory_desc(in);
+                    auto mem_flag = cldnn::format::is_blocked(get_output_layout().format) ? onednn::mem_flags::need_blocked : onednn::mem_flags::None;
+                    auto mem_desc = onednn::layout_to_memory_desc(in, dnnl::memory::format_tag::undef, mem_flag);
                     post_ops.append_binary(alg, mem_desc);
                     update_onednn_post_op_list(op_type, dep_idx, onednn::convert_data_format(in.format), false,
                             mem_desc.get_dims(), mem_desc.get_data_type());
@@ -1633,6 +1660,8 @@ void program_node::create_onednn_primitive_attributes(
                 set_binary_op(dnnl::algorithm::binary_sub, onednn_post_op_type::binary_sub);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
                 set_binary_op(dnnl::algorithm::binary_mul, onednn_post_op_type::binary_mul);
+            } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::div) {
+                set_binary_op(dnnl::algorithm::binary_div, onednn_post_op_type::binary_div);
             } else {
                 std::stringstream error_msg;
                 error_msg << "Unsupported eltwise mode: " << static_cast<int>(desc.typed_desc<eltwise>()->mode) << ". ";

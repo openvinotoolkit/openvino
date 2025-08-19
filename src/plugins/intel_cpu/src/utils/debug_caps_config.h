@@ -3,6 +3,11 @@
 //
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <vector>
 #ifdef CPU_DEBUG_CAPS
 
 #    include <bitset>
@@ -12,10 +17,8 @@
 
 #    include "openvino/core/except.hpp"
 #    include "openvino/util/common_util.hpp"
-#    include "utils/enum_class_hash.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DebugCapsConfig {
 private:
@@ -27,14 +30,14 @@ public:
         readProperties();
     }
 
-    enum class FILTER {
+    enum class FILTER : uint8_t {
         BY_PORTS,
         BY_EXEC_ID,
         BY_TYPE,
         BY_NAME,
     };
 
-    enum class FORMAT {
+    enum class FORMAT : uint8_t {
         BIN,
         TEXT,
     };
@@ -44,7 +47,7 @@ public:
     std::string verbose;
     std::string blobDumpDir = "cpu_dump";
     FORMAT blobDumpFormat = FORMAT::TEXT;
-    std::unordered_map<FILTER, std::string, EnumClassHash> blobDumpFilters;
+    std::unordered_map<FILTER, std::string> blobDumpFilters;
     bool summaryPerf = false;
     std::string memoryStatisticsDumpPath;
 
@@ -84,6 +87,7 @@ public:
 
     struct PropertyGroup {
         virtual std::vector<PropertySetterPtr> getPropertySetters() = 0;
+        virtual ~PropertyGroup() = default;
 
         void parseAndSet(const std::string& str) {
             const auto& options = ov::util::split(str, ' ');
@@ -91,9 +95,10 @@ public:
             bool failed = false;
             auto getHelp = [propertySetters]() {
                 std::string help;
-                for (const auto& property : propertySetters)
+                for (const auto& property : propertySetters) {
                     help.append('\t' + property->getPropertyName() + "=<" + property->getPropertyValueDescription() +
                                 ">\n");
+                }
                 return help;
             };
 
@@ -119,14 +124,13 @@ public:
                 }
             }
 
-            if (failed)
-                OPENVINO_THROW(
-                    "Wrong syntax: ",
-                    str,
-                    "\n",
-                    "The following space separated options are supported (option names are case insensitive):",
-                    "\n",
-                    getHelp());
+            OPENVINO_ASSERT(!failed,
+                            "Wrong syntax: ",
+                            str,
+                            "\n",
+                            "The following space separated options are supported (option names are case insensitive):",
+                            "\n",
+                            getHelp());
         }
     };
 
@@ -153,13 +157,13 @@ public:
 private:
     struct PropertySetter {
         virtual bool parseAndSet(const std::string& str) = 0;
-        virtual std::string getPropertyValueDescription() const = 0;
+        [[nodiscard]] virtual std::string getPropertyValueDescription() const = 0;
 
-        PropertySetter(std::string name) : propertyName(std::move(name)) {}
+        explicit PropertySetter(std::string name) : propertyName(std::move(name)) {}
 
         virtual ~PropertySetter() = default;
 
-        const std::string& getPropertyName() const {
+        [[nodiscard]] const std::string& getPropertyName() const {
             return propertyName;
         }
 
@@ -179,7 +183,7 @@ private:
             property = str;
             return true;
         }
-        std::string getPropertyValueDescription() const override {
+        [[nodiscard]] std::string getPropertyValueDescription() const override {
             return propertyValueDescription;
         }
 
@@ -215,8 +219,9 @@ private:
                     std::find_if(propertyTokens.begin(), propertyTokens.end(), [tokenName](const Token& token) {
                         return token.name == tokenName;
                     });
-                if (foundToken == propertyTokens.end())
+                if (foundToken == propertyTokens.end()) {
                     return false;
+                }
 
                 for (const auto& bit : foundToken->bits) {
                     property.set(bit, tokenVal);
@@ -224,11 +229,12 @@ private:
             }
             return true;
         }
-        std::string getPropertyValueDescription() const override {
+        [[nodiscard]] std::string getPropertyValueDescription() const override {
             std::string supportedTokens = "comma separated filter tokens: ";
             for (size_t i = 0; i < propertyTokens.size(); i++) {
-                if (i)
+                if (i) {
                     supportedTokens.push_back(',');
+                }
                 supportedTokens.append(propertyTokens[i].name);
             }
             supportedTokens.append(
@@ -244,7 +250,6 @@ private:
     void readProperties();
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu
 
 #endif  // CPU_DEBUG_CAPS

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <cstddef>
+
 #include "openvino/core/type/element_type.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 /**
  * @brief Copy size elements from buffer specified srcPtr pointer to buffer specified dstPtr.
@@ -22,11 +23,7 @@ namespace intel_cpu {
  * number of elements in buffers to be converted
  * @return none.
  */
-void cpu_convert(const void* srcPtr,
-                 void* dstPtr,
-                 ov::element::Type srcPrc,
-                 ov::element::Type dstPrc,
-                 const size_t size);
+void cpu_convert(const void* srcPtr, void* dstPtr, ov::element::Type srcPrc, ov::element::Type dstPrc, size_t size);
 
 /**
  * @brief Copy size elements from buffer specified srcPtr pointer to buffer specified dstPtr.
@@ -50,9 +47,8 @@ void cpu_convert(const void* srcPtr,
                  ov::element::Type srcPrc,
                  ov::element::Type interimPrc,
                  ov::element::Type dstPrc,
-                 const size_t size);
+                 size_t size);
 
 bool is_supported_convert(ov::element::Type srcPrc, ov::element::Type dstPrc);
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

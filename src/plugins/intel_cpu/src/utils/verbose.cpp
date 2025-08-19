@@ -1,6 +1,15 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <utility>
+
+#include "dnnl_extension_utils.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "onednn/iml_type_mapper.h"
 #include "utils/general_utils.h"
 #ifdef CPU_DEBUG_CAPS
 
@@ -11,11 +20,9 @@
 #    include <sstream>
 #    include <string>
 
-#    include "../src/common/c_types_map.hpp"
-#    include "../src/common/verbose.hpp"
+#    include "common/c_types_map.hpp"
+#    include "common/verbose.hpp"
 #    include "cpu_types.h"
-#    include "dnnl_debug.h"
-#    include "dnnl_types.h"
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "verbose.h"
 
@@ -26,15 +33,14 @@ bool Verbose::shouldBePrinted() const {
         return false;
     }
 
-    if (lvl < 2 && one_of(node->getType(), Type::Input, Type::Output)) {
+    if (lvl < 2 && any_of(node->getType(), Type::Input, Type::Output)) {
         return false;
     }
 
-    if (lvl < 3 && node->isConstant()) {
-        return false;
-    }
-
-    return true;
+    const bool low_level = lvl < 3;
+    const bool is_constant = node->isConstant();
+    const bool skip_node = low_level && is_constant;
+    return !skip_node;
 }
 
 /**

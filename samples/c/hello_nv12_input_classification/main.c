@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "samples_util/path_util.h"
+// Uses windows.h must be before openvino/c/openvino.h
 #include "openvino/c/openvino.h"
 
 /**
@@ -198,7 +200,7 @@ int main(int argc, char** argv) {
     ov_output_const_port_t* input_port = NULL;
     ov_output_const_port_t* output_port = NULL;
     ov_layout_t* model_layout = NULL;
-    ov_shape_t input_shape;
+    ov_shape_t input_shape = {.rank = 0, .dims = NULL};
 
     // -------- Get OpenVINO runtime version --------
     ov_version_t version = {.description = NULL, .buildNumber = NULL};
@@ -210,7 +212,10 @@ int main(int argc, char** argv) {
 
     // -------- Parsing and validation of input arguments --------
     const char* input_model = argv[1];
-    const char* input_image_path = argv[2];
+    char input_image_path[PATH_MAX];
+    if (!sanitize_path(argv[2], input_image_path, sizeof(input_image_path))) {
+        goto err;
+    }
     const char* device_name = argv[4];
 
     // -------- Step 1. Initialize OpenVINO Runtime Core --------

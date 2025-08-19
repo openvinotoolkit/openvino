@@ -7,9 +7,14 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <functional>
+#include <numeric>
 #include <vector>
 
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
@@ -21,7 +26,7 @@ namespace ov::intel_cpu {
 
     auto scalesMemory = memory.at(ARG_DST_DEQ_SCALE);
 
-    auto scalesData = static_cast<const float*>(scalesMemory->getData());
+    const auto* scalesData = static_cast<const float*>(scalesMemory->getData());
 
     if (!scalesData) {
         return {};

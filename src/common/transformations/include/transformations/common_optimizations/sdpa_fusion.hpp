@@ -50,10 +50,24 @@ namespace pass {
 ///                     ┌────┴────┐
 ///                     │  Output │
 ///                     └─────────┘
-class TRANSFORMATIONS_API SDPAFusion : public ov::pass::MatcherPass {
+class TRANSFORMATIONS_API SDPAFusionMatcher : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("SDPAFusion", "0");
-    SDPAFusion();
+    OPENVINO_MATCHER_PASS_RTTI("SDPAFusionMatcher", "0");
+    SDPAFusionMatcher();
+};
+
+class TRANSFORMATIONS_API SDPAReshapeFusion : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("SDPAReshapeFusion", "0");
+    SDPAReshapeFusion();
+};
+
+// Temporary wrapper to enable Symbolic infrastructure inside.
+class TRANSFORMATIONS_API SDPAFusion : public ov::pass::ModelPass {
+public:
+    OPENVINO_MODEL_PASS_RTTI("SDPAFusion");
+    SDPAFusion() = default;
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 
 }  // namespace pass

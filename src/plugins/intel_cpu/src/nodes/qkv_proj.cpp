@@ -5,20 +5,44 @@
 #include "qkv_proj.h"
 
 #include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <utility>
 #include <vector>
 
-#include "common/bfloat16.hpp"
-#include "common/cpu_memcpy.h"
-#include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
-#include "shape_inference/shape_inference_internal_dyn.hpp"
-#include "utils/plain_tensor.hpp"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <algorithm>
+#    include <type_traits>
+#    include <utility>
+
+#    include "cpu_memory.h"
+#    include "dnnl_scratch_pad.h"
+#    include "kernels/x64/mlp_utils.hpp"
+#    include "memory_desc/blocked_memory_desc.h"
+#    include "memory_desc/cpu_blocked_memory_desc.h"
+#    include "openvino/core/shape.hpp"
+#    include "openvino/core/type/bfloat16.hpp"
+#    include "openvino/core/type/float16.hpp"
+#    include "utils/plain_tensor.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
-#    include "kernels/x64/mlp_utils.hpp"
+#    include "nodes/kernels/x64/mlp_kernel.hpp"
 #endif
 
 #include "openvino/core/parallel.hpp"
@@ -60,7 +84,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     MemoryPtr m_scratchMem;
     uint8_t* m_scratch_base = nullptr;
     int m_M = 0;
-    size_t m_threads_num = 0lu;
+    size_t m_threads_num = 0LU;
 
     MatrixDynQuantPerRow m_quant_act;
 
@@ -112,7 +136,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
                     work.quant_i8 = quantized_int8;
-                    work.is_f16 = std::is_same<T, ov::float16>::value;
+                    work.is_f16 = std::is_same_v<T, ov::float16>;
                 }
                 start_blkN += blkN;
             }
@@ -201,7 +225,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     }
 
     void execute() override {
-        static ReduceAdd2bh jit_cvt(false, std::is_same<T, ov::float16>::value);
+        static ReduceAdd2bh jit_cvt(false, std::is_same_v<T, ov::float16>);
 
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();
@@ -307,7 +331,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
 template <typename T>
 struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     QKVProjection* m_pnode;
-    Executor(QKVProjection* pnode) : m_pnode(pnode) {}
+    explicit Executor(QKVProjection* pnode) : m_pnode(pnode) {}
     void execute() override {}
 };
 #endif
@@ -322,7 +346,7 @@ void QKVProjection::createPrimitive() {
     }
 #endif
     if (!m_executor) {
-        THROW_CPU_NODE_ERR("Executor creation fails with precision " + rtPrecision.to_string());
+        CPU_NODE_THROW("Executor creation fails with precision " + rtPrecision.to_string());
     }
 }
 
@@ -366,9 +390,7 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
         }
     }
 
-    CPU_NODE_ASSERT(rtPrecision == ov::element::bf16 || rtPrecision == ov::element::f16,
-                    "Unexpected rtPrecision:",
-                    rtPrecision);
+    CPU_NODE_ASSERT(any_of(rtPrecision, ov::element::bf16, ov::element::f16), "Unexpected rtPrecision:", rtPrecision);
 
     if (m_config.quantized) {
         auto weightPrecision = ov::element::i8;
@@ -416,10 +438,10 @@ void QKVProjection::initSupportedPrimitiveDescriptors() {
     addSupportedPrimDesc(inPortConfigs, outPortConfigs, impl_desc_type::ref_any);
 }
 
-bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
-                                         std::string& errorMessage,
-                                         int concurrency,
-                                         uint64_t fcDynamicQuantizationGroupSize) noexcept {
+bool QKVProjection::isSupportedOperation([[maybe_unused]] const std::shared_ptr<const ov::Node>& op,
+                                         [[maybe_unused]] std::string& errorMessage,
+                                         [[maybe_unused]] int concurrency,
+                                         [[maybe_unused]] uint64_t fcDynamicQuantizationGroupSize) noexcept {
 #if defined(OPENVINO_ARCH_X86_64)
     try {
         const auto node_qkv = ov::as_type_ptr<const QKVProjectionNode>(op);
@@ -431,7 +453,7 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 }
                 // NOLINTNEXTLINE(bugprone-integer-division)
                 float unbalance_ratio = static_cast<float>(concurrency % 3) / static_cast<float>(concurrency / 3);
-                if (unbalance_ratio > 0.2f) {
+                if (unbalance_ratio > 0.2F) {
                     errorMessage = "QKVProjection needs number of cores to be nearly multiple of 3";
                     return false;
                 }
@@ -442,7 +464,8 @@ bool QKVProjection::isSupportedOperation(const std::shared_ptr<const ov::Node>& 
                 return false;
             }
 
-            if (config.hidden_size < CACHE_BLK_K_SIZE * 8) {
+            if (config.hidden_size < 1536) {
+                // this threashold is determined by Qwen1.5B
                 errorMessage = "QKVProjection input channel size is too small";
                 return false;
             }

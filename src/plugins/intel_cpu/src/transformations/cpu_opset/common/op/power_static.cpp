@@ -4,6 +4,14 @@
 
 #include "power_static.hpp"
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/op.hpp"
 #include "transformations/itt.hpp"
 
 ov::intel_cpu::PowerStaticNode::PowerStaticNode(const ov::Output<Node>& data,
@@ -22,9 +30,7 @@ ov::intel_cpu::PowerStaticNode::PowerStaticNode(const ov::Output<Node>& data,
 std::shared_ptr<ov::Node> ov::intel_cpu::PowerStaticNode::clone_with_new_inputs(
     const ov::OutputVector& new_args) const {
     INTERNAL_OP_SCOPE(PowerStaticNode_clone_with_new_inputs);
-    if (new_args.size() != 1) {
-        OPENVINO_THROW("Incorrect number of new arguments");
-    }
+    OPENVINO_ASSERT(new_args.size() == 1, "Incorrect number of new arguments");
 
     return std::make_shared<ov::intel_cpu::PowerStaticNode>(new_args.at(0),
                                                             this->power,

@@ -456,7 +456,14 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     auto scale_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
     auto sliding_window_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
     auto alibi_layout = layout{ov::PartialShape{}, data_types::f32, format::bfyx};
-    auto max_context_len_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};;
+    auto max_context_len_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto score_aggregation_window_layout = dynamic_i32_layout;
+    auto rotated_block_indices_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto rotation_deltas_layout = layout{ov::PartialShape{1, 1}, data_types::i32, format::bfyx};
+    auto rotation_trig_lut_layout = layout{ov::PartialShape{1, 1}, data_types::f32, format::bfyx};
+    auto xattention_threshold_layout = layout{ov::PartialShape{1}, data_types::f32, format::bfyx};
+    auto xattention_block_size_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};
+    auto xattention_stride_layout = layout{ov::PartialShape{}, data_types::i32, format::bfyx};;
 
     std::vector<input_info> pa_inputs = {input_info("query"),
                                          input_info("key"),
@@ -470,7 +477,15 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
                                          input_info("scale"),
                                          input_info("sliding_window"),
                                          input_info("alibi"),
-                                         input_info("max_context_len")};
+                                         input_info("max_context_len"),
+                                         input_info("score_aggregation_window"),
+                                         input_info("rotated_block_indices"),
+                                         input_info("rotation_deltas"),
+                                         input_info("rotation_trig_lut"),
+                                         input_info("xattention_threshold"),
+                                         input_info("xattention_block_size"),
+                                         input_info("xattention_stride"),
+    };
 
     auto pa_prim = paged_attention("paged_attention", pa_inputs);
     pa_prim.k_head_size = 64;
@@ -481,6 +496,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     pa_prim.has_alibi = false;
     pa_prim.num_outputs = 1;
     pa_prim.has_rotated_blocks = false;
+    pa_prim.is_key_by_channel = true;
 
     topology topology;
     topology.add(input_layout("query", query_layout));
@@ -496,6 +512,13 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     topology.add(input_layout("sliding_window", sliding_window_layout));
     topology.add(input_layout("alibi", alibi_layout));
     topology.add(input_layout("max_context_len", max_context_len_layout));
+    topology.add(input_layout("score_aggregation_window", score_aggregation_window_layout));
+    topology.add(input_layout("rotated_block_indices", rotated_block_indices_layout));
+    topology.add(input_layout("rotation_deltas", rotation_deltas_layout));
+    topology.add(input_layout("rotation_trig_lut", rotation_trig_lut_layout));
+    topology.add(input_layout("xattention_threshold", xattention_threshold_layout));
+    topology.add(input_layout("xattention_block_size", xattention_block_size_layout));
+    topology.add(input_layout("xattention_stride", xattention_stride_layout));
     topology.add(input_layout("input", input_layout_dynamic));
     topology.add(data("target_shape", target_shape));
     topology.add(data("subtract_one", subtract_one));
@@ -509,6 +532,7 @@ TEST(mark_shape_of_subgraphs, paged_attention_max_context_len_input) {
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::internal::key_cache_quant_mode(ov::internal::CacheQuantMode::BY_CHANNEL));
     network network(engine, topology, config);
 
     auto prog = network.get_program();

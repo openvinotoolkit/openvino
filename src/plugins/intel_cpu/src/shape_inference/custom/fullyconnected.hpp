@@ -2,8 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <node.h>
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/node.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -13,7 +20,7 @@ using Result = IShapeInfer::Result;
 
 class FCShapeInfer : public ShapeInferEmptyPads {
 public:
-    FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
+    explicit FCShapeInfer(size_t outPut_rank) : out_rank(outPut_rank) {}
     Result infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
                  const std::unordered_map<size_t, MemoryPtr>& data_dependency) override;
 
@@ -27,7 +34,7 @@ private:
 
 class FCShapeInferFactory : public ShapeInferFactory {
 public:
-    FCShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
+    explicit FCShapeInferFactory(const std::shared_ptr<ov::Node>& op) : m_op(op) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override {
         return std::make_shared<FCShapeInfer>(m_op->get_output_partial_shape(0).rank().get_length());
     }

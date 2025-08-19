@@ -25,17 +25,26 @@ GroupQueryAttention::GroupQueryAttention(const OutputVector& args,
 
 void GroupQueryAttention::validate_and_infer_types() {
     OV_OP_SCOPE(GroupQueryAttention_validate_and_infer_types);
-    // GQA expectes the following inputs: query, key, value, past_key, past_value, seqlens_k, cos_cache, sin_cache
-    // All qkv's should have the shape [batch, num_heads, seq_len, head_size] ([B, N, S, H])
-    // It has three outputs: output of shape [B, S, N * H], and present_key/value of shape [B, N, S, H]
-    // seqlens_k is number of 1's in the attention_mask minus 1
+    // GroupQueryAttention expects the following inputs:
+    // query, key, value, past_key, past_value, seqlens_k, cos_cache, sin_cache.
+    // All qkv tensors should have the shape [batch, num_heads, seq_len, head_size] ([B, N, S, H]).
+    // The operation produces three outputs:
+    // 1. Output tensor of shape [B, S, N * H].
+    // 2. Present_key tensor of shape [B, N, S, H].
+    // 3. Present_value tensor of shape [B, N, S, H].
+    // Note: seqlens_k represents the number of 1's in the attention_mask minus 1.
 
     const auto& q_shape = get_input_partial_shape(0);
     const auto& batch_size = q_shape[0];
     const auto& sequence_len = q_shape[2];
     const auto& head_size = q_shape[3];
-    const auto& past_sequence_len = get_input_partial_shape(3)[2];
-    const auto& output_kv_len = past_sequence_len + sequence_len;
+    auto kv_shape = PartialShape{batch_size, m_kv_num_heads, get_input_partial_shape(3)[2], head_size};
+    auto& output_kv_len = kv_shape[2];
+
+    if (output_kv_len.is_dynamic() || sequence_len.is_dynamic()) {
+        // For dynamic shapes, concatenate the past and current sequence lengths.
+        output_kv_len += sequence_len;
+    }
 
     const auto& element_type = get_input_element_type(0);
     NODE_VALIDATION_CHECK(this,
@@ -43,8 +52,9 @@ void GroupQueryAttention::validate_and_infer_types() {
                           "GroupQueryAttention only suuports f32 and f16");
 
     set_output_type(0, element_type, PartialShape{batch_size, sequence_len, head_size * m_num_heads});
-    set_output_type(1, element_type, PartialShape{batch_size, m_kv_num_heads, output_kv_len, head_size});
-    set_output_type(2, element_type, PartialShape{batch_size, m_kv_num_heads, output_kv_len, head_size});
+    for (auto&& port : {1, 2}) {
+        set_output_type(port, element_type, kv_shape);
+    }
 }
 
 bool GroupQueryAttention::visit_attributes(AttributeVisitor& visitor) {

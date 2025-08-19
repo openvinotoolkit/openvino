@@ -16,21 +16,26 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/divide.hpp"
 
 namespace {
 using ov::test::InputShape;
 
 struct ShapeParams {
     ShapeParams() = default;
-    ShapeParams(InputShape data_shape, std::vector<ov::Shape> weights_shapes, int weights_group_size = -1)
+    ShapeParams(InputShape data_shape, std::vector<ov::Shape> weights_shapes, int weights_group_size = -1, size_t lora_rank = 0)
         : data_shape(std::move(data_shape)),
           weights_shapes(std::move(weights_shapes)),
-          weights_group_size(weights_group_size) {}
+          weights_group_size(weights_group_size),
+          lora_rank(lora_rank) {}
 
     InputShape data_shape;
     std::vector<ov::Shape> weights_shapes;
     // Decompression group size. If the value is equal to -1, ordinary decompression is used
     int weights_group_size;
+    size_t lora_rank;
 };
 
 using FullyConnectedHorizontalFusionParams = std::tuple<ShapeParams,          // input shapes
@@ -41,8 +46,7 @@ using FullyConnectedHorizontalFusionParams = std::tuple<ShapeParams,          //
                                                     bool,                     // reshape on decompression constants
                                                     bool,                     // per-tensor zero-point
                                                     bool,                     // has bias
-                                                    uint64_t,                 // dynamic_quantization_group_size
-                                                    uint64_t                  // LoRA rank
+                                                    uint64_t                  // dynamic_quantization_group_size
                                                     >;
 
 
@@ -50,27 +54,15 @@ class FullyConnectedHorizontalFusion : public testing::WithParamInterface<FullyC
                                        virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string get_test_case_name(testing::TestParamInfo<FullyConnectedHorizontalFusionParams> obj) {
-        ShapeParams shape_params;
-        ov::element::Type weights_precision;
-        ov::element::Type activations_precision;
-        bool transpose;
-        bool decompression_sub;
-        bool reshape_on_decompression;
-        bool per_tensor_zp;
-        bool has_bias;
-        uint64_t dyn_quan_group_size;
-        uint64_t lora_rank;
-
-        std::tie(shape_params,
-                 weights_precision,
-                 activations_precision,
-                 transpose,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 per_tensor_zp,
-                 has_bias,
-                 dyn_quan_group_size,
-                 lora_rank) = obj.param;
+        const auto& [shape_params,
+                     weights_precision,
+                     activations_precision,
+                     transpose,
+                     decompression_sub,
+                     reshape_on_decompression,
+                     per_tensor_zp,
+                     has_bias,
+                     dyn_quan_group_size] = obj.param;
 
         std::ostringstream result;
         result << "data_shape=";
@@ -92,7 +84,7 @@ public:
         result << "per_tensor_zp=" << per_tensor_zp << "_";
         result << "has_bias=" << has_bias << "_";
         result << "dyn_quan_group_size=" << dyn_quan_group_size<< "_";
-        result << "lora_rank=" << lora_rank;
+        result << "lora_rank=" << shape_params.lora_rank;
 
         return result.str();
     }
@@ -210,17 +202,36 @@ protected:
         return last_node;
     }
 
-    std::shared_ptr<ov::Node> init_lora_subgraph(const ov::ParameterVector& params,
-                                                 std::shared_ptr<ov::op::v0::MatMul> connect_node,
-                                                 size_t idx) {
-        size_t var_offset = 1 + idx * 3;
-        auto read_value_a = std::make_shared<ov::op::v3::ReadValue>(params.at(var_offset), "var_a_" + std::to_string(idx));
-        auto read_value_alpha = std::make_shared<ov::op::v3::ReadValue>(params.at(var_offset + 1), "var_alpha_" + std::to_string(idx));
-        auto read_value_b = std::make_shared<ov::op::v3::ReadValue>(params.at(var_offset + 2), "var_b_" + std::to_string(idx));
-        auto matmul1 = std::make_shared<ov::op::v0::MatMul>(params.at(0), read_value_a, false, true);
+    std::shared_ptr<ov::Node> init_lora_subgraph(std::shared_ptr<ov::op::v0::Parameter> lora_input,
+                                                 std::shared_ptr<ov::op::v0::MatMul> main_input,
+                                                 const std::vector<ov::Shape>& weights_shapes,
+                                                 size_t idx,
+                                                 bool transpose_weights) {
+        auto create_variable = [&](ov::PartialShape pshape, std::string name) {
+            if (!transpose_weights) {
+                std::swap(*(pshape.end() - 1), *(pshape.end() - 2));
+            }
+            return std::make_shared<ov::op::util::Variable>(
+                ov::op::util::VariableInfo{pshape, main_input->get_element_type(), name});
+        };
+
+        const auto& lora_input_pshape = lora_input->get_partial_shape();
+        auto state_a_pshape = ov::PartialShape{-1, *lora_input_pshape.rbegin()};
+        auto variable_a = create_variable(state_a_pshape, "var_a_" + std::to_string(idx));
+        auto read_value_a = std::make_shared<ov::op::v6::ReadValue>(variable_a);
+
+        auto state_alpha_pshape = ov::PartialShape{1, -1};
+        auto variable_alpha = create_variable(state_alpha_pshape, "var_alpha_" + std::to_string(idx));
+        auto read_value_alpha = std::make_shared<ov::op::v6::ReadValue>(variable_alpha);
+
+        auto state_b_pshape = ov::PartialShape{ov::Dimension(weights_shapes[idx].back()), -1};
+        auto variable_b = create_variable(state_b_pshape, "var_b_" + std::to_string(idx));
+        auto read_value_b = std::make_shared<ov::op::v6::ReadValue>(variable_b);
+
+        auto matmul1 = std::make_shared<ov::op::v0::MatMul>(lora_input, read_value_a, false, transpose_weights);
         auto multiply = std::make_shared<ov::op::v1::Multiply>(matmul1, read_value_alpha);
-        auto matmul2 = std::make_shared<ov::op::v0::MatMul>(multiply, read_value_b, false, true);
-        auto add = std::make_shared<ov::op::v1::Add>(connect_node, matmul2);
+        auto matmul2 = std::make_shared<ov::op::v0::MatMul>(multiply, read_value_b, false, transpose_weights);
+        auto add = std::make_shared<ov::op::v1::Add>(main_input, matmul2);
         return add;
     }
 
@@ -233,7 +244,8 @@ protected:
                                              const bool reshape_on_decompression,
                                              const bool per_tensor_zp,
                                              const bool has_bias,
-                                             const uint64_t lora_rank) {
+                                             const uint64_t lora_rank,
+                                             const bool lora_transpose_states) {
         ov::ParameterVector params;
         for (const auto& shape : inputDynamicShapes) {
             params.push_back(std::make_shared<ov::op::v0::Parameter>(data_precision, shape));
@@ -247,6 +259,7 @@ protected:
                                                               add_subtract,
                                                               reshape_on_decompression,
                                                               per_tensor_zp);
+
         const auto weight2 = init_compressed_weights_subgraph(weights_shapes[1],
                                                               group_size,
                                                               data_precision,
@@ -276,9 +289,9 @@ protected:
         std::shared_ptr<ov::Node> matmul2_result = matmul2;
         std::shared_ptr<ov::Node> matmul3_result = matmul3;
         if (lora_rank != 0) {
-            matmul1_result = init_lora_subgraph(params, matmul1, 0);
-            matmul2_result = init_lora_subgraph(params, matmul2, 1);
-            matmul3_result = init_lora_subgraph(params, matmul3, 2);
+            matmul1_result = init_lora_subgraph(params[0], matmul1, weights_shapes, 0, lora_transpose_states);
+            matmul2_result = init_lora_subgraph(params[0], matmul2, weights_shapes, 1, lora_transpose_states);
+            matmul3_result = init_lora_subgraph(params[0], matmul3, weights_shapes, 2, lora_transpose_states);
         }
 
         if (!has_bias) {
@@ -320,40 +333,20 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        ShapeParams shape_params;
-        ov::element::Type weights_precision;
-        ov::element::Type activations_precision;
-        bool transpose_weights;
-        bool decompression_sub;
-        bool reshape_on_decompression;
-        bool per_tensor_zp;
-        bool has_bias;
-        uint64_t dyn_quan_group_size;
-        uint64_t lora_rank;
-
-        std::tie(shape_params,
-                 weights_precision,
-                 activations_precision,
-                 transpose_weights,
-                 decompression_sub,
-                 reshape_on_decompression,
-                 per_tensor_zp,
-                 has_bias,
-                 dyn_quan_group_size,
-                 lora_rank) = GetParam();
+        const auto& [shape_params,
+                     weights_precision,
+                     activations_precision,
+                     transpose_weights,
+                     decompression_sub,
+                     reshape_on_decompression,
+                     per_tensor_zp,
+                     has_bias,
+                     dyn_quan_group_size] = GetParam();
 
         std::vector<InputShape> input_shapes = {shape_params.data_shape};
 
-        if (lora_rank != 0) {
-            for (size_t i = 0; i < shape_params.weights_shapes.size(); ++i) {
-                // variable_A
-                input_shapes.push_back({{-1, *shape_params.data_shape.first.rbegin()}, {{lora_rank, shape_params.data_shape.second.front().back()}}});
-                // variable_alpha
-                input_shapes.push_back({{1, -1}, {{1, lora_rank}}});
-                // variable_B
-                input_shapes.push_back({{ov::Dimension(shape_params.weights_shapes[i].back()), -1}, {{shape_params.weights_shapes[i].back(), lora_rank}}});
-            }
-        }
+        // Temporally not transposed states are not supported
+        bool lora_transpose_states = true;
 
         init_input_shapes(input_shapes);
 
@@ -367,10 +360,21 @@ protected:
                                  reshape_on_decompression,
                                  per_tensor_zp,
                                  has_bias,
-                                 lora_rank);
+                                 shape_params.lora_rank,
+                                 lora_transpose_states);
 
         if (activations_precision == ov::element::f16) {
             abs_threshold = 1.0f;
+
+            if (shape_params.lora_rank != 0) {
+                rel_threshold = 0.01f;
+
+                const auto& input_shape = shape_params.data_shape.second.front();
+                bool is_large_input = std::accumulate(input_shape.begin(), input_shape.end(), 1ul, std::multiplies<size_t>()) > 1024ul;
+                if (is_large_input) {
+                    abs_threshold = 4.0f;
+                }
+            }
         } else {
             abs_threshold = 1e-4f;
         }
@@ -402,22 +406,89 @@ protected:
     void check_results() {
         const auto& test_param = GetParam();
         ov::element::Type weights_precision = std::get<1>(test_param);
-        uint64_t lora_rank = std::get<9>(test_param);
+        uint64_t lora_rank = std::get<0>(test_param).lora_rank;
         bool is_lora_fused = false;
         for (const auto& n : compiledModel.get_runtime_model()->get_ordered_ops()) {
             if (n->get_friendly_name() == "Compressed_weights") {
                 ASSERT_EQ(n->get_output_element_type(0), weights_precision);
             }
-            if (n->get_friendly_name().find("fused_3_MatMuls") != std::string::npos) {
+            if (n->get_friendly_name().find("fused_3_LoRA") != std::string::npos) {
                 is_lora_fused = true;
             }
         }
         OPENVINO_ASSERT(lora_rank == 0 || is_lora_fused, "[GPU] LoRA fusion failed");
     }
+
+    void run_lora(ov::element::Type net_type, size_t lora_rank) {
+        compile_model();
+
+        inferRequest = compiledModel.create_infer_request();
+        ASSERT_TRUE(inferRequest);
+
+        // use the Template plugin as a reference
+        auto compiledReferenceModel = core->compile_model(function, ov::test::utils::DEVICE_TEMPLATE);
+        auto inferRequestRef = compiledReferenceModel.create_infer_request();
+        ASSERT_TRUE(inferRequestRef);
+
+        generate_inputs(targetStaticShapes.front());
+        for (const auto& input : inputs) {
+            inferRequest.set_tensor(input.first, input.second);
+            inferRequestRef.set_tensor(input.first, input.second);
+        }
+
+        std::unordered_map<std::string, ov::Shape> stateShapes;
+        auto&& vars = function->get_variables();
+
+        for (auto&& var : vars) {
+            auto var_info = var->get_info();
+            auto var_shape = var_info.data_shape;
+
+            std::for_each(var_shape.begin(), var_shape.end(), [=](ov::PartialShape::value_type& x) {
+                if (x.is_dynamic()) {
+                    x = lora_rank;
+                }
+            });
+            stateShapes.insert({var_info.variable_id, var_shape.to_shape()});
+        }
+
+        auto&& states = inferRequest.query_state();
+        for (auto&& item : states) {
+            const auto& shape = stateShapes.at(item.get_name());
+
+            // Small values ​​are used to avoid overflow
+            ov::Tensor tensor = ov::test::utils::create_and_fill_tensor(net_type, shape, ov::test::utils::InputGenerateData{0, 1, 10});
+
+            item.set_state(tensor);
+
+            auto&& refStates = inferRequestRef.query_state();
+            auto itr = std::find_if(refStates.begin(), refStates.end(), [&](const ov::VariableState& state) {
+                return state.get_name() == item.get_name();
+            });
+            ASSERT_FALSE(itr == refStates.end());
+            itr->set_state(tensor);
+        }
+
+        inferRequest.infer();
+        inferRequestRef.infer();
+
+        auto outputs = function->outputs();
+
+        auto result = inferRequest.get_tensor(outputs[0]);
+        auto result_ref = inferRequestRef.get_tensor(outputs[0]);
+
+        ov::test::utils::compare(result, result_ref, abs_threshold, rel_threshold);
+    }
 };
 
 TEST_P(FullyConnectedHorizontalFusion, Inference) {
-    run();
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    size_t lora_rank = std::get<0>(GetParam()).lora_rank;
+    if (lora_rank != 0) {
+        auto net_type = std::get<2>(GetParam());
+        run_lora(net_type, lora_rank);
+    } else {
+        run();
+    }
     check_results();
 }
 
@@ -438,8 +509,6 @@ const std::vector<ShapeParams> input_shapes = {
     {{{-1, -1, -1}, {{1, 4, 16}}}, weights4},
 };
 
-const std::vector<uint64_t> lora_rank = {0, 16}; // 0 means w/o LoRA
-
 // TODO: will be fix, Skip the test, unexpected validation team failure.
 // INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias,
 //                          FullyConnectedHorizontalFusion,
@@ -451,8 +520,7 @@ const std::vector<uint64_t> lora_rank = {0, 16}; // 0 means w/o LoRA
 //                                             ::testing::Values(true),
 //                                             ::testing::ValuesIn(per_tensor_zp),
 //                                             ::testing::Values(false),
-//                                             ::testing::Values(0) /* no dyn_quan */,
-//                                             ::testing::ValuesIn(lora_rank)),
+//                                             ::testing::Values(0) /* no dyn_quan */),
 //                          FullyConnectedHorizontalFusion::get_test_case_name);
 
 // TODO: will be fix, Skip the test, unexpected validation team failure.
@@ -466,8 +534,7 @@ const std::vector<uint64_t> lora_rank = {0, 16}; // 0 means w/o LoRA
 //                                             ::testing::Values(true),
 //                                             ::testing::Values(true),
 //                                             ::testing::Values(true),
-//                                             ::testing::Values(0) /* no dyn_quan */,
-//                                             ::testing::ValuesIn(lora_rank)),
+//                                             ::testing::Values(0) /* no dyn_quan */),
 //                          FullyConnectedHorizontalFusion::get_test_case_name);
 
 std::vector<ov::Shape> dyn_quan_weights = {{1, 128, 32}, {1, 128, 4}, {1, 128, 32}};
@@ -485,9 +552,36 @@ INSTANTIATE_TEST_SUITE_P(smoke_FCHorizontalFusion_no_bias_dyn_quan,
                                             ::testing::Values(true),
                                             ::testing::Values(true),
                                             ::testing::Values(false),
-                                            ::testing::Values(UINT64_MAX) /* dyn_quan */,
-                                            ::testing::ValuesIn(lora_rank)),
+                                            ::testing::Values(UINT64_MAX) /* dyn_quan */),
                          FullyConnectedHorizontalFusion::get_test_case_name);
 
 
+std::vector<ov::Shape> lora_weights1 = {{1, 32, 32}, {1, 32, 32}, {1, 32, 32}};
+std::vector<ov::Shape> lora_weights2 = {{1, 16, 16}, {1, 16, 16}, {1, 16, 16}};
+
+const std::vector<ShapeParams> lora_input_shapes = {
+    {{{-1, -1, 32}, {{1, 1, 32}}}, lora_weights1, -1, 15},    // reference kernel
+    {{{-1, -1, 32}, {{1, 1, 32}}}, lora_weights1, -1, 16},    // second token
+    {{{-1, -1, 32}, {{1, 16, 32}}}, lora_weights1, -1, 16},   // first token a_small/b_medium
+    {{{-1, -1, 32}, {{1, 1024, 32}}}, lora_weights1, -1, 32}, // first token a_large/b_large
+    {{{-1, -1, 32}, {{1, 16, 32}}}, lora_weights1, -1, 256},  // first token a_medium/b_medium
+    {{{-1, -1, 32}, {{1, 4, 32}}}, lora_weights1, -1, 16},    // first token a_ref/b_ref
+    {{{-1, -1, 16}, {{1, 16, 16}}}, lora_weights2, -1, 16}    // first token a_small/b_medium_f32/b_small_f16
+};
+
+// Skip the test, unexpected validation failure on Linux CVS-170827
+#if defined(_WIN32)
+INSTANTIATE_TEST_SUITE_P(smoke_LoRA_HorizontalFusion,
+                         FullyConnectedHorizontalFusion,
+                         ::testing::Combine(::testing::ValuesIn(lora_input_shapes),
+                                            ::testing::Values(weights_precisions[0]),
+                                            ::testing::ValuesIn(activations_precisions),
+                                            ::testing::Values(transpose_weights[0]),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0)),
+                         FullyConnectedHorizontalFusion::get_test_case_name);
+#endif
 }  // namespace

@@ -16,6 +16,19 @@
 namespace ov::intel_gpu::ocl {
 
 JitConstants KernelGenerator::make_tensors_jit_constants(const RuntimeParams& params) {
+    static std::map<size_t, JitConstants> tensors_jit_constants_cache;
+    static std::mutex m;
+
+    size_t params_hash = params.hash();
+
+    std::lock_guard<std::mutex> lock(m);
+
+    auto it_jit = tensors_jit_constants_cache.find(params_hash);
+
+    if (it_jit != tensors_jit_constants_cache.end()) {
+        return it_jit->second;
+    }
+
     JitConstants jit_constants;
 
     const auto& in_offsets_map = params.in_port_to_shape_info_offset;
@@ -29,6 +42,8 @@ JitConstants KernelGenerator::make_tensors_jit_constants(const RuntimeParams& pa
     for (size_t i = 1; i < params.output_layouts.size(); i++) {
         jit_constants.add(make_layout_jit_constants("OUTPUT" + to_code_string(i), params.output_layouts[i], out_offsets_map.at(i)));
     }
+
+    tensors_jit_constants_cache.emplace(params_hash, jit_constants);
 
     return jit_constants;
 }
@@ -82,7 +97,7 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.code = std::make_shared<KernelString>();
     kd.code->language = KernelLanguage::OCLC_V2;
     kd.code->entry_point = get_entry_point(params);
-    kd.code->jit = "";  // jit and undefa are a part of the code now
+    kd.code->jit = "";  // jit and undefs are a part of the code now
     kd.code->undefs = "";
     kd.code->options = get_build_options(params);
     kd.code->batch_compilation = true;
@@ -90,6 +105,7 @@ KernelData KernelGenerator::get_kernel_data(const RuntimeParams& params) const {
     kd.code->str = build_code(m_kernel_name, jit, kd.code->entry_point);
 
     kd.params.arguments = get_arguments_desc(params);
+    kd.params.layerID = params.desc->id;
     kd.update_dispatch_data_func = get_dispatch_data_func();
     kd.need_args_update = true;
     kd.need_dispatch_data_update = true;
@@ -108,10 +124,10 @@ std::string KernelGenerator::get_build_options(const RuntimeParams& params) cons
         options = " -cl-mad-enable";
     }
 
-#if CL_TARGET_OPENCL_VERSION >= 200
-    options += " -cl-std=CL2.0";
-#endif
-
+    if (device_info.supports_work_group_collective_functions)
+        options += " -cl-std=CL3.0";
+    else
+        options += " -cl-std=CL2.0";
     return options;
 }
 
@@ -128,7 +144,18 @@ Arguments KernelGenerator::get_arguments_desc(const RuntimeParams& params) const
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
     }
 
-    for (uint32_t i = 0; i < params.input_layouts.size(); i++) {
+    size_t num_fused_deps_with_external_input = 0;
+    if (params.has_fused_primitives()) {
+        for (const auto& fd : params.fused_desc) {
+            for (const auto& in_d : fd.inputs) {
+                if (in_d.m_type == cldnn::FusedInputType::EXTERNAL) {
+                    num_fused_deps_with_external_input++;
+                }
+            }
+        }
+    }
+
+    for (uint32_t i = 0; i < params.input_layouts.size() - num_fused_deps_with_external_input; i++) {
         args.push_back({ArgumentDescriptor::Types::INPUT, i});
     }
 

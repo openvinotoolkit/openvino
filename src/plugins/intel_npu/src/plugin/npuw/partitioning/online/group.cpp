@@ -244,7 +244,6 @@ void Group::fuse(const Group::GPtr& gptr_prod) {
 
 // This group absorbs the consumer
 void Group::fuseWith(const Group::GPtr& gptr_cons) {
-    // Update ov::node to own::ade::NodeHandle map
     auto locked_snapshot = m_snapshot.lock();
     auto node_to_gr = locked_snapshot->getNodeToGroupMap();
     for (const auto& layer : gptr_cons->m_content) {
@@ -397,9 +396,11 @@ std::unordered_set<MetaInterconnect> Group::metaInterconnect(const Group::GPtr& 
         mics.insert({ov::npuw::online::util::getMetaDesc(ic.input_node),
                      gptr_prod->m_reptrack.at(ic.input_node),
                      ic.input_port,
+                     gptr_prod->m_output_layers.size(),
                      ov::npuw::online::util::getMetaDesc(ic.output_node),
                      m_reptrack.at(ic.output_node),
-                     ic.output_port});
+                     ic.output_port,
+                     m_output_layers.size()});
     }
 
     return mics;

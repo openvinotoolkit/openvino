@@ -4,9 +4,25 @@
 
 #include "convolution.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/util/attr_types.hpp"
+#include "openvino/op/util/convolution_base.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -73,7 +89,7 @@ VectorDims convolution_shape_infer(const VectorDims& data_shape,
 }
 
 Result ConvolutionShapeInfer::infer(const std::vector<std::reference_wrapper<const VectorDims>>& input_shapes,
-                                    const std::unordered_map<size_t, MemoryPtr>&) {
+                                    const std::unordered_map<size_t, MemoryPtr>& /*data_dependency*/) {
     assert(input_shapes.size() >= 2);
     const auto& data_shape = input_shapes[0].get();
     const auto& filters_shape = input_shapes[1].get();
@@ -98,7 +114,7 @@ ShapeInferPtr ConvolutionShapeInferFactory::makeShapeInfer() const {
             convolution->get_dilations(),
             convolution->get_pads_begin(),
             convolution->get_pads_end(),
-            one_of(convolution->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER),
+            any_of(convolution->get_auto_pad(), ov::op::PadType::SAME_LOWER, ov::op::PadType::SAME_UPPER),
             is_grouped);
     }
 

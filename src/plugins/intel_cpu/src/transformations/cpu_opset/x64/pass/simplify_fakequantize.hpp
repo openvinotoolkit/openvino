@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+#include <algorithm>
+#include <cstddef>
+#include <cstdlib>
+#include <memory>
 #include <vector>
 
+#include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/fake_quantize.hpp"
@@ -11,7 +16,7 @@
 namespace ov::intel_cpu {
 
 inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::op::v0::FakeQuantize>& fq_node,
-                                          float threshold = 0.0001f) {
+                                          float threshold = 0.0001F) {
     auto levels = fq_node->get_levels();
     auto input_low = ov::as_type_ptr<ov::op::v0::Constant>(fq_node->get_input_node_shared_ptr(1))->cast_vector<float>();
     auto input_high =
@@ -51,20 +56,20 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::op::v0::Fake
         std::all_of(cl.cbegin(),
                     cl.cend(),
                     [](float val) {
-                        return val == 0.0f;
+                        return val == 0.0F;
                     }) &&
         std::all_of(ish.cbegin(),
                     ish.cend(),
                     [](float val) {
-                        return val == 0.0f;
+                        return val == 0.0F;
                     }) &&
         std::all_of(osc.cbegin(),
                     osc.cend(),
                     [](float val) {
-                        return val == 1.0f;
+                        return val == 1.0F;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [](float val) {
-            return val == 0.0f;
+            return val == 0.0F;
         })) {
         outScale = isc;
     }
@@ -73,25 +78,25 @@ inline std::vector<float> simplifyToScale(const std::shared_ptr<ov::op::v0::Fake
         std::all_of(ish.cbegin(),
                     ish.cend(),
                     [&threshold](float val) {
-                        return std::abs(val - 128.f) < threshold;
+                        return std::abs(val - 128.F) < threshold;
                     }) &&
         std::all_of(osc.cbegin(),
                     osc.cend(),
                     [](float val) {
-                        return val == 1.f;
+                        return val == 1.F;
                     }) &&
         std::all_of(osh.cbegin(), osh.cend(), [&threshold](float val) {
-            return std::abs(val + 128.f) < threshold;
+            return std::abs(val + 128.F) < threshold;
         })) {
         bool isCropAligned = true;
         for (size_t i = 0; i < std::max(cl.size(), isc.size()); i++) {
-            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.f) > threshold) {
+            if (std::abs(cl[cl.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] + 128.F) > threshold) {
                 isCropAligned = false;
             }
         }
 
         for (size_t i = 0; i < std::max(ch.size(), isc.size()); i++) {
-            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.f) > threshold) {
+            if (std::abs(ch[ch.size() == 1 ? 0 : i] * isc[isc.size() == 1 ? 0 : i] - 127.F) > threshold) {
                 isCropAligned = false;
             }
         }

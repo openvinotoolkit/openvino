@@ -6,12 +6,19 @@
 
 #include <nodes/common/blocked_desc_creator.h>
 
-#include <common/utils.hpp>
+#include <algorithm>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <openvino/itt.hpp>
 #include <shape_inference/shape_inference_cpu.hpp>
 #include <string>
+#include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -29,19 +36,19 @@
 #include "onednn/dnnl.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/cc/factory.h"
+#include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
+#include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "perf_count.h"
-#include "selective_build.h"
 #include "utils/bit_util.hpp"
 #include "utils/debug_capabilities.h"
 
-#define THROW_CPU_NODE_ERR(...) \
-    OPENVINO_THROW("[CPU] ", getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
+#define CPU_NODE_THROW(...) OPENVINO_THROW("[CPU] ", getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 #define CPU_NODE_ASSERT(condition, ...) \
     OPENVINO_ASSERT(condition, getTypeStr(), " node with name '", getName(), "' ", __VA_ARGS__)
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 using NodePtr = std::shared_ptr<Node>;
 using NodeConstPtr = std::shared_ptr<const Node>;
@@ -61,7 +68,7 @@ public:
           inPlace(inPlace) {}
 
     PortConfigurator(ov::intel_cpu::LayoutType blockedDescType,
-                     ov::element::Type prc = ov::element::dynamic,
+                     ov::element::Type prc,
                      bool constant = false,
                      int inPlace = -1)
         : blockedDescCreator(getBlockedDescCreator(blockedDescType)),
@@ -78,10 +85,8 @@ public:
 private:
     static ov::intel_cpu::BlockedDescCreator::CreatorConstPtr getBlockedDescCreator(
         ov::intel_cpu::LayoutType blockedDescType) {
-        auto& creators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
-        if (creators.find(blockedDescType) == creators.end()) {
-            OPENVINO_THROW("Cannot find tensor descriptor creator");
-        }
+        const auto& creators = ov::intel_cpu::BlockedDescCreator::getCommonCreators();
+        OPENVINO_ASSERT(creators.find(blockedDescType) != creators.end(), "Cannot find tensor descriptor creator");
         return creators.at(blockedDescType);
     }
 };
@@ -98,7 +103,7 @@ public:
           implementationType(type),
           executorFactory(std::move(factory)) {}
 
-    const NodeConfig& getConfig() const {
+    [[nodiscard]] const NodeConfig& getConfig() const {
         return config;
     }
 
@@ -106,7 +111,7 @@ public:
         this->config = config;
     }
 
-    impl_desc_type getImplementationType() const {
+    [[nodiscard]] impl_desc_type getImplementationType() const {
         return implementationType;
     }
 
@@ -114,17 +119,16 @@ public:
         implementationType = type;
     }
 
-    ExecutorFactoryLegacyPtr getExecutorFactory() const {
+    [[nodiscard]] ExecutorFactoryLegacyPtr getExecutorFactory() const {
         return executorFactory;
     }
 
     template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<ExecutorFactoryLegacy, T>::value, int>::type = 0>
+              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
+              std::enable_if_t<std::is_base_of_v<ExecutorFactoryLegacy, T>, int> = 0>
     std::shared_ptr<T> getExecutorFactoryAs() {
         auto casted = std::dynamic_pointer_cast<T>(executorFactory);
-        if (!casted)
-            OPENVINO_THROW("Cannot dynamically cast ExecutorFactory");
+        OPENVINO_ASSERT(casted, "Cannot dynamically cast ExecutorFactory");
         return casted;
     }
 
@@ -132,14 +136,14 @@ public:
         executorFactory = std::move(factory);
     }
 
-    bool hasZeroInputDims() const {
+    [[nodiscard]] bool hasZeroInputDims() const {
         const auto& inputConfigs = getConfig().inConfs;
         return std::any_of(inputConfigs.begin(), inputConfigs.end(), [](const PortConfig& portConfig) {
             return portConfig.hasZeroDims();
         });
     }
 
-    bool hasZeroInputDimsAtPort(size_t portIdx) const {
+    [[nodiscard]] bool hasZeroInputDimsAtPort(size_t portIdx) const {
         const auto& inputConfigs = getConfig().inConfs;
         OPENVINO_ASSERT(portIdx < inputConfigs.size(),
                         "Attempt to get NodeDesc input configuration for port ",
@@ -149,14 +153,14 @@ public:
         return inputConfigs[portIdx].hasZeroDims();
     }
 
-    bool hasZeroOutputDims() const {
+    [[nodiscard]] bool hasZeroOutputDims() const {
         const auto& outputConfigs = getConfig().outConfs;
         return std::any_of(outputConfigs.begin(), outputConfigs.end(), [](const PortConfig& portConfig) {
             return portConfig.hasZeroDims();
         });
     }
 
-    bool hasZeroOutputDimsAtPort(size_t portIdx) const {
+    [[nodiscard]] bool hasZeroOutputDimsAtPort(size_t portIdx) const {
         const auto& outputConfigs = getConfig().outConfs;
         OPENVINO_ASSERT(portIdx < outputConfigs.size(),
                         "Attempt to get NodeDesc output configuration for port ",
@@ -179,12 +183,11 @@ public:
 
     using AttrPtr = std::shared_ptr<dnnl::primitive_attr>;
 
-public:
     template <typename T, int N>
     struct Tag {};
 
     struct PerfCounters {
-        PerfCounters(const std::string& name)
+        explicit PerfCounters(const std::string& name)
             : execute(openvino::itt::handle(name)),
               getSupportedDescriptors(openvino::itt::handle<Tag<Node, 0>>("Node::getSupportedDescriptors")),
               initSupportedPrimitiveDescriptors(
@@ -336,7 +339,7 @@ public:
         return !hasEmptyInputTensors();
     }
 
-    enum class ConstantType {
+    enum class ConstantType : uint8_t {
         Const,          // Node is placed in a constant subgraph
         NoConst,        // Node is placed in a non-constant subgraph
         StrictNoConst,  // Node produces non-constant subgraph: this type can't be changed and it does not depend on the
@@ -344,7 +347,7 @@ public:
     };
     ConstantType getConstantType() const;
     void updateConstantType();
-    bool isConstant();
+    bool isConstant() const;
 
     // return type int supports return -1 in overloading when channel axis doesn't exist
     virtual int getFusingAxis() const {
@@ -359,7 +362,7 @@ public:
 
     virtual void addFusedNode(const NodePtr& fusingNode);
 
-    virtual void fuseInto(NodePtr& parentNode) {
+    virtual void fuseInto(const NodePtr& parentNode) {
         // The graph supports fusing only of consecutive nodes and some graph logic requires to know through which input
         // port a node was fused into parent one.
         for (size_t i = 0; i < getParentEdges().size(); i++) {
@@ -379,9 +382,11 @@ public:
             }
         }
 
-        if (getFusingPort() == -1) {
-            OPENVINO_THROW("Cannot determine fusing port between nodes: ", parentNode->getName(), " and ", getName());
-        }
+        OPENVINO_ASSERT(getFusingPort() != -1,
+                        "Cannot determine fusing port between nodes: ",
+                        parentNode->getName(),
+                        " and ",
+                        getName());
 
         parentNode->addFusedNode(getParentEdgeAt(getFusingPort())->getChild());
         parentNode->addOriginalLayer(getOriginalLayers());
@@ -433,17 +438,19 @@ public:
         return supportedPrimitiveDescriptors;
     }
 
-    inline const NodeDesc* getSelectedPrimitiveDescriptor() const {
+    const NodeDesc* getSelectedPrimitiveDescriptor() const {
         if (selectedPrimitiveDescriptorIndex < 0 ||
-            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
+            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size()) {
             return nullptr;
+        }
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
-    inline NodeDesc* getSelectedPrimitiveDescriptor() {
+    NodeDesc* getSelectedPrimitiveDescriptor() {
         if (selectedPrimitiveDescriptorIndex < 0 ||
-            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size())
+            static_cast<size_t>(selectedPrimitiveDescriptorIndex) >= supportedPrimitiveDescriptors.size()) {
             return nullptr;
+        }
         return &supportedPrimitiveDescriptors[selectedPrimitiveDescriptorIndex];
     }
 
@@ -477,8 +484,8 @@ public:
      * @return pointer to selected primitive descriptor with type T
      */
     template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
+              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
     std::shared_ptr<T> getInputMemDescAtPort(size_t portNum) const;
 
     /**
@@ -488,15 +495,16 @@ public:
      * @return pointer to selected primitive descriptor with type T
      */
     template <typename T,
-              typename std::enable_if<!std::is_pointer<T>::value && !std::is_reference<T>::value, int>::type = 0,
-              typename std::enable_if<std::is_base_of<MemoryDesc, T>::value, int>::type = 0>
+              std::enable_if_t<!std::is_pointer_v<T> && !std::is_reference_v<T>, int> = 0,
+              std::enable_if_t<std::is_base_of_v<MemoryDesc, T>, int> = 0>
     std::shared_ptr<T> getOutputMemDescAtPort(size_t portNum) const;
 
     void selectPrimitiveDescriptorByIndex(int index) {
-        if (index < 0 || static_cast<size_t>(index) >= supportedPrimitiveDescriptors.size())
+        if (index < 0 || static_cast<size_t>(index) >= supportedPrimitiveDescriptors.size()) {
             selectedPrimitiveDescriptorIndex = -1;
-        else
+        } else {
             selectedPrimitiveDescriptorIndex = index;
+        }
 
         // Each primitive descriptor has its own InPlace status. So after new primitive descriptor selection
         // we should reset InPlace type to definite new status for node using Node::isInPlace()
@@ -518,8 +526,8 @@ public:
     void updateShapes();
     void updateDynamicParams();
     void executeDynamic(const dnnl::stream& strm, int numaId = -1);
-    virtual void redefineOutputMemory(const std::vector<VectorDims>& newShapes);
-    void redefineOutputMemory(const size_t port, const VectorDims& new_output_shape);
+    virtual void redefineOutputMemory(const std::vector<VectorDims>& newOutputShapes);
+    void redefineOutputMemory(size_t port, const VectorDims& new_output_shape) const;
     bool outputShapeDataDependency() const;
 
     virtual void initSupportedPrimitiveDescriptors();
@@ -602,29 +610,21 @@ public:
     }
 
     ov::element::Type getOriginalInputPrecisionAtPort(size_t port) const {
-        if (originalInputPrecisions.size() <= port) {
-            OPENVINO_THROW("Incorrect input port number for node ", getName());
-        }
+        OPENVINO_ASSERT(originalInputPrecisions.size() > port, "Incorrect input port number for node ", getName());
         return originalInputPrecisions[port];
     }
     ov::element::Type getOriginalOutputPrecisionAtPort(size_t port) const {
-        if (originalOutputPrecisions.size() <= port) {
-            OPENVINO_THROW("Incorrect output port number for node ", getName());
-        }
+        OPENVINO_ASSERT(originalOutputPrecisions.size() > port, "Incorrect output port number for node ", getName());
         return originalOutputPrecisions[port];
     }
 
     void setOriginalInputPrecisionAtPort(size_t port, ov::element::Type precision) {
-        if (originalInputPrecisions.size() <= port) {
-            OPENVINO_THROW("Incorrect input port number for node ", getName());
-        }
+        OPENVINO_ASSERT(originalInputPrecisions.size() > port, "Incorrect input port number for node ", getName());
         originalInputPrecisions[port] = precision;
     }
 
     void setOriginalOutputPrecisionAtPort(size_t port, ov::element::Type precision) {
-        if (originalOutputPrecisions.size() <= port) {
-            OPENVINO_THROW("Incorrect output port number for node ", getName());
-        }
+        OPENVINO_ASSERT(originalOutputPrecisions.size() > port, "Incorrect output port number for node ", getName());
         originalOutputPrecisions[port] = precision;
     }
 
@@ -665,7 +665,7 @@ public:
         algorithm = alg;
     }
 
-    virtual bool canFuse(const NodePtr& node) const {
+    virtual bool canFuse([[maybe_unused]] const NodePtr& node) const {
         return false;
     }
 
@@ -676,16 +676,12 @@ public:
     }
 
     const Shape& getInputShapeAtPort(size_t port) const {
-        if (inputShapes.size() <= port) {
-            OPENVINO_THROW("Incorrect input port number for node ", getName());
-        }
+        OPENVINO_ASSERT(inputShapes.size() > port, "Incorrect input port number for node ", getName());
         return inputShapes[port];
     }
 
     const Shape& getOutputShapeAtPort(size_t port) const {
-        if (outputShapes.size() <= port) {
-            OPENVINO_THROW("Incorrect output port number for node ", getName());
-        }
+        OPENVINO_ASSERT(outputShapes.size() > port, "Incorrect output port number for node ", getName());
         return outputShapes[port];
     }
 
@@ -703,7 +699,7 @@ public:
      */
     std::pair<std::vector<float>, std::vector<float>> getScalesAndShifts(const Node* parentNode) const;
 
-    void fuseDQScales(const float* scaleData, const size_t scaleSize);
+    void fuseDQScales(const float* scaleData, size_t scaleSize);
     const std::vector<float>& getDQScales() const {
         return DQScales;
     }
@@ -715,17 +711,17 @@ public:
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::unordered_map<int, MemoryPtr>& postOpsMem,
-                               const int channelAxis);
+                               int channelAxis);
     virtual void appendPostOps(dnnl::post_ops& ops,
                                const VectorDims& postOpDims,
                                std::vector<const void*>& postOpsMem,
-                               const int channelAxis);
+                               int channelAxis);
     virtual bool canBeExecutedInInt8() const {
         OPENVINO_THROW_NOT_IMPLEMENTED("canBeExecutedInInt8 not implemented for node with type ",
                                        NameFromType(getType()));
         return false;
     }
-    const bool keepOrigPrecision() const {
+    bool keepOrigPrecision() const {
         return keepOriginalPrecision;
     }
 
@@ -745,8 +741,7 @@ protected:
         return nullptr;
     }
 
-    typedef std::function<DnnlMemoryDescPtr(dnnl::primitive_desc& primitive_desc_it, size_t idx)>
-        GetPrimitiveMemoryFormatFunc;
+    using GetPrimitiveMemoryFormatFunc = std::function<DnnlMemoryDescPtr(dnnl::primitive_desc&, size_t)>;
     std::vector<GetPrimitiveMemoryFormatFunc> internalBlobDesc;
 
     std::vector<Shape> inputShapes;
@@ -757,8 +752,8 @@ protected:
 
     int curNumaNode = -1;
 
-    void toNumaNode(int numaID);
-    virtual void toNumaNodeImpl(int numaID);
+    void toNumaNode(int numaNodeID);
+    virtual void toNumaNodeImpl(int numaNodeID);
 
     std::string primitivesPriority;
     std::vector<impl_desc_type> customImplPriorities;
@@ -772,8 +767,8 @@ protected:
     Node(const std::shared_ptr<ov::Node>& op, GraphContext::CPtr ctx, const ShapeInferFactory& shapeInferFactory);
 
     Node(const std::string& type,
-         std::vector<Shape> inputShapes,
-         std::vector<Shape> outputShapes,
+         std::vector<Shape> inShapes,
+         std::vector<Shape> outShapes,
          std::vector<ov::element::Type> originalInputPrecisions,
          std::vector<ov::element::Type> originalOutputPrecisions,
          const std::string& name,
@@ -781,7 +776,7 @@ protected:
 
     int selectedPrimitiveDescriptorIndex = -1;
 
-    enum class InPlaceType { Unknown, InPlace, NoInPlace };
+    enum class InPlaceType : uint8_t { Unknown, InPlace, NoInPlace };
     mutable InPlaceType inplace = InPlaceType::Unknown;
     ConstantType constant = ConstantType::NoConst;
     std::vector<MemoryPtr> internalBlobs;
@@ -801,9 +796,9 @@ protected:
 
     void selectPreferPrimitiveDescriptor(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
     void selectPreferPrimitiveDescriptorWithShape(const std::vector<impl_desc_type>& priority, bool ignoreConstInputs);
-    bool isOneDimShape(const ov::PartialShape& pshape);
-    bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
-    bool isConfigDefined(const NodeConfig& config) const;
+    static bool isOneDimShape(const ov::PartialShape& pshape);
+    static bool isReorderRequired(const ov::intel_cpu::MemoryDescPtr& desc1, const ov::intel_cpu::MemoryDescPtr& desc2);
+    static bool isConfigDefined(const NodeConfig& config);
     virtual bool canBeInPlace() const;
 
     /* returns default implementaion prioirity */
@@ -814,7 +809,7 @@ protected:
 
     virtual std::vector<dnnl::memory::format_tag> getAvailableFormatsForDims(const Shape& dims) const;
 
-    dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims) const;
+    static dnnl::memory::format_tag getWeightsFormatTagByDims(const VectorDims& dims);
 
     /**
      * @brief Auxiliary function to get node input precisions
@@ -855,13 +850,13 @@ protected:
 
     bool inputShapesModified() const;
     virtual bool needShapeInfer() const;
-    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& inputDims) const;
+    std::vector<VectorDims> shapeInferGeneric(const std::vector<Shape>& shapes) const;
     virtual IShapeInfer::Result shapeInfer() const;
 
-    void execute(const dnnl::stream& stream, int numaId);
+    void execute(const dnnl::stream& strm, int numaId);
     virtual void execute(const dnnl::stream& strm) = 0;
     // TODO [DS] : make pure after all nodes support dynamic shapes
-    virtual void executeDynamicImpl(const dnnl::stream& strm) {
+    virtual void executeDynamicImpl([[maybe_unused]] const dnnl::stream& strm) {
         OPENVINO_THROW_NOT_IMPLEMENTED("[DS] executeDynamicImpl not implemented for node with type: ", getTypeStr());
     }
 
@@ -880,7 +875,7 @@ protected:
         return scratchpadMem;
     }
 
-    std::vector<VectorDims> lastInputDims = {};
+    std::vector<VectorDims> lastInputDims;
 
     std::shared_ptr<IShapeInfer> shapeInference;
 
@@ -903,7 +898,7 @@ private:
                     edges.end());
     }
 
-    bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges) const;
+    static bool isEdgesEmpty(const std::vector<EdgeWeakPtr>& edges);
 
     std::vector<EdgeWeakPtr> parentEdges;
     std::vector<EdgeWeakPtr> childEdges;
@@ -959,5 +954,4 @@ struct NodeImpl : public NodeType {
     }
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

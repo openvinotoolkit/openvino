@@ -21,15 +21,9 @@ class ShuffleChannelsLayerCPUTest : public testing::WithParamInterface<ShuffleCh
                                     virtual public SubgraphBaseTest,
                                     public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet> obj) {
-        InputShape shapes;
-        ElementType inType;
-        ov::test::shuffleChannelsSpecificParams shuffleChannelsParams;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, shuffleChannelsParams, cpuParams) = obj.param;
-        int axis, group;
-        std::tie(axis, group) = shuffleChannelsParams;
-
+    static std::string getTestCaseName(const testing::TestParamInfo<ShuffleChannelsLayerCPUTestParamsSet>& obj) {
+        const auto& [shapes, inType, shuffleChannelsParams, cpuParams] = obj.param;
+        const auto& [axis, group] = shuffleChannelsParams;
         std::ostringstream results;
         results << "IS=" << ov::test::utils::partialShape2str({shapes.first}) << "_";
         results << "TS=";
@@ -46,14 +40,8 @@ public:
 
 protected:
     void SetUp() override {
-        InputShape shapes;
-        ElementType inType;
-        ov::test::shuffleChannelsSpecificParams shuffleChannelsParams;
-        int axis, group;
-        CPUSpecificParams cpuParams;
-        std::tie(shapes, inType, shuffleChannelsParams, cpuParams) = this->GetParam();
-        std::tie(axis, group) = shuffleChannelsParams;
-
+        const auto& [shapes, inType, shuffleChannelsParams, cpuParams] = this->GetParam();
+        const auto& [axis, group] = shuffleChannelsParams;
         std::tie(inFmts, outFmts, priority, selectedType) = cpuParams;
         if (selectedType.empty()) {
             selectedType = getPrimitiveType();

@@ -4,25 +4,51 @@
 
 #include "matmul.h"
 
+#include <oneapi/dnnl/dnnl_types.h>
+
+#include <algorithm>
+#include <common/utils.hpp>
+#include <cstddef>
 #include <memory>
-#include <numeric>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 
-#include "common/cpu_memcpy.h"
+#include "common/primitive_attr.hpp"
 #include "common/primitive_hashing_utils.hpp"
 #include "cpu/x64/cpu_isa_traits.hpp"
+#include "cpu_shape.h"
 #include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "dnnl_postops_composer_legacy.h"
 #include "eltwise.h"
 #include "fake_quantize.h"
+#include "graph_context.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
 #include "memory_desc/dnnl_blocked_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "node.h"
+#include "nodes/executors/eltwise_config.hpp"
+#include "nodes/executors/matmul.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/matmul.hpp"
+#include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#ifdef OPENVINO_ARCH_X86_64
+#    include "executors/x64/matmul_small.hpp"
+#endif
+
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
@@ -80,14 +106,14 @@ bool MatMul::canBeExecutedInInt8() const {
     auto firstInputPrecision = getOriginalInputPrecisionAtPort(0);
     auto secondInputPrecision = getOriginalInputPrecisionAtPort(1);
 
-    return one_of(firstInputPrecision, ov::element::u8, ov::element::i8) && secondInputPrecision == ov::element::i8;
+    return any_of(firstInputPrecision, ov::element::u8, ov::element::i8) && secondInputPrecision == ov::element::i8;
 }
 
 bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        const auto matMul = ov::as_type_ptr<const ov::opset1::MatMul>(op);
+        const auto matMul = ov::as_type_ptr<const ov::op::v0::MatMul>(op);
         if (!matMul) {
-            errorMessage = "Only opset1 MatMul operation is supported";
+            errorMessage = "Only v0 MatMul operation is supported";
             return false;
         }
 
@@ -112,22 +138,21 @@ bool MatMul::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std
 }
 
 MatMul::MatMul(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
-    : Node(op, context, MMShapeInferFactory(op)),
-      withBiases(false) {
+    : Node(op, context, MMShapeInferFactory(op)) {
     std::string errorMessage;
 
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto matMul = ov::as_type_ptr<const ov::opset1::MatMul>(op);
+    const auto matMul = ov::as_type_ptr<const ov::op::v0::MatMul>(op);
 
     if (!matMul) {
         OPENVINO_THROW_NOT_IMPLEMENTED("Operation with name ",
                                        op->get_friendly_name(),
                                        ":",
                                        op->get_type_name(),
-                                       " is not an instance of MatMul from opset1");
+                                       " is not an instance of MatMul from v0");
     }
 
     transposeIn[0] = matMul->get_transpose_a();
@@ -138,7 +163,7 @@ bool MatMul::canFuse(const NodePtr& node) const {
     // WA for CVS-84056: oneDNN brgemm impl has problem with per-OC binary-postOps for MatMul with 6D inputs
     if (impl::cpu::x64::mayiuse(impl::cpu::x64::avx512_core)) {
         if (auto* eltwiseNode = dynamic_cast<Eltwise*>(node.get())) {
-            if (eltwiseNode->getBroadcastingPolicy() == Eltwise::BroadcastingPolicy::PerChannel) {
+            if (eltwiseNode->getBroadcastingPolicy() == EltwiseBroadcastingPolicy::PerChannel) {
                 auto rank = getInputShapeAtPort(0).getRank();
                 if (rank > 4) {
                     DEBUG_LOG("skip fusing non-perTensor Eltwise:",
@@ -156,7 +181,7 @@ bool MatMul::canFuse(const NodePtr& node) const {
     //  inserted after matmul. In some bert model, this reorder causes great perf degradation. Todo: Remove this if
     //  onednn primitive support U8 output with floating input.
     if (node->getType() == Type::FakeQuantize &&
-        one_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::i8, ov::element::u8) && !canBeExecutedInInt8() &&
+        any_of(node->getOriginalOutputPrecisionAtPort(0), ov::element::i8, ov::element::u8) && !canBeExecutedInInt8() &&
         getOriginalInputPrecisionAtPort(0) == ov::element::f32) {
         return false;
     }
@@ -198,11 +223,11 @@ void MatMul::setPostOps(dnnl::primitive_attr& attr, const VectorDims& dims, [[ma
             continue;
         }
 
-        THROW_CPU_NODE_ERR("Fusing of ",
-                           NameFromType(node->getType()),
-                           " operation to ",
-                           NameFromType(this->getType()),
-                           " node is not implemented");
+        CPU_NODE_THROW("Fusing of ",
+                       NameFromType(node->getType()),
+                       " operation to ",
+                       NameFromType(this->getType()),
+                       " node is not implemented");
     }
 
     attr.set_post_ops(ops);
@@ -268,12 +293,10 @@ dnnl::memory::desc MatMul::getBiasDescFrom(const DnnlMemoryDescCPtr& outMemDesc)
 }
 
 void MatMul::getSupportedDescriptors() {
-    if (getParentEdges().size() != getOriginalInputsNumber()) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges for layer ", getName());
-    }
-    if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges for layer ", getName());
-    }
+    CPU_NODE_ASSERT(getParentEdges().size() == getOriginalInputsNumber(),
+                    "has incorrect number of input edges for layer ",
+                    getName());
+    CPU_NODE_ASSERT(!getChildEdges().empty(), "has incorrect number of output edges for layer ", getName());
 
     withBiases = getOriginalInputsNumber() == 3;
 
@@ -286,13 +309,13 @@ void MatMul::getSupportedDescriptors() {
     }
 
     // fallback to fp32 for any precision that cannot be handled natively
-    if ((!one_of(firstInPortPrec,
+    if ((none_of(firstInPortPrec,
                  ov::element::u8,
                  ov::element::i8,
                  ov::element::bf16,
                  ov::element::f16,
                  ov::element::f32) ||
-         !one_of(secondInPortPrec, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32))) {
+         none_of(secondInPortPrec, ov::element::i8, ov::element::bf16, ov::element::f16, ov::element::f32))) {
         outPortPrec = firstInPortPrec = secondInPortPrec = ov::element::f32;
     }
 
@@ -319,9 +342,8 @@ void MatMul::getSupportedDescriptors() {
     const auto& inputShape1 = getInputShapeAtPort(1);
     auto outputShape = getOutputShapeAtPort(0);
 
-    if (inputShape0.getRank() != inputShape1.getRank() || inputShape0.getRank() != outputShape.getRank()) {
-        THROW_CPU_NODE_ERR("has invalid dims count");
-    }
+    CPU_NODE_ASSERT(all_of(inputShape0.getRank(), inputShape1.getRank(), outputShape.getRank()),
+                    "has invalid dims count");
 
     const int nDims = inputShape0.getRank();
     const auto xAxis = nDims - 1;
@@ -338,13 +360,13 @@ void MatMul::getSupportedDescriptors() {
     // coverity[copy_paste_error]
     if (!dimsEqualWeak(inDims0[xAxis0], inDims1[yAxis1]) || !dimsEqualWeak(inDims0[yAxis0], outDims[yAxis]) ||
         !dimsEqualWeak(inDims1[xAxis1], outDims[xAxis])) {
-        THROW_CPU_NODE_ERR("has incorrect spatial input and output dimensions");
+        CPU_NODE_THROW("has incorrect spatial input and output dimensions");
     }
 
     for (int dim_idx = nDims - 3; dim_idx >= 0; dim_idx--) {
         if ((!dimsEqualWeak(inDims0[dim_idx], outDims[dim_idx]) && !dimsEqualWeak(inDims0[dim_idx], 1)) ||
             (!dimsEqualWeak(inDims1[dim_idx], outDims[dim_idx]) && !dimsEqualWeak(inDims1[dim_idx], 1))) {
-            THROW_CPU_NODE_ERR("has incorrect input batch dimensions");
+            CPU_NODE_THROW("has incorrect input batch dimensions");
         }
     }
 
@@ -371,11 +393,8 @@ void MatMul::getSupportedDescriptors() {
 }
 
 std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Shape& in1, const Shape& out) const {
-    if (in0.getRank() < 2 || in1.getRank() < 2) {
-        OPENVINO_THROW("Can't create dummy inputs with rank less 2");
-    }
-
-    CPU_NODE_ASSERT((in0.getRank() == in1.getRank()) && (in1.getRank() == out.getRank()),
+    CPU_NODE_ASSERT(in0.getRank() >= 2 && in1.getRank() >= 2, "Can't create dummy inputs with rank less 2");
+    CPU_NODE_ASSERT(all_of(in1.getRank(), in0.getRank(), out.getRank()),
                     "Can't create dummy inputs if argument shapes ranks are not equal");
 
     auto swapTranspDims = [&](VectorDims& in0, VectorDims& in1) {
@@ -401,7 +420,7 @@ std::pair<Shape, Shape> MatMul::makeDummyInputShapes(const Shape& in0, const Sha
     swapTranspDims(maxDims0, maxDims1);
 
     auto fillDummy = [&](size_t idx0, size_t idx1) {
-        if (inDims0[idx0] == Shape::UNDEFINED_DIM && inDims1[idx1] == Shape::UNDEFINED_DIM) {
+        if (all_of(Shape::UNDEFINED_DIM, inDims0[idx0], inDims1[idx1])) {
             inDims0[idx0] = inDims1[idx1] = std::min(std::min(maxDims0[idx0], maxDims1[idx1]),
                                                      std::max(std::max(minDims0[idx0], minDims1[idx1]),
                                                               static_cast<Dim>(MemoryDescUtils::DEFAULT_DUMMY_VAL)));
@@ -485,7 +504,8 @@ void MatMul::initSupportedPrimitiveDescriptors() {
     }
 
     auto addSupportedPrimitiveDescriptor = [&](const dnnl::primitive_desc& prim_desc) {
-        std::vector<PortConfig> inConfs, outConfs;
+        std::vector<PortConfig> inConfs;
+        std::vector<PortConfig> outConfs;
         const int inPlaceOutPort = canBeInPlace() ? 0 : -1;
 
         for (size_t i = 0; i < descInputNumbers(); i++) {
@@ -555,7 +575,7 @@ MemoryDescPtr MatMul::getSrcMemDesc(const dnnl::primitive_desc& prim_desc, size_
         return std::make_shared<CpuBlockedMemoryDesc>(
             DnnlExtensionUtils::DataTypeToElementType(desc.get_data_type()),
             getInputShapeAtPort(idx)); /* provide initial shapes, so hide transpose effect */
-    }                                  // bias
+    }  // bias
     return DnnlExtensionUtils::makeDescriptor(desc);
 }
 
@@ -571,12 +591,9 @@ void MatMul::prepareParams() {
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto src0MemPtr = getSrcMemoryAtPort(0);
     auto src1MemPtr = getSrcMemoryAtPort(1);
-    if (!dstMemPtr || !dstMemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined destination memory");
-    }
-    if (!src0MemPtr || !src0MemPtr->isDefined() || !src1MemPtr || !src1MemPtr->isDefined()) {
-        THROW_CPU_NODE_ERR("has undefined input memory");
-    }
+    CPU_NODE_ASSERT(dstMemPtr && dstMemPtr->isDefined(), "has undefined destination memory");
+    CPU_NODE_ASSERT(src0MemPtr && src0MemPtr->isDefined() && src1MemPtr && src1MemPtr->isDefined(),
+                    "has undefined input memory");
 
     // check for a degenerate case. In this context the degenerate case is a matrix multiplication where the
     // collapsing dimension is zero, e.g., AB=C, where A has the shape [10, 0] and B has the shape [0, 20],
@@ -593,9 +610,7 @@ void MatMul::prepareParams() {
     }
 
     const NodeDesc* selected_pd = getSelectedPrimitiveDescriptor();
-    if (selected_pd == nullptr) {
-        THROW_CPU_NODE_ERR("did not set preferable primitive descriptor");
-    }
+    CPU_NODE_ASSERT(selected_pd, "did not set preferable primitive descriptor");
 
     DnnlMemoryDescPtr src0TransposedDesc;
     DnnlMemoryDescPtr src1TransposedDesc;
@@ -626,9 +641,7 @@ void MatMul::prepareParams() {
     DnnlMemoryDescPtr dnnlBiasMemDesc = nullptr;
     if (withBiases) {
         auto biasMemory = getSrcMemoryAtPort(2);
-        if (!biasMemory || !biasMemory->isDefined()) {
-            THROW_CPU_NODE_ERR("has undefined bias memory");
-        }
+        CPU_NODE_ASSERT(biasMemory && biasMemory->isDefined(), "has undefined bias memory");
         dnnlBiasMemDesc = biasMemory->getDescWithType<DnnlMemoryDesc>();
     }
 
@@ -642,6 +655,48 @@ void MatMul::prepareParams() {
     auto engine = getEngine();
 
     auto builder = [&engine](const MatMulKey& key) -> executorPtr {
+#ifdef OPENVINO_ARCH_X86_64
+        const bool can_optimize = [&key]() -> bool {
+            const auto& prec_in0 = key.inp0->getDataType();
+            const auto& prec_in1 = key.inp1->getDataType();
+            const auto& prec_out = key.out->getDataType();
+            if (!all_of(dnnl::memory::data_type::f32, prec_in0, prec_in1, prec_out)) {
+                return false;
+            }
+            const auto& stride_in0 = key.inp0->getDnnlDesc().get_strides();
+            const auto& stride_in1 = key.inp1->getDnnlDesc().get_strides();
+            if (stride_in0.back() != 1 || stride_in1.back() != 1) {
+                return false;
+            }
+            if (key.bias != nullptr) {
+                return false;
+            }
+            const auto& shape_src = key.inp0->getShape().getStaticDims();
+            const auto& shape_wei = key.inp1->getShape().getStaticDims();
+            auto src_rank = shape_src.size();
+            auto wei_rank = shape_wei.size();
+            if (src_rank < 2 || src_rank != wei_rank) {
+                return false;
+            }
+            for (size_t i = 0; i < src_rank - 2; i++) {
+                if (shape_src[i] != shape_wei[i]) {
+                    return false;
+                }
+            }
+            return (shape_src[src_rank - 1] <= 2) && (shape_src[src_rank - 2] <= 2) && (shape_wei[wei_rank - 1] <= 2) &&
+                   (shape_wei[wei_rank - 2] <= 2);
+        }();
+        if (can_optimize) {
+            MatMulSmallAttrs matmul_attr;
+            const auto& shape_in0 = key.inp0->getShape().getStaticDims();
+            const auto& shape_in1 = key.inp1->getShape().getStaticDims();
+            matmul_attr.M = *++shape_in0.rbegin();
+            matmul_attr.K = *shape_in0.rbegin();
+            matmul_attr.N = *shape_in1.rbegin();
+            matmul_attr.attr = key.attr;
+            return std::make_shared<MatMulSmallExecutor>(matmul_attr);
+        }
+#endif
         dnnl::matmul::primitive_desc prim_desc;
 
         if (key.bias) {
@@ -663,23 +718,21 @@ void MatMul::prepareParams() {
         const bool found = DnnlExtensionUtils::find_implementation(prim_desc, key.implType);
 
         if (found) {
-            return std::make_shared<DnnlExecutorLegacy>(prim_desc);
+            return std::make_shared<DnnlMatmulExecutor>(prim_desc);
         }
 
         // In case of dynamic shapes an implementation type chosen as optimal for a primitive_desc with
         // undefined input shapes, is not necessarily available for the primitive_desc with defined shape.
         // Example: brgemm_avx512_amx (Intel Sapphire Rapids Platform) is available for a primitive with
         // undefined input shapes but not available for primitive_desc with input batch 1.
-        return std::make_shared<DnnlExecutorLegacy>(first_desc);
+        return std::make_shared<DnnlMatmulExecutor>(first_desc);
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, builder);
 
     execPtr = result.first;
-    if (!execPtr) {
-        OPENVINO_THROW("Primitive descriptor was not found for node ", getName(), ".");
-    }
+    OPENVINO_ASSERT(execPtr, "Primitive descriptor was not found for node ", getName(), ".");
 
     auto schratchpadMem = getScratchPadMem(execPtr->getScratchPadDesc());
 
@@ -692,10 +745,6 @@ void MatMul::prepareParams() {
     }
 
     appendPostOpArgs(*attr, primArgs, postOpsArgs);
-#ifdef CPU_DEBUG_CAPS
-    auto pd = execPtr->getPrimitiveDesc();
-    DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
-#endif
 }
 
 void MatMul::execute(const dnnl::stream& strm) {
@@ -705,7 +754,7 @@ void MatMul::execute(const dnnl::stream& strm) {
         // this is a degenerate case, fill output with zeroes
         getDstMemoryAtPort(0)->nullify();
     } else {
-        THROW_CPU_NODE_ERR("doesn't have an initialized executor");
+        CPU_NODE_THROW("doesn't have an initialized executor");
     }
 }
 

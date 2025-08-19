@@ -144,6 +144,7 @@ jobs:
           target_arch: ${{ env.ARCH }}
           build_type: ${{ env.CMAKE_BUILD_TYPE }}
           save_to: ${{ env.MANIFEST_PATH }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       - name: Create docker build cache
         run: |
@@ -178,6 +179,7 @@ jobs:
                 -DENABLE_OV_JAX_FRONTEND=OFF \
                 -DENABLE_PYTHON=ON \
                 -DENABLE_WHEEL=OFF \
+                -DENABLE_FASTER_BUILD=ON \
                 -S /work/src \
                 -B /work/build &&
               cmake --build /work/build --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} &&
@@ -290,7 +292,7 @@ jobs:
             image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_20_04_x64_py313 }}
     with:
       runner: 'aks-linux-4-cores-16gb'
-      container: '{"image": "${{ matrix.image }}", "volumes": ["/mount:/mount"]}'
+      image: ${{ matrix.image }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       python-version: ${{ matrix.python-version }}
 

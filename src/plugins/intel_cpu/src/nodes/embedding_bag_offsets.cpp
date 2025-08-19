@@ -5,11 +5,30 @@
 #include "embedding_bag_offsets.h"
 
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/embedding_bag.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/enum_names.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/embeddingbag_offsets.hpp"
 #include "openvino/op/embeddingbag_offsets_sum.hpp"
+#include "openvino/op/util/embeddingbag_offsets_base.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -31,7 +50,7 @@ bool EmbeddingBagOffset::isSupportedOperation(const std::shared_ptr<const ov::No
 
 EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& context)
     : Node(op, context, NgraphShapeInferFactory(op)),
-      EmbeddingBag(op, 3lu, 1lu, 4lu, 3lu) {
+      EmbeddingBag(op, 3LU, 1LU, 4LU, 3LU) {
     std::string errorMessage;
     if (!isSupportedOperation(op, errorMessage)) {
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
@@ -47,17 +66,13 @@ EmbeddingBagOffset::EmbeddingBagOffset(const std::shared_ptr<ov::Node>& op, cons
             _reduction = Reduction::MEAN;
             break;
         default:
-            THROW_CPU_NODE_ERR("EmbeddingBagOffsets does not support reduction mode: ",
-                               ov::as_string(offsets_op->get_reduction()));
+            CPU_NODE_THROW("EmbeddingBagOffsets does not support reduction mode: ",
+                           ov::as_string(offsets_op->get_reduction()));
         }
     }
-    if (getInputShapeAtPort(INDICES_IDX).getRank() != 1ul) {
-        THROW_CPU_NODE_ERR("has indices data with invalid rank.");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(INDICES_IDX).getRank() == 1UL, "has indices data with invalid rank.");
 
-    if (getInputShapeAtPort(OFFSETS_IDX).getRank() != 1ul) {
-        THROW_CPU_NODE_ERR("offsets data has invalid rank.");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(OFFSETS_IDX).getRank() == 1UL, "offsets data has invalid rank.");
 }
 
 void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
@@ -71,12 +86,12 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
                                                                     ov::element::i32};
 
     auto inDataPrecision = getOriginalInputPrecisionAtPort(EMB_TABLE_IDX);
-    if (one_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
+    if (any_of(inDataPrecision, ov::element::bf16, ov::element::f16)) {
         inDataPrecision = ov::element::f32;
     }
     if (!supportedPrecisions.empty()) {
         if (supportedPrecisions.find(inDataPrecision) == supportedPrecisions.end()) {
-            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
+            CPU_NODE_THROW("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     } else {
         static const std::set<ov::element::Type> defaultSupportedPrecisions = {ov::element::f32,
@@ -84,7 +99,7 @@ void EmbeddingBagOffset::initSupportedPrimitiveDescriptors() {
                                                                                ov::element::u8,
                                                                                ov::element::i32};
         if (defaultSupportedPrecisions.find(inDataPrecision) == defaultSupportedPrecisions.end()) {
-            THROW_CPU_NODE_ERR("has unsupported precision: ", inDataPrecision.get_type_name());
+            CPU_NODE_THROW("has unsupported precision: ", inDataPrecision.get_type_name());
         }
     }
 
@@ -121,31 +136,27 @@ void EmbeddingBagOffset::getIndices(size_t embIndex,
                                     size_t& size,
                                     int& weightsIdx,
                                     bool& withWeight) {
-    if (static_cast<size_t>(embIndex) >= _offsetsLen) {
-        THROW_CPU_NODE_ERR("Invalid embedding bag index.");
-    }
-    if (static_cast<size_t>(offsetsData_[embIndex]) >= _indicesLen) {
-        THROW_CPU_NODE_ERR("Offset value exceeds indices size.");
-    }
+    CPU_NODE_ASSERT(embIndex < _offsetsLen, "Invalid embedding bag index.");
+    CPU_NODE_ASSERT(static_cast<size_t>(offsetsData_[embIndex]) < _indicesLen, "Offset value exceeds indices size.");
 
     indices = nullptr;
-    size = 0lu;
+    size = 0LU;
     withWeight = _withWeights;
 
-    if (embIndex == _offsetsLen - 1lu) {
+    if (embIndex == _offsetsLen - 1LU) {
         size = _indicesLen - offsetsData_[embIndex];
     } else {
-        size = offsetsData_[embIndex + 1lu] - offsetsData_[embIndex];
+        size = offsetsData_[embIndex + 1LU] - offsetsData_[embIndex];
     }
 
-    if (size != 0lu) {
+    if (size != 0LU) {
         indices = indicesData_ + offsetsData_[embIndex];
     } else {
         // Empty or default bag
         withWeight = false;
         if (defaultIndices_) {
             indices = defaultIndices_;
-            size = 1lu;
+            size = 1LU;
         }
         return;
     }

@@ -4,6 +4,9 @@
 
 #include "move_fc_reshape_to_weights.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <memory>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/convert.hpp>
 #include <openvino/op/multiply.hpp>
@@ -12,10 +15,21 @@
 #include <openvino/op/transpose.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/dimension.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/core/rt_info.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "ov_ops/fully_connected.hpp"
 
 ov::intel_cpu::MoveFCReshapeToWeights::MoveFCReshapeToWeights() {

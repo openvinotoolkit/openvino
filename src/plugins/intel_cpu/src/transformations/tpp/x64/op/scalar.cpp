@@ -4,6 +4,14 @@
 
 #include "scalar.hpp"
 
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "snippets/op/scalar.hpp"
+#include "transformations/tpp/common/op/modifiers.hpp"
+
 namespace ov::intel_cpu::tpp::op {
 
 Scalar::Scalar(const snippets::op::Scalar& other) : ov::snippets::op::Scalar(other) {
@@ -18,7 +26,6 @@ std::shared_ptr<Node> Scalar::clone_with_new_inputs(const OutputVector& new_args
 bool Scalar::visit_attributes(AttributeVisitor& visitor) {
     modifier::TensorProcessingPrimitive::visit_attributes(visitor);
     return snippets::op::Scalar::visit_attributes(visitor);
-    ;
 }
 
 }  // namespace ov::intel_cpu::tpp::op

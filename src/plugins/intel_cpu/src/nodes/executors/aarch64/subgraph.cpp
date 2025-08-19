@@ -4,7 +4,16 @@
 
 #include "nodes/executors/aarch64/subgraph.hpp"
 
-#include "snippets/op/subgraph.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "cache/multi_cache.h"
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "nodes/executors/subgraph.hpp"
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu {
 
@@ -30,7 +39,7 @@ void SubgraphStaticExecutor::exec_impl(const std::vector<MemoryPtr>& inMemPtrs,
     const auto& callable = m_schedule->get_callable<kernel>();
 
     auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
-        init_call_args(call_args, inMemPtrs, outMemPtrs, m_start_offset_in, m_start_offset_out, ithr);
+        init_call_args(call_args, inMemPtrs, outMemPtrs, m_start_offset_in, m_start_offset_out);
         update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     };
     auto caller =
@@ -62,7 +71,7 @@ void SubgraphDynamicSpecializedExecutor::exec_impl(const std::vector<MemoryPtr>&
     init_original_ptrs(inMemPtrs, outMemPtrs, src_ptrs, dst_ptrs, m_start_offset_in, m_start_offset_out);
 
     auto initializer = [&](jit_snippets_call_args& call_args, size_t ithr) {
-        init_call_args(call_args, ithr);
+        init_call_args(call_args);
         update_scratchpad_ptr(call_args.buffer_scratchpad_ptr, ithr);
     };
     auto caller =

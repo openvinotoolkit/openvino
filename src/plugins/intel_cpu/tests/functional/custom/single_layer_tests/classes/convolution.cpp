@@ -3,9 +3,13 @@
 //
 
 #include "convolution.hpp"
+#include <optional>
 
+#include "common_test_utils/ov_tensor_utils.hpp"
 #include "gtest/gtest.h"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
+#include "utils/fusing_test_utils.hpp"
 #include "utils/general_utils.h"
 
 using namespace CPUTestUtils;
@@ -16,23 +20,9 @@ namespace test {
 namespace Convolution {
 
 std::string ConvolutionLayerCPUTest::getTestCaseName(const testing::TestParamInfo<convLayerCPUTestParamsSet>& obj) {
-    convLayerTestParamsSet basicParamsSet;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = obj.param;
-
-    convSpecificParams convParams;
-    ElementType netType;
-    ElementType inType, outType;
-    InputShape inputShape;
-    std::string targetDevice;
-    std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
-    ov::op::PadType padType;
-    ov::Shape kernel, stride, dilation;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t convOutChannels;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
+    const auto& [basicParamsSet, cpuParams, extraOpsParams, additionalConfig] = obj.param;
+    const auto& [convParams, netType, inType, outType, inputShape, targetDevice] = basicParamsSet;
+    const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType] = convParams;
 
     std::ostringstream result;
     result << "IS=";
@@ -55,13 +45,17 @@ std::string ConvolutionLayerCPUTest::getTestCaseName(const testing::TestParamInf
     result << "trgDev=" << targetDevice;
 
     result << CPUTestsBase::getTestCaseName(cpuParams);
-    result << CpuTestWithFusing::getTestCaseName(fusingParams);
+    result << CpuTestWithFusing::getTestCaseName(extraOpsParams.fusingParams);
 
     if (!additionalConfig.empty()) {
         result << "_PluginConf";
         for (auto& item : additionalConfig) {
             result << "_" << item.first << "=" << item.second.as<std::string>();
         }
+    }
+
+    if (!extraOpsParams.qinfo.empty()) {
+        result << "_" << extraOpsParams.qinfo;
     }
 
     return result.str();
@@ -135,14 +129,29 @@ std::shared_ptr<ov::Node> ConvolutionLayerCPUTest::modifyGraph(const ov::element
     return retNode;
 }
 
+void ConvolutionLayerCPUTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    if (inputGenData.empty()) { // generate default inputs
+        return SubgraphBaseTest::generate_inputs(targetInputStaticShapes);
+    }
+
+    const auto& parameters = function->get_parameters();
+
+    OPENVINO_ASSERT(inputGenData.size() >= parameters.size(),
+                    "If present, input generation data must be provided at least for all the parameters. ",
+                    "InputGenData size: ", inputGenData.size(), ", parameters size: ", parameters.size());
+
+    for (size_t i = 0; i < parameters.size(); i++) {
+        const auto& parameter = parameters[i];
+        const auto& param_type = parameter->get_output_element_type(0);
+        const auto& static_shape = targetInputStaticShapes[i];
+        inputs[parameter] = ov::test::utils::create_and_fill_tensor(param_type, static_shape, inputGenData[i]);
+    }
+}
+
 void ConvolutionLayerCPUTest::SetUp() {
     rel_threshold = 1e-4f;
-
-    convLayerTestParamsSet basicParamsSet;
-    CPUSpecificParams cpuParams;
-    fusingSpecificParams fusingParams;
-    ov::AnyMap additionalConfig;
-    std::tie(basicParamsSet, cpuParams, fusingParams, additionalConfig) = this->GetParam();
+    const auto& [basicParamsSet, cpuParams, extraOpsParams, additionalConfig] = this->GetParam();
+    const auto& [fusingParams, qinfo] = extraOpsParams;
 
     configuration.insert(additionalConfig.begin(), additionalConfig.end());
 
@@ -151,12 +160,10 @@ void ConvolutionLayerCPUTest::SetUp() {
 
     if (postOpMgrPtr)
         isBias = (postOpMgrPtr->getFusedOpsNames() == "Add(PerChannel)" && selectedType != "jit_avx512_winograd");
-
-    convSpecificParams convParams;
-    InputShape inputShape;
-    auto netType = ElementType::dynamic;
-    std::tie(convParams, netType, inType, outType, inputShape, targetDevice) = basicParamsSet;
-
+    const auto& [convParams, netType, _inType, _outType, inputShape, _targetDevice] = basicParamsSet;
+    inType = _inType;
+    outType = _outType;
+    targetDevice = _targetDevice;
     init_input_shapes({inputShape});
 
     auto it = configuration.find(ov::hint::inference_precision.name());
@@ -168,31 +175,33 @@ void ConvolutionLayerCPUTest::SetUp() {
         if (selectedType == "jit_gemm_BF16")
             rel_threshold = 0.05f;
     } else if (inference_precision == ov::element::f16) {
-            selectedType +=  "_FP16";
-            rel_threshold = 0.00125f;
+        selectedType +=  "_FP16";
+        rel_threshold = 0.00125f;
+    } else if (!qinfo.inputs.empty()) {
+        selectedType +=  "_I8";
+        rel_threshold = 1e-2f;
+        performEqualityCheck = true;
     } else {
         selectedType = makeSelectedTypeStr(selectedType, netType);
     }
-
-    ov::op::PadType padType;
-    ov::Shape stride;
-    std::vector<ptrdiff_t> padBegin, padEnd;
-    size_t convOutChannels;
-    std::tie(kernel, stride, padBegin, padEnd, dilation, convOutChannels, padType) = convParams;
-
+    const auto& [_kernel, stride, padBegin, padEnd, _dilation, convOutChannels, padType] = convParams;
+    kernel = _kernel;
+    dilation = _dilation;
     ov::ParameterVector inputParams;
     for (auto&& shape : inputDynamicShapes)
         inputParams.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape));
-    auto convolutionNode = ov::test::utils::make_convolution(inputParams[0], netType, kernel, stride, padBegin,
-                                                            padEnd, dilation, padType, convOutChannels);
 
-    function = makeNgraphFunction(netType, inputParams, convolutionNode, "Convolution");
+    inputGenData = updateInputRanges(qinfo, inputParams.size());
+    auto convolution = ov::test::utils::make_convolution(inputParams[0], netType, kernel, stride, padBegin,
+                                                         padEnd, dilation, padType, convOutChannels,
+                                                         inputGenData.count(1) ? std::make_optional(inputGenData.at(1)) : std::nullopt);
+    function = makeNgraphFunction(netType, inputParams, convolution, "Convolution", qinfo);
 }
 
 TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     if (!priority.empty()) {
         // Skip tests for brgconv convolution where kernel size = 1x1
-        if (one_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
+        if (any_of(priority[0], "brgconv_avx512", "brgconv_avx512_amx", "brgconv_avx2")) {
                 bool is_1x1 = true;
                 for (const auto &i : kernel) {
                 if (i != 1) {
@@ -234,7 +243,11 @@ TEST_P(ConvolutionLayerCPUTest, CompareWithRefs) {
     if (isBias) {
         checkBiasFusing(compiledModel);
     }
+
     CheckPluginRelatedResults(compiledModel, "Convolution");
+    if (performEqualityCheck) {
+        checkAllElementsAreEqual(inferRequest, function->get_results().size());
+    }
 }
 
 const ov::Shape& numOutChannels() {
@@ -405,15 +418,15 @@ const std::vector<InputShape>& inputShapes2d() {
             {{}, {{ 1, 64, 7, 7 }}},
             {{}, {{ 1, 67, 7, 7 }}},
             {
-                //dynamic shape
-                { -1, 64, -1, {1, 200} },
+                // dynamic shape (one spatial shape is undefined)
+                { -1, 64, -1, 8 },
                 { //target static shapes
-                    { 2, 64, 7, 7 },
-                    { 1, 64, 9, 9}
+                    { 2, 64, 7, 8 },
+                    { 1, 64, 9, 8}
                 }
             },
             {
-                //dynamic shape
+                // dynamic shape (both spatial shapes are undefined)
                 { -1, 67, -1, {1, 200} },
                 { //target static shapes
                     { 2, 67, 7, 7 },
@@ -586,8 +599,8 @@ const std::vector<InputShape>& inputShapes2d_cache() {
     return inputShapes2d_cache;
 }
 
-const std::vector<fusingSpecificParams>& fusingParamsSetWithEmpty() {
-    static const std::vector<fusingSpecificParams> fusingParamsSetWithEmpty = {
+const std::vector<ExtraOperationsParams>& fusingParamsSetWithEmpty() {
+    static const std::vector<ExtraOperationsParams> _fusingParamsSetWithEmpty = {
             emptyFusingSpec,
             // eltwise
             fusingRelu,
@@ -603,7 +616,7 @@ const std::vector<fusingSpecificParams>& fusingParamsSetWithEmpty() {
             // bias
             fusingAddPerChannel
     };
-    return fusingParamsSetWithEmpty;
+    return _fusingParamsSetWithEmpty;
 }
 
 const std::vector<InputShape>& inShapesGemm1D() {

@@ -16,30 +16,21 @@
 namespace LayerTestsDefinitions {
 
 std::string ConvolutionQDqTransformation::getTestCaseName(const testing::TestParamInfo<ConvolutionQDqTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionQDqTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = obj.param;
-
+    auto [netPrecision, inputShape, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShape, targetDevice, params) << param;
+    result << get_test_case_name_by_params(netPrecision, inputShape, device) << param;
     return result.str();
 }
 
 void ConvolutionQDqTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShape;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    ConvolutionQDqTransformationParam param;
-    std::tie(netPrecision, inputShape, targetDevice, params, param) = this->GetParam();
+    auto [netPrecision, inputShape, device, param] = this->GetParam();
+    targetDevice = device;
 
-    init_input_shapes(inputShape);
+    SubgraphBaseTest::init_input_shapes({inputShape});
 
     function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(
         netPrecision,
-        inputShape,
+        inputDynamicShapes[0],
         param.fakeQuantizeOnData,
         param.convertOnData,
         param.dequantizationOnData,
@@ -55,7 +46,7 @@ void ConvolutionQDqTransformation::SetUp() {
 void ConvolutionQDqTransformation::run() {
     LayerTransformation::run();
 
-    const auto params = std::get<4>(GetParam());
+    const auto params = std::get<3>(GetParam());
     const auto actualType = get_runtime_precision_by_type(params.layerName);
     EXPECT_EQ(actualType, params.expectedKernelType);
 }

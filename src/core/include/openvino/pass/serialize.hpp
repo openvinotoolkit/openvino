@@ -34,18 +34,15 @@ public:
 
     Serialize(std::ostream& xmlFile, std::ostream& binFile, Version version = Version::UNSPECIFIED);
 
-    Serialize(const std::string& xmlPath, const std::string& binPath, Version version = Version::UNSPECIFIED);
-
     Serialize(const std::filesystem::path& xmlPath,
               const std::filesystem::path& binPath,
-              Version version = Version::UNSPECIFIED)
-        : Serialize(xmlPath.string(), binPath.string(), version) {}
+              Version version = Version::UNSPECIFIED);
 
 private:
     std::ostream* m_xmlFile;
     std::ostream* m_binFile;
-    const std::string m_xmlPath;
-    const std::string m_binPath;
+    const std::filesystem::path m_xmlPath;
+    const std::filesystem::path m_binPath;
     const Version m_version;
     const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
@@ -77,6 +74,8 @@ public:
                     Serialize::Version version = Serialize::Version::UNSPECIFIED);
 
 private:
+    virtual bool use_absolute_offset();
+
     std::ostream& m_stream;
     std::function<void(std::ostream&)> m_custom_data_serializer;
     std::function<std::string(const std::string&)> m_cache_encrypt;

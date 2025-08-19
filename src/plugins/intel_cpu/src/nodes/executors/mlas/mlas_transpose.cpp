@@ -4,9 +4,23 @@
 
 #include "mlas_transpose.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "cpu_shape.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "mlas.h"
-#include "nodes/common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -30,7 +44,7 @@ std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisO
     int64_t num_writers,
     int64_t writes_per_loop,
     int64_t writes_per_writer_per_loop) {
-    const T* end;
+    const T* end = nullptr;
     for (int64_t l = 0; l < num_loops; ++l) {
         T* output_for_first_writer = output_data;
         for (auto wwpl = 0; wwpl < writes_per_writer_per_loop; ++wwpl) {
@@ -73,7 +87,7 @@ std::enable_if_t<!has_mlas_transpose<T>::value, void> SimpleTransposeSingleAxisI
     int64_t num_readers,
     int64_t reads_per_loop,
     int64_t reads_per_reader_per_loop) {
-    T* end;
+    T* end = nullptr;
     for (int64_t l = 0; l < num_loops; ++l) {
         const T* input_for_first_reader = input_data;
         for (auto rrpl = 0; rrpl < reads_per_reader_per_loop; ++rrpl) {
@@ -354,7 +368,7 @@ bool MlasTransposeExecutorBuilder::isSupported([[maybe_unused]] const TransposeP
         DEBUG_LOG("MLAS Transpose executor supports NCHW layout only");
         return false;
     }
-    if (!one_of(srcDescs[0]->getPrecision().size(), 1u, 2u, 4u, 8u)) {
+    if (none_of(srcDescs[0]->getPrecision().size(), 1U, 2U, 4U, 8U)) {
         DEBUG_LOG("MLAS Transpose executor supports 1, 2, 4, 8 byte precision sizes");
         return false;
     }

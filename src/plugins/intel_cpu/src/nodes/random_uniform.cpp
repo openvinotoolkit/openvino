@@ -4,9 +4,45 @@
 
 #include "random_uniform.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <random>
+#include <string>
+#include <utility>
+
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/random_uniform.hpp"
+#include "openvino/op/util/attr_types.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/cpp/bit_cast.hpp"
+#include "utils/general_utils.h"
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "kernels/x64/random_uniform.hpp"
+#    include "nodes/kernels/x64/jit_kernel_base.hpp"
+#endif
 
 namespace ov::intel_cpu::node {
 
@@ -61,10 +97,10 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
         m_algo = MERSENNE_TWISTER;
         break;
     default:
-        THROW_CPU_NODE_ERR("Alignment of RandomUniform ", alignment, " is not supported by the CPU plugin.");
+        CPU_NODE_THROW("Alignment of RandomUniform ", alignment, " is not supported by the CPU plugin.");
     }
 
-    for (size_t i = 0lu; i < op->get_input_size(); i++) {
+    for (size_t i = 0LU; i < op->get_input_size(); i++) {
         if (is_type<op::v0::Constant>(op->get_input_node_ptr(i))) {
             m_const_inputs[i] = true;
         }
@@ -77,31 +113,31 @@ RandomUniform::RandomUniform(const std::shared_ptr<ov::Node>& op, const GraphCon
 
 void RandomUniform::getSupportedDescriptors() {
     if (getParentEdges().size() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
+        CPU_NODE_THROW("has incorrect number of input edges.");
     }
     if (getChildEdges().empty()) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
+        CPU_NODE_THROW("has incorrect number of output edges.");
     }
 }
 
 void RandomUniform::initSupportedPrimitiveDescriptors() {
     auto shape_prc = getOriginalInputPrecisionAtPort(SHAPE);
-    if (!one_of(shape_prc, ov::element::i32, ov::element::i64)) {
+    if (none_of(shape_prc, ov::element::i32, ov::element::i64)) {
         shape_prc = ov::element::i32;
     }
 
     auto out_prc = getOriginalOutputPrecisionAtPort(0);
     if (out_prc.is_real()) {
-        if (one_of(m_algo, PHILOX, MERSENNE_TWISTER) &&
-            !one_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) {
+        if (any_of(m_algo, PHILOX, MERSENNE_TWISTER) &&
+            none_of(out_prc, ov::element::f32, ov::element::f16, ov::element::bf16)) {
             out_prc = ov::element::f32;
         }
 
-        if (one_of(m_algo, STL) && !one_of(out_prc, ov::element::f32)) {
+        if (m_algo == STL && out_prc != ov::element::f32) {
             out_prc = ov::element::f32;
         }
     } else {
-        if (!one_of(out_prc, ov::element::i32, ov::element::i64)) {
+        if (none_of(out_prc, ov::element::i32, ov::element::i64)) {
             out_prc = ov::element::i32;
         }
     }
@@ -132,15 +168,12 @@ void RandomUniform::createPrimitive() {
 }
 
 bool RandomUniform::needPrepareParams() const {
-    if (m_out_shape != getDstMemoryAtPort(0)->getShape().getStaticDims()) {
-        return true;
-    }
-    return false;
+    return m_out_shape != getDstMemoryAtPort(0)->getShape().getStaticDims();
 }
 
 void RandomUniform::prepareParams() {
     m_out_shape = getDstMemoryAtPort(0)->getShape().getStaticDims();
-    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1lu, std::multiplies<>());
+    m_output_elements_count = std::accumulate(m_out_shape.begin(), m_out_shape.end(), 1LU, std::multiplies<>());
 
     if (m_algo == PHILOX) {
         m_skip_count = m_output_elements_count * SKIP_CONST;
@@ -162,7 +195,7 @@ void RandomUniform::execute([[maybe_unused]] const dnnl::stream& strm) {
         evalRange();
     }
 
-    auto data = getDstDataAtPort(0);
+    auto* data = getDstDataAtPort(0);
 
     if (m_algo == PHILOX) {
         m_state = computePhilox(data, m_output_elements_count, m_state);
@@ -171,7 +204,7 @@ void RandomUniform::execute([[maybe_unused]] const dnnl::stream& strm) {
     } else if (m_algo == STL) {
         computeStl(data, m_output_elements_count);
     } else {
-        THROW_CPU_NODE_ERR("does not support the selected algorithm.");
+        CPU_NODE_THROW("does not support the selected algorithm.");
     }
 }
 
@@ -180,7 +213,7 @@ void RandomUniform::executeDynamicImpl(const dnnl::stream& strm) {
 }
 
 std::string RandomUniform::getPrimitiveDescriptorType() const {
-    auto selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
+    const auto* selectedPrimitiveDesc = getSelectedPrimitiveDescriptor();
 
     impl_desc_type type = impl_desc_type::undef;
     if (selectedPrimitiveDesc) {
@@ -262,7 +295,7 @@ void RandomUniform::evalRange() {
         EL_CASE(i64)
         EL_CASE(i32)
     default:
-        THROW_CPU_NODE_ERR("has unsupported output precision: ", m_output_prc);
+        CPU_NODE_THROW("has unsupported output precision: ", m_output_prc);
     }
 
 #undef EL_CASE
@@ -282,7 +315,7 @@ void RandomUniform::initEdgeValues(OutputType& dst, const void* src, const eleme
         EL_CASE(i64)
         EL_CASE(i32)
     default:
-        THROW_CPU_NODE_ERR("has unsupported output precision: ", output_type);
+        CPU_NODE_THROW("has unsupported output precision: ", output_type);
     }
 
 #undef EL_CASE
@@ -298,7 +331,8 @@ void RandomUniform::preparePhiloxParams() {
 
     parallel_nt(m_threads_num, [&](const int ithr, const int nthr) {
         auto& params = m_philox_thread_params[ithr];
-        uint64_t start = 0lu, end = 0lu;
+        uint64_t start = 0LU;
+        uint64_t end = 0LU;
 
         if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
@@ -350,8 +384,8 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
     m_mersenne_twister_thread_params.resize(m_threads_num);
     m_mersenne_twister_optimization_enabled =
-        !(m_output_prc == element::i64 && (m_max_val.i64 > std::numeric_limits<uint32_t>::max() ||
-                                           m_min_val.i64 > std::numeric_limits<uint32_t>::max()));
+        m_output_prc != element::i64 || (m_max_val.i64 <= std::numeric_limits<uint32_t>::max() &&
+                                         m_min_val.i64 <= std::numeric_limits<uint32_t>::max());
 
     const auto thread_offset = static_cast<float>(MERSENNE_STATE_N) / static_cast<float>(m_threads_num) /
                                static_cast<float>(m_uint_storage_capacity_per_thread);
@@ -364,8 +398,10 @@ void RandomUniform::prepareMersenneTwisterParams() {
         auto approx_start = thread_offset * static_cast<float>(ithr);
         auto approx_end = thread_offset * (static_cast<float>(ithr + 1));
 
-        auto state_start = static_cast<uint64_t>(std::floor(approx_start) * m_uint_storage_capacity_per_thread);
-        auto state_end = static_cast<uint64_t>(std::floor(approx_end) * m_uint_storage_capacity_per_thread);
+        auto state_start =
+            static_cast<uint64_t>(std::floor(approx_start) * static_cast<double>(m_uint_storage_capacity_per_thread));
+        auto state_end =
+            static_cast<uint64_t>(std::floor(approx_end) * static_cast<double>(m_uint_storage_capacity_per_thread));
 
         // Rounding failsafes
         if (ithr == 0) {
@@ -385,7 +421,7 @@ void RandomUniform::prepareMersenneTwisterParams() {
 
         params.src_start_idx = state_start;
         params.dst_start_idx = destination_start;
-        params.state_accesses_count = state_accesses;
+        params.state_accesses_count = static_cast<uint64_t>(state_accesses);
     });
 }
 
@@ -409,7 +445,7 @@ void RandomUniform::prepareGeneratorKernel() {
     }
 
     if (m_jit_kernel) {
-        if (auto selected_pd = getSelectedPrimitiveDescriptor()) {
+        if (auto* selected_pd = getSelectedPrimitiveDescriptor()) {
             using namespace dnnl::impl::cpu;
             if (m_jit_kernel->getIsa() == x64::avx512_core) {
                 selected_pd->setImplementationType(jit_avx512);
@@ -474,21 +510,19 @@ inline void runPhilox(uint64_t key, uint64_t counter, uint64_t n, uint32_t* res)
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float min, float range, float* out, size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
-    for (size_t i = 0lu; i < el_to_copy; i++) {
-        out_val.u32 = 0x3f800000 | (in[i] & 0x7fffffu);
-        out[i] = (out_val.f32 - 1.f) * range + min;
+    for (size_t i = 0LU; i < el_to_copy; i++) {
+        uint32_t bits = 0x3f800000 | (in[i] & 0x7fffffU);
+        float f = ov::intel_cpu::bit_cast<float>(bits);
+        out[i] = (f - 1.F) * range + min;
     }
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, float16 min, float16 range, float16* out, size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
-    for (size_t i = 0lu; i < el_to_copy; i++) {
+    for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        out_val.u16 = 0x3c00 | (x_uint16 & 0x03ffu);
-        out[i] = (out_val.f16 - static_cast<float16>(1)) * range + min;
+        uint16_t bits = 0x3c00 | (x_uint16 & 0x03ffU);
+        float16 f = ov::intel_cpu::bit_cast<float16>(bits);
+        out[i] = (f - static_cast<float16>(1)) * range + min;
     }
 }
 
@@ -497,23 +531,22 @@ inline void convertToOutputTypePhilox(const uint32_t* in,
                                       bfloat16 range,
                                       bfloat16* out,
                                       size_t el_to_copy) {
-    RandomUniform::OutputType out_val;
-
-    for (size_t i = 0lu; i < el_to_copy; i++) {
+    for (size_t i = 0LU; i < el_to_copy; i++) {
         auto x_uint16 = static_cast<uint16_t>(in[i]);
-        out_val.u16 = 0x3f80 | (x_uint16 & 0x7fu);
-        out[i] = (out_val.bf16 - static_cast<bfloat16>(1)) * range + min;
+        uint16_t bits = 0x3f80 | (x_uint16 & 0x7fU);
+        bfloat16 f = ov::intel_cpu::bit_cast<bfloat16>(bits);
+        out[i] = (f - static_cast<bfloat16>(1)) * range + min;
     }
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, int32_t min, int32_t range, int32_t* out, size_t el_to_copy) {
-    for (size_t i = 0lu; i < el_to_copy; i++) {
+    for (size_t i = 0LU; i < el_to_copy; i++) {
         out[i] = static_cast<int32_t>(in[i] % range + min);
     }
 }
 
 inline void convertToOutputTypePhilox(const uint32_t* in, int64_t min, int64_t range, int64_t* out, size_t el_to_copy) {
-    for (size_t i = 0lu; i < el_to_copy; i++) {
+    for (size_t i = 0LU; i < el_to_copy; i++) {
         out[i] = static_cast<int64_t>(((static_cast<uint64_t>(in[i * 2]) << 32) + in[i * 2 + 1]) % range + min);
     }
 }
@@ -524,7 +557,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                                                            [[maybe_unused]] size_t output_elements_count,
                                                            const std::pair<uint64_t, uint64_t>& prev_state) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0lu && m_op_seed == 0lu) {
+    if (all_of(0LU, m_global_seed, m_op_seed)) {
         m_global_seed = std::random_device{}();
     }
 
@@ -532,13 +565,13 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
     uint64_t counter_state = prev_state.second;
     uint64_t counter = counter_state > 0 ? counter_state : m_op_seed;
 
-    auto out_u8 = reinterpret_cast<uint8_t*>(out);
+    auto* out_u8 = reinterpret_cast<uint8_t*>(out);
 
     if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
         parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& params = m_philox_thread_params[ithr];
-            if (params.work_amount == 0lu) {
+            if (params.work_amount == 0LU) {
                 return;
             }
             auto n = n_state + params.n_shift;
@@ -559,11 +592,11 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
     } else {
         auto threadBody = [&](const int ithr, [[maybe_unused]] const int nthr) {
             auto& params = m_philox_thread_params[ithr];
-            if (params.work_amount == 0lu) {
+            if (params.work_amount == 0LU) {
                 return;
             }
             auto n = n_state + params.n_shift;
-            auto out_cur = out_u8 + params.dst_shift;
+            auto* out_cur = out_u8 + params.dst_shift;
             auto work_rest = static_cast<int64_t>(params.work_amount);
             uint32_t res[4];
 
@@ -587,7 +620,7 @@ std::pair<uint64_t, uint64_t> RandomUniform::computePhilox(void* out,
                 EXEC_CASE(i32)
                 EXEC_CASE(i64)
             default:
-                THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
+                CPU_NODE_THROW("Unsupported type of RandomUniform: ", m_output_prc.to_string());
             }
 
 #undef EXEC_CASE
@@ -658,7 +691,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float>::digits);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
-    if (elements_remaining >= 2l) {
+    if (elements_remaining >= 2L) {
         out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
     }
 }
@@ -674,7 +707,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto divisor = static_cast<float>(1) / (static_cast<uint64_t>(1) << std::numeric_limits<float16>::digits);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
-    if (elements_remaining >= 2l) {
+    if (elements_remaining >= 2L) {
         out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
     }
 }
@@ -690,7 +723,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
     const auto divisor = static_cast<float>(1) / (1UL << 8);
 
     out[0] = static_cast<float>((in1 & mask) * divisor) * range + min;
-    if (elements_remaining >= 2l) {
+    if (elements_remaining >= 2L) {
         out[1] = static_cast<float>((in2 & mask) * divisor) * range + min;
     }
 }
@@ -703,7 +736,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         int64_t elements_remaining,
                                         [[maybe_unused]] bool optimization_enabled) {
     out[0] = static_cast<int32_t>(in1 % range + min);
-    if (elements_remaining >= 2l) {
+    if (elements_remaining >= 2L) {
         out[1] = static_cast<int32_t>(in2 % range + min);
     }
 }
@@ -716,9 +749,9 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
                                         int64_t elements_remaining,
                                         bool optimization_enabled) {
     if (optimization_enabled) {
-        out[0] = static_cast<int64_t>(in1 % range + min);
-        if (elements_remaining >= 2l) {
-            out[1] = static_cast<int64_t>(in2 % range + min);
+        out[0] = (in1 % range + min);
+        if (elements_remaining >= 2L) {
+            out[1] = (in2 % range + min);
         }
     } else {
         out[0] = static_cast<int64_t>(((static_cast<uint64_t>(in1) << 32) + in2) % range + min);
@@ -728,7 +761,7 @@ inline void convertToOutputTypeMersenne(const uint32_t in1,
 
 void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_count) {
     // When both seed values are equal to zero RandomUniform should generate non-deterministic sequence.
-    if (m_global_seed == 0lu && m_op_seed == 0lu) {
+    if (all_of(0LU, m_global_seed, m_op_seed)) {
         m_global_seed = std::random_device{}();
     }
 
@@ -739,7 +772,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
     const auto byte_offset = MERSENNE_STATE_N * m_output_prc.size();
 
     uint32_t mersenne_state_ptr[MERSENNE_STATE_N];
-    auto output_byte_ptr = reinterpret_cast<uint8_t*>(out);
+    auto* output_byte_ptr = reinterpret_cast<uint8_t*>(out);
     initial_mersenne_state(mersenne_state_ptr, m_global_seed);
 
     if (m_jit_kernel) {
@@ -789,8 +822,8 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
             next_mersenne_state(mersenne_state_ptr);
             parallel_nt(m_threads_num, [&](const int ithr, [[maybe_unused]] const int nthr) {
                 auto& params = m_mersenne_twister_thread_params[ithr];
-                auto state_ptr = mersenne_state_ptr + params.src_start_idx;
-                auto dst_ptr = output_byte_ptr + params.dst_start_idx + i * byte_offset;
+                auto* state_ptr = mersenne_state_ptr + params.src_start_idx;
+                auto* dst_ptr = output_byte_ptr + params.dst_start_idx + i * byte_offset;
                 auto output_idx = params.src_start_idx + i * MERSENNE_STATE_N;
                 auto max_output_idx = output_elements_count;
                 auto state_accesses_count = params.state_accesses_count;
@@ -834,7 +867,7 @@ void RandomUniform::computeMersenneTwister(void* out, size_t output_elements_cou
                     EXEC_CASE(i32)
                     EXEC_CASE(i64)
                 default:
-                    THROW_CPU_NODE_ERR("Unsupported type of RandomUniform: ", m_output_prc.to_string());
+                    CPU_NODE_THROW("Unsupported type of RandomUniform: ", m_output_prc.to_string());
                 }
             });
         }
@@ -874,7 +907,7 @@ void RandomUniform::computeStl(void* out, size_t work_amount) {
             work_amount);
     } break;
     default:
-        THROW_CPU_NODE_ERR("has unsupported output type: ", m_output_prc);
+        CPU_NODE_THROW("has unsupported output type: ", m_output_prc);
     }
 }
 

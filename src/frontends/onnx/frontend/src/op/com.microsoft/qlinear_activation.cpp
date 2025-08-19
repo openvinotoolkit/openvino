@@ -12,6 +12,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
@@ -106,6 +107,16 @@ ov::OutputVector qlinear_avg_pool(const ov::frontend::onnx::Node& node) {
     });
 }
 
+ov::OutputVector qlinear_reduce_mean(const ov::frontend::onnx::Node& node) {
+    return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
+        auto axes = node.get_attribute_value<std::vector<int64_t>>("axes");
+        auto keepdims = node.get_attribute_value<int64_t>("keepdims");
+        return std::make_shared<v1::ReduceMean>(input_dequantized,
+                                                v0::Constant::create(element::i64, {axes.size()}, axes),
+                                                keepdims);
+    });
+}
+
 ov::OutputVector qlinear_softmax(const ov::frontend::onnx::Node& node) {
     return qlinear_activation(node, [&](const std::shared_ptr<ov::Node>& input_dequantized) {
         auto axis = node.get_attribute_value<int64_t>("axis", -1);
@@ -130,6 +141,7 @@ bool register_multiple_operators(void) {
     ONNX_OP_M("QLinearSigmoid", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_sigmoid, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearLeakyRelu", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_leaky_relu, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearAveragePool", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_avg_pool, MICROSOFT_DOMAIN);
+    ONNX_OP_M("QLinearReduceMean", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_reduce_mean, MICROSOFT_DOMAIN);
     ONNX_OP_M("QLinearSoftmax", OPSET_SINCE(1), com_microsoft::opset_1::qlinear_softmax, MICROSOFT_DOMAIN);
 
     return true;

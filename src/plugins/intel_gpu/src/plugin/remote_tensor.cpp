@@ -409,6 +409,10 @@ cldnn::memory::ptr RemoteTensorImpl::get_original_memory() const {
     return m_memory_object;
 }
 
+void* RemoteTensorImpl::get_original_memory_buf_ptr() const {
+    return m_memory_object->buffer_ptr();
+}
+
 void RemoteTensorImpl::set_memory(cldnn::memory::ptr memory, size_t actual_size) {
     auto engine = m_memory_object->get_engine();
     m_layout = memory->get_layout();

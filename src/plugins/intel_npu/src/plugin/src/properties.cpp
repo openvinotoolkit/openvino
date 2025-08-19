@@ -7,6 +7,7 @@
 
 #include "compiler_adapter_factory.hpp"
 #include "intel_npu/common/device_helpers.hpp"
+#include "intel_npu/config/npuw.hpp"
 #include "intel_npu/config/options.hpp"
 
 namespace intel_npu {
@@ -230,12 +231,13 @@ namespace intel_npu {
  *
  * @note This macro does not offer any compiled-model specific checks
  */
-#define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                              \
-    do {                                                                                                             \
-        _properties.emplace(PROP_NAME.name(),                                                                        \
-                            std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, [&](const Config& config) { \
-                                return PROP_RETVAL;                                                                  \
-                            }));                                                                                     \
+#define REGISTER_SIMPLE_METRIC(PROP_NAME, PROP_VISIBILITY, PROP_RETVAL)                                      \
+    do {                                                                                                     \
+        _properties.emplace(                                                                                 \
+            PROP_NAME.name(),                                                                                \
+            std::make_tuple(PROP_VISIBILITY, ov::PropertyMutability::RO, [&](const Config& config) -> auto { \
+                return PROP_RETVAL;                                                                          \
+            }));                                                                                             \
     } while (0)
 
 /**
@@ -351,6 +353,8 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::log::level, LOG_LEVEL);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_dir, CACHE_DIR);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::compiled_blob, COMPILED_BLOB);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::device::id, DEVICE_ID);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::num_streams, NUM_STREAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::weights_path, WEIGHTS_PATH);
@@ -358,7 +362,6 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode_params, COMPILATION_MODE_PARAMS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dma_engines, DMA_ENGINES);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::tiles, TILES);
-    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::dpu_groups, DPU_GROUPS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compilation_mode, COMPILATION_MODE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_type, COMPILER_TYPE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::platform, PLATFORM);
@@ -373,10 +376,13 @@ void Properties::registerPluginProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::defer_weights_load, DEFER_WEIGHTS_LOAD);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::compiler_dynamic_quantization, COMPILER_DYNAMIC_QUANTIZATION);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::qdq_optimization_aggressive, QDQ_OPTIMIZATION_AGGRESSIVE);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::batch_compiler_mode_settings, BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::workload_type, WORKLOAD_TYPE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
 
     TRY_REGISTER_CUSTOMFUNC_PROPERTY(ov::intel_npu::stepping, STEPPING, [&](const Config& config) {
         if (!config.has<STEPPING>()) {
@@ -405,6 +411,49 @@ void Properties::registerPluginProperties() {
     }());
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::enable_cpu_pinning, ENABLE_CPU_PINNING);
 
+    // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we still need
+    // to enable those for OV Core to query.
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::use_npuw, NPU_USE_NPUW);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::devices, NPUW_DEVICES);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::submodel_device, NPUW_SUBMODEL_DEVICE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::weights_bank, NPUW_WEIGHTS_BANK);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::weights_bank_alloc, NPUW_WEIGHTS_BANK_ALLOC);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::pipeline, NPUW_ONLINE_PIPELINE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::avoid, NPUW_ONLINE_AVOID);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::isolate, NPUW_ONLINE_ISOLATE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::nofold, NPUW_ONLINE_NO_FOLD);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::min_size, NPUW_ONLINE_MIN_SIZE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::keep_blocks, NPUW_ONLINE_KEEP_BLOCKS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::online::keep_block_size,
+                                 NPUW_ONLINE_KEEP_BLOCK_SIZE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::fold, NPUW_FOLD);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::cwai, NPUW_CWAI);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant, NPUW_DQ);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dyn_quant_full, NPUW_DQ_FULL);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::par_matmul_merge_dims, NPUW_PMM);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::slice_out, NPUW_SLICE_OUT);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial, NPUW_SPATIAL);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial_nway, NPUW_SPATIAL_NWAY);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::spatial_dyn, NPUW_SPATIAL_DYN);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::f16_interconnect, NPUW_F16IC);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::host_gather, NPUW_HOST_GATHER);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::partitioning::funcall_for_all, NPUW_FUNCALL_FOR_ALL);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::funcall_async, NPUW_FUNCALL_ASYNC);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::unfold_ireqs, NPUW_UNFOLD_IREQS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::enabled, NPUW_LLM);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::batch_dim, NPUW_LLM_BATCH_DIM);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::seq_len_dim, NPUW_LLM_SEQ_LEN_DIM);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::max_prompt_len, NPUW_LLM_MAX_PROMPT_LEN);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::min_response_len, NPUW_LLM_MIN_RESPONSE_LEN);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::optimize_v_tensors, NPUW_LLM_OPTIMIZE_V_TENSORS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_hint, NPUW_LLM_PREFILL_HINT);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::prefill_config, NPUW_LLM_PREFILL_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_hint, NPUW_LLM_GENERATE_HINT);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::generate_config, NPUW_LLM_GENERATE_CONFIG);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::intel_npu::npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE);
+
     // 2. Metrics (static device and enviroment properties)
     // ========
     // REGISTER_SIMPLE_METRIC format: (property, public true/false, return value)
@@ -426,7 +475,7 @@ void Properties::registerPluginProperties() {
         REGISTER_SIMPLE_METRIC(ov::device::pci_info, true, _metrics->GetPciInfo(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::gops, true, _metrics->GetGops(get_specified_device_name(config)));
         REGISTER_SIMPLE_METRIC(ov::device::type, true, _metrics->GetDeviceType(get_specified_device_name(config)));
-        REGISTER_SIMPLE_METRIC(ov::internal::supported_properties, true, _internalSupportedProperties);
+        REGISTER_SIMPLE_METRIC(ov::internal::supported_properties, false, _internalSupportedProperties);
         REGISTER_SIMPLE_METRIC(ov::intel_npu::device_alloc_mem_size,
                                true,
                                _metrics->GetDeviceAllocMemSize(get_specified_device_name(config)));
@@ -481,6 +530,13 @@ void Properties::registerPluginProperties() {
                     caching_props.emplace_back(prop);
                 }
             }
+            // NPUW properties are requested by OV Core during caching and have no effect on the NPU plugin. But we
+            // still need to enable those for OV Core to query. add all NPUW properties
+            for (auto prop : _cachingProperties) {
+                if (prop.find("NPUW") != prop.npos) {
+                    caching_props.emplace_back(prop);
+                }
+            }
             return caching_props;
         });
     }
@@ -505,9 +561,10 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::execution_mode, EXECUTION_MODE_HINT);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::num_requests, PERFORMANCE_HINT_NUM_REQUESTS);
     TRY_REGISTER_SIMPLE_PROPERTY(ov::compilation_num_threads, COMPILATION_NUM_THREADS);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
+    TRY_REGISTER_SIMPLE_PROPERTY(ov::cache_mode, CACHE_MODE);
 
     // Properties we shall only enable if they were set prior-to-compilation
-    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::hint::inference_precision, INFERENCE_PRECISION_HINT);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::hint::model, MODEL_PTR);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::weights_path, WEIGHTS_PATH);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::cache_dir, CACHE_DIR);
@@ -527,10 +584,13 @@ void Properties::registerCompiledModelProperties() {
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::compiler_dynamic_quantization,
                                               COMPILER_DYNAMIC_QUANTIZATION);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::qdq_optimization, QDQ_OPTIMIZATION);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::qdq_optimization_aggressive, QDQ_OPTIMIZATION_AGGRESSIVE);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::disable_version_check, DISABLE_VERSION_CHECK);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::batch_compiler_mode_settings,
                                               BATCH_COMPILER_MODE_SETTINGS);
     TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::run_inferences_sequentially, RUN_INFERENCES_SEQUENTIALLY);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::weightless_blob, WEIGHTLESS_BLOB);
+    TRY_REGISTER_COMPILEDMODEL_PROPERTY_IFSET(ov::intel_npu::separate_weights_version, SEPARATE_WEIGHTS_VERSION);
 
     TRY_REGISTER_VARPUB_PROPERTY(ov::intel_npu::batch_mode, BATCH_MODE, false);
 

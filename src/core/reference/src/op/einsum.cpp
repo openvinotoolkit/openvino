@@ -520,7 +520,8 @@ ov::Tensor build_multi_identity(const ov::Tensor& input,
         ov::Tensor identity = build_identity<T>(input, repeated_label_dims);
 
         PartialShape output_shape = multi_identity.get_shape();
-        PartialShape::broadcast_merge_into(output_shape, identity.get_shape(), ov::op::AutoBroadcastType::NUMPY);
+        std::ignore =
+            PartialShape::broadcast_merge_into(output_shape, identity.get_shape(), ov::op::AutoBroadcastType::NUMPY);
         auto mul_output = ov::Tensor(identity.get_element_type(), output_shape.get_shape());
         reference::multiply<T>(multi_identity.data<T>(),
                                identity.data<T>(),
@@ -823,9 +824,9 @@ void contract_two_inputs(ov::TensorVector& inputs,
 
         // multiply both operands with broadcasting
         PartialShape output_shape = unsqueeze_output1.get_shape();
-        PartialShape::broadcast_merge_into(output_shape,
-                                           unsqueeze_output2.get_shape(),
-                                           ov::op::AutoBroadcastType::NUMPY);
+        std::ignore = PartialShape::broadcast_merge_into(output_shape,
+                                                         unsqueeze_output2.get_shape(),
+                                                         ov::op::AutoBroadcastType::NUMPY);
         auto mul_output = ov::Tensor(unsqueeze_output1.get_element_type(), output_shape.get_shape());
         reference::multiply<T>(unsqueeze_output1.data<T>(),
                                unsqueeze_output2.data<T>(),
@@ -906,8 +907,10 @@ void contract_two_inputs(ov::TensorVector& inputs,
     // broadcast both inputs to have common sub-shape broadcasted that is needed
     // in case of ellipsis among the common labels
     // reference::broadcast()
-    PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, op::AutoBroadcastType::NUMPY);
-    PartialShape::broadcast_merge_into(reduced_sub_shape, reduced_sub_shape2, op::AutoBroadcastType::NUMPY);
+    std::ignore =
+        PartialShape::broadcast_merge_into(common_sub_shape1, common_sub_shape2, op::AutoBroadcastType::NUMPY);
+    std::ignore =
+        PartialShape::broadcast_merge_into(reduced_sub_shape, reduced_sub_shape2, op::AutoBroadcastType::NUMPY);
     Shape reduced_sub_shape_prod = {shape_size(reduced_sub_shape.get_shape())};
     Shape common_sub_shape = common_sub_shape1.get_shape();
     broadcast_input<T>(inputs,

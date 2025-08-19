@@ -4,10 +4,17 @@
 
 #pragma once
 
-#include <utility>
+#include <xbyak/xbyak.h>
 
-#include "cpu/x64/jit_generator.hpp"
-#include "dnnl_types.h"
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <initializer_list>
+#include <memory>
+#include <type_traits>
+#include <utility>
+#include <vector>
+
+#include "openvino/core/except.hpp"
 #include "utils/cpu_utils.hpp"
 
 namespace ov::intel_cpu {
@@ -45,7 +52,7 @@ public:
 
     public:
         Reg() = default;
-        Reg(const RegistersPool::Ptr& regPool) {
+        explicit Reg(const RegistersPool::Ptr& regPool) {
             initialize(regPool);
         }
         Reg(const RegistersPool::Ptr& regPool, int requestedIdx) {
@@ -61,19 +68,20 @@ public:
             return *this;
         }
         Reg(Reg&& other) noexcept : reg(other.reg), regPool(std::move(other.regPool)) {}
-        operator TReg&() {
+        // XByak relies on implicit conversions
+        operator TReg&() {  // NOLINT(google-explicit-constructor)
             ensureValid();
             return reg;
         }
-        operator const TReg&() const {
+        operator const TReg&() const {  // NOLINT(google-explicit-constructor)
             ensureValid();
             return reg;
         }
-        operator Xbyak::RegExp() const {
+        operator Xbyak::RegExp() const {  // NOLINT(google-explicit-constructor)
             ensureValid();
             return reg;
         }
-        int getIdx() const {
+        [[nodiscard]] int getIdx() const {
             ensureValid();
             return reg.getIdx();
         }
@@ -87,15 +95,13 @@ public:
                 regPool.reset();
             }
         }
-        bool isInitialized() const {
+        [[nodiscard]] bool isInitialized() const {
             return !regPool.expired();
         }
 
     private:
         void ensureValid() const {
-            if (!isInitialized()) {
-                OPENVINO_THROW("RegistersPool::Reg is either not initialized or released");
-            }
+            OPENVINO_ASSERT(isInitialized(), "RegistersPool::Reg is either not initialized or released");
         }
 
         void initialize(const RegistersPool::Ptr& pool, int requestedIdx = anyIdx) {
@@ -115,7 +121,6 @@ public:
             regPool = pool;
         }
 
-    private:
         TReg reg;
         RegistersPool::WeakPtr regPool;
     };
@@ -142,12 +147,14 @@ public:
                                 Xbyak::Opmask>::value,
                       "Unsupported TReg by RegistersPool::Reg. Please, use the following Xbyak registers either "
                       "Reg8, Reg16, Reg32, Reg64, Xmm, Ymm, Zmm or Opmask");
-        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
+        if (std::is_base_of_v<Xbyak::Mmx, TReg>) {
             return simdSet.countUnused();
-        } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-                   std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
+        }
+        if (std::is_same_v<TReg, Xbyak::Reg8> || std::is_same_v<TReg, Xbyak::Reg16> ||
+            std::is_same_v<TReg, Xbyak::Reg32> || std::is_same_v<TReg, Xbyak::Reg64>) {
             return generalSet.countUnused();
-        } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
+        }
+        if (std::is_same_v<TReg, Xbyak::Opmask>) {
             return countUnusedOpmask();
         }
     }
@@ -155,40 +162,33 @@ public:
 protected:
     class PhysicalSet {
     public:
-        PhysicalSet(int size) : isFreeIndexVector(size, true) {}
+        explicit PhysicalSet(int size) : isFreeIndexVector(size, true) {}
 
         void setAsUsed(size_t regIdx) {
-            if (regIdx >= isFreeIndexVector.size()) {
-                OPENVINO_THROW("regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
-            }
-            if (!isFreeIndexVector[regIdx]) {
-                OPENVINO_THROW("Inconsistency in RegistersPool::PhysicalSet::setAsUsed()");
-            }
+            OPENVINO_ASSERT(regIdx < isFreeIndexVector.size(),
+                            "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
+            OPENVINO_ASSERT(isFreeIndexVector[regIdx], "Inconsistency in RegistersPool::PhysicalSet::setAsUsed()");
             isFreeIndexVector[regIdx] = false;
         }
 
         void setAsUnused(size_t regIdx) {
-            if (regIdx >= isFreeIndexVector.size()) {
-                OPENVINO_THROW("regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
-            }
-            if (isFreeIndexVector[regIdx]) {
-                OPENVINO_THROW("Inconsistency in RegistersPool::PhysicalSet::setAsUnused()");
-            }
+            OPENVINO_ASSERT(regIdx < isFreeIndexVector.size(),
+                            "regIdx is out of bounds in RegistersPool::PhysicalSet::setAsUsed()");
+            OPENVINO_ASSERT(!isFreeIndexVector[regIdx], "Inconsistency in RegistersPool::PhysicalSet::setAsUnused()");
             isFreeIndexVector[regIdx] = true;
         }
 
         size_t getUnused(size_t requestedIdx) {
             if (requestedIdx == static_cast<size_t>(anyIdx)) {
                 return getFirstFreeIndex();
-            } else {
-                if (requestedIdx >= isFreeIndexVector.size()) {
-                    OPENVINO_THROW("requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
-                }
-                if (!isFreeIndexVector[requestedIdx]) {
-                    OPENVINO_THROW("The register with index #", requestedIdx, " already used in the RegistersPool");
-                }
-                return requestedIdx;
             }
+            OPENVINO_ASSERT(requestedIdx < isFreeIndexVector.size(),
+                            "requestedIdx is out of bounds in RegistersPool::PhysicalSet::getUnused()");
+            OPENVINO_ASSERT(isFreeIndexVector[requestedIdx],
+                            "The register with index #",
+                            requestedIdx,
+                            " already used in the RegistersPool");
+            return requestedIdx;
         }
 
         void exclude(Xbyak::Reg reg) {
@@ -215,7 +215,6 @@ protected:
             OPENVINO_THROW("Not enough registers in the RegistersPool");
         }
 
-    private:
         std::vector<bool> isFreeIndexVector;
     };
 
@@ -229,7 +228,7 @@ protected:
         OPENVINO_THROW("countUnusedOpmask: The Opmask is not supported in current instruction set");
     }
 
-    RegistersPool(int simdRegistersNumber) : simdSet(simdRegistersNumber) {
+    explicit RegistersPool(int simdRegistersNumber) : simdSet(simdRegistersNumber) {
         checkUniqueAndUpdate();
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RSP));
         generalSet.exclude(Xbyak::Reg64(Xbyak::Operand::RAX));
@@ -241,7 +240,7 @@ protected:
     RegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude, int simdRegistersNumber)
         : simdSet(simdRegistersNumber) {
         checkUniqueAndUpdate();
-        for (auto& reg : regsToExclude) {
+        for (const auto& reg : regsToExclude) {
             if (reg.isXMM() || reg.isYMM() || reg.isZMM()) {
                 simdSet.exclude(reg);
             } else if (reg.isREG()) {
@@ -254,40 +253,38 @@ protected:
 private:
     template <typename TReg>
     int getFree(int requestedIdx) {
-        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
+        if (std::is_base_of_v<Xbyak::Mmx, TReg>) {
             auto idx = simdSet.getUnused(requestedIdx);
             simdSet.setAsUsed(idx);
             return idx;
         }
-        if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-            std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
+        if (std::is_same_v<TReg, Xbyak::Reg8> || std::is_same_v<TReg, Xbyak::Reg16> ||
+            std::is_same_v<TReg, Xbyak::Reg32> || std::is_same_v<TReg, Xbyak::Reg64>) {
             auto idx = generalSet.getUnused(requestedIdx);
             generalSet.setAsUsed(idx);
             return idx;
         }
-        if (std::is_same<TReg, Xbyak::Opmask>::value) {
+        if (std::is_same_v<TReg, Xbyak::Opmask>) {
             return getFreeOpmask(requestedIdx);
         }
     }
 
     template <typename TReg>
     void returnToPool(const TReg& reg) {
-        if (std::is_base_of<Xbyak::Mmx, TReg>::value) {
+        if (std::is_base_of_v<Xbyak::Mmx, TReg>) {
             simdSet.setAsUnused(reg.getIdx());
-        } else if (std::is_same<TReg, Xbyak::Reg8>::value || std::is_same<TReg, Xbyak::Reg16>::value ||
-                   std::is_same<TReg, Xbyak::Reg32>::value || std::is_same<TReg, Xbyak::Reg64>::value) {
+        } else if (std::is_same_v<TReg, Xbyak::Reg8> || std::is_same_v<TReg, Xbyak::Reg16> ||
+                   std::is_same_v<TReg, Xbyak::Reg32> || std::is_same_v<TReg, Xbyak::Reg64>) {
             generalSet.setAsUnused(reg.getIdx());
-        } else if (std::is_same<TReg, Xbyak::Opmask>::value) {
+        } else if (std::is_same_v<TReg, Xbyak::Opmask>) {
             returnOpmaskToPool(reg.getIdx());
         }
     }
 
-    void checkUniqueAndUpdate(bool isCtor = true) {
+    static void checkUniqueAndUpdate(bool isCtor = true) {
         static thread_local bool isCreated = false;
         if (isCtor) {
-            if (isCreated) {
-                OPENVINO_THROW("There should be only one instance of RegistersPool per thread");
-            }
+            OPENVINO_ASSERT(!isCreated, "There should be only one instance of RegistersPool per thread");
             isCreated = true;
         } else {
             isCreated = false;
@@ -302,22 +299,22 @@ template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 class IsaRegistersPool : public RegistersPool {
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
-        : RegistersPool(regsToExclude, dnnl::impl::cpu::x64::cpu_isa_traits<isa>::n_vregs) {}
+        : RegistersPool(regsToExclude, dnnl::impl::cpu::x64::cpu_isa_traits_t<isa>::n_vregs) {}
 };
 
 template <>
 class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core> : public RegistersPool {
 public:
     IsaRegistersPool()
-        : RegistersPool(dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
+        : RegistersPool(dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
         opmaskSet.exclude(
             Xbyak::Opmask(0));  // the Opmask(0) has special meaning for some instructions, like gather instruction
     }
 
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
         : RegistersPool(regsToExclude,
-                        dnnl::impl::cpu::x64::cpu_isa_traits<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
-        for (auto& reg : regsToExclude) {
+                        dnnl::impl::cpu::x64::cpu_isa_traits_t<dnnl::impl::cpu::x64::avx512_core>::n_vregs) {
+        for (const auto& reg : regsToExclude) {
             if (reg.isOPMASK()) {
                 opmaskSet.exclude(reg);
             }
@@ -334,7 +331,7 @@ public:
         opmaskSet.setAsUnused(idx);
     }
 
-    size_t countUnusedOpmask() const override {
+    [[nodiscard]] size_t countUnusedOpmask() const override {
         return opmaskSet.countUnused();
     }
 
@@ -348,7 +345,7 @@ class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core_vnni>
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
         : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>(regsToExclude) {}
-    IsaRegistersPool() : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>() {}
+    IsaRegistersPool() = default;
 };
 
 template <>
@@ -357,7 +354,7 @@ class IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core_bf16>
 public:
     IsaRegistersPool(std::initializer_list<Xbyak::Reg> regsToExclude)
         : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>(regsToExclude) {}
-    IsaRegistersPool() : IsaRegistersPool<dnnl::impl::cpu::x64::avx512_core>() {}
+    IsaRegistersPool() = default;
 };
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>

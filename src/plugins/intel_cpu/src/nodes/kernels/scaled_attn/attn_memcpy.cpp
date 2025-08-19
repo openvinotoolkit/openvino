@@ -3,17 +3,21 @@
 //
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
-#include <type_traits>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/core/type/float16.hpp"
+#include "utils/plain_tensor.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
+
+#    include "common.hpp"
 #endif
 
 #include "attn_memcpy.hpp"
-#include "common.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 
@@ -47,8 +51,11 @@ void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                         const ov::intel_cpu::PlainTensor& past_k_output,
                         const ov::intel_cpu::PlainTensor& past_v_output) {
     // For compatibility, all input_kvs are permuted to BHLS
-    size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3],
-           SV = v_input.m_dims[3];
+    size_t B = k_input.m_dims[0];
+    size_t H = k_input.m_dims[1];
+    size_t L1 = k_input.m_dims[2];
+    size_t S = k_input.m_dims[3];
+    size_t SV = v_input.m_dims[3];
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         attn_copy(past_k_output.ptr<T2>(b, h, m, 0), k_input.ptr<T>(b, h, m, 0), S);
         attn_copy(past_v_output.ptr<T2>(b, h, m, 0), v_input.ptr<T>(b, h, m, 0), SV);
@@ -60,8 +67,11 @@ static void attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                const ov::intel_cpu::PlainTensor& past_k_output,
                                const ov::intel_cpu::PlainTensor& past_v_output) {
     // For compatibility, all input_kvs are permuted to BHLS
-    size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3],
-           SV = v_input.m_dims[3];
+    size_t B = k_input.m_dims[0];
+    size_t H = k_input.m_dims[1];
+    size_t L1 = k_input.m_dims[2];
+    size_t S = k_input.m_dims[3];
+    size_t SV = v_input.m_dims[3];
     parallel_for3d(L1, B, H, [&](size_t m, size_t b, size_t h) {
         std::memcpy(past_k_output.ptr_v(b, h, m, 0), k_input.ptr_v(b, h, m, 0), S * k_input.m_element_size);
         std::memcpy(past_v_output.ptr_v(b, h, m, 0), v_input.ptr_v(b, h, m, 0), SV * v_input.m_element_size);
@@ -74,8 +84,11 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                      const ov::intel_cpu::PlainTensor& past_k_output,
                                      const ov::intel_cpu::PlainTensor& past_v_output,
                                      const ov::intel_cpu::PlainTensor& slot_mapping) {
-    size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3],
-           SV = v_input.m_dims[3];
+    size_t B = k_input.m_dims[0];
+    size_t H = k_input.m_dims[1];
+    size_t L1 = k_input.m_dims[2];
+    size_t S = k_input.m_dims[3];
+    size_t SV = v_input.m_dims[3];
     size_t block_size = past_k_output.m_dims[2];
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
@@ -94,8 +107,11 @@ static void paged_attn_memcpy_kernel(const ov::intel_cpu::PlainTensor& k_input,
                                      const ov::intel_cpu::PlainTensor& past_k_output,
                                      const ov::intel_cpu::PlainTensor& past_v_output,
                                      const ov::intel_cpu::PlainTensor& slot_mapping) {
-    size_t B = k_input.m_dims[0], H = k_input.m_dims[1], L1 = k_input.m_dims[2], S = k_input.m_dims[3],
-           SV = v_input.m_dims[3];
+    size_t B = k_input.m_dims[0];
+    size_t H = k_input.m_dims[1];
+    size_t L1 = k_input.m_dims[2];
+    size_t S = k_input.m_dims[3];
+    size_t SV = v_input.m_dims[3];
     size_t block_size = past_k_output.m_dims[2];
     parallel_for3d(B, L1, H, [&](size_t b, size_t m, size_t h) {
         auto slot = slot_mapping.ptr<int32_t>(b)[m];
@@ -161,8 +177,8 @@ void attn_memcpy2d_kernel(void* src,
                           size_t width,
                           size_t height) {
     if (src_type == dst_type) {
-        auto src_u8 = reinterpret_cast<uint8_t*>(src);
-        auto dst_u8 = reinterpret_cast<uint8_t*>(dst);
+        auto* src_u8 = reinterpret_cast<uint8_t*>(src);
+        auto* dst_u8 = reinterpret_cast<uint8_t*>(dst);
 
         for (size_t j = 0; j < height; j++) {
             std::memcpy(dst_u8, src_u8, width * src_type.size());
@@ -170,8 +186,8 @@ void attn_memcpy2d_kernel(void* src,
             src_u8 += src_stride * src_type.size();
         }
     } else if (src_type == ov::element::f32 && dst_type == ov::element::bf16) {
-        auto src_f = reinterpret_cast<float*>(src);
-        auto dst_f = reinterpret_cast<ov::bfloat16*>(dst);
+        auto* src_f = reinterpret_cast<float*>(src);
+        auto* dst_f = reinterpret_cast<ov::bfloat16*>(dst);
 
         for (size_t j = 0; j < height; j++) {
             attn_copy<ov::bfloat16, float>(dst_f, src_f, width);
@@ -179,8 +195,8 @@ void attn_memcpy2d_kernel(void* src,
             src_f += src_stride;
         }
     } else if (src_type == ov::element::f32 && dst_type == ov::element::f16) {
-        auto src_f = reinterpret_cast<float*>(src);
-        auto dst_f = reinterpret_cast<ov::float16*>(dst);
+        auto* src_f = reinterpret_cast<float*>(src);
+        auto* dst_f = reinterpret_cast<ov::float16*>(dst);
 
         for (size_t j = 0; j < height; j++) {
             attn_copy<ov::float16, float>(dst_f, src_f, width);

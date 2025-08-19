@@ -35,19 +35,19 @@ KernelsPriority AdaptivePoolingRef::GetKernelsPriority(const Params&) const {
 
 bool AdaptivePoolingRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::ADAPTIVE_POOLING) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto& params = dynamic_cast<const adaptive_pooling_params&>(p);
     const auto& inputs = params.inputs;
 
     if (params.mode == PoolType::MAX && params.outputs_num != 2) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const auto input_dims = inputs[0].Dimentions();
     if (input_dims < 2 || input_dims > 5) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

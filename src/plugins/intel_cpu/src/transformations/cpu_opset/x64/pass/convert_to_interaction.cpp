@@ -4,20 +4,30 @@
 
 #include "convert_to_interaction.hpp"
 
+#include <cstddef>
+#include <memory>
 #include <openvino/core/rt_info.hpp>
 #include <openvino/pass/pattern/op/or.hpp>
 #include <openvino/pass/pattern/op/wrap_type.hpp>
-#include <transformations/utils/utils.hpp>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
+#include "openvino/core/type.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/fake_quantize.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/pattern.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "simplify_fakequantize.hpp"
 #include "transformations/cpu_opset/x64/op/interaction.hpp"
@@ -34,20 +44,20 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
         features_m.push_back(feature);
         features_output.push_back(feature->output(0));
     }
-    auto concat_m = wrap_type<ov::opset8::Concat>(features_output);
-    auto reshape_m = wrap_type<ov::opset8::Reshape>({concat_m->output(0), any_input()->output(0)});
-    auto matmul_m = wrap_type<ov::opset1::MatMul>({reshape_m, reshape_m});
-    auto transpose2_m = wrap_type<ov::opset1::Transpose>({matmul_m->output(0), any_input()->output(0)});
-    auto reshape2_m = wrap_type<ov::opset1::Reshape>({transpose2_m->output(0), any_input()->output(0)});
+    auto concat_m = wrap_type<ov::op::v0::Concat>(features_output);
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({concat_m->output(0), any_input()->output(0)});
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({reshape_m, reshape_m});
+    auto transpose2_m = wrap_type<ov::op::v1::Transpose>({matmul_m->output(0), any_input()->output(0)});
+    auto reshape2_m = wrap_type<ov::op::v1::Reshape>({transpose2_m->output(0), any_input()->output(0)});
     auto gather_m =
-        wrap_type<ov::opset8::Gather>({reshape2_m->output(0), any_input()->output(0), any_input()->output(0)});
-    auto transpose3_m = wrap_type<ov::opset1::Transpose>({gather_m->output(0), any_input()->output(0)});
-    auto final_concat_m1 = wrap_type<ov::opset1::Concat>({dense_feature_m->output(0), transpose3_m->output(0)});
+        wrap_type<ov::op::v8::Gather>({reshape2_m->output(0), any_input()->output(0), any_input()->output(0)});
+    auto transpose3_m = wrap_type<ov::op::v1::Transpose>({gather_m->output(0), any_input()->output(0)});
+    auto final_concat_m1 = wrap_type<ov::op::v0::Concat>({dense_feature_m->output(0), transpose3_m->output(0)});
 
-    auto reshape3_m = wrap_type<ov::opset1::Reshape>({gather_m->output(0), any_input()->output(0)});
-    auto transpose4_m = wrap_type<ov::opset1::Transpose>({reshape3_m->output(0), any_input()->output(0)});
-    auto reshape4_m = wrap_type<ov::opset1::Reshape>({transpose4_m->output(0), any_input()->output(0)});
-    auto final_concat_m2 = wrap_type<ov::opset1::Concat>({dense_feature_m->output(0), reshape4_m->output(0)});
+    auto reshape3_m = wrap_type<ov::op::v1::Reshape>({gather_m->output(0), any_input()->output(0)});
+    auto transpose4_m = wrap_type<ov::op::v1::Transpose>({reshape3_m->output(0), any_input()->output(0)});
+    auto reshape4_m = wrap_type<ov::op::v1::Reshape>({transpose4_m->output(0), any_input()->output(0)});
+    auto final_concat_m2 = wrap_type<ov::op::v0::Concat>({dense_feature_m->output(0), reshape4_m->output(0)});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -71,7 +81,7 @@ ov::intel_cpu::ConvertToInteraction::ConvertToInteraction() {
             first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             // disconnect original consumers of features.
-            for (auto& input : old_feature_node->output(0).get_target_inputs()) {
+            for (const auto& input : old_feature_node->output(0).get_target_inputs()) {
                 old_feature_node->output(0).remove_target_input(input);
             }
         }
@@ -98,17 +108,17 @@ ov::intel_cpu::FuseFQtoInteraction::FuseFQtoInteraction() {
         features_output.push_back(feature->output(0));
     }
     auto inter_m = wrap_type<InteractionNode>(features_output);
-    auto fq_m = wrap_type<ov::opset8::FakeQuantize>({inter_m,
-                                                     wrap_type<ov::opset1::Constant>(),
-                                                     wrap_type<ov::opset1::Constant>(),
-                                                     wrap_type<ov::opset1::Constant>(),
-                                                     wrap_type<ov::opset1::Constant>()});
+    auto fq_m = wrap_type<ov::op::v0::FakeQuantize>({inter_m,
+                                                     wrap_type<ov::op::v0::Constant>(),
+                                                     wrap_type<ov::op::v0::Constant>(),
+                                                     wrap_type<ov::op::v0::Constant>(),
+                                                     wrap_type<ov::op::v0::Constant>()});
     matcher_pass_callback callback = [=](Matcher& m) {
         auto& pattern_to_output = m.get_pattern_value_map();
-        auto fq_node = ov::as_type_ptr<ov::opset8::FakeQuantize>(pattern_to_output.at(fq_m).get_node_shared_ptr());
-        OPENVINO_ASSERT(fq_node != nullptr, "FakeQuantize node is not found");
+        auto fq_node = ov::as_type_ptr<ov::op::v0::FakeQuantize>(pattern_to_output.at(fq_m).get_node_shared_ptr());
+        OPENVINO_ASSERT(fq_node, "FakeQuantize node is not found");
         std::vector<float> fq_scale;
-        fq_scale = simplifyToScale(fq_node, 0.001f);
+        fq_scale = simplifyToScale(fq_node, 0.001F);
         if (fq_scale.empty()) {
             return false;
         }
@@ -136,11 +146,11 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
     using namespace ov::pass::pattern;
     const int sparse_features = 26;
     OutputVector features_output;
-    auto dense_fq_m = wrap_type<ov::opset8::FakeQuantize>({any_input(has_static_shape()),
-                                                           wrap_type<ov::opset1::Constant>(),
-                                                           wrap_type<ov::opset1::Constant>(),
-                                                           wrap_type<ov::opset1::Constant>(),
-                                                           wrap_type<ov::opset1::Constant>()});
+    auto dense_fq_m = wrap_type<ov::op::v0::FakeQuantize>({any_input(has_static_shape()),
+                                                           wrap_type<ov::op::v0::Constant>(),
+                                                           wrap_type<ov::op::v0::Constant>(),
+                                                           wrap_type<ov::op::v0::Constant>(),
+                                                           wrap_type<ov::op::v0::Constant>()});
     std::vector<std::shared_ptr<Node>> features_m{dense_fq_m};
     features_output.push_back(dense_fq_m->output(0));
     for (size_t i = 0; i < sparse_features; i++) {
@@ -149,20 +159,20 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
         features_output.push_back(feature->output(0));
     }
 
-    auto concat_m = wrap_type<ov::opset8::Concat>(features_output);
-    auto reshape_m = wrap_type<ov::opset8::Reshape>({concat_m->output(0), any_input()->output(0)});
-    auto matmul_m = wrap_type<ov::opset1::MatMul>({reshape_m, reshape_m});
-    auto sparse_fq = wrap_type<ov::opset8::FakeQuantize>({matmul_m->output(0),
-                                                          wrap_type<ov::opset1::Constant>(),
-                                                          wrap_type<ov::opset1::Constant>(),
-                                                          wrap_type<ov::opset1::Constant>(),
-                                                          wrap_type<ov::opset1::Constant>()});
-    auto transpose2_m = wrap_type<ov::opset1::Transpose>({sparse_fq->output(0), any_input()->output(0)});
-    auto reshape2_m = wrap_type<ov::opset1::Reshape>({transpose2_m->output(0), any_input()->output(0)});
+    auto concat_m = wrap_type<ov::op::v0::Concat>(features_output);
+    auto reshape_m = wrap_type<ov::op::v1::Reshape>({concat_m->output(0), any_input()->output(0)});
+    auto matmul_m = wrap_type<ov::op::v0::MatMul>({reshape_m, reshape_m});
+    auto sparse_fq = wrap_type<ov::op::v0::FakeQuantize>({matmul_m->output(0),
+                                                          wrap_type<ov::op::v0::Constant>(),
+                                                          wrap_type<ov::op::v0::Constant>(),
+                                                          wrap_type<ov::op::v0::Constant>(),
+                                                          wrap_type<ov::op::v0::Constant>()});
+    auto transpose2_m = wrap_type<ov::op::v1::Transpose>({sparse_fq->output(0), any_input()->output(0)});
+    auto reshape2_m = wrap_type<ov::op::v1::Reshape>({transpose2_m->output(0), any_input()->output(0)});
     auto gather_m =
-        wrap_type<ov::opset8::Gather>({reshape2_m->output(0), any_input()->output(0), any_input()->output(0)});
-    auto transpose3_m = wrap_type<ov::opset1::Transpose>({gather_m->output(0), any_input()->output(0)});
-    auto final_concat_m = wrap_type<ov::opset1::Concat>({dense_fq_m->output(0), transpose3_m->output(0)});
+        wrap_type<ov::op::v8::Gather>({reshape2_m->output(0), any_input()->output(0), any_input()->output(0)});
+    auto transpose3_m = wrap_type<ov::op::v1::Transpose>({gather_m->output(0), any_input()->output(0)});
+    auto final_concat_m = wrap_type<ov::op::v0::Concat>({dense_fq_m->output(0), transpose3_m->output(0)});
 
     matcher_pass_callback callback = [=](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -182,15 +192,15 @@ ov::intel_cpu::ConvertInteractionInt8::ConvertInteractionInt8() {
             first_feature_shape = this_feature_shape;
             features_node.push_back(old_feature_node);
             // disconnect original consumers of features.
-            for (auto& input : old_feature_node->output(0).get_target_inputs()) {
+            for (const auto& input : old_feature_node->output(0).get_target_inputs()) {
                 old_feature_node->output(0).remove_target_input(input);
             }
         }
         // check whether the inputs to concat have same fakequantize parameters
         for (size_t i = 1; i < dense_fq_node->get_input_size(); i++) {
-            auto dense_const = ov::as_type_ptr<ov::opset8::Constant>(dense_fq_node->get_input_node_shared_ptr(i))
+            auto dense_const = ov::as_type_ptr<ov::op::v0::Constant>(dense_fq_node->get_input_node_shared_ptr(i))
                                    ->cast_vector<float>();
-            auto sparse_const = ov::as_type_ptr<ov::opset8::Constant>(sparse_fq_node->get_input_node_shared_ptr(i))
+            auto sparse_const = ov::as_type_ptr<ov::op::v0::Constant>(sparse_fq_node->get_input_node_shared_ptr(i))
                                     ->cast_vector<float>();
             if (dense_const.size() != sparse_const.size() || dense_const != sparse_const) {
                 return false;

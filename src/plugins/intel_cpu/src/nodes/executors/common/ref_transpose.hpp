@@ -4,7 +4,17 @@
 
 #pragma once
 
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "nodes/common/permute_kernel.h"
+#include "nodes/executors/executor.hpp"
 #include "nodes/executors/transpose.hpp"
+#include "onednn/iml_type_mapper.h"
 
 namespace ov::intel_cpu {
 class RefTransposeExecutor : public TransposeExecutor {
@@ -13,7 +23,7 @@ public:
     static void referenceExecute(const uint8_t* src_data,
                                  uint8_t* dst_data,
                                  const jit_permute_config_params& jcp,
-                                 const int mb);
+                                 int mb);
     bool init(const TransposeParams& transposeParams,
               const std::vector<MemoryDescPtr>& srcDescs,
               const std::vector<MemoryDescPtr>& dstDescs,

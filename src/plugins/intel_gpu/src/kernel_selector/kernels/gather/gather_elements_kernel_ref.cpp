@@ -33,6 +33,32 @@ static size_t GetGatherElementsChannelIndex(const gather_elements_params& params
     return DataTensor::Channelndex(params.outputs[0].GetLayout(), name);
 }
 
+static std::string GetAxisDimSizeStr(const gather_elements_params& params) {
+    switch (params.axis) {
+    case GatherAxis::X:
+        return "INPUT0_SIZE_X";
+    case GatherAxis::Y:
+        return "INPUT0_SIZE_Y";
+    case GatherAxis::Z:
+        return "INPUT0_SIZE_Z";
+    case GatherAxis::W:
+        return "INPUT0_SIZE_W";
+    case GatherAxis::FEATURE:
+        return "INPUT0_FEATURE_NUM";
+    case GatherAxis::BATCH:
+        return "INPUT0_BATCH_NUM";
+    default:
+        return "";
+    }
+}
+
+static std::string GetLoadAndHandleNegativeIndicesStr(const gather_elements_params& params) {
+    std::string str = "const int axis_dim = " + GetAxisDimSizeStr(params) + ";";
+    str += "const int indices_val_read = (int)indices[out_idx];";
+    str += "const int indices_val = indices_val_read < 0 ? indices_val_read + axis_dim : indices_val_read;";
+    return str;
+}
+
 ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::UINT8);
@@ -82,7 +108,7 @@ static inline std::string GetOrderString(const std::vector<std::string>& order) 
 
 static std::string GetDataIndexOrder(const gather_elements_params& params, size_t axis) {
     auto idx_order = GetDefaultOrder(params.outputs[0].GetDims().size());
-    auto index_macro = "indices[out_idx]";
+    auto index_macro = "indices_val";
 
     idx_order[axis] = index_macro;
 
@@ -135,6 +161,7 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
 JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
+    jit.AddConstant(MakeJitConstant("LOAD_AND_HANDLE_NEGATIVE_INDICES", GetLoadAndHandleNegativeIndicesStr(params)));
     jit.AddConstant(MakeJitConstant("AXIS", GetGatherElementsChannelIndex(params)));
     jit.AddConstant(MakeJitConstant("DATA_INDEX_ORDER", GetDataIndexOrder(params, GetGatherElementsChannelIndex(params))));
 
@@ -149,7 +176,7 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
 
 bool GatherElementsKernelRef::Validate(const Params& p) const {
     if (p.GetType() != KernelType::GATHER_ELEMENTS) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     const gather_elements_params& params = static_cast<const gather_elements_params&>(p);
@@ -157,12 +184,12 @@ bool GatherElementsKernelRef::Validate(const Params& p) const {
     size_t indices_rank = params.inputs[1].GetDims().size();
 
     if (input_rank != indices_rank) {
-        return false;
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     for (auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
-            return false;
+            DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;

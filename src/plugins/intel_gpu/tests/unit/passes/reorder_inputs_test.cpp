@@ -163,6 +163,38 @@ TEST(reorder_inputs, mixed_ranks_gather) {
     ASSERT_EQ(gather2_node.get_output_layout().format, format::bfwzyx);
 }
 
+TEST(reorder_inputs, mixed_ranks_reshape) {
+    // Topology:
+    // transpose -> (5d) -> reshape -> (3d)
+    // Expected: (bfzyx:5d) -> reorder -> (bfyx:4d) -> reshape -> (bfyx:3d)
+
+    auto& engine = get_test_engine();
+    auto shape = engine.allocate_memory(layout{ { 3 }, data_types::i64, format::bfyx });
+    set_values<int64_t>(shape, { 0, -1, 2 });
+
+    topology topology;
+    topology.add(input_layout("input", layout{ { 1, 2, 32, 128, 128 }, data_types::f16, format::bzyxf }));
+    topology.add(input_layout("eltw_input", layout{ { 1, 524288, 2 }, data_types::f16, format::bfyx }));
+    topology.add(data("shape", shape));
+    topology.add(permute("permute", input_info("input"), { 0, 2, 3, 4, 1 }));
+    topology.add(reshape("reshape", input_info("permute"), input_info("shape"), true, ov::PartialShape{ 1, 524288, 2 }));
+    topology.add(eltwise("eltwise", input_info("reshape"), input_info("eltw_input"), eltwise_mode::sum));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    program::ptr prog = nullptr;
+    OV_ASSERT_NO_THROW(prog = program::build_program(engine, topology, config));
+    ASSERT_NE(prog, nullptr);
+
+    auto prog_impl = prog.get();
+
+    auto& reshape_node = prog_impl->get_node("reshape");
+
+    ov::PartialShape expected_reorder_shape{ 1, 32, 128, 128, 2 };
+    ASSERT_EQ(reshape_node.get_input_layouts()[0].get_partial_shape(), expected_reorder_shape);
+}
+
 TEST(reorder_inputs, impl_forcing_basic_format) {
     auto& engine = get_test_engine();
     auto input = engine.allocate_memory({ data_types::f32, format::bfyx, { 1, 2, 4, 1 } });

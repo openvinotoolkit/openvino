@@ -3,10 +3,14 @@
 //
 
 #pragma once
+#include <cstddef>
+#include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 #include "cpu_memory.h"
 #include "openvino/core/shape.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "tensor_data_accessor.hpp"
 
 namespace ov::intel_cpu {
@@ -19,7 +23,7 @@ class MemoryAccessor : public ov::ITensorAccessor {
 public:
     MemoryAccessor(const container_type& ptrs, const std::vector<int64_t>& ranks) : m_ptrs{ptrs}, m_ranks(ranks) {}
 
-    ~MemoryAccessor() = default;
+    virtual ~MemoryAccessor() = default;
 
     ov::Tensor operator()(size_t port) const override {
         const auto t_iter = m_ptrs.find(port);

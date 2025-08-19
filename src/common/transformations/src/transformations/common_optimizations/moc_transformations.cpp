@@ -96,6 +96,8 @@
 #include "transformations/smart_reshape/reshape_sinking.hpp"
 #include "transformations/symbolic_transformations/symbolic_optimizations.hpp"
 
+using namespace ov::element;
+
 static ov::PartialShape prepare_dynamic_shape(const ov::PartialShape& shape) {
     auto new_shape = ov::PartialShape::dynamic(shape.rank());
     if (shape.rank().is_static())
@@ -131,15 +133,10 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     using namespace ov::pass;
     REGISTER_PASS(manager, InitNodeInfo)
     if (m_low_precision_enabled) {
-        manager.register_pass<ov::pass::MarkDequantization>(element::TypeVector{ov::element::i8,
-                                                                                ov::element::u8,
-                                                                                ov::element::i4,
-                                                                                ov::element::u4,
-                                                                                ov::element::nf4,
-                                                                                ov::element::f4e2m1,
-                                                                                ov::element::f8e4m3,
-                                                                                ov::element::f8e5m2,
-                                                                                ov::element::f8e8m0});
+        // Transformation call example, to check with the real model
+        manager.register_pass<MarkGatherSubgraph>(TypeVector{f8e4m3}, TypeVector{u4});
+        manager.register_pass<ov::pass::MarkDequantization>(
+            TypeVector{i32, u32, i16, u16, i8, u8, u6, i4, u4, nf4, u3, u2, u1, f4e2m1, f8e4m3, f8e5m2, f8e8m0});
     }
     if (!m_use_shapes) {
         manager.register_pass<ov::pass::DisableShapeOfConstantFolding>();
@@ -237,7 +234,6 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertTensorIteratorToSequence)
     ADD_MATCHER(common_fusions, SplitConcatPairToInterpolateFusion, m_use_shapes)
     ADD_MATCHER(common_fusions, ConvolutionToGroupConvolutionFusion)
-    ADD_MATCHER(common_fusions, SDPAFusion)
     if (m_use_shapes) {
         ADD_MATCHER(common_fusions, NearestNeighborUpsamplingFusion)
     }
@@ -255,6 +251,7 @@ bool ov::pass::MOCTransformations::run_on_model(const std::shared_ptr<ov::Model>
     ADD_MATCHER(common_fusions, ConvertU4WeightsZeroPointToScalar)
     common_fusions->set_name("ov::pass::CommonFusions");
 
+    REGISTER_PASS(manager, SDPAFusion)
     REGISTER_PASS(manager, BinarizeWeights)
     REGISTER_PASS(manager, ConvToBinaryConv)
 

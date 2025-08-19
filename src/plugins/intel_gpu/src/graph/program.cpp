@@ -58,6 +58,7 @@
 #include "border_inst.h"
 #include "primitive_inst.h"
 #include "prior_box_inst.h"
+#include "scatter_nd_update_inst.h"
 #include "scatter_elements_update_inst.h"
 #include "proposal_inst.h"
 #include "reorder_inst.h"
@@ -686,6 +687,12 @@ void program::transfer_memory_to_device() {
             }
 
             if (alloc_type == allocation_type::usm_host || alloc_type == allocation_type::usm_shared) {
+                // usm_device memory does not provide performance benefits on the LNL platform
+                if (get_engine().get_device_info().arch == gpu_arch::xe2 &&
+                    get_engine().get_device_info().dev_type == device_type::integrated_gpu) {
+                    return;
+                }
+
                 GPU_DEBUG_LOG << "[" << data_node.id() << ": constant]" << std::endl;
                 // Allocate and transfer memory
                 auto device_mem = mem.get_engine()->allocate_memory(data_node_layout, allocation_type::usm_device, false);
@@ -734,6 +741,10 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
                         return true;
                     if (lhs_layout.is_dynamic())
                         return false;
+
+                    if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
+                        return lhs->get_unique_id() < rhs->get_unique_id();
+                    }
 
                     return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
             });
@@ -1855,14 +1866,20 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
     }
 }
 
-void program::load(cldnn::BinaryInputBuffer& ib, std::shared_ptr<const ov::Model> model_ptr) {
+void program::load(cldnn::BinaryInputBuffer& ib,
+                   std::shared_ptr<const ov::Model> model_ptr,
+                   std::shared_ptr<ov::intel_gpu::GpuWeightlessCacheMap> cache_attr_map) {
     init_program();
 
     std::shared_ptr<WeightsMemory> weights_memory = nullptr;
     std::string weights_path = _config.get_weights_path();
     if (_config.get_cache_mode() == ov::CacheMode::OPTIMIZE_SIZE) {
         if (model_ptr) {
-            weights_memory = std::make_shared<WeightsMemory>(model_ptr);
+            if (cache_attr_map) {
+                weights_memory = std::make_shared<WeightsMemory>(model_ptr, cache_attr_map);
+            } else {
+                weights_memory = std::make_shared<WeightsMemory>(model_ptr);
+            }
         } else if (!weights_path.empty()) {
             ov::util::validate_weights_path(weights_path);
             weights_memory = std::make_shared<WeightsMemory>(ov::load_mmap_object(weights_path));

@@ -15,15 +15,9 @@
 namespace LayerTestsDefinitions {
 
 std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestParamInfo<ConcatWithSplitTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    std::string targetDevice;
-    ConcatWithSplitTransformationParam param;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, param, params) = obj.param;
-
+    auto [netPrecision, inputShapes, device, param] = obj.param;
     std::ostringstream result;
-    result << get_test_case_name_by_params(netPrecision, inputShapes, targetDevice, params) << param.fqOnData1 << "_" << param.fqOnData2;
+    result << get_test_case_name_by_params(netPrecision, inputShapes, device) << param.fqOnData1 << "_" << param.fqOnData2;
     return result.str();
 }
 
@@ -37,11 +31,8 @@ std::string ConcatWithSplitTransformation::getTestCaseName(const testing::TestPa
 */
 
 void ConcatWithSplitTransformation::SetUp() {
-    ov::element::Type netPrecision;
-    ov::PartialShape inputShapes;
-    ConcatWithSplitTransformationParam param;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    std::tie(netPrecision, inputShapes, targetDevice, param, params) = this->GetParam();
+    auto [netPrecision, inputShapes, device, param] = this->GetParam();
+    targetDevice = device;
 
     auto inputShape1 = inputShapes;
     const size_t numSplit = 2;

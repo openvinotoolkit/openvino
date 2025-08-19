@@ -22,6 +22,8 @@ RUN apt-get update && \
         tzdata \
         # parallel gzip
         pigz \
+        # Samples
+        clang \
         # Python
         python3-full \
         libhdf5-dev \

@@ -6,6 +6,10 @@
 
 #include <utility>
 
+#include "cpu_types.h"
+#include "nodes/executors/executor.hpp"
+#include "openvino/core/except.hpp"
+
 namespace ov::intel_cpu {
 
 MVNExecutor::MVNExecutor(ExecutorContext::CPtr context) : context(std::move(context)) {}

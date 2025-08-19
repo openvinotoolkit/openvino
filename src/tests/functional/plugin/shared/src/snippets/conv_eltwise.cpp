@@ -3,6 +3,8 @@
 //
 
 #include "common_test_utils/common_utils.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "snippets/conv_eltwise.hpp"
 #include "subgraph_customizable.hpp"
 
@@ -11,12 +13,7 @@ namespace test {
 namespace snippets {
 
     std::string ConvEltwise::getTestCaseName(testing::TestParamInfo<ov::test::snippets::ConvEltwiseParams> obj) {
-        ov::Shape inputShape0, inputShape1;
-        std::shared_ptr<ov::Node> binaryEltwise;
-        size_t num_nodes, num_subgraphs;
-        std::string targetDevice;
-        std::tie(inputShape0, inputShape1, binaryEltwise,
-                 num_nodes, num_subgraphs, targetDevice) = obj.param;
+        const auto& [inputShape0, inputShape1, binaryEltwise, num_nodes, num_subgraphs, targetDevice] = obj.param;
         std::ostringstream result;
         result << "IS[0]=" << ov::test::utils::vec2str(inputShape0) << "_";
         result << "IS[1]=" << ov::test::utils::vec2str(inputShape1) << "_";
@@ -29,10 +26,11 @@ namespace snippets {
 
     // the simplest possible eltwise operation with streaming access to the data
     void ConvEltwise::SetUp() {
-        ov::Shape inputShape0, inputShape1;
-        std::shared_ptr<ov::Node> binaryEltwise;
-        std::tie(inputShape0, inputShape1, binaryEltwise,
-                 ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+        const auto& [inputShape0, inputShape1, binaryEltwise, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] =
+            this->GetParam();
+        ref_num_nodes = _ref_num_nodes;
+        ref_num_subgraphs = _ref_num_subgraphs;
+        targetDevice = _targetDevice;
 
         init_input_shapes({{{}, {inputShape0, }}, {{}, {inputShape1, }}});
         std::vector<std::shared_ptr<ov::Node>> eltwiseOps {binaryEltwise,

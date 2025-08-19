@@ -4,10 +4,30 @@
 
 #include "openvino/op/ctc_loss.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
+#include "cpu_types.h"
 #include "ctc_loss.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 
@@ -31,8 +51,8 @@ CTCLoss::CTCLoss(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr& 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 4 && getOriginalInputsNumber() != 5) {
-        THROW_CPU_NODE_ERR("has invalid inputs number.");
+    if (none_of(getOriginalInputsNumber(), 4U, 5U)) {
+        CPU_NODE_THROW("has invalid inputs number.");
     }
 
     auto ctcLossOp = ov::as_type_ptr<const ov::op::v4::CTCLoss>(op);
@@ -86,7 +106,8 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     std::vector<std::string> errorMsgB(threads_num);
 
     auto threadBody_1 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(batchNum, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -105,7 +126,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
             }
             const size_t actualLogitLen = logitsLength[b];
             const size_t actualTargetLen = labelsLength[b];
-            size_t decodedTargetLen = 0lu;
+            size_t decodedTargetLen = 0LU;
 
             // Decoding target: merge repeated characters if preprocess_collapse_repeated == True,
             // find unique elemnts if unique == True.
@@ -115,7 +136,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto& targetD = targetDB[b];
             if (unique) {
                 std::unordered_set<int> uniqVals;
-                for (size_t t = 0lu; t < actualTargetLen; t++) {
+                for (size_t t = 0LU; t < actualTargetLen; t++) {
                     if (uniqVals.find(target[t]) != uniqVals.end()) {
                         continue;
                     }
@@ -128,7 +149,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 auto prevValue = target[0];
                 targetD[decodedTargetLen++] = blankIndex;
                 targetD[decodedTargetLen++] = target[0];
-                for (size_t t = 1lu; t < actualTargetLen; t++) {
+                for (size_t t = 1LU; t < actualTargetLen; t++) {
                     if (target[t] == prevValue) {
                         continue;
                     }
@@ -137,7 +158,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 }
                 targetD[decodedTargetLen++] = blankIndex;
             } else {
-                for (size_t t = 0lu; t < actualTargetLen; t++) {
+                for (size_t t = 0LU; t < actualTargetLen; t++) {
                     targetD[decodedTargetLen++] = blankIndex;
                     targetD[decodedTargetLen++] = target[t];
                 }
@@ -151,34 +172,37 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
                 logProbabilities[ll].resize(decodedTargetLen);
             }
         }  // for batch
-    };     // threadBody_1
+    };  // threadBody_1
 
     parallel_nt(threads_num, threadBody_1);
     if (returnCode != 0) {
-        std::string resErr("");
+        std::string resErr;
         for (auto& err : errorMsgB) {
             if (!err.empty()) {
                 resErr += err + "\n";
             }
         }
-        THROW_CPU_NODE_ERR(resErr);
+        CPU_NODE_THROW(resErr);
     }
 
     const size_t TC = maxTime * classesNum;
 
-    size_t workAmount2 = 0lu;
+    size_t workAmount2 = 0LU;
     for (size_t b = 0; b < batchNum; b++) {
         workAmount2 += logitsLength[b];
     }
 
     auto threadBody_2 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
-        size_t sB(0lu), sT(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
+        size_t sB(0LU);
+        size_t sT(0LU);
         splitter(workAmount2, nthr, ithr, start, end);
         if (start >= end) {
             return;
         }
-        int64_t cw = 0, st = start;
+        int64_t cw = 0;
+        int64_t st = start;
         for (; sB < batchNum; sB++) {
             cw += logitsLength[sB];
             if (cw >= st) {
@@ -199,20 +223,20 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
             // logProbabilities = logSoftmax = logits[b][t][c] - ln(sum_c(exp(logits[b][t])))
             for (size_t t = sT; t < actualLogitLen; t++) {
                 expSum = 0.0;
-                for (size_t c = 0lu; c < classesNum; c++) {
+                for (size_t c = 0LU; c < classesNum; c++) {
                     expSum += std::exp(logits[btcT + c]);
                 }
-                for (size_t s = 0lu; s < decodedTargetLen; s++) {
-                    logProbabilities[t][s] = logits[btcT + targetD[s]] - std::log(expSum);
+                for (size_t s = 0LU; s < decodedTargetLen; s++) {
+                    logProbabilities[t][s] = static_cast<float>(logits[btcT + targetD[s]] - std::log(expSum));
                 }
                 btcT += classesNum;
                 if (++workCounter >= end) {
                     return;
                 }
             }
-            sT = 0lu;
+            sT = 0LU;
         }  // for batch
-    };     // threadBody_2
+    };  // threadBody_2
 
     parallel_nt(0, threadBody_2);
 
@@ -232,7 +256,8 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
     };
 
     auto threadBody_3 = [&](const int ithr, const int nthr) {
-        size_t start(0lu), end(0lu);
+        size_t start(0LU);
+        size_t end(0LU);
         splitter(batchNum, nthr, ithr, start, end);
         if (start >= end) {
             return;
@@ -247,7 +272,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
             const int decodedTargetLen = decodedTargetLenB[b];
             std::vector<std::vector<float>> logBwd(decodedTargetLen, std::vector<float>(actualLogitLen, -float_inf));
             for (int s = decodedTargetLen - 2; s < decodedTargetLen; s++) {
-                logBwd[s][actualLogitLen - 1] = 0.f;
+                logBwd[s][actualLogitLen - 1] = 0.F;
             }
 
             for (int t = actualLogitLen - 2; t >= 0; t--) {
@@ -276,7 +301,7 @@ void CTCLoss::execute([[maybe_unused]] const dnnl::stream& strm) {
 
             dstData[b] = -sumLogs(logBwd[0][0], logBwd[1][0]);
         }  // for batch
-    };     // threadBody_3
+    };  // threadBody_3
 
     parallel_nt(0, threadBody_3);
 }

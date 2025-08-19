@@ -73,6 +73,7 @@ enum class KernelType {
     GATHER_TREE,
     SPACE_TO_DEPTH,
     SPACE_TO_BATCH,
+    SPARSE_FILL_EMPTY_ROWS,
     GRN,
     CTC_GREEDY_DECODER,
     CTC_LOSS,
@@ -107,7 +108,8 @@ enum class KernelType {
     SEARCH_SORTED,
     STFT,
     ISTFT,
-    COL2IM
+    COL2IM,
+    LORA
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

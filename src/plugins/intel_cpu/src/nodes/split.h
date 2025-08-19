@@ -4,11 +4,20 @@
 
 #pragma once
 
-#include "node.h"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cpu_memory.h"
+#include "edge.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "node.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class Split : public Node {
 public:
@@ -19,15 +28,15 @@ public:
     void initSupportedPrimitiveDescriptors() override;
     void selectOptimalPrimitiveDescriptor() override;
     void execute(const dnnl::stream& strm) override;
-    bool created() const override;
+    [[nodiscard]] bool created() const override;
 
     void initOptimalPrimitiveDescriptor() override;
 
-    bool neverExecute() const override;
-    bool isExecutable() const override;
+    [[nodiscard]] bool neverExecute() const override;
+    [[nodiscard]] bool isExecutable() const override;
 
-    bool needPrepareParams() const override;
-    bool needShapeInfer() const override;
+    [[nodiscard]] bool needPrepareParams() const override;
+    [[nodiscard]] bool needShapeInfer() const override;
     void prepareParams() override;
     void createPrimitive() override;
     void executeDynamicImpl(const dnnl::stream& strm) override {
@@ -46,7 +55,7 @@ private:
     public:
         SplitOptimizedExecutor(const BlockedMemoryDescCPtr& inDesc,
                                const std::vector<BlockedMemoryDescCPtr>& outDescs,
-                               const size_t axis);
+                               size_t axis);
         void exec(const uint8_t* srcData, const std::vector<uint8_t*>& dstRawMemPtrs) override;
 
     private:
@@ -57,7 +66,7 @@ private:
     };
 
     void optimizedNspc2Ncsp(size_t MB);
-    std::vector<uint8_t*> getRawDstMemPtrs() const;
+    [[nodiscard]] std::vector<uint8_t*> getRawDstMemPtrs() const;
 
     bool canUseOptimizedNspc2Ncsp = false;
 
@@ -69,6 +78,4 @@ private:
     std::vector<int> splitLengths;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

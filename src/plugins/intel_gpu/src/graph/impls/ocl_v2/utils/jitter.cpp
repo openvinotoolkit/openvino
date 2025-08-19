@@ -4,6 +4,7 @@
 
 #include "jitter.hpp"
 
+#include <cinttypes>
 #include <cstddef>
 #include <string>
 
@@ -391,7 +392,7 @@ JitConstants make_indexing_jit_functions(const std::string& name, const layout& 
 
     if (l.is_static()) {
         const JitTerm offset{to_code_string(l.get_linear_offset())};
-        if (l.count() == 1) {
+        if (l.count() <= 1) {
             // if tensor contains single element we can always return first element offset for safe function
             safe_index_func_val = offset;
             index_func_val = offset;

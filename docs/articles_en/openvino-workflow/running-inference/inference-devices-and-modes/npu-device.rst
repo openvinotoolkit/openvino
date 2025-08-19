@@ -145,6 +145,7 @@ offer a limited set of supported OpenVINO features.
          ov::intel_npu::compilation_mode_params
          ov::intel_npu::compiler_dynamic_quantization
          ov::intel_npu::qdq_optimization
+         ov::intel_npu::qdq_optimization_aggressive
          ov::intel_npu::turbo
          ov::intel_npu::tiles
          ov::intel_npu::max_tiles
@@ -252,6 +253,11 @@ or
 .. code-block::
 
    core.compile_model(ov_model, "NPU", {ov::intel_npu::turbo(true)});
+
+.. note::
+
+   NPU_TURBO usage may cause higher compile time, memory footprint,
+   affect workload latency and compatibility issues with older NPU drivers
 
 **ov::intel_npu::max_tiles and ov::intel_npu::tiles**
 

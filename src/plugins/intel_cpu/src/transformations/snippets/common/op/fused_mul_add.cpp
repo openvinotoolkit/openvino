@@ -4,7 +4,15 @@
 
 #include "fused_mul_add.hpp"
 
-#include "openvino/op/util/elementwise_args.hpp"
+#include <cstddef>
+#include <memory>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
+#include "openvino/op/op.hpp"
+#include "openvino/op/util/attr_types.hpp"
 #include "snippets/itt.hpp"
 
 using namespace ov;

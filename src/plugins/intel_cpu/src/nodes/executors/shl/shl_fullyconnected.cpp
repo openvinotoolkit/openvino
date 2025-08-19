@@ -4,26 +4,47 @@
 
 #include "shl_fullyconnected.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <numeric>
+#include <string>
+
+#include "cpu_memory.h"
+#include "cpu_types.h"
 #include "csinn/csi_nn.h"
-#include "rvv/rvv.h"
-#include "nodes/executors/executor.hpp"
-#include "nodes/executors/memory_arguments.hpp"
+#include "csinn_data_structure.h"
 #include "nodes/common/cpu_memcpy.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/fullyconnected_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "nodes/executors/shl/shl_utils.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "rvv/rvv.h"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 namespace {
-static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorContext::CPtr context) {
+MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const ExecutorContext::CPtr context) {
     DEBUG_LOG("ShlFCExecutor: prepack weights");
 
     auto create = [&]() {
         const auto& weiDesc = weightsMemory->getDescPtr();
-        MemoryPtr _ptr = std::make_shared<Memory>(context->getEngine(),
-                                                  intel_cpu::CpuBlockedMemoryDesc(ov::element::f32, weightsMemory->getShape()));
+        MemoryPtr _ptr =
+            std::make_shared<Memory>(context->getEngine(),
+                                     intel_cpu::CpuBlockedMemoryDesc(ov::element::f32, weightsMemory->getShape()));
         cpu_parallel_memcpy(_ptr->getData(), weightsMemory->getData(), weightsMemory->getSize());
         DEBUG_LOG("ShlFCExecutor: cache miss, perform packing");
-        const auto repack_wei = ShlTensor(ShlSession(), precisionToShlDataType(weiDesc->getPrecision()), getShlDataLayoutByMemoryDesc(weiDesc, true),
-                                          weiDesc->getShape().getStaticDims(), _ptr->getData());
+        const auto repack_wei = ShlTensor(ShlSession(),
+                                          precisionToShlDataType(weiDesc->getPrecision()),
+                                          getShlDataLayoutByMemoryDesc(weiDesc, true),
+                                          weiDesc->getShape().getStaticDims(),
+                                          _ptr->getData());
         shl_rvv_fc_gemm_reorder_weight_fp32(repack_wei.get());
         return _ptr;
     };
@@ -35,13 +56,13 @@ static MemoryPtr prepareWeightMemory(const MemoryPtr weightsMemory, const Execut
         const std::string string_hash = format + "_" + std::to_string(weightsMemory->getSize()) + "_" +
                                         std::to_string(reinterpret_cast<uint64_t>(weightsMemory->getData()));
         DEBUG_LOG("ShlFCExecutor: findOrCreate, string_hash: ", string_hash);
-        return *weightCache->findOrCreate(string_hash, create);
+        return static_cast<MemoryPtr>(*weightCache->findOrCreate(string_hash, create));
     }
 
     DEBUG_LOG("ShlFCExecutor: Weights cache is not available");
     return create();
 }
-} // namespace
+}  // namespace
 
 bool ShlFCExecutor::supports(const FCConfig& config) {
     if (config.attrs.weightsNonTransposed) {
@@ -57,7 +78,7 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
     const auto& srcDesc = config.descs.at(ARG_SRC);
     const auto& weiDesc = config.descs.at(ARG_WEI);
     const auto& dstDesc = config.descs.at(ARG_DST);
-    if (!everyone_is(ov::element::f32, srcDesc->getPrecision(), weiDesc->getPrecision(), dstDesc->getPrecision())) {
+    if (!all_of(ov::element::f32, srcDesc->getPrecision(), weiDesc->getPrecision(), dstDesc->getPrecision())) {
         DEBUG_LOG("ShlFCExecutor: supports only f32");
         return false;
     }
@@ -72,7 +93,9 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
         const auto& biasDims = biaDesc->getShape().getStaticDims();
         const auto& outDims = dstDesc->getShape().getDims();
         const bool isByChannel = biasDims.back() == outDims.back();
-        if (!isByChannel || !std::all_of(biasDims.begin(), biasDims.end() - 1, [](const Dim dim) { return dim == 1; })) {
+        if (!isByChannel || !std::all_of(biasDims.begin(), biasDims.end() - 1, [](const Dim dim) {
+                return dim == 1;
+            })) {
             DEBUG_LOG("ShlFCExecutor: only 'by channel' bias is supported");
             return false;
         }
@@ -81,9 +104,7 @@ bool ShlFCExecutor::supports(const FCConfig& config) {
     return true;
 }
 
-ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
-                             const MemoryArgs& memory,
-                             const ExecutorContext::CPtr context)
+ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context)
     : packedWeights(prepareWeightMemory(memory.at(ARG_WEI), context)) {
     const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
     const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
@@ -94,14 +115,18 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
 
     // Allocate Shl tensors
     src = ShlTensor(sess, precisionToShlDataType(srcDesc->getPrecision()), getShlDataLayoutByMemoryDesc(srcDesc));
-    wei = ShlTensor(sess, precisionToShlDataType(weiDesc->getPrecision()), getShlDataLayoutByMemoryDesc(weiDesc, true),
-                          weiDesc->getShape().getStaticDims());
+    wei = ShlTensor(sess,
+                    precisionToShlDataType(weiDesc->getPrecision()),
+                    getShlDataLayoutByMemoryDesc(weiDesc, true),
+                    weiDesc->getShape().getStaticDims());
     dst = ShlTensor(sess, precisionToShlDataType(dstDesc->getPrecision()), getShlDataLayoutByMemoryDesc(dstDesc));
 
     if (attrs.withBias) {
         const auto& biasDesc = memory.at(ARG_BIAS)->getDescPtr();
-        bias = ShlTensor(sess, precisionToShlDataType(biasDesc->getPrecision()), getShlDataLayoutByMemoryDesc(biasDesc),
-                               biasDesc->getShape().getStaticDims());
+        bias = ShlTensor(sess,
+                         precisionToShlDataType(biasDesc->getPrecision()),
+                         getShlDataLayoutByMemoryDesc(biasDesc),
+                         biasDesc->getShape().getStaticDims());
         with_bias = true;
     } else {
         bias = ShlTensor(sess);
@@ -110,7 +135,11 @@ ShlFCExecutor::ShlFCExecutor(const FCAttrs& attrs,
     // Init FC params
     params = ShlFCParams(sess, CSINN_RVV);
 
-    OPENVINO_ASSERT(csinn_fullyconnected_init(src.get(), dst.get(), wei.get(), bias.get(), static_cast<csinn_fc_params*>(params.get())) == CSINN_TRUE,
+    OPENVINO_ASSERT(csinn_fullyconnected_init(src.get(),
+                                              dst.get(),
+                                              wei.get(),
+                                              bias.get(),
+                                              static_cast<csinn_fc_params*>(params.get())) == CSINN_TRUE,
                     "ShlFCExecutor: failed to init FC");
 }
 
@@ -121,8 +150,7 @@ bool ShlFCExecutor::update(const MemoryArgs& memory) {
 
     const auto src_shape = src.getShape();
     const auto dst_shape = dst.getShape();
-    dim_M =
-        std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), static_cast<size_t>(1), std::multiplies<>());
+    dim_M = std::accumulate(dst_shape.rbegin() + 1, dst_shape.rend(), static_cast<size_t>(1), std::multiplies<>());
     dim_In = src_shape.back();
     dim_Out = dst_shape.back();
     LDA = dim_In * memory.at(ARG_SRC)->getPrecision().size();
@@ -139,16 +167,21 @@ void ShlFCExecutor::execute(const MemoryArgs& memory) {
 
     const auto nthreads = std::min(static_cast<int>(dim_M), parallel_get_max_threads());
     parallel_nt(nthreads, [&](const int ithr, const int nthr) {
-        size_t dim_M0 = 0, dim_M1 = 0;
+        size_t dim_M0 = 0;
+        size_t dim_M1 = 0;
         splitter(dim_M, nthr, ithr, dim_M0, dim_M1);
 
         const auto M = dim_M1 - dim_M0;
-        auto src_tensor = src.cloneWithNewShape(ov::Shape{ M, dim_In });
-        auto dst_tensor = dst.cloneWithNewShape(ov::Shape{ M, dim_Out });
+        auto src_tensor = src.cloneWithNewShape(ov::Shape{M, dim_In});
+        auto dst_tensor = dst.cloneWithNewShape(ov::Shape{M, dim_Out});
         src_tensor.setData(reinterpret_cast<uint8_t*>(memory.at(ARG_SRC)->getData()) + dim_M0 * LDA);
         dst_tensor.setData(reinterpret_cast<uint8_t*>(memory.at(ARG_DST)->getData()) + dim_M0 * LDC);
 
-        OPENVINO_ASSERT(csinn_fullyconnected(src_tensor.get(), dst_tensor.get(), wei.get(), bias.get(), static_cast<csinn_fc_params*>(params.get())) == CSINN_TRUE,
+        OPENVINO_ASSERT(csinn_fullyconnected(src_tensor.get(),
+                                             dst_tensor.get(),
+                                             wei.get(),
+                                             bias.get(),
+                                             static_cast<csinn_fc_params*>(params.get())) == CSINN_TRUE,
                         "ShlFCExecutor: failed to execute");
     });
 }

@@ -4,14 +4,29 @@
 
 #include "enforce_precision.hpp"
 
+#include <cstddef>
+#include <functional>
 #include <memory>
+#include <set>
+#include <vector>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_output.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/itt.hpp"
 #include "ov_ops/type_relaxed.hpp"
 #include "snippets/itt.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/convert_saturation.hpp"
 #include "snippets/pass/propagate_precision.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
 #include "transformations/utils/utils.hpp"
+#include "utils/general_utils.h"
 
 using namespace ov::intel_cpu::pass;
 
@@ -27,12 +42,12 @@ EnforcePrecision::EnforcePrecision(
     OPENVINO_ASSERT(source != target, "source and target precisions have to be different");
 }
 
-bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
+bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& m) {
     RUN_ON_MODEL_SCOPE(EnforcePrecision);
     OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "ov::intel_cpu::pass::EnforcePrecision")
 
     bool was_updated = false;
-    for (const auto& op : f->get_ordered_ops()) {
+    for (const auto& op : m->get_ordered_ops()) {
         ov::op::util::process_subgraph(*this, op);
 
         const auto& precisions = get_supported_precisions(op);
@@ -56,12 +71,11 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
             }
 
             auto port_has_to_be_handled = false;
-            for (auto index = 0ull; index < supported_precisions.size(); ++index) {
+            for (auto index = 0ULL; index < supported_precisions.size(); ++index) {
                 if ((supported_precisions[index] == target) && (actual_precisions[index] == source)) {
                     // actual input precision has to be enforced: at least one port has to be handled
                     port_has_to_be_handled = true;
-                } else if ((supported_precisions[index] != element::dynamic) &&
-                           (supported_precisions[index] != actual_precisions[index])) {
+                } else if (none_of(supported_precisions[index], element::dynamic, actual_precisions[index])) {
                     // actual input precision is not enforced but not supported, operation has to be ignored
                     op_is_appropriate = false;
                     break;
@@ -90,7 +104,7 @@ bool EnforcePrecision::run_on_model(const std::shared_ptr<ov::Model>& f) {
             op->set_argument(input_index, convert);
         };
 
-        for (auto index = 0ull; index < supported_precisions_to_enforce.size(); ++index) {
+        for (auto index = 0ULL; index < supported_precisions_to_enforce.size(); ++index) {
             if ((supported_precisions_to_enforce[index] == target) || (actual_precisions[index] == source)) {
                 const auto op_parent =
                     ov::as_type_ptr<snippets::op::ConvertSaturation>(op->get_input_node_shared_ptr(index));
@@ -123,10 +137,10 @@ std::set<std::vector<ov::element::Type>> EnforcePrecision::get_supported_precisi
     const std::shared_ptr<ov::Node>& op) noexcept {
     std::set<std::vector<ov::element::Type>> types;
     if (ov::is_type<snippets::op::Brgemm>(op)) {
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16)) {
+        if (brgemm_utils::is_fp16_supported()) {
             types.insert({element::f16, element::f16});
         }
-        if (dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_bf16)) {
+        if (brgemm_utils::is_bf16_supported()) {
             types.insert({element::bf16, element::bf16});
         }
     }

@@ -13,10 +13,6 @@ const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32
 };
 
-const std::vector<ov::pass::low_precision::LayerTransformation::Params> trasformationParamValues = {
-    LayerTestsUtils::LayerTransformationParamsNGraphFactory::createParams().setUpdatePrecisions(true)
-};
-
 namespace testValues1 {
 
 const std::vector<LayerTestsDefinitions::MoveFakeQuantizeTransformationParam> params = {
@@ -146,7 +142,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_LPT, MoveFakeQuantizeTransformation,
         ::testing::ValuesIn(netPrecisions),
         ::testing::ValuesIn(shapes),
         ::testing::Values(ov::test::utils::DEVICE_CPU),
-        ::testing::ValuesIn(trasformationParamValues),
         ::testing::ValuesIn({false, true}),
         ::testing::ValuesIn(params)),
     MoveFakeQuantizeTransformation::getTestCaseName);
@@ -177,7 +172,6 @@ namespace testValues2 {
             ::testing::ValuesIn(netPrecisions),
             ::testing::ValuesIn(shapes),
             ::testing::Values(ov::test::utils::DEVICE_CPU),
-            ::testing::ValuesIn(trasformationParamValues),
             ::testing::ValuesIn({false}),
             ::testing::ValuesIn(params)),
         MoveFakeQuantizeTransformation::getTestCaseName);

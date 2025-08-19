@@ -245,29 +245,6 @@ TEST_F(StaticShapeAdapterTest, compare_ref_and_container) {
 
     EXPECT_TRUE(shape2 == shape3);
     EXPECT_TRUE(shape3 == shape2);
-
-    std::cout << "ref  " << shape2 << std::endl;
-    for (auto& d : shape2) {
-        std::cout << d << " ";
-    }
-    std::cout << std::endl;
-
-    for (size_t i = 0; i < shape2.size(); ++i) {
-        std::cout << shape2[i] << " ";
-    }
-    std::cout << std::endl << "----------------" << std::endl;
-
-    // std::cout << "dims " << dims << std::endl;
-    std::cout << "ref  " << shape3 << std::endl;
-    for (auto& d : shape3) {
-        std::cout << d << " ";
-    }
-    std::cout << std::endl;
-
-    for (size_t i = 0; i < shape3.size(); ++i) {
-        std::cout << shape3[i] << " ";
-    }
-    std::cout << std::endl;
 }
 
 TEST_F(StaticShapeAdapterTest, subscript_op_on_reference) {

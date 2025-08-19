@@ -4,14 +4,16 @@
 
 #pragma once
 
+#include <cstddef>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <utility>
 
 #include "cpu_memory.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "utils/general_utils.h"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class DnnlScratchPad {
     MemoryBlockPtr blockPtr;
@@ -19,8 +21,8 @@ class DnnlScratchPad {
     dnnl::engine eng;
 
 public:
-    DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
-        auto baseMemoryBlock = make_unique<MemoryBlockWithReuse>(numa_node);
+    explicit DnnlScratchPad(dnnl::engine eng, int numa_node = -1) : eng(std::move(eng)) {
+        auto baseMemoryBlock = std::make_unique<MemoryBlockWithReuse>(numa_node);
         baseBlockPtr = baseMemoryBlock.get();
         blockPtr = std::make_shared<DnnlMemoryBlock>(std::move(baseMemoryBlock));
     }
@@ -29,14 +31,14 @@ public:
         return std::make_shared<Memory>(eng, md, blockPtr);
     }
 
-    size_t size() const {
-        if (baseBlockPtr)
+    [[nodiscard]] size_t size() const {
+        if (baseBlockPtr) {
             return baseBlockPtr->size();
+        }
         return 0;
     }
 };
 
 using DnnlScratchPadPtr = std::shared_ptr<DnnlScratchPad>;
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

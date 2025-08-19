@@ -6,7 +6,10 @@
 
 #include <memory>
 
+#include "openvino/core/attribute_visitor.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 
@@ -22,7 +25,7 @@ public:
 
     SubModel() = default;
 
-    SubModel(const std::shared_ptr<ov::Model>& body);
+    explicit SubModel(const std::shared_ptr<ov::Model>& body);
 
     SubModel(const OutputVector& args, const std::shared_ptr<ov::Model>& body);
 

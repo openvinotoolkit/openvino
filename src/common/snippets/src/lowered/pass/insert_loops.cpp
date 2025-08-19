@@ -4,16 +4,23 @@
 
 #include "snippets/lowered/pass/insert_loops.hpp"
 
-#include "snippets/lowered/linear_ir.hpp"
-#include "snippets/lowered/loop_manager.hpp"
-#include "snippets/snippets_isa.hpp"
-#include "snippets/utils/utils.hpp"
-#include "snippets/itt.hpp"
+#include <cstddef>
+#include <memory>
+#include <set>
+#include <vector>
 
-namespace ov {
-namespace snippets {
-namespace lowered {
-namespace pass {
+#include "openvino/core/type.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "snippets/itt.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
+#include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
+#include "snippets/lowered/port_connector.hpp"
+#include "snippets/op/loop.hpp"
+
+namespace ov::snippets::lowered::pass {
 
 void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_manager, size_t loop_id) {
     const auto loop_info = loop_manager->get_loop_info<UnifiedLoopInfo>(loop_id);
@@ -34,16 +41,25 @@ void InsertLoops::insertion(LinearIR& linear_ir, const LoopManagerPtr& loop_mana
     const auto io_data_sizes = loop_info->get_data_sizes();
 
     const auto loop_begin = std::make_shared<op::LoopBegin>();
-    const auto loop_end = std::make_shared<op::LoopEnd>(loop_begin, work_amount, work_amount_increment, is_incremented, ptr_increments,
-                                                        finalization_offsets, io_data_sizes, in_num, out_num, loop_id);
+    const auto loop_end = std::make_shared<op::LoopEnd>(loop_begin,
+                                                        work_amount,
+                                                        work_amount_increment,
+                                                        is_incremented,
+                                                        ptr_increments,
+                                                        finalization_offsets,
+                                                        io_data_sizes,
+                                                        in_num,
+                                                        out_num,
+                                                        loop_id);
 
-    const auto loop_bounds = loop_manager->get_loop_bounds(linear_ir, loop_id);
-    const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_bounds.first, loop_id);
+    const auto [loop_begin_bound, loop_end_bound] = loop_manager->get_loop_bounds(linear_ir, loop_id);
+    const auto outer_loop_ids = loop_manager->get_outer_expr_loops(*loop_begin_bound, loop_id);
 
-    const auto loop_begin_expr = *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_bounds.first);
+    const auto loop_begin_expr =
+        *linear_ir.insert_node(loop_begin, std::vector<PortConnectorPtr>{}, outer_loop_ids, false, loop_begin_bound);
     // Add LoopBegin port connector
     loop_end_inputs.push_back(loop_begin_expr->get_output_port_connector(0));
-    linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_bounds.second);
+    linear_ir.insert_node(loop_end, loop_end_inputs, outer_loop_ids, false, loop_end_bound);
 }
 
 bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin, lowered::LinearIR::constExprIt end) {
@@ -52,10 +68,11 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
 
     std::set<size_t> inserted_loops;
     for (auto expr_it = begin; expr_it != end; expr_it++) {
-        const auto expr = *expr_it;
+        const auto& expr = *expr_it;
         const auto& node = expr->get_node();
-        if (ov::is_type_any_of<op::LoopBase, ov::op::v0::Parameter, ov::op::v0::Result>(node))
+        if (ov::is_type_any_of<op::LoopBase, ov::op::v0::Parameter, ov::op::v0::Result>(node)) {
             continue;
+        }
 
         // Outer Loop ----> Inner Loop
         const auto& expr_loops = expr->get_loop_ids();
@@ -72,7 +89,4 @@ bool InsertLoops::run(LinearIR& linear_ir, lowered::LinearIR::constExprIt begin,
     return true;
 }
 
-} // namespace pass
-} // namespace lowered
-} // namespace snippets
-} // namespace ov
+}  // namespace ov::snippets::lowered::pass

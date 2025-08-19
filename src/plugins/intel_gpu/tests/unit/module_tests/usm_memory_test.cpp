@@ -45,7 +45,7 @@ static void init_device_and_engine(std::shared_ptr<ocl::ocl_device>& device,
                                    std::shared_ptr<ocl::ocl_engine>& engine,
                                    bool& supports_usm) {
     // Find device, which supports USMs.
-    device_query query(engine_types::ocl, runtime_types::ocl);
+    device_query query(engine_types::ocl, runtime_types::ocl, nullptr, nullptr, 0, -1, true);
     auto devices = query.get_available_devices();
     for (const auto& d : devices) {
         if (d.second->get_mem_caps().supports_usm()) {
@@ -387,11 +387,7 @@ public:
 };
 
 TEST_P(offset_copy, basic) {
-    allocation_type src_allocation_type;
-    allocation_type dst_allocation_type;
-    mem_test_params params;
-    bool use_copy_to;
-    std::tie(src_allocation_type, dst_allocation_type, params, use_copy_to) = GetParam();
+    const auto& [src_allocation_type, dst_allocation_type, params, use_copy_to] = GetParam();
 
     const auto copy_size = params.size;
     const auto src_size = params.src_offset + copy_size;
@@ -438,10 +434,7 @@ TEST_P(offset_copy, basic) {
 }
 
 TEST_P(offset_copy_host, basic) {
-    allocation_type allocation_type;
-    mem_test_params params;
-    bool use_copy_to;
-    std::tie(allocation_type, params, use_copy_to) = GetParam();
+    const auto& [allocation_type, params, use_copy_to] = GetParam();
 
     const auto copy_size = params.size;
     const auto src_size = params.src_offset + copy_size;

@@ -4,8 +4,18 @@
 
 #include "transpose.hpp"
 
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include "cpu_memory.h"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
-#include "utils.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "shape_inference/shape_inference_status.hpp"
 
 namespace ov::intel_cpu::node {
 

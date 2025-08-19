@@ -18,10 +18,7 @@
 namespace LayerTestsDefinitions {
 
 std::string MatMulWithConstantTransformation::getTestCaseName(const testing::TestParamInfo<MatMulWithConstantTransformationParams>& obj) {
-    ov::element::Type precision;
-    std::string targetDevice;
-    MatMulWithConstantTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = obj.param;
+    const auto& [precision, targetDevice, testValues] = obj.param;
 
     std::ostringstream result;
     result <<
@@ -37,9 +34,8 @@ std::string MatMulWithConstantTransformation::getTestCaseName(const testing::Tes
 
 
 void MatMulWithConstantTransformation::SetUp() {
-    ov::element::Type precision;
-    MatMulWithConstantTransformationTestValues testValues;
-    std::tie(precision, targetDevice, testValues) = this->GetParam();
+    const auto& [precision, _targetDevice, testValues] = this->GetParam();
+    targetDevice = _targetDevice;
 
     init_input_shapes(testValues.inputShape);
 
@@ -60,8 +56,8 @@ void MatMulWithConstantTransformation::run() {
     const auto params = std::get<2>(GetParam());
     const auto actualPrecision = get_runtime_precision_by_type(params.layerName);
     auto expectedPrecision = params.expectedKernelType;
-    if (expectedPrecision == "FP32" && std::get<0>(GetParam()) == ov::element::f16) {
-        expectedPrecision = "FP16";
+    if (expectedPrecision == "f32" && std::get<0>(GetParam()) == ov::element::f16) {
+        expectedPrecision = "f16";
     }
     EXPECT_EQ(actualPrecision, expectedPrecision);
 }

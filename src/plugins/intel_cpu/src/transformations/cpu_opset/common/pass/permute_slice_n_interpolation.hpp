@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/graph_rewrite.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 
 // SS(NHWC)->Transpose(fake)->Interpolate(NHWC as NCHW)
 // NHWC->Interpolate(NHWC as NCHW)-NCHW->Transpose(fake)->SS

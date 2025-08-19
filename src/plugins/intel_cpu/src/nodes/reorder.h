@@ -6,11 +6,22 @@
 
 #include <node.h>
 
-#include "nodes/executors/transpose.hpp"
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cache/multi_cache.h"
+#include "cpu_memory.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "memory_desc/dnnl_memory_desc.h"
+#include "nodes/executors/transpose.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class Reorder : public Node {
 public:
@@ -84,6 +95,4 @@ private:
     TransposeExecutorPtr transposeExecutor;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

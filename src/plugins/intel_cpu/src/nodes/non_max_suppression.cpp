@@ -8,22 +8,50 @@
 
 #include "non_max_suppression.h"
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <queue>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 #include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/kernels/x64/non_max_suppression.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/nms_rotated.hpp"
 #include "openvino/op/non_max_suppression.hpp"
 #include "ov_ops/nms_ie_internal.hpp"
 #include "shape_inference/shape_inference_internal_dyn.hpp"
 #include "utils/general_utils.h"
 
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
+#    include "nodes/kernels/x64/jit_kernel_base.hpp"
+#endif
+
 namespace ov::intel_cpu::node {
 
 bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(),
+        if (none_of(op->get_type_info(),
                     op::v9::NonMaxSuppression::get_type_info_static(),
                     op::internal::NonMaxSuppressionIEInternal::get_type_info_static(),
                     op::v13::NMSRotated::get_type_info_static())) {
@@ -32,9 +60,9 @@ bool NonMaxSuppression::isSupportedOperation(const std::shared_ptr<const ov::Nod
             return false;
         }
 
-        if (auto nms9 = as_type<const op::v9::NonMaxSuppression>(op.get())) {
+        if (const auto* nms9 = as_type<const op::v9::NonMaxSuppression>(op.get())) {
             const auto boxEncoding = nms9->get_box_encoding();
-            if (!one_of(boxEncoding,
+            if (none_of(boxEncoding,
                         op::v9::NonMaxSuppression::BoxEncodingType::CENTER,
                         op::v9::NonMaxSuppression::BoxEncodingType::CORNER)) {
                 errorMessage = "Supports only CENTER and CORNER box encoding type";
@@ -54,58 +82,51 @@ NonMaxSuppression::NonMaxSuppression(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (one_of(op->get_type_info(), op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
+    if (any_of(op->get_type_info(), op::internal::NonMaxSuppressionIEInternal::get_type_info_static())) {
         m_out_static_shape = true;
     }
 
-    if (getOriginalInputsNumber() < 2 || getOriginalInputsNumber() > NMS_SOFT_NMS_SIGMA + 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges: ", getOriginalInputsNumber());
-    }
-    if (getOriginalOutputsNumber() != 3) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges: ", getOriginalOutputsNumber());
-    }
+    CPU_NODE_ASSERT(getOriginalInputsNumber() >= 2 && getOriginalInputsNumber() <= NMS_SOFT_NMS_SIGMA + 1,
+                    "has incorrect number of input edges: ",
+                    getOriginalInputsNumber());
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == 3,
+                    "has incorrect number of output edges: ",
+                    getOriginalOutputsNumber());
 
-    if (auto nms9 = as_type<const op::v9::NonMaxSuppression>(op.get())) {
+    if (const auto* nms9 = as_type<const op::v9::NonMaxSuppression>(op.get())) {
         boxEncodingType = static_cast<NMSBoxEncodeType>(nms9->get_box_encoding());
         m_sort_result_descending = nms9->get_sort_result_descending();
-        m_coord_num = 4lu;
-    } else if (auto nmsIe = as_type<const op::internal::NonMaxSuppressionIEInternal>(op.get())) {
+        m_coord_num = 4LU;
+    } else if (const auto* nmsIe = as_type<const op::internal::NonMaxSuppressionIEInternal>(op.get())) {
         boxEncodingType = nmsIe->m_center_point_box ? NMSBoxEncodeType::CENTER : NMSBoxEncodeType::CORNER;
         m_sort_result_descending = nmsIe->m_sort_result_descending;
-        m_coord_num = 4lu;
-    } else if (auto nms = as_type<const op::v13::NMSRotated>(op.get())) {
+        m_coord_num = 4LU;
+    } else if (const auto* nms = as_type<const op::v13::NMSRotated>(op.get())) {
         m_sort_result_descending = nms->get_sort_result_descending();
         m_clockwise = nms->get_clockwise();
         m_rotated_boxes = true;
-        m_coord_num = 5lu;
+        m_coord_num = 5LU;
     } else {
         const auto& typeInfo = op->get_type_info();
-        THROW_CPU_NODE_ERR("doesn't support NMS: ", typeInfo.name, " v", typeInfo.version_id);
+        CPU_NODE_THROW("doesn't support NMS: ", typeInfo.name, " v", typeInfo.version_id);
     }
 
     const auto& boxes_dims = getInputShapeAtPort(NMS_BOXES).getDims();
-    if (boxes_dims.size() != 3) {
-        THROW_CPU_NODE_ERR("has unsupported 'boxes' input rank: ", boxes_dims.size());
-    }
-    if (boxes_dims[2] != m_coord_num) {
-        THROW_CPU_NODE_ERR("has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
-    }
+    CPU_NODE_ASSERT(boxes_dims.size() == 3, "has unsupported 'boxes' input rank: ", boxes_dims.size());
+    CPU_NODE_ASSERT(boxes_dims[2] == m_coord_num, "has unsupported 'boxes' input 3rd dimension size: ", boxes_dims[2]);
 
     const auto& scores_dims = getInputShapeAtPort(NMS_SCORES).getDims();
-    if (scores_dims.size() != 3) {
-        THROW_CPU_NODE_ERR("has unsupported 'scores' input rank: ", scores_dims.size());
-    }
+    CPU_NODE_ASSERT(scores_dims.size() == 3, "has unsupported 'scores' input rank: ", scores_dims.size());
 
     const auto& valid_outputs_shape = getOutputShapeAtPort(NMS_VALID_OUTPUTS);
-    if (valid_outputs_shape.getRank() != 1) {
-        THROW_CPU_NODE_ERR("has unsupported 'valid_outputs' output rank: ", valid_outputs_shape.getRank());
-    }
-    if (valid_outputs_shape.getDims()[0] != 1) {
-        THROW_CPU_NODE_ERR("has unsupported 'valid_outputs' output 1st dimension size: ",
-                           valid_outputs_shape.getDims()[1]);
-    }
+    CPU_NODE_ASSERT(valid_outputs_shape.getRank() == 1,
+                    "has unsupported 'valid_outputs' output rank: ",
+                    valid_outputs_shape.getRank());
+    CPU_NODE_ASSERT(valid_outputs_shape.getDims()[0] == 1,
+                    "has unsupported 'valid_outputs' output 1st dimension size: ",
+                    valid_outputs_shape.getDims()[1]);
 
-    for (size_t i = 0lu; i < op->get_output_size(); i++) {
+    for (size_t i = 0LU; i < op->get_output_size(); i++) {
         m_defined_outputs[i] = !op->get_output_target_inputs(i).empty();
     }
 }
@@ -188,12 +209,8 @@ void NonMaxSuppression::prepareParams() {
     m_batches_num = boxesDims[0];
     m_boxes_num = boxesDims[1];
     m_classes_num = scoresDims[1];
-    if (m_batches_num != scoresDims[0]) {
-        THROW_CPU_NODE_ERR("Batches number is different in 'boxes' and 'scores' inputs");
-    }
-    if (m_boxes_num != scoresDims[2]) {
-        THROW_CPU_NODE_ERR("Boxes number is different in 'boxes' and 'scores' inputs");
-    }
+    CPU_NODE_ASSERT(m_batches_num == scoresDims[0], "Batches number is different in 'boxes' and 'scores' inputs");
+    CPU_NODE_ASSERT(m_boxes_num == scoresDims[2], "Boxes number is different in 'boxes' and 'scores' inputs");
 
     m_output_boxes_per_class = std::min(m_max_output_boxes_per_class, m_boxes_num);
     const auto max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
@@ -235,12 +252,12 @@ void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
     size_t max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
     if (inputs_num > NMS_MAX_OUTPUT_BOXES_PER_CLASS) {
         auto val = getSrcDataAtPortAs<int32_t>(NMS_MAX_OUTPUT_BOXES_PER_CLASS)[0];
-        m_max_output_boxes_per_class = val <= 0l ? 0lu : static_cast<size_t>(val);
+        m_max_output_boxes_per_class = val <= 0L ? 0LU : static_cast<size_t>(val);
         m_output_boxes_per_class = std::min(m_max_output_boxes_per_class, m_boxes_num);
         max_number_of_boxes = m_output_boxes_per_class * m_batches_num * m_classes_num;
         m_filtered_boxes.resize(max_number_of_boxes);
     }
-    if (m_max_output_boxes_per_class == 0lu) {
+    if (m_max_output_boxes_per_class == 0LU) {
         return;
     }
 
@@ -252,39 +269,39 @@ void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
     if (inputs_num > NMS_SOFT_NMS_SIGMA) {
         m_soft_nms_sigma = getSrcDataAtPortAs<float>(NMS_SOFT_NMS_SIGMA)[0];
-        m_scale = (m_soft_nms_sigma > 0.f) ? (-0.5f / m_soft_nms_sigma) : 0.f;
+        m_scale = (m_soft_nms_sigma > 0.F) ? (-0.5F / m_soft_nms_sigma) : 0.F;
     }
 
     auto boxes_memory = getSrcMemoryAtPort(NMS_BOXES);
     auto scores_memory = getSrcMemoryAtPort(NMS_SCORES);
 
-    auto boxes = boxes_memory->getDataAs<const float>();
-    auto scores = scores_memory->getDataAs<const float>();
+    const auto* boxes = boxes_memory->getDataAs<const float>();
+    const auto* scores = scores_memory->getDataAs<const float>();
 
     const auto& boxes_strides = boxes_memory->getDescWithType<BlockedMemoryDesc>()->getStrides();
     const auto& scores_strides = scores_memory->getDescWithType<BlockedMemoryDesc>()->getStrides();
 
     if (m_rotated_boxes) {
         nmsRotated(boxes, scores, boxes_strides, scores_strides, m_filtered_boxes);
-    } else if (m_soft_nms_sigma == 0.f) {
+    } else if (m_soft_nms_sigma == 0.F) {
         nmsWithoutSoftSigma(boxes, scores, boxes_strides, scores_strides, m_filtered_boxes);
     } else {
         nmsWithSoftSigma(boxes, scores, boxes_strides, scores_strides, m_filtered_boxes);
     }
 
     size_t start_offset = m_num_filtered_boxes[0][0];
-    for (size_t b = 0lu; b < m_num_filtered_boxes.size(); b++) {
+    for (size_t b = 0LU; b < m_num_filtered_boxes.size(); b++) {
         size_t batchOffset = b * m_classes_num * m_output_boxes_per_class;
-        for (size_t c = (b == 0lu ? 1lu : 0lu); c < m_num_filtered_boxes[b].size(); c++) {
+        for (size_t c = (b == 0LU ? 1LU : 0LU); c < m_num_filtered_boxes[b].size(); c++) {
             size_t offset = batchOffset + c * m_output_boxes_per_class;
-            for (size_t i = 0lu; i < m_num_filtered_boxes[b][c]; i++) {
+            for (size_t i = 0LU; i < m_num_filtered_boxes[b][c]; i++) {
                 m_filtered_boxes[start_offset + i] = m_filtered_boxes[offset + i];
             }
             start_offset += m_num_filtered_boxes[b][c];
         }
     }
 
-    auto boxes_ptr = m_filtered_boxes.data();
+    auto* boxes_ptr = m_filtered_boxes.data();
     // need more particular comparator to get deterministic behaviour
     // escape situation when filtred boxes with same score have different position from launch to launch
     if (m_sort_result_descending) {
@@ -298,17 +315,17 @@ void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     const size_t valid_outputs = std::min(start_offset, max_number_of_boxes);
 
-    const size_t stride = 3lu;
+    const size_t stride = 3LU;
     if (!m_out_static_shape) {
         VectorDims new_dims{valid_outputs, stride};
         redefineOutputMemory({new_dims, new_dims, {1}});
     }
 
     if (m_defined_outputs[NMS_SELECTED_INDICES]) {
-        auto out_ptr = getDstDataAtPortAs<int32_t>(NMS_SELECTED_INDICES);
+        auto* out_ptr = getDstDataAtPortAs<int32_t>(NMS_SELECTED_INDICES);
         int32_t* boxes_ptr = &(m_filtered_boxes[0].batch_index);
 
-        size_t idx = 0lu;
+        size_t idx = 0LU;
         for (; idx < valid_outputs; idx++) {
             memcpy(out_ptr, boxes_ptr, 12);
             out_ptr += stride;
@@ -321,9 +338,9 @@ void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
     }
 
     if (m_defined_outputs[NMS_SELECTED_SCORES]) {
-        auto out_ptr = getDstDataAtPortAs<float>(NMS_SELECTED_SCORES);
+        auto* out_ptr = getDstDataAtPortAs<float>(NMS_SELECTED_SCORES);
 
-        size_t idx = 0lu;
+        size_t idx = 0LU;
         for (; idx < valid_outputs; idx++) {
             out_ptr[0] = static_cast<float>(m_filtered_boxes[idx].batch_index);
             out_ptr[1] = static_cast<float>(m_filtered_boxes[idx].class_index);
@@ -332,12 +349,12 @@ void NonMaxSuppression::execute([[maybe_unused]] const dnnl::stream& strm) {
         }
 
         if (m_out_static_shape) {
-            std::fill(out_ptr, out_ptr + (max_number_of_boxes - idx) * stride, -1.f);
+            std::fill(out_ptr, out_ptr + (max_number_of_boxes - idx) * stride, -1.F);
         }
     }
 
     if (m_defined_outputs[NMS_VALID_OUTPUTS]) {
-        auto out_ptr = getDstDataAtPortAs<int32_t>(NMS_VALID_OUTPUTS);
+        auto* out_ptr = getDstDataAtPortAs<int32_t>(NMS_VALID_OUTPUTS);
         *out_ptr = static_cast<int32_t>(valid_outputs);
     }
 }
@@ -356,7 +373,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
     // < score_threshold if is_soft_suppressed_by_iou is true, hard suppressed by iou_threshold, then soft suppress
     auto coeff = [&](float iou) {
         if (m_is_soft_suppressed_by_iou && iou > m_iou_threshold) {
-            return 0.0f;
+            return 0.0F;
         }
         return std::exp(m_scale * iou * iou);
     };
@@ -384,10 +401,10 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
             if (maxSeletedBoxNum > 1) {
                 if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
-                    std::vector<float> boxCoord0(maxSeletedBoxNum, 0.0f);
-                    std::vector<float> boxCoord1(maxSeletedBoxNum, 0.0f);
-                    std::vector<float> boxCoord2(maxSeletedBoxNum, 0.0f);
-                    std::vector<float> boxCoord3(maxSeletedBoxNum, 0.0f);
+                    std::vector<float> boxCoord0(maxSeletedBoxNum, 0.0F);
+                    std::vector<float> boxCoord1(maxSeletedBoxNum, 0.0F);
+                    std::vector<float> boxCoord2(maxSeletedBoxNum, 0.0F);
+                    std::vector<float> boxCoord3(maxSeletedBoxNum, 0.0F);
 
                     boxCoord0[0] = boxesPtr[candidateBox.idx * m_coord_num];
                     boxCoord1[0] = boxesPtr[candidateBox.idx * m_coord_num + 1];
@@ -395,9 +412,9 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                     boxCoord3[0] = boxesPtr[candidateBox.idx * m_coord_num + 3];
 
                     auto arg = kernel::NmsCallArgs();
-                    arg.iou_threshold = static_cast<float*>(&m_iou_threshold);
-                    arg.score_threshold = static_cast<float*>(&m_score_threshold);
-                    arg.scale = static_cast<float*>(&m_scale);
+                    arg.iou_threshold = (&m_iou_threshold);
+                    arg.score_threshold = (&m_score_threshold);
+                    arg.scale = (&m_scale);
                     while (selectedBoxes.size() < m_output_boxes_per_class && !sorted_boxes.empty()) {
                         boxInfo candidateBox = sorted_boxes.top();
                         float origScore = candidateBox.score;
@@ -405,7 +422,7 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
 
                         int candidateStatus =
                             NMSCandidateStatus::SELECTED;  // 0 for suppressed, 1 for selected, 2 for updated
-                        arg.score = static_cast<float*>(&candidateBox.score);
+                        arg.score = (&candidateBox.score);
                         arg.selected_boxes_num = selectedBoxes.size() - candidateBox.suppress_begin_index;
                         arg.selected_boxes_coord[0] =
                             static_cast<float*>(&boxCoord0[candidateBox.suppress_begin_index]);
@@ -415,8 +432,8 @@ void NonMaxSuppression::nmsWithSoftSigma(const float* boxes,
                             static_cast<float*>(&boxCoord2[candidateBox.suppress_begin_index]);
                         arg.selected_boxes_coord[3] =
                             static_cast<float*>(&boxCoord3[candidateBox.suppress_begin_index]);
-                        arg.candidate_box = static_cast<const float*>(&boxesPtr[candidateBox.idx * m_coord_num]);
-                        arg.candidate_status = static_cast<int*>(&candidateStatus);
+                        arg.candidate_box = (&boxesPtr[candidateBox.idx * m_coord_num]);
+                        arg.candidate_status = (&candidateStatus);
                         (*m_jit_kernel)(&arg);
 
                         if (candidateStatus == NMSCandidateStatus::SUPPRESSED) {
@@ -514,7 +531,7 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
 
         int io_selection_size = 0;
         const size_t sortedBoxSize = sorted_boxes.size();
-        if (sortedBoxSize > 0lu) {
+        if (sortedBoxSize > 0LU) {
             parallel_sort(sorted_boxes.begin(),
                           sorted_boxes.end(),
                           [](const std::pair<float, int>& l, const std::pair<float, int>& r) {
@@ -523,13 +540,13 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
             int offset = batch_idx * m_classes_num * m_output_boxes_per_class + class_idx * m_output_boxes_per_class;
             filtBoxes[offset + 0] = FilteredBox(sorted_boxes[0].first, batch_idx, class_idx, sorted_boxes[0].second);
             io_selection_size++;
-            if (sortedBoxSize > 1lu) {
+            if (sortedBoxSize > 1LU) {
                 if (m_jit_kernel) {
 #if defined(OPENVINO_ARCH_X86_64)
-                    std::vector<float> boxCoord0(sortedBoxSize, 0.0f);
-                    std::vector<float> boxCoord1(sortedBoxSize, 0.0f);
-                    std::vector<float> boxCoord2(sortedBoxSize, 0.0f);
-                    std::vector<float> boxCoord3(sortedBoxSize, 0.0f);
+                    std::vector<float> boxCoord0(sortedBoxSize, 0.0F);
+                    std::vector<float> boxCoord1(sortedBoxSize, 0.0F);
+                    std::vector<float> boxCoord2(sortedBoxSize, 0.0F);
+                    std::vector<float> boxCoord3(sortedBoxSize, 0.0F);
 
                     boxCoord0[0] = boxesPtr[sorted_boxes[0].second * m_coord_num];
                     boxCoord1[0] = boxesPtr[sorted_boxes[0].second * m_coord_num + 1];
@@ -537,22 +554,21 @@ void NonMaxSuppression::nmsWithoutSoftSigma(const float* boxes,
                     boxCoord3[0] = boxesPtr[sorted_boxes[0].second * m_coord_num + 3];
 
                     auto arg = kernel::NmsCallArgs();
-                    arg.iou_threshold = static_cast<float*>(&m_iou_threshold);
-                    arg.score_threshold = static_cast<float*>(&m_score_threshold);
-                    arg.scale = static_cast<float*>(&m_scale);
+                    arg.iou_threshold = (&m_iou_threshold);
+                    arg.score_threshold = (&m_score_threshold);
+                    arg.scale = (&m_scale);
                     // box start index do not change for hard supresion
-                    arg.selected_boxes_coord[0] = static_cast<float*>(&boxCoord0[0]);
-                    arg.selected_boxes_coord[1] = static_cast<float*>(&boxCoord1[0]);
-                    arg.selected_boxes_coord[2] = static_cast<float*>(&boxCoord2[0]);
-                    arg.selected_boxes_coord[3] = static_cast<float*>(&boxCoord3[0]);
+                    arg.selected_boxes_coord[0] = static_cast<float*>(boxCoord0.data());
+                    arg.selected_boxes_coord[1] = static_cast<float*>(boxCoord1.data());
+                    arg.selected_boxes_coord[2] = static_cast<float*>(boxCoord2.data());
+                    arg.selected_boxes_coord[3] = static_cast<float*>(boxCoord3.data());
 
                     for (size_t candidate_idx = 1; (candidate_idx < sortedBoxSize) && (io_selection_size < max_out_box);
                          candidate_idx++) {
                         int candidateStatus = NMSCandidateStatus::SELECTED;  // 0 for suppressed, 1 for selected
                         arg.selected_boxes_num = io_selection_size;
-                        arg.candidate_box =
-                            static_cast<const float*>(&boxesPtr[sorted_boxes[candidate_idx].second * m_coord_num]);
-                        arg.candidate_status = static_cast<int*>(&candidateStatus);
+                        arg.candidate_box = (&boxesPtr[sorted_boxes[candidate_idx].second * m_coord_num]);
+                        arg.candidate_status = (&candidateStatus);
                         (*m_jit_kernel)(&arg);
                         if (candidateStatus == NMSCandidateStatus::SELECTED) {
                             boxCoord0[io_selection_size] = boxesPtr[sorted_boxes[candidate_idx].second * m_coord_num];
@@ -617,8 +633,8 @@ inline float cross_2d(const NonMaxSuppression::Point2D& A, const NonMaxSuppressi
 inline void getRotatedVertices(const float* box, NonMaxSuppression::Point2D (&pts)[4], bool clockwise) {
     auto theta = clockwise ? box[4] : -box[4];
 
-    auto cos_theta = std::cos(theta) * 0.5f;
-    auto sin_theta = std::sin(theta) * 0.5f;
+    auto cos_theta = std::cos(theta) * 0.5F;
+    auto sin_theta = std::sin(theta) * 0.5F;
 
     // y: top --> down; x: left --> right
     // Left-Down
@@ -636,39 +652,39 @@ inline void getRotatedVertices(const float* box, NonMaxSuppression::Point2D (&pt
 }
 
 inline float polygonArea(const NonMaxSuppression::Point2D (&q)[24], const int64_t& m) {
-    if (m <= 2l) {
-        return 0.f;
+    if (m <= 2L) {
+        return 0.F;
     }
 
-    float area = 0.f;
-    auto mlu = static_cast<size_t>(m - 1l);
-    for (size_t i = 1lu; i < mlu; i++) {
+    float area = 0.F;
+    auto mlu = static_cast<size_t>(m - 1L);
+    for (size_t i = 1LU; i < mlu; i++) {
         area += std::abs(cross_2d(q[i] - q[0], q[i + 1] - q[0]));
     }
 
-    return area / 2.f;
+    return area / 2.F;
 }
 
 inline size_t convexHullGraham(const NonMaxSuppression::Point2D (&p)[24],
                                const size_t num_in,
                                NonMaxSuppression::Point2D (&q)[24]) {
-    OPENVINO_ASSERT(num_in >= 2lu);
+    OPENVINO_ASSERT(num_in >= 2LU);
 
     // Step 1:
     // Find point with minimum y
     // if more than 1 points have the same minimum y,
     // pick the one with the minimum x.
-    size_t t = 0lu;
-    for (size_t i = 1lu; i < num_in; i++) {
+    size_t t = 0LU;
+    for (size_t i = 1LU; i < num_in; i++) {
         if (p[i].y < p[t].y || (p[i].y == p[t].y && p[i].x < p[t].x)) {
             t = i;
         }
     }
-    auto& start = p[t];  // starting point
+    const auto& start = p[t];  // starting point
 
     // Step 2:
     // Subtract starting point from every points (for sorting in the next step)
-    for (size_t i = 0lu; i < num_in; i++) {
+    for (size_t i = 0LU; i < num_in; i++) {
         q[i] = p[i] - start;
     }
 
@@ -680,38 +696,38 @@ inline size_t convexHullGraham(const NonMaxSuppression::Point2D (&p)[24],
     // (essentially sorting according to angles)
     // If the angles are the same, sort according to their distance to origin
     float dist[24];
-    for (size_t i = 0lu; i < num_in; i++) {
+    for (size_t i = 0LU; i < num_in; i++) {
         dist[i] = dot_2d(q[i], q[i]);
     }
 
     std::sort(q + 1, q + num_in, [](const NonMaxSuppression::Point2D& A, const NonMaxSuppression::Point2D& B) -> bool {
         float temp = cross_2d(A, B);
-        if (std::abs(temp) < 1e-6f) {
+        if (std::abs(temp) < 1e-6F) {
             return dot_2d(A, A) < dot_2d(B, B);
         }
-        return temp > 0.f;
+        return temp > 0.F;
     });
     // compute distance to origin after sort, since the points are now different.
-    for (size_t i = 0lu; i < num_in; i++) {
+    for (size_t i = 0LU; i < num_in; i++) {
         dist[i] = dot_2d(q[i], q[i]);
     }
 
     // Step 4:
     // Make sure there are at least 2 points (that don't overlap with each other)
     // in the stack
-    size_t k = 1lu;  // index of the non-overlapped second point
+    size_t k = 1LU;  // index of the non-overlapped second point
     for (; k < num_in; k++) {
-        if (dist[k] > 1e-8f) {
+        if (dist[k] > 1e-8F) {
             break;
         }
     }
     if (k == num_in) {
         // We reach the end, which means the convex hull is just one point
         q[0] = p[t];
-        return 1lu;
+        return 1LU;
     }
     q[1] = q[k];
-    size_t m = 2lu;  // 2 points in the stack
+    size_t m = 2LU;  // 2 points in the stack
     // Step 5:
     // Finally we can start the scanning process.
     // When a non-convex relationship between the 3 points is found
@@ -719,8 +735,8 @@ inline size_t convexHullGraham(const NonMaxSuppression::Point2D (&p)[24],
     // we pop the previous point from the stack
     // until the 3-point relationship is convex again, or
     // until the stack only contains two points
-    for (size_t i = k + 1lu; i < num_in; i++) {
-        while (m > 1lu && cross_2d(q[i] - q[m - 2], q[m - 1] - q[m - 2]) >= 0) {
+    for (size_t i = k + 1LU; i < num_in; i++) {
+        while (m > 1LU && cross_2d(q[i] - q[m - 2], q[m - 1] - q[m - 2]) >= 0) {
             m--;
         }
         q[m++] = q[i];
@@ -734,21 +750,22 @@ inline size_t getIntersectionPoints(const NonMaxSuppression::Point2D (&pts1)[4],
                                     NonMaxSuppression::Point2D (&intersections)[24]) {
     // Line vector
     // A line from p1 to p2 is: p1 + (p2-p1)*t, t=[0,1]
-    NonMaxSuppression::Point2D vec1[4], vec2[4];
-    for (size_t i = 0lu; i < 4lu; i++) {
-        vec1[i] = pts1[(i + 1lu) % 4lu] - pts1[i];
-        vec2[i] = pts2[(i + 1lu) % 4lu] - pts2[i];
+    NonMaxSuppression::Point2D vec1[4];
+    NonMaxSuppression::Point2D vec2[4];
+    for (size_t i = 0LU; i < 4LU; i++) {
+        vec1[i] = pts1[(i + 1LU) % 4LU] - pts1[i];
+        vec2[i] = pts2[(i + 1LU) % 4LU] - pts2[i];
     }
 
     // Line test - test all line combos for intersection
-    size_t num = 0lu;  // number of intersections
-    for (size_t i = 0lu; i < 4lu; i++) {
-        for (size_t j = 0lu; j < 4lu; j++) {
+    size_t num = 0LU;  // number of intersections
+    for (size_t i = 0LU; i < 4LU; i++) {
+        for (size_t j = 0LU; j < 4LU; j++) {
             // Solve for 2x2 Ax=b
             float det = cross_2d(vec2[j], vec1[i]);
 
             // This takes care of parallel lines
-            if (std::abs(det) <= 1e-14f) {
+            if (std::abs(det) <= 1e-14F) {
                 continue;
             }
 
@@ -757,7 +774,7 @@ inline size_t getIntersectionPoints(const NonMaxSuppression::Point2D (&pts1)[4],
             auto t1 = cross_2d(vec2[j], vec12) / det;
             auto t2 = cross_2d(vec1[i], vec12) / det;
 
-            if (t1 >= 0.f && t1 <= 1.f && t2 >= 0.f && t2 <= 1.f) {
+            if (t1 >= 0.F && t1 <= 1.F && t2 >= 0.F && t2 <= 1.F) {
                 intersections[num++] = pts1[i] + vec1[i] * t1;
             }
         }
@@ -810,15 +827,16 @@ inline float rotatedBoxesIntersection(const NonMaxSuppression::Point2D (&vertice
                                       const float* box_1,
                                       const bool clockwise) {
     // There are up to 4 x 4 + 4 + 4 = 24 intersections (including duplicates) returned
-    NonMaxSuppression::Point2D intersect_pts[24], ordered_pts[24];
+    NonMaxSuppression::Point2D intersect_pts[24];
+    NonMaxSuppression::Point2D ordered_pts[24];
 
     NonMaxSuppression::Point2D vertices_1[4];
     getRotatedVertices(box_1, vertices_1, clockwise);
 
     auto num = getIntersectionPoints(vertices_0, vertices_1, intersect_pts);
 
-    if (num <= 2lu) {
-        return 0.f;
+    if (num <= 2LU) {
+        return 0.F;
     }
 
     auto num_convex = convexHullGraham(intersect_pts, num, ordered_pts);
@@ -827,10 +845,10 @@ inline float rotatedBoxesIntersection(const NonMaxSuppression::Point2D (&vertice
 
 inline float NonMaxSuppression::rotatedIntersectionOverUnion(const NonMaxSuppression::Point2D (&vertices_0)[4],
                                                              const float area_0,
-                                                             const float* box_1) {
+                                                             const float* box_1) const {
     const auto area_1 = box_1[2] * box_1[3];  // W x H
-    if (area_1 <= 0.f) {
-        return 0.f;
+    if (area_1 <= 0.F) {
+        return 0.F;
     }
 
     const auto intersection = rotatedBoxesIntersection(vertices_0, box_1, m_clockwise);
@@ -843,136 +861,139 @@ void NonMaxSuppression::nmsRotated(const float* boxes,
                                    const VectorDims& boxes_strides,
                                    const VectorDims& scores_strides,
                                    std::vector<FilteredBox>& filtered_boxes) {
-    if (m_jit_kernel) {
-        THROW_CPU_NODE_ERR("does not have implementation of the JIT kernel for Rotated boxes.");
-    } else {
-        parallel_for2d(m_batches_num, m_classes_num, [&](int64_t batch_idx, int64_t class_idx) {
-            const float* boxes_ptr = boxes + batch_idx * boxes_strides[0];
-            const float* scores_ptr = scores + batch_idx * scores_strides[0] + class_idx * scores_strides[1];
+    CPU_NODE_ASSERT(!m_jit_kernel, "does not have implementation of the JIT kernel for Rotated boxes.");
+    parallel_for2d(m_batches_num, m_classes_num, [&](int64_t batch_idx, int64_t class_idx) {
+        const float* boxes_ptr = boxes + batch_idx * boxes_strides[0];
+        const float* scores_ptr = scores + batch_idx * scores_strides[0] + class_idx * scores_strides[1];
 
-            std::vector<std::pair<float, size_t>> sorted_indices;  // score, box_idx
-            sorted_indices.reserve(m_boxes_num);
-            for (size_t box_idx = 0lu; box_idx < m_boxes_num; box_idx++, scores_ptr++) {
-                if (*scores_ptr > m_score_threshold) {
-                    sorted_indices.emplace_back(*scores_ptr, box_idx);
-                }
+        std::vector<std::pair<float, size_t>> sorted_indices;  // score, box_idx
+        sorted_indices.reserve(m_boxes_num);
+        for (size_t box_idx = 0LU; box_idx < m_boxes_num; box_idx++, scores_ptr++) {
+            if (*scores_ptr > m_score_threshold) {
+                sorted_indices.emplace_back(*scores_ptr, box_idx);
             }
+        }
 
-            size_t io_selection_size = 0lu;
-            const size_t sorted_boxes_size = sorted_indices.size();
+        size_t io_selection_size = 0LU;
+        const size_t sorted_boxes_size = sorted_indices.size();
 
-            if (sorted_boxes_size > 0lu) {
-                parallel_sort(sorted_indices.begin(),
-                              sorted_indices.end(),
-                              [](const std::pair<float, size_t>& l, const std::pair<float, size_t>& r) {
-                                  return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
-                              });
-                auto sorted_indices_ptr = sorted_indices.data();
-                auto filtered_boxes_ptr = filtered_boxes.data() + batch_idx * m_classes_num * m_output_boxes_per_class +
-                                          class_idx * m_output_boxes_per_class;
-                *filtered_boxes_ptr =
-                    FilteredBox(sorted_indices[0].first, batch_idx, class_idx, sorted_indices[0].second);
-                io_selection_size++;
-                if (sorted_boxes_size > 1lu) {
-                    sorted_indices_ptr++;
-                    NMSCandidateStatus candidate_status;
+        if (sorted_boxes_size > 0LU) {
+            parallel_sort(sorted_indices.begin(),
+                          sorted_indices.end(),
+                          [](const std::pair<float, size_t>& l, const std::pair<float, size_t>& r) {
+                              return (l.first > r.first || ((l.first == r.first) && (l.second < r.second)));
+                          });
+            auto* sorted_indices_ptr = sorted_indices.data();
+            auto* filtered_boxes_ptr = filtered_boxes.data() + batch_idx * m_classes_num * m_output_boxes_per_class +
+                                       class_idx * m_output_boxes_per_class;
+            *filtered_boxes_ptr = FilteredBox(sorted_indices[0].first,
+                                              static_cast<int>(batch_idx),
+                                              static_cast<int>(class_idx),
+                                              sorted_indices[0].second);
+            io_selection_size++;
+            if (sorted_boxes_size > 1LU) {
+                sorted_indices_ptr++;
+                NMSCandidateStatus candidate_status = NMSCandidateStatus::SELECTED;
 
-                    for (size_t candidate_idx = 1lu;
-                         (candidate_idx < sorted_boxes_size) && (io_selection_size < m_output_boxes_per_class);
-                         candidate_idx++, sorted_indices_ptr++) {
-                        candidate_status = NMSCandidateStatus::SELECTED;
-                        auto box_0 = boxes_ptr + (*sorted_indices_ptr).second * m_coord_num;
-                        const auto area_0 = box_0[2] * box_0[3];  // W x H
+                for (size_t candidate_idx = 1LU;
+                     (candidate_idx < sorted_boxes_size) && (io_selection_size < m_output_boxes_per_class);
+                     candidate_idx++, sorted_indices_ptr++) {
+                    candidate_status = NMSCandidateStatus::SELECTED;
+                    const auto* box_0 = boxes_ptr + (*sorted_indices_ptr).second * m_coord_num;
+                    const auto area_0 = box_0[2] * box_0[3];  // W x H
 
-                        if (area_0 > 0.f) {
-                            NonMaxSuppression::Point2D vertices_0[4];
-                            getRotatedVertices(box_0, vertices_0, m_clockwise);
-                            auto trg_boxes = reinterpret_cast<int32_t*>(&((*filtered_boxes_ptr).box_index));
-                            for (size_t selected_idx = 0lu; selected_idx < io_selection_size;
-                                 selected_idx++, trg_boxes -= 4) {
-                                auto iou = rotatedIntersectionOverUnion(vertices_0,
-                                                                        area_0,
-                                                                        boxes_ptr + m_coord_num * (*trg_boxes));
-                                if (iou > m_iou_threshold) {
-                                    candidate_status = NMSCandidateStatus::SUPPRESSED;
-                                    break;
-                                }
+                    if (area_0 > 0.F) {
+                        NonMaxSuppression::Point2D vertices_0[4];
+                        getRotatedVertices(box_0, vertices_0, m_clockwise);
+                        auto* trg_boxes = reinterpret_cast<int32_t*>(&((*filtered_boxes_ptr).box_index));
+                        for (size_t selected_idx = 0LU; selected_idx < io_selection_size;
+                             selected_idx++, trg_boxes -= 4) {
+                            auto iou = rotatedIntersectionOverUnion(vertices_0,
+                                                                    area_0,
+                                                                    boxes_ptr + m_coord_num * (*trg_boxes));
+                            if (iou > m_iou_threshold) {
+                                candidate_status = NMSCandidateStatus::SUPPRESSED;
+                                break;
                             }
-                        } else if (0.f > m_iou_threshold) {
-                            candidate_status = NMSCandidateStatus::SUPPRESSED;
                         }
+                    } else if (0.F > m_iou_threshold) {
+                        candidate_status = NMSCandidateStatus::SUPPRESSED;
+                    }
 
-                        if (candidate_status == NMSCandidateStatus::SELECTED) {
-                            *(++filtered_boxes_ptr) = FilteredBox((*sorted_indices_ptr).first,
-                                                                  batch_idx,
-                                                                  class_idx,
-                                                                  (*sorted_indices_ptr).second);
-                            io_selection_size++;
-                        }
+                    if (candidate_status == NMSCandidateStatus::SELECTED) {
+                        *(++filtered_boxes_ptr) = FilteredBox((*sorted_indices_ptr).first,
+                                                              static_cast<int>(batch_idx),
+                                                              static_cast<int>(class_idx),
+                                                              (*sorted_indices_ptr).second);
+                        io_selection_size++;
                     }
                 }
             }
+        }
 
-            m_num_filtered_boxes[batch_idx][class_idx] = io_selection_size;
-        });
-    }
+        m_num_filtered_boxes[batch_idx][class_idx] = io_selection_size;
+    });
 }
 
 /////////////// End of Rotated boxes ///////////////
 
 float NonMaxSuppression::intersectionOverUnion(const float* boxesI, const float* boxesJ) {
-    float yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ;
-    if (boxEncodingType == NMSBoxEncodeType::CENTER) {
-        //  box format: x_center, y_center, width, height
-        yminI = boxesI[1] - boxesI[3] / 2.f;
-        xminI = boxesI[0] - boxesI[2] / 2.f;
-        ymaxI = boxesI[1] + boxesI[3] / 2.f;
-        xmaxI = boxesI[0] + boxesI[2] / 2.f;
-        yminJ = boxesJ[1] - boxesJ[3] / 2.f;
-        xminJ = boxesJ[0] - boxesJ[2] / 2.f;
-        ymaxJ = boxesJ[1] + boxesJ[3] / 2.f;
-        xmaxJ = boxesJ[0] + boxesJ[2] / 2.f;
-    } else {
-        //  box format: y1, x1, y2, x2
-        yminI = (std::min)(boxesI[0], boxesI[2]);
-        xminI = (std::min)(boxesI[1], boxesI[3]);
-        ymaxI = (std::max)(boxesI[0], boxesI[2]);
-        xmaxI = (std::max)(boxesI[1], boxesI[3]);
-        yminJ = (std::min)(boxesJ[0], boxesJ[2]);
-        xminJ = (std::min)(boxesJ[1], boxesJ[3]);
-        ymaxJ = (std::max)(boxesJ[0], boxesJ[2]);
-        xmaxJ = (std::max)(boxesJ[1], boxesJ[3]);
-    }
+    auto [yminI, xminI, ymaxI, xmaxI, yminJ, xminJ, ymaxJ, xmaxJ] = [&] {
+        if (boxEncodingType == NMSBoxEncodeType::CENTER) {
+            // box format: x_center, y_center, width, height
+            return std::tuple{boxesI[1] - boxesI[3] / 2.F,
+                              boxesI[0] - boxesI[2] / 2.F,
+                              boxesI[1] + boxesI[3] / 2.F,
+                              boxesI[0] + boxesI[2] / 2.F,
+                              boxesJ[1] - boxesJ[3] / 2.F,
+                              boxesJ[0] - boxesJ[2] / 2.F,
+                              boxesJ[1] + boxesJ[3] / 2.F,
+                              boxesJ[0] + boxesJ[2] / 2.F};
+        }
+        // box format: y1, x1, y2, x2
+        return std::tuple{(std::min)(boxesI[0], boxesI[2]),
+                          (std::min)(boxesI[1], boxesI[3]),
+                          (std::max)(boxesI[0], boxesI[2]),
+                          (std::max)(boxesI[1], boxesI[3]),
+                          (std::min)(boxesJ[0], boxesJ[2]),
+                          (std::min)(boxesJ[1], boxesJ[3]),
+                          (std::max)(boxesJ[0], boxesJ[2]),
+                          (std::max)(boxesJ[1], boxesJ[3])};
+    }();
 
     float areaI = (ymaxI - yminI) * (xmaxI - xminI);
     float areaJ = (ymaxJ - yminJ) * (xmaxJ - xminJ);
-    if (areaI <= 0.f || areaJ <= 0.f) {
-        return 0.f;
+    if (areaI <= 0.F || areaJ <= 0.F) {
+        return 0.F;
     }
 
-    float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ), 0.f) *
-                              (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ), 0.f);
+    float intersection_area = (std::max)((std::min)(ymaxI, ymaxJ) - (std::max)(yminI, yminJ), 0.F) *
+                              (std::max)((std::min)(xmaxI, xmaxJ) - (std::max)(xminI, xminJ), 0.F);
     return intersection_area / (areaI + areaJ - intersection_area);
 }
 
 void NonMaxSuppression::check1DInput(const Shape& shape, const std::string& name, [[maybe_unused]] const size_t port) {
-    if (shape.getRank() != 0 && shape.getRank() != 1) {
-        THROW_CPU_NODE_ERR("has unsupported '", name, "' input rank: ", shape.getRank());
-    }
+    CPU_NODE_ASSERT(shape.getRank() == 0 || shape.getRank() == 1,
+                    "has unsupported '",
+                    name,
+                    "' input rank: ",
+                    shape.getRank());
     if (shape.getRank() == 1) {
-        if (shape.getDims()[0] != 1) {
-            THROW_CPU_NODE_ERR("has unsupported '", name, "' input 1st dimension size: ", dim2str(shape.getDims()[0]));
-        }
+        CPU_NODE_ASSERT(shape.getDims()[0] == 1,
+                        "has unsupported '",
+                        name,
+                        "' input 1st dimension size: ",
+                        dim2str(shape.getDims()[0]));
     }
 }
 
 void NonMaxSuppression::checkOutput(const Shape& shape, const std::string& name, [[maybe_unused]] const size_t port) {
-    if (shape.getRank() != 2) {
-        THROW_CPU_NODE_ERR("has unsupported '", name, "' output rank: ", shape.getRank());
-    }
-    if (shape.getDims()[1] != 3) {
-        THROW_CPU_NODE_ERR("has unsupported '", name, "' output 2nd dimension size: ", dim2str(shape.getDims()[1]));
-    }
+    CPU_NODE_ASSERT(shape.getRank() == 2, "has unsupported '", name, "' output rank: ", shape.getRank());
+    CPU_NODE_ASSERT(shape.getDims()[1] == 3,
+                    "has unsupported '",
+                    name,
+                    "' output 2nd dimension size: ",
+                    dim2str(shape.getDims()[1]));
 }
 
 bool NonMaxSuppression::neverExecute() const {

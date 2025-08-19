@@ -5,13 +5,20 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <vector>
 
 #include "memory_desc/dnnl_memory_desc.h"
+#include "nodes/executors/dnnl/dnnl_aliases.hpp"
 #include "nodes/executors/dnnl/dnnl_shape_agnostic_data.hpp"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/type/element_type.hpp"
 
 namespace ov::intel_cpu {
 
@@ -32,19 +39,19 @@ public:
 
     void execute(const dnnl_primitive_args& primArgs) const;
 
-    [[nodiscard]] const DnnlMemoryDescPtr srcDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr srcDesc() const {
         return m_srcDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr dstDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr dstDesc() const {
         return m_dstDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr weightsDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr weightsDesc() const {
         return m_weiDesc;
     }
 
-    [[nodiscard]] const DnnlMemoryDescPtr scratchPadDesc() const {
+    [[nodiscard]] DnnlMemoryDescPtr scratchPadDesc() const {
         return m_scratchPadDesc;
     }
 
@@ -52,12 +59,12 @@ public:
         return m_implType;
     }
 
-    static bool useWeightsDecompressionImpl(const ov::element::Type inputType, const ov::element::Type weightsType);
+    static bool useWeightsDecompressionImpl(ov::element::Type inputType, ov::element::Type weightsType);
 
     static DnnlShapeAgnosticDataPtr createShapeAgnosticData(const FCAttrs& attrs,
                                                             const MemoryArgs& memory,
                                                             const ExecutorContext::CPtr& context,
-                                                            const bool cacheWeights);
+                                                            bool cacheWeights);
 
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
@@ -65,7 +72,7 @@ public:
 
     static std::shared_ptr<DnnlMatMulPrimitive> create(const MemoryArgs& memory,
                                                        const MatMulAttrs& attrs,
-                                                       const ExecutorContext::CPtr context,
+                                                       ExecutorContext::CPtr context,
                                                        const DnnlShapeAgnosticDataPtr& shapeAgnosticData);
 
 private:

@@ -4,14 +4,44 @@
 
 #include "adjust_brgemm_copy_b_loop_ports.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/itt.hpp"
+#include "openvino/op/parameter.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/expressions/buffer_expression.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
 #include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#include "transformations/snippets/x64/op/brgemm_utils.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
+
+namespace {
+void assign_new_ptr_increment(int64_t new_ptr_increment,
+                              ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
+    const auto old_ptr_incr = loop_desc.ptr_increment;
+    const auto old_final_offset = loop_desc.finalization_offset;
+
+    if (none_of(old_ptr_incr, 0, new_ptr_increment)) {
+        loop_desc.ptr_increment = new_ptr_increment;
+        if (!ov::snippets::utils::is_dynamic_value(old_final_offset)) {
+            OPENVINO_ASSERT(old_final_offset % old_ptr_incr == 0, "Can't rescale finalization offsets");
+            loop_desc.finalization_offset =
+                ov::snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, (old_final_offset / old_ptr_incr));
+        }
+    }
+}
+}  // namespace
 
 bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
     const std::shared_ptr<snippets::lowered::UnifiedLoopInfo>& loop_info) {
@@ -23,35 +53,42 @@ bool pass::AdjustBrgemmCopyBLoopPorts::update_loop_info(
         if (p.get_type() == snippets::lowered::ExpressionPort::Input && p.get_index() == 1) {
             const auto& node = p.get_expr()->get_node();
             if (auto brg = as_type_ptr<BrgemmCPU>(node)) {
-                const auto precision = node->get_input_element_type(1);
+                const auto& brgemm_config = brg->get_config();
                 /*
                  * The BrgemmCopyB operation repacks the weights in the following way:
-                 *  1) VNNI format is applied: KN4k for I8/U8, or KN2k for BF16
-                 *  2) Zero padding is applied if N4k < 256 or N2k < 64
+                 *   1) Not-FP32 Brgemm requires inner K block which is equal to VNNI factor
+                 *   2) If BrgemmConfig returns `are_wei_blocked()=1`, weights are repacked
+                 *      in format BA<wei_k_blk>a<m_wei_n_blk>b<vnni_factor>a (if there is vnni).
+                 *   3) If BrgemmConfig returns `are_wei_blocked()=0`, there is zero padding
+                 *      for K and N dimensions due to memory access patern in BrgemmCopyB onednn kernel.
                  */
-                if (brgemm_utils::with_repacking(brg->get_type()) && loop_port.is_incremented()) {
-                    // K blocking loop: account for zero padding
+                if (brgemm_config.with_wei_repacking() && loop_port.is_incremented()) {
+                    int64_t blocked_shape_ptr_inc = 0;
                     if (loop_port.get_dim_idx() == 1) {
-                        const auto ptr_incr = loop_desc.ptr_increment;
-                        const auto blocked_shape_ptr_inc =
-                            brgemm_utils::repacking::compute_repacked_n_dim(ptr_incr, precision);
-                        if (ptr_incr != 0 && ptr_incr != blocked_shape_ptr_inc) {
-                            loop_desc.ptr_increment = blocked_shape_ptr_inc;
-                            OPENVINO_ASSERT(loop_desc.finalization_offset % ptr_incr == 0,
-                                            "Can't rescale finalization offsets");
-                            loop_desc.finalization_offset =
-                                loop_desc.ptr_increment * (loop_desc.finalization_offset / ptr_incr);
-                        }
-                        // N blocking loop: account for the VNNI format
+                        // Blocking loop by K dimension:
+                        blocked_shape_ptr_inc =
+                            brgemm_utils::repacking::compute_K_blocked_stride(loop_desc.ptr_increment,
+                                                                              brgemm_config.wei_n_blk(),
+                                                                              brgemm_config.are_wei_blocked());
                     } else if (loop_port.get_dim_idx() == 0) {
-                        auto k_blk_size = static_cast<int64_t>(brgemm_utils::compute_vnni_factor(precision));
-                        loop_desc.ptr_increment =
-                            snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, k_blk_size);
-                        loop_desc.finalization_offset =
-                            snippets::utils::dynamic_safe_mul(loop_desc.finalization_offset, k_blk_size);
+                        // Blocking loop by N dimension:
+                        // Attention: blocked_shape_ptr_inc is int64_t while K dimension is uint64_t
+                        const auto& shape = loop_port.get_expr_port()->get_descriptor_ptr()->get_shape();
+                        const auto K_dim = *++shape.rbegin();
+                        if (snippets::utils::is_dynamic_value(K_dim)) {
+                            blocked_shape_ptr_inc = snippets::utils::get_dynamic_value<int64_t>();
+                        } else {
+                            blocked_shape_ptr_inc =
+                                brgemm_utils::repacking::compute_N_blocked_stride(static_cast<int64_t>(K_dim),
+                                                                                  brgemm_config.wei_k_blk(),
+                                                                                  brgemm_config.wei_dt(),
+                                                                                  brgemm_config.are_wei_blocked());
+                        }
                     } else {
                         OPENVINO_THROW("Unexpected loop port dimension index in AdjustBrgemmCopyBLoopPorts");
                     }
+
+                    assign_new_ptr_increment(blocked_shape_ptr_inc, loop_desc);
                     modified = true;
                 }
             }
@@ -83,7 +120,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
 
     for (const auto& expr : linear_ir) {
         const auto brgemm = ov::as_type_ptr<BrgemmCPU>(expr->get_node());
-        if (!brgemm || !brgemm_utils::with_repacking(brgemm->get_type())) {
+        if (!brgemm || !brgemm->get_config().with_wei_repacking()) {
             continue;
         }
         const auto& brgemm_loop_ids = expr->get_loop_ids();
@@ -94,7 +131,7 @@ bool pass::AdjustBrgemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& li
         }
 
         OPENVINO_ASSERT(brgemm_loop_ids.size() > repacking_loop_ids.size(), "Invalid BrgemmCopyB loop configuration");
-        const auto& loop_manager = linear_ir.get_loop_manager();
+        const snippets::lowered::LoopManagerPtr& loop_manager = linear_ir.get_loop_manager();
         for (auto i = repacking_loop_ids.size(); i < brgemm_loop_ids.size(); i++) {
             const auto& loop = loop_manager->get_loop_info(brgemm_loop_ids[i]);
             auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);

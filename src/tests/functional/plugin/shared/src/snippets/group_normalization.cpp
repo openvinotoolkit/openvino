@@ -12,12 +12,7 @@ namespace test {
 namespace snippets {
 
 std::string GroupNormalization::getTestCaseName(testing::TestParamInfo<ov::test::snippets::GroupNormalizationParams> obj) {
-    InputShape inputShapes;
-    size_t numGroup;
-    float eps;
-    std::string targetDevice;
-    size_t num_nodes, num_subgraphs;
-    std::tie(inputShapes, numGroup, eps, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    const auto& [inputShapes, numGroup, eps, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     result << "IS=" << ov::test::utils::partialShape2str({inputShapes.first}) << "_";
@@ -34,10 +29,10 @@ std::string GroupNormalization::getTestCaseName(testing::TestParamInfo<ov::test:
 }
 
 void GroupNormalization::SetUp() {
-    InputShape inputShape;
-    size_t numGroup;
-    float eps;
-    std::tie(inputShape, numGroup, eps, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [inputShape, numGroup, eps, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
 
     InputShape scaleShiftShape = ExtractScaleShiftShape(inputShape);
 
@@ -46,9 +41,7 @@ void GroupNormalization::SetUp() {
     auto f = ov::test::snippets::GroupNormalizationFunction(inputDynamicShapes, numGroup, eps);
     function = f.getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     abs_threshold = 1e-5;
 }

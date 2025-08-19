@@ -133,7 +133,7 @@ Additional Resources
 ####################
 
 * :doc:`GPU Device <../../../openvino-workflow/running-inference/inference-devices-and-modes/gpu-device>`
-* :doc:`Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image <../install-openvino-archive-linux>`
+* :doc:`Install Intel® Distribution of OpenVINO™ toolkit from a Docker Image <../install-openvino-docker-linux>`
 * `Docker CI framework for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/README.md>`__
 * `Get Started with DockerHub CI for Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/get-started.md>`__
 * `Dockerfiles with Intel® Distribution of OpenVINO™ toolkit <https://github.com/openvinotoolkit/docker_ci/blob/master/dockerfiles/README.md>`__

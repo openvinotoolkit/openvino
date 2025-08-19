@@ -4,21 +4,45 @@
 
 #include "transpose.h"
 
-#include <string>
+#include <oneapi/dnnl/dnnl_types.h>
 
-#include "common/primitive_hashing_utils.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <vector>
+
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "nodes/common/blocked_desc_creator.h"
 #include "nodes/common/reorder_prim.h"
+#include "nodes/executors/executor.hpp"
+#include "nodes/executors/transpose.hpp"
+#include "nodes/executors/transpose_list.hpp"
+#include "nodes/node_config.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "shape_inference/custom/transpose.hpp"
+#include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 using namespace dnnl;
 
 namespace ov::intel_cpu::node {
 
 bool Transpose::isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept {
     try {
-        if (!one_of(op->get_type_info(), ov::op::v1::Transpose::get_type_info_static())) {
+        if (none_of(op->get_type_info(), ov::op::v1::Transpose::get_type_info_static())) {
             errorMessage = "Node is not an instance of the Transpose operation from opset1.";
             return false;
         }
@@ -47,7 +71,7 @@ Transpose::Transpose(const std::shared_ptr<ov::Node>& op, const GraphContext::CP
 
         if (order.empty()) {
             size_t rank = getInputShapeAtPort(INPUT_DATA_IDX).getRank();
-            for (size_t i = 1lu; i <= rank; ++i) {
+            for (size_t i = 1LU; i <= rank; ++i) {
                 order.emplace_back(rank - i);
             }
         }
@@ -63,7 +87,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
 
     prec = getOriginalInputPrecisionAtPort(0);
 
-    auto& creatorsMap = BlockedDescCreator::getCommonCreators();
+    const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
 
     NodeConfig config;
     config.inConfs.resize(2);
@@ -99,7 +123,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
 
     const auto& inputDataShape = getInputShapeAtPort(INPUT_DATA_IDX);
     const auto& outputDataShape = getOutputShapeAtPort(0);
-    if (inputDataShape.getRank() == 4 || inputDataShape.getRank() == 5) {
+    if (any_of(inputDataShape.getRank(), 4U, 5U)) {
         config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, inputDataShape));
         config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::ncsp)->createSharedDesc(prec, outputDataShape));
         supportedPrimitiveDescriptorsBuilder(config, transposeParams);
@@ -115,8 +139,7 @@ void Transpose::initSupportedPrimitiveDescriptors() {
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
         }
 #endif  // OPENVINO_ARCH_X86_64
-        if (prec == ov::element::f32 || prec == ov::element::f16 || prec == ov::element::i8 ||
-            prec == ov::element::u8 || prec == ov::element::bf16) {
+        if (any_of(prec, ov::element::f32, ov::element::f16, ov::element::i8, ov::element::u8, ov::element::bf16)) {
             config.inConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, inputDataShape));
             config.outConfs[0].setMemDesc(creatorsMap.at(LayoutType::nspc)->createSharedDesc(prec, outputDataShape));
             supportedPrimitiveDescriptorsBuilder(config, transposeParams);
@@ -153,9 +176,7 @@ void Transpose::prepareParams() {
         auto dstDesc = dstMemPtr->getDescWithType<DnnlMemoryDesc>()->getDnnlDesc();
         auto srcDesc = dnnl::memory::desc(dstDesc.get_dims(), dstDesc.get_data_type(), memory::format_tag::acdb);
         auto result = getReorderPrim(context->getParamsCache(), getEngine(), srcDesc, dstDesc);
-        if (!result) {
-            THROW_CPU_NODE_ERR("reorder primitive descriptor was not found.");
-        }
+        CPU_NODE_ASSERT(result, "reorder primitive descriptor was not found.");
         prim = result;
 
         getSelectedPrimitiveDescriptor()->setImplementationType(
@@ -164,7 +185,7 @@ void Transpose::prepareParams() {
         primArgs = {{DNNL_ARG_SRC, srcMemPtr->getPrimitive()}, {DNNL_ARG_DST, dstMemPtr->getPrimitive()}};
 #ifdef CPU_DEBUG_CAPS
         if (prim) {
-            auto pd = prim.get_primitive_desc();
+            const auto* pd = prim.get_primitive_desc();
             DEBUG_LOG("verbose##", getName(), "##", DnnlExtensionUtils::query_pd_info(pd), "\n");
         }
 #endif
@@ -177,7 +198,7 @@ void Transpose::prepareParams() {
     transposeParams.permuteParams.dst_block_dims = dstDesc->getBlockDims();
 
     if (!isInputOrderConst) {
-        auto orderPtr = getSrcDataAtPortAs<const int32_t>(0);
+        const auto* orderPtr = getSrcDataAtPortAs<const int32_t>(0);
         auto orderLen = getSrcMemoryAtPort(0)->getSize();
         transposeParams.permuteParams.order.assign(orderPtr, orderPtr + orderLen);
     }
@@ -186,7 +207,7 @@ void Transpose::prepareParams() {
     auto builder =
         [&srcDesc, &dstDesc, this]([[maybe_unused]] const PermuteParams& key) -> std::shared_ptr<TransposeExecutor> {
         dnnl::primitive_attr attr;
-        auto selectedPD = getSelectedPrimitiveDescriptor();
+        auto* selectedPD = getSelectedPrimitiveDescriptor();
         auto executor = selectedPD->getExecutorFactoryAs<TransposeExecutorFactory>()->makeExecutor(transposeParams,
                                                                                                    {srcDesc},
                                                                                                    {dstDesc},
@@ -197,9 +218,7 @@ void Transpose::prepareParams() {
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(transposeParams.permuteParams, builder);
 
-    if (!result.first) {
-        THROW_CPU_NODE_ERR("Primitive descriptor was not found.");
-    }
+    CPU_NODE_ASSERT(result.first, "Primitive descriptor was not found.");
 
     execPtr = result.first;
 }
@@ -211,15 +230,9 @@ void Transpose::createPrimitive() {
 
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(INPUT_DATA_IDX);
-    if (!dstMemPtr) {
-        THROW_CPU_NODE_ERR("Destination memory is null.");
-    }
-    if (!srcMemPtr) {
-        THROW_CPU_NODE_ERR("Input memory is null.");
-    }
-    if (getSelectedPrimitiveDescriptor() == nullptr) {
-        THROW_CPU_NODE_ERR("Preferable primitive descriptor was not set.");
-    }
+    CPU_NODE_ASSERT(dstMemPtr, "Destination memory is null.");
+    CPU_NODE_ASSERT(srcMemPtr, "Input memory is null.");
+    CPU_NODE_ASSERT(getSelectedPrimitiveDescriptor(), "Preferable primitive descriptor was not set.");
 
     if (getParentEdgeAt(INPUT_DATA_IDX)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
         getChildEdgeAt(0)->getMemory().getDesc().hasLayoutType(LayoutType::ncsp) &&
@@ -265,7 +278,7 @@ void Transpose::execute(const dnnl::stream& strm) {
 
         execPtr->exec({srcMemPtr}, {dstMemPtr});
     } else {
-        THROW_CPU_NODE_ERR("Primitive was not created.");
+        CPU_NODE_THROW("Primitive was not created.");
     }
 }
 

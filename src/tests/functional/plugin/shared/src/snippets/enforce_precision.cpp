@@ -12,10 +12,7 @@ namespace test {
 namespace snippets {
 
 std::string EnforcePrecisionTest::getTestCaseName(testing::TestParamInfo<EnforcePrecisionTestParams> obj) {
-    std::vector<ov::PartialShape> input_shapes;
-    size_t num_nodes, num_subgraphs;
-    std::string targetDevice;
-    std::tie(input_shapes, num_nodes, num_subgraphs, targetDevice) = obj.param;
+    const auto& [input_shapes, num_nodes, num_subgraphs, targetDevice] = obj.param;
 
     std::ostringstream result;
     for (size_t i = 0; i < input_shapes.size(); ++i)
@@ -27,15 +24,15 @@ std::string EnforcePrecisionTest::getTestCaseName(testing::TestParamInfo<Enforce
 }
 
 void EnforcePrecisionTest::SetUp() {
-    std::vector<ov::PartialShape> input_shapes;
-    std::tie(input_shapes, ref_num_nodes, ref_num_subgraphs, targetDevice) = this->GetParam();
+    const auto& [input_shapes, _ref_num_nodes, _ref_num_subgraphs, _targetDevice] = this->GetParam();
+    ref_num_nodes = _ref_num_nodes;
+    ref_num_subgraphs = _ref_num_subgraphs;
+    targetDevice = _targetDevice;
     init_input_shapes(static_partial_shapes_to_test_representation(input_shapes));
 
     function = SubgraphRollMatMulRollFunction(input_shapes, ov::element::f32).getOriginal();
 
-    if (!configuration.count("SNIPPETS_MODE")) {
-        configuration.insert({"SNIPPETS_MODE", "IGNORE_CALLBACK"});
-    }
+    setIgnoreCallbackMode();
 
     setInferenceType(element::bf16);
 }

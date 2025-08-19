@@ -21,7 +21,7 @@ using eye_test_param = std::tuple<format,                    // Input and output
                                   InputType,                 // rows number
                                   InputType,                 // diagonal index
                                   std::vector<InputType>,    // batch shape
-                                  std::vector<int32_t>,      // output shape
+                                  std::vector<ov::Dimension::value_type>,      // output shape
                                   std::vector<OutputType>,   // expected values
                                   bool>;                     // is_caching_test
 
@@ -29,15 +29,7 @@ template <class OutputType, class InputType>
 class EyeTest : public ::testing::TestWithParam<eye_test_param<OutputType, InputType>> {
 public:
     void SetUp() override {
-        format fmt{format::bfyx};
-        InputType cols{};
-        InputType rows{};
-        InputType diag{};
-        std::vector<InputType> batch_shape;
-        std::vector<int32_t> output_shape;
-        std::vector<OutputType> expected_values;
-        bool is_caching_test;
-        std::tie(fmt, cols, rows, diag, batch_shape, output_shape, expected_values, is_caching_test) = this->GetParam();
+        const auto& [fmt, cols, rows, diag, batch_shape, output_shape, expected_values, is_caching_test] = this->GetParam();
 
         auto num_rows = engine_.allocate_memory({ov::element::from<InputType>(), fmt, tensor{1}});
         set_values<InputType>(num_rows, {rows});
@@ -124,7 +116,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(3),
                      testing::Values(0),
                      testing::ValuesIn(std::vector<std::vector<int32_t>>{{}, {1}, {1, 1}, {1, 1, 1}}),
-                     testing::Values(std::vector<int32_t>{1, 1, 2, 3}),
+                     testing::Values(std::vector<ov::Dimension::value_type>{1, 1, 2, 3}),
                      testing::Values(std::vector<float>{1, 0, 0, 1, 0, 0}),
                      testing::Values(false)));
 
@@ -138,7 +130,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(3),
                      testing::Values(0),
                      testing::ValuesIn(std::vector<std::vector<int32_t>>{{}, {1}, {1, 1}, {1, 1, 1}}),
-                     testing::Values(std::vector<int32_t>{1, 1, 2, 3}),
+                     testing::Values(std::vector<ov::Dimension::value_type>{1, 1, 2, 3}),
                      testing::Values(std::vector<int64_t>{1, 0, 0, 1, 0, 0}),
                      testing::Values(false)));
 
@@ -152,7 +144,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(3),
                      testing::Values(-1),
                      testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {1}, {1, 1}, {1, 1, 1}}),
-                     testing::Values(std::vector<int32_t>{1, 1, 4, 3}),
+                     testing::Values(std::vector<ov::Dimension::value_type>{1, 1, 4, 3}),
                      testing::Values(std::vector<uint8_t>{0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0}),
                      testing::Values(false)));
 
@@ -166,7 +158,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(3),
                      testing::Values(4),
                      testing::ValuesIn(std::vector<std::vector<int64_t>>{{}, {1}, {1, 1}, {1, 1, 1}}),
-                     testing::Values(std::vector<int32_t>{1, 1, 4, 3}),
+                     testing::Values(std::vector<ov::Dimension::value_type>{1, 1, 4, 3}),
                      testing::Values(std::vector<int8_t>{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}),
                      testing::Values(false)));
 
@@ -180,7 +172,7 @@ INSTANTIATE_TEST_SUITE_P(
                      testing::Values(2),
                      testing::Values(1),
                      testing::ValuesIn(std::vector<std::vector<int32_t>>{{2, 2}}),
-                     testing::Values(std::vector<int32_t>{2, 2, 2, 2}),
+                     testing::Values(std::vector<ov::Dimension::value_type>{2, 2, 2, 2}),
                      testing::Values(std::vector<int32_t>{0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0}),
                      testing::Values(false)));
 
@@ -203,7 +195,7 @@ INSTANTIATE_TEST_SUITE_P(eye_test_5d_float_int32,
                                           testing::Values(2),
                                           testing::Values(0),
                                           testing::ValuesIn(std::vector<std::vector<int32_t>>{{2, 2, 2}}),
-                                          testing::Values(std::vector<int32_t>{2, 2, 2, 2, 2}),
+                                          testing::Values(std::vector<ov::Dimension::value_type>{2, 2, 2, 2, 2}),
                                           testing::Values(std::vector<float>{
                                               1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1,
 
@@ -218,7 +210,7 @@ INSTANTIATE_TEST_SUITE_P(export_import,
                                           testing::Values(2),
                                           testing::Values(0),
                                           testing::ValuesIn(std::vector<std::vector<int32_t>>{{2, 2, 2}}),
-                                          testing::Values(std::vector<int32_t>{2, 2, 2, 2, 2}),
+                                          testing::Values(std::vector<ov::Dimension::value_type>{2, 2, 2, 2, 2}),
                                           testing::Values(std::vector<float>{
                                               1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1,
 

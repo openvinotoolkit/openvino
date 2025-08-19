@@ -17,29 +17,20 @@ namespace LayerTestsDefinitions {
 
 std::string MatMulWithOptimizedConstantFq::getTestCaseName(
     const testing::TestParamInfo<MatMulWithOptimizedConstantFakeQuantizeTransformationTransformationParams>& obj) {
-    ov::element::Type netPrecision;
-    std::pair<ov::PartialShape, ov::PartialShape> shapes;
-    std::string targetDevice;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
-
-    std::tie(netPrecision, shapes, targetDevice, param) = obj.param;
+    auto [netPrecision, shapes, device, param] = obj.param;
 
     std::ostringstream result;
     result << netPrecision << "_" <<
         shapes.first << "_" << shapes.second << "_" <<
-        targetDevice << "_"  <<
+        device << "_"  <<
         param.fqOnData << "_" <<
         param.fqOnWeights;
     return result.str();
 }
 
 void MatMulWithOptimizedConstantFq::SetUp() {
-    ov::element::Type precision;
-    std::pair<ov::PartialShape, ov::PartialShape> shapes;
-    ov::pass::low_precision::LayerTransformation::Params params;
-    MatMulWithOptimizedConstantFakeQuantizeTransformationTestValues param;
-    std::tie(precision, shapes, targetDevice, param) = this->GetParam();
+    auto [precision, shapes, device, param] = this->GetParam();
+    targetDevice = device;
 
     init_input_shapes({ shapes.first, shapes.second });
 

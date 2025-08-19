@@ -6,12 +6,18 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
-#include <vector>
 
-namespace ov {
-namespace intel_cpu {
-namespace node {
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/blocked_memory_desc.h"
+#include "openvino/core/node.hpp"
+
+namespace ov::intel_cpu::node {
 
 class StridedSlice : public Node {
 public:
@@ -49,7 +55,7 @@ public:
         VectorDims axesDims;
 
         bool equalDims = false;
-        size_t dataSize = 1lu;
+        size_t dataSize = 1LU;
         int ellipsisMaskCounter = 0;
         bool isStridedSliceOp = true;
         bool isSliceScatterOp = false;
@@ -95,7 +101,7 @@ private:
             VectorDims dstBlockedDims;
             VectorDims srcStrides;
             VectorDims dstStrides;
-            size_t nDimsForWork = 0lu;
+            size_t nDimsForWork = 0LU;
             bool isOptimized = false;
         };
 
@@ -111,11 +117,11 @@ private:
         StridedSliceParams params;
         VectorDims srcIndices;
         VectorDims dstIndices;
-        size_t nThreads = 0lu;
-        size_t workAmount = 0lu;
-        size_t lastDstDim = 0lu;
-        size_t srcShift = 0lu;
-        size_t m_threads_num = 0lu;
+        size_t nThreads = 0LU;
+        size_t workAmount = 0LU;
+        size_t lastDstDim = 0LU;
+        size_t srcShift = 0LU;
+        size_t m_threads_num = 0LU;
     };
     using executorPtr = std::shared_ptr<StridedSliceExecutor>;
     executorPtr execPtr = nullptr;
@@ -131,6 +137,4 @@ private:
     std::vector<MemoryCPtr> dstMemory;
 };
 
-}  // namespace node
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::node

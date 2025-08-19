@@ -6,20 +6,32 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <vector>
 
-#include "dnnl_types.h"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/prior_box_clustered.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
 #include "shape_inference/custom/priorbox_clustered.hpp"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu::node {
 bool PriorBoxClustered::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                              std::string& errorMessage) noexcept {
     try {
-        const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
+        const auto priorBox = ov::as_type_ptr<const ov::op::v0::PriorBoxClustered>(op);
         if (!priorBox) {
             errorMessage = "Only opset1 PriorBoxClustered operation is supported";
             return false;
@@ -37,8 +49,8 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto priorBox = ov::as_type_ptr<const ov::opset1::PriorBoxClustered>(op);
-    const ov::opset1::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
+    const auto priorBox = ov::as_type_ptr<const ov::op::v0::PriorBoxClustered>(op);
+    const ov::op::v0::PriorBoxClustered::Attributes& attrs = priorBox->get_attrs();
 
     widths = attrs.widths;
     heights = attrs.heights;
@@ -52,7 +64,7 @@ PriorBoxClustered::PriorBoxClustered(const std::shared_ptr<ov::Node>& op, const 
     number_of_priors = widths.size();
 
     if (variances.empty()) {
-        variances.push_back(0.1f);
+        variances.push_back(0.1F);
     }
 }
 
@@ -105,9 +117,9 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     float step_w = step_widths == 0 ? step : step_widths;
     float step_h = step_heights == 0 ? step : step_heights;
-    if (step_w == 0 && step_h == 0) {
-        step_w = static_cast<float>(img_width) / layer_width;
-        step_h = static_cast<float>(img_height) / layer_height;
+    if (all_of(0, step_w, step_h)) {
+        step_w = static_cast<float>(img_width) / static_cast<float>(layer_width);
+        step_h = static_cast<float>(img_height) / static_cast<float>(layer_height);
     }
 
     auto* dst_data = getDstDataAtPortAs<float>(0);
@@ -115,23 +127,23 @@ void PriorBoxClustered::execute([[maybe_unused]] const dnnl::stream& strm) {
 
     size_t var_size = variances.size();
     parallel_for2d(layer_height, layer_width, [&](int64_t h, int64_t w) {
-        float center_x = (w + offset) * step_w;
-        float center_y = (h + offset) * step_h;
+        float center_x = (static_cast<float>(w) + offset) * step_w;
+        float center_y = (static_cast<float>(h) + offset) * step_h;
 
         for (int s = 0; s < number_of_priors; ++s) {
             float box_width = widths[s];
             float box_height = heights[s];
 
-            float xmin = (center_x - box_width / 2.0f) / img_width;
-            float ymin = (center_y - box_height / 2.0f) / img_height;
-            float xmax = (center_x + box_width / 2.0f) / img_width;
-            float ymax = (center_y + box_height / 2.0f) / img_height;
+            float xmin = (center_x - box_width / 2.0F) / static_cast<float>(img_width);
+            float ymin = (center_y - box_height / 2.0F) / static_cast<float>(img_height);
+            float xmax = (center_x + box_width / 2.0F) / static_cast<float>(img_width);
+            float ymax = (center_y + box_height / 2.0F) / static_cast<float>(img_height);
 
             if (clip) {
-                xmin = (std::min)((std::max)(xmin, 0.0f), 1.0f);
-                ymin = (std::min)((std::max)(ymin, 0.0f), 1.0f);
-                xmax = (std::min)((std::max)(xmax, 0.0f), 1.0f);
-                ymax = (std::min)((std::max)(ymax, 0.0f), 1.0f);
+                xmin = (std::min)((std::max)(xmin, 0.0F), 1.0F);
+                ymin = (std::min)((std::max)(ymin, 0.0F), 1.0F);
+                xmax = (std::min)((std::max)(xmax, 0.0F), 1.0F);
+                ymax = (std::min)((std::max)(ymax, 0.0F), 1.0F);
             }
 
             const uint64_t idx = h * layer_width * number_of_priors * 4 + w * number_of_priors * 4 + s * 4;

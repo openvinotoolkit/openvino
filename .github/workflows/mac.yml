@@ -92,8 +92,6 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       BUILD_DIR: ${{ github.workspace }}/build
     if: "!needs.smart_ci.outputs.skip_workflow"
-    outputs:
-      openvino_npm_archive_name: ${{ steps.openvino_node_npm_package.outputs.archive_name }}
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -178,6 +176,7 @@ jobs:
           target_arch: ${{ runner.arch }}
           build_type: 'release'
           save_to: ${{ github.workspace }}/${{ env.MANIFEST_FILE }}
+          trigger_repo_branch: ${{ inputs.target-branch }}
 
       - name: CMake configure
         run: |
@@ -188,6 +187,7 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -DENABLE_STRICT_DEPENDENCIES=OFF \
             -DENABLE_CONFORMANCE_PGQL=ON \
+            -DENABLE_FASTER_BUILD=ON \
             -DCMAKE_CXX_COMPILER_LAUNCHER=${{ env.CMAKE_CXX_COMPILER_LAUNCHER }} \
             -DCMAKE_C_COMPILER_LAUNCHER=${{ env.CMAKE_C_COMPILER_LAUNCHER }} \
             -S ${{ env.OPENVINO_REPO }} \
@@ -293,12 +293,11 @@ jobs:
         working-directory: ${{ env.INSTALL_DIR_JS }}
 
       - name: Pack openvino_node_npm_package
-        id: openvino_node_npm_package
         if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
         run: |
           npm i
-          ARCHIVE_NAME=$(npm pack --silent --pack-destination ${{ env.BUILD_DIR }})
-          echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+          npm pack
+          tar -czvf ${BUILD_DIR}/openvino_node_npm_package.tar.gz bin openvino-node-*
         working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       #
@@ -349,7 +348,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: openvino_node_npm_package
-          path: ${{ env.BUILD_DIR }}/${{ steps.openvino_node_npm_package.outputs.archive_name }}
+          path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.tar.gz
           if-no-files-found: 'error'
 
       - name: Upload product manifest
@@ -398,12 +397,35 @@ jobs:
             .github/actions/store_artifacts
           path: ${{ env.OPENVINO_REPO }}
 
-      - name: Download OpenVINO artifacts
+      - name: Download OpenVINO artifacts (package)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: "{openvino_package,openvino_developer_package,openvino_js_package,openvino_node_npm_package,openvino_package_manifest}"
+          name: openvino_package
           path: ${{ env.ARTIFACTS_DIR }}
-          merge-multiple: true
+      
+      - name: Download OpenVINO artifacts (dev package)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_developer_package
+          path: ${{ env.ARTIFACTS_DIR }}
+
+      - name: Download OpenVINO artifacts (openvino_js_package)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_js_package
+          path: ${{ env.ARTIFACTS_DIR }}
+
+      - name: Download OpenVINO artifacts (openvino_node_npm_package)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_node_npm_package
+          path: ${{ env.ARTIFACTS_DIR }}
+      
+      - name: Download OpenVINO artifacts (openvino_package_manifest)
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_package_manifest
+          path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO wheels
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -423,7 +445,7 @@ jobs:
             ${{ env.ARTIFACTS_DIR }}/developer_package.tar.gz
             ${{ env.WHEELS_DIR }}
             ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_js_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
-            ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/{1}', env.ARTIFACTS_DIR, needs.Build.outputs.openvino_npm_archive_name) || '' }}
+            ${{ fromJSON(needs.smart_ci.outputs.affected_components).JS_API && format('{0}/openvino_node_npm_package.tar.gz', env.ARTIFACTS_DIR) || '' }}
           storage_dir: ${{ env.PRODUCT_TYPE }}
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           branch_name: ${{ inputs.target-branch }}

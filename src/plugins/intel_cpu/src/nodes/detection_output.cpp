@@ -4,9 +4,33 @@
 
 #include "openvino/op/detection_output.hpp"
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+#include <cstring>
+#include <memory>
+#include <mutex>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
+
+#include "cpu_types.h"
 #include "detection_output.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
 #include "onednn/dnnl.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
+#include "utils/caseless.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl;
 
@@ -53,13 +77,8 @@ DetectionOutput::DetectionOutput(const std::shared_ptr<ov::Node>& op, const Grap
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    if (getOriginalInputsNumber() != 3 && getOriginalInputsNumber() != 5) {
-        THROW_CPU_NODE_ERR("has incorrect number of input edges.");
-    }
-
-    if (getOriginalOutputsNumber() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of output edges.");
-    }
+    CPU_NODE_ASSERT(any_of(getOriginalInputsNumber(), 3U, 5U), "has incorrect number of input edges.");
+    CPU_NODE_ASSERT(getOriginalOutputsNumber() == 1U, "has incorrect number of output edges.");
 
     auto doOp = ov::as_type_ptr<const ov::op::v8::DetectionOutput>(op);
     auto attributes = doOp->get_attrs();
@@ -98,21 +117,18 @@ void DetectionOutput::prepareParams() {
     locNumForClasses = isShareLoc ? 1 : classesNum;
 
     const auto& idLocDims = getParentEdgeAt(ID_LOC)->getMemory().getShape().getStaticDims();
-    if (priorsNum * locNumForClasses * 4 != static_cast<int>(idLocDims[1])) {
-        THROW_CPU_NODE_ERR("has incorrect number of priors, which must match number of location predictions (",
-                           priorsNum * locNumForClasses * 4,
-                           " vs ",
-                           idLocDims[1],
-                           ")");
-    }
+    CPU_NODE_ASSERT(priorsNum * locNumForClasses * 4 == static_cast<int>(idLocDims[1]),
+                    "has incorrect number of priors, which must match number of location predictions (",
+                    priorsNum * locNumForClasses * 4,
+                    " vs ",
+                    idLocDims[1],
+                    ")");
 
-    if (priorsNum * classesNum != static_cast<int>(idConfDims.back())) {
-        THROW_CPU_NODE_ERR("has incorrect number of priors, which must match number of confidence predictions.");
-    }
+    CPU_NODE_ASSERT(priorsNum * classesNum == static_cast<int>(idConfDims.back()),
+                    "has incorrect number of priors, which must match number of confidence predictions.");
 
-    if (decreaseClassId && backgroundClassId != 0) {
-        THROW_CPU_NODE_ERR("cannot use decrease_label_id and background_label_id parameter simultaneously.");
-    }
+    CPU_NODE_ASSERT(!decreaseClassId || backgroundClassId == 0,
+                    "cannot use decrease_label_id and background_label_id parameter simultaneously.");
 
     imgNum = static_cast<int>(idConfDims[0]);
 
@@ -156,7 +172,7 @@ void DetectionOutput::initSupportedPrimitiveDescriptors() {
 struct ConfidenceComparatorDO {
     explicit ConfidenceComparatorDO(const float* confDataIn) : confData(confDataIn) {}
 
-    bool operator()(int idx1, int idx2) {
+    bool operator()(int idx1, int idx2) const {
         if (confData[idx1] > confData[idx2]) {
             return true;
         }
@@ -352,8 +368,8 @@ void DetectionOutput::execute([[maybe_unused]] const dnnl::stream& strm) {
                         confFilterCF(pconfReorder, pindices, pbuffer, pdetections, n);
                     }
 
-                    const float* pboxes;
-                    const float* psizes;
+                    const float* pboxes = nullptr;
+                    const float* psizes = nullptr;
                     if (isShareLoc) {
                         pboxes = decodedBboxesData + n * 4 * priorsNum;
                         psizes = bboxSizesData + n * priorsNum;
@@ -456,7 +472,7 @@ inline void DetectionOutput::confFilterCF(const float* pconf,
 // NMS is per class, keep topk is per image, final output is per class
 inline void DetectionOutput::confFilterMX(const float* confData,
                                           const float* ARMConfData,
-                                          float* reorderedConfData,
+                                          const float* reorderedConfData,
                                           int* indicesData,
                                           int* indicesBufData,
                                           int* detectionsData,
@@ -474,7 +490,7 @@ inline void DetectionOutput::confFilterMX(const float* confData,
                 float conf = confData[p * classesNum + c];
                 if (isARMPrior) {
                     conf =
-                        (c == backgroundClassId) ? 1.0f : 0.0f;  // still need refresh conf due to read from origin conf
+                        (c == backgroundClassId) ? 1.0F : 0.0F;  // still need refresh conf due to read from origin conf
                 }
                 if (conf >= confidenceThreshold && conf > maxConf) {
                     maxConf = conf;
@@ -520,13 +536,13 @@ inline void DetectionOutput::confFilterMX(const float* confData,
     detectionsData[0] = k;
 }
 
-inline void DetectionOutput::getActualPriorNum(const float* priorData, int* numPriorsActual, int n) {
+inline void DetectionOutput::getActualPriorNum(const float* priorData, int* numPriorsActual, int n) const {
     numPriorsActual[n] = priorsNum;
     if (!normalized) {
         int num = 0;
         for (; num < priorsNum; ++num) {
             float imgId = priorData[num * priorSize];
-            if (imgId == -1.f) {
+            if (imgId == -1.F) {
                 numPriorsActual[n] = num;
                 break;
             }
@@ -536,13 +552,13 @@ inline void DetectionOutput::getActualPriorNum(const float* priorData, int* numP
 
 inline void DetectionOutput::confReorderDense(const float* confData,
                                               const float* ARMConfData,
-                                              float* reorderedConfData) {
+                                              float* reorderedConfData) const {
     if (withAddBoxPred) {
         parallel_for2d(imgNum, priorsNum, [&](size_t n, size_t p) {
             if (ARMConfData[n * priorsNum * 2 + p * 2 + 1] < objScore) {
                 for (int c = 0; c < classesNum; ++c) {
                     reorderedConfData[n * priorsNum * classesNum + c * priorsNum + p] =
-                        c == backgroundClassId ? 1.0f : 0.0f;
+                        c == backgroundClassId ? 1.0F : 0.0F;
                 }
             } else {
                 for (int c = 0; c < classesNum; ++c) {
@@ -593,7 +609,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityCF(const float* confDat
                 for (int c = 0; c < classesNum; ++c) {
                     float conf = confData[confIdxPrior + c];
                     if (isARMPrior) {
-                        conf = (c == backgroundClassId) ? 1.0f : 0.0f;
+                        conf = (c == backgroundClassId) ? 1.0F : 0.0F;
                     }
                     if (conf > confidenceThreshold) {
                         const int idx = offH + c * confInfoLen;
@@ -679,7 +695,7 @@ inline void DetectionOutput::confReorderAndFilterSparsityMX(const float* confDat
             for (int c = 0; c < classesNum; ++c) {
                 float conf = confData[confIdxPrior + c];
                 if (withAddBoxPred && isARMPrior) {
-                    conf = (c == backgroundClassId) ? 1.0f : 0.0f;
+                    conf = (c == backgroundClassId) ? 1.0F : 0.0F;
                 }
                 if (conf >= confidenceThreshold) {
                     int idx = off + c * confInfoLen;
@@ -727,13 +743,13 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
                                           const float* varianceData,
                                           float* decodedBboxes,
                                           float* decodedBboxSizes,
-                                          int* numPriorsActual,
+                                          const int* numPriorsActual,
                                           int n,
                                           const int& offs,
                                           const int& priorSize,
                                           bool decodeType,
                                           const int* confInfoH,
-                                          const int* confInfoV) {
+                                          const int* confInfoV) const {
     int prNum = numPriorsActual[n];
     if (!decodeType) {
         prNum = priorsNum;
@@ -745,10 +761,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
         if (isSparsityWorthwhile && isShareLoc && confInfoV[p] == -1) {
             return;
         }
-        float newXMin = 0.0f;
-        float newYMin = 0.0f;
-        float newXMax = 0.0f;
-        float newYMax = 0.0f;
+        float newXMin = 0.0F;
+        float newYMin = 0.0F;
+        float newXMax = 0.0F;
+        float newYMax = 0.0F;
 
         float priorXMin = priorData[p * priorSize + 0 + offs];
         float priorYMin = priorData[p * priorSize + 1 + offs];
@@ -761,10 +777,10 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
         float locYMax = locData[4 * p * locNumForClasses + 3];
 
         if (!normalized) {
-            priorXMin /= imgWidth;
-            priorYMin /= imgHeight;
-            priorXMax /= imgWidth;
-            priorYMax /= imgHeight;
+            priorXMin /= static_cast<float>(imgWidth);
+            priorYMin /= static_cast<float>(imgHeight);
+            priorXMax /= static_cast<float>(imgWidth);
+            priorYMax /= static_cast<float>(imgHeight);
         }
 
         if (codeType == CodeType::CORNER) {
@@ -783,37 +799,35 @@ inline void DetectionOutput::decodeBBoxes(const float* priorData,
         } else if (codeType == CodeType::CENTER_SIZE) {
             float priorWidth = priorXMax - priorXMin;
             float priorHeight = priorYMax - priorYMin;
-            float priorCenterX = (priorXMin + priorXMax) / 2.0f;
-            float priorCenterY = (priorYMin + priorYMax) / 2.0f;
+            float priorCenterX = (priorXMin + priorXMax) / 2.0F;
+            float priorCenterY = (priorYMin + priorYMax) / 2.0F;
 
-            float decodeBboxCenterX, decodeBboxCenterY;
-            float decodeBboxWidth, decodeBboxHeight;
-
-            if (varianceEncodedInTarget) {
-                // variance is encoded in target, we simply need to restore the offset predictions.
-                decodeBboxCenterX = locXMin * priorWidth + priorCenterX;
-                decodeBboxCenterY = locYMin * priorHeight + priorCenterY;
-                decodeBboxWidth = std::exp(locXMax) * priorWidth;
-                decodeBboxHeight = std::exp(locYMax) * priorHeight;
-            } else {
+            auto [decodeBboxCenterX, decodeBboxCenterY, decodeBboxWidth, decodeBboxHeight] = [&] {
+                if (varianceEncodedInTarget) {
+                    // variance is encoded in target, we simply need to restore the offset predictions.
+                    return std::tuple{locXMin * priorWidth + priorCenterX,
+                                      locYMin * priorHeight + priorCenterY,
+                                      std::exp(locXMax) * priorWidth,
+                                      std::exp(locYMax) * priorHeight};
+                }
                 // variance is encoded in bbox, we need to scale the offset accordingly.
-                decodeBboxCenterX = varianceData[p * 4 + 0] * locXMin * priorWidth + priorCenterX;
-                decodeBboxCenterY = varianceData[p * 4 + 1] * locYMin * priorHeight + priorCenterY;
-                decodeBboxWidth = std::exp(varianceData[p * 4 + 2] * locXMax) * priorWidth;
-                decodeBboxHeight = std::exp(varianceData[p * 4 + 3] * locYMax) * priorHeight;
-            }
+                return std::tuple{varianceData[p * 4 + 0] * locXMin * priorWidth + priorCenterX,
+                                  varianceData[p * 4 + 1] * locYMin * priorHeight + priorCenterY,
+                                  std::exp(varianceData[p * 4 + 2] * locXMax) * priorWidth,
+                                  std::exp(varianceData[p * 4 + 3] * locYMax) * priorHeight};
+            }();
 
-            newXMin = decodeBboxCenterX - decodeBboxWidth / 2.0f;
-            newYMin = decodeBboxCenterY - decodeBboxHeight / 2.0f;
-            newXMax = decodeBboxCenterX + decodeBboxWidth / 2.0f;
-            newYMax = decodeBboxCenterY + decodeBboxHeight / 2.0f;
+            newXMin = decodeBboxCenterX - decodeBboxWidth / 2.0F;
+            newYMin = decodeBboxCenterY - decodeBboxHeight / 2.0F;
+            newXMax = decodeBboxCenterX + decodeBboxWidth / 2.0F;
+            newYMax = decodeBboxCenterY + decodeBboxHeight / 2.0F;
         }
 
         if (clipBeforeNMS) {
-            newXMin = (std::max)(0.0f, (std::min)(1.0f, newXMin));
-            newYMin = (std::max)(0.0f, (std::min)(1.0f, newYMin));
-            newXMax = (std::max)(0.0f, (std::min)(1.0f, newXMax));
-            newYMax = (std::max)(0.0f, (std::min)(1.0f, newYMax));
+            newXMin = (std::max)(0.0F, (std::min)(1.0F, newXMin));
+            newYMin = (std::max)(0.0F, (std::min)(1.0F, newYMin));
+            newXMax = (std::max)(0.0F, (std::min)(1.0F, newXMax));
+            newYMax = (std::max)(0.0F, (std::min)(1.0F, newYMax));
         }
 
         decodedBboxes[p * 4 + 0] = newXMin;
@@ -841,7 +855,7 @@ static inline float JaccardOverlap(const float* decodedBbox, const float* bboxSi
     const float ymax2 = decodedBbox[idx2 * 4 + 3];
 
     if (xmin2 > xmax1 || xmax2 < xmin1 || ymin2 > ymax1 || ymax2 < ymin1) {
-        return 0.0f;
+        return 0.0F;
     }
 
     float intersectXMin = (std::max)(xmin1, xmin2);
@@ -853,7 +867,7 @@ static inline float JaccardOverlap(const float* decodedBbox, const float* bboxSi
     float intersectHeight = intersectYMax - intersectYMin;
 
     if (intersectWidth <= 0 || intersectHeight <= 0) {
-        return 0.0f;
+        return 0.0F;
     }
 
     float intersectSize = intersectWidth * intersectHeight;
@@ -863,11 +877,11 @@ static inline float JaccardOverlap(const float* decodedBbox, const float* bboxSi
     return intersectSize / (bbox1Size + bbox2Size - intersectSize);
 }
 
-inline void DetectionOutput::NMSCF(int* indicesIn,
+inline void DetectionOutput::NMSCF(const int* indicesIn,
                                    int& detections,
                                    int* indicesOut,
                                    const float* bboxes,
-                                   const float* boxSizes) {
+                                   const float* boxSizes) const {
     // nms for this class
     int countIn = detections;
     detections = 0;
@@ -890,11 +904,11 @@ inline void DetectionOutput::NMSCF(int* indicesIn,
     }
 }
 
-inline void DetectionOutput::NMSMX(int* indicesIn,
+inline void DetectionOutput::NMSMX(const int* indicesIn,
                                    int* detections,
                                    int* indicesOut,
                                    const float* bboxes,
-                                   const float* sizes) {
+                                   const float* sizes) const {
     // Input is candidate for image, output is candidate for each class within image
     int countIn = detections[0];
     detections[0] = 0;
@@ -911,7 +925,7 @@ inline void DetectionOutput::NMSMX(int* indicesIn,
         bool keep = true;
         for (int k = 0; k < ndetection; ++k) {
             const int keptPrior = pindices[k];
-            float overlap = 0.0f;
+            float overlap = 0.0F;
             if (isShareLoc) {
                 overlap = JaccardOverlap(bboxes, sizes, prior, keptPrior);
             } else {
@@ -929,17 +943,15 @@ inline void DetectionOutput::NMSMX(int* indicesIn,
     }
 }
 
-inline void DetectionOutput::generateOutput(float* reorderedConfData,
-                                            int* indicesData,
-                                            int* detectionsData,
-                                            float* decodedBboxesData,
+inline void DetectionOutput::generateOutput(const float* reorderedConfData,
+                                            const int* indicesData,
+                                            const int* detectionsData,
+                                            const float* decodedBboxesData,
                                             float* dstData) {
     const auto& outDims = getChildEdgeAt(0)->getMemory().getStaticDims();
     const int numResults = outDims[2];
     const int DETECTION_SIZE = outDims[3];
-    if (DETECTION_SIZE != 7) {
-        THROW_CPU_NODE_ERR("has unsupported output layout.");
-    }
+    CPU_NODE_ASSERT(DETECTION_SIZE == 7, "has unsupported output layout.");
 
     int dstDataSize = 0;
     if (keepTopK > 0) {
@@ -950,9 +962,8 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData,
         dstDataSize = imgNum * classesNum * priorsNum * DETECTION_SIZE * sizeof(float);
     }
 
-    if (static_cast<size_t>(dstDataSize) > getChildEdgeAt(0)->getMemory().getSize()) {
-        THROW_CPU_NODE_ERR("has insufficient output buffer size.");
-    }
+    CPU_NODE_ASSERT(static_cast<size_t>(dstDataSize) <= getChildEdgeAt(0)->getMemory().getSize(),
+                    "has insufficient output buffer size.");
     memset(dstData, 0, dstDataSize);
 
     // set final detection result to output blob
@@ -976,10 +987,10 @@ inline void DetectionOutput::generateOutput(float* reorderedConfData,
                 float ymax = isShareLoc ? pboxes[prIdx * 4 + 3] : pboxes[c * 4 * priorsNum + prIdx * 4 + 3];
 
                 if (clipAfterNMS) {
-                    xmin = (std::max)(0.0f, (std::min)(1.0f, xmin));
-                    ymin = (std::max)(0.0f, (std::min)(1.0f, ymin));
-                    xmax = (std::max)(0.0f, (std::min)(1.0f, xmax));
-                    ymax = (std::max)(0.0f, (std::min)(1.0f, ymax));
+                    xmin = (std::max)(0.0F, (std::min)(1.0F, xmin));
+                    ymin = (std::max)(0.0F, (std::min)(1.0F, ymin));
+                    xmax = (std::max)(0.0F, (std::min)(1.0F, xmax));
+                    ymax = (std::max)(0.0F, (std::min)(1.0F, ymax));
                 }
 
                 dstData[count * DETECTION_SIZE + 3] = xmin;

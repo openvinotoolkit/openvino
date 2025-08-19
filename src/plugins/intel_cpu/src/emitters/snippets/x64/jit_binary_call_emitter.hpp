@@ -4,7 +4,16 @@
 
 #pragma once
 
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cpu/x64/jit_generator.hpp>
+#include <cstddef>
+#include <set>
+#include <vector>
+
 #include "emitters/plugin/x64/jit_emitter.hpp"
+#include "snippets/emitter.hpp"
 
 namespace ov::intel_cpu {
 /**
@@ -15,7 +24,7 @@ namespace ov::intel_cpu {
  */
 class jit_binary_call_emitter : public jit_emitter {
 public:
-    jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator* h,
+    jit_binary_call_emitter(dnnl::impl::cpu::x64::jit_generator_t* h,
                             dnnl::impl::cpu::x64::cpu_isa_t isa,
                             std::set<snippets::Reg> live_regs);
     // Note: we need at least one register to allocate a gpr to store the callable address
@@ -62,7 +71,7 @@ protected:
 private:
     // Note: init_regs() can be called only from emit_impl, since it needs initialized regs
     // init_impl is a constant method, so all these fields have to be mutable
-    mutable std::set<snippets::Reg> m_regs_to_spill{};
+    mutable std::set<snippets::Reg> m_regs_to_spill;
     mutable Xbyak::Reg64 m_callee_saved_reg;
     mutable Xbyak::Reg64 m_call_address_reg;
     mutable bool m_regs_initialized = false;

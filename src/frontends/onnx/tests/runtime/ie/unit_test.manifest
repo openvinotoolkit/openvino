@@ -177,6 +177,10 @@ IE_CPU.onnx_model_reverse_sequence_0_batch_1
 IE_CPU.onnx_resize11_scales_nearest_asymmetric_floor_dynamic_sizes
 IE_CPU.onnx_resize11_up_sizes_cubic_half_pixel_dynamic_sizes
 
+# Exception from src/plugins/intel_cpu/src/nodes/interpolate.cpp:2468:
+# [CPU] Interpolate node with name 'Y' only supports resize on spatial dimensions(depth, height and width)
+IE_CPU.onnx_resize13_downsample_sizes_3D_linear_params
+
 # Unsupported dynamic ops: v3::NonMaxSuppressionIE3
 IE_CPU.onnx_model_nonmaxsuppression_center_point_box_format
 IE_CPU.onnx_model_nonmaxsuppression_single_box

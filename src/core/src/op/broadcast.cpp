@@ -62,6 +62,11 @@ namespace {
 ov::PartialShape get_result_shape_bidirectional(const ov::Node* this_ptr,
                                                 ov::PartialShape arg_shape,
                                                 ov::PartialShape target_shape) {
+    // NumPy-style bidirectional broadcasting rules:
+    // 1) Right-align shapes.
+    // 2) For each aligned axis the extents must be equal OR one of them is 1.
+    //    Axis length 0 is *not* a special case: a pair (1, 0) or (0, 1)
+    //    is broadcast-compatible and the resulting extent on that axis is 0.
     if (arg_shape.rank().is_dynamic() || target_shape.rank().is_dynamic()) {
         return ov::PartialShape::dynamic();
     }
@@ -95,12 +100,12 @@ ov::PartialShape get_result_shape_bidirectional(const ov::Node* this_ptr,
         const auto& arg_shape_dim = arg_shape[i].get_length();
         const auto& target_shape_dim = target_shape[i].get_length();
         NODE_VALIDATION_CHECK(this_ptr,
-                              arg_shape_dim == 1 || target_shape[i] == 1 || arg_shape_dim == target_shape_dim,
+                              arg_shape_dim == 1 || target_shape_dim == 1 || arg_shape_dim == target_shape_dim,
                               "Broadcast incorrect target shape. Expecting either 1 or ",
                               arg_shape_dim,
                               ". Got ",
                               target_shape[i]);
-        result_shape[i] = std::max(arg_shape_dim, target_shape_dim);
+        result_shape[i] = arg_shape_dim == 1 ? target_shape_dim : arg_shape_dim;
     }
     return result_shape;
 }

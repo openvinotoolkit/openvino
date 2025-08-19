@@ -197,6 +197,34 @@ std::map<std::string, ov::Any> js_to_cpp<std::map<std::string, ov::Any>>(const N
 
     return properties_to_cpp;
 }
+template <>
+ov::PartialShape js_to_cpp<ov::PartialShape>(const Napi::Env& env, const Napi::Value& value) {
+    // TODO Support Napi:Array 169009
+    if (ov::js::validate_value<PartialShapeWrap>(env, value)) {
+        return Napi::ObjectWrap<PartialShapeWrap>::Unwrap(value.ToObject())->get_value();
+    } else if (value.IsString()) {
+        return ov::PartialShape(value.ToString());
+    } else {
+        OPENVINO_THROW("Invalid value for PartialShape. Expected PartialShape object or string.");
+    }
+}
+
+template <>
+std::unordered_map<std::string, ov::PartialShape> js_to_cpp<std::unordered_map<std::string, ov::PartialShape>>(
+    const Napi::Env& env,
+    const Napi::Value& value) {
+    // This helper should be used after ov::js::validate<Napi::Object>(value)
+    std::unordered_map<std::string, ov::PartialShape> map;
+    const auto& pairs = value.ToObject();
+    const auto& keys = pairs.GetPropertyNames();
+
+    for (uint32_t i = 0; i < keys.Length(); ++i) {
+        const std::string& key = static_cast<Napi::Value>(keys[i]).ToString();
+        map[key] = js_to_cpp<ov::PartialShape>(env, pairs.Get(key));
+    }
+
+    return map;
+};
 
 template <>
 Napi::String cpp_to_js<ov::element::Type_t, Napi::String>(const Napi::CallbackInfo& info,
@@ -562,4 +590,20 @@ std::string buffer_to_string(const Napi::Value& value) {
     Napi::Buffer<uint8_t> model_data = value.As<Napi::Buffer<uint8_t>>();
 
     return std::string(reinterpret_cast<char*>(model_data.Data()), model_data.Length());
+}
+
+uint32_t get_optimal_number_of_requests(const ov::CompiledModel& actual) {
+    try {
+        const auto supported_properties = actual.get_property(ov::supported_properties);
+        const auto has_optimal_num_of_requests =
+            std::find(supported_properties.begin(), supported_properties.end(), ov::optimal_number_of_infer_requests) !=
+            supported_properties.end();
+        OPENVINO_ASSERT(has_optimal_num_of_requests,
+                        "Can't load network: ",
+                        ov::optimal_number_of_infer_requests.name(),
+                        " is not supported! Please specify number of infer requests directly!");
+        return actual.get_property(ov::optimal_number_of_infer_requests);
+    } catch (const std::exception& ex) {
+        OPENVINO_THROW("Can't load network: ", ex.what(), ". Please specify number of infer requests directly!");
+    }
 }

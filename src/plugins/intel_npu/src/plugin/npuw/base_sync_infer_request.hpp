@@ -27,7 +27,7 @@ class CompiledModel;
 using LinkFrom = std::pair<std::size_t /* Subrequest index */
                            ,
                            std::size_t /* Subrequest output index */
-                           >;          // FIXME: This is a third, if not fourth, definitiion of such structure
+                           >;          // FIXME: This is a third, if not fourth, definition of such structure
 
 // This interface is provided to npuw::AsyncInferRequest to manage the
 // individual subrequests' execution
@@ -87,12 +87,6 @@ protected:
     // so this cached information is used to detect these situations.
     std::vector<std::string> m_subrequest_devices;
 
-    // Permanent storage for input & output tensors
-    // FIXME: Currently is initialized in subclasses. Likely this
-    // initialization should be moved here, to the base class?
-    std::vector<ov::SoPtr<ov::ITensor>> m_input_tensors;
-    std::vector<ov::SoPtr<ov::ITensor>> m_output_tensors;
-
     struct TensorStorage {
         ov::SoPtr<ov::ITensor> tensor;
         bool persistent = false;       // true for the parent I/O tensors
@@ -102,6 +96,11 @@ protected:
     };
     // FROM(Every subrequests' output port) TO(Its output tensor)
     std::map<ov::Output<const ov::Node>, TensorStorage> m_port_to_tensor;
+
+    struct QuantGatherTensors {
+        ov::Tensor w, z, s;
+    };
+    QuantGatherTensors m_quant_gather_tensors;
 
     // FIXME: Currently is initialized/managed by subclass as well.
     // Moved here dumping purposes only
@@ -149,6 +148,8 @@ protected:
     void unpack_closure(std::size_t idx, RqPtr request);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
+    void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
+    void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);

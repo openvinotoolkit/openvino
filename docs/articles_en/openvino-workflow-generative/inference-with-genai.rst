@@ -326,6 +326,83 @@ make sure to :doc:`install OpenVINO with GenAI <../../get-started/install-openvi
          `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/whisper_speech_recognition/>`__.
 
 
+.. dropdown:: Text-to-Speech Generation
+
+   OpenVINO GenAI provides the `openvino_genai.Text2SpeechPipeline` API for performing inference with text-to-speech models,
+   such as the SpeechT5 TTS model. A speaker embedding vector can be specified to control the characteristics of the synthesized voice.
+   If no embedding is provided, the model defaults to a built-in speaker. Speaker embeddings can be generated using the following script:
+   `create_speaker_embedding.py <https://github.com/openvinotoolkit/openvino.genai/blob/master/samples/python/speech_generation/create_speaker_embedding.py>`__.
+   The example below demonstrates how to use the `Text2SpeechPipeline` API.
+
+   .. tab-set::
+
+      .. tab-item:: Python
+         :sync: cpp
+
+         .. code-block:: python
+
+            import numpy as np
+            import openvino as ov
+            import openvino_genai
+            import soundfile as sf
+
+            device = "CPU"
+            speaker_embedding = np.fromfile("speaker_embedding.bin", dtype=np.float32).reshape(1, 512)
+            speaker_embedding = ov.Tensor(speaker_embedding)
+
+            pipe = openvino_genai.Text2SpeechPipeline(model_dir, device)
+
+            result = pipe.generate(args.text, speaker_embedding)
+
+            speech = result.speeches[0]
+            sf.write("output_audio.wav", speech.data[0], samplerate=16000)
+
+
+         For more information, refer to the
+         `Python sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/python/speech_generation/>`__.
+
+      .. tab-item:: C++
+         :sync: cpp
+
+         .. code-block:: cpp
+
+            #include "audio_utils.hpp"
+            #include "openvino/genai/whisper_pipeline.hpp"
+
+            int main(int argc, char* argv[]) try {
+                OPENVINO_ASSERT(argc == 3 || argc == 4,
+                                "Usage: ",
+                                argv[0],
+                                " <MODEL_DIR> \"<PROMPT>\" [<SPEAKER_EMBEDDING_BIN_FILE>]");
+
+                const std::string models_path = argv[1], prompt = argv[2];
+                const std::string device = "CPU";
+
+                ov::genai::Text2SpeechPipeline pipe(models_path, device);
+
+                ov::genai::Text2SpeechDecodedResults gen_speech;
+                if (argc == 4) {
+                    const std::string speaker_embedding_path = argv[3];
+                    auto speaker_embedding = utils::audio::read_speaker_embedding(speaker_embedding_path);
+                    gen_speech = pipe.generate(prompt, speaker_embedding);
+                } else {
+                    gen_speech = pipe.generate(prompt);
+                }
+
+                std::string output_file_name = "output_audio.wav";
+                auto waveform_size = gen_speech.speeches[0].get_size();
+                auto waveform_ptr = gen_speech.speeches[0].data<const float>();
+                auto bits_per_sample = gen_speech.speeches[0].get_element_type().bitwidth();
+                utils::audio::save_to_wav(waveform_ptr, waveform_size, output_file_name, bits_per_sample);
+
+                return EXIT_SUCCESS;
+            }
+
+
+         For more information, refer to the
+         `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/speech_generation/>`__.
+
+
 .. dropdown:: Using GenAI in Chat Scenario
 
    For chat scenarios where inputs and outputs represent a conversation, maintaining KVCache
@@ -700,7 +777,7 @@ You can also create your custom streamer for more sophisticated processing:
 
          #include <streamer_base.hpp>
 
-         class CustomStreamer: publict StreamerBase {
+         class CustomStreamer: public StreamerBase {
          public:
             bool put(int64_t token) {
                bool stop_flag = false;
@@ -874,6 +951,78 @@ runs prediction of the next K tokens, thus repeating the cycle.
       `C++ sample <https://github.com/openvinotoolkit/openvino.genai/tree/master/samples/cpp/text_generation/speculative_decoding_lm/>`__
 
 
+
+
+
+
+
+
+Inference of GGUF (GGML Unified Format) models
+###############################################################################################
+
+Some language models on Hugging Face are distributed in the GGUF (GGML Unified Format) and can
+be downloaded. You can browse all available
+`GGUF models on Hugging Face <https://huggingface.co/models?library=gguf>`__.
+A GGUF model is encapsulated in a single binary file that contains all necessary components, including metadata and model weights, to represent the entire LLM pipeline.
+Once downloaded, these GGUF models can be used directly with OpenVINO GenAI (for supported architectures) without additional conversion steps.
+
+Unlike standard Hugging Face models, GGUF models do not require conversion to OpenVINO Intermediate Representation (IR) using the `optimum-intel` tool.
+The `LLMPipeline` object can be instantiated directly from a GGUF file, enabling seamless inference without intermediate steps.
+
+This capability is currently available in preview mode and supports a limited set of topologies, including SmolLM, Qwen2.5.
+For other models and architectures, we still recommend converting the model to the IR format,
+using the `optimum-intel` tool.
+See :doc:`Generative Model Preparation Using Optimum-intel <./genai-model-preparation>` for more details.
+
+To perform inference with a GGUF model using OpenVINO GenAI, simply provide the path to the `.gguf` file when constructing the LLMPipeline object, as shown below:
+
+.. tab-set::
+
+   .. tab-item:: Python
+      :sync: py
+
+      .. code-block:: python
+
+         import openvino_genai
+
+         pipe = openvino_genai.LLMPipeline("SmolLM2-135M.F16.gguf", "CPU")
+
+         config = openvino_genai.GenerationConfig()
+         config.max_new_tokens = 100
+
+         pipe.generate("The Sun is yellow because", config)
+
+
+   .. tab-item:: C++
+      :sync: cpp
+
+      .. code-block:: cpp
+
+         #include <openvino/openvino.hpp>
+         #include "openvino/genai/llm_pipeline.hpp"
+
+         int main(int argc, char* argv[]) try {
+             ov::genai::GenerationConfig config;
+             config.max_new_tokens = 100;
+
+             std::string model_path = "SmolLM2-135M.F16.gguf";
+             std::string prompt = "The Sun is yellow because";
+
+             ov::genai::LLMPipeline pipe(model_path, "CPU");
+
+             auto result = pipe.generate("The Sun is yellow because", config);
+             std::cout << "result = " << result << std::endl;
+         } catch (const std::exception& error) {
+             try {
+                 std::cerr << error.what() << '\n';
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         } catch (...) {
+             try {
+                 std::cerr << "Non-exception object thrown\n";
+             } catch (const std::ios_base::failure&) {}
+             return EXIT_FAILURE;
+         }
 
 
 

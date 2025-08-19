@@ -4,7 +4,17 @@
 
 #include "jit_conversion_emitters.hpp"
 
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/general_utils.h"
 
 using namespace dnnl::impl::cpu::aarch64;
 using namespace Xbyak_aarch64;
@@ -98,8 +108,8 @@ void jit_convert_emitter::jit_convert_process(const TReg& src,
                                               ov::element::Type input_type,
                                               ov::element::Type output_type,
                                               bool is_saturated) const {
-    if (input_type == output_type || (!is_saturated && one_of(input_type, ov::element::i8, ov::element::u8) &&
-                                      one_of(output_type, ov::element::i8, ov::element::u8))) {
+    if (input_type == output_type || (!is_saturated && any_of(input_type, ov::element::i8, ov::element::u8) &&
+                                      any_of(output_type, ov::element::i8, ov::element::u8))) {
         if (src.getIdx() != dst.getIdx()) {
             h->mov(dst.b16, src.b16);
         }
@@ -205,11 +215,11 @@ jit_convert_emitter::jit_convert_emitter(jit_generator* host,
 
 void jit_convert_emitter::validate_types() const {
     OV_CPU_JIT_EMITTER_ASSERT(
-        one_of(input_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
+        any_of(input_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported input type: ",
         input_type.get_type_name());
     OV_CPU_JIT_EMITTER_ASSERT(
-        one_of(output_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
+        any_of(output_type, ov::element::f32, ov::element::i32, ov::element::f16, ov::element::i8, ov::element::u8),
         "Unsupported output type: ",
         output_type.get_type_name());
 }

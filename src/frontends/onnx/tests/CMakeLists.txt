@@ -148,6 +148,8 @@ if(OV_COMPILER_IS_CLANG)
     target_compile_options(ov_onnx_frontend_tests PRIVATE -Wno-undef -Wno-reserved-id-macro)
 endif()
 
+ov_build_target_faster(ov_onnx_frontend_tests PCH)
+
 # Install rules
 
 install(TARGETS ov_onnx_frontend_tests

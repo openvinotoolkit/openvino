@@ -4,15 +4,26 @@
 
 #include "sdpa_fuse_transpose_reshape.hpp"
 
-#include <transformations/utils/utils.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
 
-#include "itt.hpp"
+#include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/read_value.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 
 /*
@@ -105,7 +116,11 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         auto k_reshape = as_type_ptr<op::v1::Reshape>(pattern_map.at(k_reshape_node).get_node_shared_ptr());
         auto v_reshape = as_type_ptr<op::v1::Reshape>(pattern_map.at(v_reshape_node).get_node_shared_ptr());
 
-        if (!(is_expected_reshape(q_reshape) && is_expected_reshape(k_reshape) && is_expected_reshape(v_reshape))) {
+        const bool q_reshape_valid = is_expected_reshape(q_reshape);
+        const bool k_reshape_valid = is_expected_reshape(k_reshape);
+        const bool v_reshape_valid = is_expected_reshape(v_reshape);
+        const bool all_reshapes_valid = q_reshape_valid && k_reshape_valid && v_reshape_valid;
+        if (!all_reshapes_valid) {
             return false;
         }
         // K,V Reshape's order should be same node.
@@ -134,8 +149,11 @@ intel_cpu::SDPAFuseTransposeReshape::SDPAFuseTransposeReshape() {
         auto out_transpose_order =
             as_type_ptr<op::v0::Constant>(pattern_map.at(out_transpose_order_node).get_node_shared_ptr());
 
-        if (!(is_expected_transpose(qkv_transpose[0]) && is_expected_transpose(qkv_transpose[1]) &&
-              is_expected_transpose(qkv_transpose[2]))) {
+        const bool q_transpose_valid = is_expected_transpose(qkv_transpose[0]);
+        const bool k_transpose_valid = is_expected_transpose(qkv_transpose[1]);
+        const bool v_transpose_valid = is_expected_transpose(qkv_transpose[2]);
+        const bool all_transposes_valid = q_transpose_valid && k_transpose_valid && v_transpose_valid;
+        if (!all_transposes_valid) {
             return false;
         }
         if (!is_expected_transpose(out_tranpose)) {

@@ -5,6 +5,18 @@
 #include "random_uniform.hpp"
 
 #include <immintrin.h>
+#include <xbyak/xbyak.h>
+
+#include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
+#include "nodes/kernels/x64/jit_kernel_base.hpp"
+#include "nodes/kernels/x64/registers_pool.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "utils/cpp/bit_cast.hpp"
 
 using namespace dnnl::impl::cpu;
 
@@ -30,11 +42,6 @@ namespace ov::intel_cpu::kernel::random_uniform {
         static const T* A##_aligned = (A) + (reinterpret_cast<int64_t>(A) % 16) / sizeof(T); \
         mov(R, reinterpret_cast<uintptr_t>(A##_aligned));                                    \
     }
-
-union FloatAsBits {
-    float f;
-    uint32_t u;
-};
 
 ////////////// PHILOX GENERATOR /////////////////////////
 
@@ -283,13 +290,14 @@ void PhiloxGenerator<isa>::process() {
     std::vector<Vmm> v_res{v_dst_0, v_dst_1};
 
     auto step = vlen;
-    if (one_of(m_jcp.out_data_type.size(), 2lu, 4lu)) {
+    if (any_of(m_jcp.out_data_type.size(), 2LU, 4LU)) {
         step = vlen * 2 / sizeof(uint32_t);
     } else if (m_jcp.out_data_type.size() == 8) {
         step = vlen / sizeof(uint32_t);
     }
 
-    Xbyak::Label l_loop, l_tail;
+    Xbyak::Label l_loop;
+    Xbyak::Label l_tail;
     L(l_loop);
     {
         cmp(r64_work_amount, step);
@@ -300,7 +308,7 @@ void PhiloxGenerator<isa>::process() {
 
         uni_vmovups(ptr[r64_dst], v_dst_0);
         add(r64_dst, vlen);
-        if (one_of(m_jcp.out_data_type.size(), 4lu, 8lu)) {
+        if (any_of(m_jcp.out_data_type.size(), 4LU, 8LU)) {
             uni_vmovups(ptr[r64_dst], v_dst_1);
             add(r64_dst, vlen);
         }
@@ -368,7 +376,7 @@ void PhiloxGenerator<isa>::runPhilox(const std::vector<Vmm>& vmm_dst,
     uni_vpshufd(vmm_n_0, vmm_n_0, 0b10110001);  // {_,n0,_,n0} -> {n0,_,n0,_}
     uni_vxorps(vmm_n_0, vmm_n_0, vmm_key);      // {n0,_,n0,_} = {n0,_,n0,_} ^ {k0,_,k0,_}
 
-    for (size_t i = 0lu; i < ROUNDS_NUMBER - 1; i++) {
+    for (size_t i = 0LU; i < ROUNDS_NUMBER - 1; i++) {
         raiseKey(vmm_k_0, vmm_k_1);
 
         std::swap(vmm_c_1, vmm_aux_0);
@@ -411,7 +419,7 @@ void PhiloxGenerator<isa>::raiseKey(const Vmm& vmm_k_0, const Vmm& vmm_k_1) {
 template <>
 void PhiloxGenerator<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
-        for (size_t i = 0lu; i < v_src.size(); i++) {
+        for (size_t i = 0LU; i < v_src.size(); i++) {
             const auto& vmm_src = v_src[i];
             const auto& vmm_dst = v_dst[i];
 
@@ -465,7 +473,7 @@ void PhiloxGenerator<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, c
             vsubph(vmm_dst, vmm_dst, v_convert_0);
             vfmadd132ph(vmm_dst, v_min, v_range);
         } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
-            for (size_t i = 0lu; i < v_src.size(); i++) {
+            for (size_t i = 0LU; i < v_src.size(); i++) {
                 const auto& vmm_dst = v_dst[i];
 
                 uni_vandps(vmm_dst, v_src[i], v_convert_1);
@@ -502,7 +510,7 @@ void PhiloxGenerator<x64::avx512_core>::convert(const std::vector<Vmm>& v_dst, c
 template <x64::cpu_isa_t isa>  // Works for AVX2, SSE41
 void PhiloxGenerator<isa>::convert(const std::vector<Vmm>& v_dst, const std::vector<Vmm>& v_src) {
     if (m_jcp.out_data_type.size() == 4) {
-        for (size_t i = 0lu; i < v_src.size(); i++) {
+        for (size_t i = 0LU; i < v_src.size(); i++) {
             auto vmm_src = v_src[i];
             auto vmm_dst = v_dst[i];
 
@@ -629,7 +637,8 @@ void PhiloxGenerator<x64::avx512_core>::tail(const std::vector<Vmm>& vmm_dst) {
 
 template <>
 void PhiloxGenerator<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
-    Xbyak::Label l_0, l_end;
+    Xbyak::Label l_0;
+    Xbyak::Label l_end;
     const auto step = vlen / sizeof(uint32_t);
 
     cmp(r64_work_amount, 0);
@@ -658,7 +667,8 @@ void PhiloxGenerator<x64::avx2>::tail(const std::vector<Vmm>& vmm_dst) {
 
 template <x64::cpu_isa_t isa>
 void PhiloxGenerator<isa>::tail(const std::vector<Vmm>& vmm_dst) {
-    Xbyak::Label l_0, l_end;
+    Xbyak::Label l_0;
+    Xbyak::Label l_end;
     const auto step = vlen / sizeof(uint32_t);
 
     cmp(r64_work_amount, 0);
@@ -742,26 +752,23 @@ void MersenneTwisterGenerator<x64::avx512_core>::initVectors() {
 
     // Initialize constants based on the requested data type
     if (m_jcp.out_data_type == element::f32) {
-        FloatAsBits val;
-        val.f = 1.0f / (1 << 24);
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
+        auto val = ov::intel_cpu::bit_cast<uint32_t>(1.0F / (1 << 24));
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 24) - 1))
 
         BROADCAST_PARAM(vpbroadcastd, v_range, r64_aux, GET_MERSENNE_OFFSET(range_ptr))
         BROADCAST_PARAM(vpbroadcastd, v_min, r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::f16 && x64::mayiuse(x64::avx512_core_fp16)) {
-        FloatAsBits val;
-        val.f = 1.0f / (1 << 11);
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
+        auto val = ov::intel_cpu::bit_cast<uint32_t>(1.0F / (1 << 11));
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 11) - 1))
 
         // Note: two times too many values in Zmm
         BROADCAST_PARAM(vpbroadcastw, v_range, r64_aux, GET_MERSENNE_OFFSET(range_ptr))
         BROADCAST_PARAM(vpbroadcastw, v_min, r64_aux, GET_MERSENNE_OFFSET(min_ptr))
     } else if (m_jcp.out_data_type == element::bf16 && x64::mayiuse(x64::avx512_core_bf16)) {
-        FloatAsBits val;
-        val.f = 1.0f / (1 << 8);
-        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val.u);
+        auto val = ov::intel_cpu::bit_cast<uint32_t>(1.0F / (1 << 8));
+        BROADCAST_CONSTANT(vpbroadcastd, v_divisor, r32_aux, val);
         BROADCAST_CONSTANT(vpbroadcastd, v_mask, r32_aux, static_cast<uint32_t>((1 << 8) - 1))
 
         // Note: two times too many values in Zmm
@@ -812,7 +819,7 @@ void MersenneTwisterGenerator<isa>::initVectors() {
         INIT_ARR(mask, static_cast<uint32_t>((1 << 24) - 1), r64_aux, uint32_t);
         uni_vmovups(v_mask, ptr[r64_aux]);
 
-        INIT_ARR(divisor, static_cast<float>(1.0f / (1 << 24)), r64_aux, float);
+        INIT_ARR(divisor, static_cast<float>(1.0F / (1 << 24)), r64_aux, float);
         uni_vmovups(v_divisor, ptr[r64_aux]);
 
         mov(r64_aux, ptr[r64_params + GET_MERSENNE_OFFSET(range_ptr)]);

@@ -23,7 +23,7 @@ Install required dependencies:
          python3 -m venv npu-env
          npu-env/bin/activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
-         pip install openvino==2025.1 openvino-tokenizers==2025.1 openvino-genai==2025.1
+         pip install openvino==2025.2 openvino-tokenizers==2025.2 openvino-genai==2025.2
 
 
       For the pre-production version, use the following line, instead:
@@ -40,7 +40,7 @@ Install required dependencies:
          python -m venv npu-env
          npu-env\Scripts\activate
          pip install  nncf==2.14.1 onnx==1.17.0 optimum-intel==1.22.0
-         pip install openvino==2025.1 openvino-tokenizers==2025.1 openvino-genai==2025.1
+         pip install openvino==2025.2 openvino-tokenizers==2025.2 openvino-genai==2025.2
 
 
       For the pre-production version, use the following line, instead:
@@ -62,7 +62,7 @@ Currently, the Whisper pipeline (using:
 `whisper-base <https://huggingface.co/openai/whisper-base>`__,
 `whisper-small <https://huggingface.co/openai/whisper-small>`__, or
 `whisper-large <https://huggingface.co/openai/whisper-large>`__)
-only accepts models generated with the ``--disable-stateful`` flag.
+only accepts stateless models. The pipeline will convert stateful models to stateless models automatically or you can manually generate stateless models with the ``--disable-stateful`` flag.
 Here is a conversion example:
 
 .. code:: console
@@ -146,6 +146,10 @@ which do not require specifying quantization parameters:
 * TheBloke/Llama-2-7B-Chat-GPTQ
 * Qwen/Qwen2-7B-Instruct-GPTQ-Int4
 
+.. note::
+
+   Pre-converted models optimized for NPU are available on `Hugging Face <https://huggingface.co/collections/OpenVINO/llms-optimized-for-npu-686e7f0bf7bc184bd71f8ba0>`__
+     
 
 Run generation using OpenVINO GenAI
 ###############################################################################################
@@ -244,11 +248,14 @@ reusing them for future pipeline runs.
 CACHE_DIR
 -----------------------------------------------------------------------------------------------
 
-``CACHE_DIR`` operates similarly to the older ``NPUW_CACHE_DIR``, except for two differences:
+``CACHE_DIR`` operates similarly to the older ``NPUW_CACHE_DIR``, except for the differences below:
 
 * It creates a single ".blob" file and loads it faster.
-* It stores all model weights inside the blob, making it much bigger than individual compiled
-  schedules for model's subgraphs stored by ``NPUW_CACHE_DIR``.
+* Blob type is defined by ``"CACHE_MODE"``. By default it's ``"OPTIMIZE_SIZE"``, in which case NPUW
+  produces weightless blob, so either original weights file or ``ov::Model`` object is required
+  to load such a blob.
+* Optionally, you can cache a blob with weights inside making it much bigger than the default
+  weightless blob. To do so, you need to pass ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
 
 .. tab-set::
 
@@ -276,10 +283,17 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
 * It allows to explicitly specify where to **store** the compiled model.
 * For subsequent runs, it requires the same ``BLOB_PATH`` to **import** the compiled model.
+* Blob type is defined by ``"CACHE_MODE"``. By default it's ``"OPTIMIZE_SIZE"``, in which case NPUW
+  produces weightless blob, so either original weights file or ``ov::Model`` object is required
+  to load such a blob.
+* To export a blob with weights you need to pass ``"CACHE_MODE" : "OPTIMIZE_SPEED"`` in the config.
+* If the blob is exported as weightless you also need to either provide
+  ``"WEIGHTS_PATH" : "path\\to\\original\\model.bin"`` or ``"MODEL_PTR" : original ov::Model object``.
+* Ahead-of-time import in weightless mode has been optimized to consume less memory than during regular compilation or using ``CACHE_DIR``.
 
 .. tab-set::
 
-   .. tab-item:: Export example
+   .. tab-item:: Export weightless example
 
       .. tab-set::
 
@@ -297,10 +311,52 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
 
             .. code-block:: cpp
 
-               ov::AnyMap pipeline_config = { { "EXPORT_BLOB",  "YES" }, { "BLOB_PATH",  ".npucache\\compiled_model.blob" } };
+               ov::AnyMap pipeline_config = { { "EXPORT_BLOB", "YES" }, { "BLOB_PATH", ".npucache\\compiled_model.blob" } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+   
+   .. tab-item:: Import weightless example
 
-   .. tab-item:: Import example
+      .. tab-set::
+
+         .. tab-item:: Python
+            :sync: py
+
+            .. code-block:: python
+
+               pipeline_config = { "BLOB_PATH": ".npucache\\compiled_model.blob", "WEIGHTS_PATH": "path\\to\\original\\model.bin" }
+               pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
+
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. code-block:: cpp
+
+               ov::AnyMap pipeline_config = { { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "WEIGHTS_PATH", "path\\to\\original\\model.bin" } };
+               ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+   
+   .. tab-item:: Export with weights example
+
+      .. tab-set::
+
+         .. tab-item:: Python
+            :sync: py
+
+            .. code-block:: python
+
+               pipeline_config = { "EXPORT_BLOB": "YES", "BLOB_PATH": ".npucache\\compiled_model.blob", "CACHE_MODE" : "OPTIMIZE_SPEED" }
+               pipe = ov_genai.LLMPipeline(model_path, "NPU", pipeline_config)
+
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. code-block:: cpp
+
+               ov::AnyMap pipeline_config = { { "EXPORT_BLOB", "YES" }, { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "CACHE_MODE", "OPTIMIZE_SPEED" } };
+               ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+   
+   .. tab-item:: Import with weights example
 
       .. tab-set::
 
@@ -319,6 +375,44 @@ Specifying ``EXPORT_BLOB`` and ``BLOB_PATH`` parameters works similarly to ``CAC
             .. code-block:: cpp
 
                ov::AnyMap pipeline_config = { { "BLOB_PATH",  ".npucache\\compiled_model.blob" } };
+               ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+
+
+Blob encryption
+-----------------------------------------------------------------------------------------------
+
+When exporting NPUW blobs you can also specify encryption and decryption functions for the blob.
+In case of weightless blob the whole blob is encrypted, in case of blob with weights everything but
+model weights is encrypted.
+
+.. tab-set::
+
+   .. tab-item:: Export example
+
+      .. tab-set::
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. code-block:: cpp
+
+               ov::EncryptionCallbacks encryption_callbacks;
+               encryption_callbacks.encrypt = [](const std::string& s) { return s; };
+               ov::AnyMap pipeline_config = { { "EXPORT_BLOB", "YES" }, { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "CACHE_ENCRYPTION_CALLBACKS", encryption_callbacks } };
+               ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
+   
+   .. tab-item:: Import example
+
+      .. tab-set::
+
+         .. tab-item:: C++
+            :sync: cpp
+
+            .. code-block:: cpp
+
+               ov::EncryptionCallbacks encryption_callbacks;
+               encryption_callbacks.decrypt = [](const std::string& s) { return s; };
+               ov::AnyMap pipeline_config = { { "BLOB_PATH", ".npucache\\compiled_model.blob" }, { "WEIGHTS_PATH", "path\\to\\original\\model.bin" }, { "CACHE_ENCRYPTION_CALLBACKS", encryption_callbacks } };
                ov::genai::LLMPipeline pipe(model_path, "NPU", pipeline_config);
 
 

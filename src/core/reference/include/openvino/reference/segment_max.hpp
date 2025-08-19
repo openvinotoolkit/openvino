@@ -23,22 +23,29 @@ void segment_max(const T* data,
                  const T empty_segment_value) {
     const T_idx num_segments = output_shape[0];
     const auto inner_dim_size = shape_size(data_shape.begin() + 1, data_shape.end());
+    const size_t total_output_size = num_segments * inner_dim_size;
 
-    // Initialize output with empty_segment_value
-    std::fill(out, out + num_segments * inner_dim_size, empty_segment_value);
-
-    // Iterate over each element in the first dimension
+    const auto min_val = std::numeric_limits<T>::lowest();
+    std::fill(out, out + total_output_size, min_val);
+    std::vector<bool> has_element(total_output_size, false);
     for (size_t i = 0; i < data_shape[0]; ++i) {
         const T_idx segment_id = segment_ids[i];
         if (segment_id >= num_segments) {
             continue;
         }
-        // Iterate over each element in the inner dimensions
         for (size_t j = 0; j < inner_dim_size; ++j) {
-            const size_t index = i * inner_dim_size + j;
             const size_t out_index = segment_id * inner_dim_size + j;
-            // Update the maximum value for the current segment and inner dimension
-            out[out_index] = std::max(out[out_index], data[index]);
+            const T value = data[i * inner_dim_size + j];
+            if (value > out[out_index]) {
+                out[out_index] = value;
+            }
+            has_element[out_index] = true;
+        }
+    }
+
+    for (size_t i = 0; i < total_output_size; ++i) {
+        if (!has_element[i]) {
+            out[i] = empty_segment_value;
         }
     }
 }

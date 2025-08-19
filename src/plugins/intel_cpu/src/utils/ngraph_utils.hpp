@@ -5,8 +5,14 @@
 #pragma once
 
 #include <cassert>
-#include <transformations/utils/utils.hpp>
+#include <cstddef>
+#include <map>
+#include <memory>
+#include <string>
 
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
 #include "transformations/rt_info/primitives_priority_attribute.hpp"
 
 namespace ov::intel_cpu {
@@ -32,11 +38,9 @@ inline std::string getImplPriorityValue(const std::shared_ptr<ov::Node>& node) {
 }
 
 template <typename T>
-inline const std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ov::Node>& op) {
+inline std::shared_ptr<T> getNgraphOpAs(const std::shared_ptr<ov::Node>& op) {
     auto typedOp = ov::as_type_ptr<T>(op);
-    if (!typedOp) {
-        OPENVINO_THROW("Can't get ngraph node ", op->get_type_name(), " with name ", op->get_friendly_name());
-    }
+    OPENVINO_ASSERT(typedOp, "Can't get ngraph node ", op->get_type_name(), " with name ", op->get_friendly_name());
     return typedOp;
 }
 

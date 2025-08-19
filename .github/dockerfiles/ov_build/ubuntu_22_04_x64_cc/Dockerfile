@@ -13,10 +13,8 @@ ENV DEBIAN_FRONTEND="noninteractive" \
     TZ="Europe/London"
 
 RUN apt-get update && \
-    apt-get install software-properties-common wget && \
+    apt-get install software-properties-common && \
     add-apt-repository --yes --no-update ppa:git-core/ppa && \
-    add-apt-repository --yes --no-update "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" && \
-    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/llvm.asc && \
     add-apt-repository --yes --no-update ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install \
@@ -38,11 +36,7 @@ RUN apt-get update && \
         # For Java API
         default-jdk \
         # Compiler \
-        clang-18 \
-        # Static analyzer
-        clang-tidy-18 \
-        # clang-tidy uses clang-format as a dependency
-        clang-format-18 \
+        clang \
         && \
     rm -rf /var/lib/apt/lists/*
 
@@ -53,8 +47,8 @@ RUN chmod +x /install_build_dependencies.sh && \
     rm -rf /var/lib/apt/lists/*
 
 # Set clang as a default compiler
-RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang-18 100 && \
-    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-18 100
+RUN update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100 && \
+    update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100
 
 # Install sscache
 ARG SCCACHE_VERSION="v0.7.5"
@@ -68,10 +62,11 @@ RUN mkdir ${SCCACHE_HOME} && cd ${SCCACHE_HOME} && \
 
 # Setup pip
 ENV PIP_VERSION="24.0"
-RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
-    python3.8 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
+RUN curl https://bootstrap.pypa.io/pip/3.8/get-pip.py -o get-pip-3.8.py && \
+    curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
+    python3.8 get-pip-3.8.py  --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
-    rm -f get-pip.py
+    rm -f get-pip-3.8.py get-pip.py
 
 # Use Python 3.11 as default instead of Python 3.8
 # Using venv here 'cause other methods to switch the default Python on Ubuntu 20 break both system and wheels build

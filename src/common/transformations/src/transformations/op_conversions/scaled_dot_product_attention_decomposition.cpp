@@ -33,6 +33,36 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
+bool can_move_scale_after_matmul(const ov::Output<ov::Node>& query,
+                                 const ov::Output<ov::Node>& kT,
+                                 const ov::Output<ov::Node>& scale) {
+    const auto& scale_pshape = scale.get_partial_shape();
+    const auto& query_pshape = query.get_partial_shape();
+    if (scale_pshape.is_dynamic() || query_pshape.is_dynamic()) {
+        return false;
+    }
+
+    // According to the ov SDPA specification, the scale input have to be 1d with 1 element
+    // or scalar.
+    if (ov::shape_size(scale_pshape.to_shape()) != 1) {
+        return false;
+    }
+
+    // using the original implementation to calculate the shapes.
+    // we need to move the scale after MatMul only if the tensor after MatMul is smaller.
+    auto q_scaled = std::make_shared<ov::op::v1::Multiply>(query, scale);
+    auto scaled_attn = std::make_shared<ov::op::v0::MatMul>(q_scaled, kT);
+    const auto& scaled_attn_pshape = scaled_attn->output(0).get_partial_shape();
+    if (scaled_attn_pshape.is_static()) {
+        return ov::shape_size(query_pshape.to_shape()) > ov::shape_size(scaled_attn_pshape.to_shape());
+    }
+    return false;
+}
+
+}  // namespace
+
 ov::pass::ScaledDotProductAttentionDecomposition::ScaledDotProductAttentionDecomposition() {
     MATCHER_SCOPE(ScaledDotProductAttentionDecomposition);
     auto pattern_node = ov::pass::pattern::wrap_type<ov::op::v13::ScaledDotProductAttention>();
@@ -94,7 +124,6 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
         scale = node->input_value(4);
     }
 
-    auto q_scaled = register_new_node<v1::Multiply>(query, scale);
     auto k_rank = register_new_node<v3::ShapeOf>(k_shape, element::i32)->output(0);
     auto k_last_dim = register_new_node<v1::Add>(k_rank, minus_one);
     auto k_next_dim = register_new_node<v1::Add>(k_rank, minus_two)->output(0);
@@ -108,7 +137,16 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto transpose_dims =
         register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
     auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
-    auto scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
+
+    ov::Output<Node> scaled_atten;
+    if (can_move_scale_after_matmul(query, k_transposed, scale)) {
+        auto atten = register_new_node<v0::MatMul>(query, k_transposed)->output(0);
+        scaled_atten = register_new_node<v1::Multiply>(atten, scale)->output(0);
+    } else {
+        auto q_scaled = register_new_node<v1::Multiply>(query, scale);
+        scaled_atten = register_new_node<v0::MatMul>(q_scaled, k_transposed)->output(0);
+    }
+
     minus_inf = register_new_node<v1::ConvertLike>(minus_inf, scaled_atten);
 
     if (node->get_causal() || node->get_input_size() > 3) {
@@ -121,9 +159,7 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
             // take part in attention. A float mask of the same type as query, key, value that is added to the attention
             // score.
             if (mask.get_element_type() == element::boolean) {
-                atten_mask = register_new_node<v1::ConvertLike>(mask, scaled_atten);
-                auto inv_mask = register_new_node<v1::LogicalNot>(mask);
-                atten_mask = register_new_node<v1::Select>(inv_mask, atten_mask, minus_inf);
+                atten_mask = register_new_node<v1::Select>(mask, zero_f, minus_inf);
             } else {
                 atten_mask = mask;
             }

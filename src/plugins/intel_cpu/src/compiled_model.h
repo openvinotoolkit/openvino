@@ -4,24 +4,33 @@
 
 #pragma once
 
+#include <atomic>
+#include <deque>
 #include <memory>
+#include <mutex>
+#include <ostream>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "config.h"
 #include "graph.h"
-#include "graph_context.h"
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iinfer_request.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
+#include "openvino/runtime/threading/itask_executor.hpp"
 #include "sub_memory_manager.hpp"
+#include "weights_cache.hpp"
 
-namespace ov {
-namespace intel_cpu {
+namespace ov::intel_cpu {
 
 class CompiledModel : public ov::ICompiledModel {
 public:
-    typedef std::shared_ptr<CompiledModel> Ptr;
+    using Ptr = std::shared_ptr<CompiledModel>;
 
     struct GraphGuard : public Graph {
         std::mutex _mutex;
@@ -31,14 +40,13 @@ public:
         };
     };
 
-public:
     CompiledModel(const std::shared_ptr<ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   Config cfg,
-                  const bool loaded_from_cache,
+                  bool loaded_from_cache,
                   std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
 
-    ~CompiledModel();
+    ~CompiledModel() override;
 
     std::shared_ptr<ov::IAsyncInferRequest> create_infer_request() const override;
 
@@ -48,7 +56,7 @@ public:
 
     ov::Any get_property(const std::string& name) const override;
 
-    void set_property(const ov::AnyMap& properties) override {
+    void set_property([[maybe_unused]] const ov::AnyMap& properties) override {
         OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. "
                                        "Set property to Core::compile_model during compilation");
     };
@@ -93,13 +101,14 @@ private:
     std::vector<std::shared_ptr<CompiledModel>> m_sub_compiled_models;
     std::shared_ptr<SubMemoryManager> m_sub_memory_manager = nullptr;
     bool m_has_sub_compiled_models = false;
+    bool m_optimized_single_stream = false;
 };
 
 // This class provides safe access to the internal CompiledModel structures and helps to decouple SyncInferRequest and
 // the CompiledModel internal structures
 class CompiledModelHolder {
 public:
-    CompiledModelHolder(std::shared_ptr<const CompiledModel> compiled_model)
+    explicit CompiledModelHolder(std::shared_ptr<const CompiledModel> compiled_model)
         : m_compiled_model(std::move(compiled_model)) {
         OPENVINO_ASSERT(!m_compiled_model->m_graphs.empty(),
                         "No graph was found in the compiled model: ",
@@ -120,7 +129,7 @@ public:
     CompiledModelHolder(CompiledModelHolder&&) = default;
     CompiledModelHolder& operator=(CompiledModelHolder&&) = default;
 
-    const Graph& graph() const {
+    [[nodiscard]] const Graph& graph() const {
         return *m_graph;
     }
 
@@ -131,15 +140,15 @@ public:
         return lock;
     }
 
-    std::string name() const {
+    [[nodiscard]] std::string name() const {
         return m_compiled_model->name();
     }
 
-    std::shared_ptr<const ov::ICompiledModel> compiled_model() const {
+    [[nodiscard]] std::shared_ptr<const ov::ICompiledModel> compiled_model() const {
         return m_compiled_model;
     }
 
-    int id() const {
+    [[nodiscard]] int id() const {
         return m_id;
     }
 
@@ -149,5 +158,4 @@ private:
     int m_id;
 };
 
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu

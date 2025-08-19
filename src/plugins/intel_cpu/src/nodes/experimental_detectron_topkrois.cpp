@@ -5,22 +5,34 @@
 #include "experimental_detectron_topkrois.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <memory>
+#include <numeric>
+#include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
 #include <vector>
 
 #include "common/cpu_memcpy.h"
-#include "openvino/core/parallel.hpp"
+#include "cpu_types.h"
+#include "graph_context.h"
+#include "memory_desc/cpu_memory_desc.h"
+#include "node.h"
+#include "onednn/iml_type_mapper.h"
+#include "openvino/core/except.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/experimental_detectron_topkrois.hpp"
-#include "openvino/opsets/opset6_decl.hpp"
+#include "shape_inference/shape_inference_cpu.hpp"
 
 namespace ov::intel_cpu::node {
 
 bool ExperimentalDetectronTopKROIs::isSupportedOperation(const std::shared_ptr<const ov::Node>& op,
                                                          std::string& errorMessage) noexcept {
     try {
-        const auto topKROI = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
+        const auto topKROI = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronTopKROIs>(op);
         if (!topKROI) {
-            errorMessage = "Only opset6 ExperimentalDetectronTopKROIs operation is supported";
+            errorMessage = "Only v6 ExperimentalDetectronTopKROIs operation is supported";
             return false;
         }
     } catch (...) {
@@ -37,18 +49,13 @@ ExperimentalDetectronTopKROIs::ExperimentalDetectronTopKROIs(const std::shared_p
         OPENVINO_THROW_NOT_IMPLEMENTED(errorMessage);
     }
 
-    const auto topKROI = ov::as_type_ptr<const ov::opset6::ExperimentalDetectronTopKROIs>(op);
-    if (topKROI == nullptr) {
-        THROW_CPU_NODE_ERR("is not an instance of ExperimentalDetectronTopKROIs from opset6.");
-    }
+    const auto topKROI = ov::as_type_ptr<const ov::op::v6::ExperimentalDetectronTopKROIs>(op);
+    CPU_NODE_ASSERT(topKROI, "is not an instance of ExperimentalDetectronTopKROIs from opset6.");
 
-    if (inputShapes.size() != 2 || outputShapes.size() != 1) {
-        THROW_CPU_NODE_ERR("has incorrect number of input/output edges!");
-    }
+    CPU_NODE_ASSERT(inputShapes.size() == 2 && outputShapes.size() == 1, "has incorrect number of input/output edges!");
 
-    if (getInputShapeAtPort(INPUT_ROIS).getRank() != 2 || getInputShapeAtPort(INPUT_PROBS).getRank() != 1) {
-        THROW_CPU_NODE_ERR("has unsupported input shape");
-    }
+    CPU_NODE_ASSERT(getInputShapeAtPort(INPUT_ROIS).getRank() == 2 && getInputShapeAtPort(INPUT_PROBS).getRank() == 1,
+                    "has unsupported input shape");
 
     max_rois_num_ = topKROI->get_max_rois();
 }
@@ -67,8 +74,8 @@ void ExperimentalDetectronTopKROIs::execute([[maybe_unused]] const dnnl::stream&
     const int input_rois_num = getParentEdgeAt(INPUT_ROIS)->getMemory().getStaticDims()[0];
     const int top_rois_num = (std::min)(max_rois_num_, input_rois_num);
 
-    auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
-    auto* input_probs = getSrcDataAtPortAs<const float>(INPUT_PROBS);
+    const auto* input_rois = getSrcDataAtPortAs<const float>(INPUT_ROIS);
+    const auto* input_probs = getSrcDataAtPortAs<const float>(INPUT_PROBS);
     auto* output_rois = getDstDataAtPortAs<float>(OUTPUT_ROIS);
 
     std::vector<size_t> idx(input_rois_num);

@@ -4,8 +4,18 @@
 
 #include <node.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
+#include <vector>
 
+#include "cpu_memory.h"
+#include "cpu_types.h"
+#include "openvino/core/node.hpp"
 #include "shape_inference/shape_inference_cpu.hpp"
 
 #pragma once
@@ -40,7 +50,7 @@ private:
 
 class StridedSliceShapeInferFactory : public ShapeInferFactory {
 public:
-    StridedSliceShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
+    explicit StridedSliceShapeInferFactory(std::shared_ptr<ov::Node> op) : m_op(std::move(op)) {}
     [[nodiscard]] ShapeInferPtr makeShapeInfer() const override;
 
 private:

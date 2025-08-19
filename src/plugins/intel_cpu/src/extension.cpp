@@ -4,7 +4,55 @@
 
 #include "openvino/core/extension.hpp"
 
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "openvino/core/attribute_visitor.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/core/op_extension.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/concat.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/depth_to_space.hpp"
+#include "openvino/op/equal.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/less_eq.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/logical_not.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/logical_xor.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/matrix_nms.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/not_equal.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_sum.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/shuffle_channels.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
 #include "ov_ops/fully_connected.hpp"
@@ -18,7 +66,28 @@
 #include "ov_ops/rms.hpp"
 #include "ov_ops/rotary_positional_embeddings.hpp"
 #include "ov_ops/type_relaxed.hpp"
+#include "snippets/op/brgemm.hpp"
+#include "snippets/op/broadcastload.hpp"
+#include "snippets/op/broadcastmove.hpp"
+#include "snippets/op/buffer.hpp"
+#include "snippets/op/convert_saturation.hpp"
+#include "snippets/op/convert_truncation.hpp"
+#include "snippets/op/fill.hpp"
+#include "snippets/op/horizon_max.hpp"
+#include "snippets/op/horizon_sum.hpp"
+#include "snippets/op/kernel.hpp"
+#include "snippets/op/load.hpp"
+#include "snippets/op/loop.hpp"
+#include "snippets/op/nop.hpp"
+#include "snippets/op/perf_count.hpp"
+#include "snippets/op/powerstatic.hpp"
+#include "snippets/op/rank_normalization.hpp"
+#include "snippets/op/reduce.hpp"
+#include "snippets/op/reshape.hpp"
+#include "snippets/op/scalar.hpp"
+#include "snippets/op/store.hpp"
 #include "snippets/op/subgraph.hpp"
+#include "snippets/op/vector_buffer.hpp"
 #include "transformations/cpu_opset/common/op/causal_mask_preprocess.hpp"
 #include "transformations/cpu_opset/common/op/leaky_relu.hpp"
 #include "transformations/cpu_opset/common/op/ngram.hpp"
@@ -26,21 +95,27 @@
 #include "transformations/cpu_opset/common/op/read_value_with_subgraph.hpp"
 #include "transformations/cpu_opset/common/op/sdpa.hpp"
 #include "transformations/cpu_opset/common/op/swish_cpu.hpp"
-#include "transformations/cpu_opset/x64/op/interaction.hpp"
-#include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
-#include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
-#include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
-#include "transformations/snippets/x64/op/brgemm_cpu.hpp"
-#include "transformations/snippets/x64/op/load_convert.hpp"
-#include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
-#include "transformations/snippets/x64/op/store_convert.hpp"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "transformations/cpu_opset/x64/op/interaction.hpp"
+#    include "transformations/cpu_opset/x64/op/llm_mlp.hpp"
+#    include "transformations/cpu_opset/x64/op/qkv_proj.hpp"
+#    include "transformations/snippets/x64/op/brgemm_copy_b.hpp"
+#    include "transformations/snippets/x64/op/brgemm_cpu.hpp"
+#    include "transformations/snippets/x64/op/load_convert.hpp"
+#    include "transformations/snippets/x64/op/perf_count_rdtsc.hpp"
+#    include "transformations/snippets/x64/op/store_convert.hpp"
+#elif defined(OPENVINO_ARCH_ARM64)
+#    include "transformations/snippets/aarch64/op/gemm_copy_b.hpp"
+#    include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
+#endif
 
 namespace {
 
 template <typename Op>
 class TypeRelaxedExtension : public ov::OpExtension<ov::op::TypeRelaxed<Op>> {
 public:
-    TypeRelaxedExtension() : m_ext_type(Op::get_type_info_static().name, "type_relaxed_opset") {}
+    TypeRelaxedExtension() : m_ext_type(Op::get_type_info_static().name, version()) {}
+
     ~TypeRelaxedExtension() override = default;
 
     [[nodiscard]] const ov::DiscreteTypeInfo& get_type_info() const override {
@@ -56,6 +131,12 @@ public:
     }
 
 private:
+    static const char* version() {
+        static const auto version =
+            std::string(ov::op::TypeRelaxedBase::version_prefix) + Op::get_type_info_static().version_id;
+        return version.data();
+    }
+
     ov::DiscreteTypeInfo m_ext_type;
 };
 
@@ -65,6 +146,12 @@ private:
 #    define OP_EXTENSION_X64(x) x,
 #else
 #    define OP_EXTENSION_X64(x)
+#endif
+
+#if defined(OPENVINO_ARCH_ARM64)
+#    define OP_EXTENSION_ARM64(x) x,
+#else
+#    define OP_EXTENSION_ARM64(x)
 #endif
 
 #if defined(SNIPPETS_DEBUG_CAPS)
@@ -100,6 +187,7 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedCompressed>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantizedLegacy>>(),
     std::make_shared<ov::OpExtension<ov::op::internal::FullyConnectedQuantized>>(),
+    std::make_shared<ov::OpExtension<ov::op::PagedAttentionExtension>>(),
     // clang-format off
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::InteractionNode>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::LLMMLPNode>>())
@@ -111,10 +199,13 @@ OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>({
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::StoreConvertTruncation>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCPU>>())
     OP_EXTENSION_X64(std::make_shared<ov::OpExtension<ov::intel_cpu::BrgemmCopyB>>())
+    OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCPU>>())
+    OP_EXTENSION_ARM64(std::make_shared<ov::OpExtension<ov::intel_cpu::aarch64::GemmCopyB>>())
     // clang-format on
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Add>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::AvgPool>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v14::AvgPool>>(),
+    std::make_shared<TypeRelaxedExtension<ov::op::v16::AvgPool>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Clamp>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v0::Concat>>(),
     std::make_shared<TypeRelaxedExtension<ov::op::v1::Convolution>>(),

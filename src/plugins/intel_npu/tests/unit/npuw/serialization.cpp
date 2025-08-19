@@ -266,10 +266,12 @@ TEST(SerializationTest, OVTypes_Tensor_with_weights) {
     std::stringstream ss;
 
     std::unordered_map<const void*, std::size_t> const_offset;
+    const_offset[nullptr] = 0;
     WeightsContext ctx(false, const_offset);
-
+ 
     WeightsContext::ConstsCache consts_cache;
-    WeightsContext des_ctx(nullptr, consts_cache);
+    consts_cache[{0, 0}] = nullptr;
+    WeightsContext des_ctx(nullptr, "", consts_cache, {});
 
     write_weightless(ss, {var}, ctx);
     read_weightless(ss, res, des_ctx);

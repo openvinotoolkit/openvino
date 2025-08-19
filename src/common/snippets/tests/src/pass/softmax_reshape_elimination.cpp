@@ -4,7 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#include <snippets/snippets_isa.hpp>
+#include <openvino/opsets/opset1.hpp>
 #include <snippets/pass/softmax_reshape_elimination.hpp>
 
 #include <transformations/init_node_info.hpp>

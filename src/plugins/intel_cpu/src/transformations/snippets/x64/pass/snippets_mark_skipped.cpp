@@ -3,12 +3,61 @@
 //
 #include "snippets_mark_skipped.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <unordered_set>
+#include <vector>
+
 #include "cpu/x64/cpu_isa_traits.hpp"
-#include "itt.hpp"
-#include "snippets/op/subgraph.hpp"
+#include "openvino/cc/pass/itt.hpp"
+#include "openvino/core/axis_set.hpp"
+#include "openvino/core/model.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/core/shape.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/op/abs.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/avg_pool.hpp"
+#include "openvino/op/binary_convolution.hpp"
+#include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/elu.hpp"
+#include "openvino/op/fake_quantize.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gelu.hpp"
+#include "openvino/op/group_conv.hpp"
+#include "openvino/op/hsigmoid.hpp"
+#include "openvino/op/hswish.hpp"
+#include "openvino/op/if.hpp"
+#include "openvino/op/interpolate.hpp"
+#include "openvino/op/lstm_cell.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
+#include "openvino/op/mish.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/mvn.hpp"
+#include "openvino/op/normalize_l2.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/prelu.hpp"
+#include "openvino/op/relu.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/round.hpp"
+#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/sqrt.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/swish.hpp"
+#include "openvino/op/tanh.hpp"
+#include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
+#include "openvino/op/util/sub_graph_base.hpp"
 #include "snippets/pass/tokenization.hpp"
-#include "snippets/utils/utils.hpp"
-#include "transformations/utils.hpp"
 #include "transformations/utils/utils.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/general_utils.h"
@@ -16,9 +65,9 @@
 namespace ov::intel_cpu {
 
 namespace {
-static const int DEFAULT_AXIS = 1;
+const int DEFAULT_AXIS = 1;
 NodeFusingType GetNodeFusingType(const std::shared_ptr<const Node>& node) {
-    auto& rt = node->get_rt_info();
+    const auto& rt = node->get_rt_info();
     const auto rinfo = rt.find("MayBeFusedInPlugin");
     if (rinfo == rt.end()) {
         return NodeFusingType::NotSet;
@@ -100,7 +149,7 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node>& node, const i
         } else {
             // every const parent must have exactly one child
             const auto out = parent->outputs();
-            const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+            const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
             if (!has_only_child) {
                 return false;
             }
@@ -125,12 +174,12 @@ bool canBePerformedAsScaleShift(const std::shared_ptr<const Node>& node, const i
 
     // Prelu and MulAdd are still ignored
     // isConvertablePowerStatic() is ignored
-    return ov::is_type_any_of<ov::opset1::Add, ov::opset1::Multiply, ov::opset1::Subtract, ov::opset1::Divide>(node) &&
+    return ov::is_type_any_of<op::v1::Add, op::v1::Multiply, op::v1::Subtract, op::v1::Divide>(node) &&
            isBroadcastableToDataInput();
 }
 
 inline bool canBeMatMulExecutedInInt8(const ov::element::Type& firstType, const ov::element::Type& secondType) {
-    return one_of(firstType, ov::element::i8, ov::element::u8) && secondType == ov::element::i8;
+    return any_of(firstType, ov::element::i8, ov::element::u8) && secondType == ov::element::i8;
 }
 
 bool SupportsFusingWithConvolution_Simple(const std::shared_ptr<const Node>& node,
@@ -149,20 +198,20 @@ bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type_any_of<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v1::BinaryConvolution>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 int getChannelAxis(const ov::AxisSet& axes, bool keep_dims) {
     int channelAxis = DEFAULT_AXIS;
     if (!keep_dims) {
-        for (auto& axis : axes) {
+        for (const auto& axis : axes) {
             if (axis == 1) {
                 // channel axis has been reduced and doesn't exist any more
                 channelAxis = -1;
@@ -179,7 +228,7 @@ bool isSuitableGatherParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type_any_of<ov::op::v7::Gather, ov::op::v8::Gather>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 bool isSuitableMiscParent(const std::shared_ptr<const Node>& node) {
@@ -190,14 +239,14 @@ bool isSuitableMiscParent(const std::shared_ptr<const Node>& node) {
                                                      ov::op::v4::Interpolate,
                                                      ov::op::v0::LSTMCell,
                                                      ov::op::v4::LSTMCell,
-                                                     ov::opset1::ConvolutionBackpropData,
+                                                     ov::op::v1::ConvolutionBackpropData,
                                                      ov::op::util::ArithmeticReductionKeepDims,
-                                                     ov::opset1::GroupConvolutionBackpropData,
-                                                     ov::opset1::AvgPool,
+                                                     ov::op::v1::GroupConvolutionBackpropData,
+                                                     ov::op::v1::AvgPool,
                                                      ov::op::v14::AvgPool>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 // Matmul is a special case, since it supports simple + bias fusings
@@ -205,7 +254,7 @@ bool isSuitableMatMulParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v0::MatMul>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 // From Reduce::canFuse() corner case. CanFuseSimpleOperation is covered by Misc
@@ -216,9 +265,10 @@ inline bool isSuitableReduceParent(const std::shared_ptr<const Node>& node) {
 bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v1::Subtract>(node);
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     const bool has_two_parents = node->get_input_size() == 2;
-    if (!(is_suitable_node && has_only_child && has_two_parents)) {
+    const bool all_conditions_met = is_suitable_node && has_only_child && has_two_parents;
+    if (!all_conditions_met) {
         return false;
     }
 
@@ -268,7 +318,7 @@ bool isSuitablePoolChild(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v1::MaxPool>(node);
     // has a single output, connected to a single child
     const auto out = node->outputs();
-    const bool has_only_child = (out.size() == 1) && (out[0].get_target_inputs().size() == 1);
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
 bool isSuitableChildForFusingSimple(const std::shared_ptr<const Node>& node, const int channelAxis = DEFAULT_AXIS) {
@@ -281,8 +331,8 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
                                     NodeFusingType& updatedChainType,
                                     int& fusingAxis) {
     // Firsly check for Bias and DQScales fusion
-    const bool is_bias = ov::is_type<ov::opset1::Add>(node);
-    const bool is_dq_scales = ov::is_type<ov::opset1::Multiply>(node) && canMatMulBeExecutedInI8;
+    const bool is_bias = ov::is_type<ov::op::v1::Add>(node);
+    const bool is_dq_scales = ov::is_type<ov::op::v1::Multiply>(node) && canMatMulBeExecutedInI8;
     if (is_bias || is_dq_scales) {
         for (const auto& in : node->inputs()) {
             const auto& parent_out = in.get_source_output();
@@ -325,7 +375,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
     }
 
     // MatMul specific checks from ::canFuse()
-    if (one_of(updatedChainType, NodeFusingType::FusedWithMatMul, NodeFusingType::FusedWithMatMulI8)) {
+    if (any_of(updatedChainType, NodeFusingType::FusedWithMatMul, NodeFusingType::FusedWithMatMulI8)) {
         const auto is_binary_eltwise = ov::is_type_any_of<ov::op::v1::Add,
                                                           ov::op::v1::Multiply,
                                                           ov::op::v1::Subtract,
@@ -351,7 +401,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
         }
 
         if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-            if (one_of(node->get_output_element_type(0), ov::element::i8, ov::element::u8) &&
+            if (any_of(node->get_output_element_type(0), ov::element::i8, ov::element::u8) &&
                 !canMatMulBeExecutedInI8) {
                 return false;
             }
@@ -366,7 +416,7 @@ bool isSuitableChildForFusingMatMul(const std::shared_ptr<const Node>& node,
         size_t num_mm_inputs = 0;
         for (const auto& parent_out : node->input_values()) {
             // To avoid endless check `is_on_constant_path` for MatMul branch
-            if (one_of(GetNodeFusingType(parent_out.get_node_shared_ptr()),
+            if (any_of(GetNodeFusingType(parent_out.get_node_shared_ptr()),
                        NodeFusingType::FusedWithMatMul,
                        NodeFusingType::FusedWithMatMulI8,
                        NodeFusingType::FusedWithFC,
@@ -391,13 +441,15 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
         return false;
     }
     auto isFusedBiasNode = [](const std::shared_ptr<Node>& n) {
-        if (!(ov::is_type<ov::op::v1::Add>(n) && GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution)) {
+        if (!ov::is_type<ov::op::v1::Add>(n) || GetNodeFusingType(n) != NodeFusingType::FusedWithConvolution) {
             return false;
         }
         const auto conv = n->get_input_source_output(0);
         const auto bias = n->get_input_source_output(1);
-        if (!(ov::is_type<ov::op::v0::Constant>(bias.get_node_shared_ptr()) &&
-              isSuitableConvolutionParent(conv.get_node_shared_ptr()))) {
+        const bool is_bias_constant = ov::is_type<ov::op::v0::Constant>(bias.get_node_shared_ptr());
+        const bool is_conv_suitable = isSuitableConvolutionParent(conv.get_node_shared_ptr());
+        const bool valid_bias_conv_pair = is_bias_constant && is_conv_suitable;
+        if (!valid_bias_conv_pair) {
             return false;
         }
         const auto& conv_shape = conv.get_partial_shape();
@@ -419,11 +471,10 @@ bool isSuitableParentForFusingSumActivation(const std::shared_ptr<const Node>& n
         const auto channelAxis = 1;
         return conv_shape[channelAxis].is_static() &&
                conv_shape[channelAxis].get_length() == static_cast<int64_t>(bias_norm_dims[channelAxis]) &&
-               bias_norm_dims[channelAxis] == static_cast<size_t>(shape_size(bias_norm_dims));
+               bias_norm_dims[channelAxis] == shape_size(bias_norm_dims);
     };
     auto isFusedFQNode = [&isFusedBiasNode](const std::shared_ptr<Node>& n) {
-        if (!(ov::is_type<ov::op::v0::FakeQuantize>(n) &&
-              GetNodeFusingType(n) == NodeFusingType::FusedWithConvolution)) {
+        if (!ov::is_type<ov::op::v0::FakeQuantize>(n) || GetNodeFusingType(n) != NodeFusingType::FusedWithConvolution) {
             return false;
         }
         const auto& parent = n->get_input_node_shared_ptr(0);
@@ -448,19 +499,19 @@ bool isSuitableReduceChild(const std::shared_ptr<const Node>& node, const int ch
 }
 bool isSuitableGatherChild(const std::shared_ptr<const Node>& node) {
     return ov::is_type<ov::op::v0::Convert>(node) &&
-           one_of(node->get_input_element_type(0), element::f16, element::bf16) &&
+           any_of(node->get_input_element_type(0), element::f16, element::bf16) &&
            node->get_output_element_type(0) == ov::element::f32;
 }
 bool isSuitableMatMulWithConstantPath(const std::shared_ptr<Node>& node) {
-    return ov::is_type<ov::opset1::MatMul>(node) &&
-           !ov::is_type<ov::opset1::Constant>(node->get_input_node_shared_ptr(1)) &&
+    return ov::is_type<ov::op::v0::MatMul>(node) &&
+           !ov::is_type<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1)) &&
            ov::op::util::is_on_constant_path(node->input_value(1));
 }
 // Continue fusing chain of the passed type if the node has one child
 // Otherwise mark node as FusedTerminator (Fused, but fusing chain is interrupted)
 void PropagateIfHasOnlyChild(const std::shared_ptr<Node>& node, NodeFusingType nodeType) {
     const auto out = node->outputs();
-    const bool has_only_child = out.size() == 1 && out[0].get_target_inputs().size() == 1;
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     SetNodeFusingType(node, has_only_child ? nodeType : NodeFusingType::FusedTerminator);
 }
 // todo: Skipping MultiSubGraphOp such as TensorIterator, Loop and If. Snippets might tokenize their bodies in the
@@ -564,7 +615,11 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
             const auto out_rank = node->get_output_partial_shape(0).rank();
             if (is_fc) {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithFCI8 : NodeFusingType::FusedWithFC);
-                channelAxis = out_rank.is_static() ? (out_rank.get_length() == 3 ? 2 : 1) : DEFAULT_AXIS;
+                if (out_rank.is_static()) {
+                    channelAxis = (out_rank.get_length() == 3) ? 2 : 1;
+                } else {
+                    channelAxis = DEFAULT_AXIS;
+                }
             } else {
                 SetNodeFusingType(node, is_i8 ? NodeFusingType::FusedWithMatMulI8 : NodeFusingType::FusedWithMatMul);
                 channelAxis = out_rank.is_static() ? out_rank.get_length() - 1 : DEFAULT_AXIS;
@@ -588,8 +643,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                     }
                 } else if (isSuitableChildForFusingSimple(node, channelAxis)) {
                     PropagateIfHasOnlyChild(node, fusingChainType);
-                } else if (fusingChainType == NodeFusingType::FusedWithConvolution ||
-                           fusingChainType == NodeFusingType::FusedWithBinaryConvolution) {
+                } else if (any_of(fusingChainType,
+                                  NodeFusingType::FusedWithConvolution,
+                                  NodeFusingType::FusedWithBinaryConvolution)) {
                     if (isSuitableParentForFusingSumActivation(node)) {
                         PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolutionSumActivation);
                         // Mimic FuseConvolutionAndSimpleOperationThroughMaxPool
@@ -601,13 +657,13 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
                     // Todo: Chain could be converted from FusedWithBinaryConvolution to FusedWithConvolution at this
                     // point Set FusedWithConvolution, so the fusing chain could be propagated
                     PropagateIfHasOnlyChild(node, NodeFusingType::FusedWithConvolution);
-                } else if (one_of(fusingChainType,
+                } else if (any_of(fusingChainType,
                                   NodeFusingType::FusedWithMatMul,
                                   NodeFusingType::FusedWithMatMulI8,
                                   NodeFusingType::FusedWithFC,
                                   NodeFusingType::FusedWithFCI8)) {
                     const bool isExecutedInINT8 =
-                        one_of(fusingChainType, NodeFusingType::FusedWithMatMulI8, NodeFusingType::FusedWithFCI8);
+                        any_of(fusingChainType, NodeFusingType::FusedWithMatMulI8, NodeFusingType::FusedWithFCI8);
                     // Handle fusings for both MatMul and FullyConnected
                     NodeFusingType updatedChainType = fusingChainType;
                     if (isSuitableChildForFusingMatMul(node, isExecutedInINT8, updatedChainType, channelAxis)) {

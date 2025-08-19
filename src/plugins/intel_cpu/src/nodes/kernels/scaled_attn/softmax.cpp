@@ -3,17 +3,15 @@
 //
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
-#include <iostream>
-#include <limits>
-#include <type_traits>
+
+#include "openvino/core/type/element_type.hpp"
 
 #if defined(HAVE_AVX2) || defined(HAVE_AVX512F)
 #    include <immintrin.h>
 #endif
 
-#include "common.hpp"
-#include "openvino/core/type/bfloat16.hpp"
 #include "softmax.hpp"
 #include "softmax_kernel.hpp"
 
@@ -49,8 +47,8 @@ void attn_softmax(void* a,
         return;
     }
 #endif
-    auto _a = reinterpret_cast<float*>(a);
-    auto _alibi = reinterpret_cast<float*>(alibi);
+    auto* _a = reinterpret_cast<float*>(a);
+    auto* _alibi = reinterpret_cast<float*>(alibi);
     attn_softmax_kernel<float>(_a,
                                a_dst,
                                scale,

@@ -9,21 +9,18 @@
 
 #pragma once
 
-#include <openvino/cc/factory.h>
-#include <openvino/cc/selective_build.h>
+#if defined(SELECTIVE_BUILD_ANALYZER)
+#    include "openvino/cc/selective_build.h"
+#elif defined(SELECTIVE_BUILD)
+#    include "openvino/util/pp.hpp"
+#endif
 
 #include <openvino/itt.hpp>
 
-namespace ov {
-namespace intel_cpu {
-namespace itt {
-namespace domains {
+namespace ov::intel_cpu::itt::domains {
 OV_ITT_DOMAIN(intel_cpu);
 OV_ITT_DOMAIN(intel_cpu_LT);
-}  // namespace domains
-}  // namespace itt
-}  // namespace intel_cpu
-}  // namespace ov
+}  // namespace ov::intel_cpu::itt::domains
 
 #if defined(SELECTIVE_BUILD_ANALYZER)
 #    define CPU_LPT_SCOPE(region)             OV_SCOPE(intel_cpu, region)

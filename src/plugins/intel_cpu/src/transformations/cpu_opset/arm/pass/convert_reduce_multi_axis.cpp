@@ -3,16 +3,24 @@
 
 #include "convert_reduce_multi_axis.hpp"
 
+#include <cstdint>
+#include <functional>
+#include <memory>
+
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/rt_info.hpp"
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reduce_min.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reduce_sum.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 template <class T>
 ov::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert_reduce() {
@@ -25,7 +33,7 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert_red
         const auto& input0 = reduce->input_value(0);
         const auto& input1 = reduce->input_value(1);
         const auto& data_shape0 = input0.get_partial_shape();
-        auto reduction_axes = ov::as_type_ptr<ov::opset8::Constant>(input1.get_node_shared_ptr());
+        auto reduction_axes = ov::as_type_ptr<ov::op::v0::Constant>(input1.get_node_shared_ptr());
         if (!reduction_axes) {
             return false;
         }
@@ -52,7 +60,7 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert_red
             sort(axes.begin(), axes.end(), std::greater<int64_t>());
         }
         for (auto axis : axes) {
-            auto reduction_axis = ov::opset8::Constant::create<int64_t>(ov::element::i64, ov::Shape{}, {axis});
+            auto reduction_axis = ov::op::v0::Constant::create<int64_t>(ov::element::i64, ov::Shape{}, {axis});
             node = std::make_shared<T>(output, reduction_axis, keepDims);
             output = node->output(0);
             new_ops.push_back(node);
@@ -67,32 +75,32 @@ ov::matcher_pass_callback ov::intel_cpu::ConvertReduceMultiAxisBase::convert_red
 
 ov::intel_cpu::ConvertReduceProd::ConvertReduceProd() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        ov::pass::pattern::wrap_type<ov::opset8::ReduceProd>(
-            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::opset8::Constant>()}),
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceProd>(
+            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()}),
         "ConvertReduceProd");
-    register_matcher(m, convert_reduce<ov::opset8::ReduceProd>());
+    register_matcher(m, convert_reduce<ov::op::v1::ReduceProd>());
 }
 
 ov::intel_cpu::ConvertReduceMin::ConvertReduceMin() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        ov::pass::pattern::wrap_type<ov::opset8::ReduceMin>(
-            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::opset8::Constant>()}),
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceMin>(
+            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()}),
         "ConvertReduceMin");
-    register_matcher(m, convert_reduce<ov::opset8::ReduceMin>());
+    register_matcher(m, convert_reduce<ov::op::v1::ReduceMin>());
 }
 
 ov::intel_cpu::ConvertReduceMax::ConvertReduceMax() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        ov::pass::pattern::wrap_type<ov::opset8::ReduceMax>(
-            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::opset8::Constant>()}),
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceMax>(
+            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()}),
         "ConvertReduceMax");
-    register_matcher(m, convert_reduce<ov::opset8::ReduceMax>());
+    register_matcher(m, convert_reduce<ov::op::v1::ReduceMax>());
 }
 
 ov::intel_cpu::ConvertReduceSum::ConvertReduceSum() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
-        ov::pass::pattern::wrap_type<ov::opset8::ReduceSum>(
-            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::opset8::Constant>()}),
+        ov::pass::pattern::wrap_type<ov::op::v1::ReduceSum>(
+            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()}),
         "ConvertReduceSum");
-    register_matcher(m, convert_reduce<ov::opset8::ReduceSum>());
+    register_matcher(m, convert_reduce<ov::op::v1::ReduceSum>());
 }

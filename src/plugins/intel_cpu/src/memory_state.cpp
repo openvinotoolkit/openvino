@@ -6,16 +6,30 @@
 
 #include <nodes/common/cpu_convert.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <oneapi/dnnl/dnnl_common.hpp>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_tensor.h"
+#include "cpu_types.h"
 #include "dnnl_extension_utils.h"
+#include "memory_desc/blocked_memory_desc.h"
 #include "memory_desc/cpu_blocked_memory_desc.h"
+#include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
-#include "nodes/common/cpu_convert.h"
 #include "nodes/kernels/scaled_attn/attn_quant.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "openvino/runtime/itensor.hpp"
+#include "openvino/runtime/so_ptr.hpp"
+#include "utils/general_utils.h"
 #include "utils/plain_tensor.hpp"
 
 using namespace ov::Extensions::Cpu::XARCH;
@@ -54,7 +68,7 @@ void VariableStateBase::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
         input_mem()->redefineDesc(new_desc);
     }
 
-    auto src = state->data();
+    auto* src = state->data();
 
     Memory mem(get_engine(), state_desc, src);
     input_mem()->load(mem, true, false);
@@ -242,14 +256,16 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
     // sanity check
     OPENVINO_ASSERT(actual_internal_order == m_dense_internal_desc->getOrder());
 
-    PlainTensor output, pastkv, beam_table;
+    PlainTensor output;
+    PlainTensor pastkv;
+    PlainTensor beam_table;
     output.reset(external_mem);
     beam_table.reset(m_hidden_state);
     pastkv.reset(m_internal_mem);
     output = output.permute(actual_internal_order);
     pastkv = pastkv.permute(actual_internal_order);
     // S should be always the last dimension
-    OPENVINO_ASSERT(pastkv.stride(3) == 1 && output.stride(3) == 1);
+    OPENVINO_ASSERT(all_of(1U, pastkv.stride(3), output.stride(3)));
     auto L0 = pastkv.size(0);
     auto B = pastkv.size(1);
     auto H = pastkv.size(2);
@@ -280,8 +296,7 @@ ov::SoPtr<ov::ITensor> VariableStateKVcache::get_state() const {
                     attn_dequant_u8(pastkv.ptr<uint8_t>(m, b_kv, h, group_id * m_group_size),
                                     buffers[ithr].ptr<float>() + group_id * m_group_size,
                                     m_group_size,
-                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2)[0],
-                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2)[1]);
+                                    m_scale_zp.ptr<float>(m, b_kv, h, group_id * 2));
                 }
                 cpu_convert(buffers[ithr].ptr<float>(), output.ptr_v(m, b, h), element::f32, output.m_dt, S);
             });
@@ -308,7 +323,8 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     Memory external_mem(get_engine(), state_desc, m_state->data());
 
     if (dense_internal_desc->getPrecision() == element::u8) {
-        PlainTensor external, internal;
+        PlainTensor external;
+        PlainTensor internal;
         auto&& actual_internal_order = m_dense_internal_desc->getOrder();
         external.resize(external_mem.getStaticDims(),
                         state_desc->getPrecision().size(),
@@ -370,7 +386,7 @@ void VariableStateKVcache::set_state_impl(const ov::SoPtr<ov::ITensor>& state) {
     auto mem_desc = std::make_shared<CpuBlockedMemoryDesc>(ov::element::i32, Shape{size_B, size_L});
 
     m_hidden_state = std::make_shared<Memory>(get_engine(), mem_desc);
-    auto buff = m_hidden_state->getDataAs<int>();
+    auto* buff = m_hidden_state->getDataAs<int>();
     for (size_t i = 0; i < size_B; ++i) {
         for (size_t j = 0; j < size_L; ++j) {
             buff[i * size_L + j] = i;

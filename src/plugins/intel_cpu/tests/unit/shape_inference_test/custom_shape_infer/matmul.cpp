@@ -1,12 +1,15 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include "openvino/op/matmul.hpp"
+
 #include <gtest/gtest.h>
 
 #include "custom_shape_infer.hpp"
 #include "openvino/core/dimension.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/op/matmul.hpp"
+#include "openvino/op/parameter.hpp"
+
 namespace ov {
 namespace intel_cpu {
 namespace unit_test {
@@ -23,9 +26,7 @@ using matmul_test_params_t = std::tuple<StaticShape,  // Input A shape
 class CPUMatMulTest : public TestWithParam<matmul_test_params_t> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<matmul_test_params_t>& obj) {
-        StaticShape tmp_input_shape_A;
-        StaticShape tmp_input_shape_B;
-        std::tie(tmp_input_shape_A, tmp_input_shape_B) = obj.param;
+        const auto& [tmp_input_shape_A, tmp_input_shape_B] = obj.param;
         std::ostringstream result;
         result << "IA" << tmp_input_shape_A << "_";
         result << "IB" << tmp_input_shape_B;
@@ -139,7 +140,7 @@ INSTANTIATE_TEST_SUITE_P(CpuShapeInfer,
                                 make_tuple(StaticShape({3, 1, 4, 3, 4}), StaticShape({3, 2, 1, 4, 1}))),
                          CPUMatMulTest::getTestCaseName);
 
-} // namespace cpu_shape_infer
-} // namespace unit_test
-} // namespace intel_cpu
-} // namespace ov
+}  // namespace cpu_shape_infer
+}  // namespace unit_test
+}  // namespace intel_cpu
+}  // namespace ov

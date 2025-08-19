@@ -3,6 +3,7 @@
 //
 
 #include "snippets_helpers.hpp"
+#include "openvino/opsets/opset1.hpp"
 #include "snippets/op/subgraph.hpp"
 
 namespace ov {

@@ -14,10 +14,11 @@ namespace snippets {
 typedef std::tuple<
         std::vector<InputShape>,       // Input  Shapes
         std::vector<ov::element::Type>,// Input Element types
-        MatMulType,
+        MatMulType,                    // Type of MatMul: FC or MatMul
         size_t,                        // Expected num nodes
         size_t,                        // Expected num subgraphs
-        std::string                    // Target Device
+        std::string,                   // Target Device
+        ov::AnyMap                     // Config
 > MatMulParams;
 
 class MatMulBase : public SnippetsTestsCommon {
@@ -27,6 +28,7 @@ protected:
      */
     void filter_shape_info(const std::set<size_t>& idces_to_remove);
     virtual std::shared_ptr<MatMulFunctionBase> get_builder(const std::vector<ov::element::Type>& types) = 0;
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
 
     MatMulType matmul_type;
 };

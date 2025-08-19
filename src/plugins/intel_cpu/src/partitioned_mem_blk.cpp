@@ -4,6 +4,11 @@
 
 #include "partitioned_mem_blk.h"
 
+#include <cstddef>
+#include <cstdint>
+
+#include "cpu_memory.h"
+
 using namespace ov::intel_cpu;
 
 void* PartitionedMemoryBlock::getRawPtr() const noexcept {

@@ -8,13 +8,13 @@
 namespace ov::intel_cpu::sve_utils {
 
 template <typename T, typename... Args>
-constexpr bool one_of(T val, Args... args) {
+constexpr bool any_of(T val, Args... args) {
     return ((val == args) || ...);
 }
 
 template <size_t T_SIZE>
 svbool_t sve_predicate() {
-    static_assert(one_of(T_SIZE, 8, 16, 32, 64), "Unexpected parameter size");
+    static_assert(any_of(T_SIZE, 8, 16, 32, 64), "Unexpected parameter size");
     if constexpr (8 == T_SIZE) {
         return svptrue_b8();
     } else if (16 == T_SIZE) {
@@ -28,7 +28,7 @@ svbool_t sve_predicate() {
 
 template <typename T_TYPE, size_t T_SIZE>
 svbool_t sve_predicate(T_TYPE lower, T_TYPE higher) {
-    static_assert(one_of(T_SIZE, 8, 16, 32, 64), "Unexpected parameter size");
+    static_assert(any_of(T_SIZE, 8, 16, 32, 64), "Unexpected parameter size");
     if constexpr (8 == T_SIZE) {
         return svwhilelt_b8(lower, higher);
     } else if (16 == T_SIZE) {
@@ -42,7 +42,7 @@ svbool_t sve_predicate(T_TYPE lower, T_TYPE higher) {
 
 template <size_t T_SIZE>
 size_t sve_vlen() {
-    static_assert(one_of(T_SIZE, 8, 16, 32, 64), "Unexpected parameter size");
+    static_assert(any_of(T_SIZE, 8, 16, 32, 64), "Unexpected parameter size");
     if constexpr (8 == T_SIZE) {
         return svcntb();
     } else if (16 == T_SIZE) {
@@ -57,7 +57,7 @@ size_t sve_vlen() {
 template <typename TA, typename TB>
 static void cvt_copy(TA* dst, TB* src, size_t n) {
     size_t i = 0;
-    if constexpr (std::is_same<TA, TB>::value) {
+    if constexpr (std::is_same_v<TA, TB>) {
         auto pg_dst = sve_predicate<sizeof(TA)>();
         auto vlen = sve_vlen<sizeof(TA)>();
         for (; i + vlen <= n; i += vlen) {
@@ -68,7 +68,7 @@ static void cvt_copy(TA* dst, TB* src, size_t n) {
         auto vb = svld1(pg_dst, src + i);
         svst1(pg_dst, dst + i, vb);
         return;
-    } else if constexpr (std::is_same<TA, float>::value && std::is_same<TB, ov::float16>::value) {
+    } else if constexpr (std::is_same_v<TA, float> && std::is_same_v<TB, ov::float16>) {
         auto src_ptr = reinterpret_cast<float16_t*>(src);
         auto pg_vl2 = svwhilelt_b16(svcnth() / 2, svcnth());
         auto vlen = svcnth() / 2;

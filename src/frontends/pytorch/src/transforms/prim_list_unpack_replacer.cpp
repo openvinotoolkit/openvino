@@ -40,12 +40,11 @@ namespace pass {
 using namespace ov::op;
 
 PrimListUnpackReplacer::PrimListUnpackReplacer() {
-    auto list_unpack = ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>();
+    auto list_unpack =
+        ov::pass::pattern::wrap_type<ov::op::util::FrameworkNode>(fw_node_predicate({"prim::ListUnpack"}));
 
     ov::matcher_pass_callback callback = [](ov::pass::pattern::Matcher& m) {
-        auto list_unpack = cast_fw_node(m.get_match_root(), "prim::ListUnpack");
-        if (!list_unpack)
-            return false;
+        auto list_unpack = m.get_match_root();
 
         auto input_node = list_unpack->input_value(0).get_node_shared_ptr();
         ov::pass::NodeRegistry rg;
@@ -75,16 +74,6 @@ PrimListUnpackReplacer::PrimListUnpackReplacer() {
                                                    torch_split->get_input_source_output(2),
                                                    torch_split->get_input_source_output(1));
             }
-            copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
-            replace_node(list_unpack, split);
-
-            return true;
-        } else if (auto split_with_sizes = cast_fw_node(input_node, "aten::split_with_sizes")) {
-            auto split_lengths = concat_list_construct(split_with_sizes->get_input_source_output(1));
-            auto split = rg.make<v1::VariadicSplit>(split_with_sizes->get_input_source_output(0),
-                                                    split_with_sizes->get_input_source_output(2),
-                                                    split_lengths);
-
             copy_runtime_info_and_name(list_unpack, rg.get(), {input_node});
             replace_node(list_unpack, split);
 

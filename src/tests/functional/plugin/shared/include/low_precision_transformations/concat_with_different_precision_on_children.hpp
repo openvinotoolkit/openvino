@@ -18,13 +18,11 @@ public:
     ov::builder::subgraph::FakeQuantizeOnData fqOnData2;
 };
 
-typedef std::tuple<
-    ov::element::Type,
-    ov::PartialShape,
-    std::string, // target device: CPU, GPU
-    ConcatWithDifferentChildrenTransformationParam,
-    ov::pass::low_precision::LayerTransformation::Params // transformation parameters
-    > ConcatWithDifferentChildrenTransformationParams;
+typedef std::tuple<ov::element::Type,
+                   ov::PartialShape,
+                   std::string,  // target device: CPU, GPU
+                   ConcatWithDifferentChildrenTransformationParam>
+    ConcatWithDifferentChildrenTransformationParams;
 
 class ConcatWithDifferentChildrenTransformation :
     public testing::WithParamInterface<ConcatWithDifferentChildrenTransformationParams>,

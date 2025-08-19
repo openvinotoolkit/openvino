@@ -3,13 +3,19 @@
 
 #include "convert_reduce_no_keep_dims.hpp"
 
+#include <memory>
+
 #include "openvino/core/graph_util.hpp"
+#include "openvino/core/node.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/util/arithmetic_reductions_keep_dims.hpp"
 #include "openvino/op/util/logical_reduction_keep_dims.hpp"
-#include "openvino/opsets/opset8_decl.hpp"
+#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/matcher.hpp"
+#include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 template <class T>
 ov::matcher_pass_callback ov::intel_cpu::ConvertReduceNoKeepDimsBase::convert_reduce() {
@@ -34,7 +40,7 @@ template <typename ReductionType>
 ov::intel_cpu::ConvertReduction<ReductionType>::ConvertReduction() {
     auto m = std::make_shared<ov::pass::pattern::Matcher>(
         ov::pass::pattern::wrap_type<ReductionType>(
-            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::opset8::Constant>()}),
+            {ov::pass::pattern::any_input(), ov::pass::pattern::wrap_type<ov::op::v0::Constant>()}),
         "ConvertReduction");
     register_matcher(m, convert_reduce<ReductionType>());
 }

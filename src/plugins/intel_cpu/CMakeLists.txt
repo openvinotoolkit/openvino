@@ -280,12 +280,18 @@ endif()
 if(ENABLE_KLEIDIAI_FOR_CPU)
     target_link_libraries(${TARGET_NAME} PRIVATE kleidiai)
 endif()
+
 if(RISCV64)
     # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
     target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
     target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
     target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
+
+# TODO: XBYAK64 should be used only for x64. Have to enable it for all the architectures for now
+# since many files include x64 related headers unconditionally.
+add_definitions(-DXBYAK64)
+
 target_include_directories(${TARGET_NAME} SYSTEM PRIVATE $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
 # Temporal solution to use template reference implementations in cases where optimizied implementation
@@ -355,12 +361,25 @@ ov_add_api_validator_post_build_step(TARGET ${TARGET_NAME})
 # LTO
 set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
 
+set(PCH_EXCLUDE_FILES
+    src/emitters/plugin/x64/debug_capabilities.cpp
+    src/nodes/executors/printers.cpp
+    src/emitters/snippets/x64/jit_debug_emitter.cpp
+    src/emitters/snippets/x64/jit_debug_emitter.cpp
+    src/emitters/snippets/x64/jit_perf_count_rdtsc_emitters.cpp
+    src/emitters/snippets/x64/jit_segfault_detector_emitter.cpp
+    src/emitters/snippets/x64/verbose.cpp
+    src/transformations/snippets/x64/op/perf_count_rdtsc.cpp)
+
+ov_build_target_faster(${TARGET_NAME} PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
+
 #
 # add test object library
 #
 
 if(BUILD_SHARED_LIBS)
     add_library(${TARGET_NAME}_obj OBJECT ${SOURCES} ${HEADERS})
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:dnnl,INCLUDE_DIRECTORIES>)
 
     set(CPU_OBJ_LINK_SYSTEM LIBRARIES dnnl openvino::pugixml)
     if(RISCV64)
@@ -373,7 +392,6 @@ if(BUILD_SHARED_LIBS)
 
     target_include_directories(${TARGET_NAME}_obj
         PRIVATE
-            $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::itt,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::shape_inference,INTERFACE_INCLUDE_DIRECTORIES>
             $<TARGET_PROPERTY:openvino::snippets,INTERFACE_INCLUDE_DIRECTORIES>
@@ -387,6 +405,7 @@ if(BUILD_SHARED_LIBS)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xsmm,INCLUDE_DIRECTORIES>)
     endif()
 
+    target_include_directories(${TARGET_NAME}_obj SYSTEM PRIVATE $<TARGET_PROPERTY:openvino::runtime::dev,INTERFACE_INCLUDE_DIRECTORIES>)
     if(ENABLE_MLAS_FOR_CPU)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:mlas,INCLUDE_DIRECTORIES>)
     endif()
@@ -410,6 +429,8 @@ if(BUILD_SHARED_LIBS)
 
     # LTO
     set_target_properties(${TARGET_NAME}_obj PROPERTIES INTERPROCEDURAL_OPTIMIZATION_RELEASE ${ENABLE_LTO})
+
+    ov_build_target_faster(${TARGET_NAME}_obj PCH PCH_EXCLUDE ${PCH_EXCLUDE_FILES})
 endif()
 
 if(ENABLE_TESTS)

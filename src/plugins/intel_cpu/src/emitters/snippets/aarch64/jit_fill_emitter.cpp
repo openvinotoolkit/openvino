@@ -4,8 +4,20 @@
 
 #include "jit_fill_emitter.hpp"
 
-#include "cpu/aarch64/xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h"
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+
+#include <cpu/aarch64/cpu_isa_traits.hpp>
+#include <cpu/aarch64/jit_generator.hpp>
+#include <cstddef>
+#include <vector>
+
+#include "emitters/plugin/aarch64/jit_emitter.hpp"
 #include "emitters/utils.hpp"
+#include "openvino/core/type.hpp"
+#include "openvino/core/type/element_type.hpp"
+#include "snippets/lowered/expression.hpp"
+#include "snippets/op/fill.hpp"
 
 using namespace Xbyak_aarch64;
 
@@ -50,7 +62,18 @@ void jit_fill_emitter::emit_impl(const std::vector<size_t>& in, const std::vecto
 
 template <cpu_isa_t isa>
 void jit_fill_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
-    if (is_full_reg()) {
+    const size_t supported_et_size = dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::vlen / exec_prc_.size();
+    if (offset == supported_et_size) {
+        // WA: since AssignRegisters doesn't support inplace logic, Fill ops with offset = register_capacity can't be
+        // removed from the LIR
+        // TODO: when inplace is supported, remove such Fill ops from the LIR and remove this logic.
+        // Ticket: 126270
+        auto src = in[0];
+        auto dst = out[0];
+        if (src != dst) {
+            h->mov(Xbyak_aarch64::VReg16B(dst), Xbyak_aarch64::VReg16B(src));
+        }
+    } else if (is_full_reg()) {
         fill_full<isa>(out);
     } else {
         fill_tail<isa>(in, out);
@@ -73,20 +96,25 @@ void jit_fill_emitter::fill_full(const std::vector<size_t>& out) const {
 }
 
 template <cpu_isa_t isa>
-void jit_fill_emitter::fill_tail([[maybe_unused]] const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+void jit_fill_emitter::fill_tail(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    static_assert(isa == dnnl::impl::cpu::aarch64::asimd, "Fill emitter tail supports only asimd");
+
+    if (in[0] != out[0]) {
+        h->mov(Xbyak_aarch64::VReg16B(out[0]), Xbyak_aarch64::VReg16B(in[0]));
+    }
+
     using TReg = typename dnnl::impl::cpu::aarch64::cpu_isa_traits<isa>::TReg;
     auto dst = TReg(out[0]);
-
     switch (offset) {
     case 1:
-        h->ld1(dst.s[1], table_val2("value", sizeof(float)));
-        h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
+        h->ld1(dst.s[1], table_val2("value", 0));
+        h->ld1(dst.d[1], table_val2("value", 0));
         break;
     case 2:
-        h->ld1(dst.d[1], table_val2("value", 2 * sizeof(float)));
+        h->ld1(dst.d[1], table_val2("value", 0));
         break;
     case 3:
-        h->ld1(dst.s[3], table_val2("value", 3 * sizeof(float)));
+        h->ld1(dst.s[3], table_val2("value", 0));
         break;
     case 4:
         break;

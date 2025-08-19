@@ -142,6 +142,10 @@ extern template bool evaluate_node<ov::op::v14::AvgPool>(std::shared_ptr<ov::Nod
                                                          ov::TensorVector& outputs,
                                                          const ov::TensorVector& inputs);
 
+extern template bool evaluate_node<ov::op::v16::AvgPool>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
+
 extern template bool evaluate_node<ov::op::v1::BinaryConvolution>(std::shared_ptr<ov::Node> node,
                                                                   ov::TensorVector& outputs,
                                                                   const ov::TensorVector& inputs);
@@ -567,3 +571,11 @@ extern template bool evaluate_node<ov::op::v16::SegmentMax>(std::shared_ptr<ov::
 extern template bool evaluate_node<ov::op::v16::SparseFillEmptyRows>(std::shared_ptr<ov::Node> node,
                                                                      ov::TensorVector& outputs,
                                                                      const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v13::ScaledDotProductAttention>(std::shared_ptr<ov::Node> node,
+                                                                           ov::TensorVector& outputs,
+                                                                           const ov::TensorVector& inputs);
+
+extern template bool evaluate_node<ov::op::v1::Subtract>(std::shared_ptr<ov::Node> node,
+                                                         ov::TensorVector& outputs,
+                                                         const ov::TensorVector& inputs);
