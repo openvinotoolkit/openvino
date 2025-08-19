@@ -145,11 +145,11 @@ private:
         const auto blob_file_name = getBlobFile(id);
         if (std::filesystem::exists(blob_file_name)) {
             if (enable_mmap) {
-                CompiledBlobVariant compiled_blob{ov::read_tensor_data(blob_file_name)};
+                CompiledBlobVariant compiled_blob{std::in_place_index<0>, ov::read_tensor_data(blob_file_name)};
                 reader(compiled_blob);
             } else {
                 std::ifstream stream(blob_file_name, std::ios_base::binary);
-                CompiledBlobVariant compiled_blob{std::ref(stream)};
+                CompiledBlobVariant compiled_blob{std::in_place_index<1>, std::ref(stream)};
                 reader(compiled_blob);
             }
         }
