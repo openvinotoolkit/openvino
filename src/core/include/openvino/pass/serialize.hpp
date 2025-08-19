@@ -43,7 +43,6 @@ private:
     std::ostream* m_binFile;
     const std::filesystem::path m_xmlPath;
     const std::filesystem::path m_binPath;
-    bool m_weightsToXml = false;
     const Version m_version;
     const std::map<std::string, ov::OpSet> m_custom_opsets;
 };
