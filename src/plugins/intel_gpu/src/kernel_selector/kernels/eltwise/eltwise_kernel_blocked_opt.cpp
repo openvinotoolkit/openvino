@@ -304,6 +304,11 @@ JitConstants EltwiseKernel_blocked_opt::GetJitConstants(const eltwise_params& pa
     // To calculate batch, define outer block size of feature axis (divided by the inner feature-block size)
     jit.AddConstant(MakeJitConstant("OUT_F_BLOCK", CeilDiv(params.outputs[0].Feature().v, inner_feature_blk_size)));
     jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", inner_feature_blk_size));
+    if (params.operations[0].mode == EltwiseMode::ASSIGN && inner_feature_blk_size > 1) {
+        jit.AddConstant(MakeJitConstant("NEED_ZERO_PADDING", true));
+    } else {
+        jit.AddConstant(MakeJitConstant("NEED_ZERO_PADDING", false));
+    }
 
     bool use_vload = false;
     jit.Merge(MakeInputDeclsJitConstants(params, use_vload));

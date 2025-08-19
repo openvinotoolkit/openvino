@@ -65,8 +65,8 @@ KERNEL(eltwise_blocked_opt)(INPUTS_DECLS
         return;
     }
 
-    // Fill padded memory with zeros for b_fs_yx_fsv format
-    if ((f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM && FEATURE_BLOCK_SIZE > 1) {
+    // zero-padding the blocked format padded memory area since it might be used as input of onednn concatenation
+    if (NEED_ZERO_PADDING && (f_block*VEC_SIZE) >= OUTPUT_FEATURE_NUM) {
         OUTPUT_TYPE_BLOCK out = (MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE))(0);
         VSTORE_N(out, global_id, output);
         return;
