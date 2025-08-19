@@ -180,7 +180,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |Size                                                    |1                       |21, 19, 13, 1                   |                                |
 |                        |Slice                                                   |10, 1                   |13, 11, 10, 1                   |                                |
 |                        |Softmax                                                 |13, 11, 1               |13, 11, 1                       |                                |
-|                        |SoftmaxCrossEntropyLoss                                 |                        |13, 12                          |                                |
+|                        |SoftmaxCrossEntropyLoss                                 |13, 12                  |13, 12                          |                                |
 |                        |Softplus                                                |1                       |22, 1                           |                                |
 |                        |Softsign                                                |1                       |22, 1                           |                                |
 |                        |SpaceToDepth                                            |1                       |13, 1                           |                                |

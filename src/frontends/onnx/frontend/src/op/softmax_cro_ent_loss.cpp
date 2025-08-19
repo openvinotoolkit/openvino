@@ -36,8 +36,10 @@ ov::OutputVector onnx_softmax_crossentropy_loss(const ov::frontend::onnx::Node& 
     if (use_ignore_index)
         ignore_index_value = node.get_attribute_value<int64_t>("ignore_index");
 
-    auto outputs = ai_onnx::opset_1::negative_log_likelihood_loss_impl(
-        nlll_inputs, reduction, use_ignore_index, ignore_index_value);
+    auto outputs = ai_onnx::opset_1::negative_log_likelihood_loss_impl(nlll_inputs,
+                                                                       reduction,
+                                                                       use_ignore_index,
+                                                                       ignore_index_value);
 
     if (node.get_outputs_size() == 2)
         outputs.push_back(log_probs);
@@ -47,18 +49,22 @@ ov::OutputVector onnx_softmax_crossentropy_loss(const ov::frontend::onnx::Node& 
 
 namespace ai_onnx {
 namespace opset_12 {
+
 ov::OutputVector softmax_cross_entropy_loss(const ov::frontend::onnx::Node& node) {
     return onnx_softmax_crossentropy_loss(node, 1);
-}
-ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_RANGE(1, 12), ai_onnx::opset_12::softmax_cross_entropy_loss);
 }
 
+ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_RANGE(1, 12), ai_onnx::opset_12::softmax_cross_entropy_loss);
+}  // namespace opset_12
+
 namespace opset_13 {
+
 ov::OutputVector softmax_cross_entropy_loss(const ov::frontend::onnx::Node& node) {
     return onnx_softmax_crossentropy_loss(node, 1);
 }
+
 ONNX_OP("SoftmaxCrossEntropyLoss", OPSET_SINCE(13), ai_onnx::opset_13::softmax_cross_entropy_loss);
-}
+}  // namespace opset_13
 }  // namespace ai_onnx
 }  // namespace onnx
 }  // namespace frontend
