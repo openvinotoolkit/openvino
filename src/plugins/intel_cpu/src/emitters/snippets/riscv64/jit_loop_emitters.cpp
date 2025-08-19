@@ -270,10 +270,8 @@ void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                 h->uni_li(tmp, id_offset + field_offset);
                 h->add(reg_increments, reg_increments, tmp);
                 h->ld(reg_increments, reg_increments, 0);
-                add_increments();
-            } else {
-                add_increments();
             }
+            add_increments();
         };
 
     if (!evaluate_once) {
