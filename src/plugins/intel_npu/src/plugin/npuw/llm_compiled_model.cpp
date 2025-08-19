@@ -69,6 +69,7 @@ public:
     }
 };
 
+<<<<<<< HEAD
 class TransposeValueTensors : public ov::pass::MatcherPass {
 public:
     struct Context {
@@ -342,6 +343,8 @@ public:
     }
 };
 
+=======
+>>>>>>> fixed unit-test build under ENABLE_SANITIZER=ON
 class GroupQueryAttentionDecomposition : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::GroupQueryAttentionDecomposition");
@@ -632,6 +635,7 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
 }
 }  // namespace
 
+<<<<<<< HEAD
 namespace ov::npuw::util {
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     ov::pass::GraphRewrite rewr;
@@ -647,6 +651,8 @@ bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {
     return ctx.bTransposed;
 }
 }  // namespace ov::npuw::util
+=======
+>>>>>>> fixed unit-test build under ENABLE_SANITIZER=ON
 
 namespace {
 struct KVAxesPosition {
