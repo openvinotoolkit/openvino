@@ -1277,8 +1277,13 @@ void Transformations::MainSnippets() {
 
 #if !defined(SNIPPETS_LIBXSMM_TPP) && defined(OPENVINO_ARCH_X86_64)
     const bool isMlpSeqSupported = is_infer_prc_supported_by_brgemm;
+#elif defined(OPENVINO_ARCH_ARM64)
+    // Note: Currently, MLPSeqSnippets is enabled only in tests
+    // TODO: Enable TokenizeMLPSeqSnippets on ARM for all scenarios
+    const bool isMlpSeqSupported =
+        any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic) && ignoreCallback;
 #else
-    const bool isMlpSeqSupported = any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic);
+    const bool isMlpSeqSupported = false;
 #endif
 
     if (!isMlpSeqSupported) {
@@ -1484,13 +1489,6 @@ void Transformations::MainSnippets() {
                 if (output_shape.rank().get_length() != 2)
                     return true;
                 return output_shape[1].is_dynamic() || output_shape[1].get_length() > 256;
-            },
-            snippets::pass::TokenizeMLPSeqSnippets);
-        CPU_SET_CALLBACK_ARM(
-            snippetsManager,
-            [&]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
-                // TODO: Enable TokenizeMLPSeqSnippets on ARM
-                return true;
             },
             snippets::pass::TokenizeMLPSeqSnippets);
         CPU_SET_CALLBACK_X64(
