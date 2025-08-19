@@ -115,7 +115,7 @@
 namespace ov::intel_cpu::node {
 namespace {
 
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 struct SubgraphKey {
     SubgraphKey() = default;
     SubgraphKey(std::shared_ptr<SubgraphAttrs> attrs_, std::vector<VectorDims> in_shapes_)
@@ -785,7 +785,7 @@ void Subgraph::optimizeIR() {
 }
 
 void Subgraph::prepareParams() {
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto& cache = context->getSnippetsParamsCache();
 
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {

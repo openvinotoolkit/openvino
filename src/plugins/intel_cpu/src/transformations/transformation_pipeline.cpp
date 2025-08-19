@@ -1169,6 +1169,8 @@ void Transformations::MainSnippets() {
         return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx2);
 #elif defined(OPENVINO_ARCH_ARM64)
         return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+#elif defined(OPENVINO_ARCH_RISCV64)
+        return true; // RISC-V with Vector Extension supports snippets
 #endif
         return false;
     };
@@ -1219,6 +1221,11 @@ void Transformations::MainSnippets() {
         }
         return pass::FuseBrgemmCPUPostops::brgemm_can_fuse_postop(input_precision);
     };
+#elif defined(OPENVINO_ARCH_RISCV64)
+    // RISC-V has 32 gprs. Similar to ARM, conservatively use 23 available registers.
+    size_t data_ptr_gpr_count = 23;
+    // RISC-V doesn't support advanced MatMul post-op fusion yet
+    snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
 #else
     size_t data_ptr_gpr_count = 0;
     snippets::pass::SnippetsTokenization::Config::CanBeFusedAsPostOpPred supported_as_postop = nullptr;
