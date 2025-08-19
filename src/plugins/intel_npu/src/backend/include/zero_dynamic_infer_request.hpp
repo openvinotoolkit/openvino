@@ -5,15 +5,15 @@
 
 #pragma once
 
-#include <ze_api.h>
-#include <ze_graph_ext.h>
+#    include <ze_api.h>
+#    include <ze_graph_ext.h>
 
-#include "intel_npu/common/npu.hpp"
-#include "intel_npu/common/sync_infer_request.hpp"
-#include "intel_npu/utils/logger/logger.hpp"
-#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
-#include "intel_npu/utils/zero/zero_wrappers.hpp"
+#    include "intel_npu/common/npu.hpp"
+#    include "intel_npu/common/sync_infer_request.hpp"
+#    include "intel_npu/utils/logger/logger.hpp"
+#    include "intel_npu/utils/zero/zero_remote_tensor.hpp"
+#    include "intel_npu/utils/zero/zero_utils.hpp"
+#    include "intel_npu/utils/zero/zero_wrappers.hpp"
 #    include "zero_dynamic_pipeline.hpp"
 #    include "zero_tensor.hpp"
 
@@ -22,8 +22,8 @@ namespace intel_npu {
 class ZeroDynamicInferRequest final : public SyncInferRequest {
 public:
     explicit ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
-                                      const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                      const Config& config);
+                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                    const Config& config);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
