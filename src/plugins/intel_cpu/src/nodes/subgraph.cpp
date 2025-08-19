@@ -72,6 +72,10 @@
 #endif
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#    include "snippets/lowered/pass/mark_loops.hpp"
+#    include "snippets/pass/propagate_precision.hpp"
+#endif
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cache/cache_entry.h"
