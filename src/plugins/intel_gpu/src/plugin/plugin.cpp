@@ -89,8 +89,8 @@ std::string Plugin::get_device_id(const ov::AnyMap& config) const {
 
 bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::Model>& model) const {
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
-    
-    for (const auto& node : model->get_ordered_ops()) {        
+
+    for (const auto& node : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node)) {
             auto& rtInfo = node->get_rt_info();
             const auto& it = rtInfo.find(type_info);
@@ -106,10 +106,10 @@ bool Plugin::is_weightless_cache_attributes_set(const std::shared_ptr<const ov::
 void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model) const {
     uint32_t offset = 0;
     const auto& type_info = ov::WeightlessCacheAttribute::get_type_info_static();
-    
+
     for (const auto& node : model->get_ordered_ops()) {
         if (ov::op::util::is_constant(node)) {
-            auto& rtInfo = node->get_rt_info();    
+            auto& rtInfo = node->get_rt_info();
 
             // Offset behaves as a unique key for each constant. Size = 1 is used as dummy.
             rtInfo[type_info] = ov::WeightlessCacheAttribute(1, offset++, node->get_element_type());
@@ -119,11 +119,11 @@ void Plugin::set_weightless_cache_attributes(const std::shared_ptr<const ov::Mod
 
 void Plugin::create_weightless_cache_attributes(const std::shared_ptr<const ov::Model>& model, ExecutionConfig& config) const {
     uint32_t offset = 0;
-    
+
     std::shared_ptr<GpuWeightlessCacheMap>cache_attr_map = std::make_shared<GpuWeightlessCacheMap>();
 
     for (const auto& node : model->get_ordered_ops()) {
-        if (ov::op::util::is_constant(node)) {            
+        if (ov::op::util::is_constant(node)) {
             // Offset behaves as a unique key for each constant. Size = 1 is used as dummy.
             cache_attr_map->emplace(node->get_instance_id(), ov::WeightlessCacheAttribute(1, offset++, node->get_element_type()));
         }
@@ -421,10 +421,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model,
         if (!ov::util::validate_weights_path(weights_path)) {
             // This is non IR case, e.g. onnxruntime.
             // This may not be required. Constant nodes should have the information already.
-            // This is a temporary solution. A more robust solution will be implemented in future. 
-            
-            // If some app modifies ov::Model before compile_model(), and 
-            // the constants are changed, and such modification is not done before import_model(), 
+            // This is a temporary solution. A more robust solution will be implemented in future.
+
+            // If some app modifies ov::Model before compile_model(), and
+            // the constants are changed, and such modification is not done before import_model(),
             // weightless caching will not produce correct result.
             if (auto& orig_model = config.get_model(); orig_model != nullptr) {
                 if (!is_weightless_cache_attributes_set(orig_model)) {
@@ -575,6 +575,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
 
     if (name == ov::intel_gpu::device_total_mem_size) {
         return decltype(ov::intel_gpu::device_total_mem_size)::value_type {device_info.max_global_mem_size};
+    } else if (name == ov::intel_gpu::device_max_alloc_mem_size) {
+        return decltype(ov::intel_gpu::device_max_alloc_mem_size)::value_type {device_info.max_alloc_mem_size};
     } else if (name == ov::device::type) {
         auto dev_type = device_info.dev_type == cldnn::device_type::discrete_gpu ? ov::device::Type::DISCRETE : ov::device::Type::INTEGRATED;
         return decltype(ov::device::type)::value_type {dev_type};
@@ -697,6 +699,7 @@ std::vector<ov::PropertyName> Plugin::get_supported_properties() const {
         ov::PropertyName{ov::device::pci_info.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_id.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::device_total_mem_size.name(), PropertyMutability::RO},
+        ov::PropertyName{ov::intel_gpu::device_max_alloc_mem_size.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::uarch_version.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::execution_units_count.name(), PropertyMutability::RO},
         ov::PropertyName{ov::intel_gpu::memory_statistics.name(), PropertyMutability::RO},
