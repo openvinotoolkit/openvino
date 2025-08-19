@@ -31,8 +31,6 @@ namespace gpu::xetla::group {
 /// @tparam mem_desc_stat_t Is the data type of sumx and sumxsq buffers. Used for calculating results with atomics.
 /// @tparam arch_tag Is the HW architecture.
 
-template<typename val1> struct print;
-
 template <uint32_t groupnorm_group_size_, typename tile_shape, typename matAcc_t, 
         typename mem_desc_data_t, typename mem_desc_stat_t, gpu_arch arch_tag, class enable = void>
 struct groupnorm_reduce_t {};
