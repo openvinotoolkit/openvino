@@ -800,6 +800,7 @@ bool is_supported_pad(const layout& layout) {
     // Check feature padding
     bool no_feature_padding = true;
     no_feature_padding &= (pad._lower_size[1] == 0);
+    no_feature_padding &= (pad._upper_size[1] == 0);
 
     // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
     bool no_batch_padding = true;
