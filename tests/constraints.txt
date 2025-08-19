@@ -10,11 +10,11 @@ scipy>=1.11.1; python_version >= "3.9"
 sympy>=1.10
 wheel>=0.38.1
 defusedxml>=0.7.1
-tensorflow>=2.5,<2.20.0
+tensorflow>=2.5,<2.21.0
 requests>=2.25.1
 opencv-python>=4.5
 paddlepaddle==2.6.2
-protobuf>=3.18.1,<7.0.0
+protobuf>=3.18.1,<7.0.0,!=6.31.1
 py>=1.9.0
 pytest>=5.0,<8.5
 pytest-dependency==0.6.0
