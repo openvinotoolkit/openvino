@@ -502,8 +502,8 @@ std::vector<std::string> disabledTestPatterns() {
     // Issue: 170863
     retVector.emplace_back(R"(smoke_Model_Distribution_MatMul_NoTranspose.*)");
 #endif
-#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64)
-    // smoke_Snippets test cases are on platforms except x64 and aarch64/arm64
+#if !defined(OPENVINO_ARCH_ARM64) && !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_RISCV64)
+    // smoke_Snippets test cases are on platforms except x64, ARM64 and RISCV64
     retVector.emplace_back(R"(smoke_Snippets.*)");
 #endif
 #if defined(OPENVINO_ARCH_ARM64)
@@ -513,8 +513,8 @@ std::vector<std::string> disabledTestPatterns() {
     retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
 #endif
 #if defined(OPENVINO_ARCH_RISCV64)
-    // Skip all snippets tests except Add operations - using negative lookahead
-    retVector.emplace_back(R"(smoke_Snippets_(?!.*Eltwise.*Add).*)");
+    retVector.emplace_back(R"(smoke_Snippets.*\[.*\?.*\].*)");
+    retVector.emplace_back(R"(smoke_Snippets(?!_Eltwise/Add\.).*)");
 #endif
 #if defined(_WIN32)
     retVector.emplace_back(R"(.*smoke_QuantizedConvolutionBatchNormTransposeOnWeights/QuantizedConvolutionBatchNorm.CompareWithRefs/conv_type=convolution_quantize_type=fake_quantize_intervals_type=per_(tensor|channel)_transpose_on_weights=true_device=CPU.*)");
