@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "intel_npu/common/igraph.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -43,7 +44,7 @@ public:
      */
     virtual std::optional<std::vector<uint64_t>> get_init_sizes() const = 0;
 
-    virtual int32_t get_blob_type() const;
+    virtual BlobType get_blob_type() const;
 
     virtual ~MetadataBase() = default;
 
@@ -258,7 +259,7 @@ public:
     Metadata(uint64_t blobSize,
              std::optional<OpenvinoVersion> ovVersion = std::nullopt,
              const std::optional<std::vector<uint64_t>> initSizes = std::nullopt,
-             int32_t blobType = 0);
+             BlobType blobType = BlobType::ELF);
 
     /**
      * @details The number of init schedules, along with the size of each init binary object are read in addition to the
@@ -276,14 +277,12 @@ public:
 
     size_t get_metadata_size() const override;
 
-    int32_t get_blob_type() const override {
+    BlobType get_blob_type() const override {
         return _blobType;
     }
 
 protected:
-    // 0 - ELF blob
-    // 1 - LLVM IR blob
-    int32_t _blobType;
+    BlobType _blobType;
 };
 
 /**

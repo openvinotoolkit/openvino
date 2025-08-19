@@ -8,6 +8,9 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "zero_infer_request.hpp"
+#ifdef NPU_LLVM_BACKEND
+#    include "zero_dynamic_infer_request.hpp"
+#endif
 
 using namespace intel_npu;
 
