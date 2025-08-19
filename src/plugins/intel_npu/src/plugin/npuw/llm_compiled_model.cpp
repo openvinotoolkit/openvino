@@ -448,7 +448,9 @@ std::shared_ptr<ov::Model> cut_lm_head(std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     rewr.add_matcher<CutLMHead>(lm_head_model);
     rewr.run_on_model(model);
-    lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
+    if (lm_head_model) {
+        lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
+    }
     model->validate_nodes_and_infer_types();
 
     return lm_head_model;
