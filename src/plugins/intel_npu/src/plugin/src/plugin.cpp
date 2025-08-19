@@ -590,8 +590,10 @@ bool validateModelBatch(const std::shared_ptr<const ov::Model>& model, Logger lo
     }
 
     auto node_info_printer = [&logger](const auto& ov_node, std::string_view nodeType) {
-        logger.info("%s: %s has shape value: %s", nodeType, ov_node.get_any_name(),
-                     ov_node.get_partial_shape().to_string());
+        logger.info("%s: %s has shape value: %s",
+                    nodeType,
+                    ov_node.get_any_name(),
+                    ov_node.get_partial_shape().to_string());
     };
 
     for (const auto& ov_node : batchedInputs) {
@@ -648,11 +650,15 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto device = _backend == nullptr ? nullptr : _backend->getDevice(localConfig.get<DEVICE_ID>());
     localConfig.update({{ov::intel_npu::platform.name(), platform}});
 
+    auto updateBatchMode = [&localConfig](ov::intel_npu::BatchMode mode) {
+        std::stringstream strStream;
+        strStream << mode;
+        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+    };
+
     if (localConfig.isAvailable(ov::intel_npu::batch_mode.name()) &&
         !localConfig.has(ov::intel_npu::batch_mode.name())) {
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::AUTO;
-        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+        updateBatchMode(ov::intel_npu::BatchMode::AUTO);
     }
 
     bool modelDeBached = false;
@@ -670,6 +676,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             } catch (const std::exception& ex) {
                 _logger.info("Couldn't reshape the model. Batching will be handed by compiler.", ex.what());
             }
+            // Setting batching mode to COMPILER to avoid the same actions in compiler
+            updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         } else {
             _logger.info("Unable to manage batching on the plugin side, so the compiler will take care of it.");
         }
@@ -680,9 +688,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             OPENVINO_THROW("This model contains states, thus it is not supported when handling batching on the plugin");
         }
 
-        std::stringstream strStream;
-        strStream << ov::intel_npu::BatchMode::COMPILER;
-        localConfig.update({{ov::intel_npu::batch_mode.name(), strStream.str()}});
+        updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
     }
 
     // Update stepping w/ information from driver, unless provided by user or we are off-device
