@@ -4,13 +4,27 @@
 
 #include "jit_loop_emitters.hpp"
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <iterator>
+#include <memory>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
+#include <string>
+#include <vector>
 
+#include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/utils.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/loop_manager.hpp"
 #include "snippets/op/loop.hpp"
 #include "snippets/utils/utils.hpp"
 #include "utils.hpp"
+#include "xbyak_riscv/xbyak_riscv.hpp"
 
 using namespace Xbyak_riscv;
 
@@ -47,7 +61,7 @@ public:
             m_pool_gpr_idxs.push_back(static_cast<size_t>(m_reg.getIdx()));
         }
     }
-    const Xbyak_riscv::Reg& get_reg() const {
+    [[nodiscard]] const Xbyak_riscv::Reg& get_reg() const {
         return m_reg;
     }
 

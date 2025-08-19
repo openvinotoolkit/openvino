@@ -44,7 +44,7 @@ private:
     ov::intel_cpu::riscv64::cpu_isa_t isa;
     ov::intel_cpu::riscv64::jit_generator_t* h;
     bool evaluate_once = false;
-    size_t work_amount = 0lu;
+    size_t work_amount = 0LU;
     size_t wa_increment = 0;
     size_t loop_id = 0;
     bool is_work_amount_dynamic = false;
