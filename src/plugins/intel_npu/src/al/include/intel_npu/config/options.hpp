@@ -1226,6 +1226,28 @@ struct QDQ_OPTIMIZATION final : OptionBase<QDQ_OPTIMIZATION, bool> {
     }
 };
 
+struct QDQ_OPTIMIZATION_AGGRESSIVE final : OptionBase<QDQ_OPTIMIZATION_AGGRESSIVE, bool> {
+    static std::string_view key() {
+        return ov::intel_npu::qdq_optimization_aggressive.name();
+    }
+
+    static bool defaultValue() {
+        return false;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+
+    static bool isPublic() {
+        return true;
+    }
+
+    static uint32_t compilerSupportVersion() {
+        return ONEAPI_MAKE_VERSION(7, 21);
+    }
+};
+
 struct DISABLE_VERSION_CHECK final : OptionBase<DISABLE_VERSION_CHECK, bool> {
     static std::string_view key() {
         return ov::intel_npu::disable_version_check.name();

@@ -195,6 +195,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (device.luid, "DEVICE_LUID"),
         (device.capabilities, "OPTIMIZATION_CAPABILITIES"),
         (intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
+        (intel_gpu.device_max_alloc_mem_size, "GPU_DEVICE_MAX_ALLOC_MEM_SIZE"),
         (intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
         (intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
         (intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
@@ -295,6 +296,16 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             hints.enable_cpu_pinning,
             "ENABLE_CPU_PINNING",
+            (
+                (True, True),
+                (False, False),
+                (1, True),
+                (0, False),
+            ),
+        ),
+        (
+            hints.enable_cpu_reservation,
+            "ENABLE_CPU_RESERVATION",
             (
                 (True, True),
                 (False, False),
@@ -480,6 +491,11 @@ def test_properties_ro(ov_property_ro, expected_value):
         (
             intel_npu.run_inferences_sequentially,
             "NPU_RUN_INFERENCES_SEQUENTIALLY",
+            ((True, True),),
+        ),
+        (
+            intel_npu.qdq_optimization_aggressive,
+            "NPU_QDQ_OPTIMIZATION_AGGRESSIVE",
             ((True, True),),
         ),
     ],
