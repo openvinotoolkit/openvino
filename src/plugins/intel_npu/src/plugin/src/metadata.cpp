@@ -74,7 +74,7 @@ Metadata<METADATA_VERSION_2_1>::Metadata(uint64_t blobSize,
 Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
                                          std::optional<OpenvinoVersion> ovVersion,
                                          const std::optional<std::vector<uint64_t>> initSizes,
-                                         int32_t blobType)
+                                         BlobType blobType)
     : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion},
       _blobType(blobType) {
     _version = METADATA_VERSION_2_2;
@@ -136,7 +136,7 @@ void Metadata<METADATA_VERSION_2_2>::read(const ov::Tensor& tensor) {
                 sizeof(decltype(std::declval<OpenvinoVersion>().get_minor())) +
                 sizeof(decltype(std::declval<OpenvinoVersion>().get_patch())) + sizeof(uint64_t) +  // numberOfInits
                 sizeof(uint64_t) * (_initSizes.has_value() ? _initSizes.value().size() : 0);
-    _blobType = *(reinterpret_cast<int32_t*>(pos));
+    _blobType = *(reinterpret_cast<BlobType*>(pos));
 }
 
 void MetadataBase::append_padding_blob_size_and_magic(std::ostream& stream) {
@@ -368,9 +368,8 @@ size_t Metadata<METADATA_VERSION_2_2>::get_metadata_size() const {
     return Metadata<METADATA_VERSION_2_1>::get_metadata_size() + sizeof(_blobType);
 }
 
-int32_t MetadataBase::get_blob_type() const {
-    // Normal ELF blob
-    return 0;
+BlobType MetadataBase::get_blob_type() const {
+    return BlobType::ELF;  // Default blob type, can be overridden in derived classes
 }
 
 }  // namespace intel_npu

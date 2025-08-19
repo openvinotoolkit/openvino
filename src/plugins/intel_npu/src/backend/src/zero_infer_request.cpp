@@ -307,7 +307,7 @@ void ZeroInferRequest::create_pipeline() {
     _logger.debug("ZeroInferRequest::create_pipeline - constructing pipeline");
 
 #ifdef NPU_LLVM_BACKEND
-    if (_graph->use_dynamic_pipeline()) {
+    if (_graph->get_blob_type() == BlobType::LLVM) {
         // Construct pipeline
         _pipeline =
             std::make_unique<DynamicPipeline>(_config,
@@ -338,7 +338,7 @@ std::shared_ptr<ov::ITensor> ZeroInferRequest::allocate_tensor_for_pipeline(
     const ov::Allocator& allocator,
     const std::optional<std::size_t> batchSize) const {
 #ifdef NPU_LLVM_BACKEND
-    if (_graph->use_dynamic_pipeline()) {
+    if (_graph->get_blob_type() == BlobType::LLVM) {
         IODescriptor descriptorWithUserInfo = descriptor;
         // Create new IODescriptor based on user input|output and descriptor
         if (isInput && get_user_input(index) != nullptr) {
@@ -460,7 +460,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
                 // user tensor?
                 _logger.debug("Reuse current L0 tensor, since user tensor is not L0 tensor & can not be imprt & is not "
                               "shared from last round, and old L0 tensor is large enough");
-                if (_graph->use_dynamic_pipeline()) {
+                if (_graph->get_blob_type() == BlobType::LLVM) {
                     // Update to use user info
                     updateCommandListArg = true;
                 }
@@ -474,7 +474,7 @@ void ZeroInferRequest::set_tensor_data(const std::shared_ptr<ov::ITensor>& tenso
         OPENVINO_ASSERT(levelZeroTensors->data(), "Empty buffer");
 
         OV_ITT_TASK_NEXT(ZERO_SET_TENSOR, "update_graph_arguments");
-        if (_graph->use_dynamic_pipeline() && levelZeroTensors->get_byte_size() > tensor->get_byte_size()) {
+        if (_graph->get_blob_type() == BlobType::LLVM && levelZeroTensors->get_byte_size() > tensor->get_byte_size()) {
             // This L0 tensor is larger than user tensor, but we only use part of it
             _pipeline->update_graph_arguments(isInput ? _graph->get_input_descriptors().at(index).idx
                                                       : _graph->get_output_descriptors().at(index).idx,
@@ -631,7 +631,7 @@ void ZeroInferRequest::set_tensors(const ov::Output<const ov::Node>& port,
     if (tensors.size() == 1) {
         set_tensor(port, tensors[0]);
         return;
-    } else if (_graph->use_dynamic_pipeline()) {
+    } else if (_graph->get_blob_type() == BlobType::LLVM) {
         OPENVINO_THROW("Dynamic pipeline does not support btach now");
     }
 

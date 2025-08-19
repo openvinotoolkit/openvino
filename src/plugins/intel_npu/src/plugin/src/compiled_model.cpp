@@ -93,7 +93,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
                                        CURRENT_OPENVINO_VERSION,
                                        initBlobSizes,
-                                       _graph->use_dynamic_pipeline() ? 1 : 0)
+                                       _graph->get_blob_type())
         .write(stream);
 }
 
