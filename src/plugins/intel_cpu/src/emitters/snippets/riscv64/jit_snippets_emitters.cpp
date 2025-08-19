@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <vector>
 
@@ -42,7 +43,7 @@ jit_scalar_emitter::jit_scalar_emitter(jit_generator_t* h, cpu_isa_t isa, const 
     case element::f32: {
         // For RISC-V, we'll store the float value as int32 bitcast
         const auto float_val = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<float>()[0];
-        value = *reinterpret_cast<const int32_t*>(&float_val);
+        std::memcpy(&value, &float_val, sizeof(value));
         break;
     }
     default: {
