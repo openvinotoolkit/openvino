@@ -45,8 +45,8 @@ static std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const ov::Output<ov:
     return std::make_shared<v4::Range>(start, rank_of_input_scalar, step, ov::element::i64);
 }
 
-    // Operator definition:
-    // https://github.com/onnx/onnx/blob/a90ee0519933bd7412b04a3b7472eb550e78fcaf/onnx/defs/math/old.cc#L14
+// Operator definition:
+// https://github.com/onnx/onnx/blob/a90ee0519933bd7412b04a3b7472eb550e78fcaf/onnx/defs/math/old.cc#L14
 ov::OutputVector negative_log_likelihood_loss_impl(const ov::OutputVector inputs,
                                                    const std::string reduction,
                                                    bool use_ignore_index = false,
