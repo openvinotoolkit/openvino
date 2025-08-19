@@ -20,6 +20,44 @@ namespace ov::intel_cpu::riscv64 {
 
 using ExpressionPtr = ov::snippets::lowered::ExpressionPtr;
 
+namespace {
+// RAII holder for one temporary GPR: uses pool if available, otherwise preserves a caller-saved reg on stack
+class jit_aux_gpr_holder {
+public:
+    jit_aux_gpr_holder(ov::intel_cpu::riscv64::jit_generator_t* host,
+                       std::vector<size_t>& pool_gpr_idxs,
+                       const std::vector<size_t>& used_gpr_idxs)
+        : m_h(host), m_pool_gpr_idxs(pool_gpr_idxs) {
+        if (!m_pool_gpr_idxs.empty()) {
+            m_reg = Xbyak_riscv::Reg(static_cast<int>(m_pool_gpr_idxs.back()));
+            m_pool_gpr_idxs.pop_back();
+        } else {
+            // choose an available caller-saved reg not in used set
+            m_reg = ov::intel_cpu::riscv64::utils::get_aux_gpr(used_gpr_idxs);
+            m_preserved = true;
+            // Maintain 16-byte alignment; reserve 16 bytes and save at 0
+            m_h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, -16);
+            m_h->sd(m_reg, Xbyak_riscv::sp, 0);
+        }
+    }
+    ~jit_aux_gpr_holder() {
+        if (m_preserved) {
+            m_h->ld(m_reg, Xbyak_riscv::sp, 0);
+            m_h->addi(Xbyak_riscv::sp, Xbyak_riscv::sp, 16);
+        } else {
+            m_pool_gpr_idxs.push_back(static_cast<size_t>(m_reg.getIdx()));
+        }
+    }
+    const Xbyak_riscv::Reg& get_reg() const { return m_reg; }
+
+private:
+    ov::intel_cpu::riscv64::jit_generator_t* m_h;
+    std::vector<size_t>& m_pool_gpr_idxs;
+    Xbyak_riscv::Reg m_reg;
+    bool m_preserved = false;
+};
+}  // namespace
+
 /* ================== jit_loop_begin_emitter ====================== */
 
 jit_loop_begin_emitter::jit_loop_begin_emitter(ov::intel_cpu::riscv64::jit_generator_t* h,
@@ -31,11 +69,13 @@ jit_loop_begin_emitter::jit_loop_begin_emitter(ov::intel_cpu::riscv64::jit_gener
 
     const auto loop_end = loop_begin->get_loop_end();
     work_amount = loop_end->get_work_amount();
-    increment = loop_end->get_increment();
+    wa_increment = loop_end->get_increment();
     evaluate_once = loop_end->get_evaluate_once();
+    loop_id = loop_end->get_id();
     is_work_amount_dynamic = ov::snippets::utils::is_dynamic_value(work_amount);
+    OPENVINO_ASSERT(wa_increment > 0, "Loop increment must be > 0");
 
-    loop_begin_label = Xbyak_riscv::Label();
+    loop_begin_label = std::make_shared<Xbyak_riscv::Label>();
     loop_end_label = nullptr;
 
     // LoopBegin communicates work_amount via GPR to LoopEnd
@@ -50,28 +90,56 @@ void jit_loop_begin_emitter::validate_arguments(const std::vector<size_t>& in, c
 
 void jit_loop_begin_emitter::emit_code_impl(const std::vector<size_t>& in,
                                             const std::vector<size_t>& out,
-                                            [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
-                                            [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
+                                            const std::vector<size_t>& pool_vec_idxs,
+                                            const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
-    emit_impl(in, out);
+    // Use base preamble/postamble to manage aux regs consistently
+    ov::intel_cpu::riscv64::jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs, {});
 }
 
 void jit_loop_begin_emitter::emit_impl([[maybe_unused]] const std::vector<size_t>& in,
                                        const std::vector<size_t>& out) const {
     auto reg_work_amount = Xbyak_riscv::Reg(out[0]);
-    if (!is_work_amount_dynamic) {
-        // Load static work amount into provided GPR
+    if (is_work_amount_dynamic) {
+        const auto id_offset = loop_id * sizeof(ov::intel_cpu::jit_snippets_call_args::loop_args_t);
+        // Acquire two scratch regs
+        std::vector<size_t> used = {out[0]};
+        jit_aux_gpr_holder h_ptr(h, aux_gpr_idxs, used);
+        jit_aux_gpr_holder h_tmp(h, aux_gpr_idxs, used);
+        auto reg_loop_args_ptr = h_ptr.get_reg();
+        auto addr = h_tmp.get_reg();
+        // reg_loop_args_ptr = *(a0 + GET_OFF(loop_args))
+        h->uni_li(addr, GET_OFF(loop_args));
+        h->add(addr, Xbyak_riscv::a0, addr);
+        h->ld(reg_loop_args_ptr, addr, 0);
+        // reg_loop_args_ptr += id_offset + OFF(m_work_amount)
+        h->uni_li(addr, id_offset + GET_OFF_LOOP_ARGS(m_work_amount));
+        h->add(reg_loop_args_ptr, reg_loop_args_ptr, addr);
+        // load m_work_amount
+        h->ld(reg_work_amount, reg_loop_args_ptr, 0);
+    } else {
         h->uni_li(reg_work_amount, static_cast<size_t>(work_amount));
     }
-    if (evaluate_once) {
-        // If evaluate once, just mark begin label (LoopEnd will handle single iteration)
-        h->L(loop_begin_label);
+    // If evaluate_once and not dynamic increment, skip branch to end and simply mark begin
+    if (evaluate_once && !ov::snippets::utils::is_dynamic_value(wa_increment)) {
+        if (!begin_label_bound) {
+            h->L(*loop_begin_label);
+            begin_label_bound = true;
+        }
         return;
     }
-    // Regular loop: branch to end if zero
-    h->L(loop_begin_label);
-    OV_CPU_JIT_EMITTER_ASSERT(loop_end_label != nullptr, "Loop end label is not inited");
-    h->beqz(reg_work_amount, *loop_end_label);
+    // Compare work amount with increment and jump to end if less
+    size_t eff_inc = (evaluate_once && ov::snippets::utils::is_dynamic_value(wa_increment)) ? 1 : static_cast<size_t>(wa_increment);
+    // Use scratch for increment immediate
+    std::vector<size_t> used2 = {out[0]};
+    jit_aux_gpr_holder h_inc(h, aux_gpr_idxs, used2);
+    Xbyak_riscv::Reg reg_inc = h_inc.get_reg();
+    h->uni_li(reg_inc, eff_inc);
+    h->blt(reg_work_amount, reg_inc, *loop_end_label);
+    if (!begin_label_bound) {
+        h->L(*loop_begin_label);
+        begin_label_bound = true;
+    }
 }
 
 /* =================== jit_loop_end_emitter ======================= */
@@ -87,7 +155,7 @@ jit_loop_end_emitter::jit_loop_end_emitter(ov::intel_cpu::riscv64::jit_generator
     num_inputs = loop_end->get_input_num();
     num_outputs = loop_end->get_output_num();
     work_amount = loop_end->get_work_amount();
-    increment = loop_end->get_increment();
+    wa_increment = loop_end->get_increment();
     is_incremented = loop_end->get_is_incremented();
     ptr_increments = loop_end->get_ptr_increments();
     finalization_offsets = loop_end->get_finalization_offsets();
@@ -96,12 +164,14 @@ jit_loop_end_emitter::jit_loop_end_emitter(ov::intel_cpu::riscv64::jit_generator
     is_increment_dynamic = false; // simplified
     are_ptr_increments_dynamic = std::any_of(ptr_increments.cbegin(), ptr_increments.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
     are_final_offsets_dynamic = std::any_of(finalization_offsets.cbegin(), finalization_offsets.cend(), ov::snippets::utils::is_dynamic_value<int64_t>);
+    OPENVINO_ASSERT(wa_increment > 0, "Loop increment must be > 0");
 
     // Get corresponding LoopBegin
     const auto begin_expr = get_loop_begin_expr(expr);
     const auto& loop_begin_emitter = std::dynamic_pointer_cast<jit_loop_begin_emitter>(begin_expr->get_emitter());
     OV_CPU_JIT_EMITTER_ASSERT(loop_begin_emitter, "LoopBegin expected jit_loop_begin_emitter");
     loop_begin_label = loop_begin_emitter->get_begin_label();
+    loop_end_label = std::make_shared<Xbyak_riscv::Label>();
     loop_begin_emitter->set_loop_end_label(loop_end_label);
 }
 
@@ -115,39 +185,89 @@ void jit_loop_end_emitter::validate_arguments(const std::vector<size_t>& in, con
 
 void jit_loop_end_emitter::emit_code_impl(const std::vector<size_t>& in,
                                           const std::vector<size_t>& out,
-                                          [[maybe_unused]] const std::vector<size_t>& pool_vec_idxs,
-                                          [[maybe_unused]] const std::vector<size_t>& pool_gpr_idxs) const {
+                                          const std::vector<size_t>& pool_vec_idxs,
+                                          const std::vector<size_t>& pool_gpr_idxs) const {
     validate_arguments(in, out);
-    emit_impl(in, out);
+    ov::intel_cpu::riscv64::jit_emitter::emit_code_impl(in, out, pool_vec_idxs, pool_gpr_idxs, {});
 }
 
 void jit_loop_end_emitter::emit_impl(const std::vector<size_t>& in,
                                      [[maybe_unused]] const std::vector<size_t>& out) const {
-    // in layout: [work_amount, ptr0, ptr1, ..., ptrN]
-    auto reg_work_amount = Xbyak_riscv::Reg(in[0]);
-    if (evaluate_once) {
-        h->L(loop_end_label);
-        return;
-    }
-
-    // Apply pointer increments for inputs/outputs
+    // Build list of data pointer regs: in[0..io_size-1], work_amount is in.back()
+    std::vector<size_t> data_ptr_reg_idxs;
     const size_t io_size = num_inputs + num_outputs;
-    for (size_t i = 0; i < io_size; ++i) {
-        if (i < is_incremented.size() && is_incremented[i]) {
-            auto ptr_reg = Xbyak_riscv::Reg(in[1 + i]);
-            // load increment immediate and add
-            Xbyak_riscv::Reg tmp = Xbyak_riscv::t2;
-            h->uni_li(tmp, static_cast<size_t>(ptr_increments[i]));
-            h->add(ptr_reg, ptr_reg, tmp);
+    data_ptr_reg_idxs.reserve(io_size);
+    std::copy(in.begin(), in.end() - 1, std::back_inserter(data_ptr_reg_idxs));
+
+    auto apply_increments = [&](bool use_runtime_args, size_t field_offset, const std::vector<int64_t>& increments, size_t scale) {
+        // Acquire two scratch regs
+        std::vector<size_t> used = in; // exclude live inputs
+        jit_aux_gpr_holder h_incs(h, aux_gpr_idxs, used);
+        jit_aux_gpr_holder h_tmp(h, aux_gpr_idxs, used);
+        Xbyak_riscv::Reg reg_increments = h_incs.get_reg();
+        Xbyak_riscv::Reg tmp = h_tmp.get_reg();
+        auto add_increments = [&]() {
+            for (size_t idx = 0; idx < data_ptr_reg_idxs.size(); ++idx) {
+                const auto& inc = increments[idx];
+                if (is_incremented[idx] && inc != 0) {
+                    auto ptr_reg = Xbyak_riscv::Reg(data_ptr_reg_idxs[idx]);
+                    if (ov::snippets::utils::is_dynamic_value(inc)) {
+                        // ptr += ((int64*)reg_increments)[idx]
+                        h->uni_li(tmp, idx * sizeof(int64_t));
+                        h->add(tmp, reg_increments, tmp);
+                        // reuse tmp as inc_val after load
+                        h->ld(tmp, tmp, 0);
+                        // inc_val is in elements; convert to bytes = inc_val * scale * data_sizes[idx]
+                        size_t mul = scale * static_cast<size_t>(data_sizes[idx]);
+                        if (mul != 1) {
+                            jit_aux_gpr_holder h_mul(h, aux_gpr_idxs, used);
+                            auto mulreg = h_mul.get_reg();
+                            h->uni_li(mulreg, mul);
+                            h->mul(tmp, tmp, mulreg);
+                        }
+                        h->add(ptr_reg, ptr_reg, tmp);
+                    } else {
+                        size_t add_bytes = static_cast<size_t>(inc) * scale * static_cast<size_t>(data_sizes[idx]);
+                        h->uni_li(tmp, add_bytes);
+                        h->add(ptr_reg, ptr_reg, tmp);
+                    }
+                }
+            }
+        };
+
+        if (use_runtime_args) {
+            // reg_increments = *(a0 + GET_OFF(loop_args)); then +id_offset + field_offset
+            const auto id_offset = loop_id * sizeof(ov::intel_cpu::jit_snippets_call_args::loop_args_t);
+            // tmp is our address scratch
+            h->uni_li(tmp, GET_OFF(loop_args));
+            h->add(tmp, Xbyak_riscv::a0, tmp);
+            h->ld(reg_increments, tmp, 0);
+            h->uni_li(tmp, id_offset + field_offset);
+            h->add(reg_increments, reg_increments, tmp);
+            h->ld(reg_increments, reg_increments, 0);
+            add_increments();
+        } else {
+            add_increments();
         }
+    };
+
+    if (!evaluate_once) {
+        apply_increments(are_ptr_increments_dynamic, GET_OFF_LOOP_ARGS(m_ptr_increments), ptr_increments, static_cast<size_t>(wa_increment));
+
+        auto reg_work_amount = Xbyak_riscv::Reg(in.back());
+        // reg_work_amount -= wa_increment
+        // use scratch for increment immediate
+        jit_aux_gpr_holder h_inc(h, aux_gpr_idxs, in);
+        auto reg_inc = h_inc.get_reg();
+        h->uni_li(reg_inc, static_cast<size_t>(wa_increment));
+        h->sub(reg_work_amount, reg_work_amount, reg_inc);
+        // if reg_work_amount >= wa_increment -> loop
+        h->bge(reg_work_amount, reg_inc, *loop_begin_label);
     }
 
-    // Decrement work amount and loop
-    Xbyak_riscv::Reg reg_increment = Xbyak_riscv::t1;
-    h->uni_li(reg_increment, static_cast<size_t>(increment));
-    h->sub(reg_work_amount, reg_work_amount, reg_increment);
-    h->bnez(reg_work_amount, loop_begin_label);
-    h->L(loop_end_label);
+    apply_increments(are_final_offsets_dynamic, GET_OFF_LOOP_ARGS(m_finalization_offsets), finalization_offsets, 1);
+
+    h->L(*loop_end_label);
 }
 
 ov::snippets::lowered::ExpressionPtr jit_loop_end_emitter::get_loop_begin_expr(

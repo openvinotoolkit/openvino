@@ -20,9 +20,6 @@
 #include "jit_kernel_emitter.hpp"
 #include "jit_memory_emitters.hpp"
 #include "jit_snippets_emitters.hpp"
-#include "jit_kernel_emitter.hpp"
-// Include implementation directly to avoid CMake reconfigure for new TU
-#include "jit_kernel_emitter.cpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
