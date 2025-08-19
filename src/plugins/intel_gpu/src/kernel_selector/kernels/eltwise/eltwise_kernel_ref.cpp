@@ -108,10 +108,20 @@ static inline int GetInnerFeatureBlockSize(const DataTensor& tensor) {
     case DataLayout::b_fs_yx_fsv4:
         return 4;
     case DataLayout::b_fs_yx_fsv16:
+    case DataLayout::bs_fs_yx_bsv32_fsv16:
+    case DataLayout::bs_fs_yx_bsv16_fsv16:
+    case DataLayout::bs_fs_zyx_bsv32_fsv16:
+    case DataLayout::bs_fs_zyx_bsv16_fsv16:
         return 16;
     case DataLayout::b_fs_yx_fsv32:
+    case DataLayout::b_fs_zyx_fsv32:
+    case DataLayout::bs_fs_yx_bsv32_fsv32:
+    case DataLayout::bs_fs_yx_bsv16_fsv32:
+    case DataLayout::bs_fs_zyx_bsv32_fsv32:
+    case DataLayout::bs_fs_zyx_bsv16_fsv32:
         return 32;
     case DataLayout::bfyx:
+    case DataLayout::bfzyx:
     default:
         return 1;
     }
