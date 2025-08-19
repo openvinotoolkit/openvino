@@ -17,7 +17,6 @@
 
 namespace opp = ov::pass::pattern;
 
-
 namespace {
 
 class TransposeValueTensors : public ov::pass::MatcherPass {
@@ -289,7 +288,7 @@ public:
     }
 };
 
-} // namespace
+}  // namespace
 
 namespace ov::npuw::util {
 bool optimize_value_tensors(std::shared_ptr<ov::Model> model, bool isPrefill) {

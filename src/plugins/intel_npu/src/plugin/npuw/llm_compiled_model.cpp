@@ -359,7 +359,6 @@ void decompose_GQA(std::shared_ptr<ov::Model> model, bool is_prefill_model) {
 }
 }  // namespace
 
-
 namespace {
 struct KVAxesPosition {
     uint32_t batch;
