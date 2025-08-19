@@ -133,7 +133,7 @@ using mem_desc_stat_t
         = mem_desc_t<data_type_stat, mem_layout::row_major, mem_space::global>;
 using tile_op_t = none_op_t;
 using gn_reduce_t
-        = groupnorm_reduce_t<tile_shape, typename brconv_config::matAcc_t,
+        = groupnorm_reduce_t<gn_group_size, tile_shape, typename brconv_config::matAcc_t,
                 mem_desc_out, mem_desc_stat_t, arch_tag>;
 using epilogue_t = epilogue_t<
         epilogue_policy_gn_reduce<tile_op_t, gn_reduce_t, arch_tag>, tile_shape,
@@ -146,7 +146,7 @@ using data_type_stat = STAT_DT;
 using mem_desc_stat_t
         = mem_desc_t<data_type_stat, mem_layout::row_major, mem_space::global>;
 using gn_reduce_t
-        = groupnorm_reduce_t<tile_shape, typename brconv_config::matAcc_t,
+        = groupnorm_reduce_t<gn_group_size, tile_shape, typename brconv_config::matAcc_t,
                 mem_desc_out, mem_desc_stat_t, arch_tag>;
 using tile_op_t = bias_op_t;
 using epilogue_t = epilogue_t<
@@ -237,7 +237,7 @@ _GENX_MAIN_ void KERNEL_NAME(
             = mem_desc_stat_t((data_type_stat *)out_sumxsq, ng_shape, {0, 0});
     epilogue_args.init(
             {},
-            {out_mem_desc, sumx_mem_desc, sumxsq_mem_desc, gn_group_size});
+            {out_mem_desc, sumx_mem_desc, sumxsq_mem_desc});
 #elif POST_OP == 7
     typename mem_desc_stat_t::shape_t ng_shape {
             gn_group_num, size_n, gn_group_num};
@@ -250,7 +250,7 @@ _GENX_MAIN_ void KERNEL_NAME(
             = mem_desc_stat_t((data_type_stat *)out_sumxsq, ng_shape, {0, 0});
     epilogue_args.init(
             {(data_type_wei *)bias, bias_shape},
-            {out_mem_desc, sumx_mem_desc, sumxsq_mem_desc, gn_group_size});
+            {out_mem_desc, sumx_mem_desc, sumxsq_mem_desc});
 #endif
 
     typename conv_t::arguments_t conv_args {size_n, size_h, size_w, size_k,

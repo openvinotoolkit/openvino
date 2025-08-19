@@ -62,7 +62,7 @@ protected:
         if (conv_desc.has_fused_groupnorm())
             jit_constants.add({make_jit_constant("GROUPNORM_GROUP_SIZE", conv_desc.group_size.value_or(0)),
                                make_jit_constant("GROUPNORM_GROUP_NUM", conv_desc.group_count.value_or(0)),
-                               make_jit_constant("STAT_DT", "fp16")});
+                               make_jit_constant("STAT_DT", "float")});
 
         return jit_constants;
     }

@@ -24,20 +24,24 @@
 
 namespace gpu::xetla::group {
 /// @brief This is the groupnorm reduction, calculate sumx and sumxsq statistics. Use slm to exchange the data and atomics to calculate results.
+/// @tparam groupnorm_group_size Is the number of channels reduced to single group
 /// @tparam tile_shape Is the group-level tile shape.
 /// @tparam matAcc_t Is the input mat type.
 /// @tparam mem_desc_data_t Is the memory descriptor of input data buffer. Not used for read/write.
 /// @tparam mem_desc_stat_t Is the data type of sumx and sumxsq buffers. Used for calculating results with atomics.
 /// @tparam arch_tag Is the HW architecture.
-template <typename tile_shape, typename matAcc_t, typename mem_desc_data_t,
-        typename mem_desc_stat_t, gpu_arch arch_tag, class enable = void>
+
+template<typename val1> struct print;
+
+template <uint32_t groupnorm_group_size_, typename tile_shape, typename matAcc_t, 
+        typename mem_desc_data_t, typename mem_desc_stat_t, gpu_arch arch_tag, class enable = void>
 struct groupnorm_reduce_t {};
 
 /// @brief Groupnorm reduction. Specialized for 4D NHWC tile shape and Xe architecture.
-template <typename tile_shape_, typename matAcc_t_, typename mem_desc_data_t_,
-        typename mem_desc_stat_t_, gpu_arch arch_tag_>
-struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
-        mem_desc_stat_t_, arch_tag_,
+template <uint32_t groupnorm_group_size_, typename tile_shape_, typename matAcc_t_, 
+        typename mem_desc_data_t_, typename mem_desc_stat_t_, gpu_arch arch_tag_>
+struct groupnorm_reduce_t<groupnorm_group_size_, tile_shape_, matAcc_t_, 
+        mem_desc_data_t_, mem_desc_stat_t_, arch_tag_,
         std::enable_if_t<(tile_shape_::dim == 4)
                 && (arch_tag_ == gpu_arch::Xe)>> {
     using mem_desc_data_t = mem_desc_data_t_;
@@ -46,6 +50,7 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
     using tile_shape = tile_shape_;
     using matAcc_t = matAcc_t_;
     static constexpr gpu_arch arch_tag = arch_tag_;
+    static constexpr uint32_t groupnorm_group_size = groupnorm_group_size_;
 
     static_assert((mem_desc_data_t::dim == 4),
             "mem_desc_data_t needs to describe 4D buffer");
@@ -53,6 +58,11 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
             "mem_desc_stat_t needs to describe 2D buffer");
     static_assert((mem_desc_stat_t::space == mem_space::global),
             "mem_desc_stat_t needs to describe global memory for atomic add");
+    static_assert((matAcc_t::block_size_x % groupnorm_group_size == 0),
+            "matAcc_t::tile_size_x has to be the multiple of groupnorm_group_size");
+
+    static constexpr uint32_t stat_block_size = matAcc_t::block_size_x / groupnorm_group_size;
+    static constexpr uint32_t stat_tile_size = matAcc_t::tile_size_x / groupnorm_group_size;
 
     using work_group_t = typename tile_shape::work_group_t;
     static constexpr uint32_t wg_tile_n = tile_shape::wg_tile_size_n;
@@ -85,8 +95,8 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
     using tile_desc_t = typename matAcc_t::tile_desc;
     using accum_tile_t = subgroup::tile_t<dtype_accum, tile_desc_t>;
 
-    using reduced_tile_desc_t = subgroup::tile_desc_t<matAcc_t::tile_size_x, 1,
-            matAcc_t::block_size_x, 1>;
+    using reduced_tile_desc_t = subgroup::tile_desc_t<stat_tile_size, 1,
+            stat_block_size, 1>;
     using reduced_tile_t = subgroup::tile_t<dtype_accum, reduced_tile_desc_t>;
     using local_payload_t = subgroup::mem_payload_t<
             mem_desc_t<dtype_accum, mem_layout::row_major, mem_space::local>,
@@ -99,18 +109,16 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
         mem_desc_data_t mem_desc_in;
         mem_desc_stat_t mem_desc_sumx;
         mem_desc_stat_t mem_desc_sumxsq;
-        uint32_t group_size;
         inline arguments_t()
             : mem_desc_in(nullptr, {0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0})
             , mem_desc_sumx(nullptr, {0, 0, 0}, {0, 0})
             , mem_desc_sumxsq(nullptr, {0, 0, 0}, {0, 0}) {}
         inline arguments_t(const mem_desc_data_t &mem_desc_in_,
                 const mem_desc_stat_t &mem_desc_sumx_,
-                const mem_desc_stat_t &mem_desc_sumxsq_, uint32_t group_size_)
+                const mem_desc_stat_t &mem_desc_sumxsq_)
             : mem_desc_in(mem_desc_in_)
             , mem_desc_sumx(mem_desc_sumx_)
-            , mem_desc_sumxsq(mem_desc_sumxsq_)
-            , group_size(group_size_) {}
+            , mem_desc_sumxsq(mem_desc_sumxsq_) {}
     };
 
     /// @brief Update memory descriptor coordinate based on the tid.
@@ -128,7 +136,7 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
         args.mem_desc_in.update_coord(
                 tile_offset_k, tile_offset_q, tile_offset_p, tile_offset_n);
 
-        int32_t group_offset = args.mem_desc_in.coord.x / args.group_size;
+        int32_t group_offset = args.mem_desc_in.coord.x / groupnorm_group_size;
         int32_t batch_offset = args.mem_desc_in.coord.w;
         args.mem_desc_sumx.set_coord(group_offset, batch_offset);
         args.mem_desc_sumxsq.set_coord(group_offset, batch_offset);
@@ -220,13 +228,13 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
             reduced_tile_t sumxsq_grouped(0);
             auto current_group = 0;
             auto next_group_start
-                    = (coord_stat.x + current_group + 1) * args.group_size;
+                    = (coord_stat.x + current_group + 1) * groupnorm_group_size;
 #pragma unroll
             for (uint32_t i = 0; i < tile_size_x; ++i) {
                 if (coord_in.x + i >= next_group_start) {
                     ++current_group;
                     next_group_start = (coord_stat.x + current_group + 1)
-                            * args.group_size;
+                            * groupnorm_group_size;
                 }
                 sumx_grouped.reg.xetla_select<1, 1>(current_group)
                         += sumx_channels.xetla_select<1, 1>(i);
@@ -235,8 +243,8 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
             }
             if constexpr (wg_size_p * wg_size_q > 1) {
                 // Reduce image spatial dimensions across threads
-                local_payload_t local_st_payload(slm_base, tile_size_x,
-                        2 * num_cooperative_wg, tile_size_x, 0, g.get_id());
+                local_payload_t local_st_payload(slm_base, stat_tile_size,
+                        2 * num_cooperative_wg, stat_tile_size, 0, g.get_id());
                 subgroup::tile_store(sumx_grouped, local_st_payload);
                 local_st_payload.template update_tdesc<tdesc_update_dir::y_dir>(
                         num_cooperative_wg);
@@ -251,10 +259,10 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
                 nbarrier.arrive();
                 nbarrier.wait();
                 if (is_atomic_thread) {
-                    local_payload_t local_ld_sumx_payload(slm_base, tile_size_x,
-                            2 * num_cooperative_wg, tile_size_x, 0, g.get_id());
+                    local_payload_t local_ld_sumx_payload(slm_base, stat_tile_size,
+                            2 * num_cooperative_wg, stat_tile_size, 0, g.get_id());
                     local_payload_t local_ld_sumxsq_payload(slm_base,
-                            tile_size_x, 2 * num_cooperative_wg, tile_size_x, 0,
+                            stat_tile_size, 2 * num_cooperative_wg, stat_tile_size, 0,
                             g.get_id() + num_cooperative_wg);
 #pragma unroll
                     for (uint32_t j = 1; j < wg_size_p * wg_size_q; ++j) {
@@ -279,21 +287,28 @@ struct groupnorm_reduce_t<tile_shape_, matAcc_t_, mem_desc_data_t_,
 
             if (is_atomic_thread) {
                 // Global atomic reduce
-                xetla_mask<tile_size_x> atomic_pred(1);
-                auto atomic_offset
-                        = xetla_vector_gen<uint32_t, tile_size_x>(0, 1);
+                xetla_mask<stat_tile_size> atomic_pred(1);
+                // auto atomic_offset
+                //         = xetla_vector_gen<uint32_t, stat_tile_size>(0, 1);
+                xetla_vector<uint32_t, stat_tile_size> atomic_offset;
+
+#pragma unroll                
+                for (uint32_t i = 0; i < stat_tile_size; i++)
+                    atomic_offset[i] = i;
+
                 atomic_offset += coord_stat.x;
                 atomic_offset
                         += (coord_stat.y + n) * args.mem_desc_sumx.shape.x;
                 atomic_offset *= sizeof(dtype_accum);
-                // xetla_atomic_global<atomic_op::fadd, dtype_accum, tile_size_x,
-                //         data_size::default_size, cache_hint::uncached,
-                //         cache_hint::write_back>(args.mem_desc_sumx.base.base,
-                //         atomic_offset, sumx_grouped.reg, atomic_pred);
-                // xetla_atomic_global<atomic_op::fadd, dtype_accum, tile_size_x,
-                //         data_size::default_size, cache_hint::uncached,
-                //         cache_hint::write_back>(args.mem_desc_sumxsq.base.base,
-                //         atomic_offset, sumxsq_grouped.reg, atomic_pred);
+
+                xetla_atomic_global<atomic_op::fadd, dtype_accum, stat_tile_size,
+                        data_size::default_size, cache_hint::uncached,
+                        cache_hint::write_back>(args.mem_desc_sumx.base.base,
+                        atomic_offset, sumx_grouped.reg, atomic_pred);
+                xetla_atomic_global<atomic_op::fadd, dtype_accum, stat_tile_size,
+                        data_size::default_size, cache_hint::uncached,
+                        cache_hint::write_back>(args.mem_desc_sumxsq.base.base,
+                        atomic_offset, sumxsq_grouped.reg, atomic_pred);
             }
         }
     }
