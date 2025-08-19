@@ -5,12 +5,11 @@
 #include "jit_memory_emitters.hpp"
 
 #include <common/utils.hpp>
-#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
-#include <nodes/kernels/riscv64/jit_generator.hpp>
-#include "snippets/op/broadcastload.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
+#include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
@@ -20,6 +19,7 @@
 #include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/expressions/buffer_expression.hpp"
 #include "snippets/lowered/loop_manager.hpp"
+#include "snippets/op/broadcastload.hpp"
 #include "snippets/op/load.hpp"
 #include "snippets/op/memory_access.hpp"
 #include "snippets/op/store.hpp"
@@ -120,7 +120,7 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
                                         const std::vector<size_t>& out_idxs,
                                         const std::vector<size_t>& pool_vec_idxs,
                                         const std::vector<size_t>& pool_gpr_idxs) const {
-    std::vector<size_t> pool_fp_gpr_idxs; // Empty for now
+    std::vector<size_t> pool_fp_gpr_idxs;  // Empty for now
     emitter_preamble(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs, pool_fp_gpr_idxs);
 
     auto reg_runtime_params = Xbyak_riscv::a0;  // First ABI parameter register
@@ -252,8 +252,7 @@ jit_load_broadcast_emitter::jit_load_broadcast_emitter(ov::intel_cpu::riscv64::j
                                                        ov::intel_cpu::riscv64::cpu_isa_t isa,
                                                        const ov::snippets::lowered::ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
-    bool is_supported_precision =
-        any_of(dst_prc, ov::element::f32, ov::element::i32) && src_prc == dst_prc;
+    bool is_supported_precision = any_of(dst_prc, ov::element::f32, ov::element::i32) && src_prc == dst_prc;
     OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
 
     const auto broadcast_load = ov::as_type_ptr<snippets::op::BroadcastLoad>(expr->get_node());
@@ -287,7 +286,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
     // Load scalar from memory and broadcast to vector register
     // First load the scalar value into a temporary GPR
     auto tmp_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.empty() ? Xbyak_riscv::t0.getIdx() : aux_gpr_idxs[0]);
-    
+
     // Calculate effective address if there's an offset
     if (compiled_byte_offset == 0) {
         if (byte_size == 2) {
@@ -304,7 +303,7 @@ void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const s
             h->lw(tmp_gpr, addr_gpr, 0);
         }
     }
-    
+
     // Move scalar to vector register and broadcast
     h->vmv_v_x(dst_vreg, tmp_gpr);  // Broadcast scalar to all elements
 }

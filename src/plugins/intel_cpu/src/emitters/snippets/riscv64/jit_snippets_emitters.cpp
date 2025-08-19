@@ -5,13 +5,13 @@
 #include "jit_snippets_emitters.hpp"
 
 #include <common/utils.hpp>
-#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <vector>
 
-#include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
@@ -65,17 +65,17 @@ void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in
                                   const std::vector<size_t>& out) const {
     // Get destination vector register
     Xbyak_riscv::VReg dst_vreg = Xbyak_riscv::VReg(out[0]);
-    
+
     // For now, use t0 as a temporary register
     Xbyak_riscv::Reg tmp_gpr = Xbyak_riscv::t0;
-    
+
     // Load scalar value directly into register
     h->uni_li(tmp_gpr, value);
-    
+
     // Broadcast scalar to vector register using RISC-V Vector Extension
     // Set vector configuration for 32-bit elements
     h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
-    
+
     // Move scalar from GPR to vector register and broadcast
     h->vmv_v_x(dst_vreg, tmp_gpr);
 }

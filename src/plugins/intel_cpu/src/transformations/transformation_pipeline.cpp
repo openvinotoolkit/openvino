@@ -1170,7 +1170,7 @@ void Transformations::MainSnippets() {
 #elif defined(OPENVINO_ARCH_ARM64)
         return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
 #elif defined(OPENVINO_ARCH_RISCV64)
-        return true; // RISC-V with Vector Extension supports snippets
+        return true;  // RISC-V with Vector Extension supports snippets
 #endif
         return false;
     };

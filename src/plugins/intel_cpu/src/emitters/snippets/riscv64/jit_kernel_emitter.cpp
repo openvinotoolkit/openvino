@@ -88,13 +88,16 @@ void jit_kernel_emitter::validate_arguments(const std::vector<size_t>& in, const
                     data_ptr_regs_idx.size());
 }
 
-void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in, [[maybe_unused]] const std::vector<size_t>& out) const {
+void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
+                                   [[maybe_unused]] const std::vector<size_t>& out) const {
     h->preamble();
 
     std::set<snippets::Reg> available_gpr;
     std::set<snippets::Reg> available_vec;
     auto reg_type = snippets::RegType::gpr;
-    auto convert = [&reg_type](size_t i) -> snippets::Reg { return {reg_type, i}; };
+    auto convert = [&reg_type](size_t i) -> snippets::Reg {
+        return {reg_type, i};
+    };
     std::transform(aux_gpr_idxs.begin(),
                    aux_gpr_idxs.end(),
                    std::inserter(available_gpr, available_gpr.begin()),
@@ -192,8 +195,8 @@ jit_kernel_static_emitter::jit_kernel_static_emitter(jit_generator_t* h,
 }
 
 void jit_kernel_static_emitter::init_data_pointers(const std::vector<Xbyak_riscv::Reg>& arg_regs,
-                                                  const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
-                                                  const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
+                                                   const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
+                                                   const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
     OPENVINO_ASSERT(arg_regs.size() == 2, "Invalid arg regs size");
     auto reg_runtime_params = arg_regs[0];
     auto reg_indexes = arg_regs[1];
@@ -259,9 +262,10 @@ jit_kernel_dynamic_emitter::jit_kernel_dynamic_emitter(jit_generator_t* h,
                     "jit_kernel_dynamic_emitter expects KernelDynamic expression");
 }
 
-void jit_kernel_dynamic_emitter::init_data_pointers(const std::vector<Xbyak_riscv::Reg>& arg_regs,
-                                                    const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
-                                                    [[maybe_unused]] const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
+void jit_kernel_dynamic_emitter::init_data_pointers(
+    const std::vector<Xbyak_riscv::Reg>& arg_regs,
+    const std::vector<Xbyak_riscv::Reg>& data_ptr_regs,
+    [[maybe_unused]] const std::vector<Xbyak_riscv::Reg>& aux_gprs) const {
     OPENVINO_ASSERT(arg_regs.size() == 1, "Invalid arg regs size");
     auto reg_runtime_params = arg_regs[0];
 

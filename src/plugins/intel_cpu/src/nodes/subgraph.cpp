@@ -222,7 +222,7 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
     subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
 #elif defined(OPENVINO_ARCH_RISCV64)
     subgraph_attrs->snippet->set_generator(
-        std::make_shared<riscv64::CPUGenerator>(static_cast<ov::intel_cpu::riscv64::cpu_isa_t>(host_isa), 
+        std::make_shared<riscv64::CPUGenerator>(static_cast<ov::intel_cpu::riscv64::cpu_isa_t>(host_isa),
                                                 context->getSnippetsParamsCache()));
 #else
     CPU_NODE_THROW("Subgraphs code-generator is not supported on this platform");

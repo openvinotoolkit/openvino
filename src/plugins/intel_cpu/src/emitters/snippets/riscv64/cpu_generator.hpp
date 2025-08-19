@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <vector>
 
 #include "cache/multi_cache.h"

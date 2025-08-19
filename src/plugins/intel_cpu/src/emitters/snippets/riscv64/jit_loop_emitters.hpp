@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
+#include <nodes/kernels/riscv64/jit_generator.hpp>
+
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
-#include "snippets/lowered/expression.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "snippets/lowered/expression.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
@@ -32,8 +33,12 @@ public:
 
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
 
-    std::shared_ptr<const Xbyak_riscv::Label> get_begin_label() const { return loop_begin_label; }
-    void set_loop_end_label(const std::shared_ptr<const Xbyak_riscv::Label>& lbl) { this->loop_end_label = lbl; }
+    std::shared_ptr<const Xbyak_riscv::Label> get_begin_label() const {
+        return loop_begin_label;
+    }
+    void set_loop_end_label(const std::shared_ptr<const Xbyak_riscv::Label>& lbl) {
+        this->loop_end_label = lbl;
+    }
 
 private:
     ov::intel_cpu::riscv64::cpu_isa_t isa;

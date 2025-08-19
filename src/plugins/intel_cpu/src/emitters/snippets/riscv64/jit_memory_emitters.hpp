@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
-#include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <cstddef>
 #include <memory>
+#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
+#include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
