@@ -14,6 +14,9 @@ namespace utils {
 
 constexpr std::size_t STANDARD_PAGE_SIZE = 4096;
 
+constexpr std::size_t DEFAULT_BATCH_SIZE = 1;
+constexpr std::size_t BATCH_AXIS = 0;
+
 struct AlignedAllocator {
 public:
     AlignedAllocator(const size_t align_size) : _align_size(align_size) {}
@@ -41,7 +44,7 @@ static inline bool memory_and_size_aligned_to_standard_page_size(void* addr, siz
     return (addr_int % STANDARD_PAGE_SIZE == 0) && (size % STANDARD_PAGE_SIZE == 0);
 }
 
-static inline size_t align_size_to_standarg_page_size(size_t size) {
+static inline size_t align_size_to_standard_page_size(size_t size) {
     return (size + utils::STANDARD_PAGE_SIZE - 1) & ~(utils::STANDARD_PAGE_SIZE - 1);
 }
 

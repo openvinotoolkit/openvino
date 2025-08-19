@@ -264,5 +264,40 @@ protected:
     }
 };
 
+/**
+ * @brief Multiplies two integral values
+ *
+ * The result value is not valid if overflow detected.
+ *
+ * @param T       Type of values to multiply. Must be an integral type.
+ * @param x       First value to multiply.
+ * @param y       Second value to multiply.
+ * @param result  Reference to store result value.
+ * @return True if overflow occurs, false otherwise
+ */
+template <class T>
+constexpr bool mul_overflow(T x, T y, T& result) {
+    static_assert(std::is_integral_v<T>, "T must be an integral type");
+#if defined(__GNUC__) || defined(__clang__)
+    return __builtin_mul_overflow(x, y, &result);
+#else
+    constexpr auto max = std::numeric_limits<T>::max();
+
+    if constexpr (std::is_unsigned_v<T>) {
+        if (y > 0 && x > max / y) {
+            return true;
+        }
+    } else {
+        constexpr auto min = std::numeric_limits<T>::lowest();
+        if ((x > 0 && y > 0 && x > max / y) || (x > 0 && y < 0 && y < min / x) || (x < 0 && y > 0 && x < min / y) ||
+            (x < 0 && y < 0 && x < max / y)) {
+            return true;
+        }
+    }
+    result = x * y;
+    return false;
+#endif
+}
+
 }  // namespace util
 }  // namespace ov
