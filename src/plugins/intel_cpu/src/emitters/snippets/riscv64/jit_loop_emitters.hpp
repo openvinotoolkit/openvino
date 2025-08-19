@@ -25,13 +25,13 @@ public:
         return 0;
     }
 
-    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_code_impl(const std::vector<size_t>& in,
                         const std::vector<size_t>& out,
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
-    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     std::shared_ptr<const Xbyak_riscv::Label> get_begin_label() const {
         return loop_begin_label;
@@ -65,13 +65,13 @@ public:
         return 0;
     }
 
-    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+    void validate_arguments(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
     void emit_code_impl(const std::vector<size_t>& in,
                         const std::vector<size_t>& out,
                         const std::vector<size_t>& pool_vec_idxs,
                         const std::vector<size_t>& pool_gpr_idxs) const override;
 
-    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
 private:
     static ov::snippets::lowered::ExpressionPtr get_loop_begin_expr(const ov::snippets::lowered::ExpressionPtr& expr);

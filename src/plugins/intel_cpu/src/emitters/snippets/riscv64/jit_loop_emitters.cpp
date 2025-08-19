@@ -12,8 +12,6 @@
 #include "snippets/utils/utils.hpp"
 #include "utils.hpp"
 
-#define OV_CPU_JIT_EMITTER_ASSERT(cond, msg) OPENVINO_ASSERT(cond, msg)
-
 using namespace Xbyak_riscv;
 
 namespace ov::intel_cpu::riscv64 {
