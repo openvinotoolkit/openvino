@@ -24,6 +24,7 @@ enum emitter_in_out_map : uint8_t {
 
 class jit_emitter : public ov::snippets::Emitter {
 public:
+    using ov::snippets::Emitter::emit_code;  // expose base overload
     jit_emitter(ov::intel_cpu::riscv64::jit_generator_t* host,
                 ov::intel_cpu::riscv64::cpu_isa_t host_isa,
                 ov::element::Type exec_prc = ov::element::f32,

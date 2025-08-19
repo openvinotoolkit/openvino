@@ -85,4 +85,24 @@ private:
     size_t byte_size = 0;
 };
 
+class jit_load_broadcast_emitter : public jit_memory_emitter {
+public:
+    jit_load_broadcast_emitter(ov::intel_cpu::riscv64::jit_generator_t* h,
+                               ov::intel_cpu::riscv64::cpu_isa_t isa,
+                               const ov::snippets::lowered::ExpressionPtr& expr);
+
+    size_t get_inputs_num() const override {
+        return 1;
+    }
+
+private:
+    void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
+    void emit_data() const override;
+
+    template <ov::intel_cpu::riscv64::cpu_isa_t isa>
+    void emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const;
+
+    size_t byte_size = 0;
+};
+
 }  // namespace ov::intel_cpu::riscv64

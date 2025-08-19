@@ -7,6 +7,7 @@
 #include <common/utils.hpp>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <nodes/kernels/riscv64/jit_generator.hpp>
+#include "snippets/op/broadcastload.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -228,6 +229,63 @@ void jit_store_memory_emitter::emit_isa(const std::vector<size_t>& in, const std
 
 void jit_store_memory_emitter::emit_data() const {
     // No additional data emission needed for basic store
+}
+
+/* ============== jit_load_broadcast_emitter =============== */
+
+jit_load_broadcast_emitter::jit_load_broadcast_emitter(ov::intel_cpu::riscv64::jit_generator_t* h,
+                                                       ov::intel_cpu::riscv64::cpu_isa_t isa,
+                                                       const ov::snippets::lowered::ExpressionPtr& expr)
+    : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
+    bool is_supported_precision =
+        any_of(dst_prc, ov::element::f32, ov::element::i32) && src_prc == dst_prc;
+    OV_CPU_JIT_EMITTER_ASSERT(is_supported_precision, "Unsupported precision pair.");
+
+    const auto broadcast_load = ov::as_type_ptr<snippets::op::BroadcastLoad>(expr->get_node());
+    OV_CPU_JIT_EMITTER_ASSERT(broadcast_load != nullptr, "Expects BroadcastLoad expression");
+    count = 1;  // BroadcastLoad loads a single scalar value
+    byte_size = src_prc.size();
+}
+
+void jit_load_broadcast_emitter::emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    if (host_isa_ == ov::intel_cpu::riscv64::gv) {
+        emit_isa<ov::intel_cpu::riscv64::gv>(in, out);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Doesn't support isa ", host_isa_);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_load_broadcast_emitter::emit_isa(const std::vector<size_t>& in, const std::vector<size_t>& out) const {
+    auto src_gpr = Xbyak_riscv::Reg(in[0]);
+    auto dst_vreg = Xbyak_riscv::VReg(out[0]);
+
+    // Set vector configuration for appropriate element size
+    if (byte_size == 4) {
+        h->vsetivli(Xbyak_riscv::zero, 4, Xbyak_riscv::SEW::e32, Xbyak_riscv::LMUL::m1);
+    } else {
+        OV_CPU_JIT_EMITTER_THROW("Unsupported byte size: ", byte_size);
+    }
+
+    // Load scalar from memory and broadcast to vector register
+    // First load the scalar value into a temporary GPR
+    auto tmp_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.empty() ? Xbyak_riscv::t0.getIdx() : aux_gpr_idxs[0]);
+    
+    // Calculate effective address if there's an offset
+    if (compiled_byte_offset == 0) {
+        h->lw(tmp_gpr, src_gpr, 0);  // Load word from memory
+    } else {
+        auto addr_gpr = Xbyak_riscv::Reg(aux_gpr_idxs.size() > 1 ? aux_gpr_idxs[1] : Xbyak_riscv::t1.getIdx());
+        h->addi(addr_gpr, src_gpr, static_cast<int32_t>(compiled_byte_offset));
+        h->lw(tmp_gpr, addr_gpr, 0);  // Load word from memory with offset
+    }
+    
+    // Move scalar to vector register and broadcast
+    h->vmv_v_x(dst_vreg, tmp_gpr);  // Broadcast scalar to all elements
+}
+
+void jit_load_broadcast_emitter::emit_data() const {
+    // No additional data emission needed for broadcast load operations
 }
 
 }  // namespace ov::intel_cpu::riscv64
