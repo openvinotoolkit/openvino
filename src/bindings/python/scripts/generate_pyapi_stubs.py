@@ -17,6 +17,7 @@ INVALID_EXPRESSIONS = [
     "<Dimension:",                            # In openvino._pyopenvino.PartialShape.dynamic : Invalid expression '<Dimension: ?>'
     "<RTMap>",                                # In openvino._pyopenvino.Model.evaluate : Invalid expression '<RTMap>'
     "<Type: 'dynamic'>"                       # In openvino._pyopenvino.Tensor.__init__ : Invalid expression '<Type: 'dynamic'>'
+    "ov::Tensor"                              # In openvino._pyopenvino.TensorVector.append : Invalid expression 'ov::Tensor'
 ]
 INVALID_IDENTIFIERS = ["<locals>"]            # In openvino.properties.* : Invalid identifier '<locals>' at 'openvino.properties.device.__getattr__'
 UNRESOLVED_NAMES = [
