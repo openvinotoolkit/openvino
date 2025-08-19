@@ -6,18 +6,20 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <functional>
 #include <iterator>
 #include <memory>
 #include <set>
+#include <tuple>
 #include <utility>
 #include <vector>
 
+#include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
-#include "jit_loop_emitters.hpp"
-#include "jit_memory_emitters.hpp"
 #include "jit_snippets_emitters.hpp"
+#include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/type.hpp"
 #include "snippets/emitter.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/kernel.hpp"
@@ -25,6 +27,7 @@
 #include "snippets/op/reg_spill.hpp"
 #include "snippets/utils/reg_utils.hpp"
 #include "utils.hpp"
+#include "xbyak_riscv/xbyak_riscv.hpp"
 
 using namespace Xbyak_riscv;
 

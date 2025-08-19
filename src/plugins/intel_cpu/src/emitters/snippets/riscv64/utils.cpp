@@ -13,7 +13,6 @@
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/except.hpp"
 #include "snippets/emitter.hpp"
-#include "snippets/lowered/expression_port.hpp"
 #include "xbyak_riscv/xbyak_riscv.hpp"
 
 namespace ov::intel_cpu::riscv64::utils {
@@ -77,8 +76,8 @@ void push_ptr_with_runtime_offset_on_stack(ov::intel_cpu::riscv64::jit_generator
                                            size_t runtime_offset) {
     OPENVINO_ASSERT(aux_regs.size() >= 3, "Need at least 3 auxiliary registers");
 
-    auto& aux1 = aux_regs[0];
-    auto& aux2 = aux_regs[1];
+    const auto& aux1 = aux_regs[0];
+    const auto& aux2 = aux_regs[1];
 
     // Load runtime offset from runtime params
     h->lw(aux1, Xbyak_riscv::a0, static_cast<int32_t>(runtime_offset));
@@ -102,7 +101,7 @@ void push_ptr_with_static_offset_on_stack(ov::intel_cpu::riscv64::jit_generator_
         h->sw(ptr_reg, Xbyak_riscv::sp, stack_offset);
     } else {
         // Add static offset and store
-        auto& aux = aux_regs[0];
+        const auto& aux = aux_regs[0];
         h->addi(aux, ptr_reg, static_cast<int32_t>(ptr_offset));
         h->sw(aux, Xbyak_riscv::sp, stack_offset);
     }

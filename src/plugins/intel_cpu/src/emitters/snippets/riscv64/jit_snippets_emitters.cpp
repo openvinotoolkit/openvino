@@ -4,20 +4,20 @@
 
 #include "jit_snippets_emitters.hpp"
 
-#include <common/utils.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 #include <vector>
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
+#include "emitters/utils.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
+#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
@@ -64,7 +64,7 @@ template <cpu_isa_t isa>
 void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in,
                                   const std::vector<size_t>& out) const {
     // Get destination vector register
-    Xbyak_riscv::VReg dst_vreg = Xbyak_riscv::VReg(out[0]);
+    auto dst_vreg = Xbyak_riscv::VReg(out[0]);
 
     // For now, use t0 as a temporary register
     Xbyak_riscv::Reg tmp_gpr = Xbyak_riscv::t0;

@@ -14,6 +14,7 @@
 
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
 #include "emitters/snippets/jit_snippets_call_args.hpp"
+#include "emitters/utils.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
@@ -26,6 +27,7 @@
 #include "snippets/utils/utils.hpp"
 #include "utils/general_utils.h"
 #include "xbyak_riscv/xbyak_riscv.hpp"
+#include "xbyak_riscv/xbyak_riscv_csr.hpp"
 
 namespace ov::intel_cpu::riscv64 {
 
