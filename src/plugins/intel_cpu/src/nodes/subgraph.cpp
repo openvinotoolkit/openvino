@@ -60,14 +60,20 @@
 #    include "transformations/snippets/aarch64/pass/lowered/adjust_gemm_copy_b_loop_ports.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/gemm_cpu_blocking.hpp"
 #    include "transformations/snippets/aarch64/pass/lowered/insert_gemm_copy_buffers.hpp"
-#endif
+#elif defined(OPENVINO_ARCH_RISCV64)
+#    include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 
-#if !defined(OPENVINO_ARCH_RISCV64)
+#    include "emitters/snippets/riscv64/cpu_generator.hpp"
+#else
 #    include "emitters/snippets/cpu_runtime_configurator.hpp"
 #    include "snippets/lowered/pass/insert_perf_count_verbose.hpp"
 #    include "snippets/lowered/pass/mark_loops.hpp"
 #    include "snippets/pass/propagate_precision.hpp"
 #endif
+
+#include "emitters/snippets/cpu_runtime_configurator.hpp"
+#include "snippets/lowered/pass/mark_loops.hpp"
+#include "snippets/pass/propagate_precision.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
 #    include "cache/cache_entry.h"
@@ -192,6 +198,8 @@ struct SubgraphShapeInferResult {
 static _ov_dnnl_cpu_isa getHostIsa() {
 #if defined(OPENVINO_ARCH_ARM64)
     return dnnl::impl::cpu::aarch64::asimd;
+#elif defined(OPENVINO_ARCH_RISCV64)
+    return static_cast<_ov_dnnl_cpu_isa>(ov::intel_cpu::riscv64::gv);
 #else
     return dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core) ? dnnl::impl::cpu::x64::avx512_core
                                                                             : dnnl::impl::cpu::x64::avx2;
@@ -212,8 +220,12 @@ Subgraph::Subgraph(const std::shared_ptr<ov::Node>& op, const GraphContext::CPtr
         std::make_shared<aarch64::CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
 #elif defined(OPENVINO_ARCH_X86_64)
     subgraph_attrs->snippet->set_generator(std::make_shared<CPUGenerator>(host_isa, context->getSnippetsParamsCache()));
+#elif defined(OPENVINO_ARCH_RISCV64)
+    subgraph_attrs->snippet->set_generator(
+        std::make_shared<riscv64::CPUGenerator>(static_cast<ov::intel_cpu::riscv64::cpu_isa_t>(host_isa), 
+                                                context->getSnippetsParamsCache()));
 #else
-    CPU_NODE_THROW("Subgraphs code-generator is not supported on non-x64 platforms");
+    CPU_NODE_THROW("Subgraphs code-generator is not supported on this platform");
 #endif
 
     // Note: we have to update shapeInfer, so it uses the per-thread op::Subgraph copy
