@@ -177,7 +177,7 @@ void jit_kernel_emitter::emit_impl(const std::vector<size_t>& in,
         auto out_regs = snippets::utils::transform_snippets_regs_to_idxs(reg_info.second, expected_out_type);
         auto gpr_pool = snippets::utils::transform_snippets_regs_to_idxs(pool_gp_reg);
         auto vec_pool = snippets::utils::transform_snippets_regs_to_idxs(pool_vec_reg);
-        emitter->emit_code(in_regs, out_regs, vec_pool, gpr_pool);
+        emitter->snippets::Emitter::emit_code(in_regs, out_regs, vec_pool, gpr_pool);
     }
 
     h->postamble();
