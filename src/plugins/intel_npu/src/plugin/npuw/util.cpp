@@ -633,9 +633,16 @@ ov::Tensor ov::npuw::util::transpose(const ov::Tensor& t) {
     const auto IN_COLS = shape[2];
 
     switch (t.get_element_type()) {
-    case ov::element::i4:
-        ov::npuw::util::XARCH::transpose_i4(t, tnew, IN_ROWS, IN_COLS);
+    case ov::element::i4: {
+        const uint8_t* src = static_cast<const uint8_t*>(t.data());
+        uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+        if (IN_COLS % 2 == 0) {
+            ov::npuw::util::XARCH::transpose_i4_2x64(src, dst, IN_ROWS, IN_COLS);
+        } else {
+            ov::npuw::util::XARCH::transpose_i4(t, tnew, IN_ROWS, IN_COLS);
+        }
         break;
+    }
     case ov::element::f32: {
         const float* src = static_cast<const float*>(t.data());
         float* dst = static_cast<float*>(tnew.data());
@@ -660,9 +667,20 @@ ov::Tensor ov::npuw::util::permute(const ov::Tensor& t, const std::vector<std::s
         ov::Shape tshape = {shape[0], shape[2], shape[1]};
         ov::Tensor tnew(t.get_element_type(), tshape);
         switch (t.get_element_type()) {
-        case ov::element::i4:
-            ov::npuw::util::XARCH::permute021_i4(t, tnew, shape[0], shape[1], shape[2]);
+        case ov::element::i4: {
+            if (shape[2] % 2 == 0) {
+                const uint8_t* src = static_cast<const uint8_t*>(t.data());
+                uint8_t* dst = static_cast<uint8_t*>(tnew.data());
+                ov::parallel_for(shape[0], [&](size_t p) {
+                    const uint8_t* src_ptr = src + p * shape[1] * shape[2];
+                    uint8_t* dst_ptr = dst + p * shape[1] * shape[2];
+                    ov::npuw::util::XARCH::transpose_i4_2x64(src_ptr, dst_ptr, shape[1], shape[2]);
+                });
+            } else {
+                ov::npuw::util::XARCH::permute021_i4(t, tnew, shape[0], shape[1], shape[2]);
+            }
             break;
+        }
         case ov::element::f32: {
             const float* src = static_cast<const float*>(t.data());
             float* dst = static_cast<float*>(tnew.data());

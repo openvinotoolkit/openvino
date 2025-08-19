@@ -85,6 +85,7 @@ ov::Tensor to_f16(const ov::Tensor& t);
 void copy_row_as_column(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
 
 void transpose_i4(const ov::Tensor& t, ov::Tensor& tnew, size_t ROWS, size_t COLS);
+void transpose_i4_2x64(const uint8_t* src, uint8_t* dst, size_t ROWS, size_t COLS);
 void transpose_f32(const float* src, float* dst, size_t ROWS, size_t COLS);
 void transpose_f16(const uint16_t* src, uint16_t* dst, size_t ROWS, size_t COLS);
 
