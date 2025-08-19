@@ -12,13 +12,12 @@
 #include <utility>
 
 #include "compiled_model.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
-#include "intel_npu/utils/zero/zero_utils.hpp"
 #include "logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
-#include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
 #include "weights_bank.hpp"
@@ -391,12 +390,9 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
             // allocated internally to prevent the copy. Here we need to check if the memory
             // is properly allocated externally, to prevent runtime copy as well.
             if (m_npuw_model->global_mem_device() == "NPU") {
-                auto remote_ctx =
-                    m_npuw_model->get_plugin()->get_core()->get_default_context(m_npuw_model->global_mem_device())._ptr;
-                auto zrh = remote_ctx->get_property().at(ov::intel_npu::l0_context.name());
-                if (::intel_npu::zeroUtils::memory_was_allocated_in_the_same_l0_context(zrh.as<ze_context_handle_t>(),
-                                                                                        tensor->data()) ||
-                    ::intel_npu::is_remote_tensor(tensor._ptr)) {
+                // ZeroRemoteTensor and ZeroHostTensor should guarantee the correct memory allocation
+                if (std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(tensor._ptr) != nullptr ||
+                    std::dynamic_pointer_cast<::intel_npu::ZeroHostTensor>(tensor._ptr) != nullptr) {
                     m_input_allocated.insert(tensor->data());
                 }
             }
