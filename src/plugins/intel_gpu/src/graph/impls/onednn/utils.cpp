@@ -797,11 +797,6 @@ bool is_supported_pad(const layout& layout) {
         no_spatial_padding &= (pad._upper_size[2 + i] == 0);
     }
 
-    // Check feature padding
-    bool no_feature_padding = true;
-    no_feature_padding &= (pad._lower_size[1] == 0);
-    no_feature_padding &= (pad._upper_size[1] == 0);
-
     // Onednn supports outer padding of batch axis (first element offset) if its format is 'bxxx'
     bool no_batch_padding = true;
     auto fmt = layout.format;
@@ -810,7 +805,7 @@ bool is_supported_pad(const layout& layout) {
         no_batch_padding &= (pad._upper_size[0] == 0);
     }
 
-    return (no_spatial_padding && no_feature_padding && no_batch_padding);
+    return (no_spatial_padding && no_batch_padding);
 }
 
 }  // namespace onednn
