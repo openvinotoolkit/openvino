@@ -62,6 +62,11 @@ JitConstants EltwiseKernelRef::GetJitConstants(const eltwise_params& params) con
 
     size_t feature_block_size = GetInnerFeatureBlockSize(params.outputs[0]);
     jit.AddConstant(MakeJitConstant("FEATURE_BLOCK_SIZE", feature_block_size));
+    if (params.operations[0].mode == EltwiseMode::ASSIGN) {
+        jit.AddConstant(MakeJitConstant("NEED_ZERO_PADDING", true));
+    } else {
+        jit.AddConstant(MakeJitConstant("NEED_ZERO_PADDING", false));
+    }
 
     if (!params.fused_ops.empty()) {
         kernel_selector::Datatype input_dt = GetAccumulatorType(params);

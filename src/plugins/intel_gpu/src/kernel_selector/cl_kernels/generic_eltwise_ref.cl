@@ -176,8 +176,8 @@ KERNEL(eltwise)(
 
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
 
-        // Fill padded memory with zeros for b_fs_yx_fsv format
-        if(d4 + d3 + d2 + d1 == 0) {
+        // zero-padding the blocked format padded memory area since it might be used as input of onednn concatenation
+        if(NEED_ZERO_PADDING && d4 + d3 + d2 + d1 == 0) {
             uint offset = 0;
             uint bs = OUTPUT_SIZES[3], features = OUTPUT_SIZES[2], ys = OUTPUT_SIZES[1], xs = OUTPUT_SIZES[0];
             uint fs_pad = (features + FEATURE_BLOCK_SIZE -1) / FEATURE_BLOCK_SIZE;
