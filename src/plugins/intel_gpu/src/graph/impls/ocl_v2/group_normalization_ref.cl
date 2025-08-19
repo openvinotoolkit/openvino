@@ -73,7 +73,7 @@ KERNEL (calc_standard_deviation_ref)(  __global INPUT0_TYPE* input
     if (batch >= INPUT0_BATCH_NUM)
         return;
     const int group = get_global_id(1);
-    const output_idx = batch * NUM_GROUPS + group;
+    const int output_idx = batch * NUM_GROUPS + group;
     const int feature_begin = group * NUM_CHANNELS_IN_GROUP;
     const int feature_end = group * NUM_CHANNELS_IN_GROUP + NUM_CHANNELS_IN_GROUP;
     float variance = 0.f, error = 0.f;
