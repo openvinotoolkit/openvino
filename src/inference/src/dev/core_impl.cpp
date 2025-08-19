@@ -1603,14 +1603,14 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                 }
 
                 ov::util::VariantVisitor model_importer{
-                    [&](const ov::Tensor& compiled_blob) -> decltype(compiled_model) {
+                    [&](const ov::Tensor& compiled_blob) -> ov::SoPtr<ov::ICompiledModel> {
                         const ov::Tensor compiled_blob_without_header{compiled_blob,
                                                                       {compiled_blob_offset},
                                                                       {compiled_blob.get_size()}};
                         return context ? plugin.import_model(compiled_blob_without_header, context, update_config)
                                        : plugin.import_model(compiled_blob_without_header, update_config);
                     },
-                    [&](std::reference_wrapper<std::istream> stream) -> decltype(compiled_model) {
+                    [&](std::reference_wrapper<std::istream> stream) -> ov::SoPtr<ov::ICompiledModel> {
                         return context ? plugin.import_model(stream, context, update_config)
                                        : plugin.import_model(stream, update_config);
                     }};
