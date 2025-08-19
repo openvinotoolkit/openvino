@@ -19,8 +19,8 @@ namespace opp = ov::pass::pattern;
 
 // diagnostics warnings on OPENVINO_MATCHER_PASS_RTTI() definition: visibility hidden
 #ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wattributes"
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wattributes"
 #endif
 namespace {
 
@@ -296,7 +296,7 @@ public:
 }  // namespace
 
 #ifdef __GNUC__
-#pragma GCC diagnostic pop
+#    pragma GCC diagnostic pop
 #endif
 
 namespace ov::npuw::util {
