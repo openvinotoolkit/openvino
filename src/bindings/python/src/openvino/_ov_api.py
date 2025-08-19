@@ -14,7 +14,7 @@ from openvino._pyopenvino import Model as ModelBase
 from openvino._pyopenvino import Core as CoreBase
 from openvino._pyopenvino import CompiledModel as CompiledModelBase
 from openvino._pyopenvino import AsyncInferQueue as AsyncInferQueueBase
-from openvino._pyopenvino import Node, Tensor, Type
+from openvino._pyopenvino import Node, Tensor, Type, RTMap, TensorVector
 
 from openvino.utils.data_helpers import (
     OVDict,
@@ -88,6 +88,17 @@ class Model(object, metaclass=ModelMeta):
     def __dir__(self) -> list:
         wrapper_methods = ["__copy__", "__deepcopy__", "__dict__", "__enter__", "__exit__", "__getattr__", "__weakref__"]
         return dir(self.__model) + wrapper_methods
+
+    def evaluate(
+        self,
+        output_tensors: Union[list[Tensor], TensorVector],
+        input_tensors: Union[list[Tensor], TensorVector],
+        evaluation_context: Optional[RTMap] = None,
+    ) -> bool:
+        outputs = output_tensors if isinstance(output_tensors, TensorVector) else TensorVector(output_tensors)
+        inputs = input_tensors if isinstance(input_tensors, TensorVector) else TensorVector(input_tensors)
+        context = evaluation_context if evaluation_context is not None else RTMap()
+        return self.__model.evaluate(outputs, inputs, context)
 
 
 class InferRequest(_InferRequestWrapper):

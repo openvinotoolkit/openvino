@@ -22,10 +22,7 @@ class SoftMaxLayerGPUTest : public testing::WithParamInterface<softmaxGPUTestPar
                             virtual public ov::test::SubgraphBaseTest {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<softmaxGPUTestParamsSet>& obj) {
-        ov::element::Type model_type;
-        ov::test::InputShape inShape;
-        int64_t axis;
-        std::tie(model_type, inShape, axis) = obj.param;
+        const auto& [model_type, inShape, axis] = obj.param;
 
         std::ostringstream result;
         result << "netPRC=" << model_type << "_";
@@ -42,10 +39,8 @@ public:
 protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
-        ov::element::Type model_type;
-        ov::test::InputShape inShape;
-        int64_t axis;
-        std::tie(model_type, inShape, axis) = this->GetParam();
+
+        const auto& [model_type, inShape, axis] = this->GetParam();
 
         if (model_type == ov::element::f16) {
             abs_threshold = 0.005;

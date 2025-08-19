@@ -48,10 +48,10 @@ class IntegrationTest(unittest.TestCase):
             path_to_log_archive=log_archive_path,
             path_to_errors_file=self.errors_to_look_for_file,
         )
+        self.assertTrue(len(analyzer._log_files) > 0)
         analyzer.analyze()
         if analyzer.found_matching_error:
-            print(f'Found matrching error, ticket: {analyzer.found_error_ticket}')
-        
-    
+            print(f'Found matching error, ticket: {analyzer.found_error_ticket}')
+
     def tearDown(self) -> None:
         self.github.close()
