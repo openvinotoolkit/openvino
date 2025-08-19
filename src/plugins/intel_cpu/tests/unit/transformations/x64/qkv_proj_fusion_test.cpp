@@ -82,8 +82,5 @@ TEST_F(TransformationTestsF, QKVProjFusion1Test) {
         auto k_proj = std::make_shared<v0::Result>(qkv_proj->output(1));
         auto v_proj = std::make_shared<v0::Result>(qkv_proj->output(2));
         model_ref = std::make_shared<ov::Model>(OutputVector{q_proj, k_proj, v_proj}, ParameterVector{input_param});
-        ov::pass::Manager manager;
-        manager.register_pass<VisualizeTree>("test_model_ref.svg");
-        manager.run_passes(model_ref);
     }
 }
