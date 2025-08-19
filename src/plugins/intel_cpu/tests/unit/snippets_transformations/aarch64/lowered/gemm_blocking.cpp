@@ -21,11 +21,6 @@ using PortDescriptor = ov::snippets::modifier::MemoryAccess::PortDescriptor;
 
 namespace {
 
-SpecificIterationHandlers get_k_loop_handlers(size_t work_amount, size_t block_size) {
-    auto handlers = BrgemmBlockingBase::get_default_blocking_loop_handlers(work_amount, block_size);
-    handlers.register_pass<SpecificLoopIterType::FIRST_ITER, ov::intel_cpu::pass::GemmCPUBlocking::DummyPass>();
-    return handlers;
-}
 
 void create_gemm_loop_infos(const LinearIRPtr& linear_ir,
                              const ExpressionPtr& gemm_expr,
@@ -35,15 +30,6 @@ void create_gemm_loop_infos(const LinearIRPtr& linear_ir,
     const bool k_block = k != 0 && k_blk != 0;
     const bool n_block = n != 0 && n_blk != 0;
     const bool m_block = m != 0 && m_blk != 0;
-    if (k_block) {
-        const auto loop_info =
-            std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(k, k_blk,
-                std::vector<LoopPort>{LoopPort::create<PortType::Incremented>(gemm_expr->get_input_port(0), 0),
-                                      LoopPort::create<PortType::Incremented>(gemm_expr->get_input_port(1), 1)},
-                std::vector<LoopPort>{LoopPort::create<PortType::NotProcessed>(gemm_expr->get_output_port(0))},
-                get_k_loop_handlers(k, k_blk));
-        linear_ir->get_loop_manager()->add_loop_info(loop_info);
-    }
     if (n_block) {
         linear_ir->get_loop_manager()->add_loop_info(
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(n, n_blk,
@@ -77,7 +63,7 @@ public:
 
 protected:
     size_t m_blk = 32;
-    size_t k_blk = 512;
+    size_t k_blk = full_dim;
     size_t n_blk = 64;
 
     static const size_t full_dim = ov::snippets::utils::get_full_dim_value();
@@ -140,7 +126,7 @@ TEST_F(GemmCPUBlockingTest, Floating_LargeK) {
     const ov::PartialShape input_shape_a{1, 16, m, k};
     const ov::PartialShape input_shape_b{1, 16, k, n};
     const auto precision = ov::element::f32;
-    k_blk = 1024;
+    k_blk = full_dim;
 
     {
         auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);

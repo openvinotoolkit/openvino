@@ -38,23 +38,4 @@ std::tuple<size_t, size_t, size_t> GemmCPUBlocking::get_blocking_params(
     return std::make_tuple(m_blk, n_blk, k_blk);
 }
 
-bool GemmCPUBlocking::DummyPass::run([[maybe_unused]] snippets::lowered::LinearIR& linear_ir,
-                                     [[maybe_unused]] snippets::lowered::LinearIR::constExprIt begin,
-                                     [[maybe_unused]] snippets::lowered::LinearIR::constExprIt end) {
-    return true;
-}
-
-std::shared_ptr<snippets::lowered::pass::PassBase> GemmCPUBlocking::DummyPass::merge(
-    const std::shared_ptr<snippets::lowered::pass::PassBase>& other) {
-    return !other || ov::is_type<DummyPass>(other) ? std::make_shared<DummyPass>() : nullptr;
-}
-
-snippets::lowered::SpecificIterationHandlers GemmCPUBlocking::get_k_loop_handlers(size_t work_amount,
-                                                                                  size_t block_size) const {
-    snippets::lowered::SpecificIterationHandlers handlers =
-        ov::snippets::lowered::pass::BrgemmBlockingBase::get_default_blocking_loop_handlers(work_amount, block_size);
-    handlers.register_pass<ov::snippets::lowered::SpecificLoopIterType::FIRST_ITER, DummyPass>();
-    return handlers;
-}
-
 }  // namespace ov::intel_cpu::pass
