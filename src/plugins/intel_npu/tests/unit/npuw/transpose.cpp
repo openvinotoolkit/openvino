@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//#ifdef HAVE_AVX2
-#include "transpose.hpp"
+#ifdef HAVE_AVX2
+#    include "transpose.hpp"
 
 namespace {
 
@@ -34,4 +34,4 @@ INSTANTIATE_TEST_SUITE_P(TransposeTests, TransposeTests, TestCases, TransposeTes
 
 }  // anonymous namespace
 
-//#endif // __AVX2__
+#endif  // __AVX2__

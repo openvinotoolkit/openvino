@@ -34,7 +34,7 @@ inline uint8_t lo4(uint8_t x) {
     return x & 0xF;
 }
 
-//#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
 // Read a uint8 data and obtain two int4 values.
 inline void tread_2x4b(const ov::Tensor& t,
                        std::size_t r,
@@ -49,9 +49,9 @@ inline void tread_2x4b(const ov::Tensor& t,
     low = byte & 0x0F;
     high = (byte >> 4) & 0x0F;
 }
-//#endif
+#endif
 
-//#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
 inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c, std::size_t COLS) {
     uint8_t* tdata = static_cast<uint8_t*>(t.data());
     size_t offset = r * COLS + c;
@@ -62,38 +62,38 @@ inline void twrite_4b(ov::Tensor& t, uint8_t value, std::size_t r, std::size_t c
         *telem = (lo4(value) << 4) | lo4(*telem);
     }
 }
-//#endif
+#endif
 
-//#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
 inline int8_t upc(int8_t h) {
     return h | (-((h & (1 << 3)) >> 3) & (-8));
 }
 
 // NOTE: This routine implements the NEW ORDER
-#define avx2_i4toi8(vinput, vout0, vout1)                                         \
-    {                                                                             \
-        __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
-        __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
-        __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
-        __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
-        __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
-                                                                                  \
-        __m256i vht = _mm256_and_si256(vinput, himask);                           \
-        __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
-        __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
-                                                                                  \
-        __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
-        __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
-        __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
-        __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
-        __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
-        __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
-                                                                                  \
-        __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
-        __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
-        *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
-        *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
-    }
+#    define avx2_i4toi8(vinput, vout0, vout1)                                         \
+        {                                                                             \
+            __m256i himask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0xF0));    \
+            __m256i lomask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0x0F));    \
+            __m256i vsgmask = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 1 << 3)); \
+            __m256i vzero = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, 0));        \
+            __m256i vextend = _mm256_broadcastb_epi8(_mm_set_epi32(0, 0, 0, (-8)));   \
+                                                                                      \
+            __m256i vht = _mm256_and_si256(vinput, himask);                           \
+            __m256i vhi = _mm256_srli_epi16(vht, 4);                                  \
+            __m256i vlo = _mm256_and_si256(vinput, lomask);                           \
+                                                                                      \
+            __m256i vsghi = _mm256_srli_epi16(_mm256_and_si256(vhi, vsgmask), 3);     \
+            __m256i vsglo = _mm256_srli_epi16(_mm256_and_si256(vlo, vsgmask), 3);     \
+            __m256i vsubhi = _mm256_sub_epi8(vzero, vsghi);                           \
+            __m256i vsublo = _mm256_sub_epi8(vzero, vsglo);                           \
+            __m256i vhires = _mm256_or_si256(vhi, _mm256_and_si256(vsubhi, vextend)); \
+            __m256i vlores = _mm256_or_si256(vlo, _mm256_and_si256(vsublo, vextend)); \
+                                                                                      \
+            __m256i vunlo = _mm256_unpacklo_epi8(vlores, vhires);                     \
+            __m256i vunhi = _mm256_unpackhi_epi8(vlores, vhires);                     \
+            *vout0 = _mm256_permute2x128_si256(vunlo, vunhi, 0x20);                   \
+            *vout1 = _mm256_permute2x128_si256(vunlo, vunhi, 0x31);                   \
+        }
 
 inline __m128i avx2_i8tof16(__m128i vi8) {
     __m256i i32vec = _mm256_cvtepi8_epi32(vi8);                 // extend:  8 x i8  -> 8 x i32 [256b of 256b]
@@ -228,7 +228,7 @@ inline float avx2_load_f32(const int8_t* data, ov::element::Type type) {
         return val;
     }
 }
-//#endif
+#endif
 
 #ifdef UNPACK_PROFILING
 class UnpackStat {
@@ -1506,7 +1506,7 @@ void ov::npuw::util::XARCH::copy_row_as_column(const ov::SoPtr<ov::ITensor>& fro
 }
 
 void ov::npuw::util::XARCH::transpose_i4(const ov::Tensor& t, ov::Tensor& tnew, size_t ROWS, size_t COLS) {
-    //#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
 
@@ -1566,13 +1566,13 @@ void ov::npuw::util::XARCH::transpose_i4(const ov::Tensor& t, ov::Tensor& tnew, 
             }
         }
     }
-    //#else
-    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-    //#endif
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
 }
 
 void ov::npuw::util::XARCH::transpose_i4_2x64(const uint8_t* src, uint8_t* dst, size_t ROWS, size_t COLS) {
-    //#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
     const size_t blockSize = 64;  // AVX2 can handle 64 i4 per register.
     // Handle two cols at a time.
     for (size_t c = 0; c < COLS; c += 2) {
@@ -1674,13 +1674,13 @@ void ov::npuw::util::XARCH::transpose_i4_2x64(const uint8_t* src, uint8_t* dst, 
             }
         }
     }
-    //#else
-    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-    //#endif
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
 }
 
 void ov::npuw::util::XARCH::transpose_f16(const uint16_t* src, uint16_t* dst, size_t ROWS, size_t COLS) {
-    //#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
     const size_t blockSize = 16;  // AVX2 can handle 8 floats per register.
     ov::parallel_for(COLS, [&](size_t c) {
         size_t r = 0;
@@ -1710,13 +1710,13 @@ void ov::npuw::util::XARCH::transpose_f16(const uint16_t* src, uint16_t* dst, si
             dst[c * ROWS + r] = src[r * COLS + c];
         }
     });
-    //#else
-    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-    //#endif
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
 }
 
 void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t ROWS, size_t COLS) {
-    //#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
     const size_t blockSize = 8;  // AVX2 can handle 8 floats per register.
     ov::parallel_for(COLS, [&](size_t c) {
         size_t r = 0;
@@ -1738,9 +1738,9 @@ void ov::npuw::util::XARCH::transpose_f32(const float* src, float* dst, size_t R
             dst[c * ROWS + r] = src[r * COLS + c];
         }
     });
-    //#else
-    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-    //#endif
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
 }
 
 void ov::npuw::util::XARCH::permute021_i4(const ov::Tensor& t,
@@ -1748,7 +1748,7 @@ void ov::npuw::util::XARCH::permute021_i4(const ov::Tensor& t,
                                           size_t PLAS,
                                           size_t ROWS,
                                           size_t COLS) {
-    //#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
     for (size_t p = 0; p < PLAS; ++p) {
@@ -1809,9 +1809,9 @@ void ov::npuw::util::XARCH::permute021_i4(const ov::Tensor& t,
             }
         }
     }
-    //#else
-    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-    //#endif
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
 }
 
 void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
@@ -1819,7 +1819,7 @@ void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
                                           size_t PLAS,
                                           size_t ROWS,
                                           size_t COLS) {
-    //#if defined(HAVE_AVX2)
+#if defined(HAVE_AVX2)
     const uint8_t* src = static_cast<const uint8_t*>(t.data());
     uint8_t* dst = static_cast<uint8_t*>(tnew.data());
     constexpr size_t PACK = 64;  // 32 bytes = 256 bits = 64 int4
@@ -1882,7 +1882,7 @@ void ov::npuw::util::XARCH::permute102_i4(const ov::Tensor& t,
             }
         }
     }
-    //#else
-    //    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
-    //#endif
+#else
+    OPENVINO_THROW("AVX2 support is necessary but it's not enabled!");
+#endif
 }

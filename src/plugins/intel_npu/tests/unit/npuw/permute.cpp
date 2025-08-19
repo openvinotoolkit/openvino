@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-//#ifdef HAVE_AVX2
-#include "permute.hpp"
+#ifdef HAVE_AVX2
+#    include "permute.hpp"
 
 namespace {
 
@@ -101,4 +101,4 @@ INSTANTIATE_TEST_SUITE_P(PermuteTests120, PermuteTests, TestCases120, PermuteTes
 
 }  // anonymous namespace
 
-//#endif  // __AVX2__
+#endif  // __AVX2__
