@@ -40,17 +40,9 @@ public:
 
     virtual void reset() const;
 
-    virtual void update_graph_arguments(uint32_t arg_index,
-                                        const void* arg_data,
-                                        size_t byte_size,
-                                        [[maybe_unused]] const ov::Strides& strides,
-                                        [[maybe_unused]] const ov::Shape& shapes);
+    virtual void update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size);
 
-    virtual void update_graph_arguments_batching(uint32_t arg_index,
-                                                 const void* arg_data,
-                                                 [[maybe_unused]] const ov::Strides& strides,
-                                                 [[maybe_unused]] const ov::Shape& shapes,
-                                                 size_t batch_index);
+    virtual void update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t batch_index);
 
     std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

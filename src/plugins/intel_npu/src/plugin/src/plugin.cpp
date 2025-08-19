@@ -692,7 +692,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream, c
         }
 
         _logger.debug("Current blob type from Metadata: %d", metadata->get_blob_type());
-        if (metadata->get_blob_type() == 1) {
+        if (metadata->get_blob_type() == BlobType::LLVM) {
             // If blob is LLVMIR, shall use HostCompile mode to use dynamic pipeline
             npu_plugin_properties[COMPILATION_MODE::key().data()] = "HostCompile";
         }
