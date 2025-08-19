@@ -212,8 +212,18 @@ if(NOT (AARCH64 OR ARM))
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/tpp/aarch64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/aarch64/*)
+endif()
+
+# For RISC-V, include only AArch64 executors (not kernels to avoid conflicts)
+if(RISCV64)
+    file(GLOB_RECURSE AARCH64_EXECUTORS
+         ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*)
+    list(APPEND SOURCES ${AARCH64_EXECUTORS})
+else()
+    if(NOT (AARCH64 OR ARM))
+        list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/aarch64/*)
+    endif()
 endif()
 
 if(NOT AARCH64)

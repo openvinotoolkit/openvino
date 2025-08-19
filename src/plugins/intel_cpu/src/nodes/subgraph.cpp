@@ -65,6 +65,7 @@
 #    include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
 
 #    include "emitters/snippets/riscv64/cpu_generator.hpp"
+#    include "executors/aarch64/subgraph.hpp"  // Use AArch64 executors for RISC-V
 #endif
 
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
@@ -108,7 +109,7 @@
 namespace ov::intel_cpu::node {
 namespace {
 
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
 struct SubgraphKey {
     SubgraphKey() = default;
     SubgraphKey(std::shared_ptr<SubgraphAttrs> attrs_, std::vector<VectorDims> in_shapes_)
@@ -771,7 +772,7 @@ void Subgraph::optimizeIR() {
 }
 
 void Subgraph::prepareParams() {
-#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64)
+#if defined(OPENVINO_ARCH_X86_64) || defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
     const auto& cache = context->getSnippetsParamsCache();
 
     auto builder = [this, &cache](const SubgraphKey& key) -> std::shared_ptr<SubgraphBaseExecutor> {
