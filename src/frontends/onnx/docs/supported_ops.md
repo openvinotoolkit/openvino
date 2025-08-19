@@ -33,7 +33,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |CastLike                                                |15                      |21, 19, 15                      |                                |
 |                        |Ceil                                                    |1                       |13, 6, 1                        |                                |
 |                        |Celu                                                    |12                      |12                              |                                |
-|                        |CenterCropPad                                           |                        |18                              |                                |
+|                        |CenterCropPad                                           |18                      |18                              |                                |
 |                        |Clip                                                    |11, 1                   |13, 12, 11, 6, 1                |                                |
 |                        |Col2Im                                                  |                        |18                              |                                |
 |                        |Compress                                                |9                       |11, 9                           |                                |

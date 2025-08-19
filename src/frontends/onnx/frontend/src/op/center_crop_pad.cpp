@@ -13,7 +13,6 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
@@ -40,8 +39,7 @@ static std::shared_ptr<ov::Node> get_axes_range(const ov::Output<ov::Node>& inpu
     return std::make_shared<v4::Range>(start, rank_of_input_scalar, step, ov::element::i64);
 }
 
-ov::OutputVector center_crop_pad_impl(const ov::OutputVector inputs,
-                                      const std::vector<int64_t>& axes_attr) {
+ov::OutputVector center_crop_pad_impl(const ov::OutputVector inputs, const std::vector<int64_t>& axes_attr) {
     const auto& data = inputs[0];
     const auto& target = inputs[1];
     const auto target_i64 = std::make_shared<v0::Convert>(target, ov::element::i64);
@@ -57,7 +55,9 @@ ov::OutputVector center_crop_pad_impl(const ov::OutputVector inputs,
         std::vector<int64_t> pos = axes_attr;
         if (data.get_partial_shape().rank().is_static()) {
             int64_t r = data.get_partial_shape().rank().get_length();
-            for (auto& a : pos) if (a < 0) a += r;
+            for (auto& a : pos) 
+                if (a < 0) 
+                    a += r;
         }
         const auto axes_const = std::make_shared<v0::Constant>(ov::element::i64, Shape{pos.size()}, pos);
         axes_output = axes_const;
