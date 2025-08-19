@@ -175,5 +175,10 @@ ov::device::Type ZeroDevice::getDeviceType() const {
 std::shared_ptr<SyncInferRequest> ZeroDevice::createInferRequest(
     const std::shared_ptr<const ICompiledModel>& compiledModel,
     const Config& config) {
+#ifdef NPU_LLVM_BACKEND
+    if (compiledModel->get_graph()->get_blob_type() == BlobType::LLVM) {
+        return std::make_shared<ZeroDynamicInferRequest>(_initStructs, compiledModel, config);
+    }
+#endif
     return std::make_shared<ZeroInferRequest>(_initStructs, compiledModel, config);
 }

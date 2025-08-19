@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#ifdef NPU_LLVM_BACKEND
 
 #pragma once
 
@@ -13,16 +14,16 @@
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
-#include "zero_pipeline.hpp"
-#include "zero_tensor.hpp"
+#    include "zero_dynamic_pipeline.hpp"
+#    include "zero_tensor.hpp"
 
 namespace intel_npu {
 
-class ZeroInferRequest final : public SyncInferRequest {
+class ZeroDynamicInferRequest final : public SyncInferRequest {
 public:
-    explicit ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
-                              const std::shared_ptr<const ICompiledModel>& compiledModel,
-                              const Config& config);
+    explicit ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
+                                      const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                      const Config& config);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
@@ -36,6 +37,22 @@ public:
 
 private:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
+
+    /**
+     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
+     * @param descriptor Tensor's metadata
+     * @param index The index which the allocated tensor shall use.
+     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
+     * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
+     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
+     * @return Pointer towards the allocated tensor
+     */
+    std::shared_ptr<ov::ITensor> allocate_tensor_for_pipeline(
+        const IODescriptor& descriptor,
+        const size_t index,
+        const bool isInput,
+        const ov::Allocator& allocator = {},
+        const std::optional<std::size_t> batchSize = std::nullopt) const;
 
     /**
      * @brief Check the received tensor and set the Level Zero tensor accordingly
@@ -61,23 +78,16 @@ private:
     std::shared_ptr<ov::ITensor>& get_level_zero_input(size_t index, size_t tensorNo = 0) const;
     std::vector<std::shared_ptr<ov::ITensor>>& get_level_zero_inputs(size_t index) const;
 
-    /**
-     * @brief Allocates a tensor on host and stores the reference inside multiple attributes.
-     * @param index The index which the allocated tensor shall use.
-     * @param isInput Determines the containers in which the newly allocated tensors will be stored.
-     * @param allocator If provided, the tensor uses the custom allocator instead of using the default one.
-     * @param batchSize If provided, the value of the shape on the 0th axis is overriden with this value.
-     * @return Pointer towards the allocated tensor
-     */
-    std::shared_ptr<ov::ITensor> allocate_tensor(const size_t index,
-                                                 const bool isInput,
-                                                 const ov::Allocator& allocator,
-                                                 const std::optional<std::size_t> batchSize = std::nullopt) const;
+    std::shared_ptr<ov::ITensor> create_tensor(ov::element::Type type,
+                                               const ov::Shape& shape,
+                                               const ov::Allocator& allocator = {}) const override;
 
     void add_state(const IODescriptor& descriptor, size_t tensorIndex) const override;
 
     void update_pipeline_if_memory_changed();
     void update_states_if_memory_changed();
+
+    IODescriptor prepare_io_descriptor_with_user_info(const IODescriptor& descriptor, bool isInput);
 
     const std::shared_ptr<ZeroInitStructsHolder> _initStructs;
     const std::shared_ptr<IGraph> _graph;
@@ -95,7 +105,7 @@ private:
     std::shared_ptr<const zeroMemory::HostMemAllocator> _inputAllocator;
     std::shared_ptr<const zeroMemory::HostMemAllocator> _outputAllocator;
 
-    std::unique_ptr<Pipeline> _pipeline;
+    std::unique_ptr<DynamicPipeline> _pipeline;
 
     bool _pipelineIsCreated = false;
     bool _dynamicBatchValueChanged = false;
@@ -103,3 +113,4 @@ private:
 };
 
 }  //  namespace intel_npu
+#endif

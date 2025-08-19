@@ -5,9 +5,6 @@
 
 #    pragma once
 
-#    include <mlir/ExecutionEngine/ExecutionEngine.h>
-#    include <mlir/ExecutionEngine/MemRefUtils.h>
-
 #    include "intel_npu/common/igraph.hpp"
 #    include "intel_npu/utils/zero/zero_utils.hpp"
 #    include "intel_npu/utils/zero/zero_wrappers.hpp"
@@ -105,7 +102,7 @@ struct DynamicPipeline : public Pipeline {
                 Logger::global().debug("Updated to MemRefType: %s", oss.str().c_str());
 
             } else {
-                uint32_t output_index = arg_index - _binding._inputs.size();
+                size_t output_index = static_cast<size_t>(arg_index) - _binding._inputs.size();
                 if (output_index < _binding._outputs.size()) {
                     std::ostringstream oss;
                     oss << *(_binding._outputs[output_index]);
@@ -173,16 +170,16 @@ public:
     virtual void pull() override;
     virtual void reset() const override;
 
-    virtual void update_graph_arguments(uint32_t arg_index,
-                                        const void* arg_data,
-                                        size_t byte_size,
-                                        [[maybe_unused]] const ov::Strides& strides,
-                                        [[maybe_unused]] const ov::Shape& shapes) override;
-    virtual void update_graph_arguments_batching(uint32_t arg_index,
-                                                 const void* arg_data,
-                                                 [[maybe_unused]] const ov::Strides& strides,
-                                                 [[maybe_unused]] const ov::Shape& shapes,
-                                                 size_t batch_index) override;
+    void update_graph_arguments(uint32_t arg_index,
+                                const void* arg_data,
+                                size_t byte_size,
+                                [[maybe_unused]] const ov::Strides& strides,
+                                [[maybe_unused]] const ov::Shape& shapes);
+    void update_graph_arguments_batching(uint32_t arg_index,
+                                         const void* arg_data,
+                                         [[maybe_unused]] const ov::Strides& strides,
+                                         [[maybe_unused]] const ov::Shape& shapes,
+                                         size_t batch_index);
 
     virtual std::vector<ov::ProfilingInfo> get_profiling_info() const;
 

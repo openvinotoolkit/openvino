@@ -262,11 +262,7 @@ void Pipeline::reset() const {
     _logger.debug("Pipeline - rest() completed");
 };
 
-void Pipeline::update_graph_arguments(uint32_t arg_index,
-                                      const void* arg_data,
-                                      size_t byte_size,
-                                      [[maybe_unused]] const ov::Strides& strides,
-                                      [[maybe_unused]] const ov::Shape& shapes) {
+void Pipeline::update_graph_arguments(uint32_t arg_index, const void* arg_data, size_t byte_size) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandList");
     _logger.debug("Pipeline - updateCommandList");
 
@@ -279,11 +275,7 @@ void Pipeline::update_graph_arguments(uint32_t arg_index,
     }
 };
 
-void Pipeline::update_graph_arguments_batching(uint32_t arg_index,
-                                               const void* arg_data,
-                                               [[maybe_unused]] const ov::Strides& strides,
-                                               [[maybe_unused]] const ov::Shape& shapes,
-                                               size_t command_list_index) {
+void Pipeline::update_graph_arguments_batching(uint32_t arg_index, const void* arg_data, size_t command_list_index) {
     OV_ITT_TASK_CHAIN(ZERO_EXECUTOR_IP_UMCL, itt::domains::LevelZeroBackend, "Pipeline", "updateCommandListIndex");
     _logger.debug("Pipeline - updateCommandListIndex");
 
