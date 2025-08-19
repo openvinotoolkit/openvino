@@ -18,6 +18,8 @@ bool evaluate(const std::shared_ptr<ov::op::v13::ScaledDotProductAttention>& op,
     const TMask* mask = inputs.size() == 4 ? inputs[3].data<const TMask>() : nullptr;
     const T* scale = inputs.size() == 5 ? inputs[4].data<const T>() : nullptr;
     auto mask_shape = inputs.size() == 4 ? inputs[3].get_shape() : ov::Shape{};
+    const T* sink = inputs.size() == 6 ? inputs[5].data<const T>() : nullptr;
+    auto sink_shape = inputs.size() == 6 ? inputs[5].get_shape() : ov::Shape{};
 
     // Hack below is needed to support dynamic shapes in the reference implementation...
     const auto input_shapes = ov::util::get_tensors_partial_shapes(inputs);
@@ -31,12 +33,14 @@ bool evaluate(const std::shared_ptr<ov::op::v13::ScaledDotProductAttention>& op,
                                                           inputs[2].data<const T>(),
                                                           mask,
                                                           scale,
+                                                          sink,
                                                           outputs[0].data<T>(),
                                                           op->get_causal(),
                                                           inputs[0].get_shape(),
                                                           inputs[1].get_shape(),
                                                           inputs[2].get_shape(),
                                                           mask_shape,
+                                                          sink_shape,
                                                           outputs[0].get_shape());
 
     return true;
