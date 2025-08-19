@@ -14,6 +14,7 @@
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/squeeze.hpp"
