@@ -136,7 +136,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
                     work.output_id = output_id;
                     work.p_raw_weights = pw;
                     work.quant_i8 = quantized_int8;
-                    work.is_f16 = std::is_same<T, ov::float16>::value;
+                    work.is_f16 = std::is_same_v<T, ov::float16>;
                 }
                 start_blkN += blkN;
             }
@@ -225,7 +225,7 @@ struct QKVProjection::Executor : public QKVProjection::ExecutorBase {
     }
 
     void execute() override {
-        static ReduceAdd2bh jit_cvt(false, std::is_same<T, ov::float16>::value);
+        static ReduceAdd2bh jit_cvt(false, std::is_same_v<T, ov::float16>);
 
         auto input = m_node->getSrcMemoryAtPort(0);
         const auto& ishape = input->getStaticDims();

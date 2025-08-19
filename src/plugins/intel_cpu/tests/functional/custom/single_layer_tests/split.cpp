@@ -22,7 +22,7 @@ class SplitLayerCPUTest : public testing::WithParamInterface<splitCPUTestParams>
                           virtual public SubgraphBaseTest,
                           public CPUTestsBase {
 public:
-    static std::string getTestCaseName(testing::TestParamInfo<splitCPUTestParams> obj) {
+    static std::string getTestCaseName(const testing::TestParamInfo<splitCPUTestParams>& obj) {
         const auto& [numSplits, axis, netPrecision, inputShapes, outIndices, cpuParams] = obj.param;
         std::ostringstream result;
         result << "IS=";

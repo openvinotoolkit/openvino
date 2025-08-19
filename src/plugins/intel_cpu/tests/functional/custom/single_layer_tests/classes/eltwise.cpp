@@ -21,7 +21,7 @@ using namespace CPUTestUtils;
 namespace ov {
 namespace test {
 
-std::string EltwiseLayerCPUTest::getTestCaseName(testing::TestParamInfo<EltwiseLayerCPUTestParamsSet> obj) {
+std::string EltwiseLayerCPUTest::getTestCaseName(const testing::TestParamInfo<EltwiseLayerCPUTestParamsSet>& obj) {
     const auto& [basicParamsSet, cpuParams, fusingParams, enforceSnippets] = obj.param;
     std::ostringstream result;
     result << EltwiseLayerTest::getTestCaseName(testing::TestParamInfo<EltwiseTestParams>(
@@ -292,7 +292,8 @@ std::string EltwiseLayerCPUTest::getPrimitiveType(const utils::EltwiseTypes& elt
             (eltwise_type == utils::EltwiseTypes::SUBTRACT) ||
             (eltwise_type == utils::EltwiseTypes::MULTIPLY) ||
             (eltwise_type == utils::EltwiseTypes::DIVIDE) ||
-            (eltwiseType == utils::EltwiseTypes::MOD)) {
+            (eltwiseType == utils::EltwiseTypes::MOD) ||
+            (eltwiseType == utils::EltwiseTypes::FLOOR_MOD)) {
             return "jit";
         }
     }
