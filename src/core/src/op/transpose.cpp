@@ -120,7 +120,8 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
                 const auto out_batch = out_shape[0];
                 const auto out_shape_d0 = out_shape[1];
                 const auto out_shape_d1 = out_shape[2];
-                OPENVINO_ASSERT((out_shape_d0 * out_shape_d1) % 2 == 0, "Only supports even number of i4/u4 data in each batch for trasposing");
+                OPENVINO_ASSERT((out_shape_d0 * out_shape_d1) % 2 == 0,
+                                "Only supports even number of i4/u4 data in each batch for trasposing");
                 size_t batch_offset = 0;
                 for (size_t b = 0; b < out_batch; b++) {
                     uint8_t* out_batch_base = static_cast<uint8_t*>(out.data()) + batch_offset / 2;
