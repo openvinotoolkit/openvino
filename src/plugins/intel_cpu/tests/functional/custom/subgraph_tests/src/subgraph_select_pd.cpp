@@ -106,6 +106,7 @@ protected:
     }
 
     void TearDown() override {
+        SKIP_IF_CURRENT_TEST_IS_DISABLED();
         auto runtime_function = compiledModel.get_runtime_model();
         int nodes_found = 0;
         for (const auto& n : runtime_function->get_ordered_ops()) {
