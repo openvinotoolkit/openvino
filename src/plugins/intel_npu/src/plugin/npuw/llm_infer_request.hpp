@@ -90,6 +90,18 @@ private:
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
+
+    ov::SoPtr<ov::ITensor> allocMem(const ov::element::Type type,
+                                                          const ov::Shape& shape,
+                                                          const std::string& device) {
+        if (device == "CPU" || ov::shape_size(shape) == 0) {
+            return ov::get_tensor_impl(ov::Tensor(type, shape));
+        }
+
+        auto remote_ctx = m_npuw_llm_compiled_model->get_plugin()->get_core()->get_default_context(device)._ptr;
+        auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
+        return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
+    }
 };
 
 }  // namespace npuw

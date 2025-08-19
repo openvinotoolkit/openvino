@@ -427,12 +427,12 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             uint32_t target_lora_rank = static_cast<uint32_t>(infer_tensor_shape[low_rank_dim]);
 
             auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-            auto kvcach_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
+            auto new_infer_tensor =
+                allocMem(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape(), "NPU");
             bool has_padding = state_tensor_rank != target_lora_rank;
             if (has_padding) {
                 // Clear padding tensor in infer request
-                fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
-                fill_tensor<float>(kvcach_lora_in_tensor, 0.0f);
+                fill_tensor<float>(new_infer_tensor, 0.0f);
             }
 
             // Fill LoRA into infer request
@@ -451,8 +451,11 @@ void ov::npuw::LLMInferRequest::apply_lora() {
                     state_tensor->copy_to(new_tensor_slice._ptr);
                 }
             };
-            fill_lora_in_tensor(state_tensor, prefill_lora_in_tensor, has_padding);
-            fill_lora_in_tensor(state_tensor, kvcach_lora_in_tensor, has_padding);
+            fill_lora_in_tensor(state_tensor, new_infer_tensor, has_padding);
+
+            // Set new tensor for inference
+            m_prefill_request->set_tensor(m_prefill_in_ports.at(state_name), new_infer_tensor);
+            m_kvcache_request->set_tensor(m_kvcache_in_ports.at(state_name), new_infer_tensor);
         }
         variableState->clear_state_updated();
     }
