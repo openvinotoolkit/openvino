@@ -4,11 +4,11 @@
 
 #include "cpu_generator.hpp"
 
-#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
-#include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <nodes/kernels/riscv64/cpu_isa_traits.hpp>
+#include <nodes/kernels/riscv64/jit_generator.hpp>
 #include <set>
 #include <utility>
 #include <vector>
@@ -16,8 +16,8 @@
 #include "cache/multi_cache.h"
 #include "emitters/plugin/riscv64/jit_eltwise_emitters.hpp"
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
-#include "jit_loop_emitters.hpp"
 #include "jit_kernel_emitter.hpp"
+#include "jit_loop_emitters.hpp"
 #include "jit_memory_emitters.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
@@ -32,15 +32,13 @@
 #include "snippets/generator.hpp"
 #include "snippets/lowered/expression.hpp"
 #include "snippets/op/broadcastload.hpp"
-#include "snippets/op/load.hpp"
-#include "snippets/op/store.hpp"
-#include "snippets/op/loop.hpp"
 #include "snippets/op/buffer.hpp"
+#include "snippets/op/kernel.hpp"
 #include "snippets/op/load.hpp"
+#include "snippets/op/loop.hpp"
 #include "snippets/op/scalar.hpp"
 #include "snippets/op/store.hpp"
 #include "snippets/op/vector_buffer.hpp"
-#include "snippets/op/kernel.hpp"
 #include "snippets/runtime_configurator.hpp"
 #include "snippets/target_machine.hpp"
 
@@ -115,10 +113,8 @@ CPUTargetMachine::CPUTargetMachine(ov::intel_cpu::riscv64::cpu_isa_t host_isa, o
     jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_loop_end_emitter);
 
     // service kernel entry points
-    jitters[snippets::op::KernelStatic::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(jit_kernel_static_emitter);
-    jitters[snippets::op::KernelDynamic::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(jit_kernel_dynamic_emitter);
+    jitters[snippets::op::KernelStatic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_static_emitter);
+    jitters[snippets::op::KernelDynamic::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(jit_kernel_dynamic_emitter);
 
     // binary operations
     jitters[op::v1::Add::get_type_info_static()] = CREATE_CPU_EMITTER(ov::intel_cpu::riscv64::jit_add_emitter);

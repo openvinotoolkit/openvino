@@ -50,8 +50,8 @@ std::vector<Xbyak_riscv::Reg> get_aux_gprs(const std::vector<size_t>& used_gpr_i
  * @param regs_to_spill set of live registers to be spilled before ABI call
  */
 Xbyak_riscv::Reg init_memory_access_aux_gpr(const std::vector<size_t>& used_gpr_reg_idxs,
-                                             const std::vector<size_t>& aux_gpr_idxs,
-                                             std::set<snippets::Reg>& regs_to_spill);
+                                            const std::vector<size_t>& aux_gpr_idxs,
+                                            std::set<snippets::Reg>& regs_to_spill);
 
 /**
  * @brief Push data pointer on stack adding offset. The offset is taken from runtime params `a0`

@@ -83,4 +83,3 @@ private:
 };
 
 }  // namespace ov::intel_cpu::riscv64
-
