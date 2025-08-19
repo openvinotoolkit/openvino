@@ -6,6 +6,8 @@
 
 #include "compiled_model.hpp"
 #include "intel_npu/config/npuw.hpp"
+#include "intel_npu/utils/zero/zero_host_tensor.hpp"
+#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
@@ -156,6 +158,11 @@ void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& p
     // Assigning via .at() to ensure it is a known port
     // assert(persistent)
     m_port_to_tensor.at(port).tensor = tensor;
+
+    // Check if setting input tensor
+    if (m_port_to_tensor.at(port).persistent) {
+        handle_set_remote_input(port, tensor);
+    }
 }
 
 std::vector<ov::SoPtr<ov::ITensor>> ov::npuw::IBaseInferRequest::get_tensors(
@@ -172,6 +179,25 @@ void ov::npuw::IBaseInferRequest::check_tensors() const {
     // Ignore `check_tensor` of inputs and outputs of Hetero Compiled Model because
     // `m_tensors` are not allocated
     return;
+}
+
+void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const ov::Node>& port,
+                                                          const ov::SoPtr<ov::ITensor>& tensor) {
+    for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
+        if (m_npuw_model->inputs()[i] == port) {
+            // This is a tricky case:
+            // 1) We already stored an input tensor ptr in m_input_allocated via FMM
+            // 2) We got an input tensor from outside
+            // Later in runtime we rely on m_input_allocated to check if the memory is
+            // allocated internally to prevent the copy. Here we need to check if the memory
+            // is properly allocated externally, to prevent runtime copy as well.
+            if (std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(tensor._ptr) != nullptr ||
+                std::dynamic_pointer_cast<::intel_npu::ZeroHostTensor>(tensor._ptr) != nullptr) {
+                // ZeroRemoteTensor and ZeroHostTensor should guarantee the correct memory allocation
+                m_input_allocated.insert(tensor->data());
+            }
+        }
+    }
 }
 
 std::vector<ov::SoPtr<ov::IVariableState>> ov::npuw::IBaseInferRequest::query_state() const {
@@ -723,6 +749,10 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
             ov::npuw::dump_output_list(tile_olist_name, tile_olist);
         }
     }
+}
+
+std::size_t ov::npuw::IBaseInferRequest::get_input_allocated_size() const {
+    return m_input_allocated.size();
 }
 
 std::string ov::npuw::IBaseInferRequest::subgr_name(std::size_t idx) const {

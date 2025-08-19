@@ -48,6 +48,8 @@ public:
 
     void check_tensors() const override;
 
+    void handle_set_remote_input(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor);
+
     // Query APIs - some default implementations here
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
@@ -64,6 +66,9 @@ public:
     virtual void cancel_subrequest(std::size_t idx) = 0;
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
+
+    // Used by tests only
+    std::size_t get_input_allocated_size() const;
 
 protected:
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;

@@ -12,8 +12,6 @@
 #include <utility>
 
 #include "compiled_model.hpp"
-#include "intel_npu/utils/zero/zero_host_tensor.hpp"
-#include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "logging.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/parallel.hpp"
@@ -380,24 +378,8 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
         }
     }
 
-    // Check if setting input tensor
-    for (std::size_t i = 0; i < m_npuw_model->inputs().size(); ++i) {
-        if (m_npuw_model->inputs()[i] == port) {
-            // This is another tricky case:
-            // 1) We already stored an input tensor ptr in m_input_allocated via FMM
-            // 2) We got an input tensor from outside
-            // Later in runtime we rely on m_input_allocated to check if the memory is
-            // allocated internally to prevent the copy. Here we need to check if the memory
-            // is properly allocated externally, to prevent runtime copy as well.
-            if (m_npuw_model->global_mem_device() == "NPU") {
-                // ZeroRemoteTensor and ZeroHostTensor should guarantee the correct memory allocation
-                if (std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(tensor._ptr) != nullptr ||
-                    std::dynamic_pointer_cast<::intel_npu::ZeroHostTensor>(tensor._ptr) != nullptr) {
-                    m_input_allocated.insert(tensor->data());
-                }
-            }
-        }
-    }
+    // Process setting input tensor
+    handle_set_remote_input(port, tensor);
 }
 
 ov::npuw::TensorPtr ov::npuw::JustInferRequest::alloc_global_out(std::size_t out_idx) {
