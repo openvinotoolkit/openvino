@@ -90,7 +90,20 @@ jobs:
           should-setup-pip-paths: ${{ runner.os != 'macOS' }}
           self-hosted-runner: ${{ runner.os != 'macOS' }}
 
+      - name: Download OpenVINO artifacts (wheels) (Win)
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        if: runner.os == 'Windows'
+        with: 
+          timeout_minutes: 5
+          max_attempts: 2
+        command: |
+          # Add `gh` to PATH
+          $env:GH_TOKEN = "${{ github.token }}"
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
+
       - name: Download OpenVINO artifacts (wheels)
+        if: runner.os != 'Windows'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: openvino_wheels
