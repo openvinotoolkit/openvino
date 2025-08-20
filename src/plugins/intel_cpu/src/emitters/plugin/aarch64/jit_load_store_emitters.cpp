@@ -81,7 +81,7 @@ static void load_with_offset_check(jit_generator* h, const RegType& dst, const X
 template <typename RegType>
 static void store_with_offset_check(jit_generator* h, const RegType& src, const XReg& dst, int offset) {
     const auto [max_offset, alignment] = get_load_store_limits<RegType>();
-
+    // offset = 4096 * 4;
     if (offset >= 0 && offset <= max_offset && (offset % alignment) == 0) {
         if constexpr (std::is_same_v<RegType, VReg> || std::is_same_v<RegType, QReg>) {
             // Create QReg from register index to ensure proper 128-bit SIMD register access

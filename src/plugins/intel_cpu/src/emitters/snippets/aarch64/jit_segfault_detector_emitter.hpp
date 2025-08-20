@@ -57,6 +57,9 @@ private:
     friend std::string init_info_jit_uni_segfault_detector_emitter(const jit_uni_segfault_detector_emitter* emitter);
 };
 
+// Returns a snapshot string with start/current addresses and iteration
+std::string get_segfault_tracking_info();
+
 }  // namespace ov::intel_cpu::aarch64
 
 #endif

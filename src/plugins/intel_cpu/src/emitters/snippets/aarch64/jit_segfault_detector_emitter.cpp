@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <sstream>
 
 #ifdef SNIPPETS_DEBUG_CAPS
 
@@ -71,8 +72,9 @@ void jit_uni_segfault_detector_emitter::emit_impl(const std::vector<size_t>& in_
 }
 
 void jit_uni_segfault_detector_emitter::save_target_emitter() const {
-    // Disabled external call on AArch64 for stability; thread-local
-    // handler is not required for normal runs and memory_track is enough.
+    // Disabled external call from JIT to avoid disturbing live state.
+    // On AArch64 we rely on memory probe snapshot printing from the
+    // signal handler fallback path.
 }
 
 void jit_uni_segfault_detector_emitter::set_local_handler(jit_uni_segfault_detector_emitter* emitter_address) {
@@ -116,6 +118,13 @@ void jit_uni_segfault_detector_emitter::memory_track(size_t gpr_idx_for_mem_addr
     // Restore scratch regs
     h->ldp(r_addr, r_val, ptr(h->sp));
     h->add(h->sp, h->sp, 16);
+}
+
+std::string get_segfault_tracking_info() {
+    std::ostringstream os;
+    os << "[Segfault detector] start_addr=" << std::hex << s_start_address << std::dec
+       << " current_addr=" << std::hex << s_current_address << std::dec << " iteration=" << s_iteration;
+    return os.str();
 }
 
 }  // namespace ov::intel_cpu::aarch64
