@@ -31,6 +31,7 @@
 #include "openvino/util/xml_parse_utils.hpp"
 #include "rt_info_deserializer.hpp"
 #include "transformations/rt_info/attributes.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "utils.hpp"
 
 using namespace ov::util;
@@ -867,6 +868,9 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
                                                            const pugi::xml_node& node,
                                                            const std::shared_ptr<ov::AlignedBuffer>& weights,
                                                            const GenericLayerParams& params) {
+    // This function handles creation of nodes during IR deserialization
+    // It includes special handling for type_relaxed_opset versions to support
+    // models with type-relaxed operations (e.g., type_relaxed_opset10)
     // Check that inputs are correctly defined
     for (size_t i = 0; i < inputs.size(); i++) {
         if (!inputs[i].get_node())
@@ -894,6 +898,17 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
     // Find registered opset
     auto opsetIt = m_opsets.find(params.version);
 
+    // Handle type_relaxed_opset versions (e.g., type_relaxed_opset10)
+    // These are special versions that indicate the operation should be type-relaxed
+    // We extract the base opset name and mark the operation for type relaxation
+    std::string base_version = params.version;
+    bool is_type_relaxed = false;
+    if (params.version.find("type_relaxed_") == 0) {
+        base_version = params.version.substr(13); // Remove "type_relaxed_" prefix
+        is_type_relaxed = true;
+        opsetIt = m_opsets.find(base_version);
+    }
+
     // Try to create operation from loaded opsets
     static const std::unordered_set<std::string> experimental_ops_added_to_opset = {
         "ExperimentalDetectronDetectionOutput",
@@ -911,7 +926,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
     }
 
     if (!ovNode && opsetIt != m_opsets.end()) {
-        if (params.version == "opset1") {
+        if (base_version == "opset1") {
             // MVN, ROIPooling and ReorgYolo were missing in opset1
             if (type_name == "MVN" || type_name == "ROIPooling" || type_name == "ReorgYolo") {
                 opsetIt = m_opsets.find("opset2");
@@ -932,8 +947,17 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
 
         ovNode = std::shared_ptr<ov::Node>(opset.create_insensitive(type_name));
         if (!ovNode) {
-            OPENVINO_THROW("Opset ", params.version, " doesn't contain the operation with type: ", type_name);
+            OPENVINO_THROW("Opset ", base_version, " doesn't contain the operation with type: ", type_name);
         }
+
+        // If this is a type-relaxed operation, we need to handle it specially
+        // The type relaxation will be handled by the framework during execution
+        // We mark the operation as type-relaxed in runtime info so the framework knows
+        // to apply type relaxation rules during inference
+        if (is_type_relaxed) {
+            ovNode->get_rt_info()["type_relaxed"] = true;
+        }
+
         // Share Weights form constant blob
         if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(ovNode)) {
             constant->alloc_buffer_on_visit_attributes(false);
