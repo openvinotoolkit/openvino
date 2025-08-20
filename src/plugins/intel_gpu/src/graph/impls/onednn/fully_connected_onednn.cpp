@@ -99,7 +99,7 @@ protected:
                 auto activation_partial_sum_idx = idx++;
                 auto act_partial_sum_mem = instance.dep_memory_ptr(activation_partial_sum_idx);
                 dnnl::memory::desc desc = onednn::layout_to_memory_desc(act_partial_sum_mem->get_layout(), dnnl::memory::format_tag::ab, onednn::mem_flags::flatten);
-                args.insert({DNNL_ARG_ATTR_PLACEHOLDER | DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_SRC_0, act_partial_sum_mem->get_onednn_memory(desc)});
+                args.insert({DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS | DNNL_ARG_SRC_0, act_partial_sum_mem->get_onednn_memory(desc)});
             }
 
         }
@@ -456,7 +456,7 @@ public:
                     int src_ngroups_partial_sum = src_partial_sum_shape[src_partial_sum_shape.size() - 1].get_length();
                     int src_group_size_partial_sum = innermost_len / src_ngroups_partial_sum;
                     auto act_partial_sum_data_type = convert_data_type(impl_params.input_layouts[activation_partial_sum_idx].data_type);
-                    attr->set_zero_points(DNNL_ARG_ATTR_PLACEHOLDER | DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size_partial_sum}, act_partial_sum_data_type);
+                    attr->set_precomputed_reductions(DNNL_ARG_SRC, grouped, dnnl::memory::dims{1, src_group_size_partial_sum}, act_partial_sum_data_type);
                 }
             }
 
