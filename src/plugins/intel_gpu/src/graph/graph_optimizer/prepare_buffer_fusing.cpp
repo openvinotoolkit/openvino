@@ -194,6 +194,10 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         }
 
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
+            // No implicit concat for spatial axes
+            if (concat_axis > 1)
+                return false;
+
             // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
             if (!concat_node.is_dynamic() || is_runtime) {
                 if (onednn_byte_offset % 64 != 0)

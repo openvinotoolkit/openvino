@@ -5,7 +5,6 @@
 #include "gemm_utils.hpp"
 
 #include <cstddef>
-#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
@@ -34,29 +33,6 @@ ov::snippets::lowered::ExpressionPtr get_copy_b_expr(const ov::snippets::lowered
         }
     }
     return nullptr;
-}
-
-std::vector<snippets::lowered::ExpressionPtr> get_gemm_exprs(
-    const ov::snippets::lowered::ExpressionPtr& gemm_copyb_expr) {
-    OPENVINO_ASSERT(ov::is_type<GemmCopyB>(gemm_copyb_expr->get_node()),
-                    "get_gemm_exprs must be called only for GemmCopyB node");
-    OPENVINO_ASSERT(gemm_copyb_expr->get_output_count() == 1, "gemm copyb expr must has one output");
-    std::vector<snippets::lowered::ExpressionPtr> result;
-    auto copyb_output_expr = gemm_copyb_expr->get_output_port_connector(0)->get_consumers().begin()->get_expr();
-    if (ov::is_type<GemmCPU>(copyb_output_expr->get_node())) {
-        result.push_back(copyb_output_expr);
-    }
-    if (ov::is_type<RepackedWeightsBufferExpression>(copyb_output_expr)) {
-        OPENVINO_ASSERT(copyb_output_expr->get_output_count() == 1, "gemm copyb buffer expr must has one output");
-        // repacked buffer could connect gemm expr in main loop and tail loop.
-        const auto& consumers = copyb_output_expr->get_output_port_connector(0)->get_consumers();
-        for (const auto& consumer : consumers) {
-            if (ov::is_type<GemmCPU>(consumer.get_expr()->get_node())) {
-                result.push_back(consumer.get_expr());
-            }
-        }
-    }
-    return result;
 }
 
 size_t get_inner_n_block(const ov::element::Type& precision) {
