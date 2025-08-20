@@ -75,7 +75,7 @@ Metadata<METADATA_VERSION_2_2>::Metadata(uint64_t blobSize,
                                          std::optional<OpenvinoVersion> ovVersion,
                                          const std::optional<std::vector<uint64_t>> initSizes,
                                          BlobType blobType)
-    : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion},
+    : Metadata<METADATA_VERSION_2_1>{blobSize, ovVersion, initSizes},
       _blobType(blobType) {
     _version = METADATA_VERSION_2_2;
 }
