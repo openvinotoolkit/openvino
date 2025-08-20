@@ -27,7 +27,6 @@ void create_gemm_loop_infos(const LinearIRPtr& linear_ir,
                              size_t m = 0, size_t m_blk = 0,
                              size_t k = 0, size_t k_blk = 0,
                              size_t n = 0, size_t n_blk = 0) {
-    const bool k_block = k != 0 && k_blk != 0;
     const bool n_block = n != 0 && n_blk != 0;
     const bool m_block = m != 0 && m_blk != 0;
     if (n_block) {
