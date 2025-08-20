@@ -1239,9 +1239,9 @@ const std::filesystem::path check_path_safety(const std::filesystem::path& path)
 
 const std::filesystem::path valid_xml_path(const std::filesystem::path& path) {
     OPENVINO_ASSERT(path.extension() == ".xml",
-                    "Path for xml file doesn't contains file name with 'xml' extension: \"",
-                    path,
-                    "\"");
+                    "Path for xml file doesn't contains file name with 'xml' extension: ",
+                    path);
+
     return check_path_safety(path);
 }
 
@@ -1310,11 +1310,11 @@ bool pass::Serialize::run_on_model(const std::shared_ptr<ov::Model>& model) {
         ov::util::create_directory_recursive(m_xmlPath);
 
         std::ofstream bin_file(m_binPath, std::ios::binary);
-        OPENVINO_ASSERT(bin_file, "Can't open bin file: \"", m_binPath, "\"");
+        OPENVINO_ASSERT(bin_file, "Can't open bin file: ", m_binPath);
 
         // create xml file
         std::ofstream xml_file(m_xmlPath);
-        OPENVINO_ASSERT(xml_file, "Can't open xml file: \"", m_xmlPath, "\"");
+        OPENVINO_ASSERT(xml_file, "Can't open xml file: ", m_xmlPath);
 
         try {
             serializeFunc(xml_file, bin_file, model, m_version);
