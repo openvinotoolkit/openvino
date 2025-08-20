@@ -22,7 +22,6 @@ namespace ov {
 
 class OPENVINO_RUNTIME_API IRemoteContext : public std::enable_shared_from_this<IRemoteContext> {
 public:
-    OPENVINO_RTTI_BASE("IRemoteContext");
     virtual ~IRemoteContext() = default;
 
     /**
