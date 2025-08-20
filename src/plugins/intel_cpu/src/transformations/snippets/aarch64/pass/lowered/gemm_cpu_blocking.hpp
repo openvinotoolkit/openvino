@@ -5,7 +5,6 @@
 #pragma once
 
 #include "snippets/lowered/pass/brgemm_blocking.hpp"
-#include "snippets/lowered/specific_loop_iter_handlers.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 
 namespace ov::intel_cpu::pass {

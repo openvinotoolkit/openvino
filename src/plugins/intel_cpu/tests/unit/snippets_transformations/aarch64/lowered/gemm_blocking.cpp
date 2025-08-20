@@ -29,6 +29,7 @@ void create_gemm_loop_infos(const LinearIRPtr& linear_ir,
                              size_t n = 0, size_t n_blk = 0) {
     const bool n_block = n != 0 && n_blk != 0;
     const bool m_block = m != 0 && m_blk != 0;
+    OPENVINO_ASSERT(k == 0 && k_blk == 0, "K blocking is not supported in this helper function");
     if (n_block) {
         linear_ir->get_loop_manager()->add_loop_info(
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(n, n_blk,
@@ -38,9 +39,8 @@ void create_gemm_loop_infos(const LinearIRPtr& linear_ir,
                 BrgemmBlockingBase::get_default_blocking_loop_handlers(n, n_blk)));
     }
     if (m_block) {
-        std::vector<LoopPort> entries{LoopPort::create<PortType::Incremented>(gemm_expr->get_input_port(0), 1)};
-        for (size_t i = 1; i < gemm_expr->get_input_count(); ++i)
-            entries.push_back(LoopPort::create<PortType::NotProcessed>(gemm_expr->get_input_port(i)));
+        std::vector<LoopPort> entries{LoopPort::create<PortType::Incremented>(gemm_expr->get_input_port(0), 1),
+                                      LoopPort::create<PortType::NotProcessed>(gemm_expr->get_input_port(1))};
         linear_ir->get_loop_manager()->add_loop_info(
             std::make_shared<ov::snippets::lowered::UnifiedLoopInfo>(m, m_blk,
                 entries,
@@ -118,67 +118,6 @@ TEST_F(GemmCPUBlockingTest, Floating) {
     }
 }
 
-TEST_F(GemmCPUBlockingTest, Floating_LargeK) {
-    const ov::Dimension::value_type m = 384;
-    const ov::Dimension::value_type n = 384;
-    const ov::Dimension::value_type k = 2048;
-    const ov::PartialShape input_shape_a{1, 16, m, k};
-    const ov::PartialShape input_shape_b{1, 16, k, n};
-    const auto precision = ov::element::f32;
-    k_blk = full_dim;
-
-    {
-        auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
-        auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto gemm = linear_ir->push_node<aarch64::GemmCPU>(data_a.second, data_b.second,
-                                                           PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
-        init_expr_descriptors(*gemm.first, {});
-        auto result = linear_ir->push_node<ov::opset10::Result>(gemm.second);
-    }
-    {
-        auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
-        auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-        auto gemm = linear_ir_ref->push_node<aarch64::GemmCPU>(data_a.second, data_b.second,
-                                                               PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
-        const auto& gemm_expr = *gemm.first;
-        init_expr_descriptors(gemm_expr, {{m_blk, full_dim}, {full_dim, n_blk}, {m_blk, n_blk}});
-        create_gemm_loop_infos(linear_ir_ref, gemm_expr, m, m_blk, 0, 0, n, n_blk);
-        gemm_expr->set_loop_ids({1, 0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(gemm.second);
-    }
-}
-
-TEST_F(GemmCPUBlockingTest, Float_FC) {
-    const ov::Dimension::value_type m = 384;
-    const ov::Dimension::value_type k = 1024;
-    const ov::Dimension::value_type n = 384;
-    const ov::PartialShape input_shape_a{1, 16, m, k};
-    const ov::PartialShape input_shape_b{1, 16, k, n};
-    const auto precision = ov::element::f32;
-
-    {
-        auto data_a = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_a);
-        auto data_b = linear_ir->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-
-        auto gemm = linear_ir->push_node<aarch64::GemmCPU>(data_a.second, data_b.second,
-                                                           PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
-        init_expr_descriptors(*gemm.first);
-        auto result = linear_ir->push_node<ov::opset10::Result>(gemm.second);
-    }
-    {
-        auto data_a = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_a);
-        auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
-
-        auto gemm = linear_ir_ref->push_node<aarch64::GemmCPU>(data_a.second, data_b.second,
-                                                               PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
-        const auto& gemm_expr = *gemm.first;
-        init_expr_descriptors(gemm_expr, {{m_blk, full_dim}, {full_dim, n_blk}, {m_blk, n_blk}});
-        create_gemm_loop_infos(linear_ir_ref, gemm_expr, m, m_blk, 0, 0, n, n_blk);
-        gemm_expr->set_loop_ids({1, 0});
-        auto result = linear_ir_ref->push_node<ov::opset10::Result>(gemm.second);
-    }
-}
-
 TEST_F(GemmCPUBlockingTest, BlockingIsNotNeeded) {
     const auto precision = ov::element::f32;
     const ov::Dimension::value_type n = 64;
@@ -201,7 +140,7 @@ TEST_F(GemmCPUBlockingTest, BlockingIsNotNeeded) {
         auto gemm = linear_ir_ref->push_node<aarch64::GemmCPU>(data_a.second, data_b.second,
                                                                PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
         const auto full_subtensor = VectorDims(2, ov::snippets::utils::get_full_dim_value());
-        init_expr_descriptors(*gemm.first, std::vector<VectorDims>(3, full_subtensor));
+        init_expr_descriptors(*gemm.first);
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(gemm.second);
     }
 }
