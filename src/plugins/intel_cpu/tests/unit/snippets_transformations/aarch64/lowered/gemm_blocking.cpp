@@ -139,7 +139,6 @@ TEST_F(GemmCPUBlockingTest, BlockingIsNotNeeded) {
         auto data_b = linear_ir_ref->push_node<ov::opset10::Parameter>(precision, input_shape_b);
         auto gemm = linear_ir_ref->push_node<aarch64::GemmCPU>(data_a.second, data_b.second,
                                                                PortDescriptor{}, PortDescriptor{}, PortDescriptor{});
-        const auto full_subtensor = VectorDims(2, ov::snippets::utils::get_full_dim_value());
         init_expr_descriptors(*gemm.first);
         auto result = linear_ir_ref->push_node<ov::opset10::Result>(gemm.second);
     }
