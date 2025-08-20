@@ -92,40 +92,37 @@ TokenizeGatedMLPSnippets::TokenizeGatedMLPSnippets(const SnippetsTokenization::C
     auto m_mul = wrap_type<v1::Multiply>({m_act, m_fc_up}, consumers_count(1));
     auto m_fc_down = wrap_type<v0::MatMul>({m_mul, make_weights()}, fc_predicate(true));
 
-    register_matcher(
-        std::make_shared<Matcher>(m_fc_down, matcher_name),
-        [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-            OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeGatedMLPSnippets")
-            auto& pattern_map = m.get_pattern_value_map();
+    register_matcher(std::make_shared<Matcher>(m_fc_down, matcher_name), [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
+        OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::op::TokenizeGatedMLPSnippets")
+        auto& pattern_map = m.get_pattern_value_map();
 
-            const auto fc_gate = pattern_map.at(m_fc_gate).get_node_shared_ptr();
-            const auto fc_up = pattern_map.at(m_fc_up).get_node_shared_ptr();
-            const auto act = pattern_map.at(m_act).get_node_shared_ptr();
-            const auto mul = pattern_map.at(m_mul).get_node_shared_ptr();
-            const auto fc_down = pattern_map.at(m_fc_down).get_node_shared_ptr();
+        const auto fc_gate = pattern_map.at(m_fc_gate).get_node_shared_ptr();
+        const auto fc_up = pattern_map.at(m_fc_up).get_node_shared_ptr();
+        const auto act = pattern_map.at(m_act).get_node_shared_ptr();
+        const auto mul = pattern_map.at(m_mul).get_node_shared_ptr();
+        const auto fc_down = pattern_map.at(m_fc_down).get_node_shared_ptr();
 
-            if (transformation_callback(fc_gate) || transformation_callback(fc_up) ||
-                transformation_callback(fc_down)) {
-                return false;
-            }
+        if (transformation_callback(fc_gate) || transformation_callback(fc_up) || transformation_callback(fc_down)) {
+            return false;
+        }
 
-            static const auto body_params_count = 5;  // 2xinput + 3x fc
-            static const auto body_result_count = 1;  // one output
-            static const auto reg_group_count = 5;    // upper-bound of possible buffer count
+        static const auto body_params_count = 5;  // 2xinput + 3x fc
+        static const auto body_result_count = 1;  // one output
+        static const auto reg_group_count = 5;    // upper-bound of possible buffer count
 
-            // TODO [75567]: move this plugin-specific constraint to the plugin callback
-            if (body_params_count + body_result_count + reg_group_count > config.get_data_ptr_gpr_count()) {
-                return false;
-            }
+        // TODO [75567]: move this plugin-specific constraint to the plugin callback
+        if (body_params_count + body_result_count + reg_group_count > config.get_data_ptr_gpr_count()) {
+            return false;
+        }
 
-            const auto ordered_ops = ov::NodeVector{fc_gate, fc_up, act, mul, fc_down};
-            const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
+        const auto ordered_ops = ov::NodeVector{fc_gate, fc_up, act, mul, fc_down};
+        const auto subgraph = ov::snippets::utils::tokenize_ordered_nodes(ordered_ops);
 
-            // mark the Subgraph as Completed to not allow Snippets to include any nodes into this Subgraph in common
-            // Tokenization
-            SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
-            return true;
-        });
+        // mark the Subgraph as Completed to not allow Snippets to include any nodes into this Subgraph in common
+        // Tokenization
+        SetSnippetsSubgraphType(subgraph, SnippetsSubgraphType::Completed);
+        return true;
+    });
 }
 
 }  // namespace ov::snippets::pass
