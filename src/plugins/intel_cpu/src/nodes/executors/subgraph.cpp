@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <common/utils.hpp>
 #include <cstddef>
+#include <cstdlib>
 #include <functional>
 #include <memory>
 #include <numeric>
@@ -133,7 +134,8 @@ void SubgraphBaseExecutor::init_parallel_domain(const std::shared_ptr<CPURuntime
 void SubgraphBaseExecutor::parallel_for6d(const initializer_functor& initializer, const call_functor& caller) {
     const auto& dom = m_parallel_exec_domain;
 
-    parallel_nt_static(m_nthreads, [&](const int ithr, const int nthr) {
+    const auto n_threads = std::getenv("USE_INTERNAL_PARALLEL_LOOPS") ? 1 : m_nthreads;
+    parallel_nt_static(n_threads, [&](const int ithr, const int nthr) {
         jit_snippets_call_args call_args;
         initializer(call_args, ithr);
 

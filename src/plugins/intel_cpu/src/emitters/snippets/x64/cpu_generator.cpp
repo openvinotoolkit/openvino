@@ -28,6 +28,7 @@
 #include "emitters/snippets/x64/jit_kernel_emitter.hpp"
 #include "emitters/snippets/x64/jit_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_memory_emitters.hpp"
+#include "emitters/snippets/x64/jit_parallel_loop_emitters.hpp"
 #include "emitters/snippets/x64/jit_reg_spill_emitters.hpp"
 #include "emitters/snippets/x64/jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
@@ -346,6 +347,10 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::LoopBegin::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
     jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
+    jitters[snippets::op::ParallelLoopBegin::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_parallel_loop_begin_emitter, configurator->get_kernel_executor_table());
+    jitters[snippets::op::ParallelLoopEnd::get_type_info_static()] =
+        CREATE_SNIPPETS_EMITTER(jit_parallel_loop_end_emitter);
     jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_reg_spill_begin_emitter);
     jitters[snippets::op::RegSpillEnd::get_type_info_static()] =
@@ -514,7 +519,10 @@ ov::snippets::RegType intel_cpu::CPUGenerator::get_specific_op_out_reg_type(cons
 
 bool intel_cpu::CPUGenerator::uses_precompiled_kernel(const std::shared_ptr<snippets::Emitter>& e) const {
     bool need = std::dynamic_pointer_cast<intel_cpu::jit_brgemm_emitter>(e) ||
-                std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e);
+                std::dynamic_pointer_cast<intel_cpu::jit_brgemm_copy_b_emitter>(e) ||
+                // Note: in static case, loop args, used in execute, are stored in the emitter
+                // TODO: try to include in this list only parallel_loop_begin
+                std::dynamic_pointer_cast<intel_cpu::jit_parallel_loop_base_emitter>(e);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto cpu_target_machine = std::dynamic_pointer_cast<intel_cpu::CPUTargetMachine>(target);
     need = need || (cpu_target_machine && cpu_target_machine->debug_config.enable_segfault_detector) ||
