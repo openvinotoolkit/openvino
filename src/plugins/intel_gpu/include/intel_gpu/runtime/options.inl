@@ -88,3 +88,4 @@ OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_memory_reuse, false, "Disable memo
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, disable_runtime_skip_reorder, false, "Disable skip reorder optimization applied in runtime")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, load_dump_raw_binary, std::vector<std::string>{}, "List of layers to load raw binary")
 OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, dry_run_path, "", "Enables mode which partially compiles a model and stores runtime model into specified directory")
+OV_CONFIG_DEBUG_OPTION(ov::intel_gpu, validate_buffer_finding_inf, false, "Validate output buffers of all layers which have fp16 data-type to find 'inf' and 'nan' value.")

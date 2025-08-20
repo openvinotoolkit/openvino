@@ -173,6 +173,7 @@ static constexpr Property<ShapePredictor::Settings, ov::PropertyMutability::RW> 
 static constexpr Property<std::vector<std::string>, ov::PropertyMutability::RW> load_dump_raw_binary{"GPU_LOAD_DUMP_RAW_BINARY"};
 static constexpr Property<bool, ov::PropertyMutability::RW> could_use_flashattn_v2{"GPU_COULD_USE_FLASHATTN_V2"};
 static constexpr Property<uint64_t, PropertyMutability::RW> dynamic_quantization_group_size_max{"GPU_DYNAMIC_QUANTIZATION_GROUP_SIZE_MAX"};
+static constexpr Property<bool, ov::PropertyMutability::RW> validate_buffer_finding_inf{"VALIDATE_BUFFER_FINDING_INF"};
 }  // namespace ov::intel_gpu
 
 namespace cldnn {
