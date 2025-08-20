@@ -286,4 +286,13 @@ TEST(keep_weights_reorder_shape_consistent_test, simple_data_formats) {
         EXPECT_TRUE(result);
         EXPECT_EQ(layout.get_partial_shape(), ov::Shape({512, 1024, 16}));
     }
+    // Test case 4: oizyx format with matching shapes
+    {
+        auto layout = cldnn::layout{ov::PartialShape{16, 1, 16, 16}, data_types::f16, format::oiyx};
+        dnnl::memory::desc desc({16, 1, 1, 16, 16}, dnnl::memory::data_type::f16, dnnl::memory::format_tag::abcde);
+        bool result = onednn::keep_weights_reorder_shape_consistent(layout, desc);
+        EXPECT_TRUE(result);
+        EXPECT_EQ(layout.format, cldnn::format::oizyx);
+        EXPECT_EQ(layout.get_partial_shape(), ov::Shape({16, 1, 1, 16, 16}));
+    }
 }
