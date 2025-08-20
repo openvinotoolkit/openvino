@@ -566,7 +566,20 @@ void ov::npuw::LLMInferRequest::update_kvcache_for(
                                            kvcache_desc.num_stored_tokens - num_tokens,
                                            kvcache_desc.num_stored_tokens);
         auto src_tensor = request->get_tensor(out_ports.at(output_name));
-        copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+
+        // NOTE: Sometimes present kv layer can contain greater seq_len
+        //       than was sent to be processed
+        uint32_t src_seq_len = static_cast<uint32_t>(src_tensor->get_shape()[kv_dim]);
+        OPENVINO_ASSERT(num_tokens <= src_seq_len);
+        if (src_seq_len > num_tokens) {
+            auto src_slice = make_tensor_slice(src_tensor,
+                                               kv_dim,
+                                               src_seq_len - num_tokens,
+                                               src_seq_len);
+            copy_tensor_by_dim(src_slice, dst_slice, kv_dim);
+        } else {
+            copy_tensor_by_dim(src_tensor, dst_slice, kv_dim);
+        }
     }
     LOG_DEBUG("Done.");
 }
@@ -748,9 +761,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
     LOG_DEBUG("Calling inference for generate model...");
     LOG_BLOCK();
     auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
-    auto in_token_len = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
-    if (in_token_len != kvcache_desc.max_generation_token_len) {
-        OPENVINO_THROW("Input lenth for KV cache model mismatch with \"NPUW_LLM_MAX_GENERATION_TOKEN_LEN\": ",
+    uint32_t input_tokens_len = static_cast<uint32_t>(input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM]);
+    if (input_tokens_len > kvcache_desc.max_generation_token_len) {
+        OPENVINO_THROW("Input prompt length is greater than output \"NPUW_LLM_MAX_GENERATION_TOKEN_LEN\": ",
                        kvcache_desc.max_generation_token_len,
                        ".\nPlease adjust it ");
     }
@@ -759,62 +772,69 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         LOG_DEBUG("Copy kv-cache from prefill to generate model.");
         copy_kvcache();
 
-        LOG_DEBUG("Prepare attention mask pattern.");
-        auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
-        fill_tensor<int64_t>(kv_attn_mask, 0);
-        // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
-        //       We can safely set this "1" once and then copy on one "1" less in the infer_generate().
-        for (std::size_t i = 0; i < kvcache_desc.max_generation_token_len; i++) {
-            kv_attn_mask->data<int64_t>()[m_npuw_llm_compiled_model->m_kvcache_desc.total_size - i - 1] = 1;
-        }
-
+        LOG_DEBUG("Prepare inputs.");
+        fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
+        fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)), 0);
+        fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)), 0);
         m_generate_initialized = true;
     }
 
     // NB: KV-cache is full, further generation is impossible
-    if (kvcache_desc.num_stored_tokens > kvcache_desc.total_size - kvcache_desc.max_generation_token_len) {
+    if (kvcache_desc.num_stored_tokens > kvcache_desc.total_size - input_tokens_len) {
         OPENVINO_THROW("KV-Cache is full.");
     }
 
     // FIXME: these tensors should be shared between the parent & child models
     auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
     // NB: input_ids can be either fp32(VLM) or i64(LLM)
+    // NOTE: Copying to the end to handle case when input_tokens_len < kvcache_desc.max_generation_token_len
     std::copy_n(reinterpret_cast<uint8_t*>(input_ids->data()),
                 input_ids->get_byte_size(),
-                reinterpret_cast<uint8_t*>(kv_input_ids->data()));
+                reinterpret_cast<uint8_t*>(kv_input_ids->data()) + kv_input_ids->get_byte_size() - input_ids->get_byte_size());
 
-    // NOTE: Attention mask pattern for generate model requires last "1" to be in the end of the mask.
-    //       As it is already set above, here we copy on one "1" unit less.
+    // NOTE: Attention mask pattern for generate model requires the set of "1"
+    //       units of length of the current prompt on the right (for present
+    //       kv layers) and the set of "1" units of number of previously calculated
+    //       tokens on the left (for past kv layers).
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
     std::copy_n(attention_mask->data<int64_t>(),
-                attention_mask->get_size() - kvcache_desc.max_generation_token_len,
+                // All tokens that we should process in current generate(),
+                // will go to the right of the mask (for present layers), so
+                // copy only mask from previous generate() calls to the left.
+                attention_mask->get_size() - input_tokens_len,
                 kv_attn_mask->data<int64_t>());
+    if (input_tokens_len < kvcache_desc.max_generation_token_len) {
+        std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len,
+                    kvcache_desc.max_generation_token_len - input_tokens_len, 0);
+    }
+    std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len,
+                input_tokens_len, 1);
 
     auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
-    std::copy_n(position_ids->data<int64_t>(), position_ids->get_size(), kv_pos_ids->data<int64_t>());
+    pad_position_ids(kv_pos_ids, position_ids);
 
     m_kvcache_request->infer();
-    kvcache_desc.num_stored_tokens += kvcache_desc.max_generation_token_len;
+    kvcache_desc.num_stored_tokens += input_tokens_len;
 
     if (m_lm_head_request) {
         LOG_DEBUG("Calling inference for LM head model asynchronously");
         m_lm_head_request->start_async();
-        if (kvcache_desc.num_stored_tokens <= kvcache_desc.total_size - kvcache_desc.max_generation_token_len) {
+        if (kvcache_desc.num_stored_tokens <= kvcache_desc.total_size - input_tokens_len) {
             update_kvcache_for(m_kvcache_request,
                                m_kvcache_in_ports,
                                m_kvcache_out_ports,
-                               kvcache_desc.max_generation_token_len);
+                               input_tokens_len);
         }
         m_lm_head_request->wait();
         LOG_DEBUG("Calling inference for LM head model -- done.");
 
         m_logits = m_lm_head_request->get_tensor(m_lm_head_logits_port);
     } else {
-        if (kvcache_desc.num_stored_tokens <= kvcache_desc.total_size - kvcache_desc.max_generation_token_len) {
+        if (kvcache_desc.num_stored_tokens <= kvcache_desc.total_size - input_tokens_len) {
             update_kvcache_for(m_kvcache_request,
                                m_kvcache_in_ports,
                                m_kvcache_out_ports,
-                               kvcache_desc.max_generation_token_len);
+                               input_tokens_len);
         }
 
         m_logits = m_kvcache_request->get_tensor(m_kvcache_out_ports.at(layer_names::logits));
