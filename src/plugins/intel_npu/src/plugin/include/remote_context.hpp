@@ -19,6 +19,7 @@ namespace intel_npu {
 
 class RemoteContextImpl : public ov::IRemoteContext {
 public:
+    OPENVINO_RTTI("RemoteContextImpl", "", ov::IRemoteContext);
     RemoteContextImpl(const ov::SoPtr<IEngineBackend>& engineBackend, const ov::AnyMap& remote_properties = {});
 
     /**
