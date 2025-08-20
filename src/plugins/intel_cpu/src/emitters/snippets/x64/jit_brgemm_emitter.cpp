@@ -48,7 +48,8 @@ jit_brgemm_emitter::jit_brgemm_emitter(jit_generator_t* h,
                                        const ov::snippets::lowered::ExpressionPtr& expr,
                                        const snippets::KernelExecutorTablePtr& kernel_table,
                                        const ov::intel_cpu::MultiCacheWeakPtr& compiled_kernel_cache)
-    : jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
+    : jit_emitter(h, isa),
+      jit_binary_call_emitter(h, isa, expr->get_live_regs()) {
     in_out_type_ = emitter_in_out_map::gpr_to_gpr;
     const auto& brgemm_node = as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     const auto& brgOutPrc = brgemm_node->get_output_element_type(0);

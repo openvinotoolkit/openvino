@@ -504,7 +504,8 @@ void Subgraph::control_flow_transformations(
 
     OV_ITT_TASK_NEXT(CONTROL_FLOW, "::control_flow_transformations")
 
-    // Domain optimization must be the first pass, because all other transformations may depend on PortDescriptor shapes
+    // Domain optimization must be the first pass,
+    // because all other transformations may depend on PortDescriptor shapes
     size_t loop_depth = m_linear_ir->get_config().m_loop_depth;
     if (!lowered_pass_config->is_disabled<lowered::pass::OptimizeDomain>()) {
         lowered::pass::OptimizeDomain(loop_depth).run(*m_linear_ir);

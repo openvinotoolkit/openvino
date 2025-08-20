@@ -45,7 +45,8 @@ public:
     LoopInfo(size_t work_amount,
              size_t increment,
              const std::vector<LoopPort>& entries,
-             const std::vector<LoopPort>& exits);
+             const std::vector<LoopPort>& exits,
+             bool is_parallel = false);
     virtual ~LoopInfo() = default;
 
     /**
@@ -167,6 +168,13 @@ public:
      */
     const LoopPort& get_loop_port(const ExpressionPort& expr_port);
 
+    bool is_parallel() const {
+        return m_is_parallel;
+    }
+    void set_is_parallel(bool mode) {
+        m_is_parallel = mode;
+    }
+
 protected:
     /**
      * @brief Helper to clone Loop ports using `ExpressionMap`
@@ -192,6 +200,8 @@ protected:
     // Note: Scalars aren't input expressions but can be before first input expr in Linear IR
     std::vector<LoopPort> m_input_ports;
     std::vector<LoopPort> m_output_ports;
+    // If true, then the corresponding loop will be executed in parallel
+    bool m_is_parallel = false;
 };
 
 /**
@@ -239,11 +249,13 @@ public:
                     const std::vector<LoopPort>& exits,
                     const std::vector<LoopPortDesc>& in_descs,
                     const std::vector<LoopPortDesc>& out_descs,
+                    bool is_parallel,
                     SpecificIterationHandlers handlers = SpecificIterationHandlers());
     UnifiedLoopInfo(size_t work_amount,
                     size_t increment,
                     const std::vector<LoopPort>& entries,
                     const std::vector<LoopPort>& exits,
+                    bool is_parallel,
                     SpecificIterationHandlers handlers = SpecificIterationHandlers());
 
     /**
