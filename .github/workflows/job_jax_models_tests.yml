@@ -56,19 +56,19 @@ jobs:
           submodules: 'false'
       
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_DIR }}
       
       - name: Download OpenVINO artifacts (tests)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (tokenizers_wheel)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_tokenizers_wheel
           path: ${{ env.INSTALL_DIR }}

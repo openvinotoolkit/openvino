@@ -95,19 +95,19 @@ jobs:
 
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -198,7 +198,7 @@ jobs:
           path: 'openvino'
 
       - name: Download OpenVINO artifacts (JS)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
@@ -278,14 +278,14 @@ jobs:
 
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -421,14 +421,14 @@ jobs:
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     steps:
       - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
       - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_wheels
           path: ${{ env.INSTALL_WHEELS_DIR }}
@@ -556,13 +556,13 @@ jobs:
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}

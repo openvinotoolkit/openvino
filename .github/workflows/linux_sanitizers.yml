@@ -274,13 +274,13 @@ jobs:
       
     steps:
       - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -534,14 +534,14 @@ jobs:
 
       - name: Download OpenVINO package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: ${{ format('openvino_package_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
         if: ${{ steps.check_matrix.conclusion != 'skipped' }}
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
         with:
           name: ${{ format('openvino_tests_{0}', matrix.SANITIZER) }}
           path: ${{ env.INSTALL_TEST_DIR }}
