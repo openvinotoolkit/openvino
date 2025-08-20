@@ -13,8 +13,10 @@ using namespace intel_npu;
 using MetadataUnitTests = ::testing::Test;
 
 struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
-    MetadataTest(uint64_t blobSize, std::optional<OpenvinoVersion> ovVersion)
-        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion) {}
+    MetadataTest(uint64_t blobSize,
+                 std::optional<OpenvinoVersion> ovVersion,
+                 const std::optional<std::vector<uint64_t>> initSizes = std::nullopt)
+        : Metadata<CURRENT_METADATA_VERSION>(blobSize, ovVersion, initSizes) {}
 
     void set_version(uint32_t newVersion) {
         _version = newVersion;
@@ -40,7 +42,6 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
     auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
@@ -54,6 +55,83 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
     ASSERT_TRUE(storedMeta->is_compatible());
 }
 
+TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContent) {
+    uint64_t blobSize = 64;
+    std::stringstream stream;
+    std::vector<uint8_t> content(blobSize, 0);
+    stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
+
+    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION);
+    OV_ASSERT_NO_THROW(meta.write(stream));
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
+    ASSERT_TRUE(storedMeta->is_compatible());
+    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+
+    stream.seekg(0, std::ios::beg);
+    size_t streamSize = MetadataBase::getFileSize(stream);
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+    stream.read(tensor.data<char>(), tensor.get_byte_size());
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
+    ASSERT_TRUE(storedMeta->is_compatible());
+    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+}
+
+TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWeightsSeparation) {
+    uint64_t blobSize = 0;
+    std::stringstream stream;
+    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION, std::vector<uint64_t>{0, 0});
+
+    OV_ASSERT_NO_THROW(meta.write(stream));
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
+    ASSERT_TRUE(storedMeta->is_compatible());
+
+    stream.seekg(0, std::ios::beg);
+    size_t streamSize = MetadataBase::getFileSize(stream);
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+    stream.read(tensor.data<char>(), tensor.get_byte_size());
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
+    ASSERT_TRUE(storedMeta->is_compatible());
+}
+
+TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlobWithContentWeightsSeparation) {
+    uint64_t blobSize = 64;
+    std::vector<uint64_t> initSizes{16, 16};
+
+    std::stringstream stream;
+    std::vector<uint8_t> content(blobSize, 0);
+    stream.write(reinterpret_cast<const char*>(content.data()), static_cast<std::streamsize>(blobSize));
+
+    auto meta = MetadataTest(blobSize, CURRENT_OPENVINO_VERSION, initSizes);
+    OV_ASSERT_NO_THROW(meta.write(stream));
+
+    std::unique_ptr<MetadataBase> storedMeta;
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
+    ASSERT_TRUE(storedMeta->is_compatible());
+    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
+    ASSERT_TRUE(storedMeta->get_init_sizes()->size() == initSizes.size());
+    for (size_t i = 0; i < initSizes.size(); ++i) {
+        ASSERT_TRUE(storedMeta->get_init_sizes()->at(i) == initSizes.at(i));
+    }
+
+    stream.seekg(0, std::ios::beg);
+    size_t streamSize = MetadataBase::getFileSize(stream);
+    auto tensor = ov::Tensor(ov::element::u8, ov::Shape{streamSize});
+    stream.read(tensor.data<char>(), tensor.get_byte_size());
+    OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(tensor));
+    ASSERT_TRUE(storedMeta->is_compatible());
+    ASSERT_TRUE(storedMeta->get_blob_size() == blobSize);
+    ASSERT_TRUE(storedMeta->get_init_sizes().has_value());
+    ASSERT_TRUE(storedMeta->get_init_sizes()->size() == initSizes.size());
+    for (size_t i = 0; i < initSizes.size(); ++i) {
+        ASSERT_TRUE(storedMeta->get_init_sizes()->at(i) == initSizes.at(i));
+    }
+}
+
 TEST_F(MetadataUnitTests, writeAndReadInvalidOpenvinoVersion) {
     uint64_t blobSize = 0;
     std::stringstream stream;
@@ -61,7 +139,6 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidOpenvinoVersion) {
     auto meta = MetadataTest(blobSize, wrongOvVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
 
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
@@ -84,7 +161,6 @@ TEST_F(MetadataUnitTests, writeAndReadInvalidMetadataVersion) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
     ASSERT_ANY_THROW(auto storedMeta = read_metadata_from(stream));
 
     stream.seekg(0, std::ios::beg);
@@ -104,7 +180,6 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerMinorVersion) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
     std::unique_ptr<MetadataBase> storedMeta;
     OV_ASSERT_NO_THROW(storedMeta = read_metadata_from(stream));
     storedMeta->is_compatible();
@@ -166,7 +241,6 @@ TEST_P(MetadataVersionTestFixture, writeAndReadInvalidMetadataVersion) {
 }
 
 const std::vector badMetadataVersions = {
-    MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION, CURRENT_METADATA_MINOR_VERSION - 1),
     MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION),
     MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION + 1),
     MetadataBase::make_version(CURRENT_METADATA_MAJOR_VERSION + 1, CURRENT_METADATA_MINOR_VERSION - 1),
@@ -190,7 +264,6 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtEnd) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
 
     // inserting a new field at the end of the blob, between last metadata field and blobDataSize
     std::string temp = stream.str();
@@ -222,7 +295,6 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithNewerFieldAtMiddle) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
 
     // inserting a new field at the middle of the blob, between metadata version and OV version size
     std::string temp = stream.str();
@@ -252,7 +324,6 @@ TEST_F(MetadataUnitTests, writeAndReadMetadataWithRemovedField) {
     meta.set_version(dummyVersion);
 
     OV_ASSERT_NO_THROW(meta.write(stream));
-    OV_ASSERT_NO_THROW(meta.append_blob_size_and_magic(stream));
 
     // removing fields between metadata version and blob data size
     std::string temp = stream.str();

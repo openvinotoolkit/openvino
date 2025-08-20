@@ -5,11 +5,13 @@
 #include "weightless_graph.hpp"
 
 #include <condition_variable>
+#include <iterator>
 #include <mutex>
 #include <queue>
 
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
+#include "intel_npu/utils/utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/type/element_iterator.hpp"
@@ -147,26 +149,26 @@ void merge_two_maps(std::unordered_map<std::string, std::shared_ptr<ov::ITensor>
 
 WeightlessGraph::WeightlessGraph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
                                  const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
-                                 const bool persistentBlob,
-                                 ze_graph_handle_t mainGraphHandle,
+                                 const GraphDescriptor& mainGraphDesc,
                                  NetworkMetadata mainMetadata,
                                  std::optional<ov::Tensor> mainBlob,
-                                 const std::vector<ze_graph_handle_t>& initGraphHandles,
+                                 const std::vector<GraphDescriptor>& initGraphDesc,
                                  std::vector<NetworkMetadata> initMetadata,
                                  std::optional<std::vector<ov::Tensor>> initBlobs,
                                  const std::shared_ptr<const ov::Model>& model,
                                  const Config& config,
+                                 const bool blobIsPersistent,
                                  const ov::SoPtr<ICompiler>& compiler)
     : Graph(zeGraphExt,
             zeroInitStruct,
-            mainGraphHandle,
+            mainGraphDesc,
             std::move(mainMetadata),
             std::move(mainBlob),
-            persistentBlob,
             config,
+            blobIsPersistent,
             compiler,
             true),
-      _initsHandles(initGraphHandles),
+      _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
       _model(model) {
@@ -188,14 +190,15 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     std::uint32_t totalResult = 1171117u;
     totalResult = ((totalResult << 7) + totalResult);
 
-    const auto writeToStream = [&](ze_graph_handle_t handle, const std::optional<ov::Tensor>& blobTensor) -> uint64_t {
+    const auto writeToStream = [&](GraphDescriptor _graphDesc,
+                                   const std::optional<ov::Tensor>& blobTensor) -> uint64_t {
         uint64_t blobSize;
         const uint8_t* blobRawPtr = nullptr;
         std::vector<uint8_t> blob;
 
         if (blobTensor == std::nullopt) {
             // when compiling the model using Compiler in Driver, the blob is handled by the driver
-            _zeGraphExt->getGraphBinary(handle, blob, blobRawPtr, blobSize);
+            _zeGraphExt->getGraphBinary(_graphDesc, blob, blobRawPtr, blobSize);
         } else {
             // in all other cases, the blob is handled by the plugin
             blobRawPtr = static_cast<const uint8_t*>(blobTensor->data());
@@ -229,18 +232,31 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
             _logger.info(str.str().c_str());
         }
 
-        return blobSize;
+        size_t size = utils::align_size_to_standard_page_size(blobSize);
+        size_t paddingSize = size - blobSize;
+        if (paddingSize > 0) {
+            std::fill_n(std::ostream_iterator<char>(stream), paddingSize, 0);
+
+            if (!stream) {
+                _logger.error("Write padding to stream failed. Blob is broken!");
+                return 0;
+            }
+
+            _logger.info("Blob size with padding: %ld", size);
+        }
+
+        return size;
     };
 
     // By convention, first write the main part
-    uint64_t mainBlobSize = writeToStream(_handle, _blob);
+    uint64_t mainBlobSize = writeToStream(_graphDesc, _blob);
     uint64_t totalBlobSize = mainBlobSize;
     ++blobIndex;
 
     // Then the init schedules
     std::vector<uint64_t> initSizes;
-    for (size_t initIndex = 0; initIndex < _initsHandles.size(); ++initIndex) {
-        uint64_t initBlobSize = writeToStream(_initsHandles.at(initIndex),
+    for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
+        uint64_t initBlobSize = writeToStream(_initsGraphDesc.at(initIndex)._handle,
                                               _initBlobs.has_value() && _initBlobs->at(initIndex)
                                                   ? std::make_optional(_initBlobs->at(initIndex))
                                                   : std::nullopt);
@@ -259,7 +275,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
 void WeightlessGraph::initialize(const Config& config) {
     // Simplified version for init schedules
-    const size_t numberOfInits = _initsHandles.size();
+    const size_t numberOfInits = _initsGraphDesc.size();
     _initsInputDescriptors.resize(numberOfInits);
     _initsOutputDescriptors.resize(numberOfInits);
     _initsCommandQueueOrdinals.resize(numberOfInits);
@@ -268,8 +284,6 @@ void WeightlessGraph::initialize(const Config& config) {
 
     for (size_t initIndex = 0; initIndex < numberOfInits; ++initIndex) {
         _logger.debug("WeightlessGraph initialize start, init schedule ", initIndex);
-
-        ze_graph_handle_t initHandle = _initsHandles.at(initIndex);
         std::vector<ArgumentDescriptor>& initInputDescriptors = _initsInputDescriptors.at(initIndex);
         std::vector<ArgumentDescriptor>& initOutputDescriptors = _initsOutputDescriptors.at(initIndex);
         uint32_t& initCommandQueueOrdinal = _initsCommandQueueOrdinals.at(initIndex);
@@ -278,14 +292,18 @@ void WeightlessGraph::initialize(const Config& config) {
         _logger.debug("performing pfnGetProperties");
         ze_graph_properties_t props{};
         props.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-        auto result = _zeroInitStruct->getGraphDdiTable().pfnGetProperties(initHandle, &props);
+        auto result =
+            _zeroInitStruct->getGraphDdiTable().pfnGetProperties(_initsGraphDesc.at(initIndex)._handle, &props);
         THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetProperties", result, _zeroInitStruct->getGraphDdiTable());
 
         _logger.debug("performing pfnGetArgumentProperties3");
         for (uint32_t index = 0; index < props.numGraphArgs; ++index) {
             ze_graph_argument_properties_3_t arg3{};
             arg3.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES;
-            auto result = _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(initHandle, index, &arg3);
+            auto result =
+                _zeroInitStruct->getGraphDdiTable().pfnGetArgumentProperties3(_initsGraphDesc.at(initIndex)._handle,
+                                                                              index,
+                                                                              &arg3);
             THROW_ON_FAIL_FOR_LEVELZERO_EXT("pfnGetArgumentProperties3", result, _zeroInitStruct->getGraphDdiTable());
 
             if (arg3.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT) {
@@ -301,13 +319,13 @@ void WeightlessGraph::initialize(const Config& config) {
         initCommandQueueOrdinal = zeroUtils::findCommandQueueGroupOrdinal(_zeroInitStruct->getDevice(),
                                                                           ZE_COMMAND_QUEUE_GROUP_PROPERTY_FLAG_COMPUTE);
 
-        _zeGraphExt->initializeGraph(initHandle, initCommandQueueOrdinal);
+        _zeGraphExt->initializeGraph(_initsGraphDesc.at(initIndex), initCommandQueueOrdinal);
         _logger.debug("WeightlessGraph initialize finish, init schedule ", initIndex);
 
         //  We are allowed to release the original blob because weights were loaded in NPU memory during
         //  _zeGraphExt->initializeGraph(). The driver will not access the original blob from this moment on, so we are
         //  releasing it here to avoid unnecessary memory usage.
-        release_init_blob(initIndex, config);
+        release_init_blob(initIndex);
     }
 
     // Create a single command queue for all weights initialization schedules
@@ -317,8 +335,10 @@ void WeightlessGraph::initialize(const Config& config) {
 
     uint32_t commandQueueOptions = 0;
     if (config.has<TURBO>() && config.get<TURBO>()) {
-        _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
-        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+        if (_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0)) {
+            _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in init command queue options");
+            commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+        }
     }
 
     _initsCommandQueue = std::make_shared<CommandQueue>(_zeroInitStruct,
@@ -344,6 +364,11 @@ void WeightlessGraph::initialize(const Config& config) {
 #else
     run_init_multi_threaded();
 #endif
+
+    if (_initBlobs != std::nullopt) {  // Do not release the graph when compiling a model on the CiD path, and we don't
+                                       // have a blob. We may need it to export later.
+        release_graphs();
+    }
 
     _initsInputDescriptors.clear();
     _initsOutputDescriptors.clear();
@@ -445,7 +470,7 @@ WeightlessGraph::OutputData WeightlessGraph::allocate_outputs(const size_t initI
 void WeightlessGraph::run_init_single_threaded() {
     auto constants = get_all_constants_in_topological_order(_model, _logger);
 
-    for (size_t initIndex = 0; initIndex < _initsHandles.size(); ++initIndex) {
+    for (size_t initIndex = 0; initIndex < _initsGraphDesc.size(); ++initIndex) {
         auto [initInputsViewTensors, initInputsAllocatedTensor] = allocate_inputs(initIndex, constants);
 
         // We don't need these anymore, potentially save some memory
@@ -464,7 +489,7 @@ void WeightlessGraph::run_init_single_threaded() {
 }
 
 void WeightlessGraph::run_init_multi_threaded() {
-    if (_initsHandles.size() == 1) {
+    if (_initsGraphDesc.size() == 1) {
         _logger.info("::run_init_multi_threaded() for single init - fallback to ::runInit()");
         run_init_single_threaded();
         return;
@@ -507,7 +532,7 @@ void WeightlessGraph::run_init_multi_threaded() {
         },
         _logger);
 
-    multiThreadedRunner.callForAllAndWait(_initsHandles.size());
+    multiThreadedRunner.callForAllAndWait(_initsGraphDesc.size());
     _model = nullptr;
 }
 
@@ -527,17 +552,18 @@ void WeightlessGraph::create_pipeline(const size_t initIndex,
     size_t io_index = 0;
     for (const auto& desc : _initsInputDescriptors.at(initIndex)) {
         void* data = inputTensors.at(io_index++)->data();
-        _zeGraphExt->setGraphArgumentValue(_initsHandles.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
+        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
     }
 
     io_index = 0;
     for (const auto& desc : _initsOutputDescriptors.at(initIndex)) {
         void* data = outputTensors.at(io_index++)->data();
-        _zeGraphExt->setGraphArgumentValue(_initsHandles.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
+        _zeGraphExt->setGraphArgumentValue(_initsGraphDesc.at(initIndex), desc.idx, static_cast<unsigned char*>(data));
     }
 
-    _initsCommandLists.at(initIndex)->appendGraphExecute(static_cast<ze_graph_handle_t>(_initsHandles.at(initIndex)),
-                                                         nullptr);
+    _initsCommandLists.at(initIndex)->appendGraphExecute(
+        static_cast<ze_graph_handle_t>(_initsGraphDesc.at(initIndex)._handle),
+        nullptr);
 
     _logger.debug("Init Pipeline - initialize completed");
 }
@@ -555,7 +581,7 @@ void WeightlessGraph::run_pipeline(const size_t initIndex) {
 }
 
 void WeightlessGraph::set_weights_inputs() {
-    for (const auto& desc : _input_descriptors) {
+    for (const auto& desc : _inputDescriptors) {
         if (!isMainInputWeightsName(desc.info.name)) {
             continue;
         }
@@ -570,34 +596,43 @@ void WeightlessGraph::set_weights_inputs() {
     }
 }
 
-void WeightlessGraph::release_init_blob(const size_t initIndex, const Config& config) {
-    if (_initBlobs == std::nullopt || config.get<PERF_COUNT>()) {
+void WeightlessGraph::release_init_blob(const size_t initIndex) {
+    if (_initsGraphDesc.at(initIndex)._data || _blobIsPersistent || _initBlobs == std::nullopt ||
+        _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {
         return;
     }
 
     ze_graph_properties_2_t properties = {};
     properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES;
-    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsHandles.at(initIndex), &properties);
+    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsGraphDesc.at(initIndex)._handle, &properties);
 
     if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
         return;
     }
 
     _initBlobs->at(initIndex) = ov::Tensor();
-    _logger.debug("Blob is released");
+    _logger.debug("Init blob is released");
+}
+
+void WeightlessGraph::release_graphs() {
+    size_t initIndex = 0;
+    if (_zeGraphExt != nullptr) {
+        for (auto& initGraphDesc : _initsGraphDesc) {
+            _zeGraphExt->destroyGraph(initGraphDesc);
+
+            if (!_blobIsPersistent && _initBlobs != std::nullopt && _initBlobs->at(initIndex)) {
+                _initBlobs->at(initIndex) = ov::Tensor();
+            }
+
+            initIndex++;
+        }
+    }
+    _logger.debug("Init graphs are destroyed");
 }
 
 WeightlessGraph::~WeightlessGraph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
-    for (auto& initHandle : _initsHandles) {
-        if (initHandle != nullptr) {
-            auto result = _zeGraphExt->destroyGraph(initHandle);
-
-            if (ZE_RESULT_SUCCESS == result) {
-                initHandle = nullptr;
-            }
-        }
-    }
+    release_graphs();
 }
 
 }  // namespace intel_npu

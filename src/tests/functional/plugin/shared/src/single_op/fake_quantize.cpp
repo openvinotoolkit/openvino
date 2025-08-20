@@ -13,16 +13,9 @@
 namespace ov {
 namespace test {
 std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<fqLayerTestParamsSet>& obj) {
-    fqSpecificParams fqParams;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::string target_device;
-    std::tie(fqParams, model_type, shapes, target_device) = obj.param;
-    size_t levels;
-    std::vector<size_t> const_shape;
-    std::vector<float> fq_direct_args;
-    ov::op::AutoBroadcastSpec broadcast;
-    std::tie(levels, const_shape, fq_direct_args, broadcast) = fqParams;
+    const auto& [fqParams, model_type, shapes, target_device] = obj.param;
+
+    const auto& [levels, const_shape, fq_direct_args, broadcast] = fqParams;
 
     std::ostringstream result;
     result << "IS=(";
@@ -49,18 +42,13 @@ std::string FakeQuantizeLayerTest::getTestCaseName(const testing::TestParamInfo<
 }
 
 void FakeQuantizeLayerTest::SetUp() {
-    fqSpecificParams fqParams;
-    ov::element::Type model_type;
-    std::vector<InputShape> shapes;
-    std::tie(fqParams, model_type, shapes, targetDevice) = this->GetParam();
+    const auto& [fqParams, model_type, shapes, _targetDevice] = this->GetParam();
+    targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
     std::vector<size_t> kernel, stride, dilation;
-    size_t levels;
-    std::vector<size_t> const_shape;
-    std::vector<float> fq_direct_arg;
-    ov::op::AutoBroadcastSpec broadcast;
-    std::tie(levels, const_shape, fq_direct_arg, broadcast) = fqParams;
+
+    const auto& [levels, const_shape, fq_direct_arg, broadcast] = fqParams;
     if (fq_direct_arg.size() != 0) {
         abs_threshold = (fq_direct_arg[3] - fq_direct_arg[2]) / levels;
     }

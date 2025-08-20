@@ -45,6 +45,39 @@ Alternatively, a model exported to TensorFlow SavedModel format can also be conv
 
    ovc bert_base
 
+Export Keras 3 Model to OpenVINO IR
+###################################
+
+Keras 3 allows models from any backend (TensorFlow, JAX, PyTorch, or OpenVINO) to be directly exported to disk in the OpenVINO IR format using the ``model.export()`` API.
+
+Here is an example:
+
+.. code-block:: python
+   :force:
+
+   import os
+   os.environ["KERAS_BACKEND"] = "tensorflow"
+   import keras_hub
+   import numpy as np
+   import openvino as ov
+
+   ov_model_path = "ov_model.xml"
+
+   model = keras_hub.models.BertTextClassifier.from_preset(
+      "bert_base_en_uncased",
+      num_classes=4,
+      preprocessor=None,
+   )
+
+   model.export(ov_model_path, format="openvino")
+
+   compiled_model = ov.Core().compile_model(ov_model_path, "CPU")
+   inputs = {
+      "token_ids": np.ones((1, 12), dtype="int32"),
+      "segment_ids": np.zeros((1, 12), dtype="int32"),
+      "padding_mask": np.ones((1, 12), dtype="int32"),
+   }
+   ov_output = compiled_model(inputs)[0]
 
 Run inference in Keras 3 with the OpenVINO backend
 ##################################################
