@@ -1222,23 +1222,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Converting KV-cache in prefill model to FP16.");
     prefill_model = cvt_kvcache_to_fp16(prefill_model);
 
-    if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
-        LOG_DEBUG("Caching preROPE ");
-        const uint32_t CACHE_ROPE_START = 2048;
-
-        if (max_prompt_len >= CACHE_ROPE_START) {
-            LOG_DEBUG("Enable RoPE Cache for prefill");
-            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
-            rope_prefill_cacher.run_on_model(prefill_model);
-        }
-
-        if (const uint32_t ctx_len = max_prompt_len + min_response_len; ctx_len >= CACHE_ROPE_START) {
-            LOG_DEBUG("Enable RoPE Cache for kvcache");
-            ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(ctx_len);
-            rope_generate_cacher.run_on_model(kvcache_model);
-        }
-    }
-
     auto prefill_config =
         prefill_config_opt.value_or(get_default_prefill_config(prefill_model, npudesc)).as<ov::AnyMap>();
 
@@ -1259,6 +1242,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     merge_config_with(generate_config, other_props);
     merge_config_with(prefill_config, prefill_config_addition_value);
     merge_config_with(generate_config, generate_config_addition_value);
+
+    if (m_cfg.get<::intel_npu::NPUW_LLM_CACHE_ROPE>()) {
+        LOG_DEBUG("Caching preROPE ");
+        const uint32_t CACHE_ROPE_START = 2048;
+        const bool is_best = (generate_hint == ::intel_npu::npuw::llm::GenerateHint::BEST_PERF);
+
+        if (!is_best || (max_prompt_len >= CACHE_ROPE_START)) {
+            LOG_DEBUG("Enable RoPE Cache for prefill");
+            ov::npuw::patterns::pre_compute::RopeCache rope_prefill_cacher(max_prompt_len);
+            rope_prefill_cacher.run_on_model(prefill_model);
+        }
+
+        if (const uint32_t ctx_len = max_prompt_len + min_response_len; !is_best || (ctx_len >= CACHE_ROPE_START)) {
+            LOG_DEBUG("Enable RoPE Cache for kvcache");
+            ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(ctx_len);
+            rope_generate_cacher.run_on_model(kvcache_model);
+        }
+    }
 
     m_kvcache_compiled = std::dynamic_pointer_cast<ov::npuw::CompiledModel>(
         ov::npuw::ICompiledModel::create(kvcache_model, plugin, generate_config));
