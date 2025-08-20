@@ -861,3 +861,20 @@ TEST_F(UndefinedTypeDynamicTypeSerializationTests, compare_dynamic_type_undefine
     ASSERT_TRUE(files_equal(m_dynamic_type_out_xml_path, m_undefined_type_out_xml_path))
         << "Serialized XML files are different: dynamic type vs undefined type";
 }
+
+TEST(SerializationTest, PathSecurityValidationDotDot) {
+    auto m = std::make_shared<ov::Model>(ov::ResultVector{}, ov::ParameterVector{}, "empty_model");
+    const auto out_xml_path = std::filesystem::path("a/../b/test.xml");
+    const auto out_bin_path = std::filesystem::path("test.bin");
+    EXPECT_THROW(ov::pass::Serialize(out_xml_path, out_bin_path).run_on_model(m), ::ov::AssertFailure);
+}
+
+TEST(SerializationTest, PathSecurityValidationSymbolicLink) {
+    auto m = std::make_shared<ov::Model>(ov::ResultVector{}, ov::ParameterVector{}, "empty_model");
+    const auto symlink = std::filesystem::path("test_symlink");
+    std::filesystem::create_symlink(std::filesystem::current_path(), symlink);
+    const auto out_xml_path = std::filesystem::path(symlink);
+    const auto out_bin_path = std::filesystem::path("test.bin");
+    EXPECT_THROW(ov::pass::Serialize(out_xml_path, out_bin_path).run_on_model(m), ::ov::AssertFailure);
+    std::filesystem::remove(symlink);
+}
