@@ -72,17 +72,13 @@ jobs:
             # Add `gh` to PATH
             $env:GH_TOKEN = "${{ github.token }}"
             $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-            gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_DIR }} && `
-            gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tokenizers_wheel --dir ${{ env.INSTALL_DIR }} && `
+            gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_DIR }}
+            gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tokenizers_wheel --dir ${{ env.INSTALL_DIR }}
             gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
 
             pushd ${{ env.INSTALL_DIR }}
               Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
             popd
-
-      - name: Setup Variables
-        run: |
-          echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
 
       - name: Install OpenVINO dependencies (mac)
         if: ${{ runner.os == 'macOS' }}
@@ -102,10 +98,20 @@ jobs:
           name: openvino_tests
           path: ${{ env.INSTALL_DIR }}
 
+      - name: Download OpenVINO artifacts (tokenizers_wheel)
+        if: runner.os != 'Windows'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: openvino_tokenizers_wheel
+          path: ${{ env.INSTALL_DIR }}
+
       - name: Extract OpenVINO packages (Linux, macOS)
         if: ${{ runner.os != 'Windows' }}
         run: pigz -dc openvino_tests.tar.gz | tar -xf - -v
         working-directory: ${{ env.INSTALL_DIR }}
+
+      - name: Setup Variables
+        run: echo "HF_HUB_CACHE=${{ runner.os == 'Linux' && env.HF_HUB_CACHE_LIN || env.HF_HUB_CACHE_WIN }}" >> "$GITHUB_ENV"
 
       - name: Setup Python ${{ inputs.python-version }}
         uses: ./.github/actions/setup_python
