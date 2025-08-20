@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef NPU_LLVM_BACKEND
 #    ifdef _MSC_VER
 #        pragma warning(push)
 #        pragma warning(disable : 4146 4267 4244 4996)
@@ -371,5 +370,4 @@ std::vector<ov::ProfilingInfo> DynamicPipeline::get_profiling_info() const {
 
 #    ifdef _MSC_VER
 #        pragma warning(pop)
-#    endif
 #endif

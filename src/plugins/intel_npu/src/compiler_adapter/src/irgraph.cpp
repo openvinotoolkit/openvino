@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef NPU_LLVM_BACKEND
-
 #    pragma once
 
 #    include "irgraph.hpp"
@@ -916,4 +914,3 @@ uint64_t IRGraph::get_num_subgraphs() const {
 }
 
 }  // namespace intel_npu
-#endif  // NPU_LLVM_BACKEND
