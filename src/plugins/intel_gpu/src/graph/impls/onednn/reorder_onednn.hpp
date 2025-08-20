@@ -65,7 +65,7 @@ struct ReorderImplementationManager : public ImplementationManager {
             return false;
 
         // onednn doesn't support paddings
-        if (!is_supported_pad(input_layout) || !is_supported_pad(output_layout))
+        if (!is_supported_pad_for_reorder(input_layout) || !is_supported_pad_for_reorder(output_layout))
             return false;
 
         // Native impl works faster for this type of reorder
@@ -89,6 +89,20 @@ struct ReorderImplementationManager : public ImplementationManager {
             return false;
 
         return true;
+    }
+
+    static bool is_supported_pad_for_reorder(const layout& layout) {
+        // check to support the batch/spatial pad for onednn.
+        if (!is_supported_pad(layout))
+            return false;
+
+        // Check feature pad
+        const auto& pad = layout.data_padding;
+        bool no_feature_padding = true;
+        no_feature_padding &= (pad._lower_size[1] == 0);
+        no_feature_padding &= (pad._upper_size[1] == 0);
+
+        return no_feature_padding;
     }
 };
 
