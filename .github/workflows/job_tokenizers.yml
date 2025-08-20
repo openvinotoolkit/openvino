@@ -54,8 +54,12 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
       OPENVINO_TOKENIZERS_REPO: ${{ github.workspace }}/openvino_tokenizers
       EXTENSION_BUILD_DIR: ${{ github.workspace }}/build
-
+      GH_DEBUG: 1
     steps:
+      - name: Install GH CLI
+        if: runner.os == 'Windows'
+        run: choco install gh
+
       - name: checkout actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         timeout-minutes: 15

@@ -331,6 +331,7 @@ jobs:
       BUILD_DIR: "${{ github.workspace }}\\openvino_build"
       MODELS_PATH: "${{ github.workspace }}\\testdata"
       SELECTIVE_BUILD_STAT_DIR: "${{ github.workspace }}\\selective_build_stat"
+      GH_DEBUG: 1
     if: "!needs.smart_ci.outputs.skip_workflow"
 
     steps:
@@ -350,14 +351,29 @@ jobs:
           lfs: 'true'
           ref: ${{ env.TARGET_BRANCH }}
 
-      - name: Download selective build statistics package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_selective_build_stat
-          path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+      - name: Install GH CLI
+        run: choco install gh
 
-      - name: Extract selective build statistics package
-        run: Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+      - name: Download and extract selective build statistics package
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with: 
+          timeout_minutes: 5
+          max_attempts: 2
+        command: |
+          # Add `gh` to PATH
+          $env:GH_TOKEN = "${{ github.token }}"
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+
+          Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
+
+      - name: Download selective build statistics package
+        run: |
+          # Add `gh` to PATH
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -411,17 +427,25 @@ jobs:
       INSTALL_TEST_DIR: "${{ github.workspace }}\\tests_install"
       PARALLEL_TEST_SCRIPT: "${{ github.workspace }}\\tests_install\\layer_tests_summary\\run_parallel.py"
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\tests_install\\test_cache.lst"
+      GH_DEBUG: 1
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
 
     steps:
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+      - name: Install GH CLI
+        run: choco install gh
 
-      - name: Extract OpenVINO tests package
-        run: Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
+      - name: Download and extract OpenVINO tests package
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with: 
+          timeout_minutes: 5
+          max_attempts: 2
+        command: |
+          # Add `gh` to PATH
+          $env:GH_TOKEN = "${{ github.token }}"
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_TEST_DIR }}
+
+          Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
 
       - name: Fetch setup_python action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

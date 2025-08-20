@@ -21,6 +21,7 @@ env:
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
   PIP_CACHE_PATH: "C:\\mount\\caches\\pip\\win"
   PYTHON_VERSION: '3.11'
+  GH_DEBUG: 1
 
 permissions: read-all
 
@@ -92,32 +93,27 @@ jobs:
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       SAMPLES_INSTALL_DIR: "${{ github.workspace }}\\install\\samples"
       BUILD_DIR: "${{ github.workspace }}\\build"
-
     steps:
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
+      - name: Install GH CLI
+        run: choco install gh
 
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
+      - name: Download and extract OpenVINO artifacts (tarballs & wheels)
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with: 
+          timeout_minutes: 5
+          max_attempts: 2
+        command: |
+          # Add `gh` to PATH
+          $env:GH_TOKEN = "${{ github.token }}"
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.INSTALL_DIR }} && `
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }} && `
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
 
-      - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_wheels
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
-
-      - name: Extract OpenVINO packages
-        run: |
+          pushd ${{ env.INSTALL_DIR }}
             Expand-Archive openvino_package.zip -DestinationPath . -Verbose
             Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
-        working-directory: ${{ env.INSTALL_DIR }}
+          popd
 
       - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -197,16 +193,24 @@ jobs:
             src/bindings/js
           path: 'openvino'
 
-      - name: Download OpenVINO artifacts (JS)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_js_package
-          path: ${{ env.OPENVINO_JS_LIBS_DIR }}
-          merge-multiple: true
+      - name: Install GH CLI
+        run: choco install gh
 
-      - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_js_package.zip -DestinationPath . -Verbose
-        working-directory: ${{ env.OPENVINO_JS_LIBS_DIR }}
+      - name: Download and extract OpenVINO artifacts (JS)
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        if: runner.os == 'Windows'
+        with: 
+          timeout_minutes: 5
+          max_attempts: 2
+        command: |
+          # Add `gh` to PATH
+          $env:GH_TOKEN = "${{ github.token }}"
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_js_package --dir ${{ env.OPENVINO_JS_LIBS_DIR }}
+
+          pushd ${{ env.OPENVINO_JS_LIBS_DIR }}
+            Expand-Archive openvino_js_package.zip -DestinationPath . -Verbose
+          popd
 
       - name: Setup Node ${{ env.NODE_VERSION }}
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -275,25 +279,25 @@ jobs:
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       LAYER_TESTS_INSTALL_DIR: "${{ github.workspace }}\\install\\tests\\layer_tests"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
-
     steps:
-      - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      - name: Install GH CLI
+        run: choco install gh
 
-      - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_wheels
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
+      - name: Download and extract OpenVINO artifacts (tarballs & wheels)
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with: 
+          timeout_minutes: 5
+          max_attempts: 2
+        command: |
+          # Add `gh` to PATH
+          $env:GH_TOKEN = "${{ github.token }}"
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }} && `
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
 
-      - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
-        working-directory: ${{ env.INSTALL_DIR }}
+          pushd ${{ env.INSTALL_DIR }}
+            Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
+          popd
 
       - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -420,23 +424,24 @@ jobs:
       INSTALL_WHEELS_DIR: "${{ github.workspace }}\\install\\wheels"
       PYTHON_STATIC_ARGS: -m "not dynamic_library and not template_plugin"
     steps:
-      - name: Download OpenVINO artifacts (tarballs)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_DIR }}
-          merge-multiple: true
+      - name: Install GH CLI
+        run: choco install gh
 
-      - name: Download OpenVINO artifacts (wheels)
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_wheels
-          path: ${{ env.INSTALL_WHEELS_DIR }}
-          merge-multiple: true
+      - name: Download and extract OpenVINO artifacts (tarballs & wheels)
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with: 
+          timeout_minutes: 5
+          max_attempts: 2
+        command: |
+          # Add `gh` to PATH
+          $env:GH_TOKEN = "${{ github.token }}"
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }} && `
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
 
-      - name: Extract OpenVINO packages
-        run: Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
-        working-directory: ${{ env.INSTALL_DIR }}
+          pushd ${{ env.INSTALL_DIR }}
+            Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
+          popd
 
       - name: Fetch setup_python and install wheels actions
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -555,25 +560,24 @@ jobs:
       PARALLEL_TEST_CACHE: "${{ github.workspace }}\\install\\tests\\test_cache.lst"
     if: fromJSON(needs.smart_ci.outputs.affected_components).CPU.test
     steps:
-      - name: Download OpenVINO package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_package
-          path: ${{ env.INSTALL_DIR }}
+      - name: Install GH CLI
+        run: choco install gh
 
-      - name: Download OpenVINO tests package
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: openvino_tests
-          path: ${{ env.INSTALL_TEST_DIR }}
+      - name: Download and extract OpenVINO artifacts (tarballs)
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with: 
+          timeout_minutes: 5
+          max_attempts: 2
+        command: |
+          # Add `gh` to PATH
+          $env:GH_TOKEN = "${{ github.token }}"
+          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_package --dir ${{ env.INSTALL_DIR }} && `
+          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_DIR }}
 
-      - name: Extract OpenVINO packages
-        run: |
           pushd ${{ env.INSTALL_DIR }}
-            Expand-Archive openvino_package.zip -DestinationPath "${{ env.INSTALL_DIR }}"
-          popd
-          pushd ${{ env.INSTALL_TEST_DIR }}
-            Expand-Archive openvino_tests.zip -DestinationPath "${{ env.INSTALL_DIR }}"
+            Expand-Archive openvino_package.zip -DestinationPath . -Verbose
+            Expand-Archive openvino_tests.zip -DestinationPath . -Verbose
           popd
 
       - name: Fetch setup_python action
