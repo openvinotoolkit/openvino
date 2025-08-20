@@ -383,6 +383,16 @@ void ov::npuw::LLMInferRequest::init_tensor(const ov::Output<const ov::Node>& po
 void ov::npuw::LLMInferRequest::apply_lora() {
     uint32_t max_low_rank_dim_size = m_npuw_llm_compiled_model->m_max_lora_rank;
 
+    bool pre_alloc_on_npu = true;
+    const auto& prefill_compiled = m_npuw_llm_compiled_model->m_prefill_compiled;
+    for (std::size_t idx = 0; idx < prefill_compiled->m_compiled_submodels.size(); ++idx) {
+        if (prefill_compiled->submodel_device(idx) == "CPU") {
+            pre_alloc_on_npu = false;
+            break;
+        }
+    }
+    std::string device = pre_alloc_on_npu ? "NPU" : "CPU";
+
     for (auto state : m_variableStates) {
         auto state_name = state->get_name();
         auto state_tensor = state->get_state();
@@ -428,7 +438,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
 
             auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
             auto new_infer_tensor =
-                allocMem(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape(), "NPU");
+                allocMem(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape(), device);
             bool has_padding = state_tensor_rank != target_lora_rank;
             if (has_padding) {
                 // Clear padding tensor in infer request
