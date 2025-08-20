@@ -14,8 +14,6 @@
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
-
-#ifdef NPU_LLVM_BACKEND
 class IRGraph final : public IGraph {
 public:
     struct MemRefType {
@@ -187,5 +185,4 @@ private:
     std::unique_ptr<Impl> _impl;
 };
 
-#endif  // NPU_LLVM_BACKEND
 }  // namespace intel_npu
