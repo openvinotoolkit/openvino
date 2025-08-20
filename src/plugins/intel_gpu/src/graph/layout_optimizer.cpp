@@ -935,38 +935,72 @@ bool layout_optimizer::is_mixed_layout(program_node& prev, program_node& next, b
 
 void layout_optimizer::set_onednn_dyn_conv_preferred_format(convolution_node& node) {
     OPENVINO_ASSERT(node.is_dynamic());
+
     auto input_layout = node.get_input_layout(0);
     auto output_layout = node.get_output_layout();
-    bool i8_u8_input = input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8;
-    bool is_fp16_input = input_layout.data_type == data_types::f16;
+    auto rank = input_layout.get_partial_shape().size();
+
+    OPENVINO_ASSERT(rank == output_layout.get_partial_shape().size(), "Input and output ranks must match");
+    OPENVINO_ASSERT(rank <= 5, "Not supported rank");
+
+    // Data type classification
+    bool i8_u8_input = (input_layout.data_type == data_types::u8 || input_layout.data_type == data_types::i8);
+    bool i8_u8_output = (output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8);
+    bool is_fp16_input = (input_layout.data_type == data_types::f16);
+
+    // Helper functions to get appropriate formats based on rank
+    auto get_fsv32_format = [](size_t rank) {
+        return (rank <= 4) ? cldnn::format::b_fs_yx_fsv32 : cldnn::format::b_fs_zyx_fsv32;
+    };
+
+    auto get_fsv16_format = [](size_t rank) {
+        return (rank <= 4) ? cldnn::format::b_fs_yx_fsv16 : cldnn::format::b_fs_zyx_fsv16;
+    };
+
+    auto get_f_inner_planar_format = [](size_t rank) {
+        return (rank <= 4) ? cldnn::format::byxf : cldnn::format::bzyxf;
+    };
+
+    // Helper function to get channel count safely
+    auto get_channel_count = [](const layout& layout) -> int64_t {
+        return layout.get_partial_shape()[1].is_static() ? layout.get_partial_shape()[1].get_length() : -1;
+    };
+
+    // Get channel counts once
+    int64_t input_channels = get_channel_count(input_layout);
+    int64_t output_channels = get_channel_count(output_layout);
+
     if (i8_u8_input) {
-        node.set_preferred_input_fmt(0, cldnn::format::b_fs_yx_fsv32);
-        bool i8_u8_output = output_layout.data_type == data_types::u8 || output_layout.data_type == data_types::i8;
+        // Set default input format for i8/u8 input
+        node.set_preferred_input_fmt(0, get_fsv32_format(rank));
+
+        // Set output format based on output data type
         if (i8_u8_output) {
-            node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv32);
+            node.set_preferred_output_fmt(0, get_fsv32_format(rank));
         } else {
-            node.set_preferred_output_fmt(0, cldnn::format::b_fs_yx_fsv16);
+            node.set_preferred_output_fmt(0, get_fsv16_format(rank));
         }
-        // shallow channel
-        if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 16) {
-            node.set_preferred_input_fmt(0, cldnn::format::byxf);
+
+        // Override with planar format for shallow channels (≤ 16)
+        if (input_channels > 0 && input_channels <= 16) {
+            node.set_preferred_input_fmt(0, get_f_inner_planar_format(rank));
         }
-        if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 16) {
-            node.set_preferred_output_fmt(0, cldnn::format::byxf);
+
+        if (output_channels > 0 && output_channels <= 16) {
+            node.set_preferred_output_fmt(0, get_f_inner_planar_format(rank));
         }
     } else if (is_fp16_input) {
-        if (output_layout.get_partial_shape().size() <= 4)
-            node.set_preferred_output_fmt(0, format::b_fs_yx_fsv16);
-        else if (output_layout.get_partial_shape().size() == 5)
-            node.set_preferred_output_fmt(0, format::b_fs_zyx_fsv16);
-        else
-            OPENVINO_ASSERT(false, "Unsupported input layout partial shape size ", input_layout.get_partial_shape().size());
-        // Use planar format for dynamic convolution with small input/output channel(IC <= 4)
-        if (input_layout.get_partial_shape()[1].is_static() && input_layout.get_partial_shape()[1].get_length() <= 4) {
-            node.set_preferred_input_fmt(0, format::get_default_format(input_layout.get_partial_shape().size()));
+        // Set default formats for FP16 input
+        node.set_preferred_input_fmt(0, get_fsv16_format(rank));
+        node.set_preferred_output_fmt(0, get_fsv16_format(rank));
+
+        // Override with default format for small channels (≤ 4)
+        if (input_channels > 0 && input_channels <= 4) {
+            node.set_preferred_input_fmt(0, format::get_default_format(rank));
         }
-        if (output_layout.get_partial_shape()[1].is_static() && output_layout.get_partial_shape()[1].get_length() <= 4) {
-            node.set_preferred_output_fmt(0, format::get_default_format(output_layout.get_partial_shape().size()));
+
+        if (output_channels > 0 && output_channels <= 4) {
+            node.set_preferred_output_fmt(0, format::get_default_format(rank));
         }
     }
 }
