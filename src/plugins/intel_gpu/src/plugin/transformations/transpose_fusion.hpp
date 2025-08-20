@@ -37,5 +37,10 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("TransposeVLSDPAMatcher");
     TransposeVLSDPAMatcher();
 };
+class TransposeConv1x1TransposeMatcher : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("TransposeConv1x1TransposeMatcher");
+    TransposeConv1x1TransposeMatcher();
+};
 
 }   // namespace ov::intel_gpu
