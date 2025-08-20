@@ -36,6 +36,7 @@ RUN apt-get update && \
         xvfb \
         libgtk-3-0 \
         libgbm1 \
+        libnss3 \
         # For TF Models tests
         wget \
         # libGL for PyTorch Models tests
