@@ -10,8 +10,10 @@
 #include <openvino/core/type/bfloat16.hpp>
 #include <openvino/core/type/float16.hpp>
 #include <openvino/core/type/nf4.hpp>
+#include <regex>
 #include <sstream>
 
+#include "llm_lora_states.hpp"
 #include "logging.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/op_types.hpp"
@@ -863,4 +865,23 @@ ov::npuw::util::range_1d ov::npuw::util::validMaskRange(const ov::SoPtr<ov::ITen
         OPENVINO_THROW("Unsupported type ", src->get_element_type());
     }
 #undef HNDL
+}
+
+bool ov::npuw::util::matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix) {
+    std::string pattern = "^lora_state.*" + pattern_suffix + "$";
+    std::regex regex_pattern(pattern);
+
+    return std::regex_match(input, regex_pattern);
+}
+
+bool ov::npuw::util::matchLoRAMatMulAString(const std::string& input) {
+    return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_A);
+}
+
+bool ov::npuw::util::matchLoRAMatMulBString(const std::string& input) {
+    return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_B);
+}
+
+bool ov::npuw::util::matchLoRAMatMulAlphaString(const std::string& input) {
+    return ov::npuw::util::matchStringWithLoRAPattern(input, LoRANames::MatMul_alpha);
 }

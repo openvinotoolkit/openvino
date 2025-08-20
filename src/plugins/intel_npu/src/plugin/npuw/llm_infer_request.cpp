@@ -232,15 +232,15 @@ void check_tensor_shape_compatibility(const ov::Shape& state_tensor_shape,
 
 std::pair<uint32_t, uint32_t> get_lora_dims_by_name(const std::string& state_name) {
     uint32_t low_rank_dim, full_rank_dim;
-    if (ov::npuw::matchLoRAMatMulAString(state_name)) {
+    if (ov::npuw::util::matchLoRAMatMulAString(state_name)) {
         // Shape of A is [r, d]
         low_rank_dim = 0;
         full_rank_dim = 1;
-    } else if (ov::npuw::matchLoRAMatMulBString(state_name)) {
+    } else if (ov::npuw::util::matchLoRAMatMulBString(state_name)) {
         // Shape of B is [d, r]
         low_rank_dim = 1;
         full_rank_dim = 0;
-    } else if (ov::npuw::matchLoRAMatMulAlphaString(state_name)) {
+    } else if (ov::npuw::util::matchLoRAMatMulAlphaString(state_name)) {
         // Shape of alpha is [1, r]
         low_rank_dim = 1;
         full_rank_dim = 0;
@@ -260,8 +260,8 @@ constexpr std::size_t kStartOutputKVCacheLayers = 1;
 void ov::npuw::LLMInferRequest::init_lora_states() {
     for (const auto& input_port : m_prefill_request->get_compiled_model()->inputs()) {
         auto input_name = input_port.get_any_name();
-        if (ov::npuw::matchLoRAMatMulAString(input_name) || ov::npuw::matchLoRAMatMulBString(input_name) ||
-            ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
+        if (ov::npuw::util::matchLoRAMatMulAString(input_name) || ov::npuw::util::matchLoRAMatMulBString(input_name) ||
+            ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
             auto input_tensor = m_prefill_request->get_tensor(input_port);
             m_variableStates.push_back(std::make_shared<VariableState>(input_name, input_tensor));
         }
@@ -415,7 +415,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             auto kvcach_lora_in_tensor = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(state_name));
 
             // Disable adapter by setting alpha to 0
-            if (matchLoRAMatMulAlphaString(state_name)) {
+            if (ov::npuw::util::matchLoRAMatMulAlphaString(state_name)) {
                 fill_tensor<float>(prefill_lora_in_tensor, 0.0f);
                 fill_tensor<float>(kvcach_lora_in_tensor, 0.0f);
             }

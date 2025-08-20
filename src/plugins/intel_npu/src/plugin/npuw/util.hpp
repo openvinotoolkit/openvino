@@ -168,6 +168,14 @@ struct Unique {
     }
 };
 
+bool matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix);
+
+bool matchLoRAMatMulAString(const std::string& input);
+
+bool matchLoRAMatMulBString(const std::string& input);
+
+bool matchLoRAMatMulAlphaString(const std::string& input);
+
 }  // namespace util
 }  // namespace npuw
 }  // namespace ov
