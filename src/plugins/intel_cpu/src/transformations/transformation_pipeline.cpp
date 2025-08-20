@@ -513,9 +513,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
                               {ov::element::u32, ov::element::i32},
                               {ov::element::f64, ov::element::f32},
                               {ov::element::boolean, ov::element::u8},
-                              {ov::element::i4, ov::element::i8},
                               {ov::element::u4, ov::element::u8}};
-
+#ifndef OPENVINO_ARCH_ARM64
+        // do not convert i4 precision as it can be handled by kleidiai kernel for OPENVINO_ARCH_ARM64
+        map.insert({ov::element::i4, ov::element::i8});
+#endif
         // @todo should we always convert to f32 regardless of hardware support, as it is done for f16?
         if (!hasHardwareSupport(ov::element::bf16)) {
             map.insert({ov::element::bf16, ov::element::f32});
