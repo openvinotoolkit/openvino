@@ -541,7 +541,6 @@ TEST_P(CachingTest, TestLoad_by_device_name) {
 
 TEST_P(CachingTest, TestLoadCustomImportExport) {
     const char customData[] = {1, 2, 3, 4, 5};
-    // size_t customDataSize = sizeof(customData);
 
     EXPECT_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::capability::EXPORT_IMPORT, _)).Times(AnyNumber());
@@ -2203,8 +2202,9 @@ TEST_P(CachingTest, LoadAUTOWithConfig) {
     EXPECT_CALL(*mockPlugin, query_model(_, _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::internal::caching_properties.name(), _)).Times(AnyNumber());
     EXPECT_CALL(*mockPlugin, get_property(ov::device::architecture.name(), _)).Times(AnyNumber());
+    // skip the remote Context test for Auto plugin
     if (m_remoteContext) {
-        return;  // skip the remote Context test for Auto plugin
+        return;
     }
     int index = 0;
     m_post_mock_net_callbacks.emplace_back([&](MockICompiledModelImpl& net) {
