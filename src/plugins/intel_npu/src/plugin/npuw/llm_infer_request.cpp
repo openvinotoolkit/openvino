@@ -437,8 +437,10 @@ void ov::npuw::LLMInferRequest::apply_lora() {
             uint32_t target_lora_rank = static_cast<uint32_t>(infer_tensor_shape[low_rank_dim]);
 
             auto prefill_lora_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(state_name));
-            auto new_infer_tensor =
-                allocMem(prefill_lora_in_tensor->get_element_type(), prefill_lora_in_tensor->get_shape(), device);
+            auto new_infer_tensor = ov::npuw::util::allocMem(prefill_lora_in_tensor->get_element_type(),
+                                                             prefill_lora_in_tensor->get_shape(),
+                                                             device,
+                                                             m_npuw_llm_compiled_model->get_plugin());
             bool has_padding = state_tensor_rank != target_lora_rank;
             if (has_padding) {
                 // Clear padding tensor in infer request

@@ -867,6 +867,19 @@ ov::npuw::util::range_1d ov::npuw::util::validMaskRange(const ov::SoPtr<ov::ITen
 #undef HNDL
 }
 
+ov::npuw::util::TensorPtr ov::npuw::util::allocMem(const ov::element::Type type,
+                                                   const ov::Shape& shape,
+                                                   const std::string& device,
+                                                   const std::shared_ptr<const ov::IPlugin>& plugin) {
+    if (device == "CPU" || ov::shape_size(shape) == 0) {
+        return ov::get_tensor_impl(ov::Tensor(type, shape));
+    }
+
+    auto remote_ctx = plugin->get_core()->get_default_context(device)._ptr;
+    auto remote_tensor = remote_ctx->create_host_tensor(type, shape);
+    return ov::get_tensor_impl(ov::make_tensor(remote_tensor));
+}
+
 bool ov::npuw::util::matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix) {
     std::string pattern = "^lora_state.*" + pattern_suffix + "$";
     std::regex regex_pattern(pattern);
