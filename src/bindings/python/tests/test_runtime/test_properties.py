@@ -188,6 +188,7 @@ def test_conflicting_enum(proxy_enums, expected_values):
         (device.luid, "DEVICE_LUID"),
         (device.capabilities, "OPTIMIZATION_CAPABILITIES"),
         (intel_gpu.device_total_mem_size, "GPU_DEVICE_TOTAL_MEM_SIZE"),
+        (intel_gpu.device_max_alloc_mem_size, "GPU_DEVICE_MAX_ALLOC_MEM_SIZE"),
         (intel_gpu.uarch_version, "GPU_UARCH_VERSION"),
         (intel_gpu.execution_units_count, "GPU_EXECUTION_UNITS_COUNT"),
         (intel_gpu.memory_statistics, "GPU_MEMORY_STATISTICS"),
