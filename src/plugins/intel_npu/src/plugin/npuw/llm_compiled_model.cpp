@@ -1232,7 +1232,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             rope_prefill_cacher.run_on_model(prefill_model);
         }
 
-        if (const int32_t ctx_len = max_prompt_len + min_response_len; ctx_len >= CACHE_ROPE_START) {
+        if (const uint32_t ctx_len = max_prompt_len + min_response_len; ctx_len >= CACHE_ROPE_START) {
             LOG_DEBUG("Enable RoPE Cache for kvcache");
             ov::npuw::patterns::pre_compute::RopeCache rope_generate_cacher(ctx_len);
             rope_generate_cacher.run_on_model(kvcache_model);
