@@ -469,15 +469,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#111455 -->
-    <skip_config>
-        <message>Failing properties tests for AUTO / MULTI</message>
-        <filters>
-            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*MULTI.*LOG_LEVEL.*</filter>
-            <filter>.*OVCheckSetSupportedRWMetricsPropsTests.ChangeCorrectProperties.*AUTO.*LOG_LEVEL.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#99817 -->
     <skip_config>
         <message>Disabled tests for NPU3720 and NPU4000</message>
@@ -581,14 +572,6 @@ Example:
             <filter>.*smoke_BehaviorTests_OVClassSetDefaultDeviceIDPropTest/OVClassSetDefaultDeviceIDPropTest.SetDefaultDeviceIDNoThrow.*</filter>
             <filter>.*smoke_BehaviorTests_OVClassSpecificDeviceTest/OVSpecificDeviceGetConfigTest.GetConfigSpecificDeviceNoThrow.*</filter>
             <filter>.*smoke_BehaviorTests_OVClassSpecificDeviceTest/OVSpecificDeviceTestSetConfig.SetConfigSpecificDeviceNoThrow.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#114624 -->
-    <skip_config>
-        <message>The tests are not actually running the compiler-in-driver module.</message>
-        <filters>
-            <filter>.*smoke_BehaviorTests_OVCheckSetSupportedRWMetricsPropsTests.*</filter>
         </filters>
     </skip_config>
 
