@@ -13,11 +13,11 @@
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/range.hpp"
-#include "openvino/op/shape_of.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/subtract.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -56,8 +56,8 @@ ov::OutputVector center_crop_pad_impl(const ov::OutputVector inputs, const std::
         std::vector<int64_t> pos = axes_attr;
         if (data.get_partial_shape().rank().is_static()) {
             int64_t r = data.get_partial_shape().rank().get_length();
-            for (auto& a : pos) 
-                if (a < 0) 
+            for (auto& a : pos)
+                if (a < 0)
                     a += r;
         }
         const auto axes_const = std::make_shared<v0::Constant>(ov::element::i64, Shape{pos.size()}, pos);
