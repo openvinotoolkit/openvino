@@ -512,7 +512,6 @@ std::vector<std::string> disabledTestPatterns() {
     // Tests to be enabled on ARM64
     retVector.emplace_back(R"(smoke_Snippets_ConvAdd/ConvEltwise.CompareWithRefImpl.*)");
     retVector.emplace_back(R"(smoke_Snippets_GroupNormalization.*)");
-    retVector.emplace_back(R"(smoke_Snippets_MHA.*)");
     retVector.emplace_back(R"(smoke_Snippets_PrecisionPropagation_Convertion.*)");
 #endif
 #if defined(_WIN32)
