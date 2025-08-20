@@ -70,13 +70,6 @@ jobs:
       - name: Configure OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}
         run: npm i
-      
-      - name: Check electron dependencies
-        working-directory: ${{ env.OPENVINO_JS_DIR }}
-        if: runner.os == 'Linux'
-        run: |
-          npm install electron
-          ldd ${{ env.OPENVINO_JS_DIR }}/node_modules/electron/dist/electron
 
       - name: Test OpenVINO JS API
         working-directory: ${{ env.OPENVINO_JS_DIR }}
