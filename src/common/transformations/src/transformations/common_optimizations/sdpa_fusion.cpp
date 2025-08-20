@@ -292,6 +292,13 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         auto k_node = pm.count(k) ? pm.at(k) : pm.at(kT);
         auto v_node = pm.at(v);
 
+        // Workaround for CVS-169994: Skip fusion when the query input is a Constant node,
+        // as this may indicate a non-standard or test-only graph structure.
+        // Remove or revise this check once the underlying issue is resolved.
+        if (ov::is_type<ov::op::v0::Constant>(q_node)) {
+            return false;
+        }
+
         if (mask_present && pm.at(mask).get_partial_shape().size() > 4) {
             return false;
         }
