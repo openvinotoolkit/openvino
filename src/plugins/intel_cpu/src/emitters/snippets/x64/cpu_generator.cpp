@@ -1,4 +1,4 @@
-// Copyright (C) 2020-2024 Intel Corporation
+// Copyright (C) 2018-2025 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -197,6 +197,24 @@ static bool is_segfault_detector_emitter(const intel_cpu::jit_emitter* emitter) 
          }}
 #endif
 
+#define CREATE_LOOP_EMITTER(regular_emitter, parallel_emitter, ...)                               \
+    {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> { \
+         auto loop_node = ov::as_type_ptr<snippets::op::LoopBase>(expr->get_node());              \
+         OPENVINO_ASSERT(loop_node, "Expected LoopBase node");                                    \
+         if (loop_node->get_is_parallel()) {                                                      \
+             return std::make_shared<parallel_emitter>(h.get(), isa, expr, ##__VA_ARGS__);        \
+         }                                                                                        \
+         return std::make_shared<regular_emitter>(h.get(), isa, expr);                            \
+     },                                                                                           \
+     [](const std::shared_ptr<ov::Node>& n) -> std::set<std::vector<element::Type>> {             \
+         auto loop_node = ov::as_type_ptr<snippets::op::LoopBase>(n);                             \
+         OPENVINO_ASSERT(loop_node, "Expected LoopBase node");                                    \
+         if (loop_node->get_is_parallel()) {                                                      \
+             return parallel_emitter::get_supported_precisions(n);                                \
+         }                                                                                        \
+         return regular_emitter::get_supported_precisions(n);                                     \
+     }}
+
 #define CREATE_DEBUG_TPP_EMITTER(e_type)                                                               \
     {[this](const snippets::lowered::ExpressionPtr& expr) -> std::shared_ptr<snippets::Emitter> {      \
          return std::make_shared<DebugTppEmitter>(expr, std::make_shared<e_type>(h.get(), isa, expr)); \
@@ -345,12 +363,11 @@ intel_cpu::CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::x64::cpu_isa_t ho
     jitters[snippets::op::KernelDynamic::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_kernel_dynamic_emitter);
     jitters[snippets::op::LoopBegin::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_begin_emitter);
-    jitters[snippets::op::LoopEnd::get_type_info_static()] = CREATE_SNIPPETS_EMITTER(intel_cpu::jit_loop_end_emitter);
-    jitters[snippets::op::ParallelLoopBegin::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(jit_parallel_loop_begin_emitter, configurator->get_kernel_executor_table());
-    jitters[snippets::op::ParallelLoopEnd::get_type_info_static()] =
-        CREATE_SNIPPETS_EMITTER(jit_parallel_loop_end_emitter);
+        CREATE_LOOP_EMITTER(intel_cpu::jit_loop_begin_emitter,
+                            intel_cpu::jit_parallel_loop_begin_emitter,
+                            configurator->get_kernel_executor_table());
+    jitters[snippets::op::LoopEnd::get_type_info_static()] =
+        CREATE_LOOP_EMITTER(intel_cpu::jit_loop_end_emitter, intel_cpu::jit_parallel_loop_end_emitter);
     jitters[snippets::op::RegSpillBegin::get_type_info_static()] =
         CREATE_SNIPPETS_EMITTER(intel_cpu::jit_reg_spill_begin_emitter);
     jitters[snippets::op::RegSpillEnd::get_type_info_static()] =

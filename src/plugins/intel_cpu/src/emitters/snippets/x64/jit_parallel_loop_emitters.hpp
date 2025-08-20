@@ -22,8 +22,7 @@ public:
 protected:
     size_t wa_increment = 0;
     std::vector<bool> is_incremented;
-    size_t num_inputs = 0;
-    size_t num_outputs = 0;
+    size_t io_num = 0;
     size_t loop_id_offset = 0;
     bool evaluate_once = false;
     bool is_dynamic = false;
@@ -46,16 +45,12 @@ public:
     void set_loop_end_label(const std::shared_ptr<const Xbyak::Label>& label) {
         loop_end_label = label;
     }
-    std::shared_ptr<const Xbyak::Label> get_begin_label() {
+    std::shared_ptr<const Xbyak::Label> get_begin_label() const {
         return loop_begin_label;
     }
 
-    std::shared_ptr<EmitABIRegSpills> get_seq_part_spiller() {
-        return m_seq_part_spiller;
-    }
-
-    std::shared_ptr<EmitABIRegSpills> get_par_to_seq_part_spiller() {
-        return m_par_to_seq_part_spiller;
+    std::shared_ptr<EmitABIRegSpills> get_parallel_section_reg_spiller() const {
+        return m_parallel_section_reg_spiller;
     }
 
 protected:
@@ -75,8 +70,8 @@ protected:
     std::shared_ptr<Xbyak::Label> loop_preamble_label = nullptr;
     std::shared_ptr<const Xbyak::Label> loop_end_label = nullptr;
     std::shared_ptr<ParallelLoopExecutor> m_executor = nullptr;
-    std::shared_ptr<EmitABIRegSpills> m_seq_part_spiller = nullptr;
-    std::shared_ptr<EmitABIRegSpills> m_par_to_seq_part_spiller = nullptr;
+    // This spiller is used to spill registers inside the parallel section of each thread
+    std::shared_ptr<EmitABIRegSpills> m_parallel_section_reg_spiller = nullptr;
 
     // This buffer is needed to communicate register states between main_thread and other threads.
     mutable std::vector<uint8_t> m_common_registers_buffer;
@@ -105,8 +100,7 @@ protected:
 
     std::shared_ptr<const Xbyak::Label> loop_begin_label = nullptr;
     std::shared_ptr<Xbyak::Label> loop_end_label = nullptr;
-    std::shared_ptr<EmitABIRegSpills> m_seq_part_spiller = nullptr;
-    std::shared_ptr<EmitABIRegSpills> m_par_to_seq_part_spiller = nullptr;
+    std::shared_ptr<EmitABIRegSpills> m_parallel_section_reg_spiller = nullptr;
 };
 
 }  // namespace ov::intel_cpu

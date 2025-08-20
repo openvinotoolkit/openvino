@@ -88,8 +88,6 @@ const IShapeInferSnippetsFactory::TRegistry IShapeInferSnippetsFactory::registry
     SHAPE_INFER_PREDEFINED(op::VectorBuffer, SingleElementShapeInfer),
     SHAPE_INFER_PREDEFINED(op::LoopBegin, SingleElementShapeInfer),
     SHAPE_INFER_PREDEFINED(op::LoopEnd, EmptyShapeInfer),
-    SHAPE_INFER_PREDEFINED(op::ParallelLoopBegin, SingleElementShapeInfer),
-    SHAPE_INFER_PREDEFINED(op::ParallelLoopEnd, EmptyShapeInfer),
     SHAPE_INFER_OP_SPECIFIC(op::RegSpillBegin),
     SHAPE_INFER_PREDEFINED(op::RegSpillEnd, EmptyShapeInfer),
 #ifdef SNIPPETS_DEBUG_CAPS

@@ -23,9 +23,14 @@
 #include "snippets/utils/utils.hpp"
 
 namespace ov::snippets::op {
-LoopBase::LoopBase(const std::vector<Output<Node>>& args) : Op(args) {}
+LoopBase::LoopBase(const OutputVector& args, bool is_parallel) : Op(args), m_is_parallel(is_parallel) {}
 
-LoopBegin::LoopBegin() {
+bool LoopBase::visit_attributes(AttributeVisitor& visitor) {
+    visitor.on_attribute("is_parallel", m_is_parallel);
+    return true;
+}
+
+LoopBegin::LoopBegin(bool is_parallel) : LoopBase({}, is_parallel) {
     validate_and_infer_types_except_LoopEnd();
 }
 
@@ -46,7 +51,7 @@ void LoopBegin::validate_and_infer_types() {
 
 std::shared_ptr<Node> LoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
     OPENVINO_ASSERT(inputs.empty(), "LoopBegin should not contain inputs");
-    return std::make_shared<LoopBegin>();
+    return std::make_shared<LoopBegin>(m_is_parallel);
 }
 
 std::shared_ptr<LoopEnd> LoopBegin::get_loop_end() const {
@@ -66,8 +71,9 @@ LoopEnd::LoopEnd(const Output<Node>& loop_begin,
                  std::vector<int64_t> element_type_sizes,
                  size_t input_num,
                  size_t output_num,
-                 size_t id)
-    : LoopBase({loop_begin}),
+                 size_t id,
+                 bool is_parallel)
+    : LoopBase({loop_begin}, is_parallel),
       m_is_incremented(std::move(is_incremented)),
       m_ptr_increments(std::move(ptr_increments)),
       m_finalization_offsets(std::move(finalization_offsets)),
@@ -107,6 +113,7 @@ void LoopEnd::validate_and_infer_types() {
 }
 
 bool LoopEnd::visit_attributes(AttributeVisitor& visitor) {
+    LoopBase::visit_attributes(visitor);
     std::vector<int> int_incremented(m_is_incremented.cbegin(), m_is_incremented.cend());
     auto work_amount = utils::value2str(m_work_amount);
     auto ptr_increments = utils::vector2str(m_ptr_increments);
@@ -135,7 +142,8 @@ std::shared_ptr<Node> LoopEnd::clone_with_new_inputs(const OutputVector& inputs)
                                                     m_element_type_sizes,
                                                     m_input_num,
                                                     m_output_num,
-                                                    m_id);
+                                                    m_id,
+                                                    m_is_parallel);
     loop_end->m_evaluate_once = m_evaluate_once;
     return loop_end;
 }
@@ -229,45 +237,4 @@ void LoopEnd::set_id(size_t id) {
     m_id = id;
 }
 
-std::shared_ptr<Node> ParallelLoopBegin::clone_with_new_inputs(const OutputVector& inputs) const {
-    OPENVINO_ASSERT(inputs.empty(), "ParallelLoopBegin should not contain inputs");
-    return std::make_shared<ParallelLoopBegin>();
-}
-
-ParallelLoopEnd::ParallelLoopEnd(const Output<Node>& loop_begin,
-                                 size_t work_amount,
-                                 size_t work_amount_increment,
-                                 std::vector<bool> is_incremented,
-                                 std::vector<int64_t> ptr_increments,
-                                 std::vector<int64_t> finalization_offsets,
-                                 std::vector<int64_t> element_type_sizes,
-                                 size_t input_num,
-                                 size_t output_num,
-                                 size_t id)
-    : LoopEnd(loop_begin,
-              work_amount,
-              work_amount_increment,
-              std::move(is_incremented),
-              std::move(ptr_increments),
-              std::move(finalization_offsets),
-              std::move(element_type_sizes),
-              input_num,
-              output_num,
-              id) {}
-
-std::shared_ptr<Node> ParallelLoopEnd::clone_with_new_inputs(const OutputVector& inputs) const {
-    check_new_args_count(this, inputs);
-    const auto loop_end = std::make_shared<ParallelLoopEnd>(inputs.at(0),
-                                                            m_work_amount,
-                                                            m_work_amount_increment,
-                                                            m_is_incremented,
-                                                            m_ptr_increments,
-                                                            m_finalization_offsets,
-                                                            m_element_type_sizes,
-                                                            m_input_num,
-                                                            m_output_num,
-                                                            m_id);
-    loop_end->m_evaluate_once = m_evaluate_once;
-    return loop_end;
-}
 }  // namespace ov::snippets::op

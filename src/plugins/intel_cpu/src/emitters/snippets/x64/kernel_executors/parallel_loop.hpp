@@ -59,12 +59,9 @@ public:
     static void execute(const ParallelLoopExecutor* executor, call_args* call_args);
 
 protected:
-    /*** Updates stored kernel config based on runtime info from expression (e.g. new input shapes). */
     void update_config(const snippets::lowered::ExpressionPtr& expr,
                        const snippets::lowered::LinearIRCPtr& linear_ir,
                        ParallelLoopConfig& config) const override {}
-    /*** Updates stored kernel in accordance with the passed config. Recompilation of the kernel is
-     * performed if necessary. */
     void update_kernel(const ParallelLoopConfig& c, std::shared_ptr<ParallelLoopKernel>& kernel) const override;
 };
 #define GET_OFF_PARALLEL_LOOP_ARGS(field) offsetof(ParallelLoopExecutor::call_args, field)

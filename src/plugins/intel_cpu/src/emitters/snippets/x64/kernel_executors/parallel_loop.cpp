@@ -17,8 +17,8 @@
 
 namespace ov::intel_cpu {
 static inline uintptr_t* apply_byte_offset(uintptr_t* ptr, size_t offset) {
-    // Note: we need to cast to char* to allow for arbitrary pointer shifts
-    return reinterpret_cast<uintptr_t*>(reinterpret_cast<char*>(ptr) + offset);
+    // Note: we need to cast to uint8_t* to allow arbitrary pointer shifts
+    return reinterpret_cast<uintptr_t*>(reinterpret_cast<uint8_t*>(ptr) + offset);
 }
 
 size_t ParallelLoopConfig::hash() const {
@@ -35,21 +35,22 @@ void ParallelLoopExecutor::update_kernel([[maybe_unused]] const ParallelLoopConf
 void ParallelLoopExecutor::execute(const ParallelLoopExecutor* executor, call_args* call_args) {
     OV_CPU_JIT_EMITTER_ASSERT(executor, "has nullptr executor");
     const auto& config = static_cast<const ParallelLoopConfig&>(executor->get_config());
+    OV_CPU_JIT_EMITTER_ASSERT(call_args, "has nullptr call_args");
     const auto& loop_args = call_args->loop_args;
     const auto& stack_ptr = call_args->mem_ptrs;
+    OV_CPU_JIT_EMITTER_ASSERT(loop_args, "has nullptr loop_args");
+    OV_CPU_JIT_EMITTER_ASSERT(stack_ptr, "has nullptr mem_ptrs");
+    OV_CPU_JIT_EMITTER_ASSERT(call_args->preamble_ptr, "has nullptr preamble_ptr");
+
     // todo: it might worth to use num_ptrs as a template parameter, because it is always known in advance
     //  plus it would enable additional compiler optimizations like vectorized mem copy and for loops
     const auto num_ptrs = loop_args->m_num_data_ptrs;
 
-    int num_chunks = 0, increment = 0;
-    if (ov::snippets::utils::is_dynamic_value(config.get_increment())) {
-        // Note: dynamic increment means tail loop, that executes only last iteration
-        num_chunks = 1;
-        increment = static_cast<int>(loop_args->m_work_amount);
-    } else {
-        increment = config.get_increment();
-        num_chunks = static_cast<int>(loop_args->m_work_amount) / increment;
-    }
+    const auto increment =
+        // Note: dynamic increment means tail loop which is equal to work amount
+        static_cast<int>(ov::snippets::utils::is_dynamic_value(config.get_increment()) ? loop_args->m_work_amount
+                                                                                       : config.get_increment());
+    const int num_chunks = static_cast<int>(loop_args->m_work_amount) / increment;
     const int nthr = std::min(parallel_get_max_threads(), num_chunks);
 
     parallel_nt_static(nthr, [&](const int ithr, const int nthr) {
