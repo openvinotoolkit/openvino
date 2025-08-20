@@ -3,7 +3,7 @@
 //
 #ifdef NPU_LLVM_BACKEND
 
-#pragma once
+#    pragma once
 
 #    include <ze_api.h>
 #    include <ze_graph_ext.h>
@@ -22,8 +22,8 @@ namespace intel_npu {
 class ZeroDynamicInferRequest final : public SyncInferRequest {
 public:
     explicit ZeroDynamicInferRequest(const std::shared_ptr<ZeroInitStructsHolder>& initStructs,
-                                    const std::shared_ptr<const ICompiledModel>& compiledModel,
-                                    const Config& config);
+                                     const std::shared_ptr<const ICompiledModel>& compiledModel,
+                                     const Config& config);
 
     ov::SoPtr<ov::ITensor> get_tensor(const ov::Output<const ov::Node>& port) const override;
     void set_tensor(const ov::Output<const ov::Node>& port, const ov::SoPtr<ov::ITensor>& tensor) override;
