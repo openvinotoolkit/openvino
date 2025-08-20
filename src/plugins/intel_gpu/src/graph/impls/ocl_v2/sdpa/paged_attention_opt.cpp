@@ -453,6 +453,7 @@ public:
         // GQA
         jit.remove("HEADS_PER_WI");
         jit.make("HEADS_PER_WI", heads_per_wi);
+
         jit.make("ITERATIONS_PER_KV_HEADS_GROUP", ceil_div(kv_group_size, heads_per_wi));
         jit.make("HEADS_LEFTOVERS_NUM", kv_group_size % heads_per_wi);
 
@@ -1363,11 +1364,15 @@ public:
             const auto max_context_len = get_max_context_len(params);
             num_of_partitions = ceil_div(max_context_len, partition_size);
         }
-
+        bool can_use_micro_sdpa = stage == PagedAttentionStage::PREFILL;
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        can_use_micro_sdpa &= has_stage(pa_sdpa_micro);
+#endif
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
         if ((stage == PagedAttentionStage::PREFILL || stage == PagedAttentionStage::MIXED) && !params.is_dynamic()) {
-            paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage);
+            auto block_size = get_query_block_size(stage, can_use_micro_sdpa);
+            paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage, block_size);
         }
         const auto target_seq_len = std::max<int64_t>(paged_attention_aligned_seq_len, 1);
         const auto indexes_buf_size = static_cast<int64_t>(ceil_div(target_seq_len, target_seq_len_block_size)) * element_size;
@@ -1431,10 +1436,6 @@ public:
             }
         }
 
-        bool can_use_micro_sdpa = stage == PagedAttentionStage::PREFILL;
-#ifdef ENABLE_ONEDNN_FOR_GPU
-        can_use_micro_sdpa &= has_stage(pa_sdpa_micro);
-#endif
         if (!can_use_micro_sdpa) {
             // GENERATE/MIXED stages and PREFILL stage without micro_sdpa
             internal_buffers.emplace_back(buf_elements_count * element_size, indexes_dt);      // 5: softmax exp_sums
@@ -1610,7 +1611,6 @@ public:
                 const auto block_size = static_cast<int>(query_block_size);
                 for (int32_t j = 0; j < seq_length; j += block_size) {
                     auto block_start_pos = subsequence_begins_mem_lock[i] + j;
-
                     micro_sdpa_block_starts_and_gws_mapping_lock->operator[](micro_sdpa_index++) = block_start_pos;
                     micro_sdpa_block_starts_and_gws_mapping_lock->operator[](micro_sdpa_index++) = static_cast<int32_t>(i);
                 }
