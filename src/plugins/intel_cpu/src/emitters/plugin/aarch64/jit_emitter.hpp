@@ -192,6 +192,10 @@ private:
     void restore_context(const std::vector<size_t>& gpr_regs,
                          const std::vector<size_t>& vec_regs,
                          const std::unordered_set<size_t>& ignore_vec_regs = {}) const;
+
+#ifdef SNIPPETS_DEBUG_CAPS
+    friend class jit_debug_emitter;
+#endif
 };
 
 }  // namespace ov::intel_cpu::aarch64
