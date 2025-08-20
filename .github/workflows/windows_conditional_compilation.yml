@@ -359,21 +359,13 @@ jobs:
         with: 
           timeout_minutes: 5
           max_attempts: 2
-        command: |
-          # Add `gh` to PATH
-          $env:GH_TOKEN = "${{ github.token }}"
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
+          command: |
+            # Add `gh` to PATH
+            $env:GH_TOKEN = "${{ github.token }}"
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
 
-          Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
-
-      - name: Download selective build statistics package
-        run: |
-          # Add `gh` to PATH
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_selective_build_stat --dir ${{ env.SELECTIVE_BUILD_STAT_DIR }}
-        env:
-          GH_TOKEN: ${{ github.token }}
+            Expand-Archive ${{ env.SELECTIVE_BUILD_STAT_DIR }}/openvino_selective_build_stat.zip -DestinationPath "${{ env.SELECTIVE_BUILD_STAT_DIR }}"
 
       - name: Setup Python ${{ env.PYTHON_VERSION }}
         uses: ./openvino/.github/actions/setup_python
@@ -439,13 +431,13 @@ jobs:
         with: 
           timeout_minutes: 5
           max_attempts: 2
-        command: |
-          # Add `gh` to PATH
-          $env:GH_TOKEN = "${{ github.token }}"
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_TEST_DIR }}
+          command: |
+            # Add `gh` to PATH
+            $env:GH_TOKEN = "${{ github.token }}"
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_tests --dir ${{ env.INSTALL_TEST_DIR }}
 
-          Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
+            Expand-Archive ${{ env.INSTALL_TEST_DIR }}/openvino_tests.zip -DestinationPath "${{ env.INSTALL_TEST_DIR }}"
 
       - name: Fetch setup_python action
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2

@@ -96,11 +96,11 @@ jobs:
         with: 
           timeout_minutes: 5
           max_attempts: 2
-        command: |
-          # Add `gh` to PATH
-          $env:GH_TOKEN = "${{ github.token }}"
-          $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-          gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
+          command: |
+            # Add `gh` to PATH
+            $env:GH_TOKEN = "${{ github.token }}"
+            $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+            gh run download "$env:GITHUB_RUN_ID" --repo "$env:GITHUB_REPOSITORY" -n openvino_wheels --dir ${{ env.INSTALL_WHEELS_DIR }}
 
       - name: Download OpenVINO artifacts (wheels)
         if: runner.os != 'Windows'
