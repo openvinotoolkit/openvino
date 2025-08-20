@@ -41,21 +41,7 @@
 #define _VEC_8_ELEMENT_ACCESSOR(vec, idx) vec[idx]
 #define _VEC_16_ELEMENT_ACCESSOR(vec, idx) vec[idx]
 #define _VEC_ELEMENT_ACCESSOR(VECTOR_SIZE, vec, idx) CAT(_VEC_,CAT(VECTOR_SIZE,_ELEMENT_ACCESSOR))(vec, idx)
-
-// #define GET_VECTOR_ELEMENT(vec, idx) _VEC_ELEMENT_ACCESSOR(QUERIES_PER_WI, vec, idx)
-#if QUERIES_PER_WI==1
-#define GET_VECTOR_ELEMENT(vec, idx) _VEC_1_ELEMENT_ACCESSOR(vec, idx)
-#elif QUERIES_PER_WI==2
-#define GET_VECTOR_ELEMENT(vec, idx) _VEC_2_ELEMENT_ACCESSOR(vec, idx)
-#elif QUERIES_PER_WI==3
-#define GET_VECTOR_ELEMENT(vec, idx) _VEC_3_ELEMENT_ACCESSOR(vec, idx)
-#elif QUERIES_PER_WI==4
-#define GET_VECTOR_ELEMENT(vec, idx) _VEC_4_ELEMENT_ACCESSOR(vec, idx)
-#elif QUERIES_PER_WI==8
-#define GET_VECTOR_ELEMENT(vec, idx) _VEC_8_ELEMENT_ACCESSOR(vec, idx)
-#elif QUERIES_PER_WI==16
-#define GET_VECTOR_ELEMENT(vec, idx) _VEC_16_ELEMENT_ACCESSOR(vec, idx)
-#endif
+#define GET_VECTOR_ELEMENT(vec, idx) _VEC_ELEMENT_ACCESSOR(QUERIES_PER_WI, vec, idx)
 
 REQD_SUB_GROUP_SIZE(SUBGROUP_SIZE)
 __attribute__((reqd_work_group_size(1, 1, V_HEAD_SIZE * SG_SCALE_FACTOR)))
@@ -237,8 +223,8 @@ KERNEL(pa_sdpa_opt)(
             const uint hidden_stride = ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE;
     #else
             const uint block_offset = block_indice * ADJUSTED_K_HEAD_SIZE * KV_HEADS_NUM * SUBGROUP_SIZE + head_idx * ADJUSTED_K_HEAD_SIZE * SUBGROUP_SIZE;
-            const key_block_offset = block_offset;
-            const hidden_stride = SUBGROUP_SIZE;
+            const uint key_block_offset = block_offset;
+            const uint hidden_stride = SUBGROUP_SIZE;
             const uint key_comp_offset = key_block_offset + K_HEAD_SIZE * PAGED_ATTENTION_BLOCK_SIZE;
             INPUT0_TYPE* key_comp_ptr = key_cache + key_comp_offset;
             INPUT0_TYPE comp_scale = key_comp_ptr[0 + sglid];

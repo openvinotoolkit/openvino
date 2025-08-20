@@ -277,6 +277,10 @@
 #    include "openvino/op/softmax.hpp"
 #endif
 
+#if !defined(OPENVINO_ARCH_X86_64) && !defined(OPENVINO_ARCH_ARM64)
+#    include "openvino/core/except.hpp"
+#endif
+
 #if defined(OPENVINO_ARCH_ARM64)
 #    include "transformations/op_conversions/hard_sigmoid_decomposition.hpp"
 #    include "transformations/op_conversions/hsigmoid_decomposition.hpp"
@@ -1089,7 +1093,7 @@ void Transformations::PostLpt() {
                 std::string errorMsg;
                 return node::LLMMLP::isSupportedOperation(node, errorMsg, fcDynamicQuantizationGroupSize);
             },
-            MLPFusion);
+            MLPFusionPass);
 
         size_t concurrency = config.streamExecutorConfig.get_threads_per_stream();
         if (concurrency == 0) {
@@ -1273,6 +1277,11 @@ void Transformations::MainSnippets() {
 
 #if !defined(SNIPPETS_LIBXSMM_TPP) && defined(OPENVINO_ARCH_X86_64)
     const bool isMlpSeqSupported = is_infer_prc_supported_by_brgemm;
+#elif defined(OPENVINO_ARCH_ARM64)
+    // Note: Currently, MLPSeqSnippets is enabled only in tests
+    // TODO: Enable TokenizeMLPSeqSnippets on ARM for all scenarios
+    const bool isMlpSeqSupported =
+        any_of(config.inferencePrecision, ov::element::f32, ov::element::dynamic) && ignoreCallback;
 #else
     const bool isMlpSeqSupported = false;
 #endif
@@ -1511,7 +1520,7 @@ void Transformations::MainSnippets() {
         },
         snippets::pass::TokenizeSnippets);
 
-    auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) {
+    auto mm_supports_transpose_b = [this]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
         [[maybe_unused]] const auto& inferencePrecision = config.inferencePrecision;
         // Note: BrgemmTPP doesn't support transposed KN natively
         // so we should extract transposes for the corresponding matmul nodes
@@ -1541,12 +1550,20 @@ void Transformations::MainSnippets() {
             return !ov::intel_cpu::tpp::pass::BrgemmToBrgemmTPP::is_supported_brgemm_configuration(layouts, precisions);
         }
 #endif
+#if defined(OPENVINO_ARCH_ARM64)
+        // KleidiAI matmul primitives do not support transposed B input
+        return false;
+#elif defined(OPENVINO_ARCH_X86_64)
         return true;
+#else
+        OPENVINO_THROW("ExplicitTransposeMatMulInputs callback is not supported on this architecture");
+        return false;
+#endif
     };
 
     CPU_SET_CALLBACK_COMMON(
         snippetsManager,
-        [&mm_supports_transpose_b](const std::shared_ptr<const ov::Node>& n) {
+        [&mm_supports_transpose_b](const std::shared_ptr<const ov::Node>& n) -> bool {
             return mm_supports_transpose_b(n);
         },
         snippets::pass::ExplicitTransposeMatMulInputs);

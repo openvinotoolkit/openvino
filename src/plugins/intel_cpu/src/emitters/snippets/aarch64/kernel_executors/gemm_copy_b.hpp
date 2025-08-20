@@ -17,7 +17,6 @@ namespace ov::intel_cpu::aarch64 {
 struct GemmCopyBKernelKaiConfig : public snippets::KernelExecutorBase::GenericConfig {
 public:
     GemmCopyBKernelKaiConfig() = default;
-    GemmCopyBKernelKaiConfig(size_t n_blk_size);
 
     bool operator==(const GemmCopyBKernelKaiConfig& rhs) const;
     bool operator!=(const GemmCopyBKernelKaiConfig& rhs) const {
@@ -35,7 +34,7 @@ public:
     [[nodiscard]] std::string to_string() const override;
 #endif
 
-    void update(size_t N, size_t K);
+    void update(size_t N, size_t K, size_t stride);
 
     [[nodiscard]] size_t hash() const override {
         return m_hash;
@@ -47,35 +46,25 @@ public:
     [[nodiscard]] size_t get_K() const {
         return m_K;
     }
-    [[nodiscard]] size_t get_n_blk_size() const {
-        return m_static_params->wei_N_blk;
+    [[nodiscard]] size_t get_copy_b_wei_stride() const {
+        return m_copy_b_wei_stride;
+    }
+    [[nodiscard]] static size_t get_N_blk() {
+        return m_N_blk;
     }
 
 private:
-    struct StaticParams {
-        StaticParams(size_t wei_n_blk);
-
-        const size_t wei_N_blk{0};
-        const size_t hash{0};
-
-        bool operator==(const StaticParams& rhs) const;
-        bool operator!=(const StaticParams& rhs) const {
-            return !(*this == rhs);
-        }
-
-#ifdef SNIPPETS_DEBUG_CAPS
-        [[nodiscard]] std::string to_string() const;
-#endif
-
-    private:
-        static size_t init_hash(size_t wei_n_blk);
-    };
-
     [[nodiscard]] size_t compute_hash() const;
 
-    std::shared_ptr<StaticParams> m_static_params;
+    // Just default value N_blk for:
+    // - iterated repacking
+    // - allocated nullified memory for Bias only once with small size
+    // This value doesn't depend on blocking sizes of GemmCPU
+    static constexpr size_t m_N_blk = 64;
+
     size_t m_N = 0;
     size_t m_K = 0;
+    size_t m_copy_b_wei_stride = 0;
     size_t m_hash{SIZE_MAX};
 };
 
