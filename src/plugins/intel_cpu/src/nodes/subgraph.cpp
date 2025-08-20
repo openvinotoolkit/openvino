@@ -82,6 +82,7 @@
 #    include "transformations/snippets/x64/pass/lowered/brgemm_cpu_blocking.hpp"
 #    include "transformations/snippets/x64/pass/lowered/fuse_load_store_and_convert.hpp"
 #    include "transformations/snippets/x64/pass/lowered/insert_brgemm_copy_buffers.hpp"
+#    include "transformations/snippets/x64/pass/lowered/parallelize_gated_mlp_n_loops.hpp"
 #    include "transformations/snippets/x64/pass/remove_converts.hpp"
 #    include "transformations/snippets/x64/pass/repack_matmul_weights.hpp"
 #endif
@@ -637,6 +638,9 @@ Subgraph::ControlFlowPasses Subgraph::getControlFlowPasses() {
     SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
                                            ov::snippets::lowered::pass::MarkLoops,
                                            ov::intel_cpu::pass::BrgemmCPUBlocking);
+    SNIPPETS_REGISTER_PASS_RELATIVE_X86_64(Place::After,
+                                           ov::intel_cpu::pass::BrgemmCPUBlocking,
+                                           ov::intel_cpu::pass::ParallelizeGatedMlpNLoops);
 #ifdef SNIPPETS_DEBUG_CAPS
     const auto& debug_config = subgraph_attrs->snippet->get_debug_config();
     if (debug_config.perf_count_mode != snippets::DebugCapsConfig::PerfCountMode::Disabled) {
