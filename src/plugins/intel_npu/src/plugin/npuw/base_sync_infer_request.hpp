@@ -67,9 +67,6 @@ public:
     virtual std::size_t total_subrequests() const;
     virtual bool supports_async_pipeline() const = 0;
 
-    // Used by tests only
-    std::size_t get_input_allocated_size() const;
-
 protected:
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using RqPtrs = std::vector<RqPtr>;

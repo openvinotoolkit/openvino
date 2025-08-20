@@ -751,10 +751,6 @@ void ov::npuw::IBaseInferRequest::dump_output_tensors(std::size_t idx) {
     }
 }
 
-std::size_t ov::npuw::IBaseInferRequest::get_input_allocated_size() const {
-    return m_input_allocated.size();
-}
-
 std::string ov::npuw::IBaseInferRequest::subgr_name(std::size_t idx) const {
     return m_npuw_model->m_name + "_" + std::to_string(idx);
 }
