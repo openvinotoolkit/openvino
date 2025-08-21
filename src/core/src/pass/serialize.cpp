@@ -1224,23 +1224,34 @@ void ngfunction_2_ir(pugi::xml_node& netXml,
     }
 }
 
+const std::filesystem::path check_path_safety(const std::filesystem::path& path) {
+    const bool contains_dotdot = std::any_of(path.begin(), path.end(), [](const auto& part) {
+        return part == "..";
+    });
+
+    OPENVINO_ASSERT(contains_dotdot == false,
+                    "Invalid file path: path contains parent directory reference '..': ",
+                    path);
+
+    OPENVINO_ASSERT(std::filesystem::is_symlink(path) == false, "Path must not refer to a symbolic link: ", path);
+    return path;
+}
+
 const std::filesystem::path valid_xml_path(const std::filesystem::path& path) {
     OPENVINO_ASSERT(path.extension() == ".xml",
                     "Path for xml file doesn't contains file name with 'xml' extension: ",
                     path);
-    OPENVINO_ASSERT(std::filesystem::is_symlink(path) == false, "Path must not be symbolic link: ", path);
 
-    return ov::util::sanitize_path(path);
+    return check_path_safety(ov::util::prevent_path_traversal(path));
 }
 
 std::filesystem::path provide_bin_path(const std::filesystem::path& xml_path, const std::filesystem::path& bin_path) {
     if (bin_path.empty()) {
-        auto path = valid_xml_path(xml_path);
+        auto path = xml_path;
         path.replace_extension(".bin");
-        return path;
+        return check_path_safety(ov::util::prevent_path_traversal(path));
     } else {
-        OPENVINO_ASSERT(std::filesystem::is_symlink(bin_path) == false, "Path must not be symbolic link: ", bin_path);
-        return ov::util::sanitize_path(bin_path);
+        return check_path_safety(ov::util::prevent_path_traversal(bin_path));
     }
 }
 
