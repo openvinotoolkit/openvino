@@ -296,6 +296,16 @@ bool ZeGraphExtWrappers::canCpuVaBeImported(void* data, size_t size, const uint3
         return false;
     }
 
+#ifdef _WIN32
+    // Driver shall return STANDARD_ALLOCATION_FULL_SUPPORT as supported to go further here
+    if (_zeroInitStruct->getGraphDdiTable().pfnCompilerIsOptionSupported(_zeroInitStruct->getDevice(),
+                                                                         ZE_NPU_DRIVER_OPTIONS,
+                                                                         "STANDARD_ALLOCATION_FULL_SUPPORT",
+                                                                         nullptr) != ZE_RESULT_SUCCESS) {
+        return nullptr;
+    }
+#endif
+
     ze_device_external_memory_properties_t externalMemorydDesc = {};
     externalMemorydDesc.stype = ZE_STRUCTURE_TYPE_DEVICE_EXTERNAL_MEMORY_PROPERTIES;
 
