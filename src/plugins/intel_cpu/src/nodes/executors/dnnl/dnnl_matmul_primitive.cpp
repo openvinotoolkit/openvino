@@ -171,7 +171,7 @@ DnnlMemoryDescPtr DnnlMatMulPrimitive::makeTransposedWeightDescriptor(const Dnnl
     return DnnlExtensionUtils::makeDescriptor(reshapedWeiDesc);
 }
 
-static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
+static DnnlPrimitiveAttrs createPrimitiveAttrs(const MatMulAttrs& attrs,
                                                const MemoryArgs& memory,
                                                const ExecutorContext::CPtr& context,
                                                bool useWeightsDecompression,
@@ -187,8 +187,15 @@ static DnnlPrimitiveAttrs createPrimitiveAttrs(const PostOps& postOps,
         any_of(srcDesc->getPrecision(), ov::element::u8, ov::element::i8) && weiDesc->getPrecision() == ov::element::i8;
     auto outputDataType = DnnlExtensionUtils::ElementTypeToDataType(dstDesc->getPrecision());
 
-    DnnlPostOpsComposer
-        dnnlpoc(postOps, context->getEngine(), dims, dims.size() - 1, isINT8, 1 << 0, memory, outputDataType);
+    DnnlPostOpsComposer dnnlpoc(attrs.postOps,
+                                context->getEngine(),
+                                dims,
+                                dims.size() - 1,
+                                isINT8,
+                                1 << 0,
+                                memory,
+                                outputDataType,
+                                attrs.dqScales);
 
     if (memory.count(ARG_WEI | ARG_ATTR_SCALES) == 0U) {
         return dnnlpoc.compose();
@@ -507,7 +514,7 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
     const auto useWeightsDecompression =
         useWeightsDecompressionImpl(srcDesc0->getPrecision(), srcDesc1->getPrecision());
     const auto postOpData =
-        createPrimitiveAttrs(attrs.postOps, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
+        createPrimitiveAttrs(attrs, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
     if (srcDesc0->getShape().isDynamic() || srcDesc1->getShape().isDynamic()) {
         const auto& srcShape0 = srcDesc0->getShape();
