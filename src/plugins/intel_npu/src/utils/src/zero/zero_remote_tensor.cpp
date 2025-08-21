@@ -68,7 +68,19 @@ ZeroRemoteTensor::ZeroRemoteTensor(const std::shared_ptr<ov::IRemoteContext>& co
 #endif
 
         if (desc.memoryAllocationImportTypes & ZE_EXTERNAL_MEMORY_TYPE_FLAG_STANDARD_ALLOCATION) {
+#ifdef _WIN32
+            // Driver shall return STANDARD_ALLOCATION_FULL_SUPPORT as supported to go further here
+            if (_init_structs->getGraphDdiTable().version() >= ZE_MAKE_VERSION(1, 11) &&
+                _init_structs->getGraphDdiTable().pfnCompilerIsOptionSupported(_init_structs->getDevice(),
+                                                                               ZE_NPU_DRIVER_OPTIONS,
+                                                                               "STANDARD_ALLOCATION_FULL_SUPPORT",
+                                                                               nullptr) == ZE_RESULT_SUCCESS) {
+                _mmaped_file_support = true;
+            }
+#else
             _mmaped_file_support = true;
+
+#endif
         }
     }
 
