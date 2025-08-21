@@ -49,7 +49,9 @@ void slice_last_dimension(const char* input, char* output, const Shape& input_sh
     std::vector<int64_t> steps(input_shape.size(), 1);
     Shape output_shape = input_shape;
     output_shape.back() -= 1;
-    ov::reference::slice(input, input_shape, output, output_shape, element_size, start_indices, steps, {-1});
+    std::vector<int64_t> axes(input_shape.size());
+    std::iota(axes.begin(), axes.end(), 0);
+    ov::reference::slice(input, input_shape, output, output_shape, element_size, start_indices, steps, axes);
 }
 
 }  // namespace helpers
@@ -122,7 +124,6 @@ void scaled_dot_product_attention(const T* query,
                               ov::op::AutoBroadcastType::NUMPY);
     }
 
-
     auto gk_softmax_shape = qk_shape;
     if (sink) {
         gk_softmax_shape[gk_softmax_shape.size() - 1] += sink_shape[sink_shape.size() - 1];
@@ -142,10 +143,12 @@ void scaled_dot_product_attention(const T* query,
                               ov::AxisSet{gk_softmax_shape.size() - 1});
 
     if (sink) {
+        std::vector<T> qk_data_sliced(qk_data.size(), 0);
         ov::reference::helpers::slice_last_dimension(reinterpret_cast<const char*>(qk_data_softmax.data()),
-                                                     reinterpret_cast<char*>(qk_data_softmax.data()),
+                                                     reinterpret_cast<char*>(qk_data_sliced.data()),
                                                      gk_softmax_shape,
                                                      sizeof(T));
+        qk_data_softmax = qk_data_sliced;
     }
     ov::reference::matmul<T>(qk_data_softmax.data(), value, output, qk_shape, value_shape, output_shape, false, false);
 }
