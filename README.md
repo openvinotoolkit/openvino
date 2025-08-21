@@ -1,5 +1,5 @@
 <div align="center">
-<img src="docs/dev/assets/openvino-logo-purple-black.svg" width="400px">
+<img src="https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/assets/openvino-logo-purple-black.svg" width="400px">
 
 <h3 align="center">
 Open-source software toolkit for optimizing and deploying deep learning models.
@@ -100,7 +100,7 @@ OpenVINO supports the CPU, GPU, and NPU [devices](https://docs.openvino.ai/2025/
 
 ## Generative AI with OpenVINO
 
-Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2025/openvino-workflow-generative/generative-inference.html) to explore the capabilities of Generative AI using OpenVINO.
+Get started with the OpenVINO GenAI [installation](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) and refer to the [detailed guide](https://docs.openvino.ai/2025/openvino-workflow-generative/inference-with-genai.html) to explore the capabilities of Generative AI using OpenVINO.
 
 Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolkit/openvino.genai/tree/master/samples) in the [OpenVINO™ GenAI repo](https://github.com/openvinotoolkit/openvino.genai). See GenAI in action with Jupyter notebooks: [LLM-powered Chatbot](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-chatbot) and [LLM Instruction-following pipeline](https://github.com/openvinotoolkit/openvino_notebooks/tree/latest/notebooks/llm-question-answering).
 
@@ -108,7 +108,7 @@ Learn how to run LLMs and GenAI with [Samples](https://github.com/openvinotoolki
 
 [User documentation](https://docs.openvino.ai/) contains detailed information about OpenVINO and guides you from installation through optimizing and deploying models for your AI applications.
 
-[Developer documentation](./docs/dev/index.md) focuses on the OpenVINO architecture and describes [building](./docs/dev/build.md)  and [contributing](./CONTRIBUTING.md) processes.
+[Developer documentation](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/index.md) focuses on the OpenVINO architecture and describes [building](https://github.com/openvinotoolkit/openvino/blob/master/docs/dev/build.md)  and [contributing](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md) processes.
 
 ## OpenVINO Ecosystem
 
@@ -137,8 +137,8 @@ Explore [OpenVINO Performance Benchmarks](https://docs.openvino.ai/2025/about-op
 
 ## Contribution and Support
 
-Check out [Contribution Guidelines](./CONTRIBUTING.md) for more details.
-Read the [Good First Issues section](./CONTRIBUTING.md#3-start-working-on-your-good-first-issue), if you're looking for a place to start contributing. We welcome contributions of all kinds!
+Check out [Contribution Guidelines](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md) for more details.
+Read the [Good First Issues section](https://github.com/openvinotoolkit/openvino/blob/master/CONTRIBUTING.md#3-start-working-on-your-good-first-issue), if you're looking for a place to start contributing. We welcome contributions of all kinds!
 
 You can ask questions and get support on:
 
@@ -168,7 +168,7 @@ More Information is available at [OpenVINO™ Telemetry](https://docs.openvino.a
 
 ## License
 
-OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](LICENSE).
+OpenVINO™ Toolkit is licensed under [Apache License Version 2.0](https://github.com/openvinotoolkit/openvino/blob/master/LICENSE).
 By contributing to the project, you agree to the license and copyright terms therein and release your contribution under these terms.
 
 ---
