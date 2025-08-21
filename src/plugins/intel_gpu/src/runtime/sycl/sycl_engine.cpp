@@ -61,6 +61,17 @@ sycl_engine::sycl_engine(const device::ptr dev, runtime_types runtime_type)
     _service_stream.reset(new sycl_stream(*this, ExecutionConfig()));
 }
 
+backend_types sycl_engine::backend_type() const {
+    auto backend = get_sycl_device().get_backend();
+    switch (backend) {
+        case ::sycl::backend::opencl: return backend_types::ocl;
+        case ::sycl::backend::ext_oneapi_hip: return backend_types::hip;
+        case ::sycl::backend::ext_oneapi_cuda: return backend_types::cuda;
+        default:
+            OPENVINO_THROW("[GPU] Unsupported SYCL backend type: ", backend);
+    }
+}
+
 #ifdef ENABLE_ONEDNN_FOR_GPU
 void sycl_engine::create_onednn_engine(const ExecutionConfig& config) {
     const std::lock_guard<std::mutex> lock(onednn_mutex);
