@@ -904,7 +904,7 @@ std::shared_ptr<ov::Node> ov::XmlDeserializer::create_node(const std::vector<ov:
     std::string base_version = params.version;
     bool is_type_relaxed = false;
     if (params.version.find("type_relaxed_") == 0) {
-        base_version = params.version.substr(13); // Remove "type_relaxed_" prefix
+        base_version = params.version.substr(13);  // Remove "type_relaxed_" prefix
         is_type_relaxed = true;
         opsetIt = m_opsets.find(base_version);
     }
