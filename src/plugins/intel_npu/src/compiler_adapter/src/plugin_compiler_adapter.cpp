@@ -143,7 +143,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         return starts_with(name, "main");
     };
 
-    _logger.info("SEPARATE_WEIGHTS_VERSION: ", config.get<SEPARATE_WEIGHTS_VERSION>());
+    _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
+                 SEPARATE_WEIGHTS_VERSION::toString(config.get<SEPARATE_WEIGHTS_VERSION>()).c_str());
 
     int64_t compile_model_mem_start = 0;
     if (_logger.level() >= ov::log::Level::INFO) {
@@ -185,7 +186,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(const std::shared_ptr<o
         }
     } break;
     default:
-        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call:",
+        OPENVINO_THROW("Invalid \"SEPARATE_WEIGHTS_VERSION\" value found within the \"compileWS\" call: ",
                        config.get<SEPARATE_WEIGHTS_VERSION>());
         break;
     }
