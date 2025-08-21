@@ -194,13 +194,14 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
         }
 
         if (pred.first->get_preferred_impl_type() == impl_types::onednn) {
+            // No implicit concat for spatial axes
+            if (concat_axis > 1)
+                return false;
+
             // Onednn requires memory pointers to be aligned at least at 64-bytes to avoid potential correctness issues.
             if (!concat_node.is_dynamic() || is_runtime) {
                 if (onednn_byte_offset % 64 != 0)
                     return false;
-
-                // The assumption here is that onednn will support batch 1 case.
-                onednn_byte_offset += pred_l.bytes_count();
             }
 
             for (const auto& fused_op : pred_params[idx].fused_desc) {
@@ -234,8 +235,12 @@ bool concat_in_place_optimization::match(const program_node& concat_node,
             if (idx != 0 && input_padd._lower_size[concat_axis] != 0)
                 return false;
         }
-        if (!concat_node.is_dynamic() || is_runtime)
+        if (!concat_node.is_dynamic() || is_runtime) {
             lower_padd_in_axis += pred_params[idx].get_output_layout().get_tensor().sizes(def_fmt)[concat_axis];
+            // Accumulates byte offset for onednn 64-byte alignment. The assumption here is that onednn will support batch 1 case.
+            onednn_byte_offset += pred_l.bytes_count();
+        }
+
         idx++;
     }
 
