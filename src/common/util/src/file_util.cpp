@@ -256,9 +256,9 @@ std::string ov::util::sanitize_path(const std::string& path) {
     return (start == std::string::npos) ? "" : sanitized_path.substr(start);
 }
 
-std::filesystem::path ov::util::prevent_path_traversal(const std::string& path) {
+std::filesystem::path ov::util::prevent_path_traversal(const std::filesystem::path& path) {
     std::filesystem::path safe_path{};
-    for (const auto& part : std::filesystem::path{ov::util::sanitize_path(path)}) {
+    for (const auto& part : std::filesystem::path(ov::util::sanitize_path(path.string()))) {
         if (part != "..") {
             safe_path /= part;
         }
