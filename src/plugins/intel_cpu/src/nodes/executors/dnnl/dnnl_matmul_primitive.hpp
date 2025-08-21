@@ -24,8 +24,8 @@ namespace ov::intel_cpu {
 
 class DnnlMatMulPrimitive {
     struct Key {
-        DnnlMemoryDescCPtr src0;
-        DnnlMemoryDescCPtr src1;
+        DnnlMemoryDescCPtr src;
+        DnnlMemoryDescCPtr wei;
         DnnlMemoryDescCPtr bias;
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
