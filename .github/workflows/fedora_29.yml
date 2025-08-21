@@ -126,7 +126,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO RPM packages
-        uses: akashchi/download-artifact@1ff48d1077a67529315261514ae77961393707d8
+        uses: akashchi/download-artifact@a2a0b1bdc14dc771c4546e80a50ea47b0a905768
         with:
           name: openvino_rpm_packages
           path: ${{ env.RPM_PACKAGES_DIR }}

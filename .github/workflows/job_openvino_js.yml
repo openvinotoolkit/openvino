@@ -47,7 +47,7 @@ jobs:
         run: brew install pigz
 
       - name: Download OpenVINO artifacts (JS)
-        uses: akashchi/download-artifact@1ff48d1077a67529315261514ae77961393707d8
+        uses: akashchi/download-artifact@a2a0b1bdc14dc771c4546e80a50ea47b0a905768
         with:
           name: openvino_js_package
           path: ${{ env.OPENVINO_JS_LIBS_DIR }}
