@@ -265,40 +265,11 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                // struct ConvolutionInstantiator {
-                //     std::shared_ptr<DnnlConvolutionPrimitive> operator()(
-                //         const MemoryArgs& memory,
-                //         const FCAttrs& attrs,
-                //         const ExecutorContext::CPtr& context,
-                //         const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
-
-                //         const bool fcSemantic = true;
-                //         ConvAttrs convAttrs{{1}, {0}, {0}, {0},
-                //                             AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
-                //                             false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
-                        
-                //         auto primitive =
-                //             DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
-                //             memory,
-                //             convAttrs,
-                //             context,
-                //             shareAgnosticData);
-
-                //         if (!primitive || primitive->implType() != brgconv_avx512_1x1) {
-                //             // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
-                //             return nullptr;
-                //         }
-                //         return primitive;
-                //     }
-                // };
-
-                const bool fcSemantic = true;
                 ConvAttrs convAttrs{{1}, {0}, {0}, {0},
                                     AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
-                                    false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
+                                    false, false, true, false, ZeroPointsType::None, {}, attrs.postOps};
 
                 return std::make_shared<
-                    // DnnlExecutor<DnnlConvolutionPrimitive, FCAttrs, DnnlShapeAgnosticData, ConvolutionInstantiator>>(
                     DnnlExecutor<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData, DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>>>(
                     convAttrs,
                     memory,
