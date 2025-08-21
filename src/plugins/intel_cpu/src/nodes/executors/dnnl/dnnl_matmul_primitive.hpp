@@ -78,10 +78,6 @@ public:
                                                             const ExecutorContext::CPtr& context,
                                                             bool cacheWeights);
 
-    // static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
-    //                                                         const DnnlMemoryDescPtr& dstDesc,
-    //                                                         bool weightsNonTransposed);
-
     static DnnlMemoryDescPtr makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
                                                             const DnnlMemoryDescPtr& dstDesc,
                                                             const MatMulAttrs& attrs);
