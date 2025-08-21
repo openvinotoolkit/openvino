@@ -177,25 +177,73 @@ KERNEL(eltwise)(
         uint output_offset = GET_INDEX(OUTPUT,, OUTPUT_IDX_ORDER);
 
         // zero-padding the blocked format padded memory area since it might be used as input of onednn concatenation
-        if(NEED_ZERO_PADDING && d4 + d3 + d2 + d1 == 0) {
-            uint offset = 0;
-            uint bs = OUTPUT_SIZES[3], features = OUTPUT_SIZES[2], ys = OUTPUT_SIZES[1], xs = OUTPUT_SIZES[0];
-            uint fs_pad = (features + FEATURE_BLOCK_SIZE -1) / FEATURE_BLOCK_SIZE;
-            for (uint b = 0; b < bs; ++b) {
-                for (uint f = fs_pad - 1; f < fs_pad; ++f) {
-                    for (uint y = 0; y < ys; ++y) {
-                        for (uint x = 0; x < xs; ++x) {
-                            for (uint fsv = 0; fsv < FEATURE_BLOCK_SIZE; ++fsv) {
-                                if (f * FEATURE_BLOCK_SIZE + fsv >= features) {
-                                    offset = b * fs_pad * ys * xs * FEATURE_BLOCK_SIZE + f * ys * xs * FEATURE_BLOCK_SIZE +
-                                             y * xs * FEATURE_BLOCK_SIZE + x * FEATURE_BLOCK_SIZE + fsv;
-                                    output[offset] = 0;
+        if(d4 + d3 + d2 + d1 == 0) {
+            const uint b_size = OUTPUT_SIZES[3], f_size = OUTPUT_SIZES[2], y_size = OUTPUT_SIZES[1], x_size = OUTPUT_SIZES[0];
+            const uint BLOCK_F = FEATURE_BLOCK_SIZE;
+
+            #if BATCH_BLOCK_SIZE
+                const uint BLOCK_B = BATCH_BLOCK_SIZE;
+                const uint padded_fs = (f_size + FEATURE_BLOCK_SIZE -1) / FEATURE_BLOCK_SIZE;
+                const uint padded_bs = (b_size + BATCH_BLOCK_SIZE -1) / BATCH_BLOCK_SIZE;
+                const uint z_size = 1;
+
+                const uint bsv_pitch = BLOCK_F;
+                const uint x_pitch = bsv_pitch * BLOCK_B;
+                const uint y_pitch = x_pitch * x_size;
+                const uint z_pitch = y_pitch * y_size;
+                const uint fs_pitch = z_pitch * z_size;
+                const uint bs_pitch = fs_pitch * padded_fs;
+
+                uint b = 0;
+                uint f = 0;
+                uint offset = 0;
+                for (uint bs = 0; bs < padded_bs; ++bs) {
+                    for (uint fs = 0; fs < padded_fs; ++fs) {
+                        for (uint z = 0; z < z_size; ++z) {
+                            for (uint y = 0; y < y_size; ++y) {
+                                for (uint x = 0; x < x_size; ++x) {
+                                    for (uint bsv = 0; bsv < BLOCK_B; ++bsv) {
+                                        for (uint fsv = 0; fsv < BLOCK_F; ++fsv) {
+                                            b = bs * BLOCK_B + bsv;
+                                            f = fs * BLOCK_F + fsv;
+                                            if(b >= b_size || f >= f_size) {
+                                                offset = bs * bs_pitch + fs * fs_pitch + z * z_pitch +
+                                                         y * y_pitch + x * x_pitch + bsv * bsv_pitch + fsv;
+                                                output[offset] = 0;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
+            #elif FEATURE_BLOCK_SIZE
+                const uint padded_fs = (f_size + FEATURE_BLOCK_SIZE -1) / FEATURE_BLOCK_SIZE;
+
+                const uint x_pitch = BLOCK_F;
+                const uint y_pitch = x_pitch * x_size;
+                const uint fs_pitch = y_pitch * y_size;
+                const uint b_pitch = fs_pitch * padded_fs;
+
+                uint f = 0;
+                uint offset = 0;
+                for (uint b = 0; b < b_size; ++b) {
+                    for (uint fs = padded_fs - 1; fs < padded_fs; ++fs) {
+                        for (uint y = 0; y < y_size; ++y) {
+                            for (uint x = 0; x < x_size; ++x) {
+                                for (uint fsv = 0; fsv < BLOCK_F; ++fsv) {
+                                    f = fs * BLOCK_F + fsv;
+                                    if(f >= f_size) {
+                                        offset = b * b_pitch + fs * fs_pitch + y * y_pitch + x * x_pitch + fsv;
+                                        output[offset] = 0;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            #endif
         }
     #endif
 #endif
