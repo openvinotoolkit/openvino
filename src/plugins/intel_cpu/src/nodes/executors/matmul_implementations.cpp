@@ -115,31 +115,41 @@ const std::vector<ExecutorImplementation<MatMulAttrs>>& getImplementations() {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
+
+                const auto& biasDesc = config.descs.at(ARG_BIAS);
+                VERIFY(biasDesc->empty(), "bias is not supported");
                 
-                const auto& srcDesc = config.descs.at(ARG_SRC);
-                const auto& weiDesc = config.descs.at(ARG_WEI);
-                const auto srcRank = srcDesc->getShape().getRank();
-                const auto weiRank = weiDesc->getShape().getRank();
-                
-                return srcRank >= 2 && srcRank == weiRank;
+                const auto& srcDesc0 = config.descs.at(ARG_SRC);
+                const auto& srcDesc1 = config.descs.at(ARG_WEI);
+                const auto srcRank0 = srcDesc0->getShape().getRank();
+                const auto srcRank1 = srcDesc1->getShape().getRank();
+
+                VERIFY(srcRank0 >= 2, UNSUPPORTED_SRC_RANK);
+                VERIFY(srcRank0 == srcRank1, UNSUPPORTED_SRC_RANK);
+
+                return true;
             },
             HasNoOptimalConfig<MatMulAttrs>{},
             []([[maybe_unused]] const MatMulAttrs& attrs, const MemoryArgs& memory) -> bool {
-                const auto& srcDesc = memory.at(ARG_SRC)->getDescPtr();
-                const auto& weiDesc = memory.at(ARG_WEI)->getDescPtr();
-                const auto& srcShape = srcDesc->getShape().getStaticDims();
-                const auto& weiShape = weiDesc->getShape().getStaticDims();
-                const auto srcRank = srcShape.size();
-                const auto weiRank = weiShape.size();
+                const auto& srcDesc0 = memory.at(ARG_SRC)->getDescPtr();
+                const auto& srcDesc1 = memory.at(ARG_WEI)->getDescPtr();
+                const auto& srcShape0 = srcDesc0->getShape().getStaticDims();
+                const auto& srcShape1 = srcDesc1->getShape().getStaticDims();
+                const auto srcRank0 = srcShape0.size();
+                const auto srcRank1 = srcShape1.size();
                 
-                for (size_t i = 0; i < srcRank - 2; i++) {
-                    if (srcShape[i] != weiShape[i]) {
+                for (size_t i = 0; i < srcRank0 - 2; i++) {
+                    if (srcShape0[i] != srcShape1[i]) {
                         return false;
                     }
                 }
+
+                const auto& strideIn0 = srcDesc0->as<BlockedMemoryDesc>()->getStrides();
+                const auto& strideIn1 = srcDesc1->as<BlockedMemoryDesc>()->getStrides();
+                VERIFY(all_of(1UL, strideIn0.back(), strideIn1.back()), "unsupported strides");
                 
-                return (srcShape[srcRank - 1] <= 2) && (srcShape[srcRank - 2] <= 2) && 
-                       (weiShape[weiRank - 1] <= 2) && (weiShape[weiRank - 2] <= 2);
+                return (srcShape0[srcRank0 - 1] <= 2) && (srcShape0[srcRank0 - 2] <= 2) && 
+                       (srcShape1[srcRank1 - 1] <= 2) && (srcShape1[srcRank1 - 2] <= 2);
             },
             CreateDefault<MatMulSmallExecutor, MatMulAttrs>{}
             )
