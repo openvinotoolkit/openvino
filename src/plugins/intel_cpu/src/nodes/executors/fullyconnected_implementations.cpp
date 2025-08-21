@@ -40,6 +40,7 @@
 #    include "memory_desc/cpu_memory_desc_utils.h"
 #    include "memory_desc/dnnl_memory_desc.h"
 #    include "nodes/executors/dnnl/dnnl_convolution_primitive.hpp"
+#    include "onednn/iml_type_mapper.h"
 #endif
 
 #if defined(OV_CPU_WITH_KLEIDIAI)
@@ -265,13 +266,37 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
             [](const FCAttrs& attrs,
                const MemoryArgs& memory,
                const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                ConvAttrs convAttrs{{1}, {0}, {0}, {0},
-                                    AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
-                                    false, false, true, false, ZeroPointsType::None, {}, attrs.postOps};
+                struct ConvolutionInstantiator {
+                    std::shared_ptr<DnnlConvolutionPrimitive> operator()(
+                        const MemoryArgs& memory,
+                        const FCAttrs& attrs,
+                        const ExecutorContext::CPtr& context,
+                        const std::shared_ptr<DnnlShapeAgnosticData>& shareAgnosticData) const {
+
+                        const bool fcSemantic = true;
+                        ConvAttrs convAttrs{{1}, {0}, {0}, {0},
+                                            AutoPaddingType::None, attrs.withBias, attrs.weightsNonTransposed,
+                                            false, false, fcSemantic, false, ZeroPointsType::None, {}, attrs.postOps};
+
+                        auto primitive =
+                            DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>{}(
+                            memory,
+                            convAttrs,
+                            context,
+                            shareAgnosticData);
+
+                        // only brgconv_avx512_1x1 primitive is acceptable from the performance perspective
+                        if (!primitive || primitive->implType() != brgconv_avx512_1x1) {
+                            return nullptr;
+                        }
+
+                        return primitive;
+                    }
+                };
 
                 return std::make_shared<
-                    DnnlExecutor<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData, DefaultInstantiator<DnnlConvolutionPrimitive, ConvAttrs, DnnlShapeAgnosticData>>>(
-                    convAttrs,
+                    DnnlExecutor<DnnlConvolutionPrimitive, FCAttrs, DnnlShapeAgnosticData, ConvolutionInstantiator>>(
+                    attrs,
                     memory,
                     context,
                     false);

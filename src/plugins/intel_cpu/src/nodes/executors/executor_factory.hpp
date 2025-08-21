@@ -86,7 +86,7 @@ public:
      *
      * @return A shared pointer to the created Executor.
      */
-    ExecutorPtr make(const MemoryArgs& memory) {
+    ExecutorPtr make(const MemoryArgs& memory, bool precreate = true) {
         std::vector<ExecutorImplementationRef> implementations;
 
         auto acceptsConfig = [](const ExecutorImplementationRef& impl, const executor::Config<Attrs>& config) {
@@ -121,7 +121,7 @@ public:
             return theOnlyImplementation.create(m_attrs, memory, m_context);
         }
 
-        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, implementations);
+        return std::make_shared<VariableExecutor<Attrs>>(memory, m_attrs, m_context, implementations, precreate);
     }
 
 private:

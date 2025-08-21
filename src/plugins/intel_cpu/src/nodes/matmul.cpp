@@ -265,9 +265,7 @@ void MatMul::createPrimitive() {
 
     m_memory[ARG_DST] = getDstMemoryAtPort(0);
 
-    m_executor = m_factory->make(m_memory);
-
-    // getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
+    m_executor = m_factory->make(m_memory, false);
 
     Node::createPrimitive();
 }

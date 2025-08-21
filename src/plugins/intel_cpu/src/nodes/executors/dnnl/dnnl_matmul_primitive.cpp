@@ -58,7 +58,7 @@ size_t DnnlMatMulPrimitive::Key::hash() const {
 
     size_t seed = 0;
 
-    for (const auto& ptr : {src0, src1, bias, dst}) {
+    for (const auto& ptr : {src, wei, bias, dst}) {
         if (ptr) {
             seed = hash_combine(seed, get_md_hash(*ptr->getDnnlDesc().get()));
         }
@@ -76,11 +76,11 @@ size_t DnnlMatMulPrimitive::Key::hash() const {
 bool DnnlMatMulPrimitive::Key::operator==(const Key& rhs) const {
     bool result = true;
 
-    if (src0 != rhs.src0) {
-        result = result && src0 && rhs.src0 && src0->getDnnlDesc() == rhs.src0->getDnnlDesc();
+    if (src != rhs.src) {
+        result = result && src && rhs.src && src->getDnnlDesc() == rhs.src->getDnnlDesc();
     }
-    if (src1 != rhs.src1) {
-        result = result && src1 && rhs.src1 && src1->getDnnlDesc() == rhs.src1->getDnnlDesc();
+    if (wei != rhs.wei) {
+        result = result && wei && rhs.wei && wei->getDnnlDesc() == rhs.wei->getDnnlDesc();
     }
     if (bias != rhs.bias) {
         result = result && bias && rhs.bias && bias->getDnnlDesc() == rhs.bias->getDnnlDesc();
@@ -531,13 +531,13 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
         dstDesc = std::make_shared<DnnlBlockedMemoryDesc>(dstDesc->getPrecision(), Shape(outDymmyDims));
     }
 
-    const dnnl::memory::desc src0DnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc0)->getDnnlDesc();
-    const dnnl::memory::desc src1DnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc1)->getDnnlDesc();
+    const dnnl::memory::desc srcDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc0)->getDnnlDesc();
+    const dnnl::memory::desc weiDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(srcDesc1)->getDnnlDesc();
     const dnnl::memory::desc dstDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(dstDesc)->getDnnlDesc();
     const dnnl::memory::desc biaDnnlDesc = MemoryDescUtils::convertToDnnlMemoryDesc(biasDesc)->getDnnlDesc();
 
-    const auto primDesc = createPrimitiveDesc(src0DnnlDesc,
-                                              src1DnnlDesc,
+    const auto primDesc = createPrimitiveDesc(srcDnnlDesc,
+                                              weiDnnlDesc,
                                               biaDnnlDesc,
                                               dstDnnlDesc,
                                               postOpData.attr,
@@ -582,8 +582,8 @@ DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                          [[maybe_unused]] const std::vector<impl_desc_type>& implPriorities,
                                          const impl_desc_type defaultImplType)
     : m_stream(dnnl::stream(engine)),
-      m_primDesc(createPrimitiveDesc(key.src0->getDnnlDesc(),
-                                     key.src1->getDnnlDesc(),
+      m_primDesc(createPrimitiveDesc(key.src->getDnnlDesc(),
+                                     key.wei->getDnnlDesc(),
                                      key.bias->getDnnlDesc(),
                                      key.dst->getDnnlDesc(),
                                      key.attr,
@@ -593,7 +593,7 @@ DnnlMatMulPrimitive::DnnlMatMulPrimitive(const Key& key,
                                      key.transposeA,
                                      key.transposeB,
                                      false,
-                                     useWeightsDecompressionImpl(key.src0->getPrecision(), key.src1->getPrecision()),
+                                     useWeightsDecompressionImpl(key.src->getPrecision(), key.wei->getPrecision()),
                                      key.fcSemantic)),
       m_implType(implTypeFromPrimDesc(m_primDesc)),
       m_srcDesc(DnnlExtensionUtils::makeDescriptor(m_primDesc.src_desc())),
