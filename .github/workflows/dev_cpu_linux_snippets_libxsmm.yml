@@ -211,13 +211,13 @@ jobs:
       INSTALL_TEST_DIR: ${{ github.workspace }}/install/tests
     steps:
       - name: Download OpenVINO package
-        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
+        uses: akashchi/download-artifact@1ff48d1077a67529315261514ae77961393707d8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
+        uses: akashchi/download-artifact@1ff48d1077a67529315261514ae77961393707d8
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
@@ -269,13 +269,13 @@ jobs:
       PARALLEL_TEST_SCRIPT: ${{ github.workspace }}/install/tests/functional_test_utils/layer_tests_summary/run_parallel.py
     steps:
       - name: Download OpenVINO package
-        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
+        uses: akashchi/download-artifact@1ff48d1077a67529315261514ae77961393707d8
         with:
           name: openvino_package
           path: ${{ env.INSTALL_DIR }}
 
       - name: Download OpenVINO tests package
-        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
+        uses: akashchi/download-artifact@1ff48d1077a67529315261514ae77961393707d8
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
