@@ -676,7 +676,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             } catch (const std::exception& ex) {
                 _logger.info("Couldn't reshape the model. Batching will be handed by compiler.", ex.what());
             }
-            // Setting batching mode to COMPILER to avoid the same actions in compiler
+            _logger.info("Setting batching mode to BatchMode::COMPILER.");
             updateBatchMode(ov::intel_npu::BatchMode::COMPILER);
         } else {
             _logger.info("Unable to manage batching on the plugin side, so the compiler will take care of it.");
