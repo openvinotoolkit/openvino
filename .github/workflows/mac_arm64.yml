@@ -486,37 +486,37 @@ jobs:
           path: ${{ env.OPENVINO_REPO }}
 
       - name: Download OpenVINO package
-        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
+        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
         with:
           name: openvino_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO developer package
-        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
+        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
         with:
           name: openvino_developer_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO JS package
-        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
+        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
         with:
           name: openvino_js_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO Node NPM package
-        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
+        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
         with:
           name: openvino_node_npm_package
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO package manifest
-        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
+        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
         with:
           name: openvino_package_manifest
           path: ${{ env.ARTIFACTS_DIR }}
 
       - name: Download OpenVINO wheels
-        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
+        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
         with:
           name: openvino_wheels
           path: ${{ env.WHEELS_DIR }}

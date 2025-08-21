@@ -35,7 +35,7 @@ jobs:
         run: echo 'Acquire::Retries "10";' > /etc/apt/apt.conf.d/80-retries
 
       - name: Download OpenVINO debian packages
-        uses: akashchi/download-artifact@ea8c30c110364fc02b54ea9bfb0ea9153e548068
+        uses: akashchi/download-artifact@9c08ca64cd7ec2f8ffe33ccb29d0e4fe58f8d97c
         with:
           name: openvino_debian_packages
           path: ${{ env.DEBIAN_PACKAGES_DIR }}
