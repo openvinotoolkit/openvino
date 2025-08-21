@@ -91,7 +91,21 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     auto [blobSizesBeforeVersioning, initBlobSizes] = _graph->export_blob(stream);
 
-    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning, CURRENT_OPENVINO_VERSION, initBlobSizes, std::nullopt /*batchSize*/)
+    std::optional<ov::Dimension> originalBatchSize = std::nullopt;
+    auto metadata = _graph->get_metadata();
+    auto inputMeta = metadata.inputs;
+    for (auto in : inputMeta) {
+        // Plugin batching applied, saving original batch value
+        if (in.shapeFromIRModel.has_value() && in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS].is_dynamic() &&
+            in.shapeFromCompiler[intel_npu::utils::BATCH_AXIS] == 1) {
+            originalBatchSize = std::optional(in.shapeFromIRModel.value()[intel_npu::utils::BATCH_AXIS]);
+        }
+    }
+
+    Metadata<CURRENT_METADATA_VERSION>(blobSizesBeforeVersioning,
+                                       CURRENT_OPENVINO_VERSION,
+                                       initBlobSizes,
+                                       originalBatchSize)
         .write(stream);
 }
 
