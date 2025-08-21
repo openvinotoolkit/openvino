@@ -771,11 +771,11 @@ void reshape_to_static(std::shared_ptr<ov::Model> model,
             NPUW_ASSERT(partial_shape_size == 3u || partial_shape_size == 2u);
             new_shape =
                 partial_shape_size == 3u ? ov::PartialShape({3, 1, input_size}) : ov::PartialShape({1, input_size});
-        } else if (ov::npuw::matchLoRAMatMulAString(input_name)) {
+        } else if (ov::npuw::util::matchLoRAMatMulAString(input_name)) {
             new_shape = ov::PartialShape({lora_rank, input.get_partial_shape()[1]});
-        } else if (ov::npuw::matchLoRAMatMulAlphaString(input_name)) {
+        } else if (ov::npuw::util::matchLoRAMatMulAlphaString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
-        } else if (ov::npuw::matchLoRAMatMulBString(input_name)) {
+        } else if (ov::npuw::util::matchLoRAMatMulBString(input_name)) {
             new_shape = ov::PartialShape({input.get_partial_shape()[0], lora_rank});
         } else {
             const auto& partial_shape = input.get_partial_shape();
@@ -1030,8 +1030,9 @@ void ov::npuw::LLMCompiledModel::convert_stateful_lora_to_stateless(std::shared_
     for (size_t i = 0; i < sinks.size(); ++i) {
         if (auto assign = ov::as_type_ptr<ov::op::util::AssignBase>(sinks[i])) {
             auto variable_name = assign->get_variable_id();
-            if (!ov::npuw::matchLoRAMatMulAString(variable_name) && !ov::npuw::matchLoRAMatMulBString(variable_name) &&
-                !ov::npuw::matchLoRAMatMulAlphaString(variable_name)) {
+            if (!ov::npuw::util::matchLoRAMatMulAString(variable_name) &&
+                !ov::npuw::util::matchLoRAMatMulBString(variable_name) &&
+                !ov::npuw::util::matchLoRAMatMulAlphaString(variable_name)) {
                 continue;
             }
 
