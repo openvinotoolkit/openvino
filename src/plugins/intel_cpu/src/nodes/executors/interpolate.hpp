@@ -17,6 +17,7 @@
 #include "cpu_types.h"
 #include "memory_desc/cpu_memory_desc.h"
 #include "nodes/executors/executor.hpp"
+#include "nodes/executors/interpolate_config.hpp"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
@@ -24,46 +25,6 @@
 static constexpr int MAX_INPUT_INTERPOLATE = 8;
 
 namespace ov::intel_cpu {
-
-enum InterpolateLayoutType : uint8_t { planar, block, by_channel };
-
-enum InterpolateMode : uint8_t { nearest, linear, linear_onnx, cubic, bilinear_pillow, bicubic_pillow };
-
-enum InterpolateCoordTransMode : uint8_t {
-    half_pixel,
-    pytorch_half_pixel,
-    asymmetric,
-    tf_half_pixel_for_nn,
-    align_corners
-};
-
-enum class InterpolateNearestMode : uint8_t { round_prefer_floor, round_prefer_ceil, floor, ceil, simple };
-
-enum class InterpolateShapeCalcMode : uint8_t { sizes, scales };
-
-struct InterpolateAttrs {
-    InterpolateShapeCalcMode shapeCalcMode = InterpolateShapeCalcMode::sizes;
-    InterpolateMode mode = InterpolateMode::nearest;
-    InterpolateCoordTransMode coordTransMode = InterpolateCoordTransMode::half_pixel;
-    InterpolateNearestMode nearestMode = InterpolateNearestMode::round_prefer_floor;
-    bool antialias = false;
-    float cubeCoeff = -0.75;
-    std::vector<int> padBegin;
-    std::vector<int> padEnd;
-    ov::element::Type inPrc;
-    ov::element::Type outPrc;
-    InterpolateLayoutType layout = InterpolateLayoutType::planar;
-    std::vector<float> dataScales;
-    bool hasPad = false;
-    // Some FEs or preprocessing step resize spatial dimension for tensors with NHWC layout memory,
-    // but import them with a planar layout[abcd] with axis[1,2] for convenience. In this case, for pillow modes without
-    // pad, the nhwc layout path and the specific kernel(nhwc layout executor) can be used for this planar layout and
-    // axis settings(NCHWAsNHWC is true) to get better perf. To this end the following mapping is used:
-    // 1. logical shape alignment [abcd-nhwc] to [adbc-nchw].
-    // 2. axis alignment [1,2] to [2,3].
-    // 3. config planar layout support and treated it as channel_first layout.
-    bool NCHWAsNHWC = false;
-};
 
 inline VectorDims getPaddedInputShape(const VectorDims& srcDims,
                                       const std::vector<int>& padBegin,
@@ -123,7 +84,7 @@ static inline float triangleCoeff(float x) {
     return (std::max)(0.0F, 1 - std::abs(x));
 }
 
-class InterpolateExecutor {
+class InterpolateExecutor : public Executor {
 public:
     static constexpr size_t DATA_ID = 0;
     static constexpr size_t TARGET_SHAPE_ID = 1;
@@ -139,7 +100,28 @@ public:
     virtual void exec(const std::vector<MemoryCPtr>& src,
                       const std::vector<MemoryPtr>& dst,
                       const void* post_ops_data_) = 0;
+    
+    // Bring base class exec into scope to avoid hiding
+    using Executor::exec;
     [[nodiscard]] virtual impl_desc_type getImplType() const = 0;
+    
+    // Executor interface
+    void execute(const MemoryArgs& memory) override {
+        std::vector<MemoryCPtr> srcMemory;
+        std::vector<MemoryPtr> dstMemory;
+        for (const auto& [k, v] : memory) {
+            if (k == ARG_DST) {
+                dstMemory.push_back(v);
+            } else {
+                srcMemory.push_back(std::const_pointer_cast<const IMemory>(v));
+            }
+        }
+        exec(srcMemory, dstMemory, nullptr);
+    }
+    
+    [[nodiscard]] impl_desc_type implType() const override {
+        return getImplType();
+    }
 
     virtual ~InterpolateExecutor() = default;
     [[nodiscard]] VectorDims getSrcDimPad5d() const {

@@ -32,7 +32,12 @@
 #include "nodes/common/blocked_desc_creator.h"
 #include "nodes/executors/executor.hpp"
 #include "nodes/executors/interpolate.hpp"
-#include "nodes/executors/interpolate_list.hpp"
+#include "nodes/executors/implementations.hpp"
+#include "nodes/executors/executor_factory.hpp"
+#include "nodes/executors/interpolate_config.hpp"
+#include "nodes/executors/implementations.hpp"
+#include "nodes/executors/memory_arguments.hpp"
+#include "memory_format_filter.hpp"
 #include "nodes/node_config.h"
 #include "onednn/iml_type_mapper.h"
 #include "openvino/core/enum_names.hpp"
@@ -2259,13 +2264,33 @@ void Interpolate::initSupportedPrimitiveDescriptors() {
                 dstMemoryDescs.push_back(outConf.getMemDesc());
             }
 
-            auto factory = std::make_shared<InterpolateExecutorFactory>(
-                interpAttrs,
-                srcMemoryDescs,
-                dstMemoryDescs,
-                std::make_shared<ExecutorContext>(context, getImplPriority()));
-            if (!factory->isEmpty()) {
-                supportedPrimitiveDescriptors.emplace_back(config, implDetail, factory);
+            // Create InterpolateConfig
+            InterpolateConfig interpolateConfig;
+            interpolateConfig.attrs = interpAttrs;
+            
+            // Add memory descriptors to config
+            for (size_t i = 0; i < srcMemoryDescs.size(); i++) {
+                interpolateConfig.descs[i] = srcMemoryDescs[i];
+            }
+            interpolateConfig.descs[ARG_DST] = dstMemoryDescs[0];
+            
+            // Create factory with context and check if supported
+            MemoryFormatFilter filter;
+            bool supported = false;
+            try {
+                auto factory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(
+                    interpolateConfig.attrs,
+                    std::make_shared<ExecutorContext>(context, getImplPriority()),
+                    interpolateConfig.descs,
+                    filter);
+                supported = true;
+            } catch (const std::exception&) {
+                // No suitable implementation found
+                supported = false;
+            }
+            
+            if (supported) {
+                supportedPrimitiveDescriptors.emplace_back(config, implDetail);
             }
         } else {
             supportedPrimitiveDescriptors.emplace_back(config, implDetail);
@@ -2477,31 +2502,65 @@ void Interpolate::prepareParams() {
         CPU_NODE_THROW("only supports resize on spatial dimensions(depth, height and width)");
     }
 
-    if (canUseAclExecutor) {
-        interpAttrs.dataScales = dataScales;
+    // Update interpolate attributes with data scales
+    interpAttrs.dataScales = dataScales;
 
-        std::vector<MemoryDescPtr> srcMemoryDescs;
+    // Update memory descriptors in factory if needed
+    if (execFactory) {
+        MemoryDescArgs descs;
         for (size_t i = 0; i < getParentEdges().size(); i++) {
-            srcMemoryDescs.push_back(getSrcMemoryAtPort(i)->getDescPtr());
+            descs[i] = getSrcMemoryAtPort(i)->getDescPtr();
         }
-        std::vector<MemoryDescPtr> dstMemoryDescs;
-        dstMemoryDescs.push_back(getDstMemoryAtPort(0)->getDescPtr());
+        descs[ARG_DST] = getDstMemoryAtPort(0)->getDescPtr();
 
+        // Create new factory with updated attributes and descriptors
+        MemoryFormatFilter filter;
+        execFactory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(
+            interpAttrs,
+            std::make_shared<ExecutorContext>(context, getImplPriority()),
+            descs,
+            filter);
+
+        // Create memory arguments for executor creation
+        MemoryArgs memoryArgs;
+        for (size_t i = 0; i < getParentEdges().size(); i++) {
+            memoryArgs[i] = getSrcMemoryAtPort(i);
+        }
+        memoryArgs[ARG_DST] = getDstMemoryAtPort(0);
+
+        // Create the executor with current scales and dimensions
+        // The new executors handle padding and table building internally
+        try {
+            // Update the factory's attributes with the computed scales
+            execFactory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(
+                interpAttrs,
+                std::make_shared<ExecutorContext>(context, getImplPriority()),
+                descs,
+                filter);
+            
+            interpolateExecutor = execFactory->make(memoryArgs);
+        } catch (const std::exception& e) {
+            // If creation fails, fall through to old implementation
+            interpolateExecutor = nullptr;
+        }
+
+        // Set implementation type
         auto* selectedPD = getSelectedPrimitiveDescriptor();
-        aclExecPtr = selectedPD->getExecutorFactoryAs<InterpolateExecutorFactory>()->makeExecutor(interpAttrs,
-                                                                                                  srcMemoryDescs,
-                                                                                                  dstMemoryDescs,
-                                                                                                  {});
-        selectedPD->setImplementationType(aclExecPtr->getImplType());
-
-        return;
+        if (selectedPD && interpolateExecutor) {
+            selectedPD->setImplementationType(interpolateExecutor->implType());
+            lastOutputDims = dstDimsOrign;
+            return;
+        }
+        // If no executor was created, fall through to old implementation
     }
 
+    // Fallback to old implementation - this should be removed once migration is complete
+    // For now, keeping it as a backup path
     InterpolateKey key = {interpAttrs, srcDims, dstDims, dataScales, dnnl::primitive_attr()};
     setPostOps(key.attr, dstDims);
 
-    auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<InterpolateExecutorBase> {
-        std::shared_ptr<InterpolateExecutorBase> executor;
+    auto buildExecutor = [&](const InterpolateKey& key) -> std::shared_ptr<OldInterpolateExecutorBase> {
+        std::shared_ptr<OldInterpolateExecutorBase> executor;
         bool isNearestLinearOrCubic = key.nodeAttrs.mode == InterpolateMode::nearest ||
                                       key.nodeAttrs.mode == InterpolateMode::linear_onnx ||
                                       key.nodeAttrs.mode == InterpolateMode::cubic;
@@ -2514,21 +2573,21 @@ void Interpolate::prepareParams() {
         bool isPillowModeSupported = isPillowMode && isByChannelLayout;
 
         if ((isNearestLinearOrCubicSupported || isPillowModeSupported) && mayiuse(cpu::x64::sse41)) {
-            executor = std::make_shared<InterpolateJitExecutor>(key.nodeAttrs,
+            executor = std::make_shared<OldInterpolateJitExecutor>(key.nodeAttrs,
                                                                 key.srcDims,
                                                                 key.dstDims,
                                                                 key.dataScales,
                                                                 key.attr);
         } else {
             executor =
-                std::make_shared<InterpolateRefExecutor>(key.nodeAttrs, key.srcDims, key.dstDims, key.dataScales);
+                std::make_shared<OldInterpolateRefExecutor>(key.nodeAttrs, key.srcDims, key.dstDims, key.dataScales);
         }
         return executor;
     };
 
     auto cache = context->getParamsCache();
     auto result = cache->getOrCreate(key, buildExecutor);
-    execPtr = result.first;
+    oldExecPtr = result.first;
 
     lastOutputDims = dstDimsOrign;
 }
@@ -2550,6 +2609,20 @@ void Interpolate::createPrimitive() {
 
     interpAttrs.inPrc = srcMemPtr->getDesc().getPrecision();
     interpAttrs.outPrc = dstMemPtr->getDesc().getPrecision();
+
+    // Initialize the executor factory
+    MemoryDescArgs descs;
+    for (size_t i = 0; i < getParentEdges().size(); i++) {
+        descs[i] = getSrcMemoryAtPort(i)->getDescPtr();
+    }
+    descs[ARG_DST] = getDstMemoryAtPort(0)->getDescPtr();
+
+    MemoryFormatFilter filter;
+    execFactory = std::make_shared<ExecutorFactory<InterpolateAttrs>>(
+        interpAttrs,
+        std::make_shared<ExecutorContext>(context, getImplPriority()),
+        descs,
+        filter);
 
     if (shapesDefined() && isExecutable()) {
         if (needPrepareParams()) {
@@ -2631,17 +2704,34 @@ std::vector<float> Interpolate::getScales(const VectorDims& srcDimPad, const Vec
 }
 
 void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
+    // Use new executor if available
+    if (interpolateExecutor) {
+        try {
+            MemoryArgs memoryArgs;
+            for (size_t i = 0; i < getParentEdges().size(); i++) {
+                memoryArgs[i] = getSrcMemoryAtPort(i);
+            }
+            memoryArgs[ARG_DST] = getDstMemoryAtPort(0);
+            
+            interpolateExecutor->execute(memoryArgs);
+            return;
+        } catch (...) {
+            // Fall through to old executor if new one fails
+        }
+    }
+
+    // Fallback to old executor (temporary during migration)
     auto dstMemPtr = getDstMemoryAtPort(0);
     auto srcMemPtr = getSrcMemoryAtPort(DATA_ID);
 
-    if (execPtr) {
+    if (oldExecPtr) {
         auto* dst_data = dstMemPtr->getDataAs<uint8_t>();
         const uint8_t* src_data_origin = srcMemPtr->getDataAs<uint8_t>();
         const uint8_t* src_data = nullptr;
         std::vector<uint8_t> srcPadded;
         if (hasPad) {
             const auto& srcDim = srcMemPtr->getStaticDims();
-            auto srcDimPad = execPtr->getSrcDimPad5d();
+            auto srcDimPad = oldExecPtr->getSrcDimPad5d();
             size_t dimSize = srcDim.size();
 
             const auto srcDim5d = to5Dim(srcDim);
@@ -2726,9 +2816,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
             src_data = src_data_origin;
         }
 
-        execPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()));
-    } else if (aclExecPtr) {
-        aclExecPtr->exec({srcMemPtr}, {dstMemPtr}, reinterpret_cast<void*>(postOpsDataPtrs.data()));
+        oldExecPtr->exec(src_data, dst_data, reinterpret_cast<void*>(postOpsDataPtrs.data()));
     } else {
         CPU_NODE_THROW("Primitive wasn't created");
     }
@@ -2736,7 +2824,7 @@ void Interpolate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 // for ndhwc and nCdhw8c[16c]
 // input may be f32/bf16/int8, fused->output varies
-void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
                                                       uint8_t* out_ptr_,
                                                       const void* post_ops_data_,
                                                       int B,
@@ -2751,7 +2839,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
     auto* index_h = static_cast<int*>(&auxTable[OD]);
     auto* index_w = static_cast<int*>(&auxTable[OD + OH]);
 
-    bool is_nhwc = (configured_for_layout == by_channel);
+    bool is_nhwc = (configured_for_layout == InterpolateLayoutType::by_channel);
 
     for (int b = 0; b < B; b++) {
         if (is_nhwc) {
@@ -2802,7 +2890,7 @@ void Interpolate::InterpolateJitExecutor::NNCGathered(const uint8_t* in_ptr_,
     }  // batch end
 }
 
-void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
                                                    uint8_t* out_ptr_,
                                                    const void* post_ops_data_,
                                                    int B,
@@ -2844,7 +2932,7 @@ void Interpolate::InterpolateJitExecutor::NNPlanar(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr_,
                                                            uint8_t* out_ptr_,
                                                            const void* post_ops_data_,
                                                            int B,
@@ -2885,7 +2973,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxPlanar(const uint8_t* in_ptr
     });
 }
 
-void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_ptr_,
                                                               uint8_t* out_ptr_,
                                                               const void* post_ops_data_,
                                                               int B,
@@ -2914,7 +3002,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_
     weightPtr[4] = reinterpret_cast<float*>(&auxTable[scratchLen + 2 * OW + 2 * OH]);
     weightPtr[5] = reinterpret_cast<float*>(&auxTable[scratchLen + 2 * OW + 2 * OH + OD]);
 
-    bool isByChannel = configured_for_layout == by_channel;
+    bool isByChannel = configured_for_layout == InterpolateLayoutType::by_channel;
 
     int blkSize = mayiuse(cpu::x64::avx512_core) ? 16 : 8;
     int CB = isByChannel ? 1 : div_up(C, blkSize);
@@ -2966,7 +3054,7 @@ void Interpolate::InterpolateJitExecutor::linearOnnxCGathered(const uint8_t* in_
     });
 }
 
-void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
                                                          uint8_t* out_ptr_,
                                                          const void* post_ops_data_,
                                                          int B,
@@ -3020,7 +3108,7 @@ void Interpolate::InterpolateJitExecutor::cubicCGathered(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
                                                       uint8_t* out_ptr_,
                                                       const void* post_ops_data_,
                                                       int B,
@@ -3063,7 +3151,7 @@ void Interpolate::InterpolateJitExecutor::cubicPlanar(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_,
                                                           uint8_t* out_ptr_,
                                                           [[maybe_unused]] const void* post_ops_data_,
                                                           int B,
@@ -3103,7 +3191,7 @@ void Interpolate::InterpolateJitExecutor::pillowCGathered(const uint8_t* in_ptr_
 // =====================================================================================================================
 // index layout:
 // d_0............d_OD-1, h_0..............h_OH-1, w_0................w_OW-1
-void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPad5d,
+void Interpolate::OldInterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPad5d,
                                                       const VectorDims& dstDim5d,
                                                       const std::vector<float>& dataScales,
                                                       [[maybe_unused]] InterpolateLayoutType layout,
@@ -3143,7 +3231,7 @@ void Interpolate::InterpolateExecutorBase::buildTblNN(const VectorDims& srcDimPa
 // scale is float(outShape) / float(inShape)
 // strictly consistent with onnx calc manner(div scale, not multiply inverse), given this is done offline
 // the slight precison diff can produce obvious wrong value due to "nearest round" behavior for NN mode
-float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
+float Interpolate::OldInterpolateExecutorBase::coordTransToInput(int outCoord,
                                                               float scale,
                                                               int inShape,
                                                               int outShape) const {
@@ -3179,7 +3267,7 @@ float Interpolate::InterpolateExecutorBase::coordTransToInput(int outCoord,
     }
 }
 
-int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
+int Interpolate::OldInterpolateExecutorBase::nearestRound(float originCoord,
                                                        bool isDownsample,
                                                        InterpolateNearestMode nearestMode) {
     switch (nearestMode) {
@@ -3211,7 +3299,7 @@ int Interpolate::InterpolateExecutorBase::nearestRound(float originCoord,
     }
 }
 
-void Interpolate::InterpolateExecutorBase::linearOnnxCF(int outCoord,
+void Interpolate::OldInterpolateExecutorBase::linearOnnxCF(int outCoord,
                                                         float scale,
                                                         int inShape,
                                                         int outShape,
@@ -3232,7 +3320,7 @@ void Interpolate::InterpolateExecutorBase::linearOnnxCF(int outCoord,
     }
 }
 
-void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& srcDimPad5d,
+void Interpolate::OldInterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& srcDimPad5d,
                                                               const VectorDims& dstDim5d,
                                                               const std::vector<float>& dataScales,
                                                               InterpolateLayoutType layout) {
@@ -3365,7 +3453,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinearOnnx(const VectorDims& 
 // wd .........wd, wh............wh, ww.............ww, id...........id, ih............ih, iw..............iw
 //                        |                                                      |
 //                   wh0.....wh_diameter                                    ih0.....ih_diameter
-void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcDimPad5d,
+void Interpolate::OldInterpolateExecutorBase::buildTblLinear(const VectorDims& srcDimPad5d,
                                                           const VectorDims& dstDim5d,
                                                           const std::vector<float>& dataScales,
                                                           int kernel_width,
@@ -3449,7 +3537,7 @@ void Interpolate::InterpolateExecutorBase::buildTblLinear(const VectorDims& srcD
     }
 }
 
-std::vector<float> Interpolate::InterpolateExecutorBase::getCubicCoeffs(float mantissa, float a) {
+std::vector<float> Interpolate::OldInterpolateExecutorBase::getCubicCoeffs(float mantissa, float a) {
     float m = std::fabs(mantissa);
     std::vector<float> coeffs(4, 0.F);
 
@@ -3463,7 +3551,7 @@ std::vector<float> Interpolate::InterpolateExecutorBase::getCubicCoeffs(float ma
 // table layout:
 // OW      OW         OW         OW         OW          OH       OH           OH           OH           OH
 // x_idx   x_weight0  x_weight1  x_weight2  x_weight3   y_idx    y_weight0    y_weight1    y_weight2    y_weight3
-void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDimPad5d,
+void Interpolate::OldInterpolateExecutorBase::buildTblCubic(const VectorDims& srcDimPad5d,
                                                          const VectorDims& dstDim5d,
                                                          const std::vector<float>& dataScales,
                                                          float cubicCoeff,
@@ -3533,7 +3621,7 @@ void Interpolate::InterpolateExecutorBase::buildTblCubic(const VectorDims& srcDi
     }
 }
 
-float Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
+float Interpolate::OldInterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
     if (m < 0.0F) {
         m = -m;
     }
@@ -3543,7 +3631,7 @@ float Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs(float m) {
     return 0.0F;
 }
 
-float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
+float Interpolate::OldInterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
     float a = -0.5F;
     if (m < 0.0F) {
         m = -m;
@@ -3557,7 +3645,7 @@ float Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs(float m) {
     return 0.0F;
 }
 
-void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
+void Interpolate::OldInterpolateExecutorBase::buildTblPillow(const VectorDims& srcDimPad5d,
                                                           const VectorDims& dstDim5d,
                                                           const std::vector<float>& dataScales,
                                                           [[maybe_unused]] float cubicCoeff,
@@ -3582,8 +3670,8 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
         float scaleClip = pillowScale < 1.0F ? 1.0F : pillowScale;
         filterArgs args{
             (mode == InterpolateMode::bilinear_pillow)
-                ? ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBilinearCoeffs
-                : ov::intel_cpu::node::Interpolate::InterpolateExecutorBase::getPillowBicubicCoeffs,
+                ? ov::intel_cpu::node::Interpolate::OldInterpolateExecutorBase::getPillowBilinearCoeffs
+                : ov::intel_cpu::node::Interpolate::OldInterpolateExecutorBase::getPillowBicubicCoeffs,
             1.0F / scaleClip,
             (mode == InterpolateMode::bilinear_pillow) ? PILLOW_BILINEAR_WINDOW_SCALE * scaleClip
                                                        : PILLOW_BICUBIC_WINDOW_SCALE * scaleClip,
@@ -3657,7 +3745,7 @@ void Interpolate::InterpolateExecutorBase::buildTblPillow(const VectorDims& srcD
     generateTbl(IH, OH, fy, filterArgsY, weightY, indexY);
 }
 
-void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
                                                 uint8_t* out_ptr_,
                                                 int B,
                                                 int C,
@@ -3687,7 +3775,7 @@ void Interpolate::InterpolateRefExecutor::NNRef(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
                                                         uint8_t* out_ptr_,
                                                         int B,
                                                         int C,
@@ -3794,7 +3882,7 @@ void Interpolate::InterpolateRefExecutor::linearOnnxRef(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
                                                    uint8_t* out_ptr_,
                                                    int B,
                                                    int C,
@@ -3833,7 +3921,7 @@ void Interpolate::InterpolateRefExecutor::cubicRef(const uint8_t* in_ptr_,
     });
 }
 
-float Interpolate::InterpolateRefExecutor::getValue(const uint8_t* base, size_t offset, ov::element::Type prec) {
+float Interpolate::OldInterpolateRefExecutor::getValue(const uint8_t* base, size_t offset, ov::element::Type prec) {
     const uint8_t* baseOffset = base + offset;
     switch (prec) {
     case ov::element::u8: {
@@ -3862,7 +3950,7 @@ float Interpolate::InterpolateRefExecutor::getValue(const uint8_t* base, size_t 
     }
 }
 
-void Interpolate::InterpolateRefExecutor::setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec) {
+void Interpolate::OldInterpolateRefExecutor::setValue(uint8_t* base, size_t offset, float value, ov::element::Type prec) {
     uint8_t* baseOffset = base + offset;
     switch (prec) {
     case ov::element::u8: {
@@ -3891,7 +3979,7 @@ void Interpolate::InterpolateRefExecutor::setValue(uint8_t* base, size_t offset,
     }
 }
 
-void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateRefExecutor::linearInterpolation(const uint8_t* in_ptr_,
                                                               uint8_t* out_ptr_,
                                                               int B,
                                                               int C,
@@ -4026,7 +4114,7 @@ void Interpolate::InterpolateRefExecutor::linearInterpolation(const uint8_t* in_
     });
 }
 
-void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
                                                     uint8_t* out_ptr_,
                                                     int B,
                                                     int C,
@@ -4136,7 +4224,7 @@ void Interpolate::InterpolateRefExecutor::pillowRef(const uint8_t* in_ptr_,
     });
 }
 
-void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_ptr_,
                                                               uint8_t* out_ptr_,
                                                               int B,
                                                               int C,
@@ -4242,7 +4330,7 @@ void Interpolate::InterpolateRefExecutor::pillowRefNCHWAsNHWC(const uint8_t* in_
     });
 }
 
-void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(InterpolateLayoutType layout) {
+void Interpolate::OldInterpolateExecutorBase::create_pillow_working_buf(InterpolateLayoutType layout) {
     if (srcDimPad5d[3] == dstDim5d[3] || srcDimPad5d[4] == dstDim5d[4]) {
         return;
     }
@@ -4261,7 +4349,7 @@ void Interpolate::InterpolateExecutorBase::create_pillow_working_buf(Interpolate
     pillow_working_buf.resize(bufSize);
 }
 
-Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
+Interpolate::OldInterpolateExecutorBase::OldInterpolateExecutorBase(const InterpolateAttrs& interpAttrs,
                                                               const VectorDims& srcDims,
                                                               const VectorDims& dstDims,
                                                               const std::vector<float>& dataScales)
@@ -4309,12 +4397,12 @@ Interpolate::InterpolateExecutorBase::InterpolateExecutorBase(const InterpolateA
     }
 }
 
-Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
+Interpolate::OldInterpolateJitExecutor::OldInterpolateJitExecutor(const InterpolateAttrs& interpAttrs,
                                                             const VectorDims& srcDims,
                                                             const VectorDims& dstDims,
                                                             const std::vector<float>& dataScales,
                                                             [[maybe_unused]] const dnnl::primitive_attr& attr)
-    : InterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales) {
+    : OldInterpolateExecutorBase(interpAttrs, srcDims, dstDims, dataScales) {
     auto jcp = jit_interpolate_config_params();
     jcp.mode = mode;
     jcp.src_prc = interpAttrs.inPrc;
@@ -4350,17 +4438,17 @@ Interpolate::InterpolateJitExecutor::InterpolateJitExecutor(const InterpolateAtt
         // gather ISA(for planar JIT kernel) for avx2 and fp32
         interpolateKernel = std::make_shared<jit_uni_interpolate_kernel_f32<cpu::x64::avx2>>(jcp, *attr.get());
     } else {
-        OPENVINO_THROW("Can't create InterpolateJitExecutor");
+        OPENVINO_THROW("Can't create OldInterpolateJitExecutor");
     }
 #endif  // OPENVINO_ARCH_X86_64
     if (interpolateKernel) {
         interpolateKernel->create_ker();
     } else {
-        OPENVINO_THROW("Can't compile InterpolateJitExecutor");
+        OPENVINO_THROW("Can't compile OldInterpolateJitExecutor");
     }
 }
 
-void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
+void Interpolate::OldInterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* out_ptr_, const void* post_ops_data_) {
     size_t N = srcDimPad5d[0];
     size_t C = srcDimPad5d[1];
     size_t ID = srcDimPad5d[2];
@@ -4406,12 +4494,12 @@ void Interpolate::InterpolateJitExecutor::exec(const uint8_t* in_ptr_, uint8_t* 
         break;
     }
     default: {
-        OPENVINO_THROW("InterpolateJitExecutor has unsupported interpolate mode: ", mode);
+        OPENVINO_THROW("OldInterpolateJitExecutor has unsupported interpolate mode: ", mode);
     }
     }
 }
 
-void Interpolate::InterpolateRefExecutor::exec(const uint8_t* in_ptr_,
+void Interpolate::OldInterpolateRefExecutor::exec(const uint8_t* in_ptr_,
                                                uint8_t* out_ptr_,
                                                [[maybe_unused]] const void* post_ops_data_) {
     size_t N = srcDimPad5d[0];
