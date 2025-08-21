@@ -114,6 +114,8 @@ const std::vector<ExecutorImplementation<MatMulAttrs>>& getImplementations() {
             [](const MatMulConfig& config) -> bool {
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
                 VERIFY(noWeightsDecompression(config), UNSUPPORTED_WEIGHTS_DECOMPRESSION);
+
+                VERIFY(!config.attrs.transposeA && !config.attrs.transposeB, "unsupported strides");
                 VERIFY(all_of(f32, srcType(config), weiType(config), dstType(config)), UNSUPPORTED_SRC_PRECISIONS);
 
                 const auto& biasDesc = config.descs.at(ARG_BIAS);
@@ -144,10 +146,6 @@ const std::vector<ExecutorImplementation<MatMulAttrs>>& getImplementations() {
                     }
                 }
 
-                const auto& strideIn0 = srcDesc0->as<BlockedMemoryDesc>()->getStrides();
-                const auto& strideIn1 = srcDesc1->as<BlockedMemoryDesc>()->getStrides();
-                VERIFY(all_of(1UL, strideIn0.back(), strideIn1.back()), "unsupported strides");
-                
                 return (srcShape0[srcRank0 - 1] <= 2) && (srcShape0[srcRank0 - 2] <= 2) && 
                        (srcShape1[srcRank1 - 1] <= 2) && (srcShape1[srcRank1 - 2] <= 2);
             },

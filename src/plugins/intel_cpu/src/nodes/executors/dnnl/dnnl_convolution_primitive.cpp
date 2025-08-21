@@ -887,6 +887,12 @@ DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const
     return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, fcAttrs);
 }
 
+DnnlMemoryDescPtr DnnlConvolutionPrimitive::makeTransposedWeightDescriptor(const DnnlMemoryDescPtr& srcDesc,
+                                                                           const DnnlMemoryDescPtr& dstDesc,
+                                                                           const FCAttrs& attrs) {
+    return DnnlFCPrimitive::makeTransposedWeightDescriptor(srcDesc, dstDesc, attrs);
+}
+
 std::tuple<size_t, size_t, size_t, size_t> DnnlConvolutionPrimitive::getChannelParams(const ConvConfig& config) {
     const auto& attrs = config.attrs;
     const auto& weightDesc = config.descs.at(ARG_WEI);
