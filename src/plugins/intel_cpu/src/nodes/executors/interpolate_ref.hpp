@@ -41,6 +41,7 @@ private:
     
     void buildIndexWeightTables();
     void preprocessPadding(const std::vector<MemoryCPtr>& src);
+    const uint8_t* padPreprocess(const std::vector<MemoryCPtr>& src, const std::vector<MemoryPtr>& dst);
 };
 
 }  // namespace ov::intel_cpu

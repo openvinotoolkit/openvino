@@ -109,13 +109,21 @@ public:
     void execute(const MemoryArgs& memory) override {
         std::vector<MemoryCPtr> srcMemory;
         std::vector<MemoryPtr> dstMemory;
-        for (const auto& [k, v] : memory) {
-            if (k == ARG_DST) {
-                dstMemory.push_back(v);
-            } else {
-                srcMemory.push_back(std::const_pointer_cast<const IMemory>(v));
+        
+        // Extract destination memory
+        auto dstIt = memory.find(ARG_DST);
+        if (dstIt != memory.end()) {
+            dstMemory.push_back(dstIt->second);
+        }
+        
+        // Extract source memories in correct order (0, 1, 2, 3, ...)
+        for (size_t i = 0; i < memory.size(); ++i) {
+            auto srcIt = memory.find(i);
+            if (srcIt != memory.end()) {
+                srcMemory.push_back(std::const_pointer_cast<const IMemory>(srcIt->second));
             }
         }
+        
         exec(srcMemory, dstMemory, nullptr);
     }
     

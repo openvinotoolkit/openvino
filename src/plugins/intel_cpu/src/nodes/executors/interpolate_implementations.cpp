@@ -190,7 +190,8 @@ const std::vector<ExecutorImplementation<InterpolateAttrs>>& getImplementations<
             nullptr,  // createOptimalConfig
             nullptr,  // acceptsShape
             [](const InterpolateAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                // Create new reference executor directly
+                // return nullptr;  // Temporarily disable new executor to test old implementation
+                // Create new reference executor
                 auto executor = std::make_shared<NewRefInterpolateExecutor>(context);
                 
                 // Build memory descriptors
