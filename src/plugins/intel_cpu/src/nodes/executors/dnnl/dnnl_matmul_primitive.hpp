@@ -8,7 +8,6 @@
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_common.hpp>
-#include <utility>
 #include <vector>
 
 #include "memory_desc/dnnl_memory_desc.h"
@@ -25,8 +24,8 @@ namespace ov::intel_cpu {
 
 class DnnlMatMulPrimitive {
     struct Key {
-        DnnlMemoryDescCPtr src;
-        DnnlMemoryDescCPtr wei;
+        DnnlMemoryDescCPtr src0;
+        DnnlMemoryDescCPtr src1;
         DnnlMemoryDescCPtr bias;
         DnnlMemoryDescCPtr dst;
         dnnl::primitive_attr attr;
