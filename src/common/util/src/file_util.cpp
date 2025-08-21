@@ -256,6 +256,17 @@ std::string ov::util::sanitize_path(const std::string& path) {
     return (start == std::string::npos) ? "" : sanitized_path.substr(start);
 }
 
+std::filesystem::path ov::util::prevent_path_traversal(const std::string& path) {
+    std::filesystem::path safe_path{};
+    for (const auto& part : std::filesystem::path{ov::util::sanitize_path(path)}) {
+        if (part != "..") {
+            safe_path /= part;
+        }
+    }
+
+    return safe_path;
+}
+
 void ov::util::convert_path_win_style(std::string& path) {
     std::replace(path.begin(), path.end(), '/', '\\');
 }
