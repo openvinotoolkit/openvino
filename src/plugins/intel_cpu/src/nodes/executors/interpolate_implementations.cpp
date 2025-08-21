@@ -190,29 +190,31 @@ const std::vector<ExecutorImplementation<InterpolateAttrs>>& getImplementations<
             nullptr,  // createOptimalConfig
             nullptr,  // acceptsShape
             [](const InterpolateAttrs& attrs, const MemoryArgs& memory, const ExecutorContext::CPtr& context) -> ExecutorPtr {
-                // return nullptr;  // Temporarily disable new executor to test old implementation
+                return nullptr;  // Temporarily disable new executor to test old implementation
                 // Create new reference executor
-                auto executor = std::make_shared<NewRefInterpolateExecutor>(context);
+                // auto executor = std::make_shared<NewRefInterpolateExecutor>(context);
                 
-                // Build memory descriptors
-                std::vector<MemoryDescPtr> srcDescs;
-                std::vector<MemoryDescPtr> dstDescs;
-                
-                for (const auto& [k, v] : memory) {
-                    if (k == ARG_DST || k == ARG_DST_0) {
-                        dstDescs.push_back(v->getDescPtr());
-                    } else {
-                        srcDescs.push_back(v->getDescPtr());
-                    }
-                }
-                
-                // Initialize the executor with config and memory descriptors
-                dnnl::primitive_attr attr;
-                if (executor->init(attrs, srcDescs, dstDescs, attr)) {
-                    return executor;
-                }
-                
-                return nullptr;
+                // Commenting out the code that builds the new reference executor
+                // 
+                // // Build memory descriptors
+                // std::vector<MemoryDescPtr> srcDescs;
+                // std::vector<MemoryDescPtr> dstDescs;
+                // 
+                // for (const auto& [k, v] : memory) {
+                //     if (k == ARG_DST || k == ARG_DST_0) {
+                //         dstDescs.push_back(v->getDescPtr());
+                //     } else {
+                //         srcDescs.push_back(v->getDescPtr());
+                //     }
+                // }
+                // 
+                // // Initialize the executor with config and memory descriptors
+                // dnnl::primitive_attr attr;
+                // if (executor->init(attrs, srcDescs, dstDescs, attr)) {
+                //     return executor;
+                // }
+                // 
+                // return nullptr;
             }
         )
     };
