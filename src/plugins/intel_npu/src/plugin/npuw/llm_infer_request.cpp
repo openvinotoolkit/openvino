@@ -386,7 +386,7 @@ void ov::npuw::LLMInferRequest::apply_lora() {
     bool pre_alloc_on_npu = true;
     const auto& prefill_compiled = m_npuw_llm_compiled_model->m_prefill_compiled;
     for (std::size_t idx = 0; idx < prefill_compiled->m_compiled_submodels.size(); ++idx) {
-        if (prefill_compiled->submodel_device(idx) == "CPU") {
+        if (prefill_compiled->submodel_device(idx) != "NPU") {
             pre_alloc_on_npu = false;
             break;
         }
