@@ -9,6 +9,7 @@
 #include "llm_compiled_model_utils.hpp"
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
@@ -167,6 +168,20 @@ struct Unique {
         return std::string(CountedType::name) + "_" + std::to_string(counter++);
     }
 };
+
+using TensorPtr = ov::SoPtr<ov::ITensor>;
+TensorPtr allocMem(const ov::element::Type type,
+                   const ov::Shape& shape,
+                   const std::string& device,
+                   const std::shared_ptr<const ov::IPlugin>& plugin);
+
+bool matchStringWithLoRAPattern(const std::string& input, const std::string& pattern_suffix);
+
+bool matchLoRAMatMulAString(const std::string& input);
+
+bool matchLoRAMatMulBString(const std::string& input);
+
+bool matchLoRAMatMulAlphaString(const std::string& input);
 
 }  // namespace util
 }  // namespace npuw
