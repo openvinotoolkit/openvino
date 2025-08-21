@@ -18,7 +18,6 @@ on:
      - '**/layer_tests_summary/**'
      - '**/conformance/**'
    branches:
-     - 'master'
      - 'releases/**'
   # pull_request:
   #  paths-ignore:
