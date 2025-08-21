@@ -88,4 +88,8 @@ if(NOT (ARM OR AARCH64))
   get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES)
   list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
   set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")
+
+  get_property(slt_sources GLOBAL PROPERTY OV_CPU_FUNC_SLT_SOURCES)
+  list(APPEND slt_sources ${current_dir_sources})
+  set_property(GLOBAL PROPERTY OV_CPU_FUNC_SLT_SOURCES "${slt_sources}")
 endif()

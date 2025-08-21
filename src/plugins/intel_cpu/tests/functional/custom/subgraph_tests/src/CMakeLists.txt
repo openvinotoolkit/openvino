@@ -12,6 +12,10 @@ get_property(all_cpu_functional_test_sources GLOBAL PROPERTY OV_CPU_FUNCTIONAL_T
 list(APPEND all_cpu_functional_test_sources ${current_dir_sources})
 set_property(GLOBAL PROPERTY OV_CPU_FUNCTIONAL_TEST_SOURCES "${all_cpu_functional_test_sources}")
 
+get_property(subgraph_src_top_sources GLOBAL PROPERTY OV_CPU_FUNC_SUBGRAPH_SRC_TOP_SOURCES)
+list(APPEND subgraph_src_top_sources ${current_dir_sources})
+set_property(GLOBAL PROPERTY OV_CPU_FUNC_SUBGRAPH_SRC_TOP_SOURCES "${subgraph_src_top_sources}")
+
 # Recurse to child directories
 add_subdirectory(common)
 add_subdirectory(classes)
