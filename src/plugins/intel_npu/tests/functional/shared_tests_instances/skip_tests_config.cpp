@@ -40,10 +40,6 @@ public:
         return _name == "LEVEL0";
     }
 
-    bool isIMD() const {
-        return _name == "IMD";
-    }
-
 private:
     std::string _name;
     intel_npu::Logger _log = intel_npu::Logger("BackendName", ov::log::Level::INFO);

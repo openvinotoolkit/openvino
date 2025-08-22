@@ -4,7 +4,6 @@ Example:
         <message>skip_message_xxxxxx</message>
         <enable_rules>
             <backend>LEVEL0</backend>
-            <backend>IMD</backend>
             <backend></backend> (special case for no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
@@ -423,28 +422,6 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*OVInferRequestMultithreadingTests.canRun3SyncRequestsConsistently.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#81065 -->
-    <skip_config>
-        <message>IMD/Simics do not support the tests</message>
-        <enable_rules>
-            <backend>IMD</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*smoke_ClassPluginProperties.*DEVICE_UUID.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E#85488 -->
-    <skip_config>
-        <message>Run long time on IMD/Simics</message>
-        <enable_rules>
-            <backend>IMD</backend>
-        </enable_rules>
-        <filters>
-            <filter>.*PreprocessingPrecisionConvertTestNPU.*</filter>
         </filters>
     </skip_config>
 

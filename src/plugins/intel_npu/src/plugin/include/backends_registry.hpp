@@ -17,7 +17,7 @@
 
 namespace intel_npu {
 
-enum class AvailableBackends { LEVEL_ZERO, IMD };
+enum class AvailableBackends { LEVEL_ZERO };
 
 class BackendsRegistry final {
 public:

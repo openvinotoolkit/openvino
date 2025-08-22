@@ -36,7 +36,6 @@ By default, the environment variable `OV_NPU_TESTS_SKIP_CONFIG_FILE` is set to f
         <message>skip_message_xxxxxx</message>
         <enable_rules>
             <backend>LEVEL0</backend>
-            <backend>IMD</backend>
             <backend></backend> (empty brackets denote no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
