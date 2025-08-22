@@ -26,6 +26,16 @@ bool NewRefInterpolateExecutor::init(const InterpolateAttrs& interpolateAttrs,
     
     attrs_ = interpolateAttrs;
     
+    // For bilinear_pillow and bicubic_pillow modes with by_channel layout,
+    // the old reference executor expects NCHWAsNHWC flag to be set
+    // to use the optimized pillowRefNCHWAsNHWC implementation
+    // DISABLED FOR DEBUGGING: Testing without NCHWAsNHWC flag
+    // if ((attrs_.mode == InterpolateMode::bilinear_pillow || 
+    //      attrs_.mode == InterpolateMode::bicubic_pillow) &&
+    //     attrs_.layout == InterpolateLayoutType::by_channel) {
+    //     attrs_.NCHWAsNHWC = true;
+    // }
+    
     // Extract dimensions
     if (!srcDescs.empty() && srcDescs[0]) {
         srcDims_ = srcDescs[0]->getShape().getStaticDims();
@@ -93,6 +103,12 @@ void NewRefInterpolateExecutor::buildIndexWeightTables() {
     }
     
     try {
+        // Debug: log creation parameters (unused in buildIndexWeightTables)
+        // std::cerr << "[DEBUG] Creating old executor with mode=" << static_cast<int>(attrs_.mode) 
+        //           << " layout=" << static_cast<int>(attrs_.layout) 
+        //           << " NCHWAsNHWC=" << attrs_.NCHWAsNHWC
+        //           << " cubeCoeff=" << attrs_.cubeCoeff << std::endl;
+        
         // Use init-time dimensions that match the original dataScales_ expectations
         oldRefExecutor_ = std::make_shared<node::Interpolate::OldInterpolateRefExecutor>(
             attrs_,
@@ -120,7 +136,6 @@ void NewRefInterpolateExecutor::preprocessPadding(const std::vector<MemoryCPtr>&
     }
     
     const auto srcMemory = src[0];
-    const auto& srcDim = srcDims_;
     const auto srcDimRuntime = srcMemory->getStaticDims();
     
     // Debug output removed for production
@@ -185,8 +200,9 @@ void NewRefInterpolateExecutor::preprocessPadding(const std::vector<MemoryCPtr>&
                      inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4) * srcDataSize;
                 
                 if (!debugged && n == 0 && c == 0 && d == 0 && h == 0) {
-                    size_t src_offset = (inShapeBlock[1] * n + inShapeBlock[2] * c + inShapeBlock[3] * d + inShapeBlock[4] * h);
-                    size_t dst_offset = (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) + inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4);
+                    // Unused debug variables - keeping for potential future debugging
+                    // size_t src_offset = (inShapeBlock[1] * n + inShapeBlock[2] * c + inShapeBlock[3] * d + inShapeBlock[4] * h);
+                    // size_t dst_offset = (inShapePadBlock[1] * (n + padB0) + inShapePadBlock[2] * (c + padB1) + inShapePadBlock[3] * (d + padB2) + inShapePadBlock[4] * (h + padB3) + padB4);
                     // std::cerr << "[DEBUG Copy] First copy: n=" << n << " c=" << c << " d=" << d << " h=" << h 
                     //           << ", src_offset=" << src_offset << " dst_offset=" << dst_offset 
                     //           << ", copy_size=" << srcDim5d[4] << " elements" << std::endl;
@@ -255,39 +271,62 @@ void NewRefInterpolateExecutor::exec(const std::vector<MemoryCPtr>& src,
         auto srcDimRuntime = src[0]->getStaticDims();
         auto dstDimRuntime = dst[0]->getStaticDims();
         
+        
         // For padding cases: build executor to expect padded source dimensions with no scaling
         // For no-padding cases: build executor for direct source-to-destination scaling  
         VectorDims executorSrcDims = srcDimRuntime;
         VectorDims executorDstDims = dstDimRuntime;
         std::vector<float> executorScales;
         
-        // Calculate scales exactly like the old implementation
-        executorScales.reserve(executorSrcDims.size());
-        for (size_t i = 0; i < executorSrcDims.size(); ++i) {
-            if (hasPadding_ && i < attrs_.padBegin.size() && i < attrs_.padEnd.size()) {
-                // For padded data, use padded source dimensions 
-                size_t srcDimWithPadding = executorSrcDims[i] + attrs_.padBegin[i] + attrs_.padEnd[i];
-                executorScales.push_back(static_cast<float>(executorDstDims[i]) / static_cast<float>(srcDimWithPadding));
-            } else {
-                // For non-padded data, use original dimensions
+        // DON'T convert dimensions for pillow modes anymore - the old executor handles this internally
+        // The old executor has a special pillowRefNCHWAsNHWC function that expects the dimensions as-is
+        
+        // Calculate scales for the old executor
+        // For pillow modes, always recalculate scales based on actual dimensions
+        if ((attrs_.mode == InterpolateMode::bilinear_pillow || attrs_.mode == InterpolateMode::bicubic_pillow)) {
+            // Pillow modes always regenerate scales from dimensions
+            executorScales.reserve(executorSrcDims.size());
+            for (size_t i = 0; i < executorSrcDims.size(); ++i) {
                 executorScales.push_back(static_cast<float>(executorDstDims[i]) / static_cast<float>(executorSrcDims[i]));
             }
+        } else if (attrs_.shapeCalcMode == InterpolateShapeCalcMode::scales && !attrs_.dataScales.empty()) {
+            // Use the provided scales directly - they already account for padding
+            executorScales = attrs_.dataScales;
+        } else {
+            // For sizes mode or when scales are not provided, calculate them
+            executorScales.reserve(executorSrcDims.size());
+            for (size_t i = 0; i < executorSrcDims.size(); ++i) {
+                if (hasPadding_) {
+                    // Get the correct padding index accounting for dimension mapping
+                    size_t padIdx = i;
+                    if (i >= executorSrcDims.size() - attrs_.padBegin.size()) {
+                        padIdx = i - (executorSrcDims.size() - attrs_.padBegin.size());
+                    }
+                    
+                    if (padIdx < attrs_.padBegin.size() && padIdx < attrs_.padEnd.size()) {
+                        // For padded dimensions, the scale should map padded src to dst
+                        size_t srcDimWithPadding = executorSrcDims[i] + attrs_.padBegin[padIdx] + attrs_.padEnd[padIdx];
+                        executorScales.push_back(static_cast<float>(executorDstDims[i]) / static_cast<float>(srcDimWithPadding));
+                    } else {
+                        // No padding for this dimension
+                        executorScales.push_back(static_cast<float>(executorDstDims[i]) / static_cast<float>(executorSrcDims[i]));
+                    }
+                } else {
+                    // No padding at all
+                    executorScales.push_back(static_cast<float>(executorDstDims[i]) / static_cast<float>(executorSrcDims[i]));
+                }
+            }
         }
-        // Debug output removed for production
-        // std::cerr << "[DEBUG NewRef] Building old executor" << std::endl;
-        // std::cerr << "[DEBUG NewRef] attrs_.mode=" << static_cast<int>(attrs_.mode) 
-        //           << ", attrs_.coordTransMode=" << static_cast<int>(attrs_.coordTransMode) 
-        //           << ", attrs_.layout=" << static_cast<int>(attrs_.layout) 
-        //           << ", attrs_.nearestMode=" << static_cast<int>(attrs_.nearestMode) 
-        //           << ", attrs_.antialias=" << attrs_.antialias
-        //           << ", attrs_.cubeCoeff=" << attrs_.cubeCoeff
-        //           << ", attrs_.shapeCalcMode=" << static_cast<int>(attrs_.shapeCalcMode)
-        //           << ", attrs_.inPrc=" << attrs_.inPrc.get_type_name() 
-        //           << ", attrs_.outPrc=" << attrs_.outPrc.get_type_name() << std::endl;
+        
+        // Create a copy of attrs to potentially modify NCHWAsNHWC flag
+        InterpolateAttrs modifiedAttrs = attrs_;
+        
+        // For now, don't enable NCHWAsNHWC - let the old executor handle the layout internally
+        // The old executor will use the appropriate path based on the layout type
         
         try {
             oldRefExecutor_ = std::make_shared<node::Interpolate::OldInterpolateRefExecutor>(
-                attrs_,
+                modifiedAttrs,
                 executorSrcDims, 
                 executorDstDims,  
                 executorScales);
