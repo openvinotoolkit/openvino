@@ -117,7 +117,7 @@ std::shared_ptr<ov::Node> construct_original_grid_2d(const ov::Output<ov::Node>&
 
     return std::make_shared<v0::Concat>(OutputVector{std::make_shared<v0::Unsqueeze>(x_broadcast, axis),
                                                      std::make_shared<v0::Unsqueeze>(y_broadcast, axis),
-                                                     std::make_shared<v0::Unsqueeze>(ones_broadcast, axis)},                                                     
+                                                     std::make_shared<v0::Unsqueeze>(ones_broadcast, axis)},
                                         2);
 }
 
@@ -171,7 +171,7 @@ std::shared_ptr<ov::Node> construct_original_grid_3d(const ov::Output<ov::Node>&
                                                      std::make_shared<v0::Unsqueeze>(grids[1], axis),
                                                      std::make_shared<v0::Unsqueeze>(grids[0], axis),
                                                      std::make_shared<v0::Unsqueeze>(ones_b, axis)},
-                                        3);                                        
+                                        3);
 }
 
 std::shared_ptr<ov::Node> apply_affine_transform(const ov::Output<ov::Node>& theta,
@@ -239,7 +239,7 @@ ov::OutputVector affine_grid(const ov::OutputVector& inputs, const bool align_co
                                                                v0::Constant::create(ov::element::i32, Shape{1}, {2}),
                                                                v0::Constant::create(ov::element::i32, Shape{1}, {4}),
                                                                v0::Constant::create(ov::element::i32, Shape{1}, {1}),
-                                                               v0::Constant::create(ov::element::i32, Shape{1}, {0}));                
+                                                               v0::Constant::create(ov::element::i32, Shape{1}, {0}));
             auto grid = construct_original_grid_2d(data_size, align_corners);
             return {apply_affine_transform(theta, grid, 2)};
         } else if (rank == 5) {
