@@ -8,7 +8,7 @@
 
 namespace ov::intel_gpu {
 
-class TransposeFusion: public ov::pass::GraphRewrite {
+class TransposeFusion : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("TransposeFusion");
     TransposeFusion(bool supports_immad = false);
@@ -40,7 +40,7 @@ public:
 class TransposeConv1x1TransposeMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("TransposeConv1x1TransposeMatcher");
-    TransposeConv1x1TransposeMatcher();
+    TransposeConv1x1TransposeMatcher(bool supports_immad);
 };
 
-}   // namespace ov::intel_gpu
+}  // namespace ov::intel_gpu
