@@ -75,7 +75,7 @@ void prepare_primitive_fusing::run(program& p) {
             case 8:
                 optimize_fused_ops(p); return;
             default:
-                fuse_simple_primitives(p); return;
+                return;
         }
     }
 
