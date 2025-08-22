@@ -351,7 +351,7 @@ jobs:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Download selective build statistics package
-        uses: akashchi/download-artifact@d8498bae4558f325eebf6e7be5f4a16589d52f09
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_selective_build_stat
           path: ${{ env.SELECTIVE_BUILD_STAT_DIR }}
@@ -415,7 +415,7 @@ jobs:
 
     steps:
       - name: Download OpenVINO tests package
-        uses: akashchi/download-artifact@d8498bae4558f325eebf6e7be5f4a16589d52f09
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415
         with:
           name: openvino_tests
           path: ${{ env.INSTALL_TEST_DIR }}
