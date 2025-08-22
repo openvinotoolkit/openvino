@@ -150,9 +150,9 @@ protected:
         auto transformed_weights_shape = transpose_if_necessary(weights_shape);
         auto weights_rank = weights_shape.size();
         if (group_decompression) {
-            OPENVINO_ASSERT(weights_shape[weights_rank - 1] % group_size == 0,
+            OPENVINO_ASSERT(weights_shape[weights_rank - 2] % group_size == 0,
                             "Weights output channels count (",
-                            weights_shape[weights_rank - 1],
+                            weights_shape[weights_rank - 2],
                             ") must be divisible by decompression group size (",
                             group_size,
                             ").");
@@ -220,7 +220,7 @@ protected:
         std::shared_ptr<ov::Node> last_node = std::make_shared<ov::op::v1::Multiply>(mul_parent, scale_const);
 
         if (group_decompression) {
-            auto weight_hidden_idx = transpose_weights ? weights_shape.size() - 1 : weights_shape.size() - 2;
+            auto weight_hidden_idx = weights_shape.size() - 2;
             auto reshape_target_shape = transpose_weights ? std::vector<int>{-1, static_cast<int>(weights_shape[weight_hidden_idx])}
                                                           : std::vector<int>{static_cast<int>(weights_shape[weight_hidden_idx]), -1};
             for (size_t i = 0; i < weight_hidden_idx; ++i) {
